@@ -78,8 +78,6 @@ VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
 
 ifeq "$(symmetry)" "true"
 	CPPFLAGS += -DCUP2D_PRESERVE_SYMMETRY
-else ifneq "$(findstring prod,$(config))" ""
-	CPPFLAGS+= -ffast-math
 endif
 
 ifeq "$(cylinder_ref)" "true"
