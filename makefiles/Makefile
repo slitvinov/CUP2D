@@ -59,7 +59,7 @@ ifeq "$(findstring prod,$(config))" ""
 		LIBS+= -fsanitize=undefined
 	endif
 else
-	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
+	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native
 endif
 
 # SET FLOATING POINT ACCURACY
