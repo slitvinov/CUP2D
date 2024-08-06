@@ -24,7 +24,7 @@ ifeq "$(openmp)" "true"
 endif
 
 # FLAGS FOR EXTERNAL LIBRARIES
-LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
+LIBS+= -lgsl -lgslcblas -lhdf5
 
 # ADD LIBRARY PATHS IF GIVEN
 ifneq ($(HDF5_ROOT),)
