@@ -8,5 +8,7 @@ make 'NVCC =/usr/local/cuda-11.8/bin/nvcc -I/usr/local/cuda-11.8/targets/x86_64-
 grace
 ```
 cd makefiles
-make  -j 'gpu = true'
+module purge
+MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5
+OMPI_CXX=g++ make  -j 'gpu = true' 'CXX = mpic++ -I/scratch/slitvinov/.grace/include'
 ```
