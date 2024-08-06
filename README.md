@@ -8,5 +8,5 @@ make 'NVCC =/usr/local/cuda-11.8/bin/nvcc -I/usr/local/cuda-11.8/targets/x86_64-
 grace
 ```
 cd makefiles
-make 'gpu = true'
+make  -j 'gpu = true'
 ```
