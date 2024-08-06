@@ -14,6 +14,7 @@ ifneq ($(MPICXX),)
 else
 	CXX=mpic++
 endif
+LINK = $(CXX)
 
 # LOAD FLAGS -- GCC NEEDED
 CPPFLAGS+= -std=c++17 -g
@@ -118,11 +119,11 @@ all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
 debugRL: debugRL.o $(OBJECTS)
-	$(CXX) debugRL.o $(OBJECTS) $(LIBS) -o $@
+	$(LINK) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
 simulation: main.o $(OBJECTS)
-	$(CXX) main.o $(OBJECTS) $(LIBS) -o $@
+	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 cup.cflags.txt:
