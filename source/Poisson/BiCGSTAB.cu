@@ -219,7 +219,7 @@ void BiCGSTABSolver::updateAll()
         d_nil_, 
         spDescrNu_, 
         CUDA_R_64F, 
-        CUSPARSE_MV_ALG_DEFAULT, 
+        CUSPARSE_SPMV_ALG_DEFAULT,
         &locSpMVBuffSz_));
   checkCudaErrors(cudaMalloc(&locSpMVBuff_, locSpMVBuffSz_ * sizeof(char)));
   if (comm_size_ > 1)

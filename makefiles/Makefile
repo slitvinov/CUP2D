@@ -16,12 +16,7 @@ else
 endif
 
 # LOAD FLAGS -- GCC NEEDED
-CPPFLAGS+= -std=c++17 -Wall -g
-CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter
-CPPFLAGS+= -Wno-float-equal
-CPPFLAGS+= -Wno-redundant-decls
+CPPFLAGS+= -std=c++17 -g
 
 ifeq "$(openmp)" "true"
 	CPPFLAGS+= -fopenmp
@@ -111,14 +106,12 @@ NVCC ?= nvcc
 NVCCFLAGS ?= -code=sm_60 -arch=compute_60
 ifeq ("$(gpu)", "true")
 	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
+	CPPFLAGS += -fopenmp -DGPU_POISSON
 	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
 	LIBS += -lcudart -lcublas -lcusparse
 	ifeq ("$(profile)", "true")
 		NVCCFLAGS += -DBICGSTAB_PROFILER
 	endif
-else
-  CPPFLAGS += -Wno-unknown-pragmas
 endif
 
 # DEFINE COMPILATION TARGETS
