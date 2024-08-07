@@ -133,9 +133,9 @@ cup.libs.txt:
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
-	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
 %.d: %.cu
-	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c -MD $<
+	$(NVCC) $(NVCCFLAGS) -c -MD $<
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 %.d: %.cpp
