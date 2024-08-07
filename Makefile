@@ -3,7 +3,6 @@ precision ?= double
 bs ?= 8
 gpu ?= false
 openmp ?= false
-profile ?= false
 onetbb ?= false
 symmetry ?= false
 cylinder_ref ?= false
@@ -87,28 +86,50 @@ endif
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -I.. -DDIMENSION=2
 
-OBJECTS = \
-		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
-		PressureSingle.o PutObjectsOnGrid.o advDiff.o ComputeForces.o\
-		AdaptTheMesh.o AMRSolver.o Shape.o ShapeLibrary.o ShapesSimple.o \
-		Fish.o FishData.o SmartCylinder.o StefanFish.o CarlingFish.o  \
-		Naca.o CStartFish.o ZebraFish.o NeuroKinematicFish.o  Windmill.o \
-		Waterturbine.o Teardrop.o ExperimentFish.o Base.o Forcing.o advDiffSGS.o CylinderNozzle.o \
-		SmartNaca.o
+S = \
+source/AdaptTheMesh.cpp \
+source/advDiff.cpp \
+source/advDiffSGS.cpp \
+source/AMRSolver.cpp \
+source/ArgumentParser.cpp \
+source/Base.cpp \
+source/BufferedLogger.cpp \
+source/CarlingFish.cpp \
+source/ComputeForces.cpp \
+source/CStartFish.cpp \
+source/CylinderNozzle.cpp \
+source/ExperimentFish.cpp \
+source/FishData.cpp \
+source/Fish.cpp \
+source/Forcing.cpp \
+source/Helpers.cpp \
+source/Naca.cpp \
+source/NeuroKinematicFish.cpp \
+source/PressureSingle.cpp \
+source/PutObjectsOnGrid.cpp \
+source/ShapeLibrary.cpp \
+source/Shape.cpp \
+source/ShapesSimple.cpp \
+source/SimulationData.cpp \
+source/Simulation.cpp \
+source/SmartCylinder.cpp \
+source/SmartNaca.cpp \
+source/StefanFish.cpp \
+source/Teardrop.cpp \
+source/Waterturbine.cpp \
+source/Windmill.cpp \
+source/ZebraFish.cpp \
+
+OBJECTS = $(S:.cpp=.o)
 
 #################################################
 # CUDA
 #################################################
 NVCC ?= nvcc
-ifeq ("$(gpu)", "true")
-	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON
-	NVCCFLAGS += -arch=native -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
-	LIBS += -lcublas -lcusparse
-	ifeq ("$(profile)", "true")
-		NVCCFLAGS += -DBICGSTAB_PROFILER
-	endif
-endif
+OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
+CPPFLAGS += -fopenmp -DGPU_POISSON
+NVCCFLAGS += -arch=native -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
+LIBS += -lcublas -lcusparse
 
 # DEFINE COMPILATION TARGETS
 all: simulation libcup.a
