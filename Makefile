@@ -49,11 +49,13 @@ source/Shape.cpp \
 source/Simulation.cpp \
 source/SimulationData.cpp \
 source/Utils/BufferedLogger.cpp \
+
+C = \
 source/Poisson/BiCGSTAB.cu \
 source/Poisson/ExpAMRSolver.cpp \
 source/Poisson/LocalSpMatDnVec.cpp \
 
-OBJECTS = $(S:.cpp=.o)
+OBJECTS = $(S:.cpp=.o) $($(C:.cpp=.o):.cu=.o)
 NVCC = nvcc
 OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
 CPPFLAGS += -fopenmp -DGPU_POISSON
