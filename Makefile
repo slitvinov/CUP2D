@@ -14,6 +14,7 @@ FLAGS =\
 -D_DOUBLE_PRECISION_\
 -DGPU_POISSON\
 -DNDEBUG\
+-fopenmp\
 -I.\
 -O3\
 -std=c++17\
