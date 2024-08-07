@@ -44,8 +44,6 @@ ifeq "$(onetbb)" "true"
 	LIBS     += -L$(ONETBBROOT)/lib64 -ltbb
 	CPPFLAGS += -I$(ONETBBROOT)/include
 	CPPFLAGS += -DCUBISM_USE_ONETBB
-	#LIBS     += -L/users/chatzima/my_installed_onetbb/lib64 -ltbb
-	#CPPFLAGS += -I/users/chatzima/my_installed_onetbb/include
 endif
 
 # ENABLE OPTIMIZATION/DEBUG FLAGS IF WISHED
