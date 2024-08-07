@@ -7,7 +7,7 @@ cylinder_ref ?= false
 CXX = mpic++
 LINK = $(CXX)
 LIBS = -lgsl -lgslcblas -lhdf5
-CPPFLAGS = std=c++17 -g -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -D_DOUBLE_PRECISION_
+CPPFLAGS = -std=c++17 -g -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -D_DOUBLE_PRECISION_
 ifeq "$(symmetry)" "true"
 	CPPFLAGS += -DCUP2D_PRESERVE_SYMMETRY
 endif
