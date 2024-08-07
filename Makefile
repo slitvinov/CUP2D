@@ -84,7 +84,7 @@ endif
 
 # SET FLAGS FOR CUBISM
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
-CPPFLAGS += -I.. -DDIMENSION=2
+CPPFLAGS += -I. -DDIMENSION=2
 
 S = \
 source/ArgumentParser.cpp \
