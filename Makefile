@@ -87,38 +87,38 @@ CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -I.. -DDIMENSION=2
 
 S = \
-source/AdaptTheMesh.cpp \
-source/advDiff.cpp \
-source/advDiffSGS.cpp \
-source/AMRSolver.cpp \
 source/ArgumentParser.cpp \
-source/Base.cpp \
-source/BufferedLogger.cpp \
-source/CarlingFish.cpp \
-source/ComputeForces.cpp \
-source/CStartFish.cpp \
-source/CylinderNozzle.cpp \
-source/ExperimentFish.cpp \
-source/FishData.cpp \
-source/Fish.cpp \
-source/Forcing.cpp \
-source/Helpers.cpp \
-source/Naca.cpp \
-source/NeuroKinematicFish.cpp \
-source/PressureSingle.cpp \
-source/PutObjectsOnGrid.cpp \
-source/ShapeLibrary.cpp \
+source/Obstacles/CarlingFish.cpp \
+source/Obstacles/CStartFish.cpp \
+source/Obstacles/CylinderNozzle.cpp \
+source/Obstacles/ExperimentFish.cpp \
+source/Obstacles/Fish.cpp \
+source/Obstacles/FishData.cpp \
+source/Obstacles/Naca.cpp \
+source/Obstacles/NeuroKinematicFish.cpp \
+source/Obstacles/ShapeLibrary.cpp \
+source/Obstacles/ShapesSimple.cpp \
+source/Obstacles/SmartCylinder.cpp \
+source/Obstacles/SmartNaca.cpp \
+source/Obstacles/StefanFish.cpp \
+source/Obstacles/Teardrop.cpp \
+source/Obstacles/Waterturbine.cpp \
+source/Obstacles/Windmill.cpp \
+source/Obstacles/ZebraFish.cpp \
+source/Operators/AdaptTheMesh.cpp \
+source/Operators/advDiff.cpp \
+source/Operators/advDiffSGS.cpp \
+source/Operators/ComputeForces.cpp \
+source/Operators/Forcing.cpp \
+source/Operators/Helpers.cpp \
+source/Operators/PressureSingle.cpp \
+source/Operators/PutObjectsOnGrid.cpp \
+source/Poisson/AMRSolver.cpp \
+source/Poisson/Base.cpp \
 source/Shape.cpp \
-source/ShapesSimple.cpp \
-source/SimulationData.cpp \
 source/Simulation.cpp \
-source/SmartCylinder.cpp \
-source/SmartNaca.cpp \
-source/StefanFish.cpp \
-source/Teardrop.cpp \
-source/Waterturbine.cpp \
-source/Windmill.cpp \
-source/ZebraFish.cpp \
+source/SimulationData.cpp \
+source/Utils/BufferedLogger.cpp \
 
 OBJECTS = $(S:.cpp=.o)
 
