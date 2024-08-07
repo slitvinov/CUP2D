@@ -1,19 +1,8 @@
-config ?= production
-precision ?= double
-bs ?= 8
-gpu ?= false
-symmetry ?= false
-cylinder_ref ?= false
+bs = 8
 CXX = mpic++
 LINK = $(CXX)
 LIBS = -lgsl -lgslcblas -lhdf5
-CPPFLAGS = -std=c++17 -g -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -D_DOUBLE_PRECISION_
-ifeq "$(symmetry)" "true"
-	CPPFLAGS += -DCUP2D_PRESERVE_SYMMETRY
-endif
-ifeq "$(cylinder_ref)" "true"
-	CPPFLAGS += -DCUP2D_CYLINDER_REF
-endif
+CPPFLAGS = -g -DNDEBUG -O3 -D_DOUBLE_PRECISION_
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
 CPPFLAGS += -I. -DDIMENSION=2
 S = \
@@ -59,7 +48,7 @@ OBJECTS = $(S:.cpp=.o) $(C:.cu=.o)
 NVCC = nvcc
 OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
 CPPFLAGS += -fopenmp -DGPU_POISSON
-NVCCFLAGS += -arch=native -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
+NVCCFLAGS += -arch=native -O3 -Xcompiler '$(CPPFLAGS)' -DGPU_POISSON
 LIBS += -lcublas -lcusparse
 all: simulation
 simulation: source/main.o $(OBJECTS)
