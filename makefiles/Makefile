@@ -104,7 +104,7 @@ ifeq ("$(gpu)", "true")
 	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
 	CPPFLAGS += -fopenmp -DGPU_POISSON
 	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
-	LIBS += -lcublas
+	LIBS += -lcublas -lcusparse
 	ifeq ("$(profile)", "true")
 		NVCCFLAGS += -DBICGSTAB_PROFILER
 	endif
