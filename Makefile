@@ -4,7 +4,7 @@
 
 NVCC = nvcc
 MPICXX = mpic++
-LINK = nvcc -ccbin='$(MPICXX)'
+LINK = $(MPICXX)
 
 FLAGS = \
 -D_BS_=8 \
