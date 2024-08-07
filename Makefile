@@ -1,14 +1,13 @@
 .POSIX:
 .SUFFIXES:
-.SUFFIXES: .cpp
-.SUFFIXES: .o
+.SUFFIXES: .cpp .cu .o
 
 bs = 8
 MPIC++ = mpic++
 LIBS = -lgsl -lgslcblas -lhdf5
 GSL_CFLAGS != pkg-config --cflags gsl
 GSL_LDFLAGS != pkg-config --libs gsl
-CXXFLAGS = -g -DNDEBUG -O3 -D_DOUBLE_PRECISION_ -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I. -DDIMENSION=2 -fopenmp -DGPU_POISSON
+CXXFLAGS = -DNDEBUG -O3 -D_DOUBLE_PRECISION_ -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I. -DDIMENSION=2 -fopenmp -DGPU_POISSON
 S = \
 source/ArgumentParser.cpp \
 source/Obstacles/CarlingFish.cpp \
