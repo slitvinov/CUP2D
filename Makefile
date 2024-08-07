@@ -2,62 +2,69 @@
 .SUFFIXES:
 .SUFFIXES: .cpp .cu .o
 
-bs = 8
-MPIC++ = mpic++
+NVCC = nvcc
+MPICXX = mpic++
 LIBS = -lgsl -lgslcblas -lhdf5
+
 GSL_CFLAGS != pkg-config --cflags gsl
 GSL_LDFLAGS != pkg-config --libs gsl
-CXXFLAGS = -DNDEBUG -O3 -D_DOUBLE_PRECISION_ -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I. -DDIMENSION=2 -fopenmp -DGPU_POISSON
-S = \
-source/ArgumentParser.cpp \
-source/Obstacles/CarlingFish.cpp \
-source/Obstacles/CStartFish.cpp \
-source/Obstacles/CylinderNozzle.cpp \
-source/Obstacles/ExperimentFish.cpp \
-source/Obstacles/Fish.cpp \
-source/Obstacles/FishData.cpp \
-source/Obstacles/Naca.cpp \
-source/Obstacles/NeuroKinematicFish.cpp \
-source/Obstacles/ShapeLibrary.cpp \
-source/Obstacles/ShapesSimple.cpp \
-source/Obstacles/SmartCylinder.cpp \
-source/Obstacles/SmartNaca.cpp \
-source/Obstacles/StefanFish.cpp \
-source/Obstacles/Teardrop.cpp \
-source/Obstacles/Waterturbine.cpp \
-source/Obstacles/Windmill.cpp \
-source/Obstacles/ZebraFish.cpp \
-source/Operators/AdaptTheMesh.cpp \
-source/Operators/advDiff.cpp \
-source/Operators/advDiffSGS.cpp \
-source/Operators/ComputeForces.cpp \
-source/Operators/Forcing.cpp \
-source/Operators/Helpers.cpp \
-source/Operators/PressureSingle.cpp \
-source/Operators/PutObjectsOnGrid.cpp \
-source/Poisson/AMRSolver.cpp \
-source/Poisson/Base.cpp \
-source/Shape.cpp \
-source/Simulation.cpp \
-source/SimulationData.cpp \
-source/Utils/BufferedLogger.cpp \
-source/Poisson/ExpAMRSolver.cpp \
-source/Poisson/LocalSpMatDnVec.cpp \
 
-C = \
-source/Poisson/BiCGSTAB.cu \
+HDF_CFLAGS != pkg-config --cflags hdf5-openmpi
+HDF_LDFLAGS != pkg-config --libs hdf5-openmpi
 
-OBJECTS = $(S:.cpp=.o) $(C:.cu=.o)
-NVCC = nvcc
-NVCCFLAGS = -arch=native -O3 -Xcompiler '$(CXXFLAGS)'
-LIBS = -lcublas -lcusparse
-all: simulation
-simulation: source/main.o $(OBJECTS)
-	$(LINK) -arch=native  main.o $(OBJECTS) $(LIBS) -o $@
+FLAGS = \
+-D_BS_=8 \
+-DCUBISM_ALIGNMENT=32 \
+-D_DOUBLE_PRECISION_ \
+-DGPU_POISSON -std=c++17 \
+-DNDEBUG \
+-I. -DDIMENSION=2 \
+-O3 \
+
+O = \
+source/ArgumentParser.o \
+source/main.o \
+source/Obstacles/CarlingFish.o \
+source/Obstacles/CStartFish.o \
+source/Obstacles/CylinderNozzle.o \
+source/Obstacles/ExperimentFish.o \
+source/Obstacles/FishData.o \
+source/Obstacles/Fish.o \
+source/Obstacles/Naca.o \
+source/Obstacles/NeuroKinematicFish.o \
+source/Obstacles/ShapeLibrary.o \
+source/Obstacles/ShapesSimple.o \
+source/Obstacles/SmartCylinder.o \
+source/Obstacles/SmartNaca.o \
+source/Obstacles/StefanFish.o \
+source/Obstacles/Teardrop.o \
+source/Obstacles/Waterturbine.o \
+source/Obstacles/Windmill.o \
+source/Obstacles/ZebraFish.o \
+source/Operators/AdaptTheMesh.o \
+source/Operators/advDiff.o \
+source/Operators/advDiffSGS.o \
+source/Operators/ComputeForces.o \
+source/Operators/Forcing.o \
+source/Operators/Helpers.o \
+source/Operators/PressureSingle.o \
+source/Operators/PutObjectsOnGrid.o \
+source/Poisson/AMRSolver.o \
+source/Poisson/Base.o \
+source/Poisson/BiCGSTAB.o \
+source/Poisson/ExpAMRSolver.o \
+source/Poisson/LocalSpMatDnVec.o \
+source/Shape.o \
+source/SimulationData.o \
+source/Simulation.o \
+source/Utils/BufferedLogger.o \
+
+NVCCFLAGS =
+main: $O
+	$(MPICXX) -o main $O $(GSL_LDFLAGS) $(HDF_LDFLAGS) $(LDFLAGS) -fopenmp -lcublas -lcusparse
 .cpp.o:
-	$(MPICXX) -o $@ -c $< $(CXXFLAGS) $(GSL_CFLAGS)
+	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS) $(GSL_CFLAGS) $(HDF_CFLAGS)
 .cu.o:
-	$(NVCCFLAGS) -o $@ -c $< $(NVCCFLAGS)
+	$(NVCC) -o $@ -c $< $(NVCCFLAGS) -arch=native -O3 -Xcompiler '$(FLAGS)'
 clean:
-	rm -f simulation $(OBJECTS)
-	rm -f *.o
+	rm -f main $O
