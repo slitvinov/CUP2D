@@ -4,7 +4,7 @@
 
 NVCC = nvcc
 MPICXX = mpic++
-LINK = $(MPICXX)
+LINK = nvcc -ccbin $(MPICXX)
 
 FLAGS = \
 -D_BS_=8 \
@@ -56,7 +56,7 @@ source/Utils/BufferedLogger.o \
 
 NVCCFLAGS =
 main: $O
-	$(LINK) -o main $O $(LDFLAGS) -fopenmp -lcublas -lcusparse
+	$(LINK) -o main $O $(LDFLAGS) -Xcompiler -fopenmp -lcublas -lcusparse
 .cpp.o:
 	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
