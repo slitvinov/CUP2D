@@ -102,12 +102,10 @@ OBJECTS = \
 # CUDA
 #################################################
 NVCC ?= nvcc
-NVCCFLAGS ?= -code=sm_60 -arch=compute_60
 ifeq ("$(gpu)", "true")
 	OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
 	CPPFLAGS += -fopenmp -DGPU_POISSON
 	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
-	LIBS += -lcudart -lcublas -lcusparse
 	ifeq ("$(profile)", "true")
 		NVCCFLAGS += -DBICGSTAB_PROFILER
 	endif
