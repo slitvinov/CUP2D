@@ -136,7 +136,7 @@ all: simulation libcup.a
 .DEFAULT: all
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
-simulation: main.o $(OBJECTS)
+simulation: source/main.o $(OBJECTS)
 	$(LINK) -arch=native  main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
