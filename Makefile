@@ -4,7 +4,6 @@
 
 NVCC = nvcc
 MPICXX = mpic++
-LIBS = -lgsl -lgslcblas -lhdf5
 
 GSL_CFLAGS != pkg-config --cflags gsl
 GSL_LDFLAGS != pkg-config --libs gsl
@@ -16,10 +15,11 @@ FLAGS = \
 -D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
 -D_DOUBLE_PRECISION_ \
--DGPU_POISSON -std=c++17 \
+-DGPU_POISSON \
 -DNDEBUG \
 -I. -DDIMENSION=2 \
 -O3 \
+-std=c++17 \
 
 O = \
 source/ArgumentParser.o \
