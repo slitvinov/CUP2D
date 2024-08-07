@@ -5,12 +5,6 @@
 NVCC = nvcc
 MPICXX = mpic++
 
-GSL_CFLAGS != pkg-config --cflags gsl
-GSL_LDFLAGS != pkg-config --libs gsl
-
-HDF_CFLAGS != pkg-config --cflags hdf5-openmpi
-HDF_LDFLAGS != pkg-config --libs hdf5-openmpi
-
 FLAGS = \
 -D_BS_=8 \
 -DCUBISM_ALIGNMENT=32 \
