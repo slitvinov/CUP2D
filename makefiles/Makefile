@@ -130,14 +130,10 @@ libcup.a: $(OBJECTS)
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
 	$(NVCC) $(NVCCFLAGS) -c $< -o $@
-%.d: %.cu
-	$(NVCC) $(NVCCFLAGS) -c -MD $<
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
-%.d: %.cpp
-	$(CXX) $(CPPFLAGS) -c -MD $<
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
-	rm -f debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
-	rm -f *.o *.d
+	rm -f debugRL simulation libcup.a
+	rm -f *.o
