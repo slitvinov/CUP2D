@@ -2,9 +2,10 @@
 .SUFFIXES:
 .SUFFIXES: .cpp .cu .o
 
-NVCC = nvcc
 MPICXX = mpic++
-LINK = nvcc -ccbin='$(MPICXX)'
+NVCC = nvcc -ccbin='$(MPICXX)'
+LINK = $(NVCC)
+LIBS = -lcublas -lcusparse -lhdf5 -lgsl -lgslcblas
 
 FLAGS = \
 -D_BS_=8 \
@@ -57,7 +58,7 @@ source/Utils/BufferedLogger.o \
 
 NVCCFLAGS =
 main: $O
-	$(LINK) -o main $O $(LDFLAGS) -Xcompiler -fopenmp -lcublas -lcusparse -lhdf5 -lgsl -lgslcblas
+	$(LINK) -o main $O $(LDFLAGS) -Xcompiler -fopenmp $(LIBS)
 .cpp.o:
 	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
