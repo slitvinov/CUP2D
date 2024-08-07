@@ -10,5 +10,5 @@ grace
 cd makefiles
 module purge
 MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5
-make 'gpu = true' 'CXX = OMPI_CXX=g++ -I/scratch/slitvinov/.grace/include -I/scratch/slitvinov/.grace/Linux_aarch64/24.5/cuda/12.4/targets/sbsa-linux/include' 'LINK = nvcc -ccbin=mpic++ -L/scratch/slitvinov/.grace/lib/' -j
+make 'gpu = true' 'CXX = OMPI_CXX=g++ mpic++ -I/scratch/slitvinov/.grace/include -I/scratch/slitvinov/.grace/Linux_aarch64/24.5/cuda/12.4/targets/sbsa-linux/include' 'LINK = nvcc -ccbin=mpic++ -L/scratch/slitvinov/.grace/lib/' -j
 ```

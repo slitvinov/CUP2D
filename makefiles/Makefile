@@ -114,7 +114,7 @@ ifeq ("$(gpu)", "true")
 endif
 
 # DEFINE COMPILATION TARGETS
-all: debugRL simulation libcup.a cup.cflags.txt cup.libs.txt
+all: debugRL simulation libcup.a
 .DEFAULT: all
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
