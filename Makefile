@@ -1,10 +1,14 @@
+.POSIX:
+.SUFFIXES:
+.SUFFIXES: .cpp
+.SUFFIXES: .o
+
 bs = 8
-CXX = mpic++
-LINK = $(CXX)
+MPIC++ = mpic++
 LIBS = -lgsl -lgslcblas -lhdf5
-CPPFLAGS = -g -DNDEBUG -O3 -D_DOUBLE_PRECISION_
-CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
-CPPFLAGS += -I. -DDIMENSION=2
+GSL_CFLAGS != pkg-config --cflags gsl
+GSL_LDFLAGS != pkg-config --libs gsl
+CXXFLAGS = -g -DNDEBUG -O3 -D_DOUBLE_PRECISION_ -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32 -I. -DDIMENSION=2 -fopenmp -DGPU_POISSON
 S = \
 source/ArgumentParser.cpp \
 source/Obstacles/CarlingFish.cpp \
@@ -46,19 +50,15 @@ source/Poisson/BiCGSTAB.cu \
 
 OBJECTS = $(S:.cpp=.o) $(C:.cu=.o)
 NVCC = nvcc
-OBJECTS += ExpAMRSolver.o BiCGSTAB.o LocalSpMatDnVec.o
-CPPFLAGS += -fopenmp -DGPU_POISSON
-NVCCFLAGS += -arch=native -O3 -Xcompiler '$(CPPFLAGS)' -DGPU_POISSON
-LIBS += -lcublas -lcusparse
+NVCCFLAGS = -arch=native -O3 -Xcompiler '$(CXXFLAGS)'
+LIBS = -lcublas -lcusparse
 all: simulation
 simulation: source/main.o $(OBJECTS)
 	$(LINK) -arch=native  main.o $(OBJECTS) $(LIBS) -o $@
-libcup.a: $(OBJECTS)
-	ar rcs $@ $(OBJECTS)
-%.o: %.cu
-	$(NVCC) $(NVCCFLAGS) -c $< -o $@
-%.o: %.cpp
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+.cpp.o:
+	$(MPICXX) -o $@ -c $< $(CXXFLAGS) $(GSL_CFLAGS)
+.cu.o:
+	$(NVCCFLAGS) -o $@ -c $< $(NVCCFLAGS)
 clean:
 	rm -f simulation $(OBJECTS)
 	rm -f *.o
