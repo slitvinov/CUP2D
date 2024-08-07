@@ -55,9 +55,9 @@ source/Utils/BufferedLogger.o \
 
 NVCCFLAGS =
 main: $O
-	$(MPICXX) -o main $O $(GSL_LDFLAGS) $(HDF_LDFLAGS) $(LDFLAGS) -fopenmp -lcublas -lcusparse
+	$(MPICXX) -o main $O $(LDFLAGS) -fopenmp -lcublas -lcusparse
 .cpp.o:
-	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS) $(GSL_CFLAGS) $(HDF_CFLAGS)
+	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
 	$(NVCC) -o $@ -c $< $(NVCCFLAGS) -arch=native -Xcompiler '$(FLAGS)'
 clean:

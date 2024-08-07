@@ -8,6 +8,9 @@ grace
 ```
 module purge
 MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5
+module load mpi/openmpi-aarch64
+make 'NVCC = nvcc -ccbin=mpic++' 'MPICXX = OMPI_CXX=/scratch/slitvinov/.grace/bin/h5cc mpic++ ' CXXFLAGS = -I/scratch/slitvinov/.grace/include -I/scratch/slitvinov/.grace/Linux_aarch64/24.5/cuda/12.4/targets/sbsa-linux/include'
+
 make 'gpu = true' 'CXX = OMPI_CXX=g++ mpic++ -I/scratch/slitvinov/.grace/include -I/scratch/slitvinov/.grace/Linux_aarch64/24.5/cuda/12.4/targets/sbsa-linux/include' 'LINK = nvcc -ccbin=mpic++ -L/scratch/slitvinov/.grace/lib -Xlinker -R/scratch/slitvinov/.grace/lib/' NVCC='nvcc -ccbin=mpic++' -j
 ```
 
