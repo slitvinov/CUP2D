@@ -111,16 +111,12 @@ ifeq ("$(gpu)", "true")
 endif
 
 # DEFINE COMPILATION TARGETS
-all: debugRL simulation libcup.a
+all: simulation libcup.a
 .DEFAULT: all
-
-# COMPILATION INSTRUCTIONS FOR APPLICATION THAT CAN REPRODUCE AN RL RUN
-debugRL: debugRL.o $(OBJECTS)
-	$(LINK) debugRL.o $(OBJECTS) $(LIBS) -o $@
 
 # COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
 simulation: main.o $(OBJECTS)
-	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
+	$(LINK) -arch=native  main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
 
@@ -132,5 +128,5 @@ libcup.a: $(OBJECTS)
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
-	rm -f debugRL simulation libcup.a
+	rm -f simulation libcup.a
 	rm -f *.o
