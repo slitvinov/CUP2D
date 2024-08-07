@@ -85,7 +85,7 @@ endif
 
 # SET FLAGS FOR CUBISM
 CPPFLAGS+= -D_BS_=$(bs) -DCUBISM_ALIGNMENT=32
-CPPFLAGS += -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=2
+CPPFLAGS += -I.. -DDIMENSION=2
 
 OBJECTS = \
 		Simulation.o SimulationData.o BufferedLogger.o Helpers.o ArgumentParser.o \
