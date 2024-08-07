@@ -126,10 +126,6 @@ simulation: main.o $(OBJECTS)
 	$(LINK) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
-cup.cflags.txt:
-	echo '$(CPPFLAGS)' > cup.cflags.txt
-cup.libs.txt:
-	echo '$(LIBS)' > cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
