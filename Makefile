@@ -49,6 +49,10 @@ source/Shape.cpp \
 source/Simulation.cpp \
 source/SimulationData.cpp \
 source/Utils/BufferedLogger.cpp \
+# cuda
+source/Poisson/BiCGSTAB.cu \
+source/Poisson/ExpAMRSolver.cpp \
+source/Poisson/LocalSpMatDnVec.cpp \
 
 OBJECTS = $(S:.cpp=.o)
 NVCC = nvcc
