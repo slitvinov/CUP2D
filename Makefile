@@ -6,6 +6,7 @@ MPICXX = mpic++
 NVCC = nvcc -ccbin='$(MPICXX)'
 LINK = $(NVCC)
 LIBS = -lcublas -lcusparse -lhdf5 -lgsl -lgslcblas
+OPENMPFLAGS = -fopenmp
 
 FLAGS =\
 -D_BS_=8\
@@ -14,7 +15,7 @@ FLAGS =\
 -D_DOUBLE_PRECISION_\
 -DGPU_POISSON\
 -DNDEBUG\
--fopenmp\
+$(OPENMPFLAGS)\
 -I.\
 -O3\
 -std=c++17\
@@ -59,7 +60,7 @@ source/Utils/BufferedLogger.o\
 
 NVCCFLAGS =
 main: $O
-	$(LINK) -o main $O $(LDFLAGS) -Xcompiler -fopenmp $(LIBS)
+	$(LINK) -o main $O $(LDFLAGS) -Xcompiler $(OPENMPFLAGS) $(LIBS)
 .cpp.o:
 	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
