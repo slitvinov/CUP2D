@@ -64,6 +64,6 @@ main: $O
 .cpp.o:
 	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
-	$(NVCC) -o $@ -c $< $(NVCCFLAGS) -arch=native -Xcompiler '$(FLAGS)'
+	$(NVCC) -o $@ -c $< $(NVCCFLAGS) -Xcompiler '$(FLAGS)'
 clean:
 	rm -f main $O
