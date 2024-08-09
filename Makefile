@@ -22,14 +22,9 @@ $(OPENMPFLAGS)\
 
 
 O =\
-ArgumentParser.o\
 BiCGSTAB.o\
-BufferedLogger.o\
-Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
-Shape.o\
-SimulationData.o\
 
 NVCCFLAGS =
 main: $O
