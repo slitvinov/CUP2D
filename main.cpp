@@ -109,7 +109,6 @@ public:
 
   void loud() { bVerbose = true; }
 
-  void print_args();
 };
 
 class ArgumentParser : public CommandlineParser {
@@ -126,10 +125,6 @@ class ArgumentParser : public CommandlineParser {
 
   // for runtime interaction (we keep the original map)
   ArgMap mapRuntime;
-
-  // helper
-  void _ignoreComments(std::istream &stream, char commentChar);
-  void _parseFile(std::ifstream &stream, ArgMap &container);
 
 public:
   ArgumentParser(const int _argc, char **_argv, const char cstart = '#')
@@ -152,7 +147,6 @@ public:
   void read_runtime_environment();
 
   Value &parseRuntime(std::string key);
-  void print_args(void);
 };
 
 } // namespace cubism
@@ -309,66 +303,6 @@ void CommandlineParser::print_args() {
   }
 }
 
-void ArgumentParser::_ignoreComments(std::istream &stream,
-                                     const char commentChar) {
-  stream >> std::ws;
-  int nextchar = stream.peek();
-  while (nextchar == commentChar) {
-    stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    stream >> std::ws;
-    nextchar = stream.peek();
-  }
-}
-
-void ArgumentParser::_parseFile(std::ifstream &stream, ArgMap &container) {
-  // read (key value) pairs from input file, ignore comments
-  // beginning with commentStart
-  _ignoreComments(stream, commentStart);
-  while (!stream.eof()) {
-    std::string line, key, val;
-    std::getline(stream, line);
-    std::istringstream lineStream(line);
-    lineStream >> key;
-    lineStream >> val;
-    _ignoreComments(lineStream, commentStart);
-    while (!lineStream.eof()) {
-      std::string multiVal;
-      lineStream >> multiVal;
-      val += (" " + multiVal);
-      _ignoreComments(lineStream, commentStart);
-    }
-
-    const Value V(val);
-    if (key[0] == '-')
-      key.erase(0, 1);
-
-    if (key[0] == '+') {
-      key.erase(0, 1);
-      if (!_existKey(key, container)) // skip leading white space
-        container[key] = V;
-      else
-        container[key] += V;
-    } else if (!_existKey(key, container))
-      container[key] = V;
-    _ignoreComments(stream, commentStart);
-  }
-}
-
-void ArgumentParser::readFile(const std::string &filepath) {
-  from_files[filepath] = new ArgMap;
-  ArgMap &myFMap = *(from_files[filepath]);
-
-  std::ifstream confFile(filepath.c_str());
-  if (confFile.good()) {
-    _parseFile(confFile, mapArguments);
-    confFile.clear();
-    confFile.seekg(0, std::ios::beg);
-    _parseFile(confFile,
-               myFMap); // we keep a reference for each separate file read
-  }
-  confFile.close();
-}
-
 Value &ArgumentParser::operator()(std::string key) {
   _normalizeKey(key);
   const bool bDefaultInCode = !_existKey(key, mapArguments);
@@ -416,25 +350,6 @@ void ArgumentParser::write_runtime_environment() const {
            mapArguments.begin();
        it != mapArguments.end(); ++it)
     runtime << it->first << '\t' << it->second << std::endl;
-}
-
-void ArgumentParser::read_runtime_environment() {
-  mapRuntime.clear();
-  std::ifstream runtime("runtime_environment.conf");
-  if (runtime.good())
-    _parseFile(runtime, mapRuntime);
-  runtime.close();
-}
-
-Value &ArgumentParser::parseRuntime(std::string key) {
-  _normalizeKey(key);
-  if (!_existKey(key, mapRuntime)) {
-    printf("ERROR: Runtime parsing for key %s NOT FOUND!! Check your "
-           "runtime_environment.conf file\n",
-           key.data());
-    abort();
-  }
-  return mapRuntime[key];
 }
 
 void ArgumentParser::print_args() {
