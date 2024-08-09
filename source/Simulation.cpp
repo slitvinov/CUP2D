@@ -13,7 +13,6 @@
 #include "Operators/PutObjectsOnGrid.h"
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
-#include "Operators/advDiffSGS.h"
 #include "Operators/AdaptTheMesh.h"
 #include "Operators/Forcing.h"
 
@@ -124,10 +123,7 @@ void Simulation::init()
 
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
-  if( sim.smagorinskyCoeff == 0 )
-    pipeline.push_back(std::make_shared<advDiff>(sim));
-  else
-    pipeline.push_back(std::make_shared<advDiffSGS>(sim));
+  pipeline.push_back(std::make_shared<advDiff>(sim));
   if( sim.bForcing )
     pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));

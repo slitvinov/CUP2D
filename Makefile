@@ -28,7 +28,6 @@ source/Obstacles/Fish.o\
 source/Obstacles/StefanFish.o\
 source/Operators/AdaptTheMesh.o\
 source/Operators/advDiff.o\
-source/Operators/advDiffSGS.o\
 source/Operators/ComputeForces.o\
 source/Operators/Forcing.o\
 source/Operators/Helpers.o\
