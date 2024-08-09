@@ -22,8 +22,7 @@ $(OPENMPFLAGS)\
 
 
 O =\
-BiCGSTAB.o\
-LocalSpMatDnVec.o\
+cuda.o\
 main.o\
 
 NVCCFLAGS =

@@ -1,33 +1,59 @@
-#include <cstdio>
-#include <string>
-#include <cstring>
+#include <algorithm>
+#include <array>
+#include <assert.h>
+#include <cassert>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <fstream>
+#include <gsl/gsl_linalg.h>
+#include <hdf5.h>
 #include <iomanip>
+#include <ios>
+#include <iosfwd>
 #include <iostream>
-#include <sstream>
+#include <iterator>
 #include <limits>
-
-/*
- *  ArgumentParser.h
- *  Cubism
- *
- *	This argument parser assumes that all arguments are optional ie, each of the argument names is preceded by a '-'
- *		all arguments are however NOT optional to avoid a mess with default values and returned values when not found!
- *
- *	More converter could be required:
- *		add as needed
- *			TypeName as{TypeName}() in Value
- *
- *  Created by Christian Conti on 6/7/10.
- *  Copyright 2010 ETH Zurich. All rights reserved.
- *
- */
-
-
-#include <iosfwd> // Forward declaration of <iostream>
 #include <map>
+#include <math.h>
+#include <memory>
+#include <mpi.h>
+#include <numeric>
+#include <omp.h>
+#include <random>
+#include <set>
+#include <sstream>
+#include <stack>
+#include <stdio.h>
 #include <string>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#include "cuda.h"
+
+#define OMPI_SKIP_MPICXX 1
+#ifdef _FLOAT_PRECISION_
+using Real = float;
+#define MPI_Real MPI_FLOAT
+#endif
+#ifdef _DOUBLE_PRECISION_
+using Real = double;
+#define MPI_Real MPI_DOUBLE
+#endif
+#ifdef _LONG_DOUBLE_PRECISION_
+using Real = long double;
+#define MPI_Real MPI_LONG_DOUBLE
+#endif
+#ifndef DIMENSION
+#define DIMENSION 3
+#endif
+#ifndef CUBISM_ALIGNMENT
+#define CUBISM_ALIGNMENT 32
+#endif
 
 namespace cubism {
 
@@ -520,26 +546,7 @@ void ArgumentParser::print_args()
 }
 
 }//namespace cubism
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
 
-#ifndef CubismUP_3D_utils_BufferedLogger_h
-#define CubismUP_3D_utils_BufferedLogger_h
-
-#include <unordered_map>
-#include <sstream>
-
-/*
- * Buffered file logging with automatic flush.
- *
- * A stream is flushed periodically.
- * (Such that the user doesn't have to manually call flush.)
- *
- * If killing intentionally simulation, don't forget to flush the logger!
- */
 class BufferedLogger {
     struct Stream {
         std::stringstream stream;
@@ -580,8 +587,6 @@ public:
 
 extern BufferedLogger logger;  // Declared in BufferedLogger.cpp.
 
-#endif
-#include <fstream>
 
 BufferedLogger logger;
 
@@ -622,48 +627,233 @@ std::stringstream& BufferedLogger::get_stream(const std::string &filename) {
 
 
 
-#include <cassert>
-#include <cmath>
-#include <cstdio>
-#include <vector>
-#include <omp.h>
-#define OMPI_SKIP_MPICXX 1
-#ifdef _FLOAT_PRECISION_
-using Real = float;
-#define MPI_Real MPI_FLOAT
-#endif
-#ifdef _DOUBLE_PRECISION_
-using Real = double;
-#define MPI_Real MPI_DOUBLE
-#endif
-#ifdef _LONG_DOUBLE_PRECISION_
-using Real = long double;
-#define MPI_Real MPI_LONG_DOUBLE
-#endif
 
 
 
-#include <algorithm>
-#include <unordered_map>
 
-#ifdef CUBISM_USE_ONETBB
-#include <tbb/concurrent_unordered_map.h>
-#endif
+namespace cubism // AMR_CUBISM
+{
 
+/** 
+ * @brief Hilbert Space-Filling Curve(SFC) in 2D.
+ * 
+ * The Quadtree of GridBlocks of a simulation is traversed by an SFC.
+ * Each node of the Quadtree (aka each GridBlock) is associated with 
+ * (i) a refinement level 
+ * (ii) indices (i,j) that indicate its coordinates in a uniform grid of the same refinement level
+ * (iii) a Z-order index which is a unique integer along an SFC that would traverse a uniform grid 
+ * of the same refinement level
+ * (iv) a unique integer (blockID_2). This class provides trasformations from each of these 
+ *  attributes to the others.
+ */
+class SpaceFillingCurve2D
+{
+ protected:
+   int BX; ///< number of blocks in the x-direction at the coarsest level
+   int BY; ///< number of blocks in the y-direction at the coarsest level
+   int levelMax; ///< maximum level allowed
+   bool isRegular; ///< true if BX,BY,BZ are powers of 2
+   int base_level; ///< minimum (starting) level (determined from BX,BY,BZ)
+   std::vector < std::vector <long long> > Zsave; ///< option to save block indices instead of computing them every time
+   std::vector< std::vector<int> > i_inverse; ///< option to save blocks i index instead of computing it every time
+   std::vector< std::vector<int> > j_inverse; ///< option to save blocks j index instead of computing it every time
 
+   /// convert (x,y) to index
+   long long AxestoTranspose(const int *X_in, int b) const
+   {
+      int x = X_in[0];
+      int y = X_in[1];
+      int n = 1 << b;
+      int rx, ry, s, d=0;
+      for (s=n/2; s>0; s/=2)
+      {
+          rx = (x & s) > 0;
+          ry = (y & s) > 0;
+          d += s * s * ((3 * rx) ^ ry);
+          rot(n, &x, &y, rx, ry);
+      }
+      return d;
+   }
 
-#include <array>
-#include <cassert>
+   /// convert index to (x,y)
+   void TransposetoAxes(long long index, int *X, int b) const 
+   {
+       // position, #bits, dimension
+       int n = 1 << b;
+       long long rx, ry, s, t=index;
+       X[0] = 0;
+       X[1] = 0;
+       for (s=1; s<n; s*=2) {
+           rx = 1 & (t/2);
+           ry = 1 & (t ^ rx);
+           rot(s, &X[0], &X[1], rx, ry);
+           X[0] += s * rx;
+           X[1] += s * ry;
+           t /= 4;
+       }
+   }
 
-#ifndef DIMENSION
-#define DIMENSION 3
-#endif
+   /// rotate/flip a quadrant appropriately
+   void rot(long long n, int *x, int *y, long long rx, long long ry) const
+   {
+       if (ry == 0) {
+           if (rx == 1) {
+               *x = n-1 - *x;
+               *y = n-1 - *y;
+           }
+   
+           //Swap x and y
+           int t  = *x;
+           *x = *y;
+           *y = t;
+       }
+   }
 
-#if DIMENSION == 3
-  #include "SpaceFillingCurve.h"
-#else
-  #include "SpaceFillingCurve2D.h"
-#endif
+ public:
+
+   SpaceFillingCurve2D(){};
+
+   SpaceFillingCurve2D(int a_BX, int a_BY, int lmax) : BX(a_BX), BY(a_BY), levelMax(lmax)
+   {
+      const int n_max  = std::max(BX, BY);
+      base_level = (log(n_max) / log(2));
+      if (base_level < (double)(log(n_max) / log(2))) base_level++;
+
+      i_inverse.resize(lmax);
+      j_inverse.resize(lmax);
+      Zsave.resize(lmax);
+      {
+        const int l = 0;
+        const int aux = pow( pow(2,l) , 2);
+        i_inverse[l].resize(BX*BY*aux,-1);
+        j_inverse[l].resize(BX*BY*aux,-1);
+        Zsave[l].resize(BX*BY*aux,-1);
+      }
+
+      isRegular = true;
+      #pragma omp parallel for collapse(2)
+      for (int j=0;j<BY;j++)
+      for (int i=0;i<BX;i++)
+      {
+        const int c[2] = {i,j};
+        long long index = AxestoTranspose( c, base_level);
+        long long substract = 0;
+        for (long long h=0; h<index; h++)
+        {
+          int X[2] = {0,0};
+          TransposetoAxes(h, X, base_level);
+          if (X[0] >= BX || X[1] >= BY) substract++;   
+        }
+        index -= substract;
+        if (substract > 0) isRegular = false;
+        i_inverse[0][index] = i;
+        j_inverse[0][index] = j;
+        Zsave[0][j*BX + i] = index;
+      }
+    }
+
+   /// space-filling curve (i,j) --> 1D index (given level l)
+   long long forward(const int l, const int i, const int j) //const
+   {
+      const int aux = 1 << l;
+
+      if (l>=levelMax) return 0;
+      long long retval;
+      if (!isRegular)
+      {
+        const int I   = i / aux;
+        const int J   = j / aux;
+        const int c2_a[2] = {i-I*aux,j-J*aux};
+        retval = AxestoTranspose(c2_a, l);
+        retval += IJ_to_index(I,J)*aux*aux;
+      }
+      else
+      {
+        const int c2_a[2] = {i,j};
+        retval = AxestoTranspose(c2_a, l + base_level);
+      }
+      return retval;
+   }
+
+   /// space-filling curve Z-index --> (i,j) (given level l)
+   void inverse(long long Z, int l, int &i, int &j)
+   {
+      if (isRegular)
+      {
+        int X[2] = {0, 0};
+        TransposetoAxes(Z, X, l + base_level);
+        i = X[0];
+        j = X[1];
+      }
+      else
+      {
+        int aux   = 1 << l;
+        long long Zloc  = Z % (aux*aux);
+        int X[2] = {0, 0};
+        TransposetoAxes(Zloc, X, l);
+        long long index = Z / (aux*aux);
+        int I,J;
+        index_to_IJ(index,I,J);
+        i = X[0] + I*aux;
+        j = X[1] + J*aux;
+      }
+      return;
+   }
+
+   /// space-filling curve (i,j) --> 1D index (at level 0)
+   long long IJ_to_index(int I, int J)
+   {
+     //int index = (J + K * BY) * BX + I;
+     long long index = Zsave[0][J*BX + I];
+     return index;
+   }
+
+   /// space-filling curve Z-index --> (i,j) (at level 0)
+   void index_to_IJ(long long index, int & I, int & J)
+   {
+      I = i_inverse[0][index];
+      J = j_inverse[0][index];
+      return;
+   }
+
+   /// convert Z-index, level and ij index to single unique number
+   long long Encode(int level, long long Z, int index[2])
+   {
+      int lmax   = levelMax;
+      long long retval = 0;
+
+      int ix = index[0];
+      int iy = index[1];
+      for (int l = level; l >= 0; l--)
+      {
+         long long Zp = forward(l, ix, iy);
+         retval += Zp;
+         ix /= 2;
+         iy /= 2;
+      }
+
+      ix = 2 * index[0];
+      iy = 2 * index[1];
+      for (int l = level + 1; l < lmax; l++)
+      {
+         long long Zc = forward(l, ix, iy);
+
+         Zc -= Zc % 4;
+         retval += Zc;
+
+         int ix1, iy1;
+         inverse(Zc, l, ix1, iy1);
+         ix = 2 * ix1;
+         iy = 2 * iy1;
+      }
+
+      retval += level;
+  
+      return retval;
+   }
+};
+
+}
 
 namespace cubism
 {
@@ -883,8 +1073,6 @@ struct BlockInfo
 } // namespace cubism
 
 
-#include <map>
-#include <algorithm>
 
 namespace cubism
 {
@@ -1983,16 +2171,6 @@ class Grid
  */
 
 
-#include <map>
-#include <mpi.h>
-#include <set>
-#include <vector>
-
-
-
-#include <cassert>
-#include <iostream>
-#include <vector>
 
 namespace cubism {
 
@@ -2073,12 +2251,6 @@ struct StencilInfo
 }//namespace cubism
 
 
-#include <mpi.h>
-#include <vector>
-#include <set>
-#include <algorithm>
-#include <unordered_map>
-#include <iomanip>      // std::setw
 
 
 namespace cubism {
@@ -2155,8 +2327,6 @@ inline void unpack_subregion(const Real *const pack, Real *const dstbase, const 
 }
 
 }//namespace cubism
-#include <numeric>      // std::iota
-#include <sstream>
 
 namespace cubism
 {
@@ -4334,13 +4504,6 @@ class FluxCorrectionMPI : public TFluxCorrection
 
 } // namespace cubism
 
-#include <unistd.h>
-#include <ios>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
-#include <string>
 
 namespace cubism {
 
@@ -4885,11 +5048,6 @@ class GridMPI : public TGrid
 
 
 
-#include <cassert>
-
-#ifndef CUBISM_ALIGNMENT
-#define CUBISM_ALIGNMENT 32
-#endif
 
 namespace cubism {
 
@@ -5025,10 +5183,6 @@ class Matrix3D
 };
 
 }//namespace cubism
-#include <cstring>
-#include <math.h>
-#include <string>
-#include <array>
 
 namespace cubism
 {
@@ -6594,9 +6748,6 @@ class BlockLabMPI : public MyBlockLab
 
 
 
-#include <algorithm>
-#include <cstring>
-#include <string>
 
 namespace cubism
 {
@@ -8860,21 +9011,6 @@ using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 
 
-#include <assert.h>
-#undef min
-#undef max
-#include <vector>
-#undef min
-#undef max
-#include <map>
-#include <stack>
-#include <stdio.h>
-#include <string>
-
-#include <sys/time.h>
-//#include <tbb/tick_count.h>
-// namespace tbb { class tick_count; }
-
 namespace cubism {
 
 const bool bVerboseProfiling = false;
@@ -9080,7 +9216,6 @@ class Profiler
 };
 
 }//namespace cubism
-#include <memory>
 
 class Shape;
 
@@ -9908,24 +10043,6 @@ class computeDivergence : public Operator
 };
 
 
-#include <vector>
-#include <string>
-#include <sstream>
-#include <utility>
-#include <cassert>
-#include <cstdio>
-#include <fstream>
-#include <iomanip> // std::setfill, std::setw
-#include <hdf5.h>
-#include <cassert>
-#include <cstdio>
-#include <iostream>
-#include <mpi.h>
-#include <sstream>
-#include <string>
-#include <fstream>
-#include <filesystem>
-#include <sys/stat.h>
 namespace fs = std::filesystem;
 
 // Function to retrieve HDF5 type (hid_t) for a given real type.
@@ -10808,7 +10925,6 @@ void ReadHDF5_MPI(TGrid &grid, const std::string &fname, const std::string &dpat
 }
 
 }//namespace cubism
-#include <random>
 
 void IC::operator()(const Real dt)
 {
@@ -11113,8 +11229,6 @@ void ApplyObjVel::operator()(const Real dt)
     }
   }
 }
-#include <gsl/gsl_linalg.h>
-#include <iomanip>
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u*u + v*v); }
@@ -11542,7 +11656,6 @@ void Shape::loadRestart( FILE * f ) {
   if (sim.rank == 0)
     printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, v: %le, omega: %le\n", (double)centerOfMass[0], (double)centerOfMass[1], (double)labCenterOfMass[0], (double)labCenterOfMass[1], (double)u, (double)v, (double)omega);
 }
-#include <iomanip>
 
 void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
@@ -11817,141 +11930,6 @@ void SimulationData::readRestartFiles()
     fclose(fShape);
   }
 }
-#include <algorithm>
-#include <fstream>
-#include <iterator>
-#include <memory>
-#include <mpi.h>
-#include <sstream>
-#include <string>
-#include <math.h>
-
-
-
-#include <map>
-#include <set>
-#include <vector>
-#include <memory>
-#include <mpi.h>
-
-class SpRowInfo
-{
-  public:
-    const int rank_;
-    const long long idx_; // global row index
-    std::map<long long, double> loc_colval_; // col_idx->val map
-    std::map<long long, double> bd_colval_;
-    // neirank_cols_[i] holds {rank of non-local col, idx of non-local col}
-    std::vector<std::pair<int,long long>> neirank_cols_;
-
-    SpRowInfo(const int rank, const long long row_idx, const int neirank_max) : rank_(rank), idx_(row_idx) 
-    { 
-      neirank_cols_.reserve(neirank_max); 
-    }
-    ~SpRowInfo() = default;
-
-    void mapColVal(const long long col_idx, const double val) 
-    { 
-      loc_colval_[col_idx] += val; 
-    }
-    void mapColVal(const int rank, const long long col_idx, const double val) 
-    {
-      if (rank == rank_)
-        mapColVal(col_idx, val);
-      else
-      {
-        bd_colval_[col_idx] += val;
-        neirank_cols_.push_back({rank, col_idx});
-      }
-    }
-};
-
-// Forward declaration of BiCGSTABSolver class
-class BiCGSTABSolver;
-
-class LocalSpMatDnVec 
-{
-  public:
-    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint, const std::vector<double>& P_inv); 
-    ~LocalSpMatDnVec();
-
-    // Reserve space for linear system
-    void reserve(const int N);
-    // Push back value to COO matrix, up to user to insure ordering of row and column elements
-    void cooPushBackVal(const double val, const long long row, const long long col);
-    // Push back row to COO matrix, up to user to ensure ordering of rows
-    void cooPushBackRow(const SpRowInfo &row);
-    // Make the distributed linear system for solver
-    void make(const std::vector<long long>& Nrows_xcumsum);
-
-    // Solve method with update to LHS matrix
-    void solveWithUpdate(
-      const double max_error,
-      const double max_rel_error,
-      const int max_restarts); 
-
-    // Solve method without update to LHS matrix
-    void solveNoUpdate(
-      const double max_error,
-      const double max_rel_error,
-      const int max_restarts); 
-
-    void set_bMeanRow(int bMeanRow) { bMeanRow_ = bMeanRow; }
-    // Modifiable references for x and b for setting and getting initial conditions/solution
-    std::vector<double>& get_x() { return x_; }
-    std::vector<double>& get_b() { return b_; }
-    std::vector<double>& get_h2() { return h2_; }
-
-    // Expose private variables to friendly solver
-    friend class BiCGSTABSolver;
-
-  private:
-    int rank_;
-    MPI_Comm m_comm_;
-    int comm_size_; 
-    const int BLEN_; // number of cells in a block
-
-    int m_;
-    int halo_;
-    int loc_nnz_;
-    int bd_nnz_;
-    int bMeanRow_;
-
-    // Local rows of linear system + dense vecs
-    std::vector<double> loc_cooValA_;
-    std::vector<long long> loc_cooRowA_long_;
-    std::vector<long long> loc_cooColA_long_;
-    std::vector<double> x_;
-    std::vector<double> b_;
-    std::vector<double> h2_;
-
-    // Non-local rows with columns belonging to halo using rank-local indexing
-    std::vector<double> bd_cooValA_;
-    std::vector<long long> bd_cooRowA_long_;
-    std::vector<long long> bd_cooColA_long_;
-
-    // Identical to above, but with integers
-    std::vector<int> loc_cooRowA_int_;
-    std::vector<int> loc_cooColA_int_;
-    std::vector<int> bd_cooRowA_int_;
-    std::vector<int> bd_cooColA_int_;
-
-    // bd_recv_set_[r] contains columns that need to be received from rank 'r'
-    std::vector<std::set<long long>> bd_recv_set_;
-    std::vector<std::vector<long long>> bd_recv_vec_;
-
-    // Vectors that contain rules for sending and receiving
-    std::vector<int> recv_ranks_;
-    std::vector<int> recv_offset_;
-    std::vector<int> recv_sz_;
-
-    std::vector<int> send_ranks_;
-    std::vector<int> send_offset_;
-    std::vector<int> send_sz_;
-    std::vector<int> send_pack_idx_;
-
-    std::unique_ptr<BiCGSTABSolver> solver_;
-};
 
 struct IF2D_Frenet2D
 {
