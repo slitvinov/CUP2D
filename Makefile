@@ -23,7 +23,6 @@ $(OPENMPFLAGS)\
 
 O =\
 AdaptTheMesh.o\
-advDiff.o\
 ArgumentParser.o\
 BiCGSTAB.o\
 BufferedLogger.o\
