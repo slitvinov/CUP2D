@@ -41,10 +41,8 @@
 using Real = float;
 #define MPI_Real MPI_FLOAT
 #endif
-#ifdef _DOUBLE_PRECISION_
 using Real = double;
 #define MPI_Real MPI_DOUBLE
-#endif
 #ifdef _LONG_DOUBLE_PRECISION_
 using Real = long double;
 #define MPI_Real MPI_LONG_DOUBLE
@@ -678,38 +676,6 @@ struct BlockInfo {
     return lmax;
   }
 
-#if DIMENSION == 3
-
-  /// Static function used to initialize static SFC
-  static int blocks_per_dim(int i, int nx = 0, int ny = 0, int nz = 0) {
-    static int a[3] = {nx, ny, nz};
-    return a[i];
-  }
-
-  /// Pointer to single instance of SFC used
-  static SpaceFillingCurve *SFC() {
-    static SpaceFillingCurve Zcurve(blocks_per_dim(0), blocks_per_dim(1),
-                                    blocks_per_dim(2), levelMax());
-    return &Zcurve;
-  }
-
-  /// get Z-order index for coordinates (ix,iy,iz) and refinement level
-  static long long forward(int level, int ix, int iy, int iz) {
-    return (*SFC()).forward(level, ix, iy, iz);
-  }
-
-  /// get unique blockID_2 index from refinement level, Z-order index and
-  /// coordinates
-  static long long Encode(int level, long long Z, int index[3]) {
-    return (*SFC()).Encode(level, Z, index);
-  }
-
-  /// get coordinates from refinement level and Z-order index
-  static void inverse(long long Z, int l, int &i, int &j, int &k) {
-    (*SFC()).inverse(Z, l, i, j, k);
-  }
-
-#else
 
   /// Static function used to initialize static SFC (same as above but in 2D)
   static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
@@ -740,24 +706,7 @@ struct BlockInfo {
     (*SFC()).inverse(Z, l, i, j);
   }
 
-#endif
 
-#if DIMENSION == 3
-  /// return position (x,y,z) in 3D, given indices of grid point
-  template <typename T> inline void pos(T p[3], int ix, int iy, int iz) const {
-    p[0] = origin[0] + h * (ix + 0.5);
-    p[1] = origin[1] + h * (iy + 0.5);
-    p[2] = origin[2] + h * (iz + 0.5);
-  }
-
-  /// return position (x,y,z) in 3D, given indices of grid point
-  template <typename T>
-  inline std::array<T, 3> pos(int ix, int iy, int iz) const {
-    std::array<T, 3> result;
-    pos(result.data(), ix, iy, iz);
-    return result;
-  }
-#else
   /// return position (x,y) in 2D, given indices of grid point
   template <typename T> inline void pos(T p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
@@ -770,7 +719,6 @@ struct BlockInfo {
     pos(result.data(), ix, iy);
     return result;
   }
-#endif
 
   /// used to order/sort blocks based on blockID_2, which is only a function of
   /// Z and level
@@ -800,32 +748,6 @@ struct BlockInfo {
 
 // Now we also set the indices of the neighbouring blocks, parent block and
 // child blocks.
-#if DIMENSION == 3
-    inverse(Z, level, index[0], index[1], index[2]);
-
-    const int Bmax[3] = {blocks_per_dim(0) * TwoPower,
-                         blocks_per_dim(1) * TwoPower,
-                         blocks_per_dim(2) * TwoPower};
-    for (int i = -1; i < 2; i++)
-      for (int j = -1; j < 2; j++)
-        for (int k = -1; k < 2; k++)
-          Znei[i + 1][j + 1][k + 1] =
-              forward(level, (index[0] + i + Bmax[0]) % Bmax[0],
-                      (index[1] + j + Bmax[1]) % Bmax[1],
-                      (index[2] + k + Bmax[2]) % Bmax[2]);
-
-    for (int i = 0; i < 2; i++)
-      for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-          Zchild[i][j][k] = forward(level + 1, 2 * index[0] + i,
-                                    2 * index[1] + j, 2 * index[2] + k);
-
-    Zparent = (level == 0)
-                  ? 0
-                  : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
-                            (index[1] / 2 + Bmax[1]) % Bmax[1],
-                            (index[2] / 2 + Bmax[2]) % Bmax[2]);
-#else
     inverse(Z, level, index[0], index[1]);
     index[2] = 0;
 
@@ -848,7 +770,6 @@ struct BlockInfo {
                   ? 0
                   : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
                             (index[1] / 2 + Bmax[1]) % Bmax[1]);
-#endif
     blockID_2 = Encode(level, Z, index);
     blockID = blockID_2;
   }
@@ -975,32 +896,16 @@ protected:
     assert(CoarseCase.Z == info.Z);
     assert(CoarseCase.level == info.level);
 
-#if DIMENSION == 3
-    for (int B = 0; B <= 3;
-         B++) // loop over fine blocks that make up coarse face
-#else
     for (int B = 0; B <= 1;
          B++) // loop over fine blocks that make up coarse face
-#endif
     {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-#if DIMENSION == 3
-      const long long Z = (*grid).getZforward(
-          info.level + 1,
-          2 * info.index[0] + std::max(code[0], 0) + code[0] +
-              (B % 2) * std::max(0, 1 - abs(code[0])),
-          2 * info.index[1] + std::max(code[1], 0) + code[1] +
-              aux * std::max(0, 1 - abs(code[1])),
-          2 * info.index[2] + std::max(code[2], 0) + code[2] +
-              (B / 2) * std::max(0, 1 - abs(code[2])));
-#else
       const long long Z = (*grid).getZforward(
           info.level + 1,
           2 * info.index[0] + std::max(code[0], 0) + code[0] +
               (B % 2) * std::max(0, 1 - abs(code[0])),
           2 * info.index[1] + std::max(code[1], 0) + code[1] +
               aux * std::max(0, 1 - abs(code[1])));
-#endif
 
       const int other_rank = grid->Tree(info.level + 1, Z).rank();
       if (other_rank != rank)
@@ -1027,24 +932,11 @@ protected:
       assert(N1F == (int)CoarseCase.m_vSize[d1]);
       assert(N2F == (int)CoarseCase.m_vSize[d2]);
       assert(FineFace.size() == CoarseFace.size());
-#if DIMENSION == 3
-      for (int i1 = 0; i1 < N1; i1 += 2)
-        for (int i2 = 0; i2 < N2; i2 += 2) {
-          CoarseFace[base + (i2 / 2) + (i1 / 2) * N2] +=
-              FineFace[i2 + i1 * N2] + FineFace[i2 + 1 + i1 * N2] +
-              FineFace[i2 + (i1 + 1) * N2] + FineFace[i2 + 1 + (i1 + 1) * N2];
-          FineFace[i2 + i1 * N2].clear();
-          FineFace[i2 + 1 + i1 * N2].clear();
-          FineFace[i2 + (i1 + 1) * N2].clear();
-          FineFace[i2 + 1 + (i1 + 1) * N2].clear();
-        }
-#else
       for (int i2 = 0; i2 < N2; i2 += 2) {
         CoarseFace[base + i2 / 2] += FineFace[i2] + FineFace[i2 + 1];
         FineFace[i2].clear();
         FineFace[i2 + 1].clear();
       }
-#endif
     }
   }
 
@@ -1092,10 +984,8 @@ public:
           continue;
         if (!_grid.zperiodic && code[2] == zskip && zskin)
           continue;
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
 
         if (!grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
                  .Exists()) {
@@ -1165,10 +1055,8 @@ public:
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
 
         bool checkFiner =
             grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
@@ -1190,33 +1078,6 @@ public:
           const int N2 = CoarseCase.m_vSize[d2];
           BlockType &block = *(BlockType *)info.ptrBlock;
 
-#if DIMENSION == 3
-          // WARNING: tmp indices are tmp[z][y][x][Flow Quantity]!
-          const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-          const int N1 = CoarseCase.m_vSize[d1];
-          if (d == 0) {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
-            for (int i1 = 0; i1 < N1; i1++)
-              for (int i2 = 0; i2 < N2; i2++) {
-                block(j, i2, i1) += CoarseFace[i2 + i1 * N2];
-                CoarseFace[i2 + i1 * N2].clear();
-              }
-          } else if (d == 1) {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
-            for (int i1 = 0; i1 < N1; i1++)
-              for (int i2 = 0; i2 < N2; i2++) {
-                block(i2, j, i1) += CoarseFace[i2 + i1 * N2];
-                CoarseFace[i2 + i1 * N2].clear();
-              }
-          } else {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeZ - 1;
-            for (int i1 = 0; i1 < N1; i1++)
-              for (int i2 = 0; i2 < N2; i2++) {
-                block(i2, i1, j) += CoarseFace[i2 + i1 * N2];
-                CoarseFace[i2 + i1 * N2].clear();
-              }
-          }
-#else
           assert(d != 2);
           if (d == 0) {
             const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
@@ -1232,7 +1093,6 @@ public:
               CoarseFace[i2].clear();
             }
           }
-#endif
         }
       }
     }
@@ -1539,15 +1399,9 @@ public:
         levelStart(_levelStart), xperiodic(a_xperiodic), yperiodic(a_yperiodic),
         zperiodic(a_zperiodic) {
     BlockInfo dummy;
-#if DIMENSION == 3
-    const int nx = dummy.blocks_per_dim(0, NX, NY, NZ);
-    const int ny = dummy.blocks_per_dim(1, NX, NY, NZ);
-    const int nz = dummy.blocks_per_dim(2, NX, NY, NZ);
-#else
     const int nx = dummy.blocks_per_dim(0, NX, NY);
     const int ny = dummy.blocks_per_dim(1, NX, NY);
     const int nz = 1;
-#endif
     const int lvlMax = dummy.levelMax(levelMax);
 
     for (int m = 0; m < lvlMax; m++) {
@@ -1588,23 +1442,6 @@ public:
       _alloc(level, Z);
       Tree(level, Z).setrank(rank());
 
-#if DIMENSION == 3
-      int p[3];
-      BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-      if (level < levelMax - 1)
-        for (int k1 = 0; k1 < 2; k1++)
-          for (int j1 = 0; j1 < 2; j1++)
-            for (int i1 = 0; i1 < 2; i1++) {
-              const long long nc = getZforward(level + 1, 2 * p[0] + i1,
-                                               2 * p[1] + j1, 2 * p[2] + k1);
-              Tree(level + 1, nc).setCheckCoarser();
-            }
-      if (level > 0) {
-        const long long nf =
-            getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-        Tree(level - 1, nf).setCheckFiner();
-      }
-#else
       int p[2];
       BlockInfo::inverse(Z, level, p[0], p[1]);
       if (level < levelMax - 1)
@@ -1618,31 +1455,12 @@ public:
         const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
         Tree(level - 1, nf).setCheckFiner();
       }
-#endif
     }
     FillPos();
     UpdateFluxCorrection = true;
     UpdateGroups = true;
   }
 
-#if DIMENSION == 3
-  /// Returns Z-index of GridBlock with indices ijk (ix,iy,iz) at level 'level'
-  long long getZforward(const int level, const int i, const int j,
-                        const int k) const {
-    const int TwoPower = 1 << level;
-    const int ix = (i + TwoPower * NX) % (NX * TwoPower);
-    const int iy = (j + TwoPower * NY) % (NY * TwoPower);
-    const int iz = (k + TwoPower * NZ) % (NZ * TwoPower);
-    return BlockInfo::forward(level, ix, iy, iz);
-  }
-
-  /// Returns GridBlock with indices ijk (ix,iy,iz) at level 'm'
-  Block *avail1(const int ix, const int iy, const int iz, const int m) {
-    const long long n = getZforward(m, ix, iy, iz);
-    return avail(m, n);
-  }
-
-#else // DIMENSION = 2
 
   /// Returns Z-index of GridBlock with indices ij (ix,iy) at level 'level'
   long long getZforward(const int level, const int i, const int j) const {
@@ -1658,7 +1476,6 @@ public:
     return avail(m, n);
   }
 
-#endif
 
   /// Used to iterate though all blocks (ID=0,...,m_vInfo.size()-1)
   Block &operator()(const long long ID) {
@@ -1711,12 +1528,8 @@ public:
           const double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
-#if DIMENSION == 3
-          BlockInfo::inverse(n, m, i, j, k);
-#else
           BlockInfo::inverse(n, m, i, j);
           k = 0;
-#endif
           origin[0] = i * Block::sizeX * h;
           origin[1] = j * Block::sizeY * h;
           origin[2] = k * Block::sizeZ * h;
@@ -1760,120 +1573,6 @@ public:
     MyGroups.clear();
     std::vector<bool> added(MyInfos.size(), false);
 
-#if DIMENSION == 3
-    const unsigned int nZ = BlockType::sizeZ;
-    for (unsigned int m = 0; m < Ngrids; m++) {
-      const BlockInfo &I = MyInfos[m];
-
-      if (added[I.blockID])
-        continue;
-      added[I.blockID] = true;
-      BlockGroup newGroup;
-
-      newGroup.level = I.level;
-      newGroup.h = I.h;
-      newGroup.Z.push_back(I.Z);
-
-      const int base[3] = {I.index[0], I.index[1], I.index[2]};
-      int i_off[6] = {};
-      bool ready_[6] = {};
-
-      int d = 0;
-      auto blk = getMaxBlocks();
-      do {
-        if (ready_[d] == false) {
-          bool valid = true;
-          i_off[d]++;
-          const int i0 =
-              (d < 3) ? (base[d] - i_off[d]) : (base[d - 3] + i_off[d]);
-          const int d0 = (d < 3) ? (d) % 3 : (d - 3) % 3;
-          const int d1 = (d < 3) ? (d + 1) % 3 : (d - 3 + 1) % 3;
-          const int d2 = (d < 3) ? (d + 2) % 3 : (d - 3 + 2) % 3;
-
-          for (int i2 = base[d2] - i_off[d2]; i2 <= base[d2] + i_off[d2 + 3];
-               i2++)
-            for (int i1 = base[d1] - i_off[d1]; i1 <= base[d1] + i_off[d1 + 3];
-                 i1++) {
-              if (valid == false)
-                break;
-
-              if (i0 < 0 || i1 < 0 || i2 < 0 ||
-                  i0 >= blk[d0] * (1 << I.level) ||
-                  i1 >= blk[d1] * (1 << I.level) ||
-                  i2 >= blk[d2] * (1 << I.level)) {
-                valid = false;
-                break;
-              }
-              long long n;
-              if (d == 0 || d == 3)
-                n = getZforward(I.level, i0, i1, i2);
-              else if (d == 1 || d == 4)
-                n = getZforward(I.level, i2, i0, i1);
-              else /*if (d==2||d==5)*/
-                n = getZforward(I.level, i1, i2, i0);
-
-              if (Tree(I.level, n).rank() != rank()) {
-                valid = false;
-                break;
-              }
-              if (added[getBlockInfoAll(I.level, n).blockID] == true) {
-                valid = false;
-              }
-            }
-
-          if (valid == false) {
-            i_off[d]--;
-            ready_[d] = true;
-          } else {
-            for (int i2 = base[d2] - i_off[d2]; i2 <= base[d2] + i_off[d2 + 3];
-                 i2++)
-              for (int i1 = base[d1] - i_off[d1];
-                   i1 <= base[d1] + i_off[d1 + 3]; i1++) {
-                long long n;
-                if (d == 0 || d == 3)
-                  n = getZforward(I.level, i0, i1, i2);
-                else if (d == 1 || d == 4)
-                  n = getZforward(I.level, i2, i0, i1);
-                else /*if (d==2||d==5)*/
-                  n = getZforward(I.level, i1, i2, i0);
-                newGroup.Z.push_back(n);
-                added[getBlockInfoAll(I.level, n).blockID] = true;
-              }
-          }
-        }
-        d = (d + 1) % 6;
-      } while (ready_[0] == false || ready_[1] == false || ready_[2] == false ||
-               ready_[3] == false || ready_[4] == false || ready_[5] == false);
-
-      const int ix_min = base[0] - i_off[0];
-      const int iy_min = base[1] - i_off[1];
-      const int iz_min = base[2] - i_off[2];
-      const int ix_max = base[0] + i_off[3];
-      const int iy_max = base[1] + i_off[4];
-      const int iz_max = base[2] + i_off[5];
-
-      long long n_base = getZforward(I.level, ix_min, iy_min, iz_min);
-
-      newGroup.i_min[0] = ix_min;
-      newGroup.i_min[1] = iy_min;
-      newGroup.i_min[2] = iz_min;
-
-      newGroup.i_max[0] = ix_max;
-      newGroup.i_max[1] = iy_max;
-      newGroup.i_max[2] = iz_max;
-
-      const BlockInfo &info = getBlockInfoAll(I.level, n_base);
-      newGroup.origin[0] = info.origin[0];
-      newGroup.origin[1] = info.origin[1];
-      newGroup.origin[2] = info.origin[2];
-
-      newGroup.NXX = (newGroup.i_max[0] - newGroup.i_min[0] + 1) * nX + 1;
-      newGroup.NYY = (newGroup.i_max[1] - newGroup.i_min[1] + 1) * nY + 1;
-      newGroup.NZZ = (newGroup.i_max[2] - newGroup.i_min[2] + 1) * nZ + 1;
-
-      MyGroups.push_back(newGroup);
-    }
-#else
     for (unsigned int m = 0; m < Ngrids; m++) {
       const BlockInfo &I = MyInfos[m];
 
@@ -1968,7 +1667,6 @@ public:
 
       MyGroups.push_back(newGroup);
     }
-#endif
   }
 };
 
@@ -2367,11 +2065,7 @@ struct StencilManager {
       range1.ez = code[2] < 1 ? nZ : 2 * (stencil.ez - 1);
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
-#if DIMENSION == 3
-      sLength[3 * (icode + 27) + 2] = (range1.ez - range1.sz) / 2;
-#else
       sLength[3 * (icode + 27) + 2] = 1;
-#endif
 
       // Coarse sender, fine receiver
       // Coarse sender just needs to send "half" the stencil plus extra cells
@@ -2381,13 +2075,8 @@ struct StencilManager {
       range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
       range2.ex = code[0] < 1 ? nX / 2 : eC[0] - 1;
       range2.ey = code[1] < 1 ? nY / 2 : eC[1] - 1;
-#if DIMENSION == 3
-      range2.sz = code[2] < 1 ? (code[2] < 0 ? nZ / 2 + sC[2] : 0) : 0;
-      range2.ez = code[2] < 1 ? nZ / 2 : eC[2] - 1;
-#else
       range2.sz = 0;
       range2.ez = 1;
-#endif
       sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
       sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
@@ -2494,13 +2183,7 @@ struct StencilManager {
         Coarse_Range.sy = s[1] + std::max(code[1], 0) * nY / 2 +
                           (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
                           CoarseEdge[1] * code[1] * nY / 2;
-#if DIMENSION == 3
-        Coarse_Range.sz = s[2] + std::max(code[2], 0) * nZ / 2 +
-                          (1 - abs(code[2])) * base[2] * nZ / 2 - code[2] * nZ +
-                          CoarseEdge[2] * code[2] * nZ / 2;
-#else
         Coarse_Range.sz = 0;
-#endif
 
         Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
@@ -2508,13 +2191,7 @@ struct StencilManager {
         Coarse_Range.ey = e[1] + std::max(code[1], 0) * nY / 2 +
                           (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
                           CoarseEdge[1] * code[1] * nY / 2;
-#if DIMENSION == 3
-        Coarse_Range.ez = e[2] + std::max(code[2], 0) * nZ / 2 +
-                          (1 - abs(code[2])) * base[2] * nZ / 2 - code[2] * nZ +
-                          CoarseEdge[2] * code[2] * nZ / 2;
-#else
         Coarse_Range.ez = 1;
-#endif
 
         return Coarse_Range;
       }
@@ -3029,115 +2706,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
         code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
         code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
-#if DIMENSION == 3
-    int pos = 0;
-    const Real *src = (const Real *)(*info).ptrBlock;
-    const int xStep = (code[0] == 0) ? 2 : 1;
-    const int yStep = (code[1] == 0) ? 2 : 1;
-    const int zStep = (code[2] == 0) ? 2 : 1;
-    if (gptfloats == 1) {
-      for (int iz = s[2]; iz < e[2]; iz += zStep) {
-        const int ZZ = (abs(code[2]) == 1)
-                           ? 2 * (iz - code[2] * nZ) + std::min(0, code[2]) * nZ
-                           : iz;
-        for (int iy = s[1]; iy < e[1]; iy += yStep) {
-          const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
-                                                   std::min(0, code[1]) * nY
-                                             : iy;
-          for (int ix = s[0]; ix < e[0]; ix += xStep) {
-            const int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * nX) +
-                                                     std::min(0, code[0]) * nX
-                                               : ix;
-#ifdef PRESERVE_SYMMETRY
-            dst[pos] =
-                ConsistentAverage(src[XX + (YY + (ZZ)*nY) * nX],
-                                  src[XX + (YY + (ZZ + 1) * nY) * nX],
-                                  src[XX + (YY + 1 + (ZZ)*nY) * nX],
-                                  src[XX + (YY + 1 + (ZZ + 1) * nY) * nX],
-                                  src[XX + 1 + (YY + (ZZ)*nY) * nX],
-                                  src[XX + 1 + (YY + (ZZ + 1) * nY) * nX],
-                                  src[XX + 1 + (YY + 1 + (ZZ)*nY) * nX],
-                                  src[XX + 1 + (YY + 1 + (ZZ + 1) * nY) * nX]);
-#else
-            dst[pos] = 0.125 * (src[XX + (YY + (ZZ)*nY) * nX] +
-                                src[XX + (YY + (ZZ + 1) * nY) * nX] +
-                                src[XX + (YY + 1 + (ZZ)*nY) * nX] +
-                                src[XX + (YY + 1 + (ZZ + 1) * nY) * nX] +
-                                src[XX + 1 + (YY + (ZZ)*nY) * nX] +
-                                src[XX + 1 + (YY + (ZZ + 1) * nY) * nX] +
-                                src[XX + 1 + (YY + 1 + (ZZ)*nY) * nX] +
-                                src[XX + 1 + (YY + 1 + (ZZ + 1) * nY) * nX]);
-#endif
-            pos++;
-          }
-        }
-      }
-    } else {
-      for (int iz = s[2]; iz < e[2]; iz += zStep) {
-        const int ZZ = (abs(code[2]) == 1)
-                           ? 2 * (iz - code[2] * nZ) + std::min(0, code[2]) * nZ
-                           : iz;
-        for (int iy = s[1]; iy < e[1]; iy += yStep) {
-          const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
-                                                   std::min(0, code[1]) * nY
-                                             : iy;
-          for (int ix = s[0]; ix < e[0]; ix += xStep) {
-            const int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * nX) +
-                                                     std::min(0, code[0]) * nX
-                                               : ix;
-            for (int c = 0; c < NC; c++) {
-              int comp = stencil.selcomponents[c];
-#ifdef PRESERVE_SYMMETRY
-              dst[pos] = ConsistentAverage(
-                  (*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) + comp)),
-                  (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) +
-                     comp)),
-                  (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) +
-                     comp)),
-                  (*(src +
-                     gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                     comp)),
-                  (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) +
-                     comp)),
-                  (*(src +
-                     gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) +
-                     comp)),
-                  (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) +
-                     comp)),
-                  (*(src +
-                     gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                     comp)));
-#else
-              dst[pos] =
-                  0.125 *
-                  ((*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) +
-                      comp)) +
-                   (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) +
-                      comp)) +
-                   (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) +
-                      comp)) +
-                   (*(src +
-                      gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                      comp)) +
-                   (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) +
-                      comp)) +
-                   (*(src +
-                      gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) +
-                      comp)) +
-                   (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) +
-                      comp)) +
-                   (*(src +
-                      gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                      comp)));
-#endif
-              pos++;
-            }
-          }
-        }
-      }
-    }
-#endif
-#if DIMENSION == 2
     Real *src = (Real *)(*info).ptrBlock;
     const int xStep = (code[0] == 0) ? 2 : 1;
     const int yStep = (code[1] == 0) ? 2 : 1;
@@ -3161,7 +2729,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         }
       }
     }
-#endif
   }
 
   /// Auxiliary function to average down data
@@ -3187,11 +2754,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
 
     int pos = 0;
 
-#if DIMENSION == 3
-    for (int iz = s[2]; iz < e[2]; iz++) {
-      const int ZZ = 2 * (iz - s[2]) + s[2] + std::max(code[2], 0) * nZ / 2 -
-                     code[2] * nZ + std::min(0, code[2]) * (e[2] - s[2]);
-#endif
       for (int iy = s[1]; iy < e[1]; iy++) {
         const int YY = 2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * nY / 2 -
                        code[1] * nY + std::min(0, code[1]) * (e[1] - s[1]);
@@ -3202,59 +2764,15 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
 
           for (int c = 0; c < NC; c++) {
             int comp = stencil.selcomponents[c];
-#if DIMENSION == 3
-#ifdef PRESERVE_SYMMETRY
-            dst[pos] = ConsistentAverage(
-                (*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) + comp)),
-                (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) +
-                   comp)),
-                (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) +
-                   comp)),
-                (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                   comp)),
-                (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) +
-                   comp)),
-                (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) +
-                   comp)),
-                (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) +
-                   comp)),
-                (*(src +
-                   gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                   comp)));
-#else
-            dst[pos] =
-                0.125 *
-                ((*(src + gptfloats * ((XX) + ((YY) + (ZZ)*nY) * nX) + comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY) + (ZZ + 1) * nY) * nX) +
-                    comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ)*nY) * nX) +
-                    comp)) +
-                 (*(src + gptfloats * ((XX) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                    comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ)*nY) * nX) +
-                    comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY) + (ZZ + 1) * nY) * nX) +
-                    comp)) +
-                 (*(src + gptfloats * ((XX + 1) + ((YY + 1) + (ZZ)*nY) * nX) +
-                    comp)) +
-                 (*(src +
-                    gptfloats * ((XX + 1) + ((YY + 1) + (ZZ + 1) * nY) * nX) +
-                    comp)));
-#endif
-#else
           dst[pos] =
               0.25 * (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
                        (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) + comp))) +
                       ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
                        (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
-#endif
             pos++;
           }
         }
       }
-#if DIMENSION == 3
-    }
-#endif
   }
 
 #if 0
@@ -3338,10 +2856,8 @@ public:
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
 
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
         if (!grid->xperiodic && code[0] == xskip && xskin)
           continue;
         if (!grid->yperiodic && code[1] == yskip && yskin)
@@ -3449,7 +2965,6 @@ public:
                 const int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
 
-#if DIMENSION == 2
                 if (code3[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, info, icode2, icode3});
@@ -3459,32 +2974,7 @@ public:
                 if (code5[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, info, icode2, icode5});
-#else
-                recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode3});
-                recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode4});
-                recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode5});
-#endif
               }
-#if DIMENSION == 3
-              else if (abs(code[0]) + abs(code[1]) + abs(code[2]) ==
-                       2) // if filling an edge need also a corner
-              {
-                const int d0 = (1 - abs(code[1])) + 2 * (1 - abs(code[2]));
-                const int d1 = (d0 + 1) % 3;
-                const int d2 = (d0 + 2) % 3;
-                int code3[3];
-                code3[d0] = -2 * (info.index[d0] % 2) + 1;
-                code3[d1] = code[d1];
-                code3[d2] = code[d2];
-                const int icode3 =
-                    (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode3});
-              }
-#endif
             }
           }
         } else if (infoNeiTree.CheckFiner()) {
@@ -3500,12 +2990,10 @@ public:
           for (int B = 0; B <= 3; B += Bstep) // loop over blocks that make up
                                               // face/edge/corner (4/2/1 blocks)
           {
-#if DIMENSION == 2
             if (Bstep == 1 && B >= 2)
               continue;
             if (Bstep > 1 && B >= 1)
               continue;
-#endif
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
             const long long nFine =
@@ -3570,7 +3058,6 @@ public:
                 const int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
 
-#if DIMENSION == 2
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
                       Interface(info, infoNeiFiner, icode, icode3));
@@ -3589,40 +3076,7 @@ public:
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
-#else
-                send_interfaces[infoNeiFinerrank].push_back(
-                    {info, infoNeiFiner, icode, icode3});
-                DM.Add(infoNeiFinerrank,
-                       (int)send_interfaces[infoNeiFinerrank].size() - 1);
-                send_interfaces[infoNeiFinerrank].push_back(
-                    {info, infoNeiFiner, icode, icode4});
-                DM.Add(infoNeiFinerrank,
-                       (int)send_interfaces[infoNeiFinerrank].size() - 1);
-                send_interfaces[infoNeiFinerrank].push_back(
-                    {info, infoNeiFiner, icode, icode5});
-                DM.Add(infoNeiFinerrank,
-                       (int)send_interfaces[infoNeiFinerrank].size() - 1);
-#endif
               }
-#if DIMENSION == 3
-              else if (Bstep == 3) // if I'm filling an edge then I'm also
-                                   // filling a corner
-              {
-                const int d0 = (1 - abs(code[1])) + 2 * (1 - abs(code[2]));
-                const int d1 = (d0 + 1) % 3;
-                const int d2 = (d0 + 2) % 3;
-                int code3[3];
-                code3[d0] = B == 0 ? 1 : -1;
-                code3[d1] = -code[d1];
-                code3[d2] = -code[d2];
-                const int icode3 =
-                    (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                send_interfaces[infoNeiFinerrank].push_back(
-                    {info, infoNeiFiner, icode, icode3});
-                DM.Add(infoNeiFinerrank,
-                       (int)send_interfaces[infoNeiFinerrank].size() - 1);
-              }
-#endif
             }
           }
         }
@@ -4117,27 +3571,11 @@ protected:
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
     std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
-#if DIMENSION == 3
-    for (int B = 0; B <= 3;
-         B++) // loop over fine blocks that make up coarse face
-#else
     for (int B = 0; B <= 1;
          B++) // loop over fine blocks that make up coarse face
-#endif
     {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
-#if DIMENSION == 3
-      const long long Z =
-          (*TFluxCorrection::grid)
-              .getZforward(info.level + 1,
-                           2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                               (B % 2) * std::max(0, 1 - abs(code[0])),
-                           2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                               aux * std::max(0, 1 - abs(code[1])),
-                           2 * info.index[2] + std::max(code[2], 0) + code[2] +
-                               (B / 2) * std::max(0, 1 - abs(code[2])));
-#else
       const long long Z =
           (*TFluxCorrection::grid)
               .getZforward(info.level + 1,
@@ -4145,7 +3583,6 @@ protected:
                                (B % 2) * std::max(0, 1 - abs(code[0])),
                            2 * info.index[1] + std::max(code[1], 0) + code[1] +
                                aux * std::max(0, 1 - abs(code[1])));
-#endif
       if (Z != F.infos[0]->Z)
         continue;
 
@@ -4168,22 +3605,12 @@ protected:
                   .rank();
       int dis = 0;
 
-#if DIMENSION == 3
-      for (int i1 = 0; i1 < N1; i1 += 2)
-        for (int i2 = 0; i2 < N2; i2 += 2) {
-          for (int j = 0; j < ElementType::DIM; j++)
-            CoarseFace[base + (i2 / 2) + (i1 / 2) * N2].member(j) +=
-                recv_buffer[r][F.offset + dis + j];
-          dis += ElementType::DIM;
-        }
-#else
       for (int i2 = 0; i2 < N2; i2 += 2) {
         for (int j = 0; j < ElementType::DIM; j++)
           CoarseFace[base + (i2 / 2)].member(j) +=
               recv_buffer[r][F.offset + dis + j];
         dis += ElementType::DIM;
       }
-#endif
     }
   }
 
@@ -4215,32 +3642,6 @@ protected:
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = CoarseCase.m_vSize[d2];
     BlockType &block = *(BlockType *)info.ptrBlock;
-#if DIMENSION == 3
-    const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-    const int N1 = CoarseCase.m_vSize[d1];
-    if (d == 0) {
-      const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
-      for (int i1 = 0; i1 < N1; i1++)
-        for (int i2 = 0; i2 < N2; i2++) {
-          block(j, i2, i1) += CoarseFace[i2 + i1 * N2];
-          CoarseFace[i2 + i1 * N2].clear();
-        }
-    } else if (d == 1) {
-      const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
-      for (int i1 = 0; i1 < N1; i1++)
-        for (int i2 = 0; i2 < N2; i2++) {
-          block(i2, j, i1) += CoarseFace[i2 + i1 * N2];
-          CoarseFace[i2 + i1 * N2].clear();
-        }
-    } else {
-      const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeZ - 1;
-      for (int i1 = 0; i1 < N1; i1++)
-        for (int i2 = 0; i2 < N2; i2++) {
-          block(i2, i1, j) += CoarseFace[i2 + i1 * N2];
-          CoarseFace[i2 + i1 * N2].clear();
-        }
-    }
-#else
     assert(d != 2);
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
@@ -4256,7 +3657,6 @@ protected:
         CoarseFace[i2].clear();
       }
     }
-#endif
   }
 
 public:
@@ -4335,10 +3735,8 @@ public:
           continue;
         if (!_grid.zperiodic && code[2] == zskip && zskin)
           continue;
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
 
         if (!(*TFluxCorrection::grid)
                  .Tree(info.level, info.Znei_(code[0], code[1], code[2]))
@@ -4352,11 +3750,7 @@ public:
         int L[3];
         L[0] = (code[0] == 0) ? blocksize[0] / 2 : 1;
         L[1] = (code[1] == 0) ? blocksize[1] / 2 : 1;
-#if DIMENSION == 3
-        L[2] = (code[2] == 0) ? blocksize[2] / 2 : 1;
-#else
         L[2] = 1;
-#endif
         int V = L[0] * L[1] * L[2];
 
         if ((*TFluxCorrection::grid)
@@ -4387,13 +3781,8 @@ public:
                   .getBlockInfoAll(info.level,
                                    info.Znei_(code[0], code[1], code[2]));
           int Bstep = 1; // face
-#if DIMENSION == 3
-          for (int B = 0; B <= 3;
-               B += Bstep) // loop over blocks that make up face
-#else
           for (int B = 0; B <= 1;
                B += Bstep) // loop over blocks that make up face
-#endif
           {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
@@ -4468,11 +3857,7 @@ public:
         int L[3];
         L[0] = (code[0] == 0) ? blocksize[0] / 2 : 1;
         L[1] = (code[1] == 0) ? blocksize[1] / 2 : 1;
-#if DIMENSION == 3
-        L[2] = (code[2] == 0) ? blocksize[2] / 2 : 1;
-#else
         L[2] = 1;
-#endif
         int V = L[0] * L[1] * L[2];
 
         f.offset = offset;
@@ -4519,24 +3904,6 @@ public:
         const int d = myFace / 2;
         const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         const int N2 = FineCase.m_vSize[d2];
-#if DIMENSION == 3
-        const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-        const int N1 = FineCase.m_vSize[d1];
-        for (int i1 = 0; i1 < N1; i1 += 2)
-          for (int i2 = 0; i2 < N2; i2 += 2) {
-            ElementType avg =
-                ((FineFace[i2 + i1 * N2] + FineFace[i2 + 1 + i1 * N2]) +
-                 (FineFace[i2 + (i1 + 1) * N2] +
-                  FineFace[i2 + 1 + (i1 + 1) * N2]));
-            for (int j = 0; j < ElementType::DIM; j++)
-              send_buffer[r][displacement + j] = avg.member(j);
-            displacement += ElementType::DIM;
-            FineFace[i2 + i1 * N2].clear();
-            FineFace[i2 + 1 + i1 * N2].clear();
-            FineFace[i2 + (i1 + 1) * N2].clear();
-            FineFace[i2 + 1 + (i1 + 1) * N2].clear();
-          }
-#else
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
           for (int j = 0; j < ElementType::DIM; j++)
@@ -4545,7 +3912,6 @@ public:
           FineFace[i2].clear();
           FineFace[i2 + 1].clear();
         }
-#endif
       }
     }
 
@@ -4608,11 +3974,6 @@ public:
     for (int r = 0; r < size; r++) // if (r!=me)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 0, 1, 0);
-#if DIMENSION == 3
-    for (int r = 0; r < size; r++) // if (r!=me)
-      for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(recv_faces[r][index], 0, 0, 1);
-#endif
 
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
@@ -4741,10 +4102,8 @@ public:
           continue;
         if (!TGrid::zperiodic && code[2] == zskip && zskin)
           continue;
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
 
         BlockInfo &infoNei = TGrid::getBlockInfoAll(
             info.level, info.Znei_(code[0], code[1], code[2]));
@@ -4775,13 +4134,7 @@ public:
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
             Bstep = 4; // corner
 
-#if DIMENSION == 3
-          for (int B = 0; B <= 3;
-               B += Bstep) // loop over blocks that make up face/edge/corner
-                           // (respectively 4,2 or 1 blocks)
-#else
           for (int B = 0; B <= 1; B += Bstep)
-#endif
           {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
@@ -4896,10 +4249,8 @@ public:
           continue;
         if (!TGrid::zperiodic && code[2] == zskip && zskin)
           continue;
-#if DIMENSION == 2
         if (code[2] != 0)
           continue;
-#endif
 
         BlockInfo &infoNei = TGrid::getBlockInfoAll(
             info.level, info.Znei_(code[0], code[1], code[2]));
@@ -5005,24 +4356,6 @@ public:
         if (UpdateIDs)
           TGrid::getBlockInfoAll(level, Z).blockID =
               recv_buffer[kk][index__ + 2];
-#if DIMENSION == 3
-        int p[3];
-        BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-
-        if (level < TGrid::levelMax - 1)
-          for (int k = 0; k < 2; k++)
-            for (int j = 0; j < 2; j++)
-              for (int i = 0; i < 2; i++) {
-                const long long nc = TGrid::getZforward(
-                    level + 1, 2 * p[0] + i, 2 * p[1] + j, 2 * p[2] + k);
-                TGrid::Tree(level + 1, nc).setCheckCoarser();
-              }
-        if (level > 0) {
-          const long long nf =
-              TGrid::getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-          TGrid::Tree(level - 1, nf).setCheckFiner();
-        }
-#else
         int p[2];
         BlockInfo::inverse(Z, level, p[0], p[1]);
         if (level < TGrid::levelMax - 1)
@@ -5037,7 +4370,6 @@ public:
               TGrid::getZforward(level - 1, p[0] / 2, p[1] / 2);
           TGrid::Tree(level - 1, nf).setCheckFiner();
         }
-#endif
       }
     }
   }
@@ -5050,23 +4382,6 @@ public:
     double p_low[3];
     double p_high[3];
     for (auto &info : TGrid::m_vInfo) {
-#if DIMENSION == 3
-      const double h = 2 * info.h;
-      info.pos(p_low, 0, 0, 0);
-      info.pos(p_high, Block::sizeX - 1, Block::sizeY - 1, Block::sizeZ - 1);
-      p_low[0] -= h;
-      p_low[1] -= h;
-      p_low[2] -= h;
-      p_high[0] += h;
-      p_high[1] += h;
-      p_high[2] += h;
-      low[0] = std::min(low[0], p_low[0]);
-      low[1] = std::min(low[1], p_low[1]);
-      low[2] = std::min(low[2], p_low[2]);
-      high[0] = std::max(high[0], p_high[0]);
-      high[1] = std::max(high[1], p_high[1]);
-      high[2] = std::max(high[2], p_high[2]);
-#else
       const double h = 2 * info.h;
       info.pos(p_low, 0, 0);
       info.pos(p_high, Block::sizeX - 1, Block::sizeY - 1);
@@ -5082,7 +4397,6 @@ public:
       high[0] = std::max(high[0], p_high[0]);
       high[1] = std::max(high[1], p_high[1]);
       high[2] = 0;
-#endif
     }
     std::vector<double> all_boxes(world_size * 6);
     double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
@@ -5335,13 +4649,8 @@ namespace cubism {
 #define memcpy2(a, b, c) memcpy((a), (b), (c))
 
 // default coarse-fine interpolation stencil
-#if DIMENSION == 3
-constexpr int default_start[3] = {-1, -1, -1};
-constexpr int default_end[3] = {2, 2, 2};
-#else
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-#endif
 
 /** \brief Copy of a Gridblock plus halo cells.*/
 /** This class provides the user a copy of a Gridblock that is extended by a
@@ -5602,16 +4911,9 @@ public:
                                CoarseBlockSize[2] + e[2] - offset[2] - 1);
     }
 
-#if DIMENSION == 3
-    use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
-                    m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
-                    m_stencilStart[2] < -2 || m_stencilEnd[0] > 3 ||
-                    m_stencilEnd[1] > 3 || m_stencilEnd[2] > 3);
-#else
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
-#endif
   }
 
   /** Provide a prepared BlockLab (working copy of gridpoints+halo cells).
@@ -5782,41 +5084,6 @@ protected:
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
-#if DIMENSION == 3
-    const int nZ = BlockType::sizeZ;
-    if (coarsened) {
-#pragma GCC ivdep
-      for (int k = 0; k < nZ / 2; k++) {
-#pragma GCC ivdep
-        for (int j = 0; j < nY / 2; j++) {
-#pragma GCC ivdep
-          for (int i = 0; i < nX / 2; i++) {
-            if (i > -m_InterpStencilStart[0] &&
-                i < nX / 2 - m_InterpStencilEnd[0] &&
-                j > -m_InterpStencilStart[1] &&
-                j < nY / 2 - m_InterpStencilEnd[1] &&
-                k > -m_InterpStencilStart[2] &&
-                k < nZ / 2 - m_InterpStencilEnd[2])
-              continue;
-            const int ix = 2 * i - m_stencilStart[0];
-            const int iy = 2 * j - m_stencilStart[1];
-            const int iz = 2 * k - m_stencilStart[2];
-            ElementType &coarseElement = m_CoarsenedBlock->Access(
-                i - offset[0], j - offset[1], k - offset[2]);
-            coarseElement =
-                AverageDown(m_cacheBlock->Read(ix, iy, iz),
-                            m_cacheBlock->Read(ix + 1, iy, iz),
-                            m_cacheBlock->Read(ix, iy + 1, iz),
-                            m_cacheBlock->Read(ix + 1, iy + 1, iz),
-                            m_cacheBlock->Read(ix, iy, iz + 1),
-                            m_cacheBlock->Read(ix + 1, iy, iz + 1),
-                            m_cacheBlock->Read(ix, iy + 1, iz + 1),
-                            m_cacheBlock->Read(ix + 1, iy + 1, iz + 1));
-          }
-        }
-      }
-    }
-#else
     if (coarsened) {
 #pragma GCC ivdep
       for (int j = 0; j < nY / 2; j++) {
@@ -5838,7 +5105,6 @@ protected:
         }
       }
     }
-#endif
     if (applybc)
       _apply_bc(info, t, true); // apply BC to coarse block
     CoarseFineInterpolation(info);
@@ -5962,93 +5228,6 @@ protected:
     }
   }
 
-#if DIMENSION == 3
-  /// Average down eight elements (3D)
-  ElementType AverageDown(const ElementType &e0, const ElementType &e1,
-                          const ElementType &e2, const ElementType &e3,
-                          const ElementType &e4, const ElementType &e5,
-                          const ElementType &e6, const ElementType &e7) {
-#ifdef PRESERVE_SYMMETRY
-    return ConsistentAverage<ElementType>(e0, e1, e2, e3, e4, e5, e6, e7);
-#else
-    return 0.125 * (e0 + e1 + e2 + e3 + e4 + e5 + e6 + e7);
-#endif
-  }
-
-  /** Coarse-fine interpolation function, based on interpolation stencil of +-1
-   * point. This function evaluates a third-order Taylor expansion by using a
-   * stencil of +-1 points around the coarse grid point that will be replaced by
-   * eight finer ones. This function can be overwritten by derived versions of
-   * BlockLab, to enable a custom interpolation. The +-1 points used here come
-   * from the 'interpolation stencil' passed to BlockLab.
-   *  @param C: pointer to the +-1 points around the coarse point (27 values in
-   * total)
-   *  @param R: pointer to the eight refined points around the coarse point
-   *  @param x: deprecated parameter, used only in the 2D version of this
-   * function
-   *  @param y: deprecated parameter, used only in the 2D version of this
-   * function
-   *  @param z: deprecated parameter, used only in the 2D version of this
-   * function
-   */
-  virtual void TestInterp(ElementType *C[3][3][3], ElementType *R, int x, int y,
-                          int z) {
-#ifdef PRESERVE_SYMMETRY
-    const ElementType dudx = 0.125 * ((*C[2][1][1]) - (*C[0][1][1]));
-    const ElementType dudy = 0.125 * ((*C[1][2][1]) - (*C[1][0][1]));
-    const ElementType dudz = 0.125 * ((*C[1][1][2]) - (*C[1][1][0]));
-    const ElementType dudxdy = 0.015625 * (((*C[0][0][1]) + (*C[2][2][1])) -
-                                           ((*C[2][0][1]) + (*C[0][2][1])));
-    const ElementType dudxdz = 0.015625 * (((*C[0][1][0]) + (*C[2][1][2])) -
-                                           ((*C[2][1][0]) + (*C[0][1][2])));
-    const ElementType dudydz = 0.015625 * (((*C[1][0][0]) + (*C[1][2][2])) -
-                                           ((*C[1][2][0]) + (*C[1][0][2])));
-    const ElementType lap =
-        *C[1][1][1] + 0.03125 * (ConsistentSum((*C[0][1][1]) + (*C[2][1][1]),
-                                               (*C[1][0][1]) + (*C[1][2][1]),
-                                               (*C[1][1][0]) + (*C[1][1][2])) -
-                                 6.0 * (*C[1][1][1]));
-    R[0] = lap + (ConsistentSum((-1.0) * dudx, (-1.0) * dudy, (-1.0) * dudz) +
-                  ConsistentSum(dudxdy, dudxdz, dudydz));
-    R[1] = lap + (ConsistentSum(dudx, (-1.0) * dudy, (-1.0) * dudz) +
-                  ConsistentSum((-1.0) * dudxdy, (-1.0) * dudxdz, dudydz));
-    R[2] = lap + (ConsistentSum((-1.0) * dudx, dudy, (-1.0) * dudz) +
-                  ConsistentSum((-1.0) * dudxdy, dudxdz, (-1.0) * dudydz));
-    R[3] = lap + (ConsistentSum(dudx, dudy, (-1.0) * dudz) +
-                  ConsistentSum(dudxdy, (-1.0) * dudxdz, (-1.0) * dudydz));
-    R[4] = lap + (ConsistentSum((-1.0) * dudx, (-1.0) * dudy, dudz) +
-                  ConsistentSum(dudxdy, (-1.0) * dudxdz, (-1.0) * dudydz));
-    R[5] = lap + (ConsistentSum(dudx, (-1.0) * dudy, dudz) +
-                  ConsistentSum((-1.0) * dudxdy, dudxdz, (-1.0) * dudydz));
-    R[6] = lap + (ConsistentSum((-1.0) * dudx, dudy, dudz) +
-                  ConsistentSum((-1.0) * dudxdy, (-1.0) * dudxdz, dudydz));
-    R[7] = lap + (ConsistentSum(dudx, dudy, dudz) +
-                  ConsistentSum(dudxdy, dudxdz, dudydz));
-#else
-    const ElementType dudx = 0.125 * ((*C[2][1][1]) - (*C[0][1][1]));
-    const ElementType dudy = 0.125 * ((*C[1][2][1]) - (*C[1][0][1]));
-    const ElementType dudz = 0.125 * ((*C[1][1][2]) - (*C[1][1][0]));
-    const ElementType dudxdy = 0.015625 * ((*C[0][0][1]) + (*C[2][2][1]) -
-                                           (*C[2][0][1]) - (*C[0][2][1]));
-    const ElementType dudxdz = 0.015625 * ((*C[0][1][0]) + (*C[2][1][2]) -
-                                           (*C[2][1][0]) - (*C[0][1][2]));
-    const ElementType dudydz = 0.015625 * ((*C[1][0][0]) + (*C[1][2][2]) -
-                                           (*C[1][2][0]) - (*C[1][0][2]));
-    const ElementType lap =
-        *C[1][1][1] + 0.03125 * ((*C[0][1][1]) + (*C[2][1][1]) + (*C[1][0][1]) +
-                                 (*C[1][2][1]) + (*C[1][1][0]) + (*C[1][1][2]) +
-                                 (-6.0) * (*C[1][1][1]));
-    R[0] = lap - dudx - dudy - dudz + dudxdy + dudxdz + dudydz;
-    R[1] = lap + dudx - dudy - dudz - dudxdy - dudxdz + dudydz;
-    R[2] = lap - dudx + dudy - dudz - dudxdy + dudxdz - dudydz;
-    R[3] = lap + dudx + dudy - dudz + dudxdy - dudxdz - dudydz;
-    R[4] = lap - dudx - dudy + dudz + dudxdy - dudxdz - dudydz;
-    R[5] = lap + dudx - dudy + dudz - dudxdy + dudxdz - dudydz;
-    R[6] = lap - dudx + dudy + dudz - dudxdy - dudxdz + dudydz;
-    R[7] = lap + dudx + dudy + dudz + dudxdy + dudxdz + dudydz;
-#endif
-  }
-#else
   /// Average down four elements (2D)
   ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                           const ElementType &e2, const ElementType &e3) {
@@ -6094,7 +5273,6 @@ protected:
         (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
          (dx * dy) * dudxdy);
   }
-#endif
 
   /** Exchange halo cells from fine to coarse blocks.
    * @param info: the BlockInfo for the GridBlock that needs halo cells.
@@ -6155,23 +5333,12 @@ protected:
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
-#if DIMENSION == 3
-      BlockType *b_ptr =
-          m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                                (B % 2) * std::max(0, 1 - abs(code[0])),
-                            2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                                aux * std::max(0, 1 - abs(code[1])),
-                            2 * info.index[2] + std::max(code[2], 0) + code[2] +
-                                (B / 2) * std::max(0, 1 - abs(code[2])),
-                            info.level + 1);
-#else
       BlockType *b_ptr =
           m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                                 (B % 2) * std::max(0, 1 - abs(code[0])),
                             2 * info.index[1] + std::max(code[1], 0) + code[1] +
                                 aux * std::max(0, 1 - abs(code[1])),
                             info.level + 1);
-#endif
       if (b_ptr == nullptr)
         continue;
       BlockType &b = *b_ptr;
@@ -6235,45 +5402,6 @@ protected:
                               ? 2 * (iy + 3 * yStep - code[1] * nY) +
                                     std::min(0, code[1]) * nY
                               : iy + 3 * yStep;
-#if DIMENSION == 3
-          const ElementType *ptrSrc_00 = &b(XX, YY0, ZZ);
-          const ElementType *ptrSrc_10 = &b(XX, YY0, ZZ + 1);
-          const ElementType *ptrSrc_20 = &b(XX, YY0 + 1, ZZ);
-          const ElementType *ptrSrc_30 = &b(XX, YY0 + 1, ZZ + 1);
-          const ElementType *ptrSrc_01 = &b(XX, YY1, ZZ);
-          const ElementType *ptrSrc_11 = &b(XX, YY1, ZZ + 1);
-          const ElementType *ptrSrc_21 = &b(XX, YY1 + 1, ZZ);
-          const ElementType *ptrSrc_31 = &b(XX, YY1 + 1, ZZ + 1);
-          const ElementType *ptrSrc_02 = &b(XX, YY2, ZZ);
-          const ElementType *ptrSrc_12 = &b(XX, YY2, ZZ + 1);
-          const ElementType *ptrSrc_22 = &b(XX, YY2 + 1, ZZ);
-          const ElementType *ptrSrc_32 = &b(XX, YY2 + 1, ZZ + 1);
-          const ElementType *ptrSrc_03 = &b(XX, YY3, ZZ);
-          const ElementType *ptrSrc_13 = &b(XX, YY3, ZZ + 1);
-          const ElementType *ptrSrc_23 = &b(XX, YY3 + 1, ZZ);
-          const ElementType *ptrSrc_33 = &b(XX, YY3 + 1, ZZ + 1);
-#pragma GCC ivdep
-          for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                                 (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-               ee++) {
-            ptrDest0[ee] = AverageDown(
-                ptrSrc_00[2 * ee], ptrSrc_10[2 * ee], ptrSrc_20[2 * ee],
-                ptrSrc_30[2 * ee], ptrSrc_00[2 * ee + 1], ptrSrc_10[2 * ee + 1],
-                ptrSrc_20[2 * ee + 1], ptrSrc_30[2 * ee + 1]);
-            ptrDest1[ee] = AverageDown(
-                ptrSrc_01[2 * ee], ptrSrc_11[2 * ee], ptrSrc_21[2 * ee],
-                ptrSrc_31[2 * ee], ptrSrc_01[2 * ee + 1], ptrSrc_11[2 * ee + 1],
-                ptrSrc_21[2 * ee + 1], ptrSrc_31[2 * ee + 1]);
-            ptrDest2[ee] = AverageDown(
-                ptrSrc_02[2 * ee], ptrSrc_12[2 * ee], ptrSrc_22[2 * ee],
-                ptrSrc_32[2 * ee], ptrSrc_02[2 * ee + 1], ptrSrc_12[2 * ee + 1],
-                ptrSrc_22[2 * ee + 1], ptrSrc_32[2 * ee + 1]);
-            ptrDest3[ee] = AverageDown(
-                ptrSrc_03[2 * ee], ptrSrc_13[2 * ee], ptrSrc_23[2 * ee],
-                ptrSrc_33[2 * ee], ptrSrc_03[2 * ee + 1], ptrSrc_13[2 * ee + 1],
-                ptrSrc_23[2 * ee + 1], ptrSrc_33[2 * ee + 1]);
-          }
-#else
           const ElementType *ptrSrc_00 = &b(XX, YY0, ZZ);
           const ElementType *ptrSrc_10 = &b(XX, YY0 + 1, ZZ);
           const ElementType *ptrSrc_01 = &b(XX, YY1, ZZ);
@@ -6299,7 +5427,6 @@ protected:
                 *(ptrSrc_03 + 2 * ee), *(ptrSrc_13 + 2 * ee),
                 *(ptrSrc_03 + 2 * ee + 1), *(ptrSrc_13 + 2 * ee + 1));
           }
-#endif
         }
 #pragma GCC ivdep
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
@@ -6311,26 +5438,6 @@ protected:
           const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
                                                    std::min(0, code[1]) * nY
                                              : iy;
-#if DIMENSION == 3
-          const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
-          const ElementType *ptrSrc_1 = &b(XX, YY, ZZ + 1);
-          const ElementType *ptrSrc_2 = &b(XX, YY + 1, ZZ);
-          const ElementType *ptrSrc_3 = &b(XX, YY + 1, ZZ + 1);
-          const ElementType *ptrSrc_0_1 = &b(XX + 1, YY, ZZ);
-          const ElementType *ptrSrc_1_1 = &b(XX + 1, YY, ZZ + 1);
-          const ElementType *ptrSrc_2_1 = &b(XX + 1, YY + 1, ZZ);
-          const ElementType *ptrSrc_3_1 = &b(XX + 1, YY + 1, ZZ + 1);
-// average down elements of block b to send to coarser neighbor
-#pragma GCC ivdep
-          for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                                 (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-               ee++) {
-            ptrDest[ee] = AverageDown(ptrSrc_0[2 * ee], ptrSrc_1[2 * ee],
-                                      ptrSrc_2[2 * ee], ptrSrc_3[2 * ee],
-                                      ptrSrc_0_1[2 * ee], ptrSrc_1_1[2 * ee],
-                                      ptrSrc_2_1[2 * ee], ptrSrc_3_1[2 * ee]);
-          }
-#else
           const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
           const ElementType *ptrSrc_1 = &b(XX, YY + 1, ZZ);
 // average down elements of block b to send to coarser neighbor
@@ -6342,7 +5449,6 @@ protected:
                 AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
                             *(ptrSrc_0 + 2 * ee + 1), *(ptrSrc_1 + 2 * ee + 1));
           }
-#endif
         }
       }
     } // B
@@ -6365,14 +5471,8 @@ protected:
     const int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                        (info.index[1] + code[1]),
                                        (info.index[2] + code[2])};
-#if DIMENSION == 3
-    BlockType *b_ptr =
-        m_refGrid->avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-                          (infoNei_index[2]) / 2, info.level - 1);
-#else
     BlockType *b_ptr = m_refGrid->avail1(
         (infoNei_index[0]) / 2, (infoNei_index[1]) / 2, info.level - 1);
-#endif
 
     if (b_ptr == nullptr)
       return;
@@ -6556,21 +5656,6 @@ protected:
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
 
         const int YY = 2 * (iy - s[1]) + start[1];
-#if DIMENSION == 3
-        const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
-        const ElementType *ptrSrc_1 = &b(XX, YY, ZZ + 1);
-        const ElementType *ptrSrc_2 = &b(XX, YY + 1, ZZ);
-        const ElementType *ptrSrc_3 = &b(XX, YY + 1, ZZ + 1);
-// average down elements of block b to send to coarser neighbor
-#pragma GCC ivdep
-        for (int ee = 0; ee < e[0] - s[0]; ee++) {
-          ptrDest1[ee] =
-              AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
-                          *(ptrSrc_2 + 2 * ee), *(ptrSrc_3 + 2 * ee),
-                          *(ptrSrc_0 + 2 * ee + 1), *(ptrSrc_1 + 2 * ee + 1),
-                          *(ptrSrc_2 + 2 * ee + 1), *(ptrSrc_3 + 2 * ee + 1));
-        }
-#else
         const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
         const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
 // average down elements of block b to send to coarser neighbor
@@ -6580,7 +5665,6 @@ protected:
               AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
                           *(ptrSrc_0 + 2 * ee + 1), *(ptrSrc_1 + 2 * ee + 1));
         }
-#endif
       }
     }
   }
@@ -6616,10 +5700,8 @@ protected:
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
 
-#if DIMENSION == 2
       if (code[2] != 0)
         continue;
-#endif
 
       if (!xperiodic && code[0] == xskip && xskin)
         continue;
@@ -6654,354 +5736,6 @@ protected:
       if (!bytes)
         continue;
 
-#if DIMENSION == 3
-      ElementType retval[8];
-      if (use_averages)
-        for (int iz = s[2]; iz < e[2]; iz += 2) {
-          const int ZZ =
-              (iz - s[2] - std::min(0, code[2]) * ((e[2] - s[2]) % 2)) / 2 +
-              sC[2];
-          const int z =
-              abs(iz - s[2] - std::min(0, code[2]) * ((e[2] - s[2]) % 2)) % 2;
-          const int izp = (abs(iz) % 2 == 1) ? -1 : 1;
-          const int rzp = (izp == 1) ? 1 : 0;
-          const int rz = (izp == 1) ? 0 : 1;
-
-#pragma GCC ivdep
-          for (int iy = s[1]; iy < e[1]; iy += 2) {
-            const int YY =
-                (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
-                sC[1];
-            const int y =
-                abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            const int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
-            const int ryp = (iyp == 1) ? 1 : 0;
-            const int ry = (iyp == 1) ? 0 : 1;
-
-#pragma GCC ivdep
-            for (int ix = s[0]; ix < e[0]; ix += 2) {
-              const int XX =
-                  (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
-                  sC[0];
-              const int x =
-                  abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
-                  2;
-              const int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
-              const int rxp = (ixp == 1) ? 1 : 0;
-              const int rx = (ixp == 1) ? 0 : 1;
-
-              ElementType *Test[3][3][3];
-              for (int i = 0; i < 3; i++)
-                for (int j = 0; j < 3; j++)
-                  for (int k = 0; k < 3; k++)
-                    Test[i][j][k] = &m_CoarsenedBlock->Access(
-                        XX - 1 + i - offset[0], YY - 1 + j - offset[1],
-                        ZZ - 1 + k - offset[2]);
-
-              TestInterp(Test, retval, x, y, z);
-
-              if (ix >= s[0] && ix < e[0] && iy >= s[1] && iy < e[1] &&
-                  iz >= s[2] && iz < e[2])
-                m_cacheBlock->Access(
-                    ix - m_stencilStart[0], iy - m_stencilStart[1],
-                    iz - m_stencilStart[2]) = retval[rx + 2 * ry + 4 * rz];
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy >= s[1] &&
-                  iy < e[1] && iz >= s[2] && iz < e[2])
-                m_cacheBlock->Access(
-                    ix + ixp - m_stencilStart[0], iy - m_stencilStart[1],
-                    iz - m_stencilStart[2]) = retval[rxp + 2 * ry + 4 * rz];
-              if (ix >= s[0] && ix < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1] && iz >= s[2] && iz < e[2])
-                m_cacheBlock->Access(
-                    ix - m_stencilStart[0], iy + iyp - m_stencilStart[1],
-                    iz - m_stencilStart[2]) = retval[rx + 2 * ryp + 4 * rz];
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1] && iz >= s[2] && iz < e[2])
-                m_cacheBlock->Access(
-                    ix + ixp - m_stencilStart[0], iy + iyp - m_stencilStart[1],
-                    iz - m_stencilStart[2]) = retval[rxp + 2 * ryp + 4 * rz];
-              if (ix >= s[0] && ix < e[0] && iy >= s[1] && iy < e[1] &&
-                  iz + izp >= s[2] && iz + izp < e[2])
-                m_cacheBlock->Access(ix - m_stencilStart[0],
-                                     iy - m_stencilStart[1],
-                                     iz + izp - m_stencilStart[2]) =
-                    retval[rx + 2 * ry + 4 * rzp];
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy >= s[1] &&
-                  iy < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                m_cacheBlock->Access(ix + ixp - m_stencilStart[0],
-                                     iy - m_stencilStart[1],
-                                     iz + izp - m_stencilStart[2]) =
-                    retval[rxp + 2 * ry + 4 * rzp];
-              if (ix >= s[0] && ix < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                m_cacheBlock->Access(ix - m_stencilStart[0],
-                                     iy + iyp - m_stencilStart[1],
-                                     iz + izp - m_stencilStart[2]) =
-                    retval[rx + 2 * ryp + 4 * rzp];
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1] && iz + izp >= s[2] && iz + izp < e[2])
-                m_cacheBlock->Access(ix + ixp - m_stencilStart[0],
-                                     iy + iyp - m_stencilStart[1],
-                                     iz + izp - m_stencilStart[2]) =
-                    retval[rxp + 2 * ryp + 4 * rzp];
-            }
-          }
-        }
-      if (m_refGrid->FiniteDifferences &&
-          abs(code[0]) + abs(code[1]) + abs(code[2]) ==
-              1) // Correct stencil points +-1 and +-2 at faces
-      {
-        const int coef_ixyz[3] = {std::min(0, code[0]) * ((e[0] - s[0]) % 2),
-                                  std::min(0, code[1]) * ((e[1] - s[1]) % 2),
-                                  std::min(0, code[2]) * ((e[2] - s[2]) % 2)};
-        const int min_iz = std::max(s[2], -2);
-        const int min_iy = std::max(s[1], -2);
-        const int min_ix = std::max(s[0], -2);
-        const int max_iz = std::min(e[2], nZ + 2);
-        const int max_iy = std::min(e[1], nY + 2);
-        const int max_ix = std::min(e[0], nX + 2);
-
-        for (int iz = min_iz; iz < max_iz; iz++) {
-          const int ZZ = (iz - s[2] - coef_ixyz[2]) / 2 + sC[2] - offset[2];
-          const int z = abs(iz - s[2] - coef_ixyz[2]) % 2;
-          const double dz = 0.25 * (2 * z - 1);
-          const double *dz_coef = dz > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-          const bool zinner = (ZZ + offset[2] != 0) &&
-                              (ZZ + offset[2] != CoarseBlockSize[2] - 1);
-          const bool zstart = (ZZ + offset[2] == 0);
-
-#pragma GCC ivdep
-          for (int iy = min_iy; iy < max_iy; iy++) {
-            const int YY = (iy - s[1] - coef_ixyz[1]) / 2 + sC[1] - offset[1];
-            const int y = abs(iy - s[1] - coef_ixyz[1]) % 2;
-            const double dy = 0.25 * (2 * y - 1);
-            const double *dy_coef = dy > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-            const bool yinner = (YY + offset[1] != 0) &&
-                                (YY + offset[1] != CoarseBlockSize[1] - 1);
-            const bool ystart = (YY + offset[1] == 0);
-
-#pragma GCC ivdep
-            for (int ix = min_ix; ix < max_ix; ix++) {
-              const int XX = (ix - s[0] - coef_ixyz[0]) / 2 + sC[0] - offset[0];
-              const int x = abs(ix - s[0] - coef_ixyz[0]) % 2;
-              const double dx = 0.25 * (2 * x - 1);
-              const double *dx_coef =
-                  dx > 0 ? &d_coef_plus[0] : &d_coef_minus[0];
-              const bool xinner = (XX + offset[0] != 0) &&
-                                  (XX + offset[0] != CoarseBlockSize[0] - 1);
-              const bool xstart = (XX + offset[0] == 0);
-
-              auto &a = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                             iy - m_stencilStart[1],
-                                             iz - m_stencilStart[2]);
-              if (code[0] != 0) // X-face
-              {
-                ElementType x1D, x2D, mixed;
-
-                int YP, YM, ZP, ZM;
-                double mixed_coef = 1.0;
-                if (yinner) {
-                  x1D =
-                      (dy_coef[6] * m_CoarsenedBlock->Access(XX, YY - 1, ZZ) +
-                       dy_coef[8] * m_CoarsenedBlock->Access(XX, YY + 1, ZZ)) +
-                      dy_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY + 1;
-                  YM = YY - 1;
-                  mixed_coef *= 0.5;
-                } else if (ystart) {
-                  x1D =
-                      (dy_coef[0] * m_CoarsenedBlock->Access(XX, YY + 2, ZZ) +
-                       dy_coef[1] * m_CoarsenedBlock->Access(XX, YY + 1, ZZ)) +
-                      dy_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY + 1;
-                  YM = YY;
-                } else {
-                  x1D =
-                      (dy_coef[3] * m_CoarsenedBlock->Access(XX, YY - 2, ZZ) +
-                       dy_coef[4] * m_CoarsenedBlock->Access(XX, YY - 1, ZZ)) +
-                      dy_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY;
-                  YM = YY - 1;
-                }
-                if (zinner) {
-                  x2D =
-                      (dz_coef[6] * m_CoarsenedBlock->Access(XX, YY, ZZ - 1) +
-                       dz_coef[8] * m_CoarsenedBlock->Access(XX, YY, ZZ + 1)) +
-                      dz_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ + 1;
-                  ZM = ZZ - 1;
-                  mixed_coef *= 0.5;
-                } else if (zstart) {
-                  x2D =
-                      (dz_coef[0] * m_CoarsenedBlock->Access(XX, YY, ZZ + 2) +
-                       dz_coef[1] * m_CoarsenedBlock->Access(XX, YY, ZZ + 1)) +
-                      dz_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ + 1;
-                  ZM = ZZ;
-                } else {
-                  x2D =
-                      (dz_coef[3] * m_CoarsenedBlock->Access(XX, YY, ZZ - 2) +
-                       dz_coef[4] * m_CoarsenedBlock->Access(XX, YY, ZZ - 1)) +
-                      dz_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ;
-                  ZM = ZZ - 1;
-                }
-                mixed = mixed_coef * dy * dz *
-                        ((m_CoarsenedBlock->Access(XX, YM, ZM) +
-                          m_CoarsenedBlock->Access(XX, YP, ZP)) -
-                         (m_CoarsenedBlock->Access(XX, YP, ZM) +
-                          m_CoarsenedBlock->Access(XX, YM, ZP)));
-                a = (x1D + x2D) + mixed;
-              } else if (code[1] != 0) // Y-face
-              {
-                ElementType x1D, x2D, mixed;
-
-                int XP, XM, ZP, ZM;
-                double mixed_coef = 1.0;
-                if (xinner) {
-                  x1D =
-                      (dx_coef[6] * m_CoarsenedBlock->Access(XX - 1, YY, ZZ) +
-                       dx_coef[8] * m_CoarsenedBlock->Access(XX + 1, YY, ZZ)) +
-                      dx_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX + 1;
-                  XM = XX - 1;
-                  mixed_coef *= 0.5;
-                } else if (xstart) {
-                  x1D =
-                      (dx_coef[0] * m_CoarsenedBlock->Access(XX + 2, YY, ZZ) +
-                       dx_coef[1] * m_CoarsenedBlock->Access(XX + 1, YY, ZZ)) +
-                      dx_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX + 1;
-                  XM = XX;
-                } else {
-                  x1D =
-                      (dx_coef[3] * m_CoarsenedBlock->Access(XX - 2, YY, ZZ) +
-                       dx_coef[4] * m_CoarsenedBlock->Access(XX - 1, YY, ZZ)) +
-                      dx_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX;
-                  XM = XX - 1;
-                }
-                if (zinner) {
-                  x2D =
-                      (dz_coef[6] * m_CoarsenedBlock->Access(XX, YY, ZZ - 1) +
-                       dz_coef[8] * m_CoarsenedBlock->Access(XX, YY, ZZ + 1)) +
-                      dz_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ + 1;
-                  ZM = ZZ - 1;
-                  mixed_coef *= 0.5;
-                } else if (zstart) {
-                  x2D =
-                      (dz_coef[0] * m_CoarsenedBlock->Access(XX, YY, ZZ + 2) +
-                       dz_coef[1] * m_CoarsenedBlock->Access(XX, YY, ZZ + 1)) +
-                      dz_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ + 1;
-                  ZM = ZZ;
-                } else {
-                  x2D =
-                      (dz_coef[3] * m_CoarsenedBlock->Access(XX, YY, ZZ - 2) +
-                       dz_coef[4] * m_CoarsenedBlock->Access(XX, YY, ZZ - 1)) +
-                      dz_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  ZP = ZZ;
-                  ZM = ZZ - 1;
-                }
-                mixed = mixed_coef * dx * dz *
-                        ((m_CoarsenedBlock->Access(XM, YY, ZM) +
-                          m_CoarsenedBlock->Access(XP, YY, ZP)) -
-                         (m_CoarsenedBlock->Access(XP, YY, ZM) +
-                          m_CoarsenedBlock->Access(XM, YY, ZP)));
-                a = (x1D + x2D) + mixed;
-              } else if (code[2] != 0) // Z-face
-              {
-                ElementType x1D, x2D, mixed;
-
-                int XP, XM, YP, YM;
-                double mixed_coef = 1.0;
-                if (xinner) {
-                  x1D =
-                      (dx_coef[6] * m_CoarsenedBlock->Access(XX - 1, YY, ZZ) +
-                       dx_coef[8] * m_CoarsenedBlock->Access(XX + 1, YY, ZZ)) +
-                      dx_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX + 1;
-                  XM = XX - 1;
-                  mixed_coef *= 0.5;
-                } else if (xstart) {
-                  x1D =
-                      (dx_coef[0] * m_CoarsenedBlock->Access(XX + 2, YY, ZZ) +
-                       dx_coef[1] * m_CoarsenedBlock->Access(XX + 1, YY, ZZ)) +
-                      dx_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX + 1;
-                  XM = XX;
-                } else {
-                  x1D =
-                      (dx_coef[3] * m_CoarsenedBlock->Access(XX - 2, YY, ZZ) +
-                       dx_coef[4] * m_CoarsenedBlock->Access(XX - 1, YY, ZZ)) +
-                      dx_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  XP = XX;
-                  XM = XX - 1;
-                }
-                if (yinner) {
-                  x2D =
-                      (dy_coef[6] * m_CoarsenedBlock->Access(XX, YY - 1, ZZ) +
-                       dy_coef[8] * m_CoarsenedBlock->Access(XX, YY + 1, ZZ)) +
-                      dy_coef[7] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY + 1;
-                  YM = YY - 1;
-                  mixed_coef *= 0.5;
-                } else if (ystart) {
-                  x2D =
-                      (dy_coef[0] * m_CoarsenedBlock->Access(XX, YY + 2, ZZ) +
-                       dy_coef[1] * m_CoarsenedBlock->Access(XX, YY + 1, ZZ)) +
-                      dy_coef[2] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY + 1;
-                  YM = YY;
-                } else {
-                  x2D =
-                      (dy_coef[3] * m_CoarsenedBlock->Access(XX, YY - 2, ZZ) +
-                       dy_coef[4] * m_CoarsenedBlock->Access(XX, YY - 1, ZZ)) +
-                      dy_coef[5] * m_CoarsenedBlock->Access(XX, YY, ZZ);
-                  YP = YY;
-                  YM = YY - 1;
-                }
-
-                mixed = mixed_coef * dx * dy *
-                        ((m_CoarsenedBlock->Access(XM, YM, ZZ) +
-                          m_CoarsenedBlock->Access(XP, YP, ZZ)) -
-                         (m_CoarsenedBlock->Access(XP, YM, ZZ) +
-                          m_CoarsenedBlock->Access(XM, YP, ZZ)));
-                a = (x1D + x2D) + mixed;
-              }
-
-              const auto &b = m_cacheBlock->Access(
-                  ix - m_stencilStart[0] + (-3 * code[0] + 1) / 2 -
-                      x * abs(code[0]),
-                  iy - m_stencilStart[1] + (-3 * code[1] + 1) / 2 -
-                      y * abs(code[1]),
-                  iz - m_stencilStart[2] + (-3 * code[2] + 1) / 2 -
-                      z * abs(code[2]));
-              const auto &c = m_cacheBlock->Access(
-                  ix - m_stencilStart[0] + (-5 * code[0] + 1) / 2 -
-                      x * abs(code[0]),
-                  iy - m_stencilStart[1] + (-5 * code[1] + 1) / 2 -
-                      y * abs(code[1]),
-                  iz - m_stencilStart[2] + (-5 * code[2] + 1) / 2 -
-                      z * abs(code[2]));
-              const int ccc = code[0] + code[1] + code[2];
-              const int xyz =
-                  abs(code[0]) * x + abs(code[1]) * y + abs(code[2]) * z;
-
-              if (ccc == 1)
-                a = (xyz == 0)
-                        ? (1.0 / 15.0) * (8.0 * a + (10.0 * b - 3.0 * c))
-                        : (1.0 / 15.0) * (24.0 * a + (-15.0 * b + 6 * c));
-              else /*(ccc=-1)*/
-                a = (xyz == 1)
-                        ? (1.0 / 15.0) * (8.0 * a + (10.0 * b - 3.0 * c))
-                        : (1.0 / 15.0) * (24.0 * a + (-15.0 * b + 6 * c));
-            }
-          }
-        }
-      }
-#else
 
       if (use_averages) {
 #pragma GCC ivdep
@@ -7227,7 +5961,6 @@ protected:
           }
         }
       }
-#endif
     }
   }
 
@@ -7368,23 +6101,6 @@ protected:
     std::memcpy(a1, data, sizeof(BlockType));
 
 // 3. Update status of children and parent block of newly allocated block
-#if DIMENSION == 3
-    int p[3];
-    BlockInfo::inverse(Z, level, p[0], p[1], p[2]);
-    if (level < grid->getlevelMax() - 1)
-      for (int k1 = 0; k1 < 2; k1++)
-        for (int j1 = 0; j1 < 2; j1++)
-          for (int i1 = 0; i1 < 2; i1++) {
-            const long long nc = grid->getZforward(
-                level + 1, 2 * p[0] + i1, 2 * p[1] + j1, 2 * p[2] + k1);
-            grid->Tree(level + 1, nc).setCheckCoarser();
-          }
-    if (level > 0) {
-      const long long nf =
-          grid->getZforward(level - 1, p[0] / 2, p[1] / 2, p[2] / 2);
-      grid->Tree(level - 1, nf).setCheckFiner();
-    }
-#else
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
     if (level < grid->getlevelMax() - 1)
@@ -7398,7 +6114,6 @@ protected:
       const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
       grid->Tree(level - 1, nf).setCheckFiner();
     }
-#endif
   }
 
 public:
@@ -7440,14 +6155,8 @@ public:
 
     // Loop over blocks
     for (auto &b : I) {
-#if DIMENSION == 3
-      const long long nBlock =
-          grid->getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2),
-                            2 * (b.index[2] / 2));
-#else
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
-#endif
 
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
 
@@ -7473,18 +6182,10 @@ public:
       // if 'b' is the 'base' block we collect the remaining 7 (3, in 2D) blocks
       // that will be compressed with it.
       else {
-#if DIMENSION == 3
-        for (int k = 0; k < 2; k++)
-#endif
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
-#if DIMENSION == 3
-              const long long n = grid->getZforward(
-                  b.level, b.index[0] + i, b.index[1] + j, b.index[2] + k);
-#else
             const long long n =
                 grid->getZforward(b.level, b.index[0] + i, b.index[1] + j);
-#endif
               if (n == nBlock)
                 continue;
               BlockInfo &temp = grid->getBlockInfoAll(b.level, n);
@@ -8096,20 +6797,11 @@ public:
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++)
-#if DIMENSION == 3
-          for (int k = 2 * (info.index[2] / 2);
-               k <= 2 * (info.index[2] / 2) + 1; k++) {
-            const long long n = grid->getZforward(info.level, i, j, k);
-            BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
-            infoNei.state = Leave;
-          }
-#else
         {
           const long long n = grid->getZforward(info.level, i, j);
           BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
           infoNei.state = Leave;
         }
-#endif
       info.state = Leave;
       ary0.state = Leave;
     }
@@ -8123,12 +6815,7 @@ public:
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
-#if DIMENSION == 3
-        const int k2 = 2 * (info2.index[2] / 2);
-        const long long n = grid->getZforward(info2.level, i2, j2, k2);
-#else
         const long long n = grid->getZforward(info2.level, i2, j2);
-#endif
         BlockInfo &infoNei = grid->getBlockInfoAll(info2.level, n);
         infoNei.state = Compress;
       }
@@ -8198,20 +6885,6 @@ protected:
 
     assert(parent.ptrBlock != NULL);
     assert(level <= grid->getlevelMax() - 1);
-#if DIMENSION == 3
-    BlockType *Blocks[8];
-    for (int k = 0; k < 2; k++)
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          const long long nc = grid->getZforward(level + 1, 2 * p[0] + i,
-                                                 2 * p[1] + j, 2 * p[2] + k);
-          BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-          Child.state = Leave;
-          grid->_alloc(level + 1, nc);
-          grid->Tree(level + 1, nc).setCheckCoarser();
-          Blocks[k * 4 + j * 2 + i] = (BlockType *)Child.ptrBlock;
-        }
-#else
     BlockType *Blocks[4];
     for (int j = 0; j < 2; j++)
       for (int i = 0; i < 2; i++) {
@@ -8223,7 +6896,6 @@ protected:
         grid->Tree(level + 1, nc).setCheckCoarser();
         Blocks[j * 2 + i] = (BlockType *)Child.ptrBlock;
       }
-#endif
     if (basic_refinement == false)
       RefineBlocks(Blocks, lab);
   }
@@ -8246,22 +6918,6 @@ protected:
     parent.state = Leave;
 
     int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-#if DIMENSION == 3
-    for (int k = 0; k < 2; k++)
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          const long long nc = grid->getZforward(level + 1, 2 * p[0] + i,
-                                                 2 * p[1] + j, 2 * p[2] + k);
-          BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-          grid->Tree(Child).setrank(grid->rank());
-          if (level + 2 < grid->getlevelMax())
-            for (int i0 = 0; i0 < 2; i0++)
-              for (int i1 = 0; i1 < 2; i1++)
-                for (int i2 = 0; i2 < 2; i2++)
-                  grid->Tree(level + 2, Child.Zchild[i0][i1][i2])
-                      .setCheckCoarser();
-        }
-#else
     for (int j = 0; j < 2; j++)
       for (int i = 0; i < 2; i++) {
         const long long nc =
@@ -8273,7 +6929,6 @@ protected:
             for (int i1 = 0; i1 < 2; i1++)
               grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
       }
-#endif
   }
 
   /**
@@ -8293,77 +6948,6 @@ protected:
 
     assert(info.state == Compress);
 
-#if DIMENSION == 3
-    BlockType *Blocks[8];
-    for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          const int blk = K * 4 + J * 2 + I;
-          const long long n = grid->getZforward(
-              level, info.index[0] + I, info.index[1] + J, info.index[2] + K);
-          Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
-        }
-
-    const int nx = BlockType::sizeX;
-    const int ny = BlockType::sizeY;
-    const int nz = BlockType::sizeZ;
-    const int offsetX[2] = {0, nx / 2};
-    const int offsetY[2] = {0, ny / 2};
-    const int offsetZ[2] = {0, nz / 2};
-    if (basic_refinement == false)
-      for (int K = 0; K < 2; K++)
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            BlockType &b = *Blocks[K * 4 + J * 2 + I];
-            for (int k = 0; k < nz; k += 2)
-              for (int j = 0; j < ny; j += 2)
-                for (int i = 0; i < nx; i += 2) {
-#ifdef PRESERVE_SYMMETRY
-                  const ElementType B1 = b(i, j, k) + b(i + 1, j + 1, k + 1);
-                  const ElementType B2 = b(i + 1, j, k) + b(i, j + 1, k + 1);
-                  const ElementType B3 = b(i, j + 1, k) + b(i + 1, j, k + 1);
-                  const ElementType B4 = b(i, j, k + 1) + b(i + 1, j + 1, k);
-                  (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J],
-                               k / 2 + offsetZ[K]) =
-                      0.125 * ConsistentSum<ElementType>(B1, B2, B3, B4);
-#else
-                  (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J],
-                               k / 2 + offsetZ[K]) =
-                      0.125 * ((b(i, j, k) + b(i + 1, j + 1, k + 1)) +
-                               (b(i + 1, j, k) + b(i, j + 1, k + 1)) +
-                               (b(i, j + 1, k) + b(i + 1, j, k + 1)) +
-                               (b(i + 1, j + 1, k) + b(i, j, k + 1)));
-#endif
-                }
-          }
-
-    const long long np = grid->getZforward(
-        level - 1, info.index[0] / 2, info.index[1] / 2, info.index[2] / 2);
-    BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-    grid->Tree(parent.level, parent.Z).setrank(grid->rank());
-    parent.ptrBlock = info.ptrBlock;
-    parent.state = Leave;
-    if (level - 2 >= 0)
-      grid->Tree(level - 2, parent.Zparent).setCheckFiner();
-
-    for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          const long long n = grid->getZforward(
-              level, info.index[0] + I, info.index[1] + J, info.index[2] + K);
-          if (I + J + K == 0) {
-            grid->FindBlockInfo(level, n, level - 1, np);
-          } else {
-#pragma omp critical
-            {
-              dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2);
-            }
-          }
-          grid->Tree(level, n).setCheckCoarser();
-          grid->getBlockInfoAll(level, n).state = Leave;
-        }
-#endif
-#if DIMENSION == 2
     BlockType *Blocks[4];
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
@@ -8410,7 +6994,6 @@ protected:
         grid->Tree(level, n).setCheckCoarser();
         grid->getBlockInfoAll(level, n).state = Leave;
       }
-#endif
   }
 
   /**
@@ -8483,10 +7066,8 @@ protected:
               continue;
             if (!zperiodic && code[2] == zskip && zskin)
               continue;
-#if DIMENSION == 2
             if (code[2] != 0)
               continue;
-#endif
 
             if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
                     .CheckFiner()) {
@@ -8504,11 +7085,7 @@ protected:
                 Bstep = 4; // corner
 
 // loop over blocks that make up face/edge/corner(respectively 4,2 or 1 blocks)
-#if DIMENSION == 3
-              for (int B = 0; B <= 3; B += Bstep)
-#else
               for (int B = 0; B <= 1; B += Bstep)
-#endif
               {
                 const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
                 const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
@@ -8516,15 +7093,7 @@ protected:
                                  (B % 2) * std::max(0, 1 - abs(code[0]));
                 const int jNei = 2 * info.index[1] + std::max(code[1], 0) +
                                  code[1] + aux * std::max(0, 1 - abs(code[1]));
-#if DIMENSION == 3
-                const int kNei = 2 * info.index[2] + std::max(code[2], 0) +
-                                 code[2] +
-                                 (B / 2) * std::max(0, 1 - abs(code[2]));
-                const long long zzz =
-                    grid->getZforward(m + 1, iNei, jNei, kNei);
-#else
                 const long long zzz = grid->getZforward(m + 1, iNei, jNei);
-#endif
                 BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
                 State NeiState = FinerNei.state;
                 if (NeiState == Refine) {
@@ -8571,10 +7140,8 @@ protected:
               continue;
             if (!zperiodic && code[2] == zskip && zskin)
               continue;
-#if DIMENSION == 2
             if (code[2] != 0)
               continue;
-#endif
 
             BlockInfo &infoNei = grid->getBlockInfoAll(
                 info.level, info.Znei_(code[0], code[1], code[2]));
@@ -8599,11 +7166,7 @@ protected:
              j++)
           for (int k = 2 * (info.index[2] / 2);
                k <= 2 * (info.index[2] / 2) + 1; k++) {
-#if DIMENSION == 3
-            const long long n = grid->getZforward(m, i, j, k);
-#else
             const long long n = grid->getZforward(m, i, j);
-#endif
             BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
             if (grid->Tree(infoNei).Exists() == false ||
                 infoNei.state != Compress) {
@@ -8622,11 +7185,7 @@ protected:
                j <= 2 * (info.index[1] / 2) + 1; j++)
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
-#if DIMENSION == 3
-              const long long n = grid->getZforward(m, i, j, k);
-#else
               const long long n = grid->getZforward(m, i, j);
-#endif
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
               if (grid->Tree(infoNei).Exists() && infoNei.state == Compress)
                 infoNei.state = Leave;
@@ -8649,135 +7208,6 @@ protected:
     int offsetX[2] = {0, nx / 2};
     int offsetY[2] = {0, ny / 2};
 
-#if DIMENSION == 3
-    const int nz = BlockType::sizeZ;
-    int offsetZ[2] = {0, nz / 2};
-
-    for (int K = 0; K < 2; K++)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          BlockType &b = *B[K * 4 + J * 2 + I];
-          b.clear();
-
-          for (int k = 0; k < nz; k += 2)
-            for (int j = 0; j < ny; j += 2)
-              for (int i = 0; i < nx; i += 2) {
-                const int x = i / 2 + offsetX[I];
-                const int y = j / 2 + offsetY[J];
-                const int z = k / 2 + offsetZ[K];
-                const ElementType dudx =
-                    0.5 * (Lab(x + 1, y, z) - Lab(x - 1, y, z));
-                const ElementType dudy =
-                    0.5 * (Lab(x, y + 1, z) - Lab(x, y - 1, z));
-                const ElementType dudz =
-                    0.5 * (Lab(x, y, z + 1) - Lab(x, y, z - 1));
-                const ElementType dudx2 =
-                    (Lab(x + 1, y, z) + Lab(x - 1, y, z)) - 2.0 * Lab(x, y, z);
-                const ElementType dudy2 =
-                    (Lab(x, y + 1, z) + Lab(x, y - 1, z)) - 2.0 * Lab(x, y, z);
-                const ElementType dudz2 =
-                    (Lab(x, y, z + 1) + Lab(x, y, z - 1)) - 2.0 * Lab(x, y, z);
-                const ElementType dudxdy =
-                    0.25 * ((Lab(x + 1, y + 1, z) + Lab(x - 1, y - 1, z)) -
-                            (Lab(x + 1, y - 1, z) + Lab(x - 1, y + 1, z)));
-                const ElementType dudxdz =
-                    0.25 * ((Lab(x + 1, y, z + 1) + Lab(x - 1, y, z - 1)) -
-                            (Lab(x + 1, y, z - 1) + Lab(x - 1, y, z + 1)));
-                const ElementType dudydz =
-                    0.25 * ((Lab(x, y + 1, z + 1) + Lab(x, y - 1, z - 1)) -
-                            (Lab(x, y + 1, z - 1) + Lab(x, y - 1, z + 1)));
-
-#ifdef PRESERVE_SYMMETRY
-                const ElementType d2 =
-                    0.03125 * ConsistentSum<ElementType>(dudx2, dudy2, dudz2);
-                b(i, j, k) =
-                    Lab(x, y, z) +
-                    (0.25 * ConsistentSum<ElementType>(
-                                -(1.0) * dudx, -(1.0) * dudy, -(1.0) * dudz) +
-                     d2) +
-                    0.0625 * ConsistentSum(dudxdy, dudxdz, dudydz);
-                b(i + 1, j, k) =
-                    Lab(x, y, z) +
-                    (0.25 * ConsistentSum<ElementType>(dudx, -(1.0) * dudy,
-                                                       -(1.0) * dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(-(1.0) * dudxdy, -(1.0) * dudxdz, dudydz);
-                b(i, j + 1, k) =
-                    Lab(x, y, z) +
-                    (0.25 * ConsistentSum<ElementType>(-(1.0) * dudx, dudy,
-                                                       -(1.0) * dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(-(1.0) * dudxdy, dudxdz, -(1.0) * dudydz);
-                b(i + 1, j + 1, k) =
-                    Lab(x, y, z) +
-                    (0.25 *
-                         ConsistentSum<ElementType>(dudx, dudy, -(1.0) * dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(dudxdy, -(1.0) * dudxdz, -(1.0) * dudydz);
-                b(i, j, k + 1) =
-                    Lab(x, y, z) +
-                    (0.25 * ConsistentSum<ElementType>(-(1.0) * dudx,
-                                                       -(1.0) * dudy, dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(dudxdy, -(1.0) * dudxdz, -(1.0) * dudydz);
-                b(i + 1, j, k + 1) =
-                    Lab(x, y, z) +
-                    (0.25 *
-                         ConsistentSum<ElementType>(dudx, -(1.0) * dudy, dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(-(1.0) * dudxdy, dudxdz, -(1.0) * dudydz);
-                b(i, j + 1, k + 1) =
-                    Lab(x, y, z) +
-                    (0.25 *
-                         ConsistentSum<ElementType>(-(1.0) * dudx, dudy, dudz) +
-                     d2) +
-                    0.0625 *
-                        ConsistentSum(-(1.0) * dudxdy, -(1.0) * dudxdz, dudydz);
-                b(i + 1, j + 1, k + 1) =
-                    Lab(x, y, z) +
-                    (0.25 * ConsistentSum<ElementType>(dudx, dudy, dudz) + d2) +
-                    0.0625 * ConsistentSum(dudxdy, dudxdz, dudydz);
-#else
-                b(i, j, k) = Lab(x, y, z) +
-                             0.25 * (-(1.0) * dudx - dudy - dudz) +
-                             0.03125 * (dudx2 + dudy2 + dudz2) +
-                             0.0625 * (dudxdy + dudxdz + dudydz);
-                b(i + 1, j, k) = Lab(x, y, z) + 0.25 * (dudx - dudy - dudz) +
-                                 0.03125 * (dudx2 + dudy2 + dudz2) +
-                                 0.0625 * (-(1.0) * dudxdy - dudxdz + dudydz);
-                b(i, j + 1, k) = Lab(x, y, z) +
-                                 0.25 * (-(1.0) * dudx + dudy - dudz) +
-                                 0.03125 * (dudx2 + dudy2 + dudz2) +
-                                 0.0625 * (-(1.0) * dudxdy + dudxdz - dudydz);
-                b(i + 1, j + 1, k) = Lab(x, y, z) +
-                                     0.25 * (dudx + dudy - dudz) +
-                                     0.03125 * (dudx2 + dudy2 + dudz2) +
-                                     0.0625 * (dudxdy - dudxdz - dudydz);
-                b(i, j, k + 1) = Lab(x, y, z) +
-                                 0.25 * (-(1.0) * dudx - dudy + dudz) +
-                                 0.03125 * (dudx2 + dudy2 + dudz2) +
-                                 0.0625 * (dudxdy - dudxdz - dudydz);
-                b(i + 1, j, k + 1) =
-                    Lab(x, y, z) + 0.25 * (dudx - dudy + dudz) +
-                    0.03125 * (dudx2 + dudy2 + dudz2) +
-                    0.0625 * (-(1.0) * dudxdy + dudxdz - dudydz);
-                b(i, j + 1, k + 1) =
-                    Lab(x, y, z) + 0.25 * (-(1.0) * dudx + dudy + dudz) +
-                    0.03125 * (dudx2 + dudy2 + dudz2) +
-                    0.0625 * (-(1.0) * dudxdy - dudxdz + dudydz);
-                b(i + 1, j + 1, k + 1) = Lab(x, y, z) +
-                                         0.25 * (dudx + dudy + dudz) +
-                                         0.03125 * (dudx2 + dudy2 + dudz2) +
-                                         0.0625 * (dudxdy + dudxdz + dudydz);
-#endif
-              }
-        }
-#else
 
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
@@ -8826,7 +7256,6 @@ protected:
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
           }
       }
-#endif
   }
 
   /**
@@ -8844,20 +7273,10 @@ protected:
     BlockType &b = *(BlockType *)info.ptrBlock;
 
     double Linf = 0.0;
-#if DIMENSION == 3
-    const int nz = BlockType::sizeZ;
-    for (int k = 0; k < nz; k++)
-      for (int j = 0; j < ny; j++)
-        for (int i = 0; i < nx; i++) {
-          Linf = std::max(Linf, std::fabs(b(i, j, k).magnitude()));
-        }
-#endif
-#if DIMENSION == 2
     for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++) {
         Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
       }
-#endif
 
     if (Linf > tolerance_for_refinement)
       return Refine;
@@ -11073,11 +9492,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   filename << fname; // fname is the base filepath without file type extension
   fullpath << dpath << "/" << filename.str();
 
-#if DIMENSION == 2
   const int PtsPerElement = 4;
-#else
-  const int PtsPerElement = 8;
-#endif
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
   unsigned long long TotalCells;
@@ -11131,15 +9546,9 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
     s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
-#if DIMENSION == 2
     s << "   <Topology NumberOfElements=\"" << TotalCells
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
-#else
-    s << "   <Topology NumberOfElements=\"" << TotalCells
-      << "\" TopologyType=\"Hexahedron\"/>\n";
-    s << "     <Geometry GeometryType=\"XYZ\">\n";
-#endif
     // s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " <<
     // TotalCells*PtsPerElement << " " << DIMENSION << "\" NumberType=\"Float\"
     // Precision=\" " << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
@@ -11212,42 +9621,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
           for (int x = 0; x < nX; x++) {
             const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
                               PtsPerElement * DIMENSION;
-#if DIMENSION == 3
-            float p[3];
-            info.pos(p, x, y, z);
-            //(0,0,0)
-            buffer[bbase] = p[0] - h2;
-            buffer[bbase + 1] = p[1] - h2;
-            buffer[bbase + 2] = p[2] - h2;
-            //(0,0,1)
-            buffer[bbase + DIMENSION] = p[0] - h2;
-            buffer[bbase + DIMENSION + 1] = p[1] - h2;
-            buffer[bbase + DIMENSION + 2] = p[2] + h2;
-            //(0,1,1)
-            buffer[bbase + 2 * DIMENSION] = p[0] - h2;
-            buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 2 * DIMENSION + 2] = p[2] + h2;
-            //(0,1,0)
-            buffer[bbase + 3 * DIMENSION] = p[0] - h2;
-            buffer[bbase + 3 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 3 * DIMENSION + 2] = p[2] - h2;
-            //(1,0,0)
-            buffer[bbase + 4 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 4 * DIMENSION + 1] = p[1] - h2;
-            buffer[bbase + 4 * DIMENSION + 2] = p[2] - h2;
-            //(1,0,1)
-            buffer[bbase + 5 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 5 * DIMENSION + 1] = p[1] - h2;
-            buffer[bbase + 5 * DIMENSION + 2] = p[2] + h2;
-            //(1,1,1)
-            buffer[bbase + 6 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 6 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 6 * DIMENSION + 2] = p[2] + h2;
-            //(1,1,0)
-            buffer[bbase + 7 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 7 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 7 * DIMENSION + 2] = p[2] - h2;
-#else
             double p[2];
             info.pos(p, x, y);
             //(0,0)
@@ -11262,7 +9635,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
             //(1,0)
             buffer[bbase + 3 * DIMENSION] = p[0] + h2;
             buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
-#endif
           }
     }
     save_buffer_to_file<float>(buffer, 1, comm, gridFilePath, "vertices",
@@ -11321,12 +9693,10 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
   std::vector<BlockGroup> &MyGroups = grid.MyGroups;
   grid.UpdateMyGroups();
 
-#if DIMENSION == 2
   double hmin = 1e10;
   for (size_t groupID = 0; groupID < MyGroups.size(); groupID++)
     hmin = std::min(hmin, MyGroups[groupID].h);
   MPI_Allreduce(MPI_IN_PLACE, &hmin, 1, MPI_DOUBLE, MPI_MIN, comm);
-#endif
 
   long long mycells = 0;
   for (size_t groupID = 0; groupID < MyGroups.size(); groupID++) {
@@ -11368,13 +9738,8 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
       s << "   <DataItem Dimensions=\"3\" NumberType=\"Double\" "
            "Precision=\"8\" "
            "Format=\"XML\">\n";
-#if DIMENSION == 3
-      s << "    " << std::scientific << group.h << " " << group.h << " "
-        << group.h << "\n";
-#else
       s << "    " << std::scientific << hmin << " " << group.h << " " << group.h
         << "\n";
-#endif
       s << "   </DataItem>\n";
       s << "   </Geometry>\n";
 
@@ -11547,11 +9912,7 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime,
     for (int kB = group.i_min[2]; kB <= group.i_max[2]; kB++)
       for (int jB = group.i_min[1]; jB <= group.i_max[1]; jB++)
         for (int iB = group.i_min[0]; iB <= group.i_max[0]; iB++) {
-#if DIMENSION == 3
-          const long long Z = BlockInfo::forward(group.level, iB, jB, kB);
-#else
           const long long Z = BlockInfo::forward(group.level, iB, jB);
-#endif
           const cubism::BlockInfo &I = grid.getBlockInfoAll(group.level, Z);
           const auto &lab = *(B *)(I.ptrBlock);
           for (int iz = 0; iz < nZ; iz++)
@@ -15140,17 +13501,11 @@ void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
 std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData &s);
 std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData &s) {
   if (s.poissonSolver == "cuda_iterative") {
-#ifdef GPU_POISSON
     if (!_DOUBLE_PRECISION_)
       throw std::runtime_error(
           "Poisson solver: \"" + s.poissonSolver +
           "\" must be compiled with in double precision mode!");
     return std::make_shared<ExpAMRSolver>(s);
-#else
-    throw std::runtime_error(
-        "Poisson solver: \"" + s.poissonSolver +
-        "\" must be compiled with the -DGPU_POISSON flag!");
-#endif
   } else {
     throw std::invalid_argument("Poisson solver: \"" + s.poissonSolver +
                                 "\" unrecognized!");
