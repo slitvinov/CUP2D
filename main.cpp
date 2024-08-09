@@ -614,12 +614,6 @@ std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
     return new_it->second.stream;
   }
 }
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 namespace cubism // AMR_CUBISM
 {
 
@@ -2186,14 +2180,6 @@ public:
 };
 
 } // namespace cubism
-/*
- *  GridMPI.h
- *
- *  Created by Michalis Chatzimanolakis
- *  Copyright 2020 ETH Zurich. All rights reserved.
- *
- */
-
 namespace cubism {
 
 /**
@@ -10327,12 +10313,6 @@ public:
   virtual void operator()(const Real dt) = 0;
   virtual std::string getName() = 0;
 };
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 
