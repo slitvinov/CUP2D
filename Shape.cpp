@@ -1,18 +1,8 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 #include "Shape.h"
-//#include "OperatorComputeForces.h"
 #include "BufferedLogger.h"
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
 using namespace cubism;
-
-//#define EXPL_INTEGRATE_MOM
-
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u*u + v*v); }
