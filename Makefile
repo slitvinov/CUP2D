@@ -22,7 +22,6 @@ $(OPENMPFLAGS)\
 
 
 O =\
-AdaptTheMesh.o\
 ArgumentParser.o\
 BiCGSTAB.o\
 BufferedLogger.o\
