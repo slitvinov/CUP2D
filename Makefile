@@ -28,7 +28,6 @@ BufferedLogger.o\
 Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
-PutObjectsOnGrid.o\
 Shape.o\
 SimulationData.o\
 
