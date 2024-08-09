@@ -38,7 +38,7 @@ public:
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
       if (out != nullptr)
-        return out;
+	return out;
     }
     return nullptr;
   }
@@ -64,7 +64,7 @@ public:
 BCflag cubismBCX;
 BCflag cubismBCY;
 
-static const char kHorLine[] = 
+static const char kHorLine[] =
     "=======================================================================\n";
 
 static inline std::vector<std::string> split(const std::string&s,const char dlm)
@@ -189,7 +189,7 @@ void Simulation::parseRuntime()
   sim.levelMax = parser("-levelMax").asInt();
 
   // refinement/compression tolerance for vorticity magnitude
-  sim.Rtol = parser("-Rtol").asDouble(); 
+  sim.Rtol = parser("-Rtol").asDouble();
   sim.Ctol = parser("-Ctol").asDouble();
 
   parser.unset_strict_mode();
@@ -284,19 +284,19 @@ void Simulation::createShapes()
       std::istringstream line_stream(line);
       std::string objectName;
       if( sim.rank == 0 && sim.verbose )
-        std::cout << "[CUP2D] " << line << std::endl;
+	std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
       // Comments and empty lines ignored:
       if(objectName.empty() or objectName[0]=='#') continue;
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {
-        ffparser("-xpos").asDouble(.5*sim.extents[0]),
-        ffparser("-ypos").asDouble(.5*sim.extents[1])
+	ffparser("-xpos").asDouble(.5*sim.extents[0]),
+	ffparser("-ypos").asDouble(.5*sim.extents[1])
       };
       //ffparser.print_args();
       Shape* shape = nullptr;
       if (objectName=="stefanfish")
-        shape = new StefanFish(       sim, ffparser, center);
+	shape = new StefanFish(       sim, ffparser, center);
       else
 	throw std::invalid_argument("unrecognized shape: " + objectName);
       sim.addShape(std::shared_ptr<Shape>{shape});
@@ -387,16 +387,16 @@ void Simulation::simulate() {
     {
       const bool bDump = sim.bDump();
       if( bDump ) {
-        if( sim.rank == 0 && sim.verbose )
-          std::cout << "[CUP2D] dumping field...\n";
-        sim.registerDump();
-        sim.dumpAll("_");
+	if( sim.rank == 0 && sim.verbose )
+	  std::cout << "[CUP2D] dumping field...\n";
+	sim.registerDump();
+	sim.dumpAll("_");
       }
       if (sim.rank == 0 && !sim.muteAll)
       {
-        std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
-        sim.printResetProfiler();
-        std::cout << kHorLine;
+	std::cout << kHorLine << "[CUP2D] Simulation Over... Profiling information:\n";
+	sim.printResetProfiler();
+	std::cout << kHorLine;
       }
       break;
     }
@@ -416,7 +416,7 @@ Real Simulation::calcMaxTimestep()
   {
     const Real dtDiffusion = 0.25*h*h/(sim.nu+0.25*h*sim.uMax_measured);
     const Real dtAdvection = h / ( sim.uMax_measured + 1e-8 );
-    
+
     //non-constant timestep introduces a source term = (1-dt_new/dt_old) \nabla^2 P_{old}
     //in the Poisson equation. Thus, we try to modify the timestep less often
     if (sim.step < sim.rampup)
@@ -449,9 +449,9 @@ void Simulation::advance(const Real dt)
   {
     std::cout << kHorLine;
     printf("[CUP2D] step:%d, blocks:%zu, time:%f, dt=%f, uinf:[%f %f], maxU:%f, CFL:%f\n",
-           sim.step, sim.chi->getBlocksInfo().size(),
-           (double)sim.time, (double)dt,
-           (double)sim.uinfx, (double)sim.uinfy, (double)sim.uMax_measured, (double)CFL);
+	   sim.step, sim.chi->getBlocksInfo().size(),
+	   (double)sim.time, (double)dt,
+	   (double)sim.uinfx, (double)sim.uinfy, (double)sim.uMax_measured, (double)CFL);
   }
 
   // dump field
