@@ -1,14 +1,7 @@
-//
-//  CubismUP_2D
-//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
-//  Distributed under the terms of the MIT license.
-//
-
 #include "DefinitionsCup.h"
 #include "Shape.h"
 #include "Helpers.h"
 #include <HDF5Dumper.h>
-
 #include <iomanip>
 using namespace cubism;
 
