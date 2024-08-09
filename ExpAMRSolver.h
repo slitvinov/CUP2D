@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../Operator.h"
+#include "Operator.h"
 #include "Cubism/FluxCorrection.h"
 #include "Base.h"
 #include "LocalSpMatDnVec.h"

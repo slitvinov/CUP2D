@@ -8,15 +8,15 @@
 
 #include <Cubism/HDF5Dumper.h>
 
-#include "Operators/Helpers.h"
-#include "Operators/PressureSingle.h"
-#include "Operators/PutObjectsOnGrid.h"
-#include "Operators/ComputeForces.h"
-#include "Operators/advDiff.h"
-#include "Operators/AdaptTheMesh.h"
+#include "Helpers.h"
+#include "PressureSingle.h"
+#include "PutObjectsOnGrid.h"
+#include "ComputeForces.h"
+#include "advDiff.h"
+#include "AdaptTheMesh.h"
 
-#include "Utils/FactoryFileLineParser.h"
-#include "Obstacles/StefanFish.h"
+#include "FactoryFileLineParser.h"
+#include "StefanFish.h"
 
 #include <algorithm>
 #include <iterator>

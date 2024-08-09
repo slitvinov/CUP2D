@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../Operator.h"
+#include "Operator.h"
 #include "Helpers.h"
 
 class AdaptTheMesh : public Operator

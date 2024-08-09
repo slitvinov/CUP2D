@@ -7,7 +7,7 @@
 #include <cusparse.h>
 
 #include "LocalSpMatDnVec.h"
-#include "../Utils/DeviceProfiler.cuh"
+#include "DeviceProfiler.cuh"
 
 struct BiCGSTABScalars {
   double alpha;

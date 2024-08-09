@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "../ObstacleBlock.h"
-#include "../Operator.h"
+#include "ObstacleBlock.h"
+#include "Operator.h"
 #include "FishUtilities.h"
 
 struct FishSkin

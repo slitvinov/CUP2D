@@ -2,7 +2,7 @@
 #ifdef GPU_POISSON
 #include "ExpAMRSolver.h"
 #endif
-#include "../SimulationData.h"
+#include "SimulationData.h"
 
 std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData& s)
 {

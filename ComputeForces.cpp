@@ -13,7 +13,7 @@
 
 
 #include "ComputeForces.h"
-#include "../Shape.h"
+#include "Shape.h"
 
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 

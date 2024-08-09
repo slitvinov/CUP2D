@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "../Operator.h"
+#include "Operator.h"
 
 class Shape;
 
-#include "../Poisson/Base.h"
+#include "Base.h"
 
 class PressureSingle : public Operator
 {

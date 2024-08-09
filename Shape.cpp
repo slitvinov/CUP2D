@@ -6,7 +6,7 @@
 
 #include "Shape.h"
 //#include "OperatorComputeForces.h"
-#include "Utils/BufferedLogger.h"
+#include "BufferedLogger.h"
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
 using namespace cubism;

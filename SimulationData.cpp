@@ -6,7 +6,7 @@
 
 #include "Definitions.h"
 #include "Shape.h"
-#include "Operators/Helpers.h"
+#include "Helpers.h"
 #include <Cubism/HDF5Dumper.h>
 
 #include <iomanip>

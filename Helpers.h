@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "../Operator.h"
-#include "../Shape.h"
-#include "../ObstacleBlock.h"
+#include "Operator.h"
+#include "Shape.h"
+#include "ObstacleBlock.h"
 #include "Cubism/FluxCorrection.h"
 
 class findMaxU

@@ -5,8 +5,8 @@
 //
 
 #include "PutObjectsOnGrid.h"
-#include "../Shape.h"
-#include "../Utils/BufferedLogger.h"
+#include "Shape.h"
+#include "BufferedLogger.h"
 
 using namespace cubism;
 

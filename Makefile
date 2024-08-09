@@ -20,26 +20,27 @@ $(OPENMPFLAGS)\
 -O3\
 -std=c++17\
 
+
 O =\
-source/ArgumentParser.o\
-source/main.o\
-source/Obstacles/FishData.o\
-source/Obstacles/Fish.o\
-source/Obstacles/StefanFish.o\
-source/Operators/AdaptTheMesh.o\
-source/Operators/advDiff.o\
-source/Operators/ComputeForces.o\
-source/Operators/Helpers.o\
-source/Operators/PressureSingle.o\
-source/Operators/PutObjectsOnGrid.o\
-source/Poisson/Base.o\
-source/Poisson/BiCGSTAB.o\
-source/Poisson/ExpAMRSolver.o\
-source/Poisson/LocalSpMatDnVec.o\
-source/Shape.o\
-source/SimulationData.o\
-source/Simulation.o\
-source/Utils/BufferedLogger.o\
+AdaptTheMesh.o\
+advDiff.o\
+ArgumentParser.o\
+Base.o\
+BiCGSTAB.o\
+BufferedLogger.o\
+ComputeForces.o\
+ExpAMRSolver.o\
+FishData.o\
+Fish.o\
+Helpers.o\
+LocalSpMatDnVec.o\
+main.o\
+PressureSingle.o\
+PutObjectsOnGrid.o\
+Shape.o\
+SimulationData.o\
+Simulation.o\
+StefanFish.o\
 
 NVCCFLAGS =
 main: $O
