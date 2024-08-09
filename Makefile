@@ -30,7 +30,6 @@ BiCGSTAB.o\
 BufferedLogger.o\
 ComputeForces.o\
 ExpAMRSolver.o\
-FishData.o\
 Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
