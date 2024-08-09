@@ -3,8 +3,8 @@
 .SUFFIXES: .cpp .cu .o
 
 MPICXX = mpic++
-NVCC = nvcc -ccbin='$(MPICXX)'
-LINK = $(NVCC)
+NVCC = nvcc
+LINK = $(NVCC) -ccbin='$(MPICXX)'
 LIBS = -lcublas -lcusparse -lhdf5 -lgsl -lgslcblas
 OPENMPFLAGS = -fopenmp
 
@@ -27,7 +27,7 @@ main.o\
 
 NVCCFLAGS =
 main: $O
-	$(LINK) -o main $O $(LDFLAGS) -Xcompiler $(OPENMPFLAGS) $(LIBS)
+	$(LINK) -o main $O $(LDFLAGS) -Xcompiler '$(OPENMPFLAGS)' $(LIBS)
 .cpp.o:
 	$(MPICXX) -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:

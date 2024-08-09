@@ -48,12 +48,6 @@ using Real = double;
 using Real = long double;
 #define MPI_Real MPI_LONG_DOUBLE
 #endif
-#ifndef DIMENSION
-#define DIMENSION 3
-#endif
-#ifndef CUBISM_ALIGNMENT
-#define CUBISM_ALIGNMENT 32
-#endif
 
 namespace cubism {
 
@@ -9709,10 +9703,6 @@ public:
 };
 
 } // namespace cubism
-
-#ifndef _DIM_
-#define _DIM_ 2
-#endif //_DIM_
 
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
