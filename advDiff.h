@@ -7,7 +7,7 @@
 #pragma once
 
 #include "Operator.h"
-#include "Cubism/FluxCorrection.h"
+#include "FluxCorrection.h"
 
 class advDiff : public Operator
 {

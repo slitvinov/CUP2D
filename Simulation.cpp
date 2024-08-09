@@ -6,7 +6,7 @@
 
 #include "Simulation.h"
 
-#include <Cubism/HDF5Dumper.h>
+#include <HDF5Dumper.h>
 
 #include "Helpers.h"
 #include "PressureSingle.h"

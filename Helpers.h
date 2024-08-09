@@ -9,7 +9,7 @@
 #include "Operator.h"
 #include "Shape.h"
 #include "ObstacleBlock.h"
-#include "Cubism/FluxCorrection.h"
+#include "FluxCorrection.h"
 
 class findMaxU
 {

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "DefinitionsCup.h"
-#include "Cubism/Profiler.h"
+#include "Profiler.h"
 #include <memory>
 
 class Shape;

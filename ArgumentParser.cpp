@@ -8,7 +8,7 @@
 #include <sstream>
 #include <limits>
 
-#include "Cubism/ArgumentParser.h"
+#include "ArgumentParser.h"
 
 namespace cubism {
 

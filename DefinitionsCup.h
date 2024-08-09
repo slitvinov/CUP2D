@@ -25,15 +25,15 @@ using Real = long double;
 #define MPI_Real MPI_LONG_DOUBLE
 #endif
 
-#include <Cubism/ArgumentParser.h>
-#include <Cubism/Grid.h>
-#include <Cubism/GridMPI.h>
-#include <Cubism/BlockInfo.h>
-#include <Cubism/BlockLab.h>
-#include <Cubism/BlockLabMPI.h>
-#include <Cubism/StencilInfo.h>
-#include <Cubism/AMR_MeshAdaptation.h>
-#include <Cubism/Definitions.h>
+#include <ArgumentParser.h>
+#include <Grid.h>
+#include <GridMPI.h>
+#include <BlockInfo.h>
+#include <BlockLab.h>
+#include <BlockLabMPI.h>
+#include <StencilInfo.h>
+#include <AMR_MeshAdaptation.h>
+#include <Definitions.h>
 
 #ifndef _DIM_
 #define _DIM_ 2

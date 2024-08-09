@@ -5,7 +5,7 @@
 //
 
 #include "Helpers.h"
-#include "Cubism/HDF5Dumper.h"
+#include "HDF5Dumper.h"
 #include <random>
 using namespace cubism;
 

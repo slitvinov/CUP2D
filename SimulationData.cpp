@@ -7,7 +7,7 @@
 #include "DefinitionsCup.h"
 #include "Shape.h"
 #include "Helpers.h"
-#include <Cubism/HDF5Dumper.h>
+#include <HDF5Dumper.h>
 
 #include <iomanip>
 using namespace cubism;

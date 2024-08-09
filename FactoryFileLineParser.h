@@ -7,7 +7,7 @@
 #ifndef CubismUP_2D_FactoryFileLineParser_h
 #define CubismUP_2D_FactoryFileLineParser_h
 
-#include "Cubism/ArgumentParser.h"
+#include "ArgumentParser.h"
 
 #include <algorithm>
 #include <locale>
