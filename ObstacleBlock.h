@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Definitions.h"
+#include "DefinitionsCup.h"
 
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];

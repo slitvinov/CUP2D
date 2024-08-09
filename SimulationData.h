@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Definitions.h"
+#include "DefinitionsCup.h"
 #include "Cubism/Profiler.h"
 #include <memory>
 

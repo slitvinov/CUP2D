@@ -4,7 +4,7 @@
 //  Distributed under the terms of the MIT license.
 //
 
-#include "Definitions.h"
+#include "DefinitionsCup.h"
 #include "Shape.h"
 #include "Helpers.h"
 #include <Cubism/HDF5Dumper.h>

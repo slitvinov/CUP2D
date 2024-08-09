@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "Definitions.h"
+#include "DefinitionsCup.h"
 #include <math.h>
 
 struct IF2D_Frenet2D
