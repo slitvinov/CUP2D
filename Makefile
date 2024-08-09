@@ -23,23 +23,9 @@ $(OPENMPFLAGS)\
 O =\
 source/ArgumentParser.o\
 source/main.o\
-source/Obstacles/CarlingFish.o\
-source/Obstacles/CStartFish.o\
-source/Obstacles/CylinderNozzle.o\
-source/Obstacles/ExperimentFish.o\
 source/Obstacles/FishData.o\
 source/Obstacles/Fish.o\
-source/Obstacles/Naca.o\
-source/Obstacles/NeuroKinematicFish.o\
-source/Obstacles/ShapeLibrary.o\
-source/Obstacles/ShapesSimple.o\
-source/Obstacles/SmartCylinder.o\
-source/Obstacles/SmartNaca.o\
 source/Obstacles/StefanFish.o\
-source/Obstacles/Teardrop.o\
-source/Obstacles/Waterturbine.o\
-source/Obstacles/Windmill.o\
-source/Obstacles/ZebraFish.o\
 source/Operators/AdaptTheMesh.o\
 source/Operators/advDiff.o\
 source/Operators/advDiffSGS.o\

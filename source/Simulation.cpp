@@ -18,21 +18,7 @@
 #include "Operators/Forcing.h"
 
 #include "Utils/FactoryFileLineParser.h"
-
-#include "Obstacles/ShapesSimple.h"
-#include "Obstacles/CarlingFish.h"
 #include "Obstacles/StefanFish.h"
-#include "Obstacles/CStartFish.h"
-#include "Obstacles/ZebraFish.h"
-#include "Obstacles/NeuroKinematicFish.h"
-#include "Obstacles/SmartCylinder.h"
-#include "Obstacles/Naca.h"
-#include "Obstacles/SmartNaca.h"
-#include "Obstacles/Windmill.h"
-#include "Obstacles/Teardrop.h"
-#include "Obstacles/Waterturbine.h"
-#include "Obstacles/ExperimentFish.h"
-#include "Obstacles/CylinderNozzle.h"
 
 #include <algorithm>
 #include <iterator>
@@ -281,42 +267,10 @@ void Simulation::createShapes()
       };
       //ffparser.print_args();
       Shape* shape = nullptr;
-      if (objectName=="disk")
-        shape = new Disk(             sim, ffparser, center);
-      else if (objectName=="cylinderNozzle")
-        shape = new CylinderNozzle(   sim, ffparser, center);
-      else if (objectName=="smartDisk")
-        shape = new SmartCylinder(    sim, ffparser, center);
-      else if (objectName=="halfDisk")
-        shape = new HalfDisk(         sim, ffparser, center);
-      else if (objectName=="ellipse")
-        shape = new Ellipse(          sim, ffparser, center);
-      else if (objectName=="rectangle")
-        shape = new Rectangle(        sim, ffparser, center);
-      else if (objectName=="stefanfish")
+      if (objectName=="stefanfish")
         shape = new StefanFish(       sim, ffparser, center);
-      else if (objectName=="cstartfish")
-        shape = new CStartFish(       sim, ffparser, center);
-      else if (objectName=="zebrafish")
-          shape = new ZebraFish(      sim, ffparser, center);
-      else if (objectName=="neurokinematicfish")
-          shape = new NeuroKinematicFish(      sim, ffparser, center);
-      else if (objectName=="carlingfish")
-        shape = new CarlingFish(      sim, ffparser, center);
-      else if ( objectName=="NACA" )
-        shape = new Naca(             sim, ffparser, center);
-      else if ( objectName=="SmartNACA" )
-        shape = new SmartNaca(        sim, ffparser, center);
-      else if (objectName=="windmill")
-        shape = new Windmill(         sim, ffparser, center);
-      else if (objectName=="teardrop")
-        shape = new Teardrop(         sim, ffparser, center);
-      else if (objectName=="waterturbine")
-        shape = new Waterturbine(     sim, ffparser, center);
-      else if (objectName=="experimentFish")
-        shape = new ExperimentFish(   sim, ffparser, center);
       else
-        throw std::invalid_argument("unrecognized shape: " + objectName);
+	throw std::invalid_argument("unrecognized shape: " + objectName);
       sim.addShape(std::shared_ptr<Shape>{shape});
     }
   }
