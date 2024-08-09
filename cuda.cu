@@ -1,41 +1,26 @@
-#include <iostream>
-
-#include <cuda_runtime.h>
-#include <cub/cub.cuh>
-#include <memory>
-#include <mpi.h>
-
-#include <cublas_v2.h>
-#include <cusparse.h>
-
-#include <map>
-#include <string>
-#include <iostream>
+#include <algorithm>
 #include <cassert>
-#include <memory>
-#include <stdexcept>
-#include <mpi.h>
-
-#include <cuda_runtime.h>
+#include <cub/cub.cuh>
+#include <cublas_v2.h>
 #include "cuda.h"
-
-
+#include <cuda_runtime.h>
+#include <cusparse.h>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <mpi.h>
+#include <stdexcept>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
-
-// #include <helper_string.h>
+#include <unordered_map>
 
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
 #endif
 
-// Note, it is required that your SDK sample to include the proper header
-// files, please refer the CUDA examples for examples of the needed CUDA
-// headers, which may change depending on which CUDA functions are used.
-
-// CUDA Runtime error messages
 #ifdef __DRIVER_TYPES_H__
 static const char *_cudaGetErrorEnum(cudaError_t error) {
   return cudaGetErrorName(error);
@@ -1768,10 +1753,6 @@ void BiCGSTABSolver::main(
   prof_.stopProfiler("Memcpy", solver_stream_);
   prof_.stopProfiler("Total", solver_stream_);
 }
-
-#include <unordered_map>
-#include <algorithm> // std::copy
-#include <iostream>
 
 
 LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint, const std::vector<double>& P_inv) 
