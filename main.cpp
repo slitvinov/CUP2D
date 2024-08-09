@@ -109,7 +109,6 @@ public:
 
   void loud() { bVerbose = true; }
 
-  void save_options(const std::string &path = ".");
   void print_args();
 };
 
@@ -299,21 +298,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
   // printf("found %ld arguments of %d\n",mapArguments.size(),argc);
 }
 
-void CommandlineParser::save_options(const std::string &path) {
-  std::string options;
-  for (std::map<std::string, Value>::iterator it = mapArguments.begin();
-       it != mapArguments.end(); it++) {
-    options += it->first + " " + it->second.asString() + " ";
-  }
-  std::string filepath = path + "/argumentparser.log";
-  FILE *f = fopen(filepath.data(), "a");
-  if (f == NULL) {
-    fprintf(stderr, "impossible to write %s.\n", filepath.data());
-    return;
-  }
-  fprintf(f, "%s\n", options.data());
-  fclose(f);
-}
 
 void CommandlineParser::print_args() {
   for (std::map<std::string, Value>::iterator it = mapArguments.begin();
