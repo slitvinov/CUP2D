@@ -293,16 +293,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
 }
 
 
-void CommandlineParser::print_args() {
-  for (std::map<std::string, Value>::iterator it = mapArguments.begin();
-       it != mapArguments.end(); it++) {
-    std::cout.width(50);
-    std::cout.fill('.');
-    std::cout << std::left << it->first;
-    std::cout << ": " << it->second.asString() << std::endl;
-  }
-}
-
 Value &ArgumentParser::operator()(std::string key) {
   _normalizeKey(key);
   const bool bDefaultInCode = !_existKey(key, mapArguments);
@@ -350,94 +340,6 @@ void ArgumentParser::write_runtime_environment() const {
            mapArguments.begin();
        it != mapArguments.end(); ++it)
     runtime << it->first << '\t' << it->second << std::endl;
-}
-
-void ArgumentParser::print_args() {
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-               "~~~~~~~"
-            << std::endl;
-  std::cout << "* Summary:" << std::endl;
-  std::cout << "*    Parameter read from command line:                "
-            << from_commandline.size() << std::endl;
-  size_t nFiles = 0;
-  size_t nFileParameter = 0;
-  for (FileMap::const_iterator it = from_files.begin(); it != from_files.end();
-       ++it) {
-    if (it->second->size() > 0) {
-      ++nFiles;
-      nFileParameter += it->second->size();
-    }
-  }
-  std::cout << "*    Parameter read from " << std::setw(3) << std::right
-            << nFiles << " file(s):                 " << nFileParameter
-            << std::endl;
-  std::cout << "*    Parameter read from defaults in code:            "
-            << from_code.size() << std::endl;
-  std::cout << "*    Total number of parameter read from all sources: "
-            << mapArguments.size() << std::endl;
-  std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-               "~~~~~~~"
-            << std::endl;
-
-  // command line given arguments
-  if (!from_commandline.empty()) {
-    std::cout << "* Command Line:" << std::endl;
-    std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                 "~~~~~~~~~"
-              << std::endl;
-    for (ArgMap::iterator it = from_commandline.begin();
-         it != from_commandline.end(); it++) {
-      std::cout.width(50);
-      std::cout.fill('.');
-      std::cout << std::left << it->first;
-      std::cout << ": " << it->second.asString() << std::endl;
-    }
-    std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                 "~~~~~~~~~"
-              << std::endl;
-  }
-
-  // options read from input files
-  if (!from_files.empty()) {
-    for (FileMap::iterator itFile = from_files.begin();
-         itFile != from_files.end(); itFile++) {
-      if (!itFile->second->empty()) {
-        std::cout << "* File: " << itFile->first << std::endl;
-        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                     "~~~~~~~~~~~~~"
-                  << std::endl;
-        ArgMap &fileArgs = *(itFile->second);
-        for (ArgMap::iterator it = fileArgs.begin(); it != fileArgs.end();
-             it++) {
-          std::cout.width(50);
-          std::cout.fill('.');
-          std::cout << std::left << it->first;
-          std::cout << ": " << it->second.asString() << std::endl;
-        }
-        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                     "~~~~~~~~~~~~~"
-                  << std::endl;
-      }
-    }
-  }
-
-  // defaults defined in code
-  if (!from_code.empty()) {
-    std::cout << "* Defaults in Code:" << std::endl;
-    std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                 "~~~~~~~~~"
-              << std::endl;
-    for (pArgMap::iterator it = from_code.begin(); it != from_code.end();
-         it++) {
-      std::cout.width(50);
-      std::cout.fill('.');
-      std::cout << std::left << it->first;
-      std::cout << ": " << it->second->asString() << std::endl;
-    }
-    std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-                 "~~~~~~~~~"
-              << std::endl;
-  }
 }
 
 } // namespace cubism
@@ -18388,7 +18290,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
                  "Navier-Stokes)    \n";
     std::cout << "============================================================="
                  "==========\n";
-    parser.print_args();
 #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
@@ -18587,7 +18488,6 @@ void Simulation::createShapes() {
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
-      // ffparser.print_args();
       Shape *shape = nullptr;
       if (objectName == "stefanfish")
         shape = new StefanFish(sim, ffparser, center);
