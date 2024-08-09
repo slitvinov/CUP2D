@@ -31,7 +31,6 @@ BufferedLogger.o\
 ComputeForces.o\
 ExpAMRSolver.o\
 FishData.o\
-Fish.o\
 Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
