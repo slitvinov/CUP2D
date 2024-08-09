@@ -29,7 +29,6 @@ source/Obstacles/StefanFish.o\
 source/Operators/AdaptTheMesh.o\
 source/Operators/advDiff.o\
 source/Operators/ComputeForces.o\
-source/Operators/Forcing.o\
 source/Operators/Helpers.o\
 source/Operators/PressureSingle.o\
 source/Operators/PutObjectsOnGrid.o\

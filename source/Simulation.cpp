@@ -14,7 +14,6 @@
 #include "Operators/ComputeForces.h"
 #include "Operators/advDiff.h"
 #include "Operators/AdaptTheMesh.h"
-#include "Operators/Forcing.h"
 
 #include "Utils/FactoryFileLineParser.h"
 #include "Obstacles/StefanFish.h"
@@ -124,8 +123,6 @@ void Simulation::init()
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
-  if( sim.bForcing )
-    pipeline.push_back(std::make_shared<Forcing>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
 
