@@ -1,4 +1,3 @@
-#include "cuda.h"
 #include <algorithm>
 #include <array>
 #include <assert.h>
@@ -34,6 +33,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "cuda.h"
 
 #define OMPI_SKIP_MPICXX 1
 #ifdef _FLOAT_PRECISION_
