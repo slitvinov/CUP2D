@@ -9,7 +9,6 @@
 #include "BlockInfo.h"
 #include "PUPkernelsMPI.h"
 #include "StencilInfo.h"
-#include "ConsistentOperations.h"
 #include <numeric>      // std::iota
 #include <sstream>
 

@@ -1,5 +1,4 @@
 #pragma once
-#include "ConsistentOperations.h"
 #include "StencilInfo.h"
 #include "BlockLab.h"
 #include "AMR_SynchronizerMPI.h"
