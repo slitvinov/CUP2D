@@ -1,5 +1,4 @@
 #include "Base.h"
-#include "AMRSolver.h"
 #ifdef GPU_POISSON
 #include "ExpAMRSolver.h"
 #endif
@@ -7,11 +6,7 @@
 
 std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData& s)
 {
-  if (s.poissonSolver == "iterative") 
-  {
-    return std::make_shared<AMRSolver>(s);
-  } 
-  else if (s.poissonSolver == "cuda_iterative") 
+  if (s.poissonSolver == "cuda_iterative") 
   {
 #ifdef GPU_POISSON
     if (! _DOUBLE_PRECISION_ )

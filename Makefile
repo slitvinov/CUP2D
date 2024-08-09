@@ -34,7 +34,6 @@ source/Operators/Forcing.o\
 source/Operators/Helpers.o\
 source/Operators/PressureSingle.o\
 source/Operators/PutObjectsOnGrid.o\
-source/Poisson/AMRSolver.o\
 source/Poisson/Base.o\
 source/Poisson/BiCGSTAB.o\
 source/Poisson/ExpAMRSolver.o\

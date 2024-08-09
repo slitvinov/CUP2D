@@ -4,6 +4,13 @@ module load mpi
 make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' -j
 ```
 
+With converage
+```
+make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' -j
+sh run.sh
+gcovr --html-details example_html.html
+```
+
 grace
 ```
 module purge
