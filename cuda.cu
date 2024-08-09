@@ -1,4 +1,8 @@
-#include "cuda.h"
+#include <map>
+#include <set>
+#include <vector>
+#include <memory>
+#include <mpi.h>
 #include <algorithm>
 #include <cassert>
 #include <cub/cub.cuh>
@@ -15,7 +19,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <memory>
 #include <unordered_map>
+#include <mpi.h>
+#include "cuda.h"
 
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
