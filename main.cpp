@@ -1,26 +1,21 @@
-#include "Operator.h"
-#include "FluxCorrection.h"
-#include "LocalSpMatDnVec.h"
-#include "Operator.h"
-#include "FluxCorrection.h"
-#include "Shape.h"
-#include <memory>
 #include <algorithm>
-#include <iterator>
+#include <memory>
 #include <mpi.h>
+#include <iterator>
+
 #include "AdaptTheMesh.h"
 #include "advDiff.h"
 #include "ComputeForces.h"
 #include "DefinitionsCup.h"
 #include "FishUtilities.h"
+#include "FluxCorrection.h"
 #include "HDF5Dumper.h"
 #include "Helpers.h"
+#include "LocalSpMatDnVec.h"
 #include "ObstacleBlock.h"
-#include "Operator.h"
 #include "Operator.h"
 #include "PutObjectsOnGrid.h"
 #include "Shape.h"
-#include "SimulationData.h"
 #include "SimulationData.h"
 
 #define profile( func ) do { } while (0)
