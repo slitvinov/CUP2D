@@ -27,7 +27,6 @@ advDiff.o\
 ArgumentParser.o\
 BiCGSTAB.o\
 BufferedLogger.o\
-ComputeForces.o\
 Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
