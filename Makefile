@@ -46,8 +46,8 @@ NVCCFLAGS =
 main: $O
 	$(LINK) -o main $O $(LDFLAGS) -Xcompiler $(OPENMPFLAGS) $(LIBS)
 .cpp.o:
-	$(MPICXX) -o $@ -c $< $(FLAGS) $(CXXFLAGS)
+	$(MPICXX) -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
-	$(NVCC) -o $@ -c $< $(NVCCFLAGS) -Xcompiler '$(FLAGS)'
+	$(NVCC) -c $< $(NVCCFLAGS) -Xcompiler '$(FLAGS)'
 clean:
 	rm -f main $O
