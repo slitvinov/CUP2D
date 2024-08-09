@@ -1,10 +1,3 @@
-//
-//  HDF5Dumper.h
-//  Cubism
-//
-//  Created by Michalis Chatzimanolakis on 20.10.2020
-//  Copyright 2020 ETH Zurich. All rights reserved.
-//
 #pragma once
 
 #include <vector>
