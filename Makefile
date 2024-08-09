@@ -25,15 +25,12 @@ O =\
 AdaptTheMesh.o\
 advDiff.o\
 ArgumentParser.o\
-Base.o\
 BiCGSTAB.o\
 BufferedLogger.o\
 ComputeForces.o\
-ExpAMRSolver.o\
 Helpers.o\
 LocalSpMatDnVec.o\
 main.o\
-PressureSingle.o\
 PutObjectsOnGrid.o\
 Shape.o\
 SimulationData.o\

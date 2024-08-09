@@ -1,22 +1,1669 @@
+#include "Operator.h"
+#include "FluxCorrection.h"
+#include "LocalSpMatDnVec.h"
+#include "Operator.h"
+#include "FluxCorrection.h"
+#include "Shape.h"
+#include <memory>
 #include <algorithm>
 #include <iterator>
 #include <mpi.h>
 #include "AdaptTheMesh.h"
 #include "advDiff.h"
 #include "ComputeForces.h"
+#include "DefinitionsCup.h"
+#include "FishUtilities.h"
 #include "HDF5Dumper.h"
 #include "Helpers.h"
+#include "ObstacleBlock.h"
 #include "Operator.h"
-#include "PressureSingle.h"
+#include "Operator.h"
 #include "PutObjectsOnGrid.h"
 #include "Shape.h"
 #include "SimulationData.h"
-#include "ObstacleBlock.h"
-#include "Operator.h"
-#include "FishUtilities.h"
+#include "SimulationData.h"
+
 #define profile( func ) do { } while (0)
 using namespace cubism;
+class PoissonSolver
+{
+public:
+  virtual ~PoissonSolver() = default;
+  virtual void solve(const ScalarGrid *input, ScalarGrid *output) = 0;
+};
 
+class ExpAMRSolver : public PoissonSolver
+{
+  /*
+  Method used to solve Poisson's equation: https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
+  */
+public:
+  std::string getName() {
+    // ExpAMRSolver == AMRSolver for explicit linear system
+    return "ExpAMRSolver";
+  }
+  // Constructor and destructor
+  ExpAMRSolver(SimulationData& s);
+  ~ExpAMRSolver() = default;
+
+  //main function used to solve Poisson's equation
+  void solve(
+      const ScalarGrid *input, 
+      ScalarGrid * const output);
+
+protected:
+  //this struct contains information such as the currect timestep size, fluid properties and many others
+  SimulationData& sim; 
+
+  int rank_;
+  MPI_Comm m_comm_;
+  int comm_size_;
+
+  static constexpr int BSX_ = VectorBlock::sizeX;
+  static constexpr int BSY_ = VectorBlock::sizeY;
+  static constexpr int BLEN_ = BSX_ * BSY_;
+
+  //This returns element K_{I1,I2}. It is used when we invert K
+  double getA_local(int I1,int I2);
+
+  // Method to add off-diagonal matrix element associated to cell in 'rhsNei' block
+  class EdgeCellIndexer; // forward declaration
+  void makeFlux(
+      const cubism::BlockInfo &rhs_info,
+      const int ix,
+      const int iy,
+      const cubism::BlockInfo &rhsNei,
+      const EdgeCellIndexer &indexer,
+      SpRowInfo &row) const;
+
+  // Method to compute A and b for the current mesh
+  void getMat(); // update LHS and RHS after refinement
+  void getVec(); // update initial guess and RHS vecs only
+
+  // Distributed linear system which uses local indexing
+  std::unique_ptr<LocalSpMatDnVec> LocalLS_;
+
+  std::vector<long long> Nblocks_xcumsum_;
+  std::vector<long long> Nrows_xcumsum_;
+
+  // Edge descriptors to allow algorithmic access to cell indices regardless of edge type
+  class CellIndexer{
+    public:
+      CellIndexer(const ExpAMRSolver& pSolver) : ps(pSolver) {}
+      ~CellIndexer() = default;
+
+      long long This(const cubism::BlockInfo &info, const int ix, const int iy) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + ix); }
+
+      static bool validXm(const int ix, const int iy)
+      { return ix > 0; }
+      static bool validXp(const int ix, const int iy)
+      { return ix < BSX_ - 1; }
+      static bool validYm(const int ix, const int iy)
+      { return iy > 0; }
+      static bool validYp(const int ix, const int iy)
+      { return iy < BSY_ - 1; }
+
+      long long Xmin(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + offset); }
+      long long Xmax(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iy*BSX_ + (BSX_-1-offset)); }
+      long long Ymin(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)(offset*BSX_ + ix); }
+      long long Ymax(const cubism::BlockInfo &info, const int ix, const int iy, const int offset = 0) const
+      { return blockOffset(info) + (long long)((BSY_-1-offset)*BSX_ + ix); }
+
+    protected:
+      long long blockOffset(const cubism::BlockInfo &info) const
+      { return (info.blockID + ps.Nblocks_xcumsum_[ps.sim.tmp->Tree(info).rank()])*BLEN_; }
+      static int ix_f(const int ix) { return (ix % (BSX_/2)) * 2; }
+      static int iy_f(const int iy) { return (iy % (BSY_/2)) * 2; }
+
+      const ExpAMRSolver &ps; // poisson solver
+  };
+
+  class EdgeCellIndexer : public CellIndexer
+  {
+    public:
+      EdgeCellIndexer(const ExpAMRSolver& pSolver) : CellIndexer(pSolver) {}
+
+      // When I am uniform with the neighbouring block
+      virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const = 0;
+
+      // When I am finer than neighbouring block
+      virtual long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const = 0;
+      virtual double taylorSign(const int ix, const int iy) const = 0;
+
+      // Indices of coarses cells in neighbouring blocks, to be overridden where appropriate
+      virtual int ix_c(const cubism::BlockInfo &info, const int ix) const
+      { return info.index[0] % 2 == 0 ? ix/2 : ix/2 + BSX_/2; }
+      virtual int iy_c(const cubism::BlockInfo &info, const int iy) const
+      { return info.index[1] % 2 == 0 ? iy/2 : iy/2 + BSY_/2; }
+
+      // When I am coarser than neighbouring block
+      // neiFine1 must correspond to cells where taylorSign == -1., neiFine2 must correspond to taylorSign == 1.
+      virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const = 0;
+      virtual long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const = 0;
+
+      // Indexing aids for derivatives in Taylor approximation in coarse cell
+      virtual bool isBD(const int ix, const int iy) const = 0;
+      virtual bool isFD(const int ix, const int iy) const = 0;
+      virtual long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const = 0; 
+
+      // When I am coarser and need to determine which Zchild I'm next to
+      virtual long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const = 0;
+  };
+
+  // ----------------------------------------------------- Edges perpendicular to x-axis -----------------------------------
+  class XbaseIndexer : public EdgeCellIndexer
+  {
+    public:
+      XbaseIndexer(const ExpAMRSolver& pSolver) : EdgeCellIndexer(pSolver) {}
+
+      double taylorSign(const int ix, const int iy) const override
+      { return iy % 2 == 0 ? -1.: 1.; }
+      bool isBD(const int ix, const int iy) const override 
+      { return iy == BSY_ -1 || iy == BSY_/2 - 1; }
+      bool isFD(const int ix, const int iy) const override 
+      { return iy == 0 || iy == BSY_/2; }
+      long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const override
+      { return This(info, ix, iy+dist); }
+  };
+
+  class XminIndexer : public XbaseIndexer
+  {
+    public:
+      XminIndexer(const ExpAMRSolver& pSolver) : XbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Xmax(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix+1, iy); }
+
+      int ix_c(const cubism::BlockInfo &info, const int ix) const override
+      { return BSX_ - 1; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[1][int(iy >= BSY_/2)][0]; }
+  };
+
+  class XmaxIndexer : public XbaseIndexer
+  {
+    public:
+      XmaxIndexer(const ExpAMRSolver& pSolver) : XbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Xmin(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix-1, iy); }
+
+      int ix_c(const cubism::BlockInfo &info, const int ix) const override
+      { return 0; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[0][int(iy >= BSY_/2)][0]; }
+  };
+
+  // ----------------------------------------------------- Edges perpendicular to y-axis -----------------------------------
+  class YbaseIndexer : public EdgeCellIndexer
+  {
+    public:
+      YbaseIndexer(const ExpAMRSolver& pSolver) : EdgeCellIndexer(pSolver) {}
+
+      double taylorSign(const int ix, const int iy) const override
+      { return ix % 2 == 0 ? -1.: 1.; }
+      bool isBD(const int ix, const int iy) const override 
+      { return ix == BSX_ -1 || ix == BSX_/2 - 1; }
+      bool isFD(const int ix, const int iy) const override 
+      { return ix == 0 || ix == BSX_/2; }
+      long long Nei(const cubism::BlockInfo &info, const int ix, const int iy, const int dist) const override
+      { return This(info, ix+dist, iy); }
+  };
+
+  class YminIndexer : public YbaseIndexer
+  {
+    public:
+      YminIndexer(const ExpAMRSolver& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Ymax(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix, iy+1); }
+
+      int iy_c(const cubism::BlockInfo &info, const int iy) const override
+      { return BSY_ - 1; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix)+1, iy_f(iy), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[int(ix >= BSX_/2)][1][0]; }
+  };
+
+  class YmaxIndexer : public YbaseIndexer
+  {
+    public:
+      YmaxIndexer(const ExpAMRSolver& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return Ymin(nei_info, ix, iy); }
+
+      long long neiInward(const cubism::BlockInfo &info, const int ix, const int iy) const override
+      { return This(info, ix, iy-1); }
+
+      int iy_c(const cubism::BlockInfo &info, const int iy) const override
+      { return 0; }
+
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix), iy_f(iy), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int ix, const int iy, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix)+1, iy_f(iy), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int ix, const int iy) const override
+      { return nei_info.Zchild[int(ix >= BSX_/2)][0][0]; }
+  };
+
+  CellIndexer GenericCell;
+  XminIndexer XminCell;
+  XmaxIndexer XmaxCell;
+  YminIndexer YminCell;
+  YmaxIndexer YmaxCell;
+  // Array of pointers for the indexers above for polymorphism in makeFlux
+  std::array<const EdgeCellIndexer*, 4> edgeIndexers;
+
+  std::array<std::pair<long long, double>, 3> D1(const cubism::BlockInfo &info, const EdgeCellIndexer &indexer, const int ix, const int iy) const
+  {
+    // Scale D1 by h^l/4
+    if (indexer.isBD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, -2),  1./8.}, 
+                {indexer.Nei(info, ix, iy, -1), -1./2.}, 
+                {indexer.This(info, ix, iy),     3./8.} }};
+    else if (indexer.isFD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, 2), -1./8.}, 
+                {indexer.Nei(info, ix, iy, 1),  1./2.}, 
+                {indexer.This(info, ix, iy),   -3./8.} }};
+
+    return {{ {indexer.Nei(info, ix, iy, -1), -1./8.}, 
+              {indexer.Nei(info, ix, iy,  1),  1./8.}, 
+              {indexer.This(info, ix, iy),     0.} }};
+  }
+
+  std::array<std::pair<long long, double>, 3> D2(const cubism::BlockInfo &info, const EdgeCellIndexer &indexer, const int ix, const int iy) const
+  {
+    // Scale D2 by 0.5*(h^l/4)^2
+    if (indexer.isBD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, -2),  1./32.}, 
+                {indexer.Nei(info, ix, iy, -1), -1./16.}, 
+                {indexer.This(info, ix, iy),     1./32.} }};
+    else if (indexer.isFD(ix, iy)) 
+      return {{ {indexer.Nei(info, ix, iy, 2),  1./32.}, 
+                {indexer.Nei(info, ix, iy, 1), -1./16.}, 
+                {indexer.This(info, ix, iy),    1./32.} }};
+
+    return {{ {indexer.Nei(info, ix, iy, -1),  1./32.}, 
+              {indexer.Nei(info, ix, iy,  1),  1./32.}, 
+              {indexer.This(info, ix, iy),    -1./16.} }};
+  }
+
+  void interpolate(
+      const cubism::BlockInfo &info_c, const int ix_c, const int iy_c,
+      const cubism::BlockInfo &info_f, const long long fine_close_idx, const long long fine_far_idx,
+      const double signI, const double signT,
+      const EdgeCellIndexer &indexer, SpRowInfo& row) const;
+};
+
+double ExpAMRSolver::getA_local(int I1,int I2) //matrix for Poisson's equation on a uniform grid
+{
+   int j1 = I1 / BSX_;
+   int i1 = I1 % BSX_;
+   int j2 = I2 / BSX_;
+   int i2 = I2 % BSX_;
+   if (i1==i2 && j1==j2)
+     return 4.0;
+   else if (abs(i1-i2) + abs(j1-j2) == 1)
+     return -1.0;
+   else
+     return 0.0;
+}
+
+ExpAMRSolver::ExpAMRSolver(SimulationData& s)
+  : sim(s), m_comm_(sim.comm), GenericCell(*this),
+    XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this),
+    edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell}
+{
+  // MPI
+  MPI_Comm_rank(m_comm_, &rank_);
+  MPI_Comm_size(m_comm_, &comm_size_);
+
+  Nblocks_xcumsum_.resize(comm_size_ + 1);
+  Nrows_xcumsum_.resize(comm_size_ + 1);
+
+  std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
+  std::vector<std::vector<double>> L_inv; // inverse of L
+
+  L.resize(BLEN_);
+  L_inv.resize(BLEN_);
+  for (int i(0); i<BLEN_ ; i++)
+  {
+    L[i].resize(i+1);
+    L_inv[i].resize(i+1);
+    // L_inv will act as right block in GJ algorithm, init as identity
+    for (int j(0); j<=i; j++){
+      L_inv[i][j] = (i == j) ? 1. : 0.;
+    }
+  }
+
+  // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
+  for (int i(0); i<BLEN_ ; i++)
+  {
+    double s1 = 0;
+    for (int k(0); k<=i-1; k++)
+      s1 += L[i][k]*L[i][k];
+    L[i][i] = sqrt(getA_local(i,i) - s1);
+    for (int j(i+1); j<BLEN_; j++)
+    {
+      double s2 = 0;
+      for (int k(0); k<=i-1; k++)
+        s2 += L[i][k]*L[j][k];
+      L[j][i] = (getA_local(j,i)-s2) / L[i][i];
+    }
+  }
+
+  /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
+     L will act as the left block (it does not need to be modified in the process), 
+     L_inv will act as the right block and at the end of the algo will contain the inverse */
+  for (int br(0); br<BLEN_; br++)
+  { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
+    const double bsf = 1. / L[br][br];
+    for (int c(0); c<=br; c++)
+      L_inv[br][c] *= bsf;
+
+    for (int wr(br+1); wr<BLEN_; wr++)
+    { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
+      const double wsf = L[wr][br];
+      for (int c(0); c<=br; c++)
+        L_inv[wr][c] -= (wsf * L_inv[br][c]);
+    }
+  }
+
+  // P_inv_ holds inverse preconditionner in row major order!
+  std::vector<double> P_inv(BLEN_ * BLEN_);
+  for (int i(0); i<BLEN_; i++)
+  for (int j(0); j<BLEN_; j++)
+  {
+    double aux = 0.;
+    for (int k(0); k<BLEN_; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+      aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
+
+    P_inv[i*BLEN_+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
+  }
+
+  // Create Linear system and backend solver objects
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_*BSY_, sim.bMeanConstraint, P_inv);
+}
+void ExpAMRSolver::interpolate(
+    const BlockInfo &info_c, const int ix_c, const int iy_c,
+    const BlockInfo &info_f, const long long fine_close_idx, const long long fine_far_idx,
+    const double signInt, const double signTaylor, // sign of interpolation and sign of taylor
+    const EdgeCellIndexer &indexer, SpRowInfo& row) const
+{
+  const int rank_c = sim.tmp->Tree(info_c).rank();
+  const int rank_f = sim.tmp->Tree(info_f).rank();
+
+  // 2./3.*p_fine_close_idx - 1./5.*p_fine_far_idx
+  row.mapColVal(rank_f, fine_close_idx, signInt * 2./3.);
+  row.mapColVal(rank_f, fine_far_idx,  -signInt * 1./5.);
+
+  // 8./15 * p_T, constant term
+  const double tf = signInt * 8./15.; // common factor for all terms of Taylor expansion
+  row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
+
+  std::array<std::pair<long long, double>, 3> D;
+
+  // first derivative
+  D = D1(info_c, indexer, ix_c, iy_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
+
+  // second derivative
+  D = D2(info_c, indexer, ix_c, iy_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+}
+
+// Methods for cell centric construction of discrete Laplace operator
+void ExpAMRSolver::makeFlux(
+  const BlockInfo &rhs_info,
+  const int ix,
+  const int iy,
+  const BlockInfo &rhsNei,
+  const EdgeCellIndexer &indexer,
+  SpRowInfo &row) const
+{
+  const long long sfc_idx = indexer.This(rhs_info, ix, iy);
+
+  if (this->sim.tmp->Tree(rhsNei).Exists())
+  { 
+    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
+    const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
+
+    // Map flux associated to out-of-block edges at the same level of refinement
+    row.mapColVal(nei_rank, nei_idx, 1.);
+    row.mapColVal(sfc_idx, -1.);
+  }
+  else if (this->sim.tmp->Tree(rhsNei).CheckCoarser())
+  {
+    const BlockInfo &rhsNei_c = this->sim.tmp->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+    const int ix_c = indexer.ix_c(rhs_info, ix);
+    const int iy_c = indexer.iy_c(rhs_info, iy);
+    const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
+    const double signTaylor = indexer.taylorSign(ix, iy);
+
+    interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1., signTaylor, indexer, row);
+    row.mapColVal(sfc_idx, -1.);
+  }
+  else if (this->sim.tmp->Tree(rhsNei).CheckFiner())
+  {
+    const BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
+    const int nei_rank = this->sim.tmp->Tree(rhsNei_f).rank();
+
+    // F1
+    long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
+    long long fine_far_idx   = indexer.neiFine1(rhsNei_f, ix, iy, 1);
+    row.mapColVal(nei_rank, fine_close_idx, 1.);
+    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1., -1., indexer, row);
+    // F2
+    fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
+    fine_far_idx   = indexer.neiFine2(rhsNei_f, ix, iy, 1);
+    row.mapColVal(nei_rank, fine_close_idx, 1.);
+    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,  1., indexer, row);
+  }
+  else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
+}
+
+void ExpAMRSolver::getMat()
+{
+  sim.startProfiler("Poisson solver: LS");
+
+  //This returns an array with the blocks that the coarsest possible 
+  //mesh would have (i.e. all blocks are at level 0)
+  std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
+
+  //Get a vector of all BlockInfos of the grid we're interested in
+  sim.tmp->UpdateBlockInfoAll_States(true); // update blockID's for blocks from other ranks
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
+  const int Nblocks = RhsInfo.size();
+  const int N = BSX_*BSY_*Nblocks;
+
+  // Reserve sufficient memory for LS proper to the rank
+  LocalLS_->reserve(N);
+
+  // Calculate cumulative sums for blocks and rows for correct global indexing
+  const long long Nblocks_long = Nblocks;
+  MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1, MPI_LONG_LONG, m_comm_);
+  for (int i(Nblocks_xcumsum_.size()-1); i > 0; i--)
+  {
+    Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i-1]; // shift to right for rank 'i+1' to have cumsum of rank 'i'
+  }
+  
+  // Set cumsum for rank 0 to zero
+  Nblocks_xcumsum_[0] = 0;
+  Nrows_xcumsum_[0] = 0;
+
+  // Perform cumulative sum
+  for (size_t i(1); i < Nblocks_xcumsum_.size(); i++)
+  {
+    Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
+    Nrows_xcumsum_[i] = BLEN_*Nblocks_xcumsum_[i];
+  }
+
+  // No parallel for to ensure COO are ordered at construction
+  for(int i=0; i<Nblocks; i++)
+  {    
+    const BlockInfo &rhs_info = RhsInfo[i];
+
+    //1.Check if this is a boundary block
+    const int aux = 1 << rhs_info.level; // = 2^level
+    const int MAX_X_BLOCKS = blocksPerDim[0]*aux - 1; //this means that if level 0 has blocksPerDim[0] blocks in the x-direction, level rhs.level will have this many blocks
+    const int MAX_Y_BLOCKS = blocksPerDim[1]*aux - 1; //this means that if level 0 has blocksPerDim[1] blocks in the y-direction, level rhs.level will have this many blocks
+
+    //index is the (i,j) coordinates of a block at the current level 
+    std::array<bool, 4> isBoundary;
+    isBoundary[0] = (rhs_info.index[0] == 0           ); // Xm, same order as faceIndexers made in constructor!
+    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS); // Xp
+    isBoundary[2] = (rhs_info.index[1] == 0           ); // Ym
+    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS); // Yp
+
+    std::array<bool, 2> isPeriodic; // same dimension ordering as isBoundary
+    isPeriodic[0] = (cubismBCX == periodic);
+    isPeriodic[1] = (cubismBCY == periodic);
+
+    //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
+    std::array<long long, 4> Z;
+    Z[0] = rhs_info.Znei[1-1][1][1]; // Xm
+    Z[1] = rhs_info.Znei[1+1][1][1]; // Xp
+    Z[2] = rhs_info.Znei[1][1-1][1]; // Ym
+    Z[3] = rhs_info.Znei[1][1+1][1]; // Yp
+    //rhs.Z == rhs.Znei[1][1][1] is true always
+
+    std::array<const BlockInfo*, 4> rhsNei;
+    rhsNei[0] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
+    rhsNei[1] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
+    rhsNei[2] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
+    rhsNei[3] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
+
+    // Record local index of row which is to be modified with bMeanConstraint reduction result
+    if (sim.bMeanConstraint &&
+        rhs_info.index[0] == 0 &&
+        rhs_info.index[1] == 0 &&
+        rhs_info.index[2] == 0)
+      LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) - Nrows_xcumsum_[rank_]);
+
+    //For later: there's a total of three boolean variables:
+    // I.   grid->Tree(rhsNei_west).Exists()
+    // II.  grid->Tree(rhsNei_west).CheckCoarser()
+    // III. grid->Tree(rhsNei_west).CheckFiner()
+    // And only one of them is true
+
+    // Add matrix elements associated to interior cells of a block
+    for(int iy=0; iy<BSY_; iy++)
+    for(int ix=0; ix<BSX_; ix++)
+    { // Following logic needs to be in for loop to assure cooRows are ordered
+      const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
+
+      if ((ix > 0 && ix < BSX_-1) && (iy > 0 && iy < BSY_-1))
+      { // Inner cells, push back in ascending order for column index
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix, iy-1));
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix-1, iy));
+        LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix+1, iy));
+        LocalLS_->cooPushBackVal(1, sfc_idx, GenericCell.This(rhs_info, ix, iy+1));
+      }
+      else
+      { // See which edge is shared with a cell from different block
+        std::array<bool, 4> validNei;
+        validNei[0] = GenericCell.validXm(ix, iy); 
+        validNei[1] = GenericCell.validXp(ix, iy); 
+        validNei[2] = GenericCell.validYm(ix, iy); 
+        validNei[3] = GenericCell.validYp(ix, iy);  
+
+        // Get index of cell accross the edge (correct only for cells in this block)
+        std::array<long long, 4> idxNei;
+        idxNei[0] = GenericCell.This(rhs_info, ix-1, iy);
+        idxNei[1] = GenericCell.This(rhs_info, ix+1, iy);
+        idxNei[2] = GenericCell.This(rhs_info, ix, iy-1);
+        idxNei[3] = GenericCell.This(rhs_info, ix, iy+1);
+
+				SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8);
+        for (int j(0); j < 4; j++)
+        { // Iterate over each edge of cell
+          if (validNei[j])
+          { // This edge is 'inner' wrt to the block
+            row.mapColVal(idxNei[j], 1);
+            row.mapColVal(sfc_idx, -1);
+          }
+          else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j/2]))
+            this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j], row);
+        }
+
+        LocalLS_->cooPushBackRow(row);
+      }
+    } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
+  } // for(int i=0; i< Nblocks; i++)
+
+  LocalLS_->make(Nrows_xcumsum_);
+
+  sim.stopProfiler();
+}
+
+void ExpAMRSolver::getVec()
+{
+  //Get a vector of all BlockInfos of the grid we're interested in
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.tmp->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
+  const int Nblocks = RhsInfo.size();
+  std::vector<double>& x  = LocalLS_->get_x();
+  std::vector<double>& b  = LocalLS_->get_b();
+  std::vector<double>& h2 = LocalLS_->get_h2();
+  const long long shift = -Nrows_xcumsum_[rank_];
+
+  // Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates sufficient memory
+  #pragma omp parallel for
+  for(int i=0; i< Nblocks; i++)
+  {    
+    const BlockInfo &rhs_info = RhsInfo[i];
+    const ScalarBlock & __restrict__ rhs  = *(ScalarBlock*) RhsInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ p  = *(ScalarBlock*) zInfo[i].ptrBlock;
+
+    h2[i] = RhsInfo[i].h * RhsInfo[i].h;
+    // Construct RHS and x_0 vectors for linear system
+    for(int iy=0; iy<BSY_; iy++)
+    for(int ix=0; ix<BSX_; ix++)
+    {
+      const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
+      if (sim.bMeanConstraint &&
+          rhs_info.index[0] == 0 &&
+          rhs_info.index[1] == 0 &&
+          rhs_info.index[2] == 0 &&
+          ix == 0 && iy == 0)
+        b[sfc_loc] = 0.;
+      else
+        b[sfc_loc] = rhs(ix,iy).s;
+
+      x[sfc_loc] = p(ix,iy).s;
+    }
+  }
+}
+
+void ExpAMRSolver::solve(
+    const ScalarGrid *input, 
+    ScalarGrid * const output)
+{
+
+  if (rank_ == 0) {
+    if (sim.verbose)
+      std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------\n";
+    else
+      std::cout << '\n';
+  }
+
+  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+  const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+
+  if (sim.pres->UpdateFluxCorrection)
+  {
+    sim.pres->UpdateFluxCorrection = false;
+    this->getMat();
+    this->getVec();
+    LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+  }
+  else
+  {
+    this->getVec();
+    LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+  }
+
+  //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
+  //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
+  std::vector<cubism::BlockInfo>&  zInfo = sim.pres->getBlocksInfo();
+  const int Nblocks = zInfo.size();
+  const std::vector<double>& x = LocalLS_->get_x();
+
+  double avg = 0;
+  double avg1 = 0;
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(int i=0; i< Nblocks; i++)
+  {
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     const double vv = zInfo[i].h*zInfo[i].h;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
+     {
+         P(ix,iy).s = x[i*BSX_*BSY_ + iy*BSX_ + ix];
+         avg += P(ix,iy).s * vv;
+         avg1 += vv;
+     }
+  }
+  double quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, m_comm_);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for 
+  for(int i=0; i< Nblocks; i++)
+  {
+     ScalarBlock& P  = *(ScalarBlock*) zInfo[i].ptrBlock;
+     for(int iy=0; iy<BSY_; iy++)
+     for(int ix=0; ix<BSX_; ix++)
+        P(ix,iy).s += -avg;
+  }
+}
+
+std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData& s);
+std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData& s)
+{
+  if (s.poissonSolver == "cuda_iterative") 
+  {
+#ifdef GPU_POISSON
+    if (! _DOUBLE_PRECISION_ )
+      throw std::runtime_error( 
+          "Poisson solver: \"" + s.poissonSolver + "\" must be compiled with in double precision mode!" );
+    return std::make_shared<ExpAMRSolver>(s);
+#else
+    throw std::runtime_error(
+        "Poisson solver: \"" + s.poissonSolver + "\" must be compiled with the -DGPU_POISSON flag!"); 
+#endif
+  } 
+  else {
+    throw std::invalid_argument(
+        "Poisson solver: \"" + s.poissonSolver + "\" unrecognized!");
+  }
+}
+
+class Shape;
+
+class PressureSingle : public Operator
+{
+protected:
+  const std::vector<cubism::BlockInfo>& velInfo = sim.vel->getBlocksInfo();
+
+  std::shared_ptr<PoissonSolver> pressureSolver;
+
+  void preventCollidingObstacles() const;
+  void pressureCorrection(const Real dt);
+  void integrateMomenta(Shape * const shape) const;
+  void penalize(const Real dt) const;
+
+ public:
+  void operator() (const Real dt) override;
+
+  PressureSingle(SimulationData& s);
+  ~PressureSingle();
+
+  std::string getName() override
+  {
+    return "PressureSingle";
+  }
+};
+
+using namespace cubism;
+
+using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
+using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
+
+//#define EXPL_INTEGRATE_MOM
+
+namespace {
+
+void ComputeJ(const Real * Rc, const Real * R, const Real * N, const Real * I, Real *J)
+{
+    //Invert I
+    const Real m00 = 1.0; //I[0]; //set to these values for 2D!
+    const Real m01 = 0.0; //I[3]; //set to these values for 2D!
+    const Real m02 = 0.0; //I[4]; //set to these values for 2D!
+    const Real m11 = 1.0; //I[1]; //set to these values for 2D!
+    const Real m12 = 0.0; //I[5]; //set to these values for 2D!
+    const Real m22 = I[5];//I[2]; //set to these values for 2D!
+    Real a00 = m22*m11 - m12*m12;
+    Real a01 = m02*m12 - m22*m01;
+    Real a02 = m01*m12 - m02*m11;
+    Real a11 = m22*m00 - m02*m02;
+    Real a12 = m01*m02 - m00*m12;
+    Real a22 = m00*m11 - m01*m01;
+    const Real determinant =  1.0/((m00 * a00) + (m01 * a01) + (m02 * a02));
+    a00 *= determinant;
+    a01 *= determinant;
+    a02 *= determinant;
+    a11 *= determinant;
+    a12 *= determinant;
+    a22 *= determinant;
+
+    const Real aux_0 = ( Rc[1] - R[1] )*N[2] - ( Rc[2] - R[2] )*N[1];
+    const Real aux_1 = ( Rc[2] - R[2] )*N[0] - ( Rc[0] - R[0] )*N[2];
+    const Real aux_2 = ( Rc[0] - R[0] )*N[1] - ( Rc[1] - R[1] )*N[0];
+    J[0] = a00*aux_0 + a01*aux_1 + a02*aux_2;
+    J[1] = a01*aux_0 + a11*aux_1 + a12*aux_2;
+    J[2] = a02*aux_0 + a12*aux_1 + a22*aux_2;
+}
+
+
+void ElasticCollision (const Real  m1,const Real  m2,
+                       const Real *I1,const Real *I2,
+                       const Real *v1,const Real *v2,
+                       const Real *o1,const Real *o2,
+                       Real *hv1,Real *hv2,
+                       Real *ho1,Real *ho2,
+                       const Real *C1,const Real *C2,
+                       const Real  NX,const Real  NY,const Real NZ,
+                       const Real  CX,const Real  CY,const Real CZ,
+                       Real *vc1,Real *vc2)
+{
+    const Real e = 1.0; // coefficient of restitution
+    const Real N[3] ={NX,NY,NZ};
+    const Real C[3] ={CX,CY,CZ};
+
+    const Real k1[3] = { N[0]/m1, N[1]/m1, N[2]/m1};
+    const Real k2[3] = {-N[0]/m2,-N[1]/m2,-N[2]/m2};
+    Real J1[3];
+    Real J2[3]; 
+    ComputeJ(C,C1,N,I1,J1);
+    ComputeJ(C,C2,N,I2,J2);
+    J2[0] = -J2[0];
+    J2[1] = -J2[1];
+    J2[2] = -J2[2];
+
+    Real u1DEF[3];
+    u1DEF[0] = vc1[0] - v1[0] - ( o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]) );
+    u1DEF[1] = vc1[1] - v1[1] - ( o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]) );
+    u1DEF[2] = vc1[2] - v1[2] - ( o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]) );
+    Real u2DEF[3];
+    u2DEF[0] = vc2[0] - v2[0] - ( o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]) );
+    u2DEF[1] = vc2[1] - v2[1] - ( o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) );
+    u2DEF[2] = vc2[2] - v2[2] - ( o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) );
+
+    const Real nom = e*( (vc1[0]-vc2[0])*N[0] + 
+                           (vc1[1]-vc2[1])*N[1] + 
+                           (vc1[2]-vc2[2])*N[2] )
+                       + ( (v1[0]-v2[0] + u1DEF[0] - u2DEF[0] )*N[0] + 
+                           (v1[1]-v2[1] + u1DEF[1] - u2DEF[1] )*N[1] + 
+                           (v1[2]-v2[2] + u1DEF[2] - u2DEF[2] )*N[2] )
+                  +( (o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]) )* N[0]+
+                     (o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]) )* N[1]+
+                     (o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]) )* N[2])
+                  -( (o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]) )* N[0]+
+                     (o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) )* N[1]+
+                     (o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) )* N[2]);
+
+    const Real denom = -(1.0/m1+1.0/m2) + 
+               +( ( J1[1]*(C[2]-C1[2]) - J1[2]*(C[1]-C1[1]) ) *(-N[0])+
+                  ( J1[2]*(C[0]-C1[0]) - J1[0]*(C[2]-C1[2]) ) *(-N[1])+
+                  ( J1[0]*(C[1]-C1[1]) - J1[1]*(C[0]-C1[0]) ) *(-N[2]))
+               -( ( J2[1]*(C[2]-C2[2]) - J2[2]*(C[1]-C2[1]) ) *(-N[0])+
+                  ( J2[2]*(C[0]-C2[0]) - J2[0]*(C[2]-C2[2]) ) *(-N[1])+
+                  ( J2[0]*(C[1]-C2[1]) - J2[1]*(C[0]-C2[0]) ) *(-N[2]));
+    const Real impulse = nom/(denom+1e-21);
+    hv1[0] = v1[0] + k1[0]*impulse;
+    hv1[1] = v1[1] + k1[1]*impulse;
+    hv1[2] = v1[2] + k1[2]*impulse;
+    hv2[0] = v2[0] + k2[0]*impulse;
+    hv2[1] = v2[1] + k2[1]*impulse;
+    hv2[2] = v2[2] + k2[2]*impulse;
+    ho1[0] = o1[0] + J1[0]*impulse;
+    ho1[1] = o1[1] + J1[1]*impulse;
+    ho1[2] = o1[2] + J1[2]*impulse;
+    ho2[0] = o2[0] + J2[0]*impulse;
+    ho2[1] = o2[1] + J2[1]*impulse;
+    ho2[2] = o2[2] + J2[2]*impulse;
+}
+
+}//namespace
+
+struct pressureCorrectionKernel
+{
+  pressureCorrectionKernel(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+
+  void operator()(ScalarLab & P, const cubism::BlockInfo& info) const
+  {
+    const Real h = info.h, pFac = -0.5*sim.dt*h;
+    VectorBlock&__restrict__ tmpV = *(VectorBlock*)  tmpVInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      tmpV(ix,iy).u[0] = pFac *(P(ix+1,iy).s-P(ix-1,iy).s);
+      tmpV(ix,iy).u[1] = pFac *(P(ix,iy+1).s-P(ix,iy-1).s);
+    }
+    BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
+    VectorBlock::ElementType * faceXm = nullptr;
+    VectorBlock::ElementType * faceXp = nullptr;
+    VectorBlock::ElementType * faceYm = nullptr;
+    VectorBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXm[iy].clear();
+        faceXm[iy].u[0] = pFac*(P(ix-1,iy).s+P(ix,iy).s);
+      }
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = VectorBlock::sizeX-1;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXp[iy].clear();
+        faceXp[iy].u[0] = -pFac*(P(ix+1,iy).s+P(ix,iy).s);
+      }
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYm[ix].clear();
+        faceYm[ix].u[1] = pFac*(P(ix,iy-1).s+P(ix,iy).s);
+      }
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = VectorBlock::sizeY-1;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYp[ix].clear();
+        faceYp[ix].u[1] = -pFac*(P(ix,iy+1).s+P(ix,iy).s);
+      }
+    }
+  }
+};
+
+void PressureSingle::pressureCorrection(const Real dt)
+{
+  const pressureCorrectionKernel K(sim);
+  cubism::compute<ScalarLab>(K,sim.pres,sim.tmpV);
+
+  std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < velInfo.size(); i++)
+  {
+      const Real ih2 = 1.0/velInfo[i].h/velInfo[i].h;
+      VectorBlock&__restrict__   V = *(VectorBlock*)  velInfo[i].ptrBlock;
+      VectorBlock&__restrict__   tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        V(ix,iy).u[0] += tmpV(ix,iy).u[0]*ih2;
+        V(ix,iy).u[1] += tmpV(ix,iy).u[1]*ih2;
+      }
+  }
+}
+
+void PressureSingle::integrateMomenta(Shape * const shape) const
+{
+  const size_t Nblocks = velInfo.size();
+
+  const std::vector<ObstacleBlock*> & OBLOCK = shape->obstacleBlocks;
+  const Real Cx = shape->centerOfMass[0];
+  const Real Cy = shape->centerOfMass[1];
+  Real PM=0, PJ=0, PX=0, PY=0, UM=0, VM=0, AM=0; //linear momenta
+
+  #pragma omp parallel for reduction(+:PM,PJ,PX,PY,UM,VM,AM)
+  for(size_t i=0; i<Nblocks; i++)
+  {
+    const VectorBlock& __restrict__ VEL = *(VectorBlock*)velInfo[i].ptrBlock;
+    const Real hsq = velInfo[i].h*velInfo[i].h;
+
+    if(OBLOCK[velInfo[i].blockID] == nullptr) continue;
+    const CHI_MAT & __restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
+    const UDEFMAT & __restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
+    #ifndef EXPL_INTEGRATE_MOM
+      const Real lambdt = sim.lambda * sim.dt;
+    #endif
+
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      if (chi[iy][ix] <= 0) continue;
+      const Real udiff[2] = {
+        VEL(ix,iy).u[0] - udef[iy][ix][0], VEL(ix,iy).u[1] - udef[iy][ix][1]
+      };
+      #ifdef EXPL_INTEGRATE_MOM
+        const Real F = hsq * chi[iy][ix];
+      #else
+        //const Real Xlamdt = chi[iy][ix] * lambdt;
+        //need to use unmollified version when H(x) appears in fractions
+        const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt:0.0;
+        const Real F = hsq * Xlamdt / (1 + Xlamdt);
+      #endif
+      Real p[2]; velInfo[i].pos(p, ix, iy); p[0] -= Cx; p[1] -= Cy;
+      PM += F;
+      PJ += F * (p[0]*p[0] + p[1]*p[1]);
+      PX += F * p[0];  PY += F * p[1];
+      UM += F * udiff[0]; VM += F * udiff[1];
+      AM += F * (p[0]*udiff[1] - p[1]*udiff[0]);
+    }
+  }
+  Real quantities[7] = {PM,PJ,PX,PY,UM,VM,AM};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, sim.chi->getWorldComm());
+  PM = quantities[0]; 
+  PJ = quantities[1]; 
+  PX = quantities[2]; 
+  PY = quantities[3]; 
+  UM = quantities[4]; 
+  VM = quantities[5]; 
+  AM = quantities[6];
+
+  shape->fluidAngMom = AM; shape->fluidMomX = UM; shape->fluidMomY = VM;
+  shape->penalDX=PX; shape->penalDY=PY; shape->penalM=PM; shape->penalJ=PJ;
+}
+
+void PressureSingle::penalize(const Real dt) const
+{
+  std::vector<cubism::BlockInfo>& chiInfo   = sim.chi->getBlocksInfo();
+
+  const size_t Nblocks = velInfo.size();
+
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  for (const auto& shape : sim.shapes)
+  {
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    const ObstacleBlock*const o = OBLOCK[velInfo[i].blockID];
+    if (o == nullptr) continue;
+
+    const Real u_s = shape->u;
+    const Real v_s = shape->v;
+    const Real omega_s = shape->omega;
+    const Real Cx = shape->centerOfMass[0];
+    const Real Cy = shape->centerOfMass[1];
+
+    const CHI_MAT & __restrict__ X = o->chi;
+    const UDEFMAT & __restrict__ UDEF = o->udef;
+    const ScalarBlock& __restrict__ CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
+          VectorBlock& __restrict__   V = *(VectorBlock*)velInfo[i].ptrBlock;
+
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      // What if multiple obstacles share a block? Do not write udef onto
+      // grid if CHI stored on the grid is greater than obst's CHI.
+      if(CHI(ix,iy).s > X[iy][ix]) continue;
+      if(X[iy][ix] <= 0) continue; // no need to do anything
+
+      Real p[2];
+      velInfo[i].pos(p, ix, iy);
+      p[0] -= Cx;
+      p[1] -= Cy;
+      #ifndef EXPL_INTEGRATE_MOM
+        //const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
+        //need to use unmollified version when H(x) appears in fractions
+        const Real alpha = X[iy][ix] > 0.5 ? 1/(1 + sim.lambda * dt) : 1;
+      #else
+        const Real alpha = 1 - X[iy][ix];
+      #endif
+
+      const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
+      const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
+      V(ix,iy).u[0] = alpha*V(ix,iy).u[0] + (1-alpha)*US;
+      V(ix,iy).u[1] = alpha*V(ix,iy).u[1] + (1-alpha)*VS;
+    }
+  }
+}
+
+struct updatePressureRHS
+{
+  // RHS of Poisson equation is div(u) - chi * div(u_def)
+  // It is computed here and stored in TMP
+
+  updatePressureRHS(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0,1}};
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+
+  void operator()(VectorLab & velLab, VectorLab & uDefLab, const cubism::BlockInfo& info, const cubism::BlockInfo& info2) const
+  {
+    const Real h = info.h;
+    const Real facDiv = 0.5*h/sim.dt;
+    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    ScalarBlock& __restrict__ CHI = *(ScalarBlock*) chiInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      TMP(ix, iy).s  =   facDiv                *( (velLab(ix+1,iy).u[0] -  velLab(ix-1,iy).u[0])
+                                               +  (velLab(ix,iy+1).u[1] -  velLab(ix,iy-1).u[1]));
+      TMP(ix, iy).s += - facDiv * CHI(ix,iy).s *((uDefLab(ix+1,iy).u[0] - uDefLab(ix-1,iy).u[0])
+                                               + (uDefLab(ix,iy+1).u[1] - uDefLab(ix,iy-1).u[1]));
+    }
+    BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    ScalarBlock::ElementType * faceXm = nullptr;
+    ScalarBlock::ElementType * faceXp = nullptr;
+    ScalarBlock::ElementType * faceYm = nullptr;
+    ScalarBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXm[iy].s  =  facDiv                *( velLab(ix-1,iy).u[0] +  velLab(ix,iy).u[0]) ;
+        faceXm[iy].s += -(facDiv * CHI(ix,iy).s)*(uDefLab(ix-1,iy).u[0] + uDefLab(ix,iy).u[0]) ;
+      }
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = VectorBlock::sizeX-1;
+      for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+      {
+        faceXp[iy].s  = -facDiv               *( velLab(ix+1,iy).u[0] +  velLab(ix,iy).u[0]);
+        faceXp[iy].s -= -(facDiv *CHI(ix,iy).s)*(uDefLab(ix+1,iy).u[0] + uDefLab(ix,iy).u[0]);
+      }
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYm[ix].s  =  facDiv               *( velLab(ix,iy-1).u[1] +  velLab(ix,iy).u[1]);
+        faceYm[ix].s += -(facDiv *CHI(ix,iy).s)*(uDefLab(ix,iy-1).u[1] + uDefLab(ix,iy).u[1]);
+      }
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = VectorBlock::sizeY-1;
+      for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      {
+        faceYp[ix].s  = -facDiv               *( velLab(ix,iy+1).u[1] +  velLab(ix,iy).u[1]);
+        faceYp[ix].s -= -(facDiv *CHI(ix,iy).s)*(uDefLab(ix,iy+1).u[1] + uDefLab(ix,iy).u[1]);
+      }
+    }
+  }
+};
+
+struct updatePressureRHS1
+{
+  // RHS of Poisson equation is div(u) - chi * div(u_def)
+  // It is computed here and stored in TMP
+
+  updatePressureRHS1(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+
+  void operator()(ScalarLab & lab, const cubism::BlockInfo& info) const
+  {
+    ScalarBlock& __restrict__ TMP = *(ScalarBlock*) tmpInfo[info.blockID].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+      TMP(ix, iy).s  -=  ( ((lab(ix-1,iy).s + lab(ix+1,iy).s) + (lab(ix,iy-1).s + lab(ix,iy+1).s)) - 4.0*lab(ix,iy).s);
+
+    BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    ScalarBlock::ElementType * faceXm = nullptr;
+    ScalarBlock::ElementType * faceXp = nullptr;
+    ScalarBlock::ElementType * faceYm = nullptr;
+    ScalarBlock::ElementType * faceYp = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        faceXm[iy] = lab(ix-1,iy) - lab(ix,iy);
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = ScalarBlock::sizeX-1;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+        faceXp[iy] = lab(ix+1,iy) - lab(ix,iy);
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        faceYm[ix] = lab(ix,iy-1) - lab(ix,iy);
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = ScalarBlock::sizeY-1;
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
+        faceYp[ix] = lab(ix,iy+1) - lab(ix,iy);
+    }
+  }
+};
+
+void PressureSingle::preventCollidingObstacles() const
+{
+    const auto& shapes = sim.shapes;
+    const auto & infos  = sim.chi->getBlocksInfo();
+    const size_t N = shapes.size();
+    sim.bCollisionID.clear();
+
+    struct CollisionInfo // hitter and hittee, symmetry but we do things twice
+    {
+        Real iM = 0;
+        Real iPosX = 0;
+        Real iPosY = 0;
+        Real iPosZ = 0;
+        Real iMomX = 0;
+        Real iMomY = 0;
+        Real iMomZ = 0;
+        Real ivecX = 0;
+        Real ivecY = 0;
+        Real ivecZ = 0;
+        Real jM = 0;
+        Real jPosX = 0;
+        Real jPosY = 0;
+        Real jPosZ = 0;
+        Real jMomX = 0;
+        Real jMomY = 0;
+        Real jMomZ = 0;
+        Real jvecX = 0;
+        Real jvecY = 0;
+        Real jvecZ = 0;
+    };
+    std::vector<CollisionInfo> collisions(N);
+
+    std::vector <Real> n_vec(3*N,0.0);
+
+    #pragma omp parallel for schedule(static)
+    for (size_t i=0; i<N; ++i)
+    for (size_t j=0; j<N; ++j)
+    {
+        if(i==j) continue;
+        auto & coll = collisions[i];
+
+        const auto& iBlocks = shapes[i]->obstacleBlocks;
+        const Real iU0      = shapes[i]->u;
+        const Real iU1      = shapes[i]->v;
+        //const Real iU2      = 0; //set to 0 for 2D
+        //const Real iomega0  = 0; //set to 0 for 2D
+        //const Real iomega1  = 0; //set to 0 for 2D
+        const Real iomega2  = shapes[i]->omega;
+        const Real iCx      = shapes[i]->centerOfMass[0];
+        const Real iCy      = shapes[i]->centerOfMass[1];
+        //const Real iCz      = 0; //set to 0 for 2D
+
+        const auto& jBlocks = shapes[j]->obstacleBlocks;
+        const Real jU0      = shapes[j]->u;
+        const Real jU1      = shapes[j]->v;
+        //const Real jU2      = 0; //set to 0 for 2D
+        //const Real jomega0  = 0; //set to 0 for 2D
+        //const Real jomega1  = 0; //set to 0 for 2D
+        const Real jomega2  = shapes[j]->omega;
+        const Real jCx      = shapes[j]->centerOfMass[0];
+        const Real jCy      = shapes[j]->centerOfMass[1];
+        //const Real jCz      = 0; //set to 0 for 2D
+
+        assert(iBlocks.size() == jBlocks.size());
+
+        const size_t nBlocks = iBlocks.size();
+        for (size_t k=0; k<nBlocks; ++k)
+        {
+            if ( iBlocks[k] == nullptr || jBlocks[k] == nullptr ) continue;
+
+            const auto & iSDF  = iBlocks[k]->dist;
+            const auto & jSDF  = jBlocks[k]->dist;
+
+            const CHI_MAT & iChi  = iBlocks[k]->chi;
+            const CHI_MAT & jChi  = jBlocks[k]->chi;
+
+            const UDEFMAT & iUDEF = iBlocks[k]->udef;
+            const UDEFMAT & jUDEF = jBlocks[k]->udef;
+
+            for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+            for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+            {
+                if(iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0 ) continue;
+
+                const auto pos = infos[k].pos<Real>(ix, iy);
+
+                const Real iUr0 = - iomega2*(pos[1]-iCy);
+                const Real iUr1 =   iomega2*(pos[0]-iCx);
+                coll.iM    += iChi[iy][ix];
+                coll.iPosX += iChi[iy][ix] * pos[0];
+                coll.iPosY += iChi[iy][ix] * pos[1];
+                coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
+                coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
+
+                const Real jUr0 = - jomega2*(pos[1]-jCy);
+                const Real jUr1 =   jomega2*(pos[0]-jCx);
+                coll.jM    += jChi[iy][ix];
+                coll.jPosX += jChi[iy][ix] * pos[0];
+                coll.jPosY += jChi[iy][ix] * pos[1];
+                coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
+                coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
+              
+                Real dSDFdx_i;
+                Real dSDFdx_j;
+                if (ix == 0)
+                {
+                  dSDFdx_i = iSDF[iy][ix+1] - iSDF[iy][ix];
+                  dSDFdx_j = jSDF[iy][ix+1] - jSDF[iy][ix];
+                }
+                else if (ix == VectorBlock::sizeX - 1)
+                {
+                  dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix-1];
+                  dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix-1];
+                }
+                else
+                {
+                  dSDFdx_i = 0.5*(iSDF[iy][ix+1] - iSDF[iy][ix-1]);
+                  dSDFdx_j = 0.5*(jSDF[iy][ix+1] - jSDF[iy][ix-1]);
+                }
+
+                Real dSDFdy_i;
+                Real dSDFdy_j;
+                if (iy == 0)
+                {
+                  dSDFdy_i = iSDF[iy+1][ix] - iSDF[iy][ix];
+                  dSDFdy_j = jSDF[iy+1][ix] - jSDF[iy][ix];
+                }
+                else if (iy == VectorBlock::sizeY - 1)
+                {
+                  dSDFdy_i = iSDF[iy][ix] - iSDF[iy-1][ix];
+                  dSDFdy_j = jSDF[iy][ix] - jSDF[iy-1][ix];
+                }
+                else
+                {
+                  dSDFdy_i = 0.5*(iSDF[iy+1][ix] - iSDF[iy-1][ix]);
+                  dSDFdy_j = 0.5*(jSDF[iy+1][ix] - jSDF[iy-1][ix]);
+                }
+
+                coll.ivecX += iChi[iy][ix] * dSDFdx_i;
+                coll.ivecY += iChi[iy][ix] * dSDFdy_i;
+
+                coll.jvecX += jChi[iy][ix] * dSDFdx_j;
+                coll.jvecY += jChi[iy][ix] * dSDFdy_j;
+            }
+        }
+    }
+
+    std::vector<Real> buffer(20*N); //CollisionInfo holds 20 Reals
+    for (size_t i = 0 ; i < N ; i++)
+    {
+        auto & coll = collisions[i];
+        buffer[20*i     ] = coll.iM   ;
+        buffer[20*i + 1 ] = coll.iPosX;
+        buffer[20*i + 2 ] = coll.iPosY;
+        buffer[20*i + 3 ] = coll.iPosZ;
+        buffer[20*i + 4 ] = coll.iMomX;
+        buffer[20*i + 5 ] = coll.iMomY;
+        buffer[20*i + 6 ] = coll.iMomZ;
+        buffer[20*i + 7 ] = coll.ivecX;
+        buffer[20*i + 8 ] = coll.ivecY;
+        buffer[20*i + 9 ] = coll.ivecZ;
+        buffer[20*i + 10] = coll.jM   ;
+        buffer[20*i + 11] = coll.jPosX;
+        buffer[20*i + 12] = coll.jPosY;
+        buffer[20*i + 13] = coll.jPosZ;
+        buffer[20*i + 14] = coll.jMomX;
+        buffer[20*i + 15] = coll.jMomY;
+        buffer[20*i + 16] = coll.jMomZ;
+        buffer[20*i + 17] = coll.jvecX;
+        buffer[20*i + 18] = coll.jvecY;
+        buffer[20*i + 19] = coll.jvecZ;
+
+    }
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.chi->getWorldComm());
+    for (size_t i = 0 ; i < N ; i++)
+    {
+        auto & coll = collisions[i];
+        coll.iM    = buffer[20*i     ];
+        coll.iPosX = buffer[20*i + 1 ];
+        coll.iPosY = buffer[20*i + 2 ];
+        coll.iPosZ = buffer[20*i + 3 ];
+        coll.iMomX = buffer[20*i + 4 ];
+        coll.iMomY = buffer[20*i + 5 ];
+        coll.iMomZ = buffer[20*i + 6 ];
+        coll.ivecX = buffer[20*i + 7 ];
+        coll.ivecY = buffer[20*i + 8 ];
+        coll.ivecZ = buffer[20*i + 9 ];
+        coll.jM    = buffer[20*i + 10];
+        coll.jPosX = buffer[20*i + 11];
+        coll.jPosY = buffer[20*i + 12];
+        coll.jPosZ = buffer[20*i + 13];
+        coll.jMomX = buffer[20*i + 14];
+        coll.jMomY = buffer[20*i + 15];
+        coll.jMomZ = buffer[20*i + 16];
+        coll.jvecX = buffer[20*i + 17];
+        coll.jvecY = buffer[20*i + 18];
+        coll.jvecZ = buffer[20*i + 19];
+    }
+
+    #pragma omp parallel for schedule(static)
+    for (size_t i=0; i<N; ++i)
+    for (size_t j=i+1; j<N; ++j)
+    {
+        if (i==j) continue;
+        const Real m1 = shapes[i]->M;
+        const Real m2 = shapes[j]->M;
+        const Real v1[3]={shapes[i]->u,shapes[i]->v,0.0};
+        const Real v2[3]={shapes[j]->u,shapes[j]->v,0.0};
+        const Real o1[3]={0,0,shapes[i]->omega};
+        const Real o2[3]={0,0,shapes[j]->omega};
+        const Real C1[3]={shapes[i]->centerOfMass[0],shapes[i]->centerOfMass[1],0};
+        const Real C2[3]={shapes[j]->centerOfMass[0],shapes[j]->centerOfMass[1],0};
+        const Real I1[6]={1.0,0,0,0,0,shapes[i]->J};
+        const Real I2[6]={1.0,0,0,0,0,shapes[j]->J};
+
+        auto & coll       = collisions[i];
+        auto & coll_other = collisions[j];
+        // less than one fluid element of overlap: wait to get closer. no hit
+        if(coll.iM       < 2.0 || coll.jM       < 2.0) continue; //object i did not collide
+        if(coll_other.iM < 2.0 || coll_other.jM < 2.0) continue; //object j did not collide
+
+        if (std::fabs(coll.iPosX/coll.iM  - coll_other.iPosX/coll_other.iM ) > shapes[i]->getCharLength() ||
+            std::fabs(coll.iPosY/coll.iM  - coll_other.iPosY/coll_other.iM ) > shapes[i]->getCharLength() )
+        {
+            continue; // then both objects i and j collided, but not with each other!
+        }
+
+        // A collision happened!
+        sim.bCollision = true;
+        #pragma omp critical
+        {
+            sim.bCollisionID.push_back(i);
+            sim.bCollisionID.push_back(j);
+        }
+
+        const bool iForced = shapes[i]->bForced;
+        const bool jForced = shapes[j]->bForced;
+        if (iForced || jForced)
+        {
+            std::cout << "[CUP2D] WARNING: Forced objects not supported for collision." << std::endl;
+            // MPI_Abort(sim.chi->getWorldComm(),1);
+        }
+
+        Real ho1[3];
+        Real ho2[3];
+        Real hv1[3];
+        Real hv2[3];
+
+        //1. Compute collision normal vector (NX,NY,NZ)
+        const Real norm_i = std::sqrt(coll.ivecX*coll.ivecX + coll.ivecY*coll.ivecY + coll.ivecZ*coll.ivecZ);
+        const Real norm_j = std::sqrt(coll.jvecX*coll.jvecX + coll.jvecY*coll.jvecY + coll.jvecZ*coll.jvecZ);
+        const Real mX = coll.ivecX/norm_i - coll.jvecX/norm_j;
+        const Real mY = coll.ivecY/norm_i - coll.jvecY/norm_j;
+        const Real mZ = coll.ivecZ/norm_i - coll.jvecZ/norm_j;
+        const Real inorm = 1.0/std::sqrt(mX*mX + mY*mY + mZ*mZ);
+        const Real NX = mX * inorm;
+        const Real NY = mY * inorm;
+        const Real NZ = mZ * inorm;
+
+        //If objects are already moving away from each other, don't do anything
+        //if( (v2[0]-v1[0])*NX + (v2[1]-v1[1])*NY + (v2[2]-v1[2])*NZ <= 0 ) continue;
+        const Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
+        const Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
+        const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
+        const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
+
+        /*const*/ Real vc1[3] = {coll.iMomX/coll.iM, coll.iMomY/coll.iM, coll.iMomZ/coll.iM};
+        /*const*/ Real vc2[3] = {coll.jMomX/coll.jM, coll.jMomY/coll.jM, coll.jMomZ/coll.jM};
+
+
+        if(projVel<=0) continue; // vel goes away from collision: no need to bounce
+
+        //2. Compute collision location
+        const Real inv_iM = 1.0/coll.iM;
+        const Real inv_jM = 1.0/coll.jM;
+        const Real iPX = coll.iPosX * inv_iM; // object i collision location
+        const Real iPY = coll.iPosY * inv_iM;
+        const Real iPZ = coll.iPosZ * inv_iM;
+        const Real jPX = coll.jPosX * inv_jM; // object j collision location
+        const Real jPY = coll.jPosY * inv_jM;
+        const Real jPZ = coll.jPosZ * inv_jM;
+        const Real CX = 0.5*(iPX+jPX);
+        const Real CY = 0.5*(iPY+jPY);
+        const Real CZ = 0.5*(iPZ+jPZ);
+
+        //3. Take care of the collision. Assume elastic collision (kinetic energy is conserved)
+        ElasticCollision(m1,m2,I1,I2,v1,v2,o1,o2,hv1,hv2,ho1,ho2,C1,C2,NX,NY,NZ,CX,CY,CZ,vc1,vc2);
+        shapes[i]->u = hv1[0];
+        shapes[i]->v = hv1[1];
+        //shapes[i]->transVel[2] = hv1[2];
+        shapes[j]->u = hv2[0];
+        shapes[j]->v = hv2[1];
+        //shapes[j]->transVel[2] = hv2[2];
+        //shapes[i]->angVel[0] = ho1[0];
+        //shapes[i]->angVel[1] = ho1[1];
+        shapes[i]->omega = ho1[2];
+        //shapes[j]->angVel[0] = ho2[0];
+        //shapes[j]->angVel[1] = ho2[1];
+        shapes[j]->omega = ho2[2];
+
+        if ( sim.rank == 0)
+        {
+            #pragma omp critical
+            {
+                std::cout << "Collision between objects " << i << " and " << j << std::endl;
+                std::cout << " iM   (0) = " << collisions[i].iM    << " jM   (1) = " << collisions[j].jM << std::endl;
+                std::cout << " jM   (0) = " << collisions[i].jM    << " jM   (1) = " << collisions[j].iM << std::endl;
+                std::cout << " Normal vector = (" << NX << "," << NY << "," << NZ << std::endl;
+                std::cout << " Location      = (" << CX << "," << CY << "," << CZ << std::endl;
+                std::cout << " Shape " << i << " before collision u    =(" <<  v1[0] << "," <<  v1[1] << "," <<  v1[2] << ")" << std::endl;
+                std::cout << " Shape " << i << " after  collision u    =(" << hv1[0] << "," << hv1[1] << "," << hv1[2] << ")" << std::endl;
+                std::cout << " Shape " << j << " before collision u    =(" <<  v2[0] << "," <<  v2[1] << "," <<  v2[2] << ")" << std::endl;
+                std::cout << " Shape " << j << " after  collision u    =(" << hv2[0] << "," << hv2[1] << "," << hv2[2] << ")" << std::endl;
+                std::cout << " Shape " << i << " before collision omega=(" <<  o1[0] << "," <<  o1[1] << "," <<  o1[2] << ")" << std::endl;
+                std::cout << " Shape " << i << " after  collision omega=(" << ho1[0] << "," << ho1[1] << "," << ho1[2] << ")" << std::endl;
+                std::cout << " Shape " << j << " before collision omega=(" <<  o2[0] << "," <<  o2[1] << "," <<  o2[2] << ")" << std::endl;
+                std::cout << " Shape " << j << " after  collision omega=(" << ho2[0] << "," << ho2[1] << "," << ho2[2] << ")" << std::endl;
+            }
+        }
+    }
+}
+
+
+void PressureSingle::operator()(const Real dt)
+{
+  sim.startProfiler("Pressure");
+  const size_t Nblocks = velInfo.size();
+
+  // update velocity of obstacle
+  for(const auto& shape : sim.shapes) {
+    integrateMomenta(shape.get());
+    shape->updateVelocity(dt);
+  }
+  // take care if two obstacles collide
+  preventCollidingObstacles();
+
+  // apply penalization force
+  penalize(dt);
+
+  // compute pressure RHS
+  // first we put uDef to tmpV so that we can create a VectorLab to compute div(uDef)
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chi->getBlocksInfo();
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ( (VectorBlock*) tmpVInfo[i].ptrBlock )->clear();
+  }
+  for(const auto& shape : sim.shapes)
+  {
+    const std::vector<ObstacleBlock*>& OBLOCK = shape->obstacleBlocks;
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      if(OBLOCK[tmpVInfo[i].blockID] == nullptr) continue; //obst not in block
+      const UDEFMAT & __restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      const CHI_MAT & __restrict__ chi  = OBLOCK[tmpVInfo[i].blockID]->chi;
+      auto & __restrict__ UDEF = *(VectorBlock*)tmpVInfo[i].ptrBlock; // dest
+      const ScalarBlock&__restrict__ CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
+      for(int iy=0; iy<VectorBlock::sizeY; iy++)
+      for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      {
+         if( chi[iy][ix] < CHI(ix,iy).s) continue;
+         Real p[2]; tmpVInfo[i].pos(p, ix, iy);
+         UDEF(ix, iy).u[0] += udef[iy][ix][0];
+         UDEF(ix, iy).u[1] += udef[iy][ix][1];
+      }
+    }
+  }
+  updatePressureRHS K(sim);
+  compute<updatePressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.tmpV,true,sim.tmp);
+
+
+  //Add p_old (+dp/dt) to RHS
+  const std::vector<cubism::BlockInfo>& presInfo = sim.pres->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& poldInfo = sim.pold->getBlocksInfo();
+  
+  //initial guess etc.
+  #pragma omp parallel for
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    ScalarBlock & __restrict__   PRES = *(ScalarBlock*)  presInfo[i].ptrBlock;
+    ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
+    {
+      POLD  (ix,iy).s = PRES (ix,iy).s;
+      PRES  (ix,iy).s = 0;
+    }
+  }
+  updatePressureRHS1 K1(sim);
+  cubism::compute<ScalarLab>(K1,sim.pold,sim.tmp);
+
+  pressureSolver->solve(sim.tmp, sim.pres);
+
+  Real avg = 0;
+  Real avg1 = 0;
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(size_t i=0; i< Nblocks; i++)
+  {
+    ScalarBlock& P  = *(ScalarBlock*) presInfo[i].ptrBlock;
+    const Real vv = presInfo[i].h*presInfo[i].h;
+    for(int iy=0; iy<VectorBlock::sizeY; iy++)
+    for(int ix=0; ix<VectorBlock::sizeX; ix++)
+    {
+      avg += P(ix,iy).s * vv;
+      avg1 += vv;
+    }
+  }
+  Real quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,sim.comm);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for
+  for(size_t i=0; i< Nblocks; i++)
+  {
+    ScalarBlock& P  = *(ScalarBlock*) presInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__   POLD = *(ScalarBlock*)  poldInfo[i].ptrBlock;
+    for(int iy=0; iy<VectorBlock::sizeY; iy++)
+    for(int ix=0; ix<VectorBlock::sizeX; ix++)
+      P(ix,iy).s += POLD(ix,iy).s - avg;
+  }
+
+  // apply pressure correction
+  pressureCorrection(dt);
+
+  sim.stopProfiler();
+}
+
+PressureSingle::PressureSingle(SimulationData& s) :
+  Operator{s},
+  pressureSolver{makePoissonSolver(s)}
+{ }
+
+PressureSingle::~PressureSingle() = default;
+struct SimulationData;
 struct FishSkin
 {
   const size_t Npoints;
