@@ -39,7 +39,6 @@ PressureSingle.o\
 PutObjectsOnGrid.o\
 Shape.o\
 SimulationData.o\
-StefanFish.o\
 
 NVCCFLAGS =
 main: $O
