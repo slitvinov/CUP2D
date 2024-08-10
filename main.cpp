@@ -12067,9 +12067,6 @@ public:
 
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
-  std::array<int, 2> safeIdInBlock(const std::array<Real, 2> pos,
-                                   const std::array<Real, 2> org,
-                                   const Real invh) const;
 };
 
 class CurvatureFish : public FishData {
@@ -12357,16 +12354,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 }
-
-std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real, 2> pos,
-                                             const std::array<Real, 2> org,
-                                             const Real invh) const {
-  const int indx = (int)std::round((pos[0] - org[0]) * invh);
-  const int indy = (int)std::round((pos[1] - org[1]) * invh);
-  const int ix = std::min(std::max(0, indx), VectorBlock::sizeX - 1);
-  const int iy = std::min(std::max(0, indy), VectorBlock::sizeY - 1);
-  return std::array<int, 2>{{ix, iy}};
-};
 
 class Simulation {
 public:
