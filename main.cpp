@@ -5797,51 +5797,6 @@ using ScalarLab =
     cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid, std::allocator>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
-namespace cubism {
-const bool bVerboseProfiling = false;
-class ProfileAgent {
-  typedef timeval ClockTime;
-  enum ProfileAgentState {
-    ProfileAgentState_Created,
-    ProfileAgentState_Started,
-    ProfileAgentState_Stopped
-  };
-  ClockTime m_tStart, m_tEnd;
-  ProfileAgentState m_state;
-  long double m_dAccumulatedTime;
-  int m_nMeasurements;
-  int m_nMoney;
-  static void _getTime(ClockTime &time) { gettimeofday(&time, NULL); }
-  static double _getElapsedTime(const ClockTime &tS, const ClockTime &tE) {
-    return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
-  }
-
-public:
-  ProfileAgent()
-      : m_tStart(), m_tEnd(), m_state(ProfileAgentState_Created),
-        m_dAccumulatedTime(0), m_nMeasurements(0), m_nMoney(0) {}
-  void start() {
-    assert(m_state == ProfileAgentState_Created ||
-           m_state == ProfileAgentState_Stopped);
-    if (bVerboseProfiling) {
-      printf("start\n");
-    }
-    _getTime(m_tStart);
-    m_state = ProfileAgentState_Started;
-  }
-  void stop(int nMoney = 0) {
-    assert(m_state == ProfileAgentState_Started);
-    if (bVerboseProfiling) {
-      printf("stop\n");
-    }
-    _getTime(m_tEnd);
-    m_dAccumulatedTime += _getElapsedTime(m_tStart, m_tEnd);
-    m_nMeasurements++;
-    m_nMoney += nMoney;
-    m_state = ProfileAgentState_Stopped;
-  }
-};
-} // namespace cubism
 class Shape;
 struct SimulationData {
   MPI_Comm comm;
@@ -10348,8 +10303,6 @@ int main(int argc, char **argv) {
   pipeline.push_back(new advDiff(sim));
   pipeline.push_back(new PressureSingle(sim));
   pipeline.push_back(new ComputeForces(sim));
-
-  assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
