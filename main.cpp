@@ -12054,9 +12054,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 }
 
 class StefanFish : public Fish {
-  const bool bCorrectTrajectory;
-  const bool bCorrectPosition;
-
 public:
   StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
@@ -12180,8 +12177,8 @@ public:
 };
 
 StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
-    : Fish(s, p, C), bCorrectTrajectory(p("-pid").asInt(0)),
-      bCorrectPosition(p("-pidpos").asInt(0)) {
+    : Fish(s, p, C)
+{
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -12192,82 +12189,6 @@ StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
 }
 
 void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
-
-  if (bCorrectPosition || bCorrectTrajectory) {
-    CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-    if (cFish == nullptr) {
-      printf("Someone touched my fish\n");
-      abort();
-    }
-    const Real DT = sim.dt / Tperiod;
-
-    const Real xDiff = (centerOfMass[0] - origC[0]) / length;
-    const Real yDiff = (centerOfMass[1] - origC[1]) / length;
-    const Real angDiff = orientation - origAng;
-    const Real relU = (u + sim.uinfx) / length;
-    const Real relV = (v + sim.uinfy) / length;
-    const Real angVel = omega, lastAngVel = cFish->lastAvel;
-
-    const Real aVelMidP = (angVel + lastAngVel) * Tperiod / 2;
-    const Real aVelDiff = (angVel - lastAngVel) * Tperiod / sim.dt;
-    cFish->lastAvel = angVel;
-
-    const Real velDAavg = (angDiff - cFish->avgDangle) / Tperiod + DT * angVel;
-    const Real velDYavg = (yDiff - cFish->avgDeltaY) / Tperiod + DT * relV;
-    const Real velAVavg =
-        10 * ((aVelMidP - cFish->avgAngVel) / Tperiod + DT * aVelDiff);
-
-    cFish->avgDangle = (1.0 - DT) * cFish->avgDangle + DT * angDiff;
-    cFish->avgDeltaY = (1.0 - DT) * cFish->avgDeltaY + DT * yDiff;
-
-    cFish->avgAngVel = (1 - 10 * DT) * cFish->avgAngVel + 10 * DT * aVelMidP;
-    const Real avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
-
-    const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
-    const Real velAbsPy = yDiff > 0 ? relV : -relV;
-    const Real velAbsIy = avgDeltaY > 0 ? velDYavg : -velDYavg;
-    assert(origAng < 2e-16);
-
-    if (bCorrectPosition && sim.dt > 0) {
-
-      const Real IangPdy = (avgDangle * yDiff < 0) ? avgDangle * absPy : 0;
-      const Real PangIdy = (angDiff * avgDeltaY < 0) ? angDiff * absIy : 0;
-      const Real IangIdy = (avgDangle * avgDeltaY < 0) ? avgDangle * absIy : 0;
-
-      const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
-      const Real velPangIdy = velAbsIy * angDiff + absIy * angVel;
-      const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
-
-      const Real coefIangPdy = avgDangle * yDiff < 0 ? 1 : 0;
-      const Real coefPangIdy = angDiff * avgDeltaY < 0 ? 1 : 0;
-      const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
-
-      const Real valIangPdy = coefIangPdy * IangPdy;
-      const Real difIangPdy = coefIangPdy * velIangPdy;
-      const Real valPangIdy = coefPangIdy * PangIdy;
-      const Real difPangIdy = coefPangIdy * velPangIdy;
-      const Real valIangIdy = coefIangIdy * IangIdy;
-      const Real difIangIdy = coefIangIdy * velIangIdy;
-      const Real periodFac = 1.0 - xDiff;
-      const Real periodVel = -relU;
-      const Real totalTerm = valIangPdy + valPangIdy + valIangIdy;
-      const Real totalDiff = difIangPdy + difPangIdy + difIangIdy;
-      cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
-      cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
-    }
-
-    else if (bCorrectTrajectory && sim.dt > 0) {
-      const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
-      const Real absAvelDiff = avgAngVel > 0 ? velAVavg : -velAVavg;
-      const Real coefInst = angDiff * avgAngVel > 0 ? 0.01 : 1, coefAvg = 0.1;
-      const Real termInst = angDiff * absAngVel;
-      const Real diffInst = angDiff * absAvelDiff + angVel * absAngVel;
-      const Real totalTerm = coefInst * termInst + coefAvg * avgDangle;
-      const Real totalDiff = coefInst * diffInst + coefAvg * velDAavg;
-
-      cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
-    }
-  }
   Fish::create(vInfo);
 }
 
