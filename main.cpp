@@ -7395,70 +7395,7 @@ public:
   std::string getName() { return "computeVorticity"; }
 };
 
-struct KernelDivergence {
-  KernelDivergence(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
-  void operator()(VectorLab &lab, const cubism::BlockInfo &info) const {
-    const Real h = info.h;
-    const Real facDiv = 0.5 * h;
-    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
-        TMP(ix, iy).s =
-            facDiv * ((lab(ix + 1, iy).u[0] - lab(ix - 1, iy).u[0]) +
-                      (lab(ix, iy + 1).u[1] - lab(ix, iy - 1).u[1]));
-    cubism::BlockCase<ScalarBlock> *tempCase =
-        (cubism::BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
-    ScalarBlock::ElementType *faceXm = nullptr;
-    ScalarBlock::ElementType *faceXp = nullptr;
-    ScalarBlock::ElementType *faceYm = nullptr;
-    ScalarBlock::ElementType *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->m_pData[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->m_pData[3][0] : nullptr;
-    }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        faceXm[iy].s = facDiv * (lab(ix - 1, iy).u[0] + lab(ix, iy).u[0]);
-    }
-    if (faceXp != nullptr) {
-      int ix = VectorBlock::sizeX - 1;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        faceXp[iy].s = -facDiv * (lab(ix + 1, iy).u[0] + lab(ix, iy).u[0]);
-    }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
-        faceYm[ix].s = facDiv * (lab(ix, iy - 1).u[1] + lab(ix, iy).u[1]);
-    }
-    if (faceYp != nullptr) {
-      int iy = VectorBlock::sizeY - 1;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
-        faceYp[ix].s = -facDiv * (lab(ix, iy + 1).u[1] + lab(ix, iy).u[1]);
-    }
-  }
-};
-
-class computeDivergence : public Operator {
-public:
-  computeDivergence(SimulationData &s) : Operator(s) {}
-
-  void operator()(const Real dt) {
-
-    const KernelDivergence mykernel(sim);
-    cubism::compute<VectorLab>(mykernel, sim.vel, sim.tmp);
-  }
-
-  std::string getName() { return "computeDivergence"; }
-};
-
 namespace fs = std::filesystem;
-
 template <typename T> hid_t get_hdf5_type();
 template <> inline hid_t get_hdf5_type<long long>() { return H5T_NATIVE_LLONG; }
 template <> inline hid_t get_hdf5_type<short int>() { return H5T_NATIVE_SHORT; }
