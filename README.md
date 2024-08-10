@@ -22,5 +22,5 @@ make 'CXXFLAGS = -I/scratch/slitvinov/.grace/include' 'LDFLAGS = -L/scratch/slit
 
 local
 ```
-make "CXXFLAGS = `pkg-config --cflags hdf5-openmpi`"
+make 'CXXFLAGS != pkg-config --cflags gsl hdf5-openmpi' 'LDFLAGS != pkg-config --libs gsl hdf5-openmpi' -j
 ```

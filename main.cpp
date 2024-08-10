@@ -10254,17 +10254,9 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 }
 struct Simulation {
   SimulationData sim;
-  std::vector<std::shared_ptr<Operator>> pipeline;
+  std::vector<Operator*> pipeline;
   cubism::CommandlineParser parser;
   Simulation(int argc, char **argv, MPI_Comm comm);
-  template <typename Op> Op *findOperator() const {
-    for (const auto &ptr : pipeline) {
-      Op *out = dynamic_cast<Op *>(ptr.get());
-      if (out != nullptr)
-        return out;
-    }
-    return nullptr;
-  }
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
 static std::vector<std::string> split(const std::string &s, const char dlm) {
@@ -10361,14 +10353,15 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
 
   IC ic(sim);
   ic(0);
-  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
-  pipeline.push_back(std::make_shared<advDiff>(sim));
-  pipeline.push_back(std::make_shared<PressureSingle>(sim));
-  pipeline.push_back(std::make_shared<ComputeForces>(sim));
+  PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid(sim);
+  AdaptTheMesh *adaptTheMesh = new AdaptTheMesh(sim);
+  pipeline.push_back(adaptTheMesh);
+  pipeline.push_back(putObjectsOnGrid);
+  pipeline.push_back(new advDiff(sim));
+  pipeline.push_back(new PressureSingle(sim));
+  pipeline.push_back(new ComputeForces(sim));
   Checker check(sim);
-  PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
-  AdaptTheMesh *const adaptTheMesh = findOperator<AdaptTheMesh>();
+
   assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
