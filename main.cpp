@@ -6837,142 +6837,6 @@ public:
     m_state = ProfileAgentState_Stopped;
   }
 
-  friend class Profiler;
-};
-
-struct ProfileSummaryItem {
-  std::string sName;
-  double dTime;
-  int nMoney;
-  int nSamples;
-  double dAverageTime;
-
-  ProfileSummaryItem(std::string sName_, double dTime_, int nMoney_,
-                     int nSamples_)
-      : sName(sName_), dTime(dTime_), nMoney(nMoney_), nSamples(nSamples_),
-        dAverageTime(dTime_ / nSamples_) {}
-};
-
-class Profiler {
-protected:
-  std::map<std::string, ProfileAgent *> m_mapAgents;
-  std::stack<std::string> m_mapStoppedAgents;
-
-public:
-  void push_start(std::string sAgentName) {
-    if (m_mapStoppedAgents.size() > 0)
-      getAgent(m_mapStoppedAgents.top()).stop();
-
-    m_mapStoppedAgents.push(sAgentName);
-    getAgent(sAgentName).start();
-  }
-
-  void pop_stop() {
-    std::string sCurrentAgentName = m_mapStoppedAgents.top();
-    getAgent(sCurrentAgentName).stop();
-    m_mapStoppedAgents.pop();
-
-    if (m_mapStoppedAgents.size() == 0)
-      return;
-
-    getAgent(m_mapStoppedAgents.top()).start();
-  }
-
-  void clear() {
-    for (std::map<std::string, ProfileAgent *>::iterator it =
-             m_mapAgents.begin();
-         it != m_mapAgents.end(); it++) {
-      delete it->second;
-
-      it->second = NULL;
-    }
-
-    m_mapAgents.clear();
-  }
-
-  Profiler() : m_mapAgents() {}
-
-  ~Profiler() { clear(); }
-
-  void printSummary(FILE *outFile = NULL) const {
-    std::vector<ProfileSummaryItem> v = createSummary();
-
-    double dTotalTime = 0;
-    double dTotalTime2 = 0;
-    for (std::vector<ProfileSummaryItem>::const_iterator it = v.begin();
-         it != v.end(); it++)
-      dTotalTime += it->dTime;
-
-    for (std::vector<ProfileSummaryItem>::const_iterator it = v.begin();
-         it != v.end(); it++)
-      dTotalTime2 += it->dTime - it->nSamples * 1.30e-6;
-
-    for (std::vector<ProfileSummaryItem>::const_iterator it = v.begin();
-         it != v.end(); it++) {
-      const ProfileSummaryItem &item = *it;
-      const double avgTime = item.dAverageTime;
-
-      printf("[%15s]: \t%02.0f-%02.0f%%\t%03.3e (%03.3e) s\t%03.3f (%03.3f) "
-             "s\t(%d samples)\n",
-             item.sName.data(), 100 * item.dTime / dTotalTime,
-             100 * (item.dTime - item.nSamples * 1.3e-6) / dTotalTime2, avgTime,
-             avgTime - 1.30e-6, item.dTime,
-             item.dTime - item.nSamples * 1.30e-6, item.nSamples);
-      if (outFile)
-        fprintf(outFile, "[%15s]: \t%02.2f%%\t%03.3f s\t(%d samples)\n",
-
-                item.sName.data(), 100 * item.dTime / dTotalTime, avgTime,
-                item.nSamples);
-    }
-
-    printf("[Total time]: \t%f\n", dTotalTime);
-    if (outFile)
-      fprintf(outFile, "[Total time]: \t%f\n", dTotalTime);
-    if (outFile)
-      fflush(outFile);
-    if (outFile)
-      fclose(outFile);
-  }
-
-  std::vector<ProfileSummaryItem>
-  createSummary(bool bSkipIrrelevantEntries = true) const {
-    std::vector<ProfileSummaryItem> result;
-    result.reserve(m_mapAgents.size());
-
-    for (std::map<std::string, ProfileAgent *>::const_iterator it =
-             m_mapAgents.begin();
-         it != m_mapAgents.end(); it++) {
-      const ProfileAgent &agent = *it->second;
-      if (!bSkipIrrelevantEntries || agent.m_dAccumulatedTime > 1e-3)
-        result.push_back(ProfileSummaryItem(it->first, agent.m_dAccumulatedTime,
-                                            agent.m_nMoney,
-                                            agent.m_nMeasurements));
-    }
-
-    return result;
-  }
-
-  ProfileAgent &getAgent(std::string sName) {
-    if (bVerboseProfiling) {
-      printf("%s ", sName.data());
-    }
-
-    std::map<std::string, ProfileAgent *>::const_iterator it =
-        m_mapAgents.find(sName);
-
-    const bool bFound = it != m_mapAgents.end();
-
-    if (bFound)
-      return *it->second;
-
-    ProfileAgent *agent = new ProfileAgent();
-
-    m_mapAgents[sName] = agent;
-
-    return *agent;
-  }
-
-  friend class ProfileAgent;
 };
 
 } // namespace cubism
@@ -7028,15 +6892,12 @@ struct SimulationData {
   int maxPoissonIterations;
   int bMeanConstraint;
 
-  int profilerFreq = 0;
   int dumpFreq;
   Real dumpTime;
   bool verbose;
   bool muteAll;
   std::string path4serialization;
   std::string path2file;
-
-  cubism::Profiler *profiler = new cubism::Profiler();
 
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
@@ -7097,9 +6958,6 @@ struct SimulationData {
     MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
     return minHGrid;
   }
-
-  void startProfiler(std::string name);
-  void stopProfiler();
 
   void dumpChi(std::string name);
   void dumpPres(std::string name);
@@ -8447,7 +8305,6 @@ void SimulationData::registerDump() { nextDumpTime += dumpTime; }
 SimulationData::SimulationData() = default;
 
 SimulationData::~SimulationData() {
-  delete profiler;
   if (vel not_eq nullptr)
     delete vel;
   if (chi not_eq nullptr)
@@ -8479,20 +8336,9 @@ bool SimulationData::bDump() {
   return _bDump;
 }
 
-void SimulationData::startProfiler(std::string name) {
-#ifndef NDEBUG
-  Checker check(*this);
-  check.run("before" + name);
-#endif
-  profiler->push_start(name);
-}
-
-void SimulationData::stopProfiler() { profiler->pop_stop(); }
 
 
 void SimulationData::dumpAll(std::string name) {
-  startProfiler("Dump");
-
   auto K1 = computeVorticity(*this);
   K1(0);
   dumpTmp(name);
@@ -8503,7 +8349,6 @@ void SimulationData::dumpAll(std::string name) {
   if (bDumpCs)
     dumpCs(name);
 
-  stopProfiler();
 }
 
 struct IF2D_Frenet2D {
@@ -9015,12 +8860,8 @@ struct PutChiOnGrid {
 };
 
 void PutObjectsOnGrid::operator()(const Real dt) {
-  sim.startProfiler("PutObjectsGrid");
-
   advanceShapes(dt);
   putObjectsOnGrid();
-
-  sim.stopProfiler();
 }
 
 void PutObjectsOnGrid::advanceShapes(const Real dt) {
@@ -9182,8 +9023,6 @@ void AdaptTheMesh::operator()(const Real dt) {
 }
 
 void AdaptTheMesh::adapt() {
-  sim.startProfiler("AdaptTheMesh");
-
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
 
   auto K1 = computeVorticity(sim);
@@ -9211,8 +9050,6 @@ void AdaptTheMesh::adapt() {
   tmpV_amr->Adapt(sim.time, false, true);
   if (sim.smagorinskyCoeff != 0)
     Cs_amr->Adapt(sim.time, false, true);
-
-  sim.stopProfiler();
 }
 
 class advDiff : public Operator {
@@ -9422,7 +9259,6 @@ struct KernelAdvectDiffuse {
 };
 
 void advDiff::operator()(const Real dt) {
-  sim.startProfiler("advDiff");
   const size_t Nblocks = velInfo.size();
   KernelAdvectDiffuse Step1(sim);
 
@@ -9466,8 +9302,6 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-
-  sim.stopProfiler();
 }
 
 class Shape;
@@ -9671,14 +9505,12 @@ struct KernelComputeForces {
 };
 
 void ComputeForces::operator()(const Real dt) {
-  sim.startProfiler("ComputeForces");
   KernelComputeForces K(sim);
   cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
                   ScalarLab>(K, *sim.vel, *sim.chi);
 
   for (const auto &shape : sim.shapes)
     shape->computeForces();
-  sim.stopProfiler();
 }
 
 ComputeForces::ComputeForces(SimulationData &s) : Operator(s) {}
@@ -10178,8 +10010,6 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
 }
 
 void ExpAMRSolver::getMat() {
-  sim.startProfiler("Poisson solver: LS");
-
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
 
   sim.tmp->UpdateBlockInfoAll_States(true);
@@ -10283,8 +10113,6 @@ void ExpAMRSolver::getMat() {
   }
 
   LocalLS_->make(Nrows_xcumsum_);
-
-  sim.stopProfiler();
 }
 
 void ExpAMRSolver::getVec() {
@@ -11145,7 +10973,6 @@ void PressureSingle::preventCollidingObstacles() const {
 }
 
 void PressureSingle::operator()(const Real dt) {
-  sim.startProfiler("Pressure");
   const size_t Nblocks = velInfo.size();
 
   for (const auto &shape : sim.shapes) {
@@ -11233,8 +11060,6 @@ void PressureSingle::operator()(const Real dt) {
   }
 
   pressureCorrection(dt);
-
-  sim.stopProfiler();
 }
 
 PressureSingle::PressureSingle(SimulationData &s)
@@ -13039,15 +12864,12 @@ void Simulation::parseRuntime() {
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
   cubismBCY = string2BCflag(BC_y);
-
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
-
-  sim.profilerFreq = parser("-profilerFreq").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
   sim.path2file = parser("-file").asString("./");
@@ -13125,9 +12947,6 @@ void Simulation::simulate() {
 
     if (!done)
       done = sim.bOver();
-
-    if (sim.rank == 0 && sim.profilerFreq > 0 &&
-        sim.step % sim.profilerFreq == 0)
 
     if (done) {
       const bool bDump = sim.bDump();
