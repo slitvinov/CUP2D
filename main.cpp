@@ -7808,54 +7808,6 @@ struct StreamerVector {
 };
 
 template <typename data_type>
-void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
-                           const std::string &name,
-                           const std::string &dataset_name, const int chunk) {
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
-
-  hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
-  fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-  H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fopen(name.c_str(), H5F_ACC_RDONLY, fapl_id);
-  H5Pclose(fapl_id);
-
-  fapl_id = H5Pcreate(H5P_DATASET_XFER);
-  H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-
-  dataset_id = H5Dopen2(file_id, dataset_name.c_str(), H5P_DEFAULT);
-  hsize_t total = H5Dget_storage_size(dataset_id) / sizeof(data_type) / chunk;
-
-  unsigned long long my_data = total / size;
-  if ((hsize_t)rank < total % (hsize_t)size)
-    my_data++;
-  unsigned long long n_start = rank * (total / size);
-  if (total % size > 0) {
-    if ((hsize_t)rank < total % (hsize_t)size)
-      n_start += rank;
-    else
-      n_start += total % size;
-  }
-  hsize_t offset = n_start * chunk;
-  hsize_t count = my_data * chunk;
-  buffer.resize(count);
-
-  fspace_id = H5Dget_space(dataset_id);
-  mspace_id = H5Screate_simple(1, &count, NULL);
-  H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL);
-  H5Dread(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id, fapl_id,
-          buffer.data());
-
-  H5Pclose(fapl_id);
-  H5Dclose(dataset_id);
-  H5Sclose(fspace_id);
-  H5Sclose(mspace_id);
-  H5Fclose(file_id);
-}
-
-template <typename data_type>
 void save_buffer_to_file(const std::vector<data_type> &buffer,
                          const int NCHANNELS, MPI_Comm &comm,
                          const std::string &name,
@@ -8268,14 +8220,6 @@ Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
 
 void Shape::updateVelocity(Real dt) {
-#ifdef EXPL_INTEGRATE_MOM
-  if (not bForcedx || sim.time > timeForced)
-    u = (fluidMomX + dt * appliedForceX) / penalM;
-  if (not bForcedy || sim.time > timeForced)
-    v = (fluidMomY + dt * appliedForceY) / penalM;
-  if (not bBlockang || sim.time > timeForced)
-    omega = (fluidAngMom + dt * appliedTorque) / penalJ;
-#else
 
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
@@ -8332,7 +8276,6 @@ void Shape::updateVelocity(Real dt) {
 
   gsl_permutation_free(permgsl);
   gsl_vector_free(xgsl);
-#endif
 }
 
 void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
@@ -9473,27 +9416,6 @@ struct GradChiOnTmp {
         }
       }
 
-#ifdef CUP2D_CYLINDER_REF
-
-    for (int y = 0; y < VectorBlock::sizeY; ++y)
-      for (int x = 0; x < VectorBlock::sizeX; ++x) {
-        double p[2];
-        info.pos(p, x, y);
-        p[0] -= 1.0;
-        p[1] -= 1.0;
-        const double r = p[0] * p[0] + p[1] * p[1];
-        if (r > 0.1 * 0.1 && r < 0.11 * 0.11) {
-          TMP(VectorBlock::sizeX / 2 - 1, VectorBlock::sizeY / 2).s =
-              2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2 - 1, VectorBlock::sizeY / 2 - 1).s =
-              2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2, VectorBlock::sizeY / 2).s = 2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2, VectorBlock::sizeY / 2 - 1).s =
-              2 * sim.Rtol;
-          break;
-        }
-      }
-#endif
   }
 };
 
@@ -10929,9 +10851,7 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
       continue;
     const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
     const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
-#ifndef EXPL_INTEGRATE_MOM
     const Real lambdt = sim.lambda * sim.dt;
-#endif
 
     for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
       for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
@@ -10939,13 +10859,9 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
           continue;
         const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
                                VEL(ix, iy).u[1] - udef[iy][ix][1]};
-#ifdef EXPL_INTEGRATE_MOM
-        const Real F = hsq * chi[iy][ix];
-#else
 
         const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
-#endif
         Real p[2];
         velInfo[i].pos(p, ix, iy);
         p[0] -= Cx;
@@ -11015,12 +10931,8 @@ void PressureSingle::penalize(const Real dt) const {
           velInfo[i].pos(p, ix, iy);
           p[0] -= Cx;
           p[1] -= Cy;
-#ifndef EXPL_INTEGRATE_MOM
 
           const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
-#else
-          const Real alpha = 1 - X[iy][ix];
-#endif
 
           const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
           const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
