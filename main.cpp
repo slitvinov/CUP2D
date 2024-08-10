@@ -9619,62 +9619,6 @@ Real findMaxU::run() const {
   return std::max({U, V, u, v});
 }
 
-void Checker::run(std::string when) const {
-  return;
-  const size_t Nblocks = velInfo.size();
-
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  bool bAbort = false;
-
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        if (std::isnan(VEL(ix, iy).u[0])) {
-          printf("isnan( VEL(ix,iy).u[0]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(VEL(ix, iy).u[0])) {
-          printf("isinf( VEL(ix,iy).u[0]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isnan(VEL(ix, iy).u[1])) {
-          printf("isnan( VEL(ix,iy).u[1]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(VEL(ix, iy).u[1])) {
-          printf("isinf( VEL(ix,iy).u[1]) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isnan(PRES(ix, iy).s)) {
-          printf("isnan(PRES(ix,iy).s   ) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-        if (std::isinf(PRES(ix, iy).s)) {
-          printf("isinf(PRES(ix,iy).s   ) %s\n", when.c_str());
-          bAbort = true;
-          break;
-        }
-      }
-  }
-
-  if (bAbort) {
-    std::cout << "[CUP2D] Detected NaN/INF Field Values. Dumping the field and "
-                 "aborting..."
-              << std::endl;
-    sim.dumpAll("abort_");
-    MPI_Abort(sim.comm, 1);
-  }
-}
-
 void ApplyObjVel::operator()(const Real dt) {
   // We loop over each shape's obstacle blocks and copy the obstacle's
   // deformation velocity UDEF to tmpV.
@@ -9925,43 +9869,6 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
       }
   }
 };
-
-void Shape::diagnostics() {
-  /*
-  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const Real hsq = std::pow(vInfo[0].h, 2);
-  Real _a=0, _m=0, _x=0, _y=0, _t=0;
-  #pragma omp parallel for schedule(dynamic) reduction(+:_a,_m,_x,_y,_t)
-  for(size_t i=0; i<vInfo.size(); i++) {
-      const auto pos = obstacleBlocks[vInfo[i].blockID];
-      if(pos == nullptr) continue;
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        if (pos->chi[iy][ix] <= 0) continue;
-        const Real Xs = pos->chi[iy][ix] * hsq;
-        Real p[2];
-        vInfo[i].pos(p, ix, iy);
-        p[0] -= centerOfMass[0];
-        p[1] -= centerOfMass[1];
-        const Real*const udef = pos->udef[iy][ix];
-        const Real uDiff = b(ix,iy).u - (u -omega*p[1] +udef[0]);
-        const Real vDiff = b(ix,iy).v - (v +omega*p[0] +udef[1]);
-        _a += Xs;
-        _m += Xs;
-        _x += uDiff*Xs;
-        _y += vDiff*Xs;
-        _t += (p[0]*vDiff-p[1]*uDiff)*Xs;
-      }
-  }
-  area_penal   = _a;
-  mass_penal   = _m;
-  forcex_penal = _x * sim.lambda;
-  forcey_penal = _y * sim.lambda;
-  torque_penal = _t * sim.lambda;
-  */
-}
 
 void Shape::computeForces() {
   // additive quantities:
