@@ -274,56 +274,6 @@ Value &ArgumentParser::operator()(std::string key) {
 
 } // namespace cubism
 
-class BufferedLogger {
-  struct Stream {
-    std::stringstream stream;
-    int requests_since_last_flush = 0;
-
-    Stream(const Stream &c) {}
-    Stream() {}
-  };
-  typedef std::unordered_map<std::string, Stream> container_type;
-  container_type files;
-
-  void flush(container_type::iterator it);
-
-public:
-  ~BufferedLogger() { flush(); }
-
-  std::stringstream &get_stream(const std::string &filename);
-
-  inline void flush(void) {
-    for (auto it = files.begin(); it != files.end(); ++it)
-      flush(it);
-  }
-};
-
-extern BufferedLogger logger;
-
-BufferedLogger logger;
-
-static constexpr int AUTO_FLUSH_COUNT = 100;
-
-void BufferedLogger::flush(BufferedLogger::container_type::iterator it) {
-  std::ofstream savestream;
-  savestream.open(it->first, std::ios::app | std::ios::out);
-  savestream << it->second.stream.rdbuf();
-  savestream.close();
-  it->second.requests_since_last_flush = 0;
-}
-
-std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
-  auto it = files.find(filename);
-  if (it != files.end()) {
-    if (++it->second.requests_since_last_flush == AUTO_FLUSH_COUNT)
-      flush(it);
-    return it->second.stream;
-  } else {
-
-    auto new_it = files.emplace(filename, Stream()).first;
-    return new_it->second.stream;
-  }
-}
 namespace cubism {
 class SpaceFillingCurve2D {
 protected:
@@ -7829,15 +7779,6 @@ void Shape::updatePosition(Real dt) {
            (double)J);
     std::stringstream ssF;
     ssF << sim.path2file << "/velocity_" << obstacleID << ".dat";
-    std::stringstream &fout = logger.get_stream(ssF.str());
-    if (sim.step == 0)
-      fout << "t dt CXsim CYsim CXlab CYlab angle u v omega M J accx accy "
-              "accw\n";
-
-    fout << t << " " << dt << " " << cx << " " << cy << " " << CX << " " << CY
-         << " " << angle << " " << u << " " << v << " " << omega << " " << M
-         << " " << J << " " << fluidMomX / penalM << " " << fluidMomY / penalM
-         << " " << fluidAngMom / penalJ << "\n";
   }
 }
 
@@ -8018,25 +7959,6 @@ void Shape::computeForces() {
     std::stringstream ssF, ssP;
     ssF << sim.path2file << "/forceValues_" << obstacleID << ".dat";
     ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
-
-    std::stringstream &fileForce = logger.get_stream(ssF.str());
-    if (sim.step == 0)
-      fileForce << "time Fx Fy FxPres FyPres FxVisc FyVisc tau tauPres tauVisc "
-                   "drag thrust lift perimeter circulation blocks\n";
-
-    fileForce << sim.time << " " << forcex << " " << forcey << " " << forcex_P
-              << " " << forcey_P << " " << forcex_V << " " << forcey_V << " "
-              << torque << " " << torque_P << " " << torque_V << " " << drag
-              << " " << thrust << " " << lift << " " << perimeter << " "
-              << circulation << " " << tot_blocks << "\n";
-
-    std::stringstream &filePower = logger.get_stream(ssP.str());
-    if (sim.step == 0)
-      filePower << "time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd "
-                   "defPower EffPDefBnd EffPDef\n";
-    filePower << sim.time << " " << Pthrust << " " << Pdrag << " " << PoutBnd
-              << " " << Pout << " " << PoutNew << " " << defPowerBnd << " "
-              << defPower << " " << EffPDefBnd << " " << EffPDef << "\n";
   }
 }
 
