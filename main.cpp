@@ -12279,9 +12279,6 @@ void Simulation::startObstacles() {
     (*adaptTheMesh)(0.0);
   }
   (*putObjectsOnGrid)(0.0);
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
   initVel(0);
 }
