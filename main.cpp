@@ -12937,10 +12937,6 @@ public:
     return nullptr;
   }
 
-  void insertOperator(std::shared_ptr<Operator> op);
-
-  void insertOperatorAfter(std::shared_ptr<Operator> op,
-                           const std::string &name);
 
   void reset();
   void resetRL();
@@ -12993,31 +12989,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
 }
 
 Simulation::~Simulation() = default;
-
-void Simulation::insertOperator(std::shared_ptr<Operator> op) {
-  pipeline.push_back(std::move(op));
-}
-void Simulation::insertOperatorAfter(std::shared_ptr<Operator> op,
-                                     const std::string &name) {
-  for (size_t i = 0; i < pipeline.size(); ++i) {
-    if (pipeline[i]->getName() == name) {
-      pipeline.insert(pipeline.begin() + i + 1, std::move(op));
-      return;
-    }
-  }
-  std::string msg;
-  msg.reserve(300);
-  msg += "operator '";
-  msg += name;
-  msg += "' not found, available: ";
-  for (size_t i = 0; i < pipeline.size(); ++i) {
-    if (i > 0)
-      msg += ", ";
-    msg += pipeline[i]->getName();
-  }
-  msg += " (ensure that init() is called before inserting custom operators)";
-  throw std::runtime_error(std::move(msg));
-}
 
 void Simulation::init() {
 
