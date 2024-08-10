@@ -10252,12 +10252,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 }
-struct Simulation {
-  SimulationData sim;
-  std::vector<Operator*> pipeline;
-  cubism::CommandlineParser parser;
-  Simulation(int argc, char **argv, MPI_Comm comm);
-};
 static std::vector<std::string> split(const std::string &s, const char dlm) {
   std::stringstream ss(s);
   std::string item;
@@ -10266,10 +10260,14 @@ static std::vector<std::string> split(const std::string &s, const char dlm) {
     tokens.push_back(item);
   return tokens;
 }
-Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
-    : parser(argc, argv) {
+int main(int argc, char **argv) {
+  int threadSafety;
   int size;
-  sim.comm = comm;
+  SimulationData sim;
+  std::vector<Operator *> pipeline;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
+  cubism::CommandlineParser parser(argc, argv);
+  sim.comm = MPI_COMM_WORLD;
   MPI_Comm_size(sim.comm, &size);
   MPI_Comm_rank(sim.comm, &sim.rank);
 #ifdef _OPENMP
@@ -10420,10 +10418,5 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
       break;
     }
   }
-}
-int main(int argc, char **argv) {
-  int threadSafety;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
-  { Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD); }
   MPI_Finalize();
 }
