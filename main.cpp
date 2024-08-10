@@ -12113,25 +12113,6 @@ public:
     writeMidline2File(0, "initialCheck");
   }
 
-  void correctTrajectory(const Real dtheta, const Real vtheta, const Real t,
-                         const Real dt) {
-    curv_PID_fac = dtheta;
-    curv_PID_dif = vtheta;
-  }
-
-  void correctTailPeriod(const Real periodFac, const Real periodVel,
-                         const Real t, const Real dt) {
-    assert(periodFac > 0 && periodFac < 2);
-
-    const Real lastArg = (lastTime - time0) / periodPIDval + timeshift;
-    time0 = lastTime;
-    timeshift = lastArg;
-
-    periodPIDval = Tperiod * periodFac;
-    periodPIDdif = Tperiod * periodVel;
-    lastTime = t;
-    TperiodPID = true;
-  }
   void execute(const Real t_current, const Real t_rlAction,
                const std::vector<Real> &a) {
     assert(t_current >= t_rlAction);
