@@ -14,7 +14,6 @@ FLAGS =\
 -DDIMENSION=2\
 -DNDEBUG\
 $(OPENMPFLAGS)\
--I.\
 -O3\
 -std=c++17\
 
