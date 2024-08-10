@@ -10259,7 +10259,6 @@ public:
 protected:
   cubism::CommandlineParser parser;
   void createShapes();
-  void parseRuntime();
 
 public:
   Simulation(int argc, char **argv, MPI_Comm comm);
@@ -10305,19 +10304,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
 }
 Simulation::~Simulation() = default;
 void Simulation::init() {
-  parseRuntime();
-  sim.allocateGrid();
-  createShapes();
-  IC ic(sim);
-  ic(0);
-  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
-  pipeline.push_back(std::make_shared<advDiff>(sim));
-  pipeline.push_back(std::make_shared<PressureSingle>(sim));
-  pipeline.push_back(std::make_shared<ComputeForces>(sim));
-  startObstacles();
-}
-void Simulation::parseRuntime() {
   parser.set_strict_mode();
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
@@ -10362,6 +10348,16 @@ void Simulation::parseRuntime() {
   sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if (sim.muteAll)
     sim.verbose = 0;
+  sim.allocateGrid();
+  createShapes();
+  IC ic(sim);
+  ic(0);
+  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
+  pipeline.push_back(std::make_shared<advDiff>(sim));
+  pipeline.push_back(std::make_shared<PressureSingle>(sim));
+  pipeline.push_back(std::make_shared<ComputeForces>(sim));
+  startObstacles();
 }
 void Simulation::createShapes() {
   const std::string shapeArg = parser("-shapes").asString("");
