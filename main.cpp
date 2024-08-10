@@ -12136,10 +12136,10 @@ void Simulation::advance(const Real dt) {
 int main(int argc, char **argv) {
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
-  double time = -MPI_Wtime();
-  Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD);
-  sim.init();
-  sim.simulate();
-  time += MPI_Wtime();
+  {
+    Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD);
+    sim.init();
+    sim.simulate();
+  }
   MPI_Finalize();
 }
