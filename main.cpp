@@ -12058,13 +12058,8 @@ class StefanFish : public Fish {
   const bool bCorrectPosition;
 
 public:
-  void act(const Real lTact, const std::vector<Real> &a) const;
-  Real getLearnTPeriod() const;
-  Real getPhase(const Real t) const;
-
   StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
-
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
 };
@@ -12275,28 +12270,6 @@ void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   }
   Fish::create(vInfo);
 }
-
-void StefanFish::act(const Real t_rlAction, const std::vector<Real> &a) const {
-  CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  cFish->execute(sim.time, t_rlAction, a);
-}
-
-Real StefanFish::getLearnTPeriod() const {
-  const CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-
-  return cFish->next_period;
-}
-
-Real StefanFish::getPhase(const Real t) const {
-  const CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  const Real T0 = cFish->time0;
-  const Real Ts = cFish->timeshift;
-  const Real Tp = cFish->periodPIDval;
-  const Real arg = 2 * M_PI * ((t - T0) / Tp + Ts) + M_PI * phaseShift;
-  const Real phase = std::fmod(arg, 2 * M_PI);
-  return (phase < 0) ? 2 * M_PI + phase : phase;
-}
-
 
 
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
