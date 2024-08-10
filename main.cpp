@@ -10251,16 +10251,10 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 }
-class Simulation {
-public:
+struct Simulation {
   SimulationData sim;
   std::vector<std::shared_ptr<Operator>> pipeline;
-
-protected:
   cubism::CommandlineParser parser;
-  void createShapes();
-
-public:
   Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
   template <typename Op> Op *findOperator() const {
@@ -10271,7 +10265,6 @@ public:
     }
     return nullptr;
   }
-  void startObstacles();
   void simulate();
   Real calcMaxTimestep();
   void advance(const Real dt);
@@ -10287,8 +10280,8 @@ static std::vector<std::string> split(const std::string &s, const char dlm) {
 }
 Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
     : parser(argc, argv) {
-  sim.comm = comm;
   int size;
+  sim.comm = comm;
   MPI_Comm_size(sim.comm, &size);
   MPI_Comm_rank(sim.comm, &sim.rank);
 #ifdef _OPENMP
@@ -10345,34 +10338,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
   if (sim.muteAll)
     sim.verbose = 0;
   sim.allocateGrid();
-  createShapes();
-  IC ic(sim);
-  ic(0);
-  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
-  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
-  pipeline.push_back(std::make_shared<advDiff>(sim));
-  pipeline.push_back(std::make_shared<PressureSingle>(sim));
-  pipeline.push_back(std::make_shared<ComputeForces>(sim));
-  startObstacles();
-  while (1) {
-    Real dt = calcMaxTimestep();
-    bool done = false;
-    if (!done || dt > 2e-16)
-      advance(dt);
-    if (!done)
-      done = sim.bOver();
-    if (done) {
-      const bool bDump = sim.bDump();
-      if (bDump) {
-        sim.registerDump();
-        sim.dumpAll("_");
-      }
-      break;
-    }
-  }
-}
-Simulation::~Simulation() = default;
-void Simulation::createShapes() {
   const std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -10396,8 +10361,14 @@ void Simulation::createShapes() {
       sim.addShape(std::shared_ptr<Shape>{shape});
     }
   }
-}
-void Simulation::startObstacles() {
+
+  IC ic(sim);
+  ic(0);
+  pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
+  pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
+  pipeline.push_back(std::make_shared<advDiff>(sim));
+  pipeline.push_back(std::make_shared<PressureSingle>(sim));
+  pipeline.push_back(std::make_shared<ComputeForces>(sim));
   Checker check(sim);
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
   AdaptTheMesh *const adaptTheMesh = findOperator<AdaptTheMesh>();
@@ -10409,7 +10380,24 @@ void Simulation::startObstacles() {
   (*putObjectsOnGrid)(0.0);
   ApplyObjVel initVel(sim);
   initVel(0);
+  while (1) {
+    Real dt = calcMaxTimestep();
+    bool done = false;
+    if (!done || dt > 2e-16)
+      advance(dt);
+    if (!done)
+      done = sim.bOver();
+    if (done) {
+      const bool bDump = sim.bDump();
+      if (bDump) {
+        sim.registerDump();
+        sim.dumpAll("_");
+      }
+      break;
+    }
+  }
 }
+Simulation::~Simulation() = default;
 Real Simulation::calcMaxTimestep() {
   sim.dt_old2 = sim.dt_old;
   sim.dt_old = sim.dt;
