@@ -7175,7 +7175,6 @@ public:
   const Real forcedu;
   const Real forcedv;
   const Real forcedomega;
-  const bool bDumpSurface;
   const Real timeForced;
   const int breakSymmetryType;
   const Real breakSymmetryStrength;
@@ -8122,30 +8121,6 @@ void Shape::computeForces() {
   if (sim.dt <= 0)
     return;
 
-  if (not sim.muteAll && sim._bDump && bDumpSurface) {
-    std::stringstream s;
-    if (sim.rank == 0)
-      s << "x,y,p,u,v,nx,ny,omega,uDef,vDef,fX,fY,fXv,fYv\n";
-    for (auto &block : obstacleBlocks)
-      if (block not_eq nullptr)
-        block->fill_stringstream(s);
-    std::string st = s.str();
-    MPI_Offset offset = 0;
-    MPI_Offset len = st.size() * sizeof(char);
-    MPI_File surface_file;
-    std::stringstream ssF;
-    ssF << sim.path2file << "/surface_" << obstacleID << "_"
-        << std::setfill('0') << std::setw(7) << sim.step << ".csv";
-    MPI_File_delete(ssF.str().c_str(), MPI_INFO_NULL);
-    MPI_File_open(sim.chi->getWorldComm(), ssF.str().c_str(),
-                  MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL,
-                  &surface_file);
-    MPI_Exscan(&len, &offset, 1, MPI_OFFSET, MPI_SUM, sim.chi->getWorldComm());
-    MPI_File_write_at_all(surface_file, offset, st.data(), st.size(), MPI_CHAR,
-                          MPI_STATUS_IGNORE);
-    MPI_File_close(&surface_file);
-  }
-
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
@@ -8186,7 +8161,6 @@ Shape::Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
       bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
       forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
       forcedomega(-p("-angvel").asDouble(0)),
-      bDumpSurface(p("-dumpSurf").asInt(0)),
       timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
       breakSymmetryType(p("-breakSymmetryType").asInt(0)),
       breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
