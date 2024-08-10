@@ -9271,7 +9271,7 @@ void PressureSingle::operator()(const Real dt) {
   pressureCorrection(dt);
 }
 PressureSingle::PressureSingle(SimulationData &s)
-  : Operator{s}, pressureSolver{std::make_shared<ExpAMRSolver>(s)} {}
+    : Operator{s}, pressureSolver{std::make_shared<ExpAMRSolver>(s)} {}
 PressureSingle::~PressureSingle() = default;
 struct SimulationData;
 struct FishSkin {
@@ -10193,7 +10193,8 @@ public:
     return w;
   }
 };
-StefanFish::StefanFish(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
+StefanFish::StefanFish(SimulationData &s, cubism::CommandlineParser &p,
+                       Real C[2])
     : Fish(s, p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -10382,16 +10383,16 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
     Real dt = calcMaxTimestep();
     bool done = false;
     if (!done || dt > 2e-16) {
-        const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
-	const bool bDump = sim.bDump();
-	if (bDump) {
-	  sim.registerDump();
-	  sim.dumpAll("_");
-	}
-	for (size_t c = 0; c < pipeline.size(); c++)
-	  (*pipeline[c])(dt);
-	sim.time += dt;
-	sim.step++;
+      const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
+      const bool bDump = sim.bDump();
+      if (bDump) {
+        sim.registerDump();
+        sim.dumpAll("_");
+      }
+      for (size_t c = 0; c < pipeline.size(); c++)
+        (*pipeline[c])(dt);
+      sim.time += dt;
+      sim.step++;
     }
     if (!done)
       done = sim.bOver();
@@ -10437,8 +10438,6 @@ Real Simulation::calcMaxTimestep() {
 int main(int argc, char **argv) {
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
-  {
-    Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD);
-  }
+  { Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD); }
   MPI_Finalize();
 }
