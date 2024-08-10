@@ -12067,13 +12067,9 @@ public:
 
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
-  std::array<Real, 2> getShear(const std::array<Real, 2> pSurf) const;
   std::array<int, 2> safeIdInBlock(const std::array<Real, 2> pos,
                                    const std::array<Real, 2> org,
                                    const Real invh) const;
-  std::array<Real, 2>
-  getShear(const std::array<Real, 2> pSurf, const std::array<Real, 2> normSurf,
-           const std::vector<cubism::BlockInfo> &velInfo) const;
 };
 
 class CurvatureFish : public FishData {
@@ -12304,125 +12300,6 @@ Real StefanFish::getPhase(const Real t) const {
   return (phase < 0) ? 2 * M_PI + phase : phase;
 }
 
-std::vector<Real> StefanFish::state(const std::vector<double> &origin) const {
-  const CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  std::vector<Real> S(16, 0);
-  S[0] = (center[0] - origin[0]) / length;
-  S[1] = (center[1] - origin[1]) / length;
-  S[2] = getOrientation();
-  S[3] = getPhase(sim.time);
-  S[4] = getU() * Tperiod / length;
-  S[5] = getV() * Tperiod / length;
-  S[6] = getW() * Tperiod;
-  S[7] = cFish->lastTact;
-  S[8] = cFish->lastCurv;
-  S[9] = cFish->oldrCurv;
-
-  const auto &DU = myFish->upperSkin;
-  const auto &DL = myFish->lowerSkin;
-
-  int iHeadSide = 0;
-  for (int i = 0; i < myFish->Nm - 1; ++i)
-    if (myFish->rS[i] <= 0.04 * length && myFish->rS[i + 1] > 0.04 * length)
-      iHeadSide = i;
-  assert(iHeadSide > 0);
-
-  const std::array<Real, 2> locFront = {DU.xSurf[0], DU.ySurf[0]};
-  const std::array<Real, 2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
-  const std::array<Real, 2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
-
-  std::array<Real, 2> shearFront = getShear(locFront);
-  std::array<Real, 2> shearUpper = getShear(locLower);
-  std::array<Real, 2> shearLower = getShear(locUpper);
-
-  const std::array<Real, 2> norFront = {
-      0.5 * (DU.normXSurf[0] + DL.normXSurf[0]),
-      0.5 * (DU.normYSurf[0] + DL.normYSurf[0])};
-  const std::array<Real, 2> norUpper = {DU.normXSurf[iHeadSide],
-                                        DU.normYSurf[iHeadSide]};
-  const std::array<Real, 2> norLower = {DL.normXSurf[iHeadSide],
-                                        DL.normYSurf[iHeadSide]};
-
-  const std::array<Real, 2> tanFront = {norFront[1], -norFront[0]};
-  const std::array<Real, 2> tanUpper = {-norUpper[1], norUpper[0]};
-  const std::array<Real, 2> tanLower = {norLower[1], -norLower[0]};
-
-  const double shearFront_n =
-      shearFront[0] * norFront[0] + shearFront[1] * norFront[1];
-  const double shearUpper_n =
-      shearUpper[0] * norUpper[0] + shearUpper[1] * norUpper[1];
-  const double shearLower_n =
-      shearLower[0] * norLower[0] + shearLower[1] * norLower[1];
-  const double shearFront_t =
-      shearFront[0] * tanFront[0] + shearFront[1] * tanFront[1];
-  const double shearUpper_t =
-      shearUpper[0] * tanUpper[0] + shearUpper[1] * tanUpper[1];
-  const double shearLower_t =
-      shearLower[0] * tanLower[0] + shearLower[1] * tanLower[1];
-
-  S[10] = shearFront_n * Tperiod / length;
-  S[11] = shearFront_t * Tperiod / length;
-  S[12] = shearLower_n * Tperiod / length;
-  S[13] = shearLower_t * Tperiod / length;
-  S[14] = shearUpper_n * Tperiod / length;
-  S[15] = shearUpper_t * Tperiod / length;
-
-  return S;
-}
-
-std::vector<Real> StefanFish::state3D() const {
-  const CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  std::vector<Real> S(25);
-  S[0] = center[0];
-  S[1] = center[1];
-  S[2] = 1.0;
-
-  S[3] = cos(0.5 * getOrientation());
-  S[4] = 0.0;
-  S[5] = 0.0;
-  S[6] = sin(0.5 * getOrientation());
-
-  S[7] = getPhase(sim.time);
-
-  S[8] = getU() * Tperiod / length;
-  S[9] = getV() * Tperiod / length;
-  S[10] = 0.0;
-
-  S[11] = 0.0;
-  S[12] = 0.0;
-  S[13] = getW() * Tperiod;
-
-  S[14] = cFish->lastCurv;
-  S[15] = cFish->oldrCurv;
-
-  const auto &DU = myFish->upperSkin;
-  const auto &DL = myFish->lowerSkin;
-
-  int iHeadSide = 0;
-  for (int i = 0; i < myFish->Nm - 1; ++i)
-    if (myFish->rS[i] <= 0.04 * length && myFish->rS[i + 1] > 0.04 * length)
-      iHeadSide = i;
-  assert(iHeadSide > 0);
-
-  const std::array<Real, 2> locFront = {DU.xSurf[0], DU.ySurf[0]};
-  const std::array<Real, 2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
-  const std::array<Real, 2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
-
-  std::array<Real, 2> shearFront = getShear(locFront);
-  std::array<Real, 2> shearUpper = getShear(locLower);
-  std::array<Real, 2> shearLower = getShear(locUpper);
-  S[16] = shearFront[0] * Tperiod / length;
-  S[17] = shearFront[1] * Tperiod / length;
-  S[18] = 0.0;
-  S[19] = shearLower[0] * Tperiod / length;
-  S[20] = shearLower[1] * Tperiod / length;
-  S[21] = 0.0;
-  S[22] = shearUpper[0] * Tperiod / length;
-  S[23] = shearUpper[1] * Tperiod / length;
-  S[24] = 0.0;
-
-  return S;
-}
 
 
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
