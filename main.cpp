@@ -6126,15 +6126,6 @@ public:
   Real run() const;
   std::string getName() const { return "findMaxU"; }
 };
-class IC : public Operator {
-protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  IC(SimulationData &s) : Operator(s) {}
-  void operator()(const Real dt);
-  std::string getName() { return "IC"; }
-};
 class gaussianIC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
@@ -6433,31 +6424,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   H5close();
 }
 } // namespace cubism
-void IC::operator()(const Real dt) {
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-#pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++) {
-    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    VEL.clear();
-    ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-    CHI.clear();
-    ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-    PRES.clear();
-    ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-    POLD.clear();
-    ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-    TMP.clear();
-    VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    TMPV.clear();
-    VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    VOLD.clear();
-  }
-}
 Real findMaxU::run() const {
   const size_t Nblocks = velInfo.size();
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
@@ -10247,8 +10213,30 @@ int main(int argc, char **argv) {
     }
   }
 
-  IC ic(sim);
-  ic(0);
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+    const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
+#pragma omp parallel for
+  for (size_t i = 0; i < velInfo.size(); i++) {
+    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
+    VEL.clear();
+    ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+    CHI.clear();
+    ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
+    PRES.clear();
+    ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
+    POLD.clear();
+    ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
+    TMP.clear();
+    VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    TMPV.clear();
+    VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
+    VOLD.clear();
+  }
   PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid(sim);
   AdaptTheMesh *adaptTheMesh = new AdaptTheMesh(sim);
   pipeline.push_back(adaptTheMesh);
