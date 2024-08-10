@@ -12067,12 +12067,7 @@ public:
 
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
-
-  ssize_t holdingBlockID(const std::array<Real, 2> pos) const;
   std::array<Real, 2> getShear(const std::array<Real, 2> pSurf) const;
-
-  ssize_t holdingBlockID(const std::array<Real, 2> pos,
-                         const std::vector<cubism::BlockInfo> &velInfo) const;
   std::array<int, 2> safeIdInBlock(const std::array<Real, 2> pos,
                                    const std::array<Real, 2> org,
                                    const Real invh) const;
@@ -12429,91 +12424,6 @@ std::vector<Real> StefanFish::state3D() const {
   return S;
 }
 
-ssize_t StefanFish::holdingBlockID(const std::array<Real, 2> pos) const {
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-  for (size_t i = 0; i < velInfo.size(); ++i) {
-
-    std::array<Real, 2> MIN = velInfo[i].pos<Real>(0, 0);
-    std::array<Real, 2> MAX =
-        velInfo[i].pos<Real>(VectorBlock::sizeX - 1, VectorBlock::sizeY - 1);
-    MIN[0] -= 0.5 * velInfo[i].h;
-    MIN[1] -= 0.5 * velInfo[i].h;
-    MAX[0] += 0.5 * velInfo[i].h;
-    MAX[1] += 0.5 * velInfo[i].h;
-
-    if (pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] &&
-        pos[1] <= MAX[1]) {
-      return i;
-    }
-  }
-  return -1;
-};
-
-std::array<Real, 2>
-StefanFish::getShear(const std::array<Real, 2> pSurf) const {
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-  Real myF[2] = {0, 0};
-
-  ssize_t blockIdSurf = holdingBlockID(pSurf);
-  char error = false;
-  if (blockIdSurf >= 0) {
-    const auto &skinBinfo = velInfo[blockIdSurf];
-
-    if (obstacleBlocks[blockIdSurf] == nullptr) {
-      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but "
-             "obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n",
-             sim.rank, blockIdSurf, (double)pSurf[0], (double)pSurf[1],
-             blockIdSurf, obstacleBlocks.size());
-      const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-      const auto &chiBlock = chiInfo[blockIdSurf];
-      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiBlock.ptrBlock;
-      for (size_t i = 0; i < ScalarBlock::sizeX; i++)
-        for (size_t j = 0; j < ScalarBlock::sizeY; j++) {
-          const auto pos = chiBlock.pos<Real>(i, j);
-          printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, (double)pos[0],
-                 (double)pos[1], (double)CHI(i, j).s);
-        }
-      fflush(0);
-      error = true;
-    } else {
-      Real dmin = 1e10;
-      ObstacleBlock *const O = obstacleBlocks[blockIdSurf];
-      for (size_t k = 0; k < O->n_surfPoints; ++k) {
-        const int ix = O->surface[k]->ix;
-        const int iy = O->surface[k]->iy;
-        const std::array<Real, 2> p = skinBinfo.pos<Real>(ix, iy);
-        const Real d = (p[0] - pSurf[0]) * (p[0] - pSurf[0]) +
-                       (p[1] - pSurf[1]) * (p[1] - pSurf[1]);
-        if (d < dmin) {
-          dmin = d;
-          myF[0] = O->fXv_s[k];
-          myF[1] = O->fYv_s[k];
-        }
-      }
-    }
-  }
-  MPI_Allreduce(MPI_IN_PLACE, myF, 2, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-
-  MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
-                sim.chi->getWorldComm());
-  if (sim.rank == 0 && blockIdSurf == -1) {
-    printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle "
-           "block\n",
-           (double)pSurf[0], (double)pSurf[1]);
-    fflush(0);
-    abort();
-  }
-  MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR,
-                sim.chi->getWorldComm());
-  if (error) {
-    sim.dumpAll("failed");
-    abort();
-  }
-
-  return std::array<Real, 2>{{myF[0], myF[1]}};
-};
 
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
@@ -12571,32 +12481,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
                        vNorY);
 }
 
-ssize_t StefanFish::holdingBlockID(
-    const std::array<Real, 2> pos,
-    const std::vector<cubism::BlockInfo> &velInfo) const {
-  for (size_t i = 0; i < velInfo.size(); ++i) {
-
-    const Real h = velInfo[i].h;
-
-    std::array<Real, 2> MIN = velInfo[i].pos<Real>(0, 0);
-    for (int j = 0; j < 2; ++j)
-      MIN[j] -= 0.5 * h;
-
-    std::array<Real, 2> MAX =
-        velInfo[i].pos<Real>(VectorBlock::sizeX - 1, VectorBlock::sizeY - 1);
-    for (int j = 0; j < 2; ++j)
-      MAX[j] += 0.5 * h;
-
-    if (pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] &&
-        pos[1] <= MAX[1]) {
-
-      return i;
-    }
-  }
-
-  return -1;
-};
-
 std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real, 2> pos,
                                              const std::array<Real, 2> org,
                                              const Real invh) const {
@@ -12605,116 +12489,6 @@ std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real, 2> pos,
   const int ix = std::min(std::max(0, indx), VectorBlock::sizeX - 1);
   const int iy = std::min(std::max(0, indy), VectorBlock::sizeY - 1);
   return std::array<int, 2>{{ix, iy}};
-};
-
-std::array<Real, 2>
-StefanFish::getShear(const std::array<Real, 2> pSurf,
-                     const std::array<Real, 2> normSurf,
-                     const std::vector<cubism::BlockInfo> &velInfo) const {
-
-  Real velocityH[3] = {0.0, 0.0, 0.0};
-
-  ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
-
-  char error = false;
-  if (blockIdSurf >= 0) {
-
-    const auto &skinBinfo = velInfo[blockIdSurf];
-
-    if (obstacleBlocks[blockIdSurf] == nullptr) {
-      printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but "
-             "obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n",
-             sim.rank, blockIdSurf, pSurf[0], pSurf[1], blockIdSurf,
-             obstacleBlocks.size());
-      const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-      const auto &chiBlock = chiInfo[blockIdSurf];
-      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiBlock.ptrBlock;
-      for (size_t i = 0; i < ScalarBlock::sizeX; i++)
-        for (size_t j = 0; j < ScalarBlock::sizeY; j++) {
-          const auto pos = chiBlock.pos<Real>(i, j);
-          printf("i,j=%ld,%ld: pos=(%f,%f) with chi=%f\n", i, j, pos[0], pos[1],
-                 CHI(i, j).s);
-        }
-      fflush(0);
-      error = true;
-
-    } else {
-
-      const std::array<Real, 2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
-
-      velocityH[2] = velInfo[blockIdSurf].h;
-
-      const std::array<int, 2> iSkin =
-          safeIdInBlock(pSurf, oBlockSkin, 1 / velocityH[2]);
-
-      const Real udefX =
-          obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
-      const Real udefY =
-          obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
-
-      velocityH[0] = u - omega * (pSurf[1] - centerOfMass[1]) + udefX;
-      velocityH[1] = v + omega * (pSurf[0] - centerOfMass[0]) + udefY;
-    }
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
-                sim.chi->getWorldComm());
-  if (sim.rank == 0 && blockIdSurf == -1) {
-    printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle "
-           "block\n",
-           (double)pSurf[0], (double)pSurf[1]);
-    fflush(0);
-    abort();
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_CHAR, MPI_LOR,
-                sim.chi->getWorldComm());
-  if (error) {
-    sim.dumpAll("failed");
-    abort();
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-
-  const Real uSkin = velocityH[0];
-  const Real vSkin = velocityH[1];
-  const Real h = velocityH[2];
-  const Real invh = 1 / h;
-
-  velocityH[0] = 0.0;
-  velocityH[1] = 0.0;
-  velocityH[2] = 0.0;
-
-  const std::array<Real, 2> pLiftedSurf = {pSurf[0] + h * normSurf[0],
-                                           pSurf[1] + h * normSurf[1]};
-
-  const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
-
-  if (blockIdLifted >= 0) {
-
-    const auto &liftedBinfo = velInfo[blockIdLifted];
-
-    const std::array<Real, 2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
-
-    const Real invhLifted = 1 / velInfo[blockIdLifted].h;
-
-    const std::array<int, 2> iSens =
-        safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);
-
-    const VectorBlock &b = *(const VectorBlock *)liftedBinfo.ptrBlock;
-    velocityH[0] = b(iSens[0], iSens[1]).u[0];
-    velocityH[1] = b(iSens[0], iSens[1]).u[1];
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-
-  const Real uLifted = velocityH[0];
-  const Real vLifted = velocityH[1];
-
-  return std::array<Real, 2>{
-      {(uLifted - uSkin) * invh, (vLifted - vSkin) * invh}};
 };
 
 class Simulation {
