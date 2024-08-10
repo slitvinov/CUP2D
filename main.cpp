@@ -8376,7 +8376,6 @@ struct SimulationData {
   void dumpTmp(std::string name);
   void dumpVel(std::string name);
   void dumpUdef(std::string name);
-  void dumpVold(std::string name);
   void dumpPold(std::string name);
   void dumpTmpV(std::string name);
   void dumpCs(std::string name);
@@ -10139,12 +10138,6 @@ void SimulationData::dumpVel(std::string name) {
   cubism::DumpHDF5_MPI<cubism::StreamerVector, Real>(
       *(vel), time, "vel_" + ss.str(), path4serialization);
 }
-void SimulationData::dumpVold(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerVector, Real>(
-      *(vOld), time, "vOld_" + ss.str(), path4serialization);
-}
 void SimulationData::dumpTmpV(std::string name) {
   std::stringstream ss;
   ss << name << std::setfill('0') << std::setw(7) << step;
@@ -10223,9 +10216,6 @@ void SimulationData::dumpAll(std::string name) {
   dumpChi(name);
   dumpVel(name);
   dumpPres(name);
-  // dumpPold(name);
-  // dumpTmpV(name);
-  // dumpVold(name);
   if (bDumpCs)
     dumpCs(name);
 
@@ -10643,18 +10633,6 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
     }
   }
 
-  void
-  Turn(const Real b,
-       const Real t_turn) // each decision adds a node at the beginning of the
-                          // wave (left, right, straight) and pops last node
-  {
-    this->t0 = t_turn;
-
-    for (int i = Npoints - 1; i > 1; --i)
-      this->parameters_t0[i] = this->parameters_t0[i - 2];
-    this->parameters_t0[1] = b;
-    this->parameters_t0[0] = 0;
-  }
 };
 
 /*********************** NEURO-KINEMATIC FISH *******************************/
@@ -14658,7 +14636,6 @@ public:
   Real getLearnTPeriod() const;
   Real getPhase(const Real t) const;
 
-  void resetAll() override;
   StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
 
@@ -14736,29 +14713,6 @@ public:
     writeMidline2File(0, "initialCheck");
   }
 
-  void resetAll() override {
-    curv_PID_fac = 0;
-    curv_PID_dif = 0;
-    avgDeltaY = 0;
-    avgDangle = 0;
-    avgAngVel = 0;
-    lastTact = 0;
-    lastCurv = 0;
-    oldrCurv = 0;
-    periodPIDval = Tperiod;
-    periodPIDdif = 0;
-    TperiodPID = false;
-    time0 = 0;
-    timeshift = 0;
-    lastTime = 0;
-    lastAvel = 0;
-    curvatureScheduler.resetAll();
-    periodScheduler.resetAll();
-    rlBendingScheduler.resetAll();
-
-    FishData::resetAll();
-  }
-
   void correctTrajectory(const Real dtheta, const Real vtheta, const Real t,
                          const Real dt) {
     curv_PID_fac = dtheta;
@@ -14834,15 +14788,6 @@ public:
   }
 };
 
-void StefanFish::resetAll() {
-  CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  if (cFish == nullptr) {
-    printf("Someone touched my fish\n");
-    abort();
-  }
-  cFish->resetAll();
-  Fish::resetAll();
-}
 
 StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
     : Fish(s, p, C), bCorrectTrajectory(p("-pid").asInt(0)),
@@ -15805,32 +15750,6 @@ void Simulation::createShapes() {
 
   if (sim.shapes.size() == 0 && sim.rank == 0)
     std::cout << "Did not create any obstacles." << std::endl;
-}
-
-void Simulation::reset() {
-  // reset field variables and shapes
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
-  sim.resetAll();
-  // impose field initial condition
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  IC ic(sim);
-  ic(0);
-  // Put Object on Intially defined Mesh and impose obstacle velocities
-  startObstacles();
-}
-
-void Simulation::resetRL() {
-  // reset simulation (not shape)
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Resetting Simulation..." << std::endl;
-  sim.resetAll();
-  // impose field initial condition
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  IC ic(sim);
-  ic(0);
 }
 
 void Simulation::startObstacles() {
