@@ -6964,7 +6964,6 @@ struct SimulationData {
   void dumpTmp(std::string name);
   void dumpVel(std::string name);
   void dumpUdef(std::string name);
-  void dumpPold(std::string name);
   void dumpTmpV(std::string name);
   void dumpCs(std::string name);
   void dumpAll(std::string name);
@@ -8274,12 +8273,6 @@ void SimulationData::dumpPres(std::string name) {
   ss << name << std::setfill('0') << std::setw(7) << step;
   cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
       *pres, time, "pres_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpPold(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *pold, time, "pold_" + ss.str(), path4serialization);
 }
 void SimulationData::dumpTmp(std::string name) {
   std::stringstream ss;
