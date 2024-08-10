@@ -7100,7 +7100,6 @@ struct SimulationData {
 
   void startProfiler(std::string name);
   void stopProfiler();
-  void printResetProfiler();
 
   void dumpChi(std::string name);
   void dumpPres(std::string name);
@@ -8490,10 +8489,6 @@ void SimulationData::startProfiler(std::string name) {
 
 void SimulationData::stopProfiler() { profiler->pop_stop(); }
 
-void SimulationData::printResetProfiler() {
-  profiler->printSummary();
-  profiler->reset();
-}
 
 void SimulationData::dumpAll(std::string name) {
   startProfiler("Dump");
@@ -13133,7 +13128,6 @@ void Simulation::simulate() {
 
     if (sim.rank == 0 && sim.profilerFreq > 0 &&
         sim.step % sim.profilerFreq == 0)
-      sim.printResetProfiler();
 
     if (done) {
       const bool bDump = sim.bDump();
@@ -13146,7 +13140,6 @@ void Simulation::simulate() {
       if (sim.rank == 0 && !sim.muteAll) {
         std::cout << kHorLine
                   << "[CUP2D] Simulation Over... Profiling information:\n";
-        sim.printResetProfiler();
         std::cout << kHorLine;
       }
       break;
