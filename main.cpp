@@ -10257,7 +10257,6 @@ struct Simulation {
   std::vector<std::shared_ptr<Operator>> pipeline;
   cubism::CommandlineParser parser;
   Simulation(int argc, char **argv, MPI_Comm comm);
-  ~Simulation();
   template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
