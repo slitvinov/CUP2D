@@ -1,4 +1,3 @@
-# 1 "main.cpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -325,7 +324,6 @@ std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
   }
 }
 namespace cubism {
-# 369 "main.cpp"
 class SpaceFillingCurve2D {
 protected:
   int BX;
@@ -525,7 +523,6 @@ struct TreePosition {
   void setCheckCoarser() { position = -2; }
   void setCheckFiner() { position = -1; }
 };
-# 596 "main.cpp"
 struct BlockInfo {
   long long blockID;
   long long blockID_2;
@@ -644,7 +641,6 @@ struct BlockInfo {
 } // namespace cubism
 
 namespace cubism {
-# 751 "main.cpp"
 template <typename BlockType,
           typename ElementType = typename BlockType::ElementType>
 struct BlockCase {
@@ -685,7 +681,6 @@ struct BlockCase {
 
   ~BlockCase() {}
 };
-# 806 "main.cpp"
 template <typename TGrid> class FluxCorrection {
 public:
   using GridType = TGrid;
@@ -941,7 +936,6 @@ public:
   typedef typename Block::RealType Real;
 
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-# 1100 "main.cpp"
   std::unordered_map<long long, TreePosition> Octree;
 
   std::vector<BlockInfo> m_vInfo;
@@ -1069,7 +1063,6 @@ public:
                                  [](const BlockInfo &x) { return x.changed2; }),
                   m_vInfo.end());
   }
-# 1265 "main.cpp"
   void FindBlockInfo(const int m, const long long n, const int m_new,
                      const long long n_new) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
@@ -1080,7 +1073,6 @@ public:
         return;
       }
   }
-# 1283 "main.cpp"
   virtual void FillPos(bool CopyInfos = true) {
     std::sort(m_vInfo.begin(), m_vInfo.end());
 
@@ -1106,7 +1098,6 @@ public:
         assert(Tree(m, n).Exists());
       }
   }
-# 1330 "main.cpp"
   Grid(const unsigned int _NX, const unsigned int _NY = 1,
        const unsigned int _NZ = 1, const double _maxextent = 1,
        const unsigned int _levelStart = 0, const unsigned int _levelMax = 1,
@@ -1355,7 +1346,6 @@ public:
 
 } // namespace cubism
 namespace cubism {
-# 1619 "main.cpp"
 struct StencilInfo {
   int sx;
   int sy;
@@ -1647,7 +1637,6 @@ struct UnPackInfo {
   int index_2;
   long long IDreceiver;
 };
-# 1951 "main.cpp"
 struct StencilManager {
   const StencilInfo stencil;
   const StencilInfo Cstencil;
@@ -1857,7 +1846,6 @@ struct HaloBlockGroup {
   std::set<int> myranks;
   bool ready = false;
 };
-# 2216 "main.cpp"
 template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   MPI_Comm comm;
   int rank;
@@ -2961,7 +2949,6 @@ public:
 } // namespace cubism
 
 namespace cubism {
-# 3425 "main.cpp"
 template <typename TFluxCorrection>
 class FluxCorrectionMPI : public TFluxCorrection {
 public:
@@ -4019,7 +4006,6 @@ namespace cubism {
 
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-# 4583 "main.cpp"
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLab {
@@ -4093,7 +4079,6 @@ public:
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-# 4691 "main.cpp"
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -4131,7 +4116,6 @@ public:
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-# 4743 "main.cpp"
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
@@ -4218,7 +4202,6 @@ public:
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
-# 4839 "main.cpp"
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
     const int nX = BlockType::sizeX;
@@ -4348,7 +4331,6 @@ public:
   }
 
 protected:
-# 4985 "main.cpp"
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
@@ -4379,7 +4361,6 @@ protected:
     if (applybc)
       _apply_bc(info, t);
   }
-# 5027 "main.cpp"
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
@@ -4418,7 +4399,6 @@ protected:
           }
     return false;
   }
-# 5074 "main.cpp"
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
@@ -4493,7 +4473,6 @@ protected:
     auto lambda = (b - c) - kappa;
     a = (9.0 * kappa + 3.0 * lambda) + c;
   }
-# 5164 "main.cpp"
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
     const double dx = 0.25 * (2 * x - 1);
     const double dy = 0.25 * (2 * y - 1);
@@ -4507,7 +4486,6 @@ protected:
         (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
          (dx * dy) * dudxdy);
   }
-# 5186 "main.cpp"
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -4530,7 +4508,6 @@ protected:
       Bstep = 3;
     else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
       Bstep = 4;
-# 5234 "main.cpp"
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
@@ -4770,7 +4747,6 @@ protected:
       }
     }
   }
-# 5493 "main.cpp"
   void FillCoarseVersion(const BlockInfo &info, const int *const code) {
 
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
@@ -5180,7 +5156,6 @@ public:
 } // namespace cubism
 
 namespace cubism {
-# 5944 "main.cpp"
 template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
@@ -5600,7 +5575,6 @@ public:
 } // namespace cubism
 
 namespace cubism {
-# 6454 "main.cpp"
 template <typename TLab> class MeshAdaptation {
 protected:
   typedef typename TLab::GridType TGrid;
@@ -5686,7 +5660,6 @@ public:
     if (CallValidStates)
       ValidStates();
   }
-# 6569 "main.cpp"
   void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<Real, TGrid> *Synch = nullptr;
@@ -5822,7 +5795,6 @@ public:
   }
 
 protected:
-# 6720 "main.cpp"
   void TagBlocksVector(std::vector<BlockInfo *> &I, bool &Reduction,
                        MPI_Request &Reduction_req, int &tmp) {
     const int levelMax = grid->getlevelMax();
@@ -5857,7 +5829,6 @@ protected:
       }
     }
   }
-# 6764 "main.cpp"
   void refine_1(const int level, const long long Z, TLab &lab) {
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     parent.state = Leave;
@@ -5882,7 +5853,6 @@ protected:
     if (basic_refinement == false)
       RefineBlocks(Blocks, lab);
   }
-# 6798 "main.cpp"
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
     { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
@@ -5904,7 +5874,6 @@ protected:
               grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
       }
   }
-# 6830 "main.cpp"
   void compress(const int level, const long long Z) {
     assert(level > 0);
 
@@ -5959,7 +5928,6 @@ protected:
         grid->getBlockInfoAll(level, n).state = Leave;
       }
   }
-# 6895 "main.cpp"
   void ValidStates() {
     const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
     const int levelMin = 0;
@@ -6137,7 +6105,6 @@ protected:
             }
     }
   }
-# 7090 "main.cpp"
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
@@ -6193,7 +6160,6 @@ protected:
           }
       }
   }
-# 7156 "main.cpp"
   virtual State TagLoadedBlock(BlockInfo &info) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
@@ -7600,7 +7566,6 @@ public:
   }
 
 protected:
-# 8663 "main.cpp"
 public:
   Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
 
@@ -10195,7 +10160,6 @@ struct KernelComputeForces {
             if (chi(x, y).s < 0.01)
               break;
           }
-# 11375 "main.cpp"
           const auto &l = lab;
           const int sx = normX > 0 ? +1 : -1;
           const int sy = normY > 0 ? +1 : -1;
@@ -10873,7 +10837,6 @@ void ExpAMRSolver::getMat() {
         rhs_info.index[1] == 0 && rhs_info.index[2] == 0)
       LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) -
                              Nrows_xcumsum_[rank_]);
-# 12149 "main.cpp"
     for (int iy = 0; iy < BSY_; iy++)
       for (int ix = 0; ix < BSX_; ix++) {
 
@@ -12598,7 +12561,6 @@ void PutFishOnBlocks::constructSurface(
             if (std::fabs(o->dist[sy][sx]) > dist1) {
               const Real W =
                   1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-# 13967 "main.cpp"
               assert(W >= 0);
               o->udef[sy][sx][0] = W * udef[0];
               o->udef[sy][sx][1] = W * udef[1];
@@ -13018,7 +12980,6 @@ public:
     lastTime = t;
     TperiodPID = true;
   }
-# 14424 "main.cpp"
   void execute(const Real t_current, const Real t_rlAction,
                const std::vector<Real> &a) {
     assert(t_current >= t_rlAction);
