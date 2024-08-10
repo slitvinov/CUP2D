@@ -7904,9 +7904,6 @@ void ComputeForces::operator()(const Real dt) {
     shape->computeForces();
 }
 ComputeForces::ComputeForces(SimulationData &s) : Operator(s) {}
-#define profile(func)                                                          \
-  do {                                                                         \
-  } while (0)
 class PoissonSolver {
 public:
   virtual ~PoissonSolver() = default;
@@ -9905,23 +9902,18 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
     delete entry;
   obstacleBlocks.clear();
   assert(myFish != nullptr);
-  profile(push_start("midline"));
   myFish->computeMidline(sim.time, sim.dt);
   myFish->computeSurface();
-  profile(pop_stop());
   if (sim.rank == 0 && sim.bDump())
     myFish->writeMidline2File(0, "appending");
-  profile(push_start("2dmoments"));
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-  profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
   const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
   assert((Nm - 1) % Nsegments == 0);
-  profile(push_start("boxes"));
   std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
   const Real h = sim.getH();
 #pragma omp parallel for schedule(static)
@@ -9951,8 +9943,6 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
     tAS->changeToComputationalFrame(center, orientation);
     vSegments[i] = tAS;
   }
-  profile(pop_stop());
-  profile(push_start("intersect"));
   const auto N = vInfo.size();
   std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
   obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
@@ -9978,7 +9968,6 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   }
   assert(not segmentsPerBlock.empty());
   assert(segmentsPerBlock.size() == obstacleBlocks.size());
-  profile(pop_stop());
 #pragma omp parallel
   {
     const PutFishOnBlocks putfish(*myFish, center, orientation);
@@ -9999,11 +9988,6 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (auto &E : segmentsPerBlock) {
     if (E not_eq nullptr)
       delete E;
-  }
-  profile(pop_stop());
-  if (sim.step % 100 == 0 && sim.verbose) {
-    profile(printSummary());
-    profile(reset());
   }
 }
 void Fish::updatePosition(Real dt) {
