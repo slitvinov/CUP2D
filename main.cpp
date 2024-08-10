@@ -6571,8 +6571,8 @@ inline BCflag string2BCflag(const std::string &strFlag) {
   }
 }
 
-extern BCflag cubismBCX;
-extern BCflag cubismBCY;
+static BCflag cubismBCX;
+static BCflag cubismBCY;
 
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
@@ -12015,9 +12015,6 @@ public:
   void advance(const Real dt);
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
-
-BCflag cubismBCX;
-BCflag cubismBCY;
 
 static std::vector<std::string> split(const std::string &s, const char dlm) {
   std::stringstream ss(s);
