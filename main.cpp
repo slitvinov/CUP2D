@@ -6804,14 +6804,6 @@ class ProfileAgent {
     return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
   }
 
-  void _reset() {
-    m_tStart = ClockTime();
-    m_tEnd = ClockTime();
-    m_dAccumulatedTime = 0;
-    m_nMeasurements = 0;
-    m_nMoney = 0;
-    m_state = ProfileAgentState_Created;
-  }
 
 public:
   ProfileAgent()
@@ -6958,14 +6950,6 @@ public:
     }
 
     return result;
-  }
-
-  void reset() {
-
-    for (std::map<std::string, ProfileAgent *>::const_iterator it =
-             m_mapAgents.begin();
-         it != m_mapAgents.end(); it++)
-      it->second->_reset();
   }
 
   ProfileAgent &getAgent(std::string sName) {
@@ -12938,8 +12922,6 @@ public:
   }
 
 
-  void reset();
-  void resetRL();
   void init();
   void startObstacles();
   void simulate();
