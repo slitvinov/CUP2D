@@ -12230,13 +12230,9 @@ int main(int argc, char **argv) {
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   double time = -MPI_Wtime();
-  Simulation *sim = new Simulation(argc, argv, MPI_COMM_WORLD);
-  sim->init();
-  sim->simulate();
+  Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD);
+  sim.init();
+  sim.simulate();
   time += MPI_Wtime();
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  delete sim;
   MPI_Finalize();
-  return 0;
 }
