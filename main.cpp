@@ -7093,7 +7093,6 @@ struct SimulationData {
   void addShape(std::shared_ptr<Shape> shape);
 
   void allocateGrid();
-  void resetAll();
   bool bDump();
   void registerDump();
   bool bOver() const;
@@ -7368,32 +7367,6 @@ public:
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-
-  virtual void resetAll() {
-    center[0] = origC[0];
-    center[1] = origC[1];
-    centerOfMass[0] = origC[0];
-    centerOfMass[1] = origC[1];
-    labCenterOfMass[0] = 0;
-    labCenterOfMass[1] = 0;
-    orientation = origAng;
-    M = 0;
-    J = 0;
-    u = forcedu;
-    v = forcedv;
-    omega = forcedomega;
-    fluidMomX = 0;
-    fluidMomY = 0;
-    fluidAngMom = 0;
-    appliedForceX = 0;
-    appliedForceY = 0;
-    appliedTorque = 0;
-    d_gm[0] = 0;
-    d_gm[1] = 0;
-    for (auto &entry : obstacleBlocks)
-      delete entry;
-    obstacleBlocks.clear();
-  }
 
 protected:
 public:
@@ -8470,17 +8443,6 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shapes.push_back(std::move(shape));
 }
 
-void SimulationData::resetAll() {
-  for (const auto &shape : shapes)
-    shape->resetAll();
-  time = 0;
-  step = 0;
-  uinfx = 0;
-  uinfy = 0;
-  nextDumpTime = 0;
-  _bDump = false;
-  bCollision = false;
-}
 
 void SimulationData::allocateGrid() {
   ScalarLab dummy;
@@ -8813,13 +8775,6 @@ template <int Npoints> struct ParameterScheduler {
       restartstream >> parameters_t0[i] >> parameters_t1[i] >>
           dparameters_t0[i];
     restartstream.close();
-  }
-  virtual void resetAll() {
-    parameters_t0 = std::array<Real, Npoints>();
-    parameters_t1 = std::array<Real, Npoints>();
-    dparameters_t0 = std::array<Real, Npoints>();
-    t0 = -1;
-    t1 = 0;
   }
 
   ParameterScheduler() {
@@ -11434,7 +11389,6 @@ public:
 
   FishSkin upperSkin = FishSkin(Nm);
   FishSkin lowerSkin = FishSkin(Nm);
-  virtual void resetAll();
 
 protected:
   template <typename T>
@@ -11625,7 +11579,6 @@ FishData::~FishData() {
   _dealloc(width);
 }
 
-void FishData::resetAll() {}
 
 void FishData::writeMidline2File(const int step_id, std::string filename) {
   char buf[500];
@@ -12212,7 +12165,6 @@ protected:
 public:
   Real getCharLength() const override { return length; }
   void removeMoments(const std::vector<cubism::BlockInfo> &vInfo) override;
-  virtual void resetAll() override;
   virtual void updatePosition(Real dt) override;
   virtual void create(const std::vector<cubism::BlockInfo> &vInfo) override;
 };
@@ -12348,18 +12300,6 @@ void Fish::updatePosition(Real dt) {
 
   Shape::updatePosition(dt);
   theta_internal -= dt * angvel_internal;
-}
-
-void Fish::resetAll() {
-  CoM_internal[0] = 0;
-  CoM_internal[1] = 0;
-  vCoM_internal[0] = 0;
-  vCoM_internal[1] = 0;
-  theta_internal = 0;
-  angvel_internal = 0;
-  angvel_internal_prev = 0;
-  Shape::resetAll();
-  myFish->resetAll();
 }
 
 Fish::~Fish() {
