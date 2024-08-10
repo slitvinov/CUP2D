@@ -103,11 +103,8 @@ public:
          it++)
       delete it->second;
   }
-  void readFile(const std::string &filepath);
   Value &operator()(std::string key);
   inline bool exist(const std::string &key) const { return check(key); }
-  void read_runtime_environment();
-  Value &parseRuntime(std::string key);
 };
 } // namespace cubism
 namespace cubism {
