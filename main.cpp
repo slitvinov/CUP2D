@@ -14556,8 +14556,7 @@ void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
     const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
     const Real velAbsPy = yDiff > 0 ? relV : -relV;
     const Real velAbsIy = avgDeltaY > 0 ? velDYavg : -velDYavg;
-    assert(origAng < 2e-16 && "TODO: rotate pos and vel to fish POV to enable \
-                             PID to work even for non-zero angles");
+    assert(origAng < 2e-16);
 
     if (bCorrectPosition && sim.dt > 0) {
       // If angle is positive: positive curvature only if Dy<0 (must go up)
