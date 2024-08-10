@@ -3331,11 +3331,6 @@ public:
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
     initialize_blocks(Zs, levels);
-
-    if (myrank == 0) {
-      std::cout << "Total blocks = " << total_blocks << ", each rank gets "
-                << my_blocks << std::endl;
-    }
     MPI_Barrier(worldcomm);
   }
 
@@ -5227,9 +5222,6 @@ public:
         min_b = std::min(min_b, b);
       }
       const double ratio = static_cast<double>(max_b) / min_b;
-      if (rank == 0 && verbose) {
-        std::cout << "Load imbalance ratio = " << ratio << std::endl;
-      }
       if (ratio > 1.01 || min_b == 0) {
         Balance_Global(block_distribution);
         return;
@@ -5615,36 +5607,18 @@ public:
       }
     }
     grid->dealloc_many(dealloc_IDs);
-
     Balancer->PrepareCompression();
-
     dealloc_IDs.clear();
-
     for (size_t i = 0; i < m_com.size(); i++) {
       compress(m_com[i], n_com[i]);
     }
-
     grid->dealloc_many(dealloc_IDs);
-
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    if (verbosity) {
-      std::cout
-          << "==============================================================\n";
-      std::cout << " refined:" << result[0] << "   compressed:" << result[1]
-                << std::endl;
-      std::cout
-          << "=============================================================="
-          << std::endl;
-    }
-
     Balancer->Balance_Diffusion(verbosity, block_distribution);
-
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateGroups = true;
-
       grid->UpdateBlockInfoAll_States(false);
-
       auto it = grid->SynchronizerMPIs.begin();
       while (it != grid->SynchronizerMPIs.end()) {
         (*it->second)._Setup();
@@ -7369,10 +7343,6 @@ public:
     MPI_Reduce(buffer, recvbuf, 2, MPI_Real, MPI_MAX, 0,
                sim.chi->getWorldComm());
     recvbuf[1] = -recvbuf[1];
-    if (sim.rank == 0)
-      std::cout << " max(omega)=" << recvbuf[0] << " min(omega)=" << recvbuf[1]
-                << " max(omega)+min(omega)=" << recvbuf[0] + recvbuf[1]
-                << std::endl;
   }
 
   std::string getName() { return "computeVorticity"; }
@@ -8124,8 +8094,6 @@ void SimulationData::allocateGrid() {
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
-    std::cout << "Either increase levelStart or reduce the number of ranks."
-              << std::endl;
     MPI_Abort(chi->getWorldComm(), 1);
   }
 
@@ -9985,19 +9953,9 @@ void ExpAMRSolver::getVec() {
 }
 
 void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
-
-  if (rank_ == 0) {
-    if (sim.verbose)
-      std::cout << "--------------------- Calling on ExpAMRSolver.solve() "
-                   "------------------------\n";
-    else
-      std::cout << '\n';
-  }
-
   const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
   const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-
   if (sim.pres->UpdateFluxCorrection) {
     sim.pres->UpdateFluxCorrection = false;
     this->getMat();
@@ -10773,38 +10731,6 @@ void PressureSingle::preventCollidingObstacles() const {
       shapes[i]->omega = ho1[2];
 
       shapes[j]->omega = ho2[2];
-
-      if (sim.rank == 0) {
-#pragma omp critical
-        {
-          std::cout << "Collision between objects " << i << " and " << j
-                    << std::endl;
-          std::cout << " iM   (0) = " << collisions[i].iM
-                    << " jM   (1) = " << collisions[j].jM << std::endl;
-          std::cout << " jM   (0) = " << collisions[i].jM
-                    << " jM   (1) = " << collisions[j].iM << std::endl;
-          std::cout << " Normal vector = (" << NX << "," << NY << "," << NZ
-                    << std::endl;
-          std::cout << " Location      = (" << CX << "," << CY << "," << CZ
-                    << std::endl;
-          std::cout << " Shape " << i << " before collision u    =(" << v1[0]
-                    << "," << v1[1] << "," << v1[2] << ")" << std::endl;
-          std::cout << " Shape " << i << " after  collision u    =(" << hv1[0]
-                    << "," << hv1[1] << "," << hv1[2] << ")" << std::endl;
-          std::cout << " Shape " << j << " before collision u    =(" << v2[0]
-                    << "," << v2[1] << "," << v2[2] << ")" << std::endl;
-          std::cout << " Shape " << j << " after  collision u    =(" << hv2[0]
-                    << "," << hv2[1] << "," << hv2[2] << ")" << std::endl;
-          std::cout << " Shape " << i << " before collision omega=(" << o1[0]
-                    << "," << o1[1] << "," << o1[2] << ")" << std::endl;
-          std::cout << " Shape " << i << " after  collision omega=(" << ho1[0]
-                    << "," << ho1[1] << "," << ho1[2] << ")" << std::endl;
-          std::cout << " Shape " << j << " before collision omega=(" << o2[0]
-                    << "," << o2[1] << "," << o2[2] << ")" << std::endl;
-          std::cout << " Shape " << j << " after  collision omega=(" << ho2[0]
-                    << "," << ho2[1] << "," << ho2[2] << ")" << std::endl;
-        }
-      }
     }
 }
 
@@ -12118,13 +12044,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
   int size;
   MPI_Comm_size(sim.comm, &size);
   MPI_Comm_rank(sim.comm, &sim.rank);
-  if (sim.rank == 0) {
-    std::cout << "============================================================="
-                 "==========\n";
-    std::cout << "    CubismUP 2D (velocity-pressure 2D incompressible "
-                 "Navier-Stokes)    \n";
-    std::cout << "============================================================="
-                 "==========\n";
 #ifdef _OPENMP
 #pragma omp parallel
     {
@@ -12134,45 +12053,21 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
              numThreads);
     }
 #endif
-  }
 }
 
 Simulation::~Simulation() = default;
 
 void Simulation::init() {
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Allocating Grid..." << std::endl;
   sim.allocateGrid();
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Creating Shapes..." << std::endl;
   createShapes();
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   IC ic(sim);
   ic(0);
-
-  if (sim.rank == 0 && sim.verbose)
-    std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
-
   pipeline.push_back(std::make_shared<AdaptTheMesh>(sim));
   pipeline.push_back(std::make_shared<PutObjectsOnGrid>(sim));
   pipeline.push_back(std::make_shared<advDiff>(sim));
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
-
-  if (sim.rank == 0 && sim.verbose) {
-    std::cout << "[CUP2D] Operator ordering:\n";
-    for (size_t c = 0; c < pipeline.size(); c++)
-      std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
-  }
-
   startObstacles();
 }
 
@@ -12230,18 +12125,13 @@ void Simulation::createShapes() {
   const std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
-
   while (std::getline(descriptors, lines)) {
     std::replace(lines.begin(), lines.end(), '_', ' ');
     const std::vector<std::string> vlines = split(lines, ',');
-
     for (const auto &line : vlines) {
       std::istringstream line_stream(line);
       std::string objectName;
-      if (sim.rank == 0 && sim.verbose)
-        std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
-
       if (objectName.empty() or objectName[0] == '#')
         continue;
       FactoryFileLineParser ffparser(line_stream);
@@ -12255,9 +12145,6 @@ void Simulation::createShapes() {
       sim.addShape(std::shared_ptr<Shape>{shape});
     }
   }
-
-  if (sim.shapes.size() == 0 && sim.rank == 0)
-    std::cout << "Did not create any obstacles." << std::endl;
 }
 
 void Simulation::startObstacles() {
@@ -12276,32 +12163,18 @@ void Simulation::startObstacles() {
 }
 
 void Simulation::simulate() {
-  if (sim.rank == 0 && !sim.muteAll)
-    std::cout << kHorLine << "[CUP2D] Starting Simulation...\n" << std::flush;
-
   while (1) {
     Real dt = calcMaxTimestep();
-
     bool done = false;
-
     if (!done || dt > 2e-16)
       advance(dt);
-
     if (!done)
       done = sim.bOver();
-
     if (done) {
       const bool bDump = sim.bDump();
       if (bDump) {
-        if (sim.rank == 0 && sim.verbose)
-          std::cout << "[CUP2D] dumping field...\n";
         sim.registerDump();
         sim.dumpAll("_");
-      }
-      if (sim.rank == 0 && !sim.muteAll) {
-        std::cout << kHorLine
-                  << "[CUP2D] Simulation Over... Profiling information:\n";
-        std::cout << kHorLine;
       }
       break;
     }
@@ -12329,7 +12202,6 @@ Real Simulation::calcMaxTimestep() {
       sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
   }
-
   if (sim.dt <= 0) {
     std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
     fflush(0);
@@ -12342,30 +12214,14 @@ Real Simulation::calcMaxTimestep() {
 }
 
 void Simulation::advance(const Real dt) {
-
   const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
-  if (sim.rank == 0 && !sim.muteAll) {
-    std::cout << kHorLine;
-    printf("[CUP2D] step:%d, blocks:%zu, time:%f, dt=%f, uinf:[%f %f], "
-           "maxU:%f, CFL:%f\n",
-           sim.step, sim.chi->getBlocksInfo().size(), (double)sim.time,
-           (double)dt, (double)sim.uinfx, (double)sim.uinfy,
-           (double)sim.uMax_measured, (double)CFL);
-  }
-
   const bool bDump = sim.bDump();
   if (bDump) {
-    if (sim.rank == 0 && sim.verbose)
-      std::cout << "[CUP2D] dumping field...\n";
     sim.registerDump();
     sim.dumpAll("_");
   }
-
-  for (size_t c = 0; c < pipeline.size(); c++) {
-    if (sim.rank == 0 && sim.verbose)
-      std::cout << "[CUP2D] running " << pipeline[c]->getName() << "...\n";
+  for (size_t c = 0; c < pipeline.size(); c++)
     (*pipeline[c])(dt);
-  }
   sim.time += dt;
   sim.step++;
 }
@@ -12373,17 +12229,13 @@ void Simulation::advance(const Real dt) {
 int main(int argc, char **argv) {
   int threadSafety;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
-
   double time = -MPI_Wtime();
-
   Simulation *sim = new Simulation(argc, argv, MPI_COMM_WORLD);
   sim->init();
   sim->simulate();
   time += MPI_Wtime();
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if (rank == 0)
-    std::cout << "Runtime = " << time << std::endl;
   delete sim;
   MPI_Finalize();
   return 0;
