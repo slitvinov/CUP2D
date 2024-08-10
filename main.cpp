@@ -59,8 +59,6 @@ public:
 };
 class CommandlineParser {
 private:
-  const int iArgC;
-  char **vArgV;
   bool bStrictMode;
   bool _isnumber(const std::string &s) const;
 
@@ -139,7 +137,7 @@ bool CommandlineParser::_isnumber(const std::string &s) const {
   return end != s.c_str();
 }
 CommandlineParser::CommandlineParser(const int argc, char **argv)
-    : iArgC(argc), vArgV(argv), bStrictMode(false) {
+    : bStrictMode(false) {
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-') {
       std::string values = "";
