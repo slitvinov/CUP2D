@@ -10265,9 +10265,7 @@ struct Simulation {
     }
     return nullptr;
   }
-  void simulate();
   Real calcMaxTimestep();
-  void advance(const Real dt);
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
 static std::vector<std::string> split(const std::string &s, const char dlm) {
@@ -10383,8 +10381,18 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
   while (1) {
     Real dt = calcMaxTimestep();
     bool done = false;
-    if (!done || dt > 2e-16)
-      advance(dt);
+    if (!done || dt > 2e-16) {
+        const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
+	const bool bDump = sim.bDump();
+	if (bDump) {
+	  sim.registerDump();
+	  sim.dumpAll("_");
+	}
+	for (size_t c = 0; c < pipeline.size(); c++)
+	  (*pipeline[c])(dt);
+	sim.time += dt;
+	sim.step++;
+    }
     if (!done)
       done = sim.bOver();
     if (done) {
@@ -10425,18 +10433,6 @@ Real Simulation::calcMaxTimestep() {
   if (sim.dlm > 0)
     sim.lambda = sim.dlm / sim.dt;
   return sim.dt;
-}
-void Simulation::advance(const Real dt) {
-  const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
-  const bool bDump = sim.bDump();
-  if (bDump) {
-    sim.registerDump();
-    sim.dumpAll("_");
-  }
-  for (size_t c = 0; c < pipeline.size(); c++)
-    (*pipeline[c])(dt);
-  sim.time += dt;
-  sim.step++;
 }
 int main(int argc, char **argv) {
   int threadSafety;
