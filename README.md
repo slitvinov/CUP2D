@@ -7,9 +7,9 @@ make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' -j
 With converage
 ```
 module load mpi
-make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = '-j
+make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = ' -j
 sh run.sh
-python -m gcovr --html-details main.html
+python -m gcovr --html-details cover.html
 ```
 
 grace

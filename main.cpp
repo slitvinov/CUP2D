@@ -7200,9 +7200,6 @@ public:
   virtual ~Shape();
 
   virtual Real getCharLength() const = 0;
-  virtual Real getCharSpeed() const {
-    return std::sqrt(forcedu * forcedu + forcedv * forcedv);
-  }
   virtual Real getCharMass() const;
   virtual Real getMaxVel() const;
 
@@ -7233,11 +7230,6 @@ public:
   void getCentroid(Real centroid[2]) const {
     centroid[0] = this->center[0];
     centroid[1] = this->center[1];
-  }
-
-  virtual void getCenterOfMass(Real com[2]) const {
-    com[0] = this->centerOfMass[0];
-    com[1] = this->centerOfMass[1];
   }
 
   void getLabPosition(Real com[2]) const {
