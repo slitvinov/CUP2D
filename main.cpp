@@ -10257,7 +10257,6 @@ struct Simulation {
   std::vector<Operator*> pipeline;
   cubism::CommandlineParser parser;
   Simulation(int argc, char **argv, MPI_Comm comm);
-  const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
 static std::vector<std::string> split(const std::string &s, const char dlm) {
   std::stringstream ss(s);
