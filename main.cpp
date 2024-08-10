@@ -10302,5 +10302,5 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  MPI_Finalize();
+  //MPI_Finalize();
 }
