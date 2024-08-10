@@ -12149,8 +12149,8 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
       printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size,
              numThreads);
     }
-  }
 #endif
+  }
 }
 
 Simulation::~Simulation() = default;
