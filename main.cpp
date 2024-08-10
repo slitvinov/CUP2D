@@ -83,29 +83,6 @@ public:
   void mute() { bVerbose = false; }
   void loud() { bVerbose = true; }
 };
-class ArgumentParser : public CommandlineParser {
-  typedef std::map<std::string, Value> ArgMap;
-  typedef std::map<std::string, Value *> pArgMap;
-  typedef std::map<std::string, ArgMap *> FileMap;
-  const char commentStart;
-  ArgMap from_commandline;
-  FileMap from_files;
-  pArgMap from_code;
-  ArgMap mapRuntime;
-
-public:
-  ArgumentParser(const int _argc, char **_argv, const char cstart = '#')
-      : CommandlineParser(_argc, _argv), commentStart(cstart) {
-    from_commandline = mapArguments;
-  }
-  virtual ~ArgumentParser() {
-    for (FileMap::iterator it = from_files.begin(); it != from_files.end();
-         it++)
-      delete it->second;
-  }
-  Value &operator()(std::string key);
-  inline bool exist(const std::string &key) const { return check(key); }
-};
 } // namespace cubism
 namespace cubism {
 double Value::asDouble(double def) {
@@ -213,14 +190,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       i += itemCount;
     }
   mute();
-}
-Value &ArgumentParser::operator()(std::string key) {
-  _normalizeKey(key);
-  const bool bDefaultInCode = !_existKey(key, mapArguments);
-  Value &retval = CommandlineParser::operator()(key);
-  if (bDefaultInCode)
-    from_code[key] = &retval;
-  return retval;
 }
 } // namespace cubism
 namespace cubism {
@@ -6188,7 +6157,7 @@ public:
 
 protected:
 public:
-  Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
+  Shape(SimulationData &s, cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
   virtual Real getCharLength() const = 0;
   virtual Real getCharMass() const;
@@ -6915,7 +6884,7 @@ void Shape::computeForces() {
     ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
   }
 }
-Shape::Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
+Shape::Shape(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
     : sim(s), origC{C[0], C[1]},
       origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
       centerOfMass{C[0], C[1]}, orientation(origAng),
@@ -9996,7 +9965,7 @@ void PutFishOnBlocks::constructInternl(
     }
   }
 }
-class FactoryFileLineParser : public cubism::ArgumentParser {
+class FactoryFileLineParser : public cubism::CommandlineParser {
 protected:
   inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(),
@@ -10015,7 +9984,7 @@ protected:
 
 public:
   FactoryFileLineParser(std::istringstream &is_line)
-      : cubism::ArgumentParser(0, NULL, '#') {
+      : cubism::CommandlineParser(0, NULL) {
     std::string key, value;
     while (std::getline(is_line, key, '=')) {
       if (std::getline(is_line, value, ' ')) {
@@ -10035,7 +10004,7 @@ protected:
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
-  Fish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
+  Fish(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
       : Shape(s, p, C), length(p("-L").asDouble(0.1)),
         Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {}
   virtual ~Fish() override;
@@ -10169,7 +10138,7 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 }
 class StefanFish : public Fish {
 public:
-  StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
+  StefanFish(SimulationData &s, cubism::CommandlineParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
@@ -10255,7 +10224,7 @@ public:
     return w;
   }
 };
-StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
+StefanFish::StefanFish(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
     : Fish(s, p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -10319,7 +10288,7 @@ public:
   std::vector<std::shared_ptr<Operator>> pipeline;
 
 protected:
-  cubism::ArgumentParser parser;
+  cubism::CommandlineParser parser;
   void createShapes();
   void parseRuntime();
 
