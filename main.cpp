@@ -8055,7 +8055,6 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(mspace_id);
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
-
 }
 
 static double latestTime{-1.0};
@@ -13223,7 +13222,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 
   const std::array<Real, 7> bendPoints = {
       (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
-
 
   const std::array<Real, 6> curvatureZeros = {
       0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
