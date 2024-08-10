@@ -8217,8 +8217,6 @@ struct SimulationData {
   /* parsed parameters */
   /*********************/
 
-  bool bRestart;
-
   // blocks per dimension
   int bpdx;
   int bpdy;
@@ -8383,9 +8381,6 @@ struct SimulationData {
   void startProfiler(std::string name);
   void stopProfiler();
   void printResetProfiler();
-
-  void writeRestartFiles();
-  void readRestartFiles();
 
   void dumpChi(std::string name);
   void dumpPres(std::string name);
@@ -8734,10 +8729,6 @@ public:
 
   Real getOrientation() const { return this->orientation; }
   void setOrientation(const Real angle) { this->orientation = angle; }
-
-  // functions needed for restarting the simulation
-  virtual void saveRestart(FILE *f);
-  virtual void loadRestart(FILE *f);
 
   struct Integrals {
     const Real x, y, m, j, u, v, a;
@@ -9903,96 +9894,33 @@ void IC::operator()(const Real dt) {
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
 
-  if (not sim.bRestart) {
 #pragma omp parallel for
-    for (size_t i = 0; i < velInfo.size(); i++) {
-      VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-      VEL.clear();
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      CHI.clear();
-      ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-      PRES.clear();
-      ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-      POLD.clear();
-      ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-      TMP.clear();
-      VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      TMPV.clear();
-      VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-      VOLD.clear();
-    }
-
-    if (sim.smagorinskyCoeff != 0) {
-      const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
+  for (size_t i = 0; i < velInfo.size(); i++) {
+    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
+    VEL.clear();
+    ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+    CHI.clear();
+    ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
+    PRES.clear();
+    ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
+    POLD.clear();
+    ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
+    TMP.clear();
+    VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    TMPV.clear();
+    VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
+    VOLD.clear();
+  }
+  
+  if (sim.smagorinskyCoeff != 0) {
+    const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
 #pragma omp parallel for
-      for (size_t i = 0; i < CsInfo.size(); i++) {
-        ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-        for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-          for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-            CS(ix, iy).s = sim.smagorinskyCoeff;
-          }
-      }
-    }
-  } else {
-    // create filename from step
-    sim.readRestartFiles();
-
-    std::stringstream ss;
-    ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
-
-    // The only field that is needed for restarting is velocity. Chi is derived
-    // from the files we read for obstacles. Here we also read pres so that the
-    // Poisson solver has the same initial guess, which in turn leads to
-    // restarted simulations having the exact same result as non-restarted ones
-    // (we also read pres because we need to read at least one ScalarGrid, see
-    // hack below).
-    cubism::ReadHDF5_MPI<cubism::StreamerVector, Real, VectorGrid>(
-        *(sim.vel), "vel_" + ss.str(), sim.path4serialization);
-    cubism::ReadHDF5_MPI<cubism::StreamerScalar, Real, ScalarGrid>(
-        *(sim.pres), "pres_" + ss.str(), sim.path4serialization);
-
-    // hack: need to "read" the other grids too, so that the mesh is the same
-    // for every grid. So we read VectorGrids from "vel" and ScalarGrids from
-    // "pres". We don't care about the grid point values (those are set to zero
-    // below), we only care about the grid structure, i.e. refinement levels
-    // etc.
-    cubism::ReadHDF5_MPI<cubism::StreamerScalar, Real, ScalarGrid>(
-        *(sim.pold), "pres_" + ss.str(), sim.path4serialization);
-    cubism::ReadHDF5_MPI<cubism::StreamerScalar, Real, ScalarGrid>(
-        *(sim.chi), "pres_" + ss.str(), sim.path4serialization);
-    cubism::ReadHDF5_MPI<cubism::StreamerScalar, Real, ScalarGrid>(
-        *(sim.tmp), "pres_" + ss.str(), sim.path4serialization);
-    cubism::ReadHDF5_MPI<cubism::StreamerVector, Real, VectorGrid>(
-        *(sim.tmpV), "vel_" + ss.str(), sim.path4serialization);
-    cubism::ReadHDF5_MPI<cubism::StreamerVector, Real, VectorGrid>(
-        *(sim.vOld), "vel_" + ss.str(), sim.path4serialization);
-
-#pragma omp parallel for
-    for (size_t i = 0; i < velInfo.size(); i++) {
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      CHI.clear();
-      ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-      POLD.clear();
-      ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-      TMP.clear();
-      VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      TMPV.clear();
-      VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-      VOLD.clear();
-    }
-
-    if (sim.smagorinskyCoeff != 0) {
-      cubism::ReadHDF5_MPI<cubism::StreamerScalar, Real, ScalarGrid>(
-          *(sim.Cs), "pres_" + ss.str(), sim.path4serialization);
-      const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
-#pragma omp parallel for
-      for (size_t i = 0; i < CsInfo.size(); i++) {
-        ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-        for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-          for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-            CS(ix, iy).s = sim.smagorinskyCoeff;
-          }
-      }
+    for (size_t i = 0; i < CsInfo.size(); i++) {
+      ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
+      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
+	for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
+	  CS(ix, iy).s = sim.smagorinskyCoeff;
+	}
     }
   }
 }
@@ -10595,68 +10523,6 @@ Shape::~Shape() {
   obstacleBlocks.clear();
 }
 
-// functions needed for restarting the simulation
-void Shape::saveRestart(FILE *f) {
-  assert(f != NULL);
-  fprintf(f, "x:     %20.20e\n", (double)centerOfMass[0]);
-  fprintf(f, "y:     %20.20e\n", (double)centerOfMass[1]);
-  fprintf(f, "xlab:  %20.20e\n", (double)labCenterOfMass[0]);
-  fprintf(f, "ylab:  %20.20e\n", (double)labCenterOfMass[1]);
-  fprintf(f, "u:     %20.20e\n", (double)u);
-  fprintf(f, "v:     %20.20e\n", (double)v);
-  fprintf(f, "omega: %20.20e\n", (double)omega);
-  fprintf(f, "orientation: %20.20e\n", (double)orientation);
-  fprintf(f, "d_gm0: %20.20e\n", (double)d_gm[0]);
-  fprintf(f, "d_gm1: %20.20e\n", (double)d_gm[1]);
-  fprintf(f, "center0: %20.20e\n", (double)center[0]);
-  fprintf(f, "center1: %20.20e\n", (double)center[1]);
-  // maybe center0,center1,d_gm0,d_gm1 are not all needed, but it's only four
-  // numbers so we might as well dump them
-}
-
-void Shape::loadRestart(FILE *f) {
-  assert(f != NULL);
-  bool ret = true;
-  double in_centerOfMass0, in_centerOfMass1, in_labCenterOfMass0,
-      in_labCenterOfMass1, in_u, in_v, in_omega, in_orientation, in_d_gm0,
-      in_d_gm1, in_center0, in_center1;
-  ret = ret && 1 == fscanf(f, "x:     %le\n", &in_centerOfMass0);
-  ret = ret && 1 == fscanf(f, "y:     %le\n", &in_centerOfMass1);
-  ret = ret && 1 == fscanf(f, "xlab:  %le\n", &in_labCenterOfMass0);
-  ret = ret && 1 == fscanf(f, "ylab:  %le\n", &in_labCenterOfMass1);
-  ret = ret && 1 == fscanf(f, "u:     %le\n", &in_u);
-  ret = ret && 1 == fscanf(f, "v:     %le\n", &in_v);
-  ret = ret && 1 == fscanf(f, "omega: %le\n", &in_omega);
-  ret = ret && 1 == fscanf(f, "orientation: %le\n", &in_orientation);
-  ret = ret && 1 == fscanf(f, "d_gm0: %le\n", &in_d_gm0);
-  ret = ret && 1 == fscanf(f, "d_gm1: %le\n", &in_d_gm1);
-  ret = ret && 1 == fscanf(f, "center0: %le\n", &in_center0);
-  ret = ret && 1 == fscanf(f, "center1: %le\n", &in_center1);
-  if ((not ret)) {
-    printf("Error reading restart file. Aborting...\n");
-    fflush(0);
-    abort();
-  }
-  centerOfMass[0] = in_centerOfMass0;
-  centerOfMass[1] = in_centerOfMass1;
-  labCenterOfMass[0] = in_labCenterOfMass0;
-  labCenterOfMass[1] = in_labCenterOfMass1;
-  u = in_u;
-  v = in_v;
-  omega = in_omega;
-  orientation = in_orientation;
-  d_gm[0] = in_d_gm0;
-  d_gm[1] = in_d_gm1;
-  center[0] = in_center0;
-  center[1] = in_center1;
-  if (sim.rank == 0)
-    printf("Restarting Object.. x: %le, y: %le, xlab: %le, ylab: %le, u: %le, "
-           "v: %le, omega: %le\n",
-           (double)centerOfMass[0], (double)centerOfMass[1],
-           (double)labCenterOfMass[0], (double)labCenterOfMass[1], (double)u,
-           (double)v, (double)omega);
-}
-
 void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
@@ -10841,110 +10707,7 @@ void SimulationData::dumpAll(std::string name) {
   if (bDumpCs)
     dumpCs(name);
 
-  writeRestartFiles();
-
   stopProfiler();
-}
-
-void SimulationData::writeRestartFiles() {
-
-  // write restart file for field
-  if (rank == 0) {
-    std::stringstream ssR;
-    ssR << path4serialization + "/field.restart";
-    FILE *fField = fopen(ssR.str().c_str(), "w");
-    if (fField == NULL) {
-      printf("Could not write %s. Aborting...\n", "field.restart");
-      fflush(0);
-      abort();
-    }
-    assert(fField != NULL);
-    fprintf(fField, "time: %20.20e\n", (double)time);
-    fprintf(fField, "stepid: %d\n", step);
-    fprintf(fField, "uinfx: %20.20e\n", (double)uinfx);
-    fprintf(fField, "uinfy: %20.20e\n", (double)uinfy);
-    fprintf(fField, "dt: %20.20e\n", (double)dt);
-    fclose(fField);
-  }
-
-  // write restart file for shapes
-  {
-    int size;
-    MPI_Comm_size(comm, &size);
-    const size_t tasks = shapes.size();
-    size_t my_share = tasks / size;
-    if (tasks % size != 0 && rank == size - 1) // last rank gets what's left
-    {
-      my_share += tasks % size;
-    }
-    const size_t my_start = rank * (tasks / size);
-    const size_t my_end = my_start + my_share;
-
-#pragma omp parallel for schedule(static, 1)
-    for (size_t j = my_start; j < my_end; j++) {
-      auto &shape = shapes[j];
-      std::stringstream ssR;
-      ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
-      FILE *fShape = fopen(ssR.str().c_str(), "w");
-      if (fShape == NULL) {
-        printf("Could not write %s. Aborting...\n", ssR.str().c_str());
-        fflush(0);
-        abort();
-      }
-      shape->saveRestart(fShape);
-      fclose(fShape);
-    }
-  }
-}
-
-void SimulationData::readRestartFiles() {
-  // read restart file for field
-  FILE *fField = fopen("field.restart", "r");
-  if (fField == NULL) {
-    printf("Could not read %s. Aborting...\n", "field.restart");
-    fflush(0);
-    abort();
-  }
-  assert(fField != NULL);
-  if (rank == 0 && verbose)
-    printf("Reading %s...\n", "field.restart");
-  bool ret = true;
-  double in_time, in_uinfx, in_uinfy, in_dt;
-  ret = ret && 1 == fscanf(fField, "time: %le\n", &in_time);
-  ret = ret && 1 == fscanf(fField, "stepid: %d\n", &step);
-  ret = ret && 1 == fscanf(fField, "uinfx: %le\n", &in_uinfx);
-  ret = ret && 1 == fscanf(fField, "uinfy: %le\n", &in_uinfy);
-  ret = ret && 1 == fscanf(fField, "dt: %le\n", &in_dt);
-  time = (Real)in_time;
-  uinfx = (Real)in_uinfx;
-  uinfy = (Real)in_uinfy;
-  dt = (Real)in_dt;
-  fclose(fField);
-  if ((not ret) || step < 0 || time < 0) {
-    printf("Error reading restart file. Aborting...\n");
-    fflush(0);
-    abort();
-  }
-  if (rank == 0 && verbose)
-    printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le\n",
-           (double)time, step, (double)uinfx, (double)uinfy);
-  nextDumpTime = time + dumpTime;
-
-  // read restart file for shapes
-  for (std::shared_ptr<Shape> shape : shapes) {
-    std::stringstream ssR;
-    ssR << "shape_" << shape->obstacleID << ".restart";
-    FILE *fShape = fopen(ssR.str().c_str(), "r");
-    if (fShape == NULL) {
-      printf("Could not read %s. Aborting...\n", ssR.str().c_str());
-      fflush(0);
-      abort();
-    }
-    if (rank == 0 && verbose)
-      printf("Reading %s...\n", ssR.str().c_str());
-    shape->loadRestart(fShape);
-    fclose(fShape);
-  }
 }
 
 struct IF2D_Frenet2D {
@@ -15174,8 +14937,6 @@ public:
   virtual void resetAll() override;
   virtual void updatePosition(Real dt) override;
   virtual void create(const std::vector<cubism::BlockInfo> &vInfo) override;
-  virtual void saveRestart(FILE *f) override;
-  virtual void loadRestart(FILE *f) override;
 };
 
 void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
@@ -15374,29 +15135,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 #endif
 }
 
-void Fish::saveRestart(FILE *f) {
-  assert(f != NULL);
-  Shape::saveRestart(f);
-  fprintf(f, "theta_internal: %20.20e\n", (double)theta_internal);
-  fprintf(f, "angvel_internal: %20.20e\n", (double)angvel_internal);
-}
-
-void Fish::loadRestart(FILE *f) {
-  assert(f != NULL);
-  Shape::loadRestart(f);
-  bool ret = true;
-  double in_theta_internal, in_angvel_internal;
-  ret = ret && 1 == fscanf(f, "theta_internal: %le\n", &in_theta_internal);
-  ret = ret && 1 == fscanf(f, "angvel_internal: %le\n", &in_angvel_internal);
-  theta_internal = in_theta_internal;
-  angvel_internal = in_angvel_internal;
-  if ((not ret)) {
-    printf("Error reading restart file. Aborting...\n");
-    fflush(0);
-    abort();
-  }
-}
-
 class StefanFish : public Fish {
   const bool bCorrectTrajectory;
   const bool bCorrectPosition;
@@ -15427,10 +15165,6 @@ public:
   std::array<Real, 2>
   getShear(const std::array<Real, 2> pSurf, const std::array<Real, 2> normSurf,
            const std::vector<cubism::BlockInfo> &velInfo) const;
-
-  // Helpers to restart simulation
-  virtual void saveRestart(FILE *f) override;
-  virtual void loadRestart(FILE *f) override;
 };
 
 class CurvatureFish : public FishData {
@@ -15594,131 +15328,6 @@ void StefanFish::resetAll() {
   }
   cFish->resetAll();
   Fish::resetAll();
-}
-
-void StefanFish::saveRestart(FILE *f) {
-  assert(f != NULL);
-  Fish::saveRestart(f);
-  CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  std::stringstream ss;
-  ss << std::setfill('0') << std::setw(7) << "_" << obstacleID << "_";
-  std::string filename = "Schedulers" + ss.str() + ".restart";
-  {
-    std::ofstream savestream;
-    savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    savestream.open(filename);
-    {
-      const auto &c = cFish->curvatureScheduler;
-      savestream << c.t0 << "\t" << c.t1 << std::endl;
-      for (int i = 0; i < c.npoints; ++i)
-        savestream << c.parameters_t0[i] << "\t" << c.parameters_t1[i] << "\t"
-                   << c.dparameters_t0[i] << std::endl;
-    }
-    {
-      const auto &c = cFish->periodScheduler;
-      savestream << c.t0 << "\t" << c.t1 << std::endl;
-      for (int i = 0; i < c.npoints; ++i)
-        savestream << c.parameters_t0[i] << "\t" << c.parameters_t1[i] << "\t"
-                   << c.dparameters_t0[i] << std::endl;
-    }
-    {
-      const auto &c = cFish->rlBendingScheduler;
-      savestream << c.t0 << "\t" << c.t1 << std::endl;
-      for (int i = 0; i < c.npoints; ++i)
-        savestream << c.parameters_t0[i] << "\t" << c.parameters_t1[i] << "\t"
-                   << c.dparameters_t0[i] << std::endl;
-    }
-    savestream.close();
-  }
-
-  // Save these numbers for PID controller and other stuff. Maybe not all of
-  // them are needed but we don't care, it's only a few numbers.
-  fprintf(f, "curv_PID_fac: %20.20e\n", (double)cFish->curv_PID_fac);
-  fprintf(f, "curv_PID_dif: %20.20e\n", (double)cFish->curv_PID_dif);
-  fprintf(f, "avgDeltaY   : %20.20e\n", (double)cFish->avgDeltaY);
-  fprintf(f, "avgDangle   : %20.20e\n", (double)cFish->avgDangle);
-  fprintf(f, "avgAngVel   : %20.20e\n", (double)cFish->avgAngVel);
-  fprintf(f, "lastTact    : %20.20e\n", (double)cFish->lastTact);
-  fprintf(f, "lastCurv    : %20.20e\n", (double)cFish->lastCurv);
-  fprintf(f, "oldrCurv    : %20.20e\n", (double)cFish->oldrCurv);
-  fprintf(f, "periodPIDval: %20.20e\n", (double)cFish->periodPIDval);
-  fprintf(f, "periodPIDdif: %20.20e\n", (double)cFish->periodPIDdif);
-  fprintf(f, "time0       : %20.20e\n", (double)cFish->time0);
-  fprintf(f, "timeshift   : %20.20e\n", (double)cFish->timeshift);
-  fprintf(f, "lastTime    : %20.20e\n", (double)cFish->lastTime);
-  fprintf(f, "lastAvel    : %20.20e\n", (double)cFish->lastAvel);
-}
-
-void StefanFish::loadRestart(FILE *f) {
-  assert(f != NULL);
-  Fish::loadRestart(f);
-  CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  std::stringstream ss;
-  ss << std::setfill('0') << std::setw(7) << "_" << obstacleID << "_";
-  std::ifstream restartstream;
-  std::string filename = "Schedulers" + ss.str() + ".restart";
-  restartstream.open(filename);
-  {
-    auto &c = cFish->curvatureScheduler;
-    restartstream >> c.t0 >> c.t1;
-    for (int i = 0; i < c.npoints; ++i)
-      restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >>
-          c.dparameters_t0[i];
-  }
-  {
-    auto &c = cFish->periodScheduler;
-    restartstream >> c.t0 >> c.t1;
-    for (int i = 0; i < c.npoints; ++i)
-      restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >>
-          c.dparameters_t0[i];
-  }
-  {
-    auto &c = cFish->rlBendingScheduler;
-    restartstream >> c.t0 >> c.t1;
-    for (int i = 0; i < c.npoints; ++i)
-      restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >>
-          c.dparameters_t0[i];
-  }
-  restartstream.close();
-
-  bool ret = true;
-  double in_curv_PID_fac, in_curv_PID_dif, in_avgDeltaY, in_avgDangle,
-      in_avgAngVel, in_lastTact, in_lastCurv, in_oldrCurv, in_periodPIDval,
-      in_periodPIDdif, in_time0, in_timeshift, in_lastTime, in_lastAvel;
-  ret = ret && 1 == fscanf(f, "curv_PID_fac: %le\n", &in_curv_PID_fac);
-  ret = ret && 1 == fscanf(f, "curv_PID_dif: %le\n", &in_curv_PID_dif);
-  ret = ret && 1 == fscanf(f, "avgDeltaY   : %le\n", &in_avgDeltaY);
-  ret = ret && 1 == fscanf(f, "avgDangle   : %le\n", &in_avgDangle);
-  ret = ret && 1 == fscanf(f, "avgAngVel   : %le\n", &in_avgAngVel);
-  ret = ret && 1 == fscanf(f, "lastTact    : %le\n", &in_lastTact);
-  ret = ret && 1 == fscanf(f, "lastCurv    : %le\n", &in_lastCurv);
-  ret = ret && 1 == fscanf(f, "oldrCurv    : %le\n", &in_oldrCurv);
-  ret = ret && 1 == fscanf(f, "periodPIDval: %le\n", &in_periodPIDval);
-  ret = ret && 1 == fscanf(f, "periodPIDdif: %le\n", &in_periodPIDdif);
-  ret = ret && 1 == fscanf(f, "time0       : %le\n", &in_time0);
-  ret = ret && 1 == fscanf(f, "timeshift   : %le\n", &in_timeshift);
-  ret = ret && 1 == fscanf(f, "lastTime    : %le\n", &in_lastTime);
-  ret = ret && 1 == fscanf(f, "lastAvel    : %le\n", &in_lastAvel);
-  cFish->curv_PID_fac = (Real)in_curv_PID_fac;
-  cFish->curv_PID_dif = (Real)in_curv_PID_dif;
-  cFish->avgDeltaY = (Real)in_avgDeltaY;
-  cFish->avgDangle = (Real)in_avgDangle;
-  cFish->avgAngVel = (Real)in_avgAngVel;
-  cFish->lastTact = (Real)in_lastTact;
-  cFish->lastCurv = (Real)in_lastCurv;
-  cFish->oldrCurv = (Real)in_oldrCurv;
-  cFish->periodPIDval = (Real)in_periodPIDval;
-  cFish->periodPIDdif = (Real)in_periodPIDdif;
-  cFish->time0 = (Real)in_time0;
-  cFish->timeshift = (Real)in_timeshift;
-  cFish->lastTime = (Real)in_lastTime;
-  cFish->lastAvel = (Real)in_lastAvel;
-  if ((not ret)) {
-    printf("Error reading restart file. Aborting...\n");
-    fflush(0);
-    abort();
-  }
 }
 
 StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
@@ -16585,55 +16194,25 @@ void Simulation::init() {
 }
 
 void Simulation::parseRuntime() {
-  // restart the simulation?
-  sim.bRestart = parser("-restart").asBool(false);
-
-  /* parameters that have to be given */
-  /************************************/
   parser.set_strict_mode();
-
-  // set initial number of blocks
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
-
-  // maximal number of refinement levels
   sim.levelMax = parser("-levelMax").asInt();
-
-  // refinement/compression tolerance for vorticity magnitude
   sim.Rtol = parser("-Rtol").asDouble();
   sim.Ctol = parser("-Ctol").asDouble();
-
   parser.unset_strict_mode();
-  /************************************/
-  /************************************/
-
-  // refiment according to Qcriterion instead of |omega|
   sim.Qcriterion = parser("-Qcriterion").asBool(false);
-
-  // check for refinement every this many timesteps
   sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
-
-  // boolean to switch between refinement according to chi or grad(chi)
   sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
-
-  // initial level of refinement
   sim.levelStart = parser("-levelStart").asInt(-1);
   if (sim.levelStart == -1)
     sim.levelStart = sim.levelMax - 1;
-
-  // simulation extent
   sim.extent = parser("-extent").asDouble(1);
-
-  // timestep / CFL number
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
   sim.rampup = parser("-rampup").asInt(0);
-
-  // simulation ending parameters
   sim.nsteps = parser("-nsteps").asInt(0);
   sim.endTime = parser("-tend").asDouble(0);
-
-  // penalisation coefficient
   sim.lambda = parser("-lambda").asDouble(1e7);
 
   // constant for explicit penalisation lambda=dlm/dt
@@ -16745,25 +16324,20 @@ void Simulation::startObstacles() {
   Checker check(sim);
 
   // put obstacles to grid and compress
-  if (sim.rank == 0 && sim.verbose && !sim.bRestart)
-    std::cout << "[CUP2D] Initial PutObjectsOnGrid and Compression of Grid\n";
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
   AdaptTheMesh *const adaptTheMesh = findOperator<AdaptTheMesh>();
   assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
-  if (not sim.bRestart)
-    for (int i = 0; i < sim.levelMax; i++) {
-      (*putObjectsOnGrid)(0.0);
-      (*adaptTheMesh)(0.0);
-    }
+  for (int i = 0; i < sim.levelMax; i++) {
+    (*putObjectsOnGrid)(0.0);
+    (*adaptTheMesh)(0.0);
+  }
   (*putObjectsOnGrid)(0.0);
 
   // impose velocity of obstacles
-  if (not sim.bRestart) {
-    if (sim.rank == 0 && sim.verbose)
-      std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
-    ApplyObjVel initVel(sim);
-    initVel(0);
-  }
+  if (sim.rank == 0 && sim.verbose)
+    std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
+  ApplyObjVel initVel(sim);
+  initVel(0);
 }
 
 void Simulation::simulate() {
