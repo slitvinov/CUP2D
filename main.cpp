@@ -2,17 +2,13 @@
 #include <array>
 #include <cassert>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <gsl/gsl_linalg.h>
 #include <hdf5.h>
 #include <iomanip>
-#include <ios>
-#include <iosfwd>
 #include <iostream>
-#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -21,7 +17,6 @@
 #include <set>
 #include <sstream>
 #include <stack>
-#include <stdio.h>
 #include <string>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -8567,19 +8562,6 @@ void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         P(ix, iy).s += -avg;
   }
 }
-std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData &s);
-std::shared_ptr<PoissonSolver> makePoissonSolver(SimulationData &s) {
-  if (s.poissonSolver == "cuda_iterative") {
-    if (!_DOUBLE_PRECISION_)
-      throw std::runtime_error(
-          "Poisson solver: \"" + s.poissonSolver +
-          "\" must be compiled with in double precision mode!");
-    return std::make_shared<ExpAMRSolver>(s);
-  } else {
-    throw std::invalid_argument("Poisson solver: \"" + s.poissonSolver +
-                                "\" unrecognized!");
-  }
-}
 class Shape;
 class PressureSingle : public Operator {
 protected:
@@ -9301,7 +9283,7 @@ void PressureSingle::operator()(const Real dt) {
   pressureCorrection(dt);
 }
 PressureSingle::PressureSingle(SimulationData &s)
-    : Operator{s}, pressureSolver{makePoissonSolver(s)} {}
+  : Operator{s}, pressureSolver{std::make_shared<ExpAMRSolver>(s)} {}
 PressureSingle::~PressureSingle() = default;
 struct SimulationData;
 struct FishSkin {
