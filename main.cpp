@@ -10271,7 +10271,6 @@ public:
     }
     return nullptr;
   }
-  void init();
   void startObstacles();
   void simulate();
   Real calcMaxTimestep();
@@ -10301,9 +10300,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
            numThreads);
   }
 #endif
-}
-Simulation::~Simulation() = default;
-void Simulation::init() {
   parser.set_strict_mode();
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
@@ -10358,7 +10354,24 @@ void Simulation::init() {
   pipeline.push_back(std::make_shared<PressureSingle>(sim));
   pipeline.push_back(std::make_shared<ComputeForces>(sim));
   startObstacles();
+  while (1) {
+    Real dt = calcMaxTimestep();
+    bool done = false;
+    if (!done || dt > 2e-16)
+      advance(dt);
+    if (!done)
+      done = sim.bOver();
+    if (done) {
+      const bool bDump = sim.bDump();
+      if (bDump) {
+        sim.registerDump();
+        sim.dumpAll("_");
+      }
+      break;
+    }
+  }
 }
+Simulation::~Simulation() = default;
 void Simulation::createShapes() {
   const std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
@@ -10396,24 +10409,6 @@ void Simulation::startObstacles() {
   (*putObjectsOnGrid)(0.0);
   ApplyObjVel initVel(sim);
   initVel(0);
-}
-void Simulation::simulate() {
-  while (1) {
-    Real dt = calcMaxTimestep();
-    bool done = false;
-    if (!done || dt > 2e-16)
-      advance(dt);
-    if (!done)
-      done = sim.bOver();
-    if (done) {
-      const bool bDump = sim.bDump();
-      if (bDump) {
-        sim.registerDump();
-        sim.dumpAll("_");
-      }
-      break;
-    }
-  }
 }
 Real Simulation::calcMaxTimestep() {
   sim.dt_old2 = sim.dt_old;
@@ -10460,8 +10455,6 @@ int main(int argc, char **argv) {
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   {
     Simulation sim = Simulation(argc, argv, MPI_COMM_WORLD);
-    sim.init();
-    sim.simulate();
   }
   MPI_Finalize();
 }
