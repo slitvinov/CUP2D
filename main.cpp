@@ -61,7 +61,7 @@ class CommandlineParser {
 private:
   const int iArgC;
   char **vArgV;
-  bool bStrictMode, bVerbose;
+  bool bStrictMode;
   bool _isnumber(const std::string &s) const;
 
 protected:
@@ -70,13 +70,8 @@ protected:
 public:
   CommandlineParser(int argc, char **argv);
   Value &operator()(std::string key);
-  bool check(std::string key) const;
-  int getargc() const { return iArgC; }
-  char **getargv() const { return vArgV; }
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
-  void mute() { bVerbose = false; }
-  void loud() { bVerbose = true; }
 };
 } // namespace cubism
 namespace cubism {
@@ -136,13 +131,7 @@ Value &CommandlineParser::operator()(std::string key) {
       abort();
     }
   }
-  if (bVerbose)
-    printf("%s is %s\n", key.data(), mapArguments[key].asString().data());
   return mapArguments[key];
-}
-bool CommandlineParser::check(std::string key) const {
-  _normalizeKey(key);
-  return _existKey(key, mapArguments);
 }
 bool CommandlineParser::_isnumber(const std::string &s) const {
   char *end = NULL;
@@ -150,7 +139,7 @@ bool CommandlineParser::_isnumber(const std::string &s) const {
   return end != s.c_str();
 }
 CommandlineParser::CommandlineParser(const int argc, char **argv)
-    : iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true) {
+    : iArgC(argc), vArgV(argv), bStrictMode(false) {
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-') {
       std::string values = "";
@@ -184,7 +173,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       }
       i += itemCount;
     }
-  mute();
 }
 } // namespace cubism
 namespace cubism {
@@ -9973,7 +9961,6 @@ public:
         mapArguments[trim(key)] = cubism::Value(trim(value));
       }
     }
-    mute();
   }
 };
 struct FishData;
