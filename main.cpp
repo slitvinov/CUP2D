@@ -19,7 +19,6 @@
 #include <mpi.h>
 #include <numeric>
 #include <omp.h>
-#include <random>
 #include <set>
 #include <sstream>
 #include <stack>
@@ -7038,8 +7037,6 @@ struct SimulationData {
 
   Real smagorinskyCoeff;
 
-  std::string ic;
-
   std::string poissonSolver;
   Real PoissonTol;
   Real PoissonTolRel;
@@ -7496,18 +7493,6 @@ public:
   std::string getName() { return "gaussianIC"; }
 };
 
-class randomIC : public Operator {
-protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  randomIC(SimulationData &s) : Operator(s) {}
-
-  void operator()(const Real dt);
-
-  std::string getName() { return "randomIC"; }
-};
-
 class ApplyObjVel : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
@@ -7939,57 +7924,6 @@ void IC::operator()(const Real dt) {
     TMPV.clear();
     VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
     VOLD.clear();
-  }
-
-  if (sim.smagorinskyCoeff != 0) {
-    const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
-#pragma omp parallel for
-    for (size_t i = 0; i < CsInfo.size(); i++) {
-      ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-        for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-          CS(ix, iy).s = sim.smagorinskyCoeff;
-        }
-    }
-  }
-}
-
-void randomIC::operator()(const Real dt) {
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-
-#pragma omp parallel
-  {
-    std::random_device seed;
-    std::mt19937 gen(seed());
-    std::normal_distribution<Real> dist(0.0, 0.01);
-
-#pragma omp for
-    for (size_t i = 0; i < velInfo.size(); i++) {
-      VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-          VEL(ix, iy).u[0] = 0.5 + dist(gen);
-          VEL(ix, iy).u[1] = 0.5 + dist(gen);
-        }
-
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      CHI.clear();
-      ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-      PRES.clear();
-      ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-      POLD.clear();
-      ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-      TMP.clear();
-      VectorBlock &TMPV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      TMPV.clear();
-      VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
-      VOLD.clear();
-    }
   }
 
   if (sim.smagorinskyCoeff != 0) {
@@ -13101,13 +13035,8 @@ void Simulation::init() {
 
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
-  if (sim.ic == "random") {
-    randomIC ic(sim);
-    ic(0);
-  } else {
-    IC ic(sim);
-    ic(0);
-  }
+  IC ic(sim);
+  ic(0);
 
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
@@ -13158,9 +13087,6 @@ void Simulation::parseRuntime() {
 
   sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
   sim.bDumpCs = parser("-dumpCs").asInt(0);
-
-  sim.ic = parser("-ic").asString("");
-
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
