@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <array>
-#include <assert.h>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -16,7 +15,6 @@
 #include <iterator>
 #include <limits>
 #include <map>
-#include <math.h>
 #include <memory>
 #include <mpi.h>
 #include <numeric>
@@ -29,7 +27,6 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <unistd.h>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -2713,30 +2710,6 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
   }
 
-#if 0
-  std::string removeLeadingZeros(const std::string& input)
-  {
-    std::size_t firstNonZero = input.find_first_not_of('0');
-    if (firstNonZero == std::string::npos)
-    {
-      // The input consists only of zeros
-      return "0";
-    }
-    return input.substr(firstNonZero);
-  }
-  std::set<int> DecodeSet(std::string ID)
-  {
-    std::set<int> retval;
-    for (size_t i = 0 ; i < ID.length() ; i += size)
-    {
-      std::string toconvert = removeLeadingZeros( ID.substr(i, size) );
-      int current_rank = std::stoi ( toconvert );
-      retval.insert(current_rank);
-    }
-    return retval;
-  }
-#endif
-
   /// Maps a set of integers to a string
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
@@ -4886,15 +4859,6 @@ public:
       BlockType &block = *(BlockType *)info.ptrBlock;
       ElementType *ptrSource = &block(0);
 
-#if 0 // original
-            for(int iz=0; iz<nZ; iz++)
-            for(int iy=0; iy<nY; iy++)
-            {
-              ElementType * ptrDestination = &m_cacheBlock->Access(0-m_stencilStart[0], iy-m_stencilStart[1], iz-m_stencilStart[2]);
-              memcpy2((char *)ptrDestination, (char *)ptrSource, sizeof(ElementType)*nX);
-              ptrSource+= nX;
-            }
-#else
       const int nbytes = sizeof(ElementType) * nX;
       const int _iz0 = -m_stencilStart[2];
       const int _iz1 = _iz0 + nZ;
@@ -4923,7 +4887,6 @@ public:
           ptrSource += 4 * nX;
         }
       }
-#endif
     }
 
     // 2. put the ghosts into the cache
