@@ -18,7 +18,6 @@
 #include <memory>
 #include <mpi.h>
 #include <numeric>
-#include <omp.h>
 #include <set>
 #include <sstream>
 #include <stack>
@@ -30,6 +29,9 @@
 #include <utility>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "cuda.h"
 
 #define OMPI_SKIP_MPICXX 1
@@ -380,7 +382,7 @@ protected:
   }
 
 public:
-  SpaceFillingCurve2D() {};
+  SpaceFillingCurve2D(){};
 
   SpaceFillingCurve2D(int a_BX, int a_BY, int lmax)
       : BX(a_BX), BY(a_BY), levelMax(lmax) {
@@ -587,7 +589,7 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
 
-  BlockInfo() {};
+  BlockInfo(){};
 
   void setup(const int a_level, const double a_h, const double a_origin[3],
              const long long a_Z) {
@@ -1232,7 +1234,6 @@ public:
   virtual int get_world_size() const { return 1; }
 
   virtual void UpdateBoundary(bool clean = false) {}
-
 };
 
 } // namespace cubism
@@ -6804,7 +6805,6 @@ class ProfileAgent {
     return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
   }
 
-
 public:
   ProfileAgent()
       : m_tStart(), m_tEnd(), m_state(ProfileAgentState_Created),
@@ -6836,7 +6836,6 @@ public:
     m_nMoney += nMoney;
     m_state = ProfileAgentState_Stopped;
   }
-
 };
 
 } // namespace cubism
@@ -7216,7 +7215,7 @@ public:
   virtual Real getMaxVel() const;
 
   virtual void create(const std::vector<cubism::BlockInfo> &vInfo) = 0;
-  virtual void finalize() {};
+  virtual void finalize(){};
 
   virtual void updateVelocity(Real dt);
   virtual void updatePosition(Real dt);
@@ -8088,8 +8087,9 @@ void Shape::computeForces() {
 }
 
 Shape::Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
-    : sim(s), origC{C[0], C[1]}, origAng(p("-angle").asDouble(0) * M_PI / 180),
-      center{C[0], C[1]}, centerOfMass{C[0], C[1]}, orientation(origAng),
+    : sim(s), origC{C[0], C[1]},
+      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      centerOfMass{C[0], C[1]}, orientation(origAng),
       bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
       bFixedy(p("-bFixedy").asBool(bFixed)),
       bForced(p("-bForced").asBool(false)),
@@ -8113,7 +8113,6 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
 }
-
 
 void SimulationData::allocateGrid() {
   ScalarLab dummy;
@@ -8222,8 +8221,6 @@ bool SimulationData::bDump() {
   return _bDump;
 }
 
-
-
 void SimulationData::dumpAll(std::string name) {
   auto K1 = computeVorticity(*this);
   K1(0);
@@ -8234,7 +8231,6 @@ void SimulationData::dumpAll(std::string name) {
 
   if (bDumpCs)
     dumpCs(name);
-
 }
 
 struct IF2D_Frenet2D {
@@ -8777,7 +8773,7 @@ void PutObjectsOnGrid::putObjectsOnGrid() {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < OBLOCK.size(); i++) {
       if (OBLOCK[i] == nullptr)
         continue;
@@ -8873,7 +8869,6 @@ struct GradChiOnTmp {
           break;
         }
       }
-
   }
 };
 
@@ -9730,8 +9725,9 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
 
 ExpAMRSolver::ExpAMRSolver(SimulationData &s)
     : sim(s), m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
-      XmaxCell(*this), YminCell(*this), YmaxCell(*this),
-      edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
+      XmaxCell(*this), YminCell(*this),
+      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                    &YmaxCell} {
 
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
@@ -11072,8 +11068,8 @@ struct AreaSegment {
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
 
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr),
-        w{(bb[0][1] - bb[0][0]) / 2 + safe, (bb[1][1] - bb[1][0]) / 2 + safe},
+      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
+                                            (bb[1][1] - bb[1][0]) / 2 + safe},
         c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
     assert(w[0] > 0);
     assert(w[1] > 0);
@@ -11172,7 +11168,6 @@ FishData::~FishData() {
   _dealloc(vNorY);
   _dealloc(width);
 }
-
 
 void FishData::writeMidline2File(const int step_id, std::string filename) {
   char buf[500];
@@ -12014,8 +12009,7 @@ public:
 };
 
 StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
-    : Fish(s, p, C)
-{
+    : Fish(s, p, C) {
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -12028,7 +12022,6 @@ StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
 void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   Fish::create(vInfo);
 }
-
 
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
@@ -12110,7 +12103,6 @@ public:
     return nullptr;
   }
 
-
   void init();
   void startObstacles();
   void simulate();
@@ -12149,6 +12141,7 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
                  "Navier-Stokes)    \n";
     std::cout << "============================================================="
                  "==========\n";
+#ifdef _OPENMP
 #pragma omp parallel
     {
       int numThreads = omp_get_num_threads();
@@ -12157,6 +12150,7 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
              numThreads);
     }
   }
+#endif
 }
 
 Simulation::~Simulation() = default;
