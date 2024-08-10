@@ -1,3 +1,4 @@
+# 1 "main.cpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -105,12 +106,12 @@ class ArgumentParser : public CommandlineParser {
 
   const char commentStart;
 
-  // keep a reference from option origin
+
   ArgMap from_commandline;
   FileMap from_files;
   pArgMap from_code;
 
-  // for runtime interaction (we keep the original map)
+
   ArgMap mapRuntime;
 
 public:
@@ -133,7 +134,7 @@ public:
   Value &parseRuntime(std::string key);
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
@@ -216,27 +217,27 @@ bool CommandlineParser::check(std::string key) const {
 bool CommandlineParser::_isnumber(const std::string &s) const {
   char *end = NULL;
   strtod(s.c_str(), &end);
-  return end != s.c_str(); // only care if the number is numeric or not.  This
-                           // includes nan and inf
+  return end != s.c_str();
+
 }
 
 CommandlineParser::CommandlineParser(const int argc, char **argv)
     : iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true) {
-  // parse commandline <key> <value> pairs.  Key passed on the command
-  // line must start with a leading dash (-). For example:
-  // -mykey myvalue0 [myvalue1 ...]
+
+
+
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-') {
       std::string values = "";
       int itemCount = 0;
 
-      // check if the current key i is a list of values. If yes,
-      // concatenate them into a string
+
+
       for (int j = i + 1; j < argc; j++) {
-        // if the current value is numeric and (possibly) negative,
-        // do not interpret it as a key.
-        // XXX: [fabianw@mavt.ethz.ch; 2019-03-28] WARNING:
-        // This will treat -nan as a NUMBER and not as a KEY
+
+
+
+
         std::string sval(argv[j]);
         const bool leadingDash = (sval[0] == '-');
         const bool isNumeric = _isnumber(sval);
@@ -255,15 +256,15 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
         values = "true";
 
       std::string key(argv[i]);
-      key.erase(0, 1);   // remove leading '-'
-      if (key[0] == '+') // for key concatenation
+      key.erase(0, 1);
+      if (key[0] == '+')
       {
         key.erase(0, 1);
         if (!_existKey(key, mapArguments))
-          mapArguments[key] = Value(values); // skip leading white space
+          mapArguments[key] = Value(values);
         else
           mapArguments[key] += Value(values);
-      } else // regular key
+      } else
       {
         if (!_existKey(key, mapArguments))
           mapArguments[key] = Value(values);
@@ -273,7 +274,7 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
     }
 
   mute();
-  // printf("found %ld arguments of %d\n",mapArguments.size(),argc);
+
 }
 
 
@@ -286,45 +287,45 @@ Value &ArgumentParser::operator()(std::string key) {
   return retval;
 }
 
-} // namespace cubism
+}
 
 class BufferedLogger {
   struct Stream {
     std::stringstream stream;
     int requests_since_last_flush = 0;
-    // GN: otherwise icpc complains
+
     Stream(const Stream &c) {}
     Stream() {}
   };
   typedef std::unordered_map<std::string, Stream> container_type;
   container_type files;
 
-  /*
-   * Flush a single stream and reset the counter.
-   */
+
+
+
   void flush(container_type::iterator it);
 
 public:
   ~BufferedLogger() { flush(); }
 
-  /*
-   * Get or create a string for a given file name.
-   *
-   * The stream is automatically flushed if accessed
-   * many times since last flush.
-   */
+
+
+
+
+
+
   std::stringstream &get_stream(const std::string &filename);
 
-  /*
-   * Flush all streams.
-   */
+
+
+
   inline void flush(void) {
     for (auto it = files.begin(); it != files.end(); ++it)
       flush(it);
   }
 };
 
-extern BufferedLogger logger; // Declared in BufferedLogger.cpp.
+extern BufferedLogger logger;
 
 BufferedLogger logger;
 
@@ -345,45 +346,33 @@ std::stringstream &BufferedLogger::get_stream(const std::string &filename) {
       flush(it);
     return it->second.stream;
   } else {
-    // With request_since_last_flush == 0,
-    // the first flush will have AUTO_FLUSH_COUNT frames.
+
+
     auto new_it = files.emplace(filename, Stream()).first;
     return new_it->second.stream;
   }
 }
-namespace cubism // AMR_CUBISM
+namespace cubism
 {
-
-/**
- * @brief Hilbert Space-Filling Curve(SFC) in 2D.
- *
- * The Quadtree of GridBlocks of a simulation is traversed by an SFC.
- * Each node of the Quadtree (aka each GridBlock) is associated with
- * (i) a refinement level
- * (ii) indices (i,j) that indicate its coordinates in a uniform grid of the
- * same refinement level (iii) a Z-order index which is a unique integer along
- * an SFC that would traverse a uniform grid of the same refinement level (iv) a
- * unique integer (blockID_2). This class provides trasformations from each of
- * these attributes to the others.
- */
+# 369 "main.cpp"
 class SpaceFillingCurve2D {
 protected:
-  int BX;         ///< number of blocks in the x-direction at the coarsest level
-  int BY;         ///< number of blocks in the y-direction at the coarsest level
-  int levelMax;   ///< maximum level allowed
-  bool isRegular; ///< true if BX,BY,BZ are powers of 2
-  int base_level; ///< minimum (starting) level (determined from BX,BY,BZ)
+  int BX;
+  int BY;
+  int levelMax;
+  bool isRegular;
+  int base_level;
   std::vector<std::vector<long long>>
-      Zsave; ///< option to save block indices instead of computing them every
-             ///< time
-  std::vector<std::vector<int>>
-      i_inverse; ///< option to save blocks i index instead of computing it
-                 ///< every time
-  std::vector<std::vector<int>>
-      j_inverse; ///< option to save blocks j index instead of computing it
-                 ///< every time
+      Zsave;
 
-  /// convert (x,y) to index
+  std::vector<std::vector<int>>
+      i_inverse;
+
+  std::vector<std::vector<int>>
+      j_inverse;
+
+
+
   long long AxestoTranspose(const int *X_in, int b) const {
     int x = X_in[0];
     int y = X_in[1];
@@ -398,9 +387,9 @@ protected:
     return d;
   }
 
-  /// convert index to (x,y)
+
   void TransposetoAxes(long long index, int *X, int b) const {
-    // position, #bits, dimension
+
     int n = 1 << b;
     long long rx, ry, s, t = index;
     X[0] = 0;
@@ -415,7 +404,7 @@ protected:
     }
   }
 
-  /// rotate/flip a quadrant appropriately
+
   void rot(long long n, int *x, int *y, long long rx, long long ry) const {
     if (ry == 0) {
       if (rx == 1) {
@@ -423,7 +412,7 @@ protected:
         *y = n - 1 - *y;
       }
 
-      // Swap x and y
+
       int t = *x;
       *x = *y;
       *y = t;
@@ -473,8 +462,8 @@ public:
       }
   }
 
-  /// space-filling curve (i,j) --> 1D index (given level l)
-  long long forward(const int l, const int i, const int j) // const
+
+  long long forward(const int l, const int i, const int j)
   {
     const int aux = 1 << l;
 
@@ -494,7 +483,7 @@ public:
     return retval;
   }
 
-  /// space-filling curve Z-index --> (i,j) (given level l)
+
   void inverse(long long Z, int l, int &i, int &j) {
     if (isRegular) {
       int X[2] = {0, 0};
@@ -515,21 +504,21 @@ public:
     return;
   }
 
-  /// space-filling curve (i,j) --> 1D index (at level 0)
+
   long long IJ_to_index(int I, int J) {
-    // int index = (J + K * BY) * BX + I;
+
     long long index = Zsave[0][J * BX + I];
     return index;
   }
 
-  /// space-filling curve Z-index --> (i,j) (at level 0)
+
   void index_to_IJ(long long index, int &I, int &J) {
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     return;
   }
 
-  /// convert Z-index, level and ij index to single unique number
+
   long long Encode(int level, long long Z, int index[2]) {
     int lmax = levelMax;
     long long retval = 0;
@@ -563,14 +552,14 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 
-/// Single integer used to recognize if a Block exists in the Grid and by which
-/// MPI rank it is owned.
+
+
 struct TreePosition {
   int position{-3};
   bool CheckCoarser() const { return position == -2; }
@@ -581,102 +570,91 @@ struct TreePosition {
   void setCheckCoarser() { position = -2; }
   void setCheckFiner() { position = -1; }
 };
-
-/** @brief Meta-data for each GridBlock.
- *
- * This struct holds information such as the grid spacing and the level of
- * refinement of each GridBlock. It is also used to access the data of the
- * GridBlock through a relevant pointer. Importantly, all blocks are organized
- * in a single Octree/Quadtree, regardless of the number of fields/variables
- * used in the simulation (and the number of Grids). For this reason, only one
- * instance of SpaceFillingCurve is needed, which is owned as a static member of
- * the BlockInfo struct. The functions of the SpaceFillingCurve are also
- * accessed through static functions of BlockInfo.
- */
+# 596 "main.cpp"
 struct BlockInfo {
   long long
-      blockID; ///< all n BlockInfos owned by one rank have blockID=0,1,...,n-1
-  long long blockID_2;     ///< unique index of each BlockInfo, based on its
-                           ///< refinement level and Z-order curve index
-  long long Z;             ///< Z-order curve index of this block
-  long long Znei[3][3][3]; ///< Z-order curve index of 26 neighboring boxes
-                           ///< (Znei[1][1][1] = Z)
-  long long halo_block_id; ///< all m blocks at the boundary of a rank are
-                           ///< numbered by halo_block_id=0,1,...,m-1
-  long long Zparent; ///< Z-order curve index of parent block (after comression)
-  long long Zchild[2][2][2]; ///< Z-order curve index of blocks that replace
-                             ///< this one during refinement
-  double h;                  ///< grid spacing
-  double origin[3];          ///<(x,y,z) of block's origin
-  int index[3]; ///<(i,j,k) coordinates of block at given refinement level
-  int level;    ///< refinement level
-  void *ptrBlock{nullptr}; ///< Pointer to data stored in user-defined Block
-  void *auxiliary;         ///< Pointer to blockcase
-  bool changed2; ///< =true if block will be refined/compressed; used to update
-                 ///< State of neighbouring blocks among ranks
-  State state;   ///< Refine/Compress/Leave this block
+      blockID;
+  long long blockID_2;
 
-  /// Static function used to initialize static SFC
+  long long Z;
+  long long Znei[3][3][3];
+
+  long long halo_block_id;
+
+  long long Zparent;
+  long long Zchild[2][2][2];
+
+  double h;
+  double origin[3];
+  int index[3];
+  int level;
+  void *ptrBlock{nullptr};
+  void *auxiliary;
+  bool changed2;
+
+  State state;
+
+
   static int levelMax(int l = 0) {
     static int lmax = l;
     return lmax;
   }
 
 
-  /// Static function used to initialize static SFC (same as above but in 2D)
+
   static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
     static int a[2] = {nx, ny};
     return a[i];
   }
 
-  /// Pointer to single instance of SFC used (same as above but in 2D)
+
   static SpaceFillingCurve2D *SFC() {
     static SpaceFillingCurve2D Zcurve(blocks_per_dim(0), blocks_per_dim(1),
                                       levelMax());
     return &Zcurve;
   }
 
-  /// get Z-order index for coordinates (ix,iy,iz) and refinement level
+
   static long long forward(int level, int ix, int iy) {
     return (*SFC()).forward(level, ix, iy);
   }
 
-  /// get unique blockID_2 index from refinement level, Z-order index and
-  /// coordinates
+
+
   static long long Encode(int level, long long Z, int index[2]) {
     return (*SFC()).Encode(level, Z, index);
   }
 
-  /// get coordinates from refinement level and Z-order index
+
   static void inverse(long long Z, int l, int &i, int &j) {
     (*SFC()).inverse(Z, l, i, j);
   }
 
 
-  /// return position (x,y) in 2D, given indices of grid point
+
   template <typename T> inline void pos(T p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
     p[1] = origin[1] + h * (iy + 0.5);
   }
 
-  /// return position (x,y) in 2D, given indices of grid point
+
   template <typename T> inline std::array<T, 2> pos(int ix, int iy) const {
     std::array<T, 2> result;
     pos(result.data(), ix, iy);
     return result;
   }
 
-  /// used to order/sort blocks based on blockID_2, which is only a function of
-  /// Z and level
+
+
   bool operator<(const BlockInfo &other) const {
     return (blockID_2 < other.blockID_2);
   }
 
-  /// constructor will do nothing, 'setup' needs to be called instead
+
   BlockInfo() {};
 
-  /// Provide level, grid spacing, (x,y,z) origin and Z-index to
-  /// setup/initialize a blockinfo
+
+
   void setup(const int a_level, const double a_h, const double a_origin[3],
              const long long a_Z) {
     level = a_level;
@@ -692,8 +670,8 @@ struct BlockInfo {
 
     const int TwoPower = 1 << level;
 
-// Now we also set the indices of the neighbouring blocks, parent block and
-// child blocks.
+
+
     inverse(Z, level, index[0], index[1]);
     index[2] = 0;
 
@@ -720,7 +698,7 @@ struct BlockInfo {
     blockID = blockID_2;
   }
 
-  /// used for easier access of Znei[][][]
+
   long long Znei_(const int i, const int j, const int k) const {
     assert(abs(i) <= 1);
     assert(abs(j) <= 1);
@@ -728,39 +706,23 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-} // namespace cubism
+}
 
 namespace cubism {
-
-/**
- * @brief Auxiliary struct used to perform flux corrections at coarse-fine block
- * interfaces.
- *
- * This struct can save the fluxes passing though the six faces of one
- * GridBlock. Each BlockInfo owns a pointer to its own BlockCase. The pointer is
- * not a nullptr only if any of the six faces of the block have a neighboring
- * block at a different refinement level. When a stencil computation is
- * performed, each block can fill its own BlockCase with the fluxes passing
- * through its faces. Then, the FluxCorrection class will replace the coarse
- * fluxes with the sum of the fine fluxes, which ensures conservation of the
- * quantity whose flux we compute.
- *
- * @tparam BlockType The user-defined GridBlock
- * @tparam ElementType The type of elements stored by the user-defined GridBlock
- */
+# 751 "main.cpp"
 template <typename BlockType,
           typename ElementType = typename BlockType::ElementType>
 struct BlockCase {
   std::vector<std::vector<ElementType>>
-      m_pData;             ///< six vectors, one for each face
-  unsigned int m_vSize[3]; ///< sizes of the faces (in x,y and z)
-  bool storedFace[6]; ///< boolean variables, one for each face (=true if this
-                      ///< face needs flux corrections because it is at a
-                      ///< coarse-fine interface)
-  int level;          ///< refinement level of the associated block
-  long long Z;        ///< Z-order index of the associated block
+      m_pData;
+  unsigned int m_vSize[3];
+  bool storedFace[6];
 
-  /// Constructor.
+
+  int level;
+  long long Z;
+
+
   BlockCase(bool _storedFace[6], unsigned int nX, unsigned int nY,
             unsigned int nZ, int _level, long long _Z) {
     m_vSize[0] = nX;
@@ -780,7 +742,7 @@ struct BlockCase {
       int d1 = (d + 1) % 3;
       int d2 = (d + 2) % 3;
 
-      // assume everything is initialized to 0!!!!!!!!
+
       if (storedFace[2 * d])
         m_pData[2 * d].resize(m_vSize[d1] * m_vSize[d2]);
       if (storedFace[2 * d + 1])
@@ -792,37 +754,27 @@ struct BlockCase {
 
   ~BlockCase() {}
 };
-
-/**
- * @brief Performs flux corrections at coarse-fine block interfaces.
- *
- * This class can replace the coarse fluxes stored at BlockCases with the sum of
- * the fine fluxes (also stored at BlockCases). This ensures conservation of the
- * quantity whose flux we compute.
- *
- * @tparam TGrid The user-defined Grid/GridMPI
- * @tparam BlockType The user-defined GridBlock used by TGrid
- */
+# 806 "main.cpp"
 template <typename TGrid> class FluxCorrection {
 public:
-  using GridType = TGrid; ///< should be a 'Grid', 'GridMPI' or derived class
+  using GridType = TGrid;
   typedef typename GridType::BlockType BlockType;
   typedef typename BlockType::ElementType ElementType;
   typedef typename ElementType::RealType Real;
   typedef BlockCase<BlockType> Case;
   int rank{
-      0}; ///< MPI process ID (set to zero here, for a serial implementation)
+      0};
 
 protected:
   std::map<std::array<long long, 2>, Case *>
-      MapOfCases; ///< map between BlockCases and BlockInfos (two integers:
-                  ///< refinement level and Z-order index)
-  TGrid *grid;    ///< grid for which we perform the flux corrections
-  std::vector<Case> Cases; ///< BlockCases owned by FluxCorrection; BlockInfos
-                           ///< have pointers to these (in needed)
+      MapOfCases;
 
-  /// Perform flux correction for BlockInfo 'info' in the direction/face
-  /// specified by 'code'
+  TGrid *grid;
+  std::vector<Case> Cases;
+
+
+
+
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -843,7 +795,7 @@ protected:
     assert(CoarseCase.level == info.level);
 
     for (int B = 0; B <= 1;
-         B++) // loop over fine blocks that make up coarse face
+         B++)
     {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z = (*grid).getZforward(
@@ -887,8 +839,8 @@ protected:
   }
 
 public:
-  /// Prepare the FluxCorrection class for a given 'grid' by allocating
-  /// BlockCases at each coarse-fine interface
+
+
   virtual void prepare(TGrid &_grid) {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -964,11 +916,11 @@ public:
       }
   }
 
-  /// Go over each coarse-fine interface and perform the flux corrections,
-  /// assuming the associated BlockCases have been filled with the fluxes by the
-  /// user
+
+
+
   virtual void FillBlockCases() {
-    // This assumes that the BlockCases have been filled by the user somehow...
+
     std::vector<BlockInfo> &B = (*grid).getBlocksInfo();
 
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
@@ -1031,7 +983,7 @@ public:
               block(j, i2) += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
-          } else // if (d == 1)
+          } else
           {
             const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
             for (int i2 = 0; i2 < N2; i2++) {
@@ -1045,98 +997,91 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
-/** When dumping a Grid, blocks are grouped into larger rectangular regions
- *  of uniform resolution. These regions (BlockGroups) have blocks with the
- *  same level and with various Space-filling-curve coordinates Z.
- *  They have NXX x NYY x NZZ grid points, grid spacing h, an origin and a
- *  minimum and maximum index (indices of bottom left and top right blocks).
- */
+
+
+
+
+
+
 struct BlockGroup {
-  int i_min[3];             ///< min (i,j,k) index of a block of this group
-  int i_max[3];             ///< max (i,j,k) index of a block of this group
-  int level;                ///< refinement level
-  std::vector<long long> Z; ///< Z-order indices of blocks of this group
-  size_t ID;                ///< unique group number
-  double origin[3];         ///< Coordinates (x,y,z) of origin
-  double h;                 ///< Grid spacing of the group
-  int NXX;                  ///< Grid points of the group in the x-direction
-  int NYY;                  ///< Grid points of the group in the y-direction
-  int NZZ;                  ///< Grid points of the group in the z-direction
+  int i_min[3];
+  int i_max[3];
+  int level;
+  std::vector<long long> Z;
+  size_t ID;
+  double origin[3];
+  double h;
+  int NXX;
+  int NYY;
+  int NZZ;
 };
 
-/** Holds the GridBlocks and their meta-data (BlockInfos).
- * This class provides information about the current state of the Octree of
- * blocks in the simulation. The user can request if a particular block is
- * present in the Octree or if its parent/ children block(s) are present
- * instead. This class also provides access to the raw data from the simulation.
- */
+
+
+
+
+
+
 template <typename Block,
           template <typename X> class allocator = std::allocator>
 class Grid {
 public:
   typedef Block BlockType;
-  using ElementType = typename Block::ElementType; ///< Blocks hold ElementTypes
-  typedef typename Block::RealType Real; ///< Blocks must provide `RealType`.
+  using ElementType = typename Block::ElementType;
+  typedef typename Block::RealType Real;
 
 
-  /** A map from unique BlockInfo IDs to pointers to BlockInfos.
-   *  Should be accessed through function 'getBlockInfoAll'. If a Block does not
-   * belong to this rank and it is not adjacent to it, this map should not
-   * return something meaningful.
-   */
+
+
+
+
+
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-
-  /** A map from unique BlockInfo IDs to pointers to integers (TreePositions)
-   * that encode whether a BlockInfo is present in the Octree (and to which rank
-   * it belongs to) or not. This is a seperate object from BlockInfoAll because
-   * all the information we need for some blocks is merely whether they exist or
-   * not (i.e. we don't need their grid spacing or other meta-data) held by
-   * BlockInfos.
-   */
+# 1100 "main.cpp"
   std::unordered_map<long long, TreePosition> Octree;
 
-  /** Meta-data for blocks that belong to this rank.
-   *  This vector holds all the BlockInfos for blocks that belong to this rank.
-   * When the mesh changes, the contents of this vector become outdated and need
-   * to be updated. This is done through the FillPos() function. This array
-   * should be used when iterating over the blocks owned by a Grid.
-   */
+
+
+
+
+
+
   std::vector<BlockInfo> m_vInfo;
 
-  const int NX;           ///< Total # of blocks for level 0 in X-direction
-  const int NY;           ///< Total # of blocks for level 0 in Y-direction
-  const int NZ;           ///< Total # of blocks for level 0 in Z-direction
-  const double maxextent; ///< Maximum domain extent
-  const int levelMax;     ///< Maximum refinement level allowed
-  const int levelStart;   ///< Initial refinement level
-  const bool xperiodic;   ///< grid periodicity in x-direction
-  const bool yperiodic;   ///< grid periodicity in y-direction
-  const bool zperiodic;   ///< grid periodicity in z-direction
-  std::vector<BlockGroup> MyGroups; ///< used for dumping data
+  const int NX;
+  const int NY;
+  const int NZ;
+  const double maxextent;
+  const int levelMax;
+  const int levelStart;
+  const bool xperiodic;
+  const bool yperiodic;
+  const bool zperiodic;
+  std::vector<BlockGroup> MyGroups;
   std::vector<long long>
-      level_base; ///< auxiliary array used when searching is std::unordered_map
+      level_base;
   bool UpdateFluxCorrection{
-      true}; ///< FluxCorrection updates only when grid is refined/compressed
+      true};
   bool UpdateGroups{
-      true}; ///< (inactive) BlockGroups updated only when this is true
+      true};
   bool FiniteDifferences{
-      true}; ///< used by BlockLab, to determine what kind of coarse-fine
-             ///< interface interpolation to make.true means that biased
-             ///< stencils will be used to get an O(h^3) approximation
-  FluxCorrection<Grid> CorrectorGrid; ///< used for AMR flux-corrections at
-                                      ///< coarse-fine interfaces
+      true};
 
-  /// Get the TreePosition of block with Z-order index 'm', at refinement level
-  /// 'n'.
+
+  FluxCorrection<Grid> CorrectorGrid;
+
+
+
+
   TreePosition &Tree(const int m, const long long n) {
-    /*
-     * Return the position in the Octree of a Block at level m and SFC
-     * coordinate n.
-     */
+
+
+
+
     const long long aux = level_base[m] + n;
     const auto retval = Octree.find(aux);
     if (retval == Octree.end()) {
@@ -1153,12 +1098,12 @@ public:
       return retval->second;
     }
   }
-  /// Get the TreePosition of block with BlockInfo 'info'.
+
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
-  /// Get the TreePosition of block with BlockInfo 'info'.
+
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
 
-  /// Called in constructor to allocate all blocks at level=levelStart.
+
   void _alloc() {
     const int m = levelStart;
     const int TwoPower = 1 << m;
@@ -1179,8 +1124,8 @@ public:
     FillPos();
   }
 
-  /// Called to allocate a block with Z-order index 'm' at refinement level 'n',
-  /// when the grid is refined.
+
+
   void _alloc(const int m, const long long n) {
     allocator<Block> alloc;
 
@@ -1191,7 +1136,7 @@ public:
     Tree(m, n).setrank(rank());
   }
 
-  /// Called in destructor to deallocate all blocks.
+
   void _deallocAll() {
     allocator<Block> alloc;
     for (size_t i = 0; i < m_vInfo.size(); i++) {
@@ -1213,8 +1158,8 @@ public:
     Octree.clear();
   }
 
-  /// Called to deallocate a block with Z-order index 'm' at refinement level
-  /// 'n', when the grid is compressed.
+
+
   void _dealloc(const int m, const long long n) {
     allocator<Block> alloc;
     alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
@@ -1226,7 +1171,7 @@ public:
     }
   }
 
-  /// Called to deallocate many blocks with blockIDs in the vector 'dealloc_IDs'
+
   void dealloc_many(const std::vector<long long> &dealloc_IDs) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
       m_vInfo[j].changed2 = false;
@@ -1243,25 +1188,14 @@ public:
           break;
         }
       }
-    // for c++20
-    // std::erase_if(m_vInfo, [](BlockInfo & x) { return x.changed2; });
-    // for c++17
+
+
+
     m_vInfo.erase(std::remove_if(m_vInfo.begin(), m_vInfo.end(),
                                  [](const BlockInfo &x) { return x.changed2; }),
                   m_vInfo.end());
   }
-
-  /** Used when Block at level m_new with SFC coordinate n_new is added to the
-   * Grid as a result of compression of Block (m,n). Sets the state of the newly
-   * added Block. It also replaces BlockInfo(m,n) and Block(m,n) with
-   *  BlockInfo(m_new,n_new) and Block(m_new,n_new).
-   * @param m: Refinement level of the GridBlock that is compressed.
-   * @param n: Z-order index of the GridBlock that is compressed.
-   * @param m_new: Refinement level of the GridBlock that will replace the
-   * compressed GridBlock.
-   * @param n_new: Z-order index of the GridBlock that will replace the
-   * compressed GridBlock.
-   */
+# 1265 "main.cpp"
   void FindBlockInfo(const int m, const long long n, const int m_new,
                      const long long n_new) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
@@ -1272,21 +1206,14 @@ public:
         return;
       }
   }
-
-  /** The data in BlockInfoAll is always correct (states, blockIDs etc.), but
-   * this is not the case for m_vInfo, whose content might be outdated after
-   * grid refinement/compression or exchange of blocks between different ranks.
-   * This function updates their content.
-   * @param CopyInfos: set to true if the correct BlockInfos from BlockInfoAll
-   * should be copied to m_vInfo. Otherwise only selected variables are copied.
-   */
+# 1283 "main.cpp"
   virtual void FillPos(bool CopyInfos = true) {
-    std::sort(m_vInfo.begin(), m_vInfo.end()); // sort according to blockID_2
+    std::sort(m_vInfo.begin(), m_vInfo.end());
 
-    // The following will reserve memory for the unordered map.
-    // This will result in a thread-safe Tree(m,n) function
-    // as Octree will not change size when it is accessed by
-    // multiple threads. The number m_vInfo.size()/8 is arbitrary.
+
+
+
+
     Octree.reserve(Octree.size() + m_vInfo.size() / 8);
 
     if (CopyInfos)
@@ -1309,24 +1236,7 @@ public:
         assert(Tree(m, n).Exists());
       }
   }
-
-  /** Constructor.
-   * @param _NX: total number of blocks in the x-direction, at the coarsest
-   * refinement level.
-   * @param _NY: total number of blocks in the y-direction, at the coarsest
-   * refinement level.
-   * @param _NZ: total number of blocks in the z-direction, at the coarsest
-   * refinement level.
-   * @param _maxextent: maximum extent of the simulation (largest side of the
-   * rectangular domain).
-   * @param _levelStart: refinement level where all allocated GridBlocks will be
-   * @param _levelMax: maximum refinement level allowed
-   * @param AllocateBlocks: true if GridBlocks should be allocated (false if
-   * they are allocated by a derived class)
-   * @param a_xperiodic: true if the domain is periodic in the x-direction
-   * @param a_yperiodic: true if the domain is periodic in the y-direction
-   * @param a_zperiodic: true if the domain is periodic in the z-direction
-   */
+# 1330 "main.cpp"
   Grid(const unsigned int _NX, const unsigned int _NY = 1,
        const unsigned int _NZ = 1, const double _maxextent = 1,
        const unsigned int _levelStart = 0, const unsigned int _levelMax = 1,
@@ -1353,21 +1263,21 @@ public:
       _alloc();
   }
 
-  /// Destructor
+
   virtual ~Grid() { _deallocAll(); }
 
-  /// Returns GridBlock at level 'm' with Z-index 'n'
+
   virtual Block *avail(const int m, const long long n) {
     return (Block *)getBlockInfoAll(m, n).ptrBlock;
   }
 
-  /// Returns MPI ranks of this Grid
+
   virtual int rank() const { return 0; }
 
-  /**Given two vectors with the SFC coordinate (Z) and the level of each block,
-   * this function will erase the current structure of the grid and create a new
-   * one, with the given blocks. This is used when reading data from file
-   * (possibly to restart) or when initializing the simulation.*/
+
+
+
+
   virtual void initialize_blocks(const std::vector<long long> &blocksZ,
                                  const std::vector<short int> &blockslevel) {
     _deallocAll();
@@ -1399,7 +1309,7 @@ public:
   }
 
 
-  /// Returns Z-index of GridBlock with indices ij (ix,iy) at level 'level'
+
   long long getZforward(const int level, const int i, const int j) const {
     const int TwoPower = 1 << level;
     const int ix = (i + TwoPower * NX) % (NX * TwoPower);
@@ -1407,22 +1317,22 @@ public:
     return BlockInfo::forward(level, ix, iy);
   }
 
-  /// Returns GridBlock with indices ij (ix,iy) at level 'm'
+
   Block *avail1(const int ix, const int iy, const int m) {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
 
 
-  /// Used to iterate though all blocks (ID=0,...,m_vInfo.size()-1)
+
   Block &operator()(const long long ID) {
     return *(Block *)m_vInfo[ID].ptrBlock;
   }
 
-  /// Returns the number of blocks at refinement level 0
+
   std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
 
-  /// Returns the number of blocks at refinement level 'levelMax-1'
+
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
         NX << (levelMax - 1),
@@ -1431,20 +1341,20 @@ public:
     };
   }
 
-  /// Returns the number of grid points at refinement level 'levelMax-1'
+
   std::array<int, 3> getMaxMostRefinedCells() const {
     const auto b = getMaxMostRefinedBlocks();
     return {b[0] * Block::sizeX, b[1] * Block::sizeY, b[2] * Block::sizeZ};
   }
 
-  /// Returns the maximum refinement level allowed
+
   inline int getlevelMax() const { return levelMax; }
 
-  /**
-   * Access BlockInfo at level m with Space-Filling-Curve coordinate n.
-   * If the BlockInfo has not been allocated (not found in the
-   * std::unordered_map), allocate it as well.
-   */
+
+
+
+
+
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
@@ -1476,27 +1386,27 @@ public:
     }
   }
 
-  /// Returns the vector of BlockInfos of this Grid
+
   std::vector<BlockInfo> &getBlocksInfo() { return m_vInfo; }
 
-  /// Returns the vector of BlockInfos of this Grid
+
   const std::vector<BlockInfo> &getBlocksInfo() const { return m_vInfo; }
 
-  /// Returns the total number of MPI processes
+
   virtual int get_world_size() const { return 1; }
 
-  /// Does nothing for a single rank (no MPI)
+
   virtual void UpdateBoundary(bool clean = false) {}
 
-  /// Used to create BlockGroups, when the Grid is to be dumped to a file
-  void UpdateMyGroups() {
-    /*
-     * This function is used before dumping the Grid. It groups adjacent blocks
-     * of the same resolution (and owned by the same MPI rank) to BlockGroups
-     * that will be dumped as a collection of rectangular uniform grids.
-     */
 
-    // if (!UpdateGroups) return; //TODO : does not work for CUP2D
+  void UpdateMyGroups() {
+
+
+
+
+
+
+
     if (rank() == 0)
       std::cout << "Updating groups..." << std::endl;
 
@@ -1520,7 +1430,7 @@ public:
       newGroup.h = I.h;
       newGroup.Z.push_back(I.Z);
 
-      const int base[3] = {I.index[0], I.index[1], 0}; // I.index[2]
+      const int base[3] = {I.index[0], I.index[1], 0};
       int i_off[4] = {};
       bool ready_[4] = {};
 
@@ -1576,10 +1486,10 @@ public:
 
       const int ix_min = base[0] - i_off[0];
       const int iy_min = base[1] - i_off[1];
-      const int iz_min = 0; // base[2] - i_off[2];
+      const int iz_min = 0;
       const int ix_max = base[0] + i_off[2];
       const int iy_max = base[1] + i_off[3];
-      const int iz_max = 0; // base[2] + i_off[5];
+      const int iz_max = 0;
 
       long long n_base = getZforward(I.level, ix_min, iy_min);
 
@@ -1598,40 +1508,32 @@ public:
 
       newGroup.NXX = (newGroup.i_max[0] - newGroup.i_min[0] + 1) * nX + 1;
       newGroup.NYY = (newGroup.i_max[1] - newGroup.i_min[1] + 1) * nY + 1;
-      newGroup.NZZ = 2; //(newGroup.i_max[2] - newGroup.i_min[2] + 1)*nZ + 1;
+      newGroup.NZZ = 2;
 
       MyGroups.push_back(newGroup);
     }
   }
 };
 
-} // namespace cubism
+}
 namespace cubism {
-
-/**
- * @brief Describes a stencil of points.
- *
- * This struct is used by BlockLab to determine what halo cells need to be
- * communicated between different GridBlocks. For a gridpoint (i,j,k) the
- * gridpoints included in the stencil are points (i+ix,j+iy,k+iz), where
- * ix,iy,iz are determined by the stencil starts and ends.
- */
+# 1619 "main.cpp"
 struct StencilInfo {
-  int sx; ///< start of stencil in the x-direction (sx <= ix)
-  int sy; ///< start of stencil in the y-direction (sy <= iy)
-  int sz; ///< start of stencil in the z-direction (sz <= iz)
-  int ex; ///< end of stencil (+1) in the x-direction (ix < ex)
-  int ey; ///< end of stencil (+1) in the y-direction (iy < ey)
-  int ez; ///< end of stencil (+1) in the z-direction (iz < ez)
+  int sx;
+  int sy;
+  int sz;
+  int ex;
+  int ey;
+  int ez;
   std::vector<int>
-      selcomponents; ///< Components ('members') of Element that will be used
-  bool tensorial;    ///< if false, stencil only includes points with
-                     ///< |ix|+|iy|+|iz| <= 1
+      selcomponents;
+  bool tensorial;
 
-  /// Empty constructor.
+
+
   StencilInfo() {}
 
-  /// Constructor
+
   StencilInfo(int _sx, int _sy, int _sz, int _ex, int _ey, int _ez,
               bool _tensorial, const std::vector<int> &components)
       : sx(_sx), sy(_sy), sz(_sz), ex(_ex), ey(_ey), ez(_ez),
@@ -1644,12 +1546,12 @@ struct StencilInfo {
     }
   }
 
-  /// Copy constructor.
+
   StencilInfo(const StencilInfo &c)
       : sx(c.sx), sy(c.sy), sz(c.sz), ex(c.ex), ey(c.ey), ez(c.ez),
         selcomponents(c.selcomponents), tensorial(c.tensorial) {}
 
-  /// Return a vector with all integers that make up this StencilInfo.
+
   std::vector<int> _all() const {
     int extra[] = {sx, sy, sz, ex, ey, ez, (int)tensorial};
     std::vector<int> all(selcomponents);
@@ -1658,7 +1560,7 @@ struct StencilInfo {
     return all;
   }
 
-  /// Check if one stencil is contained in another.
+
   bool operator<(StencilInfo s) const {
     std::vector<int> me = _all(), you = s._all();
 
@@ -1673,7 +1575,7 @@ struct StencilInfo {
     return me.size() < you.size();
   }
 
-  /// Check if the ends are smaller than the starts of this stencil.
+
   bool isvalid() const {
     const bool not0 = selcomponents.size() == 0;
     const bool not1 = sx > 0 || ex <= 0 || sx > ex;
@@ -1684,7 +1586,7 @@ struct StencilInfo {
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
@@ -1761,14 +1663,14 @@ inline void unpack_subregion(
   }
 }
 
-} // namespace cubism
+}
 
 namespace cubism {
 
-/** \brief Auxiliary class for SynchronizerMPI_AMR; similar to std::vector
- * however, the stored data does not decrease in size, it can only increase (the
- * use of this class instead of std::vector in AMR_Synchronizer resulted in
- * faster performance). */
+
+
+
+
 template <typename T> class GrowingVector {
   size_t pos;
   size_t s;
@@ -1824,20 +1726,20 @@ public:
   ~GrowingVector() { v.clear(); }
 };
 
-/** \brief Auxiliary struct for SynchronizerMPI_AMR; describes how two adjacent
- * blocks touch.*/
-struct Interface {
-  BlockInfo *infos[2]; ///< the two blocks of the interface
-  int icode[2]; ///< Two integers from 0 to 26. Each integer can be decoded to a
-                ///< 3-digit number ABC. icode[0] = 1-10 (A=1,B=-1,C=0) means
-                ///< Block 1 is at the +x,-y side of Block 0.
-  bool CoarseStencil; ///< =true if the blocks need to exchange cells of their
-                      ///< parent blocks
-  bool ToBeKept; ///< false if this inteface is a subset of another inteface
-                 ///< that will be sent anyway
-  int dis;       ///< auxiliary variable
 
-  /// Class constructor
+
+struct Interface {
+  BlockInfo *infos[2];
+  int icode[2];
+
+
+  bool CoarseStencil;
+
+  bool ToBeKept;
+
+  int dis;
+
+
   Interface(BlockInfo &i0, BlockInfo &i1, const int a_icode0,
             const int a_icode1) {
     infos[0] = &i0;
@@ -1863,28 +1765,28 @@ struct Interface {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; similar to StencilInfo.
- * It is possible that the halo cells needed by two or more blocks overlap. To
- * avoid sending the same data twice, this struct has the option to keep track
- * of other MyRanges that are contained in it and do not need to be
- * sent/received.
- */
+
+
+
+
+
+
 struct MyRange {
   std::vector<int>
-      removedIndices;  ///< keep track of all 'index' from other MyRange
-                       ///< instances that are contained in this one
-  int index;           ///< index of this instance of MyRange
-  int sx;              ///< stencil start in x-direction
-  int sy;              ///< stencil start in y-direction
-  int sz;              ///< stencil start in z-direction
-  int ex;              ///< stencil end in x-direction
-  int ey;              ///< stencil end in y-direction
-  int ez;              ///< stencil end in z-direction
-  bool needed{true};   ///< set to false if this MyRange is contained in another
-  bool avg_down{true}; ///< set to true if gridpoints of this MyRange will be
-                       ///< averaged down for coarse stencil interpolation
+      removedIndices;
 
-  /// check if another MyRange is contained here
+  int index;
+  int sx;
+  int sy;
+  int sz;
+  int ex;
+  int ey;
+  int ez;
+  bool needed{true};
+  bool avg_down{true};
+
+
+
   bool contains(MyRange &r) const {
     if (avg_down != r.avg_down)
       return false;
@@ -1894,7 +1796,7 @@ struct MyRange {
            (sz <= r.sz && r.ez <= ez) && (Vr < V);
   }
 
-  /// keep track of indices of other MyRanges that are contained here
+
   void Remove(const MyRange &other) {
     size_t s = removedIndices.size();
     removedIndices.resize(s + other.removedIndices.size());
@@ -1903,64 +1805,55 @@ struct MyRange {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; Meta-data of buffers sent among
- * processes. Data is received in one contiguous buffer. This struct helps
- * unpack the buffer and put data in the correct locations.
- */
+
+
+
+
 struct UnPackInfo {
-  int offset;    ///< Offset in the buffer where the data related to this
-                 ///< UnPackInfo starts.
-  int lx;        ///< Total size of data in x-direction
-  int ly;        ///< Total size of data in y-direction
-  int lz;        ///< Total size of data in z-direction
-  int srcxstart; ///< Where in x-direction to start receiving data
-  int srcystart; ///< Where in y-direction to start receiving data
-  int srczstart; ///< Where in z-direction to start receiving data
+  int offset;
+
+  int lx;
+  int ly;
+  int lz;
+  int srcxstart;
+  int srcystart;
+  int srczstart;
   int LX;
   int LY;
-  int CoarseVersionOffset; ///< Offset in the buffer where the coarsened data
-                           ///< related to this UnPackInfo starts.
+  int CoarseVersionOffset;
+
   int CoarseVersionLX;
   int CoarseVersionLY;
-  int CoarseVersionsrcxstart; ///< Where in x-direction to start receiving
-                              ///< coarsened data
-  int CoarseVersionsrcystart; ///< Where in y-direction to start receiving
-                              ///< coarsened data
-  int CoarseVersionsrczstart; ///< Where in z-direction to start receiving
-                              ///< coarsened data
-  int level;                  ///< refinement level of data
-  int icode; ///< Integer from 0 to 26, can be decoded to a 3-digit number ABC.
-             ///< icode = 1-10 (A=1,B=-1,C=0) means Block 1 is at the +x,-y side
-             ///< of Block 0.
-  int rank;  ///< rank from which this data is received
-  int index_0;          ///< index of Block in x-direction that sent this data
-  int index_1;          ///< index of Block in y-direction that sent this data
-  int index_2;          ///< index of Block in z-direction that sent this data
-  long long IDreceiver; ///< unique blockID2 of receiver
+  int CoarseVersionsrcxstart;
+
+  int CoarseVersionsrcystart;
+
+  int CoarseVersionsrczstart;
+
+  int level;
+  int icode;
+
+
+  int rank;
+  int index_0;
+  int index_1;
+  int index_2;
+  long long IDreceiver;
 };
-
-/** Auxiliary struct for SynchronizerMPI_AMR; keeps track of stencil and range
- * sizes that need to be sent/received. For a block in 3D, there are a total of
- * 26 possible directions that might require halo cells. There are also four
- * types of halo cells to exchange, based on the refinement level of the two
- *  neighboring blocks: 1)same level 2)coarse-fine 3)fine-coarse 4)same level
- * that also need to exchange averaged down data, in order to perform
- * coarse-fine interpolation for other blocks. This class creates 4 x 26
- * (actually 4 x 27) MyRange instances, based on a given StencilInfo.
- */
+# 1951 "main.cpp"
 struct StencilManager {
-  const StencilInfo stencil; ///< stencil to send/receive
+  const StencilInfo stencil;
   const StencilInfo
-      Cstencil; ///< stencil used by BlockLab for coarse-fine interpolation
-  int nX;       ///< Block size if x-direction
-  int nY;       ///< Block size if y-direction
-  int nZ;       ///< Block size if z-direction
-  int sLength[3 * 27 * 3]; ///< Length of all possible stencils to send/receive
+      Cstencil;
+  int nX;
+  int nY;
+  int nZ;
+  int sLength[3 * 27 * 3];
   std::array<MyRange, 3 * 27>
-      AllStencils;      ///< All possible stencils to send/receive
-  MyRange Coarse_Range; ///< range for Cstencil
+      AllStencils;
+  MyRange Coarse_Range;
 
-  /// Class constructor
+
   StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
                  int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
@@ -1975,8 +1868,8 @@ struct StencilManager {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
 
-      // This also works for DIMENSION=2 and code[2]=0
-      // Same level sender and receiver
+
+
       MyRange &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
@@ -1988,9 +1881,9 @@ struct StencilManager {
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
 
-      // Fine sender, coarse receiver
-      // Fine sender just needs to send "double" the stencil, so that what it
-      // sends gets averaged down
+
+
+
       MyRange &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? nX + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? nY + 2 * stencil.sy : 0) : 0;
@@ -2002,9 +1895,9 @@ struct StencilManager {
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
 
-      // Coarse sender, fine receiver
-      // Coarse sender just needs to send "half" the stencil plus extra cells
-      // for coarse-fine interpolation
+
+
+
       MyRange &range2 = AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? nX / 2 + sC[0] : 0) : 0;
       range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
@@ -2018,15 +1911,15 @@ struct StencilManager {
     }
   }
 
-  /// Return stencil XxYxZ dimensions for Cstencil, based on integer icode
+
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
     L[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
 
-  /// Return stencil XxYxZ dimensions for Cstencil, based on integer icode and
-  /// refinement level of sender/receiver
+
+
   void DetermineStencilLength(const int level_sender, const int level_receiver,
                               const int icode, int *L) {
     if (level_sender == level_receiver) {
@@ -2044,7 +1937,7 @@ struct StencilManager {
     }
   }
 
-  /// Determine which stencil to send, based on interface type of two blocks
+
   MyRange &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
     if (CoarseVersion) {
       AllStencils[f.icode[1] + 2 * 27].needed = true;
@@ -2133,8 +2026,8 @@ struct StencilManager {
     }
   }
 
-  /// Fix MyRange classes that contain other MyRange classes, in order to avoid
-  /// sending the same data twice
+
+
   void __FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
                        int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
                        int &sx, int &sy, int &sz) {
@@ -2156,8 +2049,8 @@ struct StencilManager {
     }
   }
 
-  /// Fix MyRange classes that contain other MyRange classes, in order to avoid
-  /// sending the same data twice
+
+
   void __FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
                         int &sy, int &sz) {
     if (f.infos[0]->level != f.infos[1]->level ||
@@ -2171,142 +2064,110 @@ struct StencilManager {
   }
 };
 
-/** Auxiliary struct for SynchronizerMPI_AMR; stored a number of halo blocks
- * that received their halo cells from a particular set of ranks.
- */
+
+
+
 struct HaloBlockGroup {
-  std::vector<BlockInfo *> myblocks; ///< Halo blocks for this group.
-  std::set<int> myranks;             ///< MPI ranks for this group.
+  std::vector<BlockInfo *> myblocks;
+  std::set<int> myranks;
   bool ready =
-      false; ///< Check whether communication for this group has completed.
+      false;
 };
-
-/**
- *  @brief Class responsible for halo cell exchange between different MPI
- * processes. This class works together with BlockLabMPI to fill the halo cells
- * needed for each GridBlock. To overlap communication and computation, it
- * distinguishes between 'inner' blocks and 'halo' blocks. Inner blocks do not
- * need halo cells from other MPI processes, so they can be immediately filled;
- * halo blocks are at the boundary of a rank and require cells owned by other
- * ranks. This class will initiate communication for halo blocks and will
- * provide an array with pointers to inner blocks. While waiting for
- * communication to complete, the user can operate on inner blocks, which allows
- * for communication-computation overlap.
- *
- *  An instance of this class is constructed by providing the StencilInfo (aka
- * the stencil) for a particular computation, in the class constructor. Then,
- * for a fixed mesh configuration, one call to '_Setup()' is required. This
- * identifies the boundaries of each rank, its neighbors and the types of
- * interfaces (faces/edges/corners) shared by two blocks that belong to two
- * different ranks. '_Setup()' will then have to be called again only when the
- * mesh changes (this call is done by the MeshAdaptation class).
- *
- *  To use this class and send/receive halo cells, the 'sync()' function needs
- * to be called. This initiates communication and MPI 'sends' and 'receives'.
- * Once called, the inner and halo blocks (with their halo cells) can be
- * accessed through 'avail_inner' and 'avail_halo'. Note that calling
- * 'avail_halo' will result in waiting time, for the communication of halo cells
- * to complete. Therefore, 'avail_inner' should be called first, while
- * communication is performed in the background. Once the inner blocks are
- * processed, 'avail_halo' should be used to process the outer/halo blocks.
- *
- *  @tparam Real: type of data to be sent/received (double/float etc.)
- *  @tparam TGrid: type of grid to operate on (should be GridMPI)
- */
+# 2216 "main.cpp"
 template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
-  MPI_Comm comm; ///< MPI communicator, same as the communicator from 'grid'
-  int rank;      ///< MPI process ID, same as the ID from 'grid'
-  int size;      ///< total number of processes, same as number from 'grid'
+  MPI_Comm comm;
+  int rank;
+  int size;
   StencilInfo
-      stencil; ///< stencil associated with kernel (advection,diffusion etc.)
-  StencilInfo Cstencil; ///< stencil required to do coarse-fine interpolation
-  TGrid *grid;          ///< grid which owns blocks that need ghost cells
-  int nX;               ///< size of each block in x-direction
-  int nY;               ///< size of each block in y-direction
-  int nZ;               ///< size of each block in z-direction
-  MPI_Datatype MPIREAL; ///< MPI datatype matching template parameter 'Real'
+      stencil;
+  StencilInfo Cstencil;
+  TGrid *grid;
+  int nX;
+  int nY;
+  int nZ;
+  MPI_Datatype MPIREAL;
 
   std::vector<BlockInfo *>
-      inner_blocks; ///< will contain inner blocks with loaded ghost cells
+      inner_blocks;
   std::vector<BlockInfo *>
-      halo_blocks; ///< will contain outer blocks with loaded ghost cells
+      halo_blocks;
 
   std::vector<GrowingVector<Real>>
-      send_buffer; ///< send_buffer[i] contains data to send to rank i
+      send_buffer;
   std::vector<GrowingVector<Real>>
-      recv_buffer; ///< recv_buffer[i] will receive data from rank i
+      recv_buffer;
 
   std::vector<MPI_Request>
-      requests; ///< requests for non-blocking sends/receives
+      requests;
 
-  std::vector<int> send_buffer_size; ///< sizes of send_buffer (communicated
-                                     ///< before actual data)
-  std::vector<int> recv_buffer_size; ///< sizes of recv_buffer (communicated
-                                     ///< before actual data)
+  std::vector<int> send_buffer_size;
 
-  std::set<int> Neighbors; ///< IDs of neighboring MPI processes
+  std::vector<int> recv_buffer_size;
+
+
+  std::set<int> Neighbors;
 
   GrowingVector<GrowingVector<UnPackInfo>>
-      myunpacks; ///< vector of vectors of UnPackInfos; unpacks[i] contains all
-                 ///< UnPackInfos needed for a block with halo_blockID=i
+      myunpacks;
+
 
   StencilManager SM;
 
   const unsigned int
-      gptfloats; ///< number of Reals (doubles/float) each Element from Grid has
-  const int NC;  ///< number of components from each Element to send/receive
+      gptfloats;
+  const int NC;
 
-  /// meta-data for the parts of a particular block that will be sent to another
-  /// rank
+
+
   struct PackInfo {
-    Real *block; ///< Pointer to the first element of the block whose data will
-                 ///< be sent
-    Real *pack;  ///< Pointer to the buffer where the block's elements will be
-                 ///< copied
-    int sx; ///< Start of the block's subset that will be sent (in x-direction)
-    int sy; ///< Start of the block's subset that will be sent (in y-direction)
-    int sz; ///< Start of the block's subset that will be sent (in z-direction)
-    int ex; ///< End of the block's subset that will be sent (in x-direction)
-    int ey; ///< End of the block's subset that will be sent (in y-direction)
-    int ez; ///< End of the block's subset that will be sent (in z-direction)
+    Real *block;
+
+    Real *pack;
+
+    int sx;
+    int sy;
+    int sz;
+    int ex;
+    int ey;
+    int ez;
   };
   std::vector<GrowingVector<PackInfo>>
-      send_packinfos; ///< vector of vectors of PackInfos; send_packinfos[i]
-                      ///< contains all the PackInfos to send to rank i
+      send_packinfos;
+
 
   std::vector<GrowingVector<Interface>>
-      send_interfaces; ///< vector of vectors of Interfaces; send_interfaces[i]
-                       ///< contains all the Interfaces this rank will send to
-                       ///< rank i
+      send_interfaces;
+
+
   std::vector<GrowingVector<Interface>>
-      recv_interfaces; ///< vector of vectors of Interfaces; recv_interfaces[i]
-                       ///< contains all the Interfaces this rank will receive
-                       ///< from rank i
+      recv_interfaces;
+
+
 
   std::vector<std::vector<int>>
-      ToBeAveragedDown; ///< vector of vectors of Interfaces that need to be
-                        ///< averaged down when sent
+      ToBeAveragedDown;
 
-  bool use_averages; ///< if true, fine blocks average down their cells to
-                     ///< provide halo cells for coarse blocks (2nd order
-                     ///< accurate). If false, they perform a 3rd-order accurate
-                     ///< interpolation instead (which is the accuracy needed to
-                     ///< compute 2nd derivatives).
+
+  bool use_averages;
+
+
+
+
 
   std::unordered_map<std::string, HaloBlockGroup>
-      mapofHaloBlockGroups; ///< Maps groups of ranks (encoded to strings) to
-                            ///< groups of halo blocks for communication.
+      mapofHaloBlockGroups;
+
 
   std::unordered_map<int, MPI_Request *>
-      mapofrequests; ///< Maps each request for communication to an integer
+      mapofrequests;
 
-  /// Auxiliary struct used to avoid sending the same data twice
+
   struct DuplicatesManager {
-    /// Auxiliary struct to detect and remove duplicate Interfaces
-    struct cube // could be more efficient
+
+    struct cube
     {
       GrowingVector<MyRange>
-          compass[27]; ///< All possible MyRange stencil that will be exchanged
+          compass[27];
 
       void clear() {
         for (int i = 0; i < 27; i++)
@@ -2315,7 +2176,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
 
       cube() {}
 
-      /// Returns the MyRange objects that will be kept
+
       std::vector<MyRange *> keepEl() {
         std::vector<MyRange *> retval;
         for (int i = 0; i < 27; i++)
@@ -2326,7 +2187,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
         return retval;
       }
 
-      /// Will return the indices of the removed MyRange objects (in v)
+
       void __needed(std::vector<int> &v) {
         static constexpr std::array<int, 3> faces_and_edges[18] = {
             {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
@@ -2389,15 +2250,15 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     };
     cube C;
 
-    std::vector<int> offsets; ///< As the send buffer for each rank is being
-                              ///< filled, offset[i] is the current offset where
-                              ///< sent data is located in the send buffer.
+    std::vector<int> offsets;
+
+
     std::vector<int>
-        offsets_recv; ///< As the send buffer for each rank is being filled,
-                      ///< offset[i] is the current offset where sent data is
-                      ///< located in the send buffer.
-    SynchronizerMPI_AMR *Synch_ptr; ///< pointer to the SynchronizerMPI_AMR for
-                                    ///< which to remove duplicate data
+        offsets_recv;
+
+
+    SynchronizerMPI_AMR *Synch_ptr;
+
     std::vector<int> positions;
     std::vector<size_t> sizes;
 
@@ -2409,19 +2270,19 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       Synch_ptr = &Synch;
     }
 
-    /// Adds an element to 'positions[r]'
+
     void Add(const int r, const int index) {
       if (sizes[r] == 0)
         positions[r] = index;
       sizes[r]++;
     }
 
-    /**Remove duplicate data that will be sent to one rank.
-     * @param r: the rank where the data will be sent
-     * @param f: all the Interfaces between rank r and this rank
-     * @param total_size: eventual size of the send buffer to rank r, after
-     * duplicate Interfaces are removed.
-     */
+
+
+
+
+
+
     void RemoveDuplicates(const int r, std::vector<Interface> &f,
                           int &total_size) {
       if (sizes[r] == 0)
@@ -2588,8 +2449,8 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     }
   };
 
-  /// Check if blocks on the same refinement level need to exchange averaged
-  /// down cells that will be used for coarse-fine interpolation.
+
+
   bool UseCoarseStencil(const Interface &f) {
     BlockInfo &a = *f.infos[0];
     BlockInfo &b = *f.infos[1];
@@ -2631,7 +2492,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     return retval;
   }
 
-  /// Auxiliary function to average down data
+
   void AverageDownAndFill(Real *__restrict__ dst, const BlockInfo *const info,
                           const int code[3]) {
     const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
@@ -2666,7 +2527,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     }
   }
 
-  /// Auxiliary function to average down data
+
   void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
                            const int code[3]) {
     const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
@@ -2710,7 +2571,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       }
   }
 
-  /// Maps a set of integers to a string
+
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {
@@ -2723,8 +2584,8 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   }
 
 public:
-  /// Needs to be called whenever the grid changes because of
-  /// refinement/compression
+
+
   void _Setup() {
     Neighbors.clear();
     inner_blocks.clear();
@@ -2776,10 +2637,10 @@ public:
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
 
-        // if (!stencil.tensorial && !Cstencil.tensorial &&
-        // abs(code[0])+abs(code[1])+abs(code[2])>1) continue; if
-        // (!stencil.tensorial && use_averages == false &&
-        // abs(code[0])+abs(code[1])+abs(code[2])>1) continue;
+
+
+
+
 
         const TreePosition &infoNeiTree =
             grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
@@ -2844,15 +2705,15 @@ public:
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
 
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) ==
-                  1) // if filling a face need also two edges and a corner
+                  1)
               {
                 const int d0 = abs(
-                    code[1] + 2 * code[2]); // =0 if |code[0]|=1, =1 if
-                                            // |code[1]|=1, =2 if |code[2]|=1
+                    code[1] + 2 * code[2]);
+
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
 
-                // corner being filled
+
                 int code3[3];
                 code3[d0] = code[d0];
                 code3[d1] = -2 * (info.index[d1] % 2) + 1;
@@ -2860,7 +2721,7 @@ public:
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
 
-                // edge in the d1 direction
+
                 int code4[3];
                 code4[d0] = code[d0];
                 code4[d1] = code3[d1];
@@ -2868,7 +2729,7 @@ public:
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
 
-                // edge in the d2 direction
+
                 int code5[3];
                 code5[d0] = code[d0];
                 code5[d1] = 0;
@@ -2894,12 +2755,12 @@ public:
 
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
-          for (int B = 0; B <= 3; B += Bstep) // loop over blocks that make up
-                                              // face/edge/corner (4/2/1 blocks)
+          for (int B = 0; B <= 3; B += Bstep)
+
           {
             if (Bstep == 1 && B >= 2)
               continue;
@@ -2936,16 +2797,16 @@ public:
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
 
-              if (Bstep == 1) // if I'm filling a face then I'm also filling two
-                              // edges and a corner
+              if (Bstep == 1)
+
               {
                 const int d0 = abs(
-                    code[1] + 2 * code[2]); // =0 if |code[0]|=1, =1 if
-                                            // |code[1]|=1, =2 if |code[2]|=1
+                    code[1] + 2 * code[2]);
+
                 const int d1 = (d0 + 1) % 3;
                 const int d2 = (d0 + 2) % 3;
 
-                // corner being filled
+
                 int code3[3];
                 code3[d0] = -code[d0];
                 code3[d1] = -2 * (infoNeiFiner.index[d1] % 2) + 1;
@@ -2953,7 +2814,7 @@ public:
                 const int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
 
-                // edge in the d1 direction
+
                 int code4[3];
                 code4[d0] = -code[d0];
                 code4[d1] = code3[d1];
@@ -2961,7 +2822,7 @@ public:
                 const int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
 
-                // edge in the d2 direction
+
                 int code5[3];
                 code5[d0] = -code[d0];
                 code5[d1] = 0;
@@ -2991,7 +2852,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (isInner) {
         info.halo_block_id = -1;
@@ -3018,7 +2879,7 @@ public:
       }
       grid->getBlockInfoAll(info.level, info.Z).halo_block_id =
           info.halo_block_id;
-    } // i-loop
+    }
 
     myunpacks.resize(halo_blocks.size());
 
@@ -3066,7 +2927,7 @@ public:
             ToBeAveragedDown[r].push_back(i);
             ToBeAveragedDown[r].push_back(f.dis + V * NC);
           }
-        } else // receiver is coarser, so sender averages down data first
+        } else
         {
           ToBeAveragedDown[r].push_back(i);
           ToBeAveragedDown[r].push_back(f.dis);
@@ -3076,7 +2937,7 @@ public:
 
     mapofHaloBlockGroups.clear();
     for (auto &info : halo_blocks) {
-      // 1. Find ranks from which 'info' wants to receive
+
       const int id = info->halo_block_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
@@ -3084,11 +2945,11 @@ public:
         const UnPackInfo &unpack = unpacks[jj];
         ranks.insert(unpack.rank);
       }
-      // 2. Encode the set of ranks to one number
+
       auto set_ID = EncodeSet(ranks);
 
-      // 3. Find that set and add 'info' to it. If set does not exist, create
-      // it.
+
+
       const auto retval = mapofHaloBlockGroups.find(set_ID);
       if (retval == mapofHaloBlockGroups.end()) {
         HaloBlockGroup temporary;
@@ -3101,7 +2962,7 @@ public:
     }
   }
 
-  // constructor
+
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid)
       : stencil(a_stencil), Cstencil(a_Cstencil),
@@ -3138,24 +2999,24 @@ public:
     }
   }
 
-  /// Returns vector of pointers to inner blocks.
+
   std::vector<BlockInfo *> &avail_inner() { return inner_blocks; }
 
-  /// Returns vector of pointers to halo blocks.
+
   std::vector<BlockInfo *> &avail_halo() {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     return halo_blocks;
   }
 
-  /// Returns vector of pointers to halo blocks without calling MPI_Wait
+
   std::vector<BlockInfo *> &avail_halo_nowait() { return halo_blocks; }
 
-  /// Empty vector that avail_next() returns if no halo block groups are
-  /// available
+
+
   std::vector<BlockInfo *> dummy_vector;
 
-  /// Returns the next available (in terms of completed communication) group of
-  /// halo blocks
+
+
   std::vector<BlockInfo *> &avail_next() {
     bool done = false;
     auto it = mapofHaloBlockGroups.begin();
@@ -3184,7 +3045,7 @@ public:
     return dummy_vector;
   }
 
-  /// Needs to be called to initiate communication and halo cells exchange.
+
   void sync() {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
@@ -3197,7 +3058,7 @@ public:
     requests.clear();
     requests.reserve(2 * size);
 
-    // Post receive requests first
+
     for (auto r : Neighbors)
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -3206,7 +3067,7 @@ public:
                   timestamp, comm, &requests.back());
       }
 
-    // Pack data
+
     for (int r = 0; r < size; r++)
       if (send_buffer_size[r] != 0) {
 #pragma omp parallel
@@ -3234,7 +3095,7 @@ public:
         }
       }
 
-    // Do the sends
+
     for (auto r : Neighbors)
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -3243,10 +3104,10 @@ public:
       }
   }
 
-  /// Get the StencilInfo of this Synchronizer
+
   const StencilInfo &getstencil() const { return stencil; }
 
-  /// Check whether communication for a particular block has compelted
+
   bool isready(const BlockInfo &info) {
     const int id = info.halo_block_id;
     if (id < 0)
@@ -3264,19 +3125,19 @@ public:
     return true;
   }
 
-  /// Used by BlockLabMPI, to get the data from the receive buffers owned by the
-  /// Synchronizer and put them in its working copy of a GridBlock plus its halo
-  /// cells.
+
+
+
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
-    // fetch received data for blocks that are neighbors with 'info' but are
-    // owned by another rank
+
+
     const int id = info.halo_block_id;
     if (id < 0)
       return;
 
-    // loop over all unpacks that correspond to block with this halo_block_id
+
     UnPackInfo *unpacks = myunpacks[id].data();
     for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
       const UnPackInfo &unpack = unpacks[jj];
@@ -3284,8 +3145,8 @@ public:
                            (unpack.icode / 9) % 3 - 1};
       const int otherrank = unpack.rank;
 
-      // Based on the current unpack's icode, regions starting from 's' and
-      // ending to 'e' of the current block will be filled with ghost cells.
+
+
       const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
                         code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
                         code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
@@ -3294,7 +3155,7 @@ public:
           code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
 
-      if (unpack.level == info.level) // same level neighbors
+      if (unpack.level == info.level)
       {
         Real *dst =
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
@@ -3309,7 +3170,7 @@ public:
                          Length[0], Length[1], Length[2]);
 
         if (unpack.CoarseVersionOffset >=
-            0) // same level neighbors exchange averaged down ghosts
+            0)
         {
           const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
@@ -3357,8 +3218,8 @@ public:
       } else {
         int B;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-          B = 0;                                                    // corner
-        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) // edge
+          B = 0;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
         {
           int t;
           if (code[0] == 0)
@@ -3407,21 +3268,10 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
-
-/**
- * @brief Performs flux corrections at coarse-fine block interfaces, with
- * multiple MPI processes.
- *
- * This class can replace the coarse fluxes stored at BlockCases with the sum of
- * the fine fluxes (also stored at BlockCases). This ensures conservation of the
- * quantity whose flux we compute.
- * @tparam TFluxCorrection The single-node version from which this class
- * inherits
- */
-
+# 3425 "main.cpp"
 template <typename TFluxCorrection>
 class FluxCorrectionMPI : public TFluxCorrection {
 public:
@@ -3433,16 +3283,16 @@ public:
   int size;
 
 protected:
-  /// Auxiliary struct to keep track of coarse-fine interfaces between two
-  /// different MPI processes
+
+
   struct face {
-    BlockInfo *infos[2]; ///< the two BlockInfos of the interface
-    int icode[2]; ///< encodes what face (+x,-x,+y,-y,+z,-z) is shared by the
-                  ///< two Blocks
-    int offset;   ///< offset in the send/recv buffers where the data for this
-                  ///< face will be put
-    // infos[0] : Fine block
-    // infos[1] : Coarse block
+    BlockInfo *infos[2];
+    int icode[2];
+
+    int offset;
+
+
+
     face(BlockInfo &i0, BlockInfo &i1, int a_icode0, int a_icode1) {
       infos[0] = &i0;
       infos[1] = &i1;
@@ -3459,15 +3309,15 @@ protected:
   };
 
   std::vector<std::vector<Real>>
-      send_buffer; ///< multiple buffers to send to other ranks
+      send_buffer;
   std::vector<std::vector<Real>>
-      recv_buffer; ///< multiple buffers to receive from other ranks
+      recv_buffer;
   std::vector<std::vector<face>>
-      send_faces; ///< buffers with 'faces' meta-data to send
+      send_faces;
   std::vector<std::vector<face>>
-      recv_faces; ///< buffers with 'faces' meta-data to receive
+      recv_faces;
 
-  /// Perform flux correction for face 'F'
+
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -3483,7 +3333,7 @@ protected:
     Case &CoarseCase = (*search->second);
     std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
     for (int B = 0; B <= 1;
-         B++) // loop over fine blocks that make up coarse face
+         B++)
     {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
@@ -3503,7 +3353,7 @@ protected:
       const int N1 = CoarseCase.m_vSize[d1];
       const int N2 = CoarseCase.m_vSize[d2];
 
-      int base = 0; //(B%2)*(N1/2)+ (B/2)*(N2/2)*N1;
+      int base = 0;
       if (B == 1)
         base = (N2 / 2) + (0) * N2;
       else if (B == 2)
@@ -3525,8 +3375,8 @@ protected:
     }
   }
 
-  /// Perform flux correction for face 'F' and direction encoded by 'code*' (for
-  /// data received from other processes)
+
+
   void FillCase_2(face &F, int codex, int codey, int codez) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -3560,7 +3410,7 @@ protected:
         block(j, i2) += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
-    } else // if (d == 1)
+    } else
     {
       const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
       for (int i2 = 0; i2 < N2; i2++) {
@@ -3571,8 +3421,8 @@ protected:
   }
 
 public:
-  /// Prepare the FluxCorrection class for a given 'grid' by allocating
-  /// BlockCases at each coarse-fine interface
+
+
   virtual void prepare(TGrid &_grid) override {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -3691,9 +3541,9 @@ public:
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(info.level,
                                    info.Znei_(code[0], code[1], code[2]));
-          int Bstep = 1; // face
+          int Bstep = 1;
           for (int B = 0; B <= 1;
-               B += Bstep) // loop over blocks that make up face
+               B += Bstep)
           {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
@@ -3717,7 +3567,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (stored) {
         TFluxCorrection::Cases.push_back(
@@ -3747,13 +3597,13 @@ public:
         }
       }
 
-    // 2.Sort faces
+
     for (int r = 0; r < size; r++) {
       std::sort(send_faces[r].begin(), send_faces[r].end());
       std::sort(recv_faces[r].begin(), recv_faces[r].end());
     }
 
-    // 3.Define map
+
     for (int r = 0; r < size; r++) {
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
@@ -3778,18 +3628,18 @@ public:
     }
   }
 
-  /// Go over each coarse-fine interface and perform the flux corrections,
-  /// assuming the associated BlockCases have been filled with the fluxes by the
-  /// user
+
+
+
   virtual void FillBlockCases() override {
     auto MPI_real =
         (sizeof(Real) == sizeof(float))
             ? MPI_FLOAT
             : ((sizeof(Real) == sizeof(double)) ? MPI_DOUBLE : MPI_LONG_DOUBLE);
 
-    // This assumes that the BlockCases have been filled by the user somehow...
 
-    // 1.Pack send data
+
+
     for (int r = 0; r < size; r++) {
 
       int displacement = 0;
@@ -3877,12 +3727,12 @@ public:
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
           FillCase(recv_faces[r][index]);
 
-    // first do x, then y then z. It is done like this to preserve symmetry and
-    // not favor any direction
-    for (int r = 0; r < size; r++) // if (r!=me)
+
+
+    for (int r = 0; r < size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0, 0);
-    for (int r = 0; r < size; r++) // if (r!=me)
+    for (int r = 0; r < size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 0, 1, 0);
 
@@ -3891,12 +3741,12 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
-/** Similar to Grid, but with functionalities for multiple MPI processes.
- */
+
+
 template <typename TGrid> class GridMPI : public TGrid {
 public:
   typedef typename TGrid::Real Real;
@@ -3904,18 +3754,18 @@ public:
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
 
-  // MPI related variables
-  size_t timestamp;   ///< used as message tag during communication
-  MPI_Comm worldcomm; ///< MPI communicator
-  int myrank;         ///< MPI process ID
-  int world_size;     ///< total number of MPI processes
+
+  size_t timestamp;
+  MPI_Comm worldcomm;
+  int myrank;
+  int world_size;
 
   std::map<StencilInfo, SynchronizerMPIType *>
-      SynchronizerMPIs; ///< map of Syncronizers need for halo cell exchange
+      SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid>>> Corrector;
-  std::vector<BlockInfo *> boundary; ///< BlockInfos of adjacent ranks
+  std::vector<BlockInfo *> boundary;
 
-  /// Constructor, same as the one from Grid.
+
   GridMPI(const int nX, const int nY = 1, const int nZ = 1,
           const double a_maxextent = 1, const int a_levelStart = 0,
           const int a_levelMax = 1, const MPI_Comm comm = MPI_COMM_WORLD,
@@ -3953,7 +3803,7 @@ public:
     MPI_Barrier(worldcomm);
   }
 
-  /// Destructor.
+
   virtual ~GridMPI() override {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       delete it->second;
@@ -3963,17 +3813,17 @@ public:
     MPI_Barrier(worldcomm);
   }
 
-  /// Return pointer to block at level 'm' with Z-index 'n' or nullptr if this
-  /// block is not owned by this rank.
+
+
   virtual Block *avail(const int m, const long long n) override {
     return (TGrid::Tree(m, n).rank() == myrank)
                ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
 
-  /// Communicate the state (refine/compress/leave) of all blocks in the
-  /// boundaries of this rank; Used when the mesh is refined, to make sure we
-  /// all adjacent blocks do not differ by more than one refinement level.
+
+
+
   virtual void UpdateBoundary(bool clean = false) override {
     const auto blocksPerDim = TGrid::getMaxBlocks();
 
@@ -4039,11 +3889,11 @@ public:
             Neighbors.insert(infoNeiCoarserrank);
           }
         } else if (infoNeiTree.CheckFiner()) {
-          int Bstep = 1; // face
+          int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
           for (int B = 0; B <= 1; B += Bstep)
           {
@@ -4068,7 +3918,7 @@ public:
             }
           }
         }
-      } // icode = 0,...,26
+      }
 
       if (info.changed2 && info.state != Leave) {
         if (info.state == Refine)
@@ -4127,8 +3977,8 @@ public:
         }
   };
 
-  /// Called after grid refinement/compression, to update the Octree with the
-  /// new block states and rank ownership.
+
+
   void UpdateBlockInfoAll_States(bool UpdateIDs = false) {
     std::vector<int> myNeighbors = FindMyNeighbors();
 
@@ -4179,15 +4029,15 @@ public:
             break;
           }
         } else if (infoNeiTree.CheckFiner()) {
-          int Bstep = 1; // face
+          int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3; // edge
+            Bstep = 3;
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4; // corner
+            Bstep = 4;
 
           for (int B = 0; B <= 3;
-               B += Bstep) // loop over blocks that make up face/edge/corner
-                           // (respectively 4,2 or 1 blocks)
+               B += Bstep)
+
           {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
@@ -4208,7 +4058,7 @@ public:
           myflag = true;
           break;
         }
-      } // icode = 0,...,26
+      }
 
       if (myflag) {
         myData.push_back(info.level);
@@ -4285,7 +4135,7 @@ public:
     }
   }
 
-  /// Returns a vector with the process IDs (ranks) or neighboring GridMPIs.
+
   std::vector<int> FindMyNeighbors() {
     std::vector<int> myNeighbors;
     double low[3] = {+1e20, +1e20, +1e20};
@@ -4322,9 +4172,9 @@ public:
     return myNeighbors;
   }
 
-  /// Check if a rectangle with bottom left point l1 and top right point h1
-  /// intersects with a rectangle with bottom left point l2 and top right point
-  /// h2; used when determining neighboring processes.
+
+
+
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
         (TGrid::maxextent / std::max(TGrid::NX * Block::sizeX,
@@ -4361,14 +4211,14 @@ public:
     return true;
   }
 
-  /** Returns a SynchronizerMPI_AMR for a given stencil of points.
-   *  Each stencil needed in the simulation has its own SynchronizerMPI_AMR. All
-   * Synchronizers are owned by GridMPI in a map between the stencils and them.
-   */
+
+
+
+
   SynchronizerMPIType *sync(const StencilInfo &stencil) {
     assert(stencil.isvalid());
 
-    // Hardcoded stencil for coarse-fine interpolation: +-1 points.
+
     StencilInfo Cstencil(-1, -1, DIMENSION == 3 ? -1 : 0, 2, 2,
                          DIMENSION == 3 ? 2 : 1, true, stencil.selcomponents);
 
@@ -4391,8 +4241,8 @@ public:
     return queryresult;
   }
 
-  /// same as Grid::initialize_blocks, with additional initialization for
-  /// Synchronizers needed for halo cell exchange between different processes.
+
+
   virtual void
   initialize_blocks(const std::vector<long long> &blocksZ,
                     const std::vector<short int> &blockslevel) override {
@@ -4402,39 +4252,39 @@ public:
       (*it->second)._Setup();
   }
 
-  /// Return the ID of this MPI process.
+
   virtual int rank() const override { return myrank; }
 
-  /// Returns a tag value that is used when sending/receiving data with MPI.
+
   size_t getTimeStamp() const { return timestamp; }
 
-  /// Return the MPI communicator of the simulation.
+
   MPI_Comm getWorldComm() const { return worldcomm; }
 
-  /// Return the total number of MPI processes.
+
   virtual int get_world_size() const override { return world_size; }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
-/**
- * A wrapper class for a 3D array of data.
- * @tparam DataType: the kind of data the 3D array is for
- * @tparam allocator: object responsible for allocating the data
- */
+
+
+
+
+
 template <class DataType, template <typename T> class allocator>
 class Matrix3D {
 private:
-  DataType *m_pData{nullptr}; ///< pointer to data
+  DataType *m_pData{nullptr};
   unsigned int m_vSize[3]{
-      0, 0, 0}; ///< three dimensions (X,Y,Z) (sizes) of array of data
-  unsigned int m_nElements{0}; ///< total number of elements saved (XxYxZ)
-  unsigned int m_nElementsPerSlice{0}; ///< shorthand for XxY
+      0, 0, 0};
+  unsigned int m_nElements{0};
+  unsigned int m_nElementsPerSlice{0};
 
 public:
-  /// Deallocate existing data.
+
   void _Release() {
     if (m_pData != nullptr) {
       free(m_pData);
@@ -4442,8 +4292,8 @@ public:
     }
   }
 
-  /// Deallocate existing data and reallocate memory for a nSizeX x nSizeY x
-  /// nSizeZ array.
+
+
   void _Setup(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ) {
     _Release();
 
@@ -4460,28 +4310,28 @@ public:
     assert(m_pData != nullptr);
   }
 
-  /// Destructor.
+
   ~Matrix3D() { _Release(); }
 
-  /// Constructor, calls _Setup()
+
   Matrix3D(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ)
       : m_pData(nullptr), m_nElements(0), m_nElementsPerSlice(0) {
     _Setup(nSizeX, nSizeY, nSizeZ);
   }
 
-  /// Constructor, does not allocate memory.
+
   Matrix3D() : m_pData(nullptr), m_nElements(-1), m_nElementsPerSlice(-1) {}
 
   Matrix3D(const Matrix3D &m) = delete;
 
-  /// Copy constructor.
+
   Matrix3D(Matrix3D &&m)
       : m_pData{m.m_pData}, m_vSize{m.m_vSize[0], m.m_vSize[1], m.m_vSize[2]},
         m_nElements{m.m_nElements}, m_nElementsPerSlice{m.m_nElementsPerSlice} {
     m.m_pData = nullptr;
   }
 
-  /// Copy another matrix3D to this one
+
   inline Matrix3D &operator=(const Matrix3D &m) {
 #ifndef NDEBUG
     assert(m_vSize[0] == m.m_vSize[0]);
@@ -4493,7 +4343,7 @@ public:
     return *this;
   }
 
-  /// Set all elements to a given element of the same datatype
+
   inline Matrix3D &operator=(DataType d) {
     for (unsigned int i = 0; i < m_nElements; i++)
       m_pData[i] = d;
@@ -4501,14 +4351,14 @@ public:
     return *this;
   }
 
-  /// Set all elements to a number, applicable only is data is doubles/floats
+
   inline Matrix3D &operator=(const double a) {
     for (unsigned int i = 0; i < m_nElements; i++)
       m_pData[i].set(a);
     return *this;
   }
 
-  /// Access an element.
+
   inline DataType &Access(unsigned int ix, unsigned int iy,
                           unsigned int iz) const {
 #ifndef NDEBUG
@@ -4519,7 +4369,7 @@ public:
     return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
   }
 
-  /// Read an element withoud changing it.
+
   inline const DataType &Read(unsigned int ix, unsigned int iy,
                               unsigned int iz) const {
 #ifndef NDEBUG
@@ -4530,8 +4380,8 @@ public:
     return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
   }
 
-  /// Access elements of the array in sequential order, useful for pointwise
-  /// operations
+
+
   inline DataType &LinAccess(unsigned int i) const {
 #ifndef NDEBUG
     assert(i < m_nElements);
@@ -4539,106 +4389,89 @@ public:
     return m_pData[i];
   }
 
-  /// Get total number of elements of the array
+
   inline unsigned int getNumberOfElements() const { return m_nElements; }
 
-  /// Get elements on each XY slice/plane of the array
+
   inline unsigned int getNumberOfElementsPerSlice() const {
     return m_nElementsPerSlice;
   }
 
-  /// Get array of sizes for data
+
   inline unsigned int *getSize() const { return (unsigned int *)m_vSize; }
 
-  /// Get array of size in the 'dim' direction
+
   inline unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
-#define memcpy2(a, b, c) memcpy((a), (b), (c))
+#define memcpy2(a,b,c) memcpy((a), (b), (c))
 
-// default coarse-fine interpolation stencil
+
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-
-/** \brief Copy of a Gridblock plus halo cells.*/
-/** This class provides the user a copy of a Gridblock that is extended by a
- * layer of halo cells. To define one instance of it, the user needs to provide
- * a 'TGrid' type in the template parameters. From this, the BlockType and
- * ElementType and inferred, which are the GridBlock class and Element type
- * stored at each gridpoint of the mesh. To use a BlockLab, the user first needs
- * to call 'prepare', which will provide the BlockLab with the stencil of points
- * needed for a particular computation. To get an array of a particular
- *  GridBlock (+halo cells), the user should call 'load' and provide it with the
- * BlockInfo that is associated with the GridBlock of interest. Once this is
- * done, gridpoints in the GridBlock and halo cells can be accessed with the
- * (x,y,z) operator. For example, (-1,0,0) would access a halo cell in the -x
- * direction.
- *  @tparam TGrid: the kind of Grid/GridMPI halo cells are needed for
- *  @tparam allocator: a class responsible for allocation of memory for this
- * BlockLab
- */
+# 4583 "main.cpp"
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
 class BlockLab {
 public:
-  using GridType = TGrid; ///< should be a 'Grid', 'GridMPI' or derived class
+  using GridType = TGrid;
   using BlockType =
-      typename GridType::BlockType; ///< GridBlock type used by TGrid
+      typename GridType::BlockType;
   using ElementType =
-      typename BlockType::ElementType; ///< Element type used by GridBlock type
-  using Real = typename ElementType::RealType; ///< Number type used by Element
-                                               ///< (double/float etc.)
+      typename BlockType::ElementType;
+  using Real = typename ElementType::RealType;
+
 
 protected:
   Matrix3D<ElementType, allocator>
-      *m_cacheBlock;     ///< working array of GridBlock + halo cells.
-  int m_stencilStart[3]; ///< starts of stencil for halo cells
-  int m_stencilEnd[3];   ///< ends of stencil fom halo cells
-  bool istensorial;      ///< whether the stencil is tensorial or not (see also
-                         ///< StencilInfo struct)
-  bool use_averages;     ///< if true, fine blocks average down their cells to
-                         ///< provide halo cells for coarse blocks (2nd order
-                     ///< accurate). If false, they perform a 3rd-order accurate
-                     ///< interpolation instead (which is the accuracy needed to
-                     ///< compute 2nd derivatives).
-  GridType *m_refGrid; ///< Point to TGrid instance
-  int NX;              ///< GridBlock size in the x-direction.
-  int NY;              ///< GridBlock size in the y-direction.
-  int NZ;              ///< GridBlock size in the z-direction.
-  std::array<BlockType *, 27>
-      myblocks; ///< Pointers to neighboring blocks of a GridBlock
-  std::array<int, 27> coarsened_nei_codes; ///< If a neighbor is at a coarser
-                                           ///< level, store it here
-  int coarsened_nei_codes_size;            ///< Number of coarser neighbors
-  int offset[3]; ///< like m_stencilStart but used when a coarse block sends
-                 ///< cells to a finer block
-  Matrix3D<ElementType, allocator>
-      *m_CoarsenedBlock;       ///< coarsened version of given block
-  int m_InterpStencilStart[3]; ///< stencil starts used for refinement (assumed
-                               ///< tensorial)
-  int m_InterpStencilEnd[3];   ///< stencil ends used for refinement (assumed
-                               ///< tensorial)
-  bool coarsened;         ///< true if block has at least one coarser neighbor
-  int CoarseBlockSize[3]; ///< size of coarsened block (NX/2,NY/2,NZ/2)
+      *m_cacheBlock;
+  int m_stencilStart[3];
+  int m_stencilEnd[3];
+  bool istensorial;
 
-  /// Coefficients used with upwind/central stencil of points with 3rd order
-  /// interpolation of halo cells from fine to coarse blocks
+  bool use_averages;
+
+
+
+
+  GridType *m_refGrid;
+  int NX;
+  int NY;
+  int NZ;
+  std::array<BlockType *, 27>
+      myblocks;
+  std::array<int, 27> coarsened_nei_codes;
+
+  int coarsened_nei_codes_size;
+  int offset[3];
+
+  Matrix3D<ElementType, allocator>
+      *m_CoarsenedBlock;
+  int m_InterpStencilStart[3];
+
+  int m_InterpStencilEnd[3];
+
+  bool coarsened;
+  int CoarseBlockSize[3];
+
+
+
   const double d_coef_plus[9] = {
-      -0.09375, 0.4375,  0.15625,  // starting point (+2,+1,0)
-      0.15625,  -0.5625, 0.90625,  // last point     (-2,-1,0)
-      -0.09375, 0.4375,  0.15625}; // central point  (-1,0,+1)
-  /// Coefficients used with upwind/central stencil of points with 3rd order
-  /// interpolation of halo cells from fine to coarse blocks
+      -0.09375, 0.4375, 0.15625,
+      0.15625, -0.5625, 0.90625,
+      -0.09375, 0.4375, 0.15625};
+
+
   const double d_coef_minus[9] = {
-      0.15625,  -0.5625, 0.90625,   // starting point (+2,+1,0)
-      -0.09375, 0.4375,  0.15625,   // last point     (-2,-1,0)
-      0.15625,  0.4375,  -0.09375}; // central point  (-1,0,+1)
+      0.15625, -0.5625, 0.90625,
+      -0.09375, 0.4375, 0.15625,
+      0.15625, 0.4375, -0.09375};
 
 public:
-  /// Constructor.
+
   BlockLab()
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
     m_stencilStart[0] = m_stencilStart[1] = m_stencilStart[2] = 0;
@@ -4658,36 +4491,25 @@ public:
       CoarseBlockSize[2] = 1;
   }
 
-  /// Return a name for this BlockLab. Useful for derived instances with custom
-  /// boundary conditions.
+
+
   virtual std::string name() const { return "BlockLab"; }
 
-  /// true if boundary conditions are periodic in x-direction
+
   virtual bool is_xperiodic() { return true; }
 
-  /// true if boundary conditions are periodic in y-direction
+
   virtual bool is_yperiodic() { return true; }
 
-  /// true if boundary conditions are periodic in z-direction
+
   virtual bool is_zperiodic() { return true; }
 
-  /// Destructor.
+
   ~BlockLab() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-
-  /**
-   * Get a single element from the block.
-   * stencil_start and stencil_end refer to the values passed in
-   * BlockLab::prepare().
-   * @param ix: Index in x-direction (stencil_start[0] <= ix < BlockType::sizeX
-   * + stencil_end[0] - 1).
-   * @param iy: Index in y-direction (stencil_start[1] <= iy < BlockType::sizeY
-   * + stencil_end[1] - 1).
-   * @param iz: Index in z-direction (stencil_start[2] <= iz < BlockType::sizeZ
-   * + stencil_end[2] - 1).
-   */
+# 4691 "main.cpp"
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -4699,7 +4521,7 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Just as BlockLab::operator() but const.
+
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -4711,7 +4533,7 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Just as BlockLab::operator() but returning a const.
+
   const ElementType &read(int ix, int iy = 0, int iz = 0) const {
     assert(ix - m_stencilStart[0] >= 0 &&
            ix - m_stencilStart[0] < (int)m_cacheBlock->getSize()[0]);
@@ -4723,23 +4545,12 @@ public:
                                 iz - m_stencilStart[2]);
   }
 
-  /// Deallocate memory (used in destructor).
+
   void release() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-
-  /** Prepares the BlockLab for a given 'grid' and stencil of points.
-   *  Allocates memory (if not already allocated) for the arrays that will hold
-   * the copy of a GridBlock plus its halo cells.
-   * @param grid: the Grid/GridMPI with all the GridBlocks that will need halo
-   * cells
-   * @param stencil: the StencilInfo for the halo cells
-   * @param  Istencil_start: the starts of the stencil used for coarse-fine
-   * interpolation of halo cells, set to -1 for the default interpolation.
-   * @param  Istencil_end: the ends of the stencil used for coarse-fine
-   * interpolation of halo cells, set to +2 for the default interpolation.
-   */
+# 4743 "main.cpp"
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
@@ -4826,16 +4637,7 @@ public:
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
-
-  /** Provide a prepared BlockLab (working copy of gridpoints+halo cells).
-   *  Once called, the user can use the () operators to access the halo cells.
-   * For derived instances of BlockLab, the time 't' can also be provided, in
-   * order to enforce time-dependent boundary conditions.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param t: (optional) current time, for time-dependent boundary conditions
-   * @param applybc: (optional, default is true) apply boundary conditions or
-   * not (assume periodic if not)
-   */
+# 4839 "main.cpp"
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
     const int nX = BlockType::sizeX;
@@ -4848,13 +4650,13 @@ public:
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
 
     const int aux = 1 << info.level;
-    NX = blocksPerDim[0] * aux; // needed for apply_bc
-    NY = blocksPerDim[1] * aux; // needed for apply_bc
-    NZ = blocksPerDim[2] * aux; // needed for apply_bc
+    NX = blocksPerDim[0] * aux;
+    NY = blocksPerDim[1] * aux;
+    NZ = blocksPerDim[2] * aux;
 
     assert(m_cacheBlock != NULL);
 
-    // 1.load the block into the cache
+
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
       ElementType *ptrSource = &block(0);
@@ -4889,7 +4691,7 @@ public:
       }
     }
 
-    // 2. put the ghosts into the cache
+
     {
       coarsened = false;
 
@@ -4900,7 +4702,7 @@ public:
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
 
-      int icodes[DIMENSION == 2 ? 8 : 26]; // Could be uint8_t?
+      int icodes[DIMENSION == 2 ? 8 : 26];
       int k = 0;
       coarsened_nei_codes_size = 0;
 
@@ -4931,8 +4733,8 @@ public:
             abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
           continue;
 
-        // s and e correspond to start and end of this lab's cells that are
-        // filled by neighbors
+
+
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
             code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
@@ -4947,7 +4749,7 @@ public:
           SameLevelExchange(info, code, s, e);
         else if (TreeNei.CheckFiner())
           FineToCoarseExchange(info, code, s, e);
-      } // icode = 0,...,26 (3D) or 9,...,17 (2D)
+      }
       if (coarsened_nei_codes_size > 0)
         for (int i = 0; i < k; ++i) {
           const int icode = icodes[i];
@@ -4969,19 +4771,7 @@ public:
   }
 
 protected:
-  /** Called from 'load', to enforce boundary conditions and coarse-fine
-   * interpolation. To interpolate halo cells from neighboring coarser blocks,
-   * the BlockLab first fills a coarsened version of the GridBlock that requires
-   * the halo cells. This coarsened version is filled with grid points from the
-   * coarse neighbors and with averaged down values of this GridBlock's
-   * gridpoints. Averaging down happens in this function, followed by the
-   *  interpolation. Boundary conditions from derived versions of this class are
-   * also enforced. Default boundary conditions are periodic.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param t: (optional) current time, for time-dependent boundary conditions
-   * @param applybc: (optional, default is true) apply boundary conditions or
-   * not (assume periodic if not)
-   */
+# 4985 "main.cpp"
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
@@ -5007,23 +4797,12 @@ protected:
       }
     }
     if (applybc)
-      _apply_bc(info, t, true); // apply BC to coarse block
+      _apply_bc(info, t, true);
     CoarseFineInterpolation(info);
     if (applybc)
       _apply_bc(info, t);
   }
-
-  /** Check if blocks on the same refinement level need to exchange averaged
-   * down cells. To perform coarse-fine interpolation, the BlockLab creates a
-   * coarsened version of the GridBlock that needs halo cells. Filling this
-   * coarsened version can require averaged down values from GridBlocks of the
-   * same resolution, which would create a large enough stencil of coarse values
-   * to perform the interpolation. Whether or not this is needed is determined
-   *  by this function.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param b_index: the (i,j,k) index coordinates of the block that is adjacent
-   * to 'info'.
-   */
+# 5027 "main.cpp"
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
@@ -5062,15 +4841,7 @@ protected:
           }
     return false;
   }
-
-  /** Exchange halo cells for blocks on the same refinement level.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   * @param s: the starts of the part of 'info' that will be filled
-   * @param e: the ends of the part of 'info' that will be filled
-   */
+# 5074 "main.cpp"
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
     const int bytes = (e[0] - s[0]) * sizeof(ElementType);
@@ -5129,38 +4900,26 @@ protected:
     }
   }
 
-  /// Average down four elements (2D)
+
   ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                           const ElementType &e2, const ElementType &e3) {
     return 0.25 * ((e0 + e3) + (e1 + e2));
   }
 
-  /// Auxiliary function for 3rd order coarse-fine interpolation
+
   void LI(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (4.0 * kappa + 2.0 * lambda) + c;
   }
 
-  /// Auxiliary function for 3rd order coarse-fine interpolation
+
   void LE(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (9.0 * kappa + 3.0 * lambda) + c;
   }
-
-  /** Coarse-fine interpolation function, based on interpolation stencil of +-1
-   * point. This function evaluates a third-order Taylor expansion by using a
-   * stencil of +-1 points around the coarse grid point that will be replaced by
-   * eight finer ones. This function can be overwritten by derived versions of
-   * BlockLab, to enable a custom interpolation. The +-1 points used here come
-   * from the 'interpolation stencil' passed to BlockLab.
-   *  @param C: pointer to the +-1 points around the coarse point (9 values in
-   * total)
-   *  @param R: pointer to the one refined points around the coarse point
-   *  @param x: delta x of the point to be interpolated (+1 or -1).
-   *  @param y: delta y of the point to be interpolated (+1 or -1).
-   */
+# 5164 "main.cpp"
   virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
     const double dx = 0.25 * (2 * x - 1);
     const double dy = 0.25 * (2 * y - 1);
@@ -5174,15 +4933,7 @@ protected:
         (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
          (dx * dy) * dudxdy);
   }
-
-  /** Exchange halo cells from fine to coarse blocks.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   * @param s: the starts of the part of 'info' that will be filled
-   * @param e: the ends of the part of 'info' that will be filled
-   */
+# 5186 "main.cpp"
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -5200,37 +4951,12 @@ protected:
     const int zStep = (code[2] == 0) ? 2 : 1;
     const int mod = ((e[1] - s[1]) / yStep) % 4;
 
-    int Bstep = 1; // face
+    int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-      Bstep = 3; // edge
+      Bstep = 3;
     else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-      Bstep = 4; // corner
-
-    /*
-      A corner has one finer block.
-      An edge has two finer blocks, corresponding to B=0 and B=3. The block B=0
-      is the one closer to the origin (0,0,0). A face has four finer blocks.
-      They are numbered as follows, depending on whether the face lies on the
-      xy- , yz- or xz- plane
-
-      y                                  z                                  z
-      ^                                  ^                                  ^
-      |                                  |                                  |
-      |                                  |                                  |
-      |_________________                 |_________________ |_________________
-      |        |        |                |        |        |                | |
-      | |    2   |   3    |                |    2   |   3    |                |
-      2   |   3    |
-      |________|________|                |________|________| |________|________|
-      |        |        |                |        |        |                | |
-      | |    0   |    1   |                |    0   |    1   |                |
-      0   |    1   |
-      |________|________|------------->x |________|________|------------->x
-      |________|________|------------->y
-
-    */
-    // loop over blocks that make up face/edge/corner (respectively 4,2 or 1
-    // blocks)
+      Bstep = 4;
+# 5234 "main.cpp"
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
 
@@ -5341,7 +5067,7 @@ protected:
                                              : iy;
           const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
           const ElementType *ptrSrc_1 = &b(XX, YY + 1, ZZ);
-// average down elements of block b to send to coarser neighbor
+
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -5352,19 +5078,19 @@ protected:
           }
         }
       }
-    } // B
+    }
   }
 
-  /** Exchange halo cells from coarse to fine blocks.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   */
+
+
+
+
+
+
   void CoarseFineExchange(const BlockInfo &info, const int *const code) {
-    // Coarse neighbors send their cells. Those are stored in m_CoarsenedBlock
-    // and are later used in function CoarseFineInterpolation to interpolate
-    // fine values.
+
+
+
 
     const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                   (info.index[1] + code[1] + NY) % NY,
@@ -5479,23 +5205,13 @@ protected:
       }
     }
   }
-
-  /** Fill coarsened version of a block, used for fine-coarse interpolation.
-   * Each block will create a coarsened version of itself, with averaged down
-   * values. This version is also filled with gridpoints for halo cells that are
-   * received from coarser neighbors. It is then used to interpolate fine cells
-   * at coarse-fine interfaces.
-   * @param info: the BlockInfo for the GridBlock that needs halo cells.
-   * @param code: pointer to three integers, one for each spatial direction.
-   * Possible values of each integer are -1,0,+1, based on the relative position
-   * of the neighboring block and 'info'
-   */
+# 5493 "main.cpp"
   void FillCoarseVersion(const BlockInfo &info, const int *const code) {
-    // If a neighboring block is on the same level it might need to average down
-    // some cells and use them to fill the coarsened version of this block.
-    // Those cells are needed to refine the coarsened version and obtain ghosts
-    // from coarser neighbors (those cells are inside the interpolation stencil
-    // for refinement).
+
+
+
+
+
 
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
@@ -5559,7 +5275,7 @@ protected:
         const int YY = 2 * (iy - s[1]) + start[1];
         const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
         const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
-// average down elements of block b to send to coarser neighbor
+
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -5570,7 +5286,7 @@ protected:
     }
   }
 
-/// Perform fine-coarse interpolation, after filling coarsened version of block.
+
   void
   CoarseFineInterpolation(const BlockInfo &info) {
     const int nX = BlockType::sizeX;
@@ -5611,8 +5327,8 @@ protected:
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
         continue;
 
-      // s and e correspond to start and end of this lab's cells that are filled
-      // by neighbors
+
+
       const int s[3] = {
           code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
           code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
@@ -5663,7 +5379,7 @@ protected:
       }
       if (m_refGrid->FiniteDifferences &&
           abs(code[0]) + abs(code[1]) ==
-              1) // Correct stencil points +-1 and +-2 at faces
+              1)
       {
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1]; iy += 2) {
@@ -5730,7 +5446,7 @@ protected:
                                      iy - m_stencilStart[1] + iyp, 0) =
                     m_CoarsenedBlock->Access(XX, YY, 0) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
-            } else // if (code[1] != 0)
+            } else
             {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
@@ -5792,14 +5508,14 @@ protected:
                                            iy - m_stencilStart[1], 0);
 
             if (code[0] == 0 && code[1] == 1) {
-              if (y == 0) // interpolation
+              if (y == 0)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 1, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 2, 0);
                 LI(a, b, c);
-              } else if (y == 1) // extrapolation
+              } else if (y == 1)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] - 2, 0);
@@ -5808,14 +5524,14 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
-              if (y == 1) // interpolation
+              if (y == 1)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 1, 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 2, 0);
                 LI(a, b, c);
-              } else if (y == 0) // extrapolation
+              } else if (y == 0)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
                                                iy - m_stencilStart[1] + 2, 0);
@@ -5824,14 +5540,14 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
-              if (x == 0) // interpolation
+              if (x == 0)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 1,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
                                                iy - m_stencilStart[1], 0);
                 LI(a, b, c);
-              } else if (x == 1) // extrapolation
+              } else if (x == 1)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
                                                iy - m_stencilStart[1], 0);
@@ -5840,14 +5556,14 @@ protected:
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
-              if (x == 1) // interpolation
+              if (x == 1)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 1,
                                                iy - m_stencilStart[1], 0);
                 auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
                                                iy - m_stencilStart[1], 0);
                 LI(a, b, c);
-              } else if (x == 0) // extrapolation
+              } else if (x == 0)
               {
                 auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
                                                iy - m_stencilStart[1], 0);
@@ -5862,11 +5578,11 @@ protected:
     }
   }
 
-  /// Enforce boundary conditions.
+
   virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
                          bool coarse = false) {}
 
-  /// Deallocate memory.
+
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       allocator<T>().destroy(t);
@@ -5880,12 +5596,12 @@ private:
   BlockLab &operator=(const BlockLab &) = delete;
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
-/** \brief Similar to BlockLab, but should be used with simulations that support
- * MPI.*/
+
+
 template <typename MyBlockLab> class BlockLabMPI : public MyBlockLab {
 public:
   using GridType = typename MyBlockLab::GridType;
@@ -5898,8 +5614,8 @@ private:
   SynchronizerMPIType *refSynchronizerMPI;
 
 public:
-  /// Same as 'prepare' from BlockLab. This will also create a
-  /// SynchronizerMPI_AMR for different MPI processes.
+
+
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) override {
@@ -5908,8 +5624,8 @@ public:
     MyBlockLab::prepare(grid, stencil);
   }
 
-  /// Same as 'load' from BlockLab. This will also fetch halo cells from
-  /// different MPI processes.
+
+
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) override {
     MyBlockLab::load(info, t, applybc);
@@ -5926,53 +5642,42 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
-
-/** Takes care of load-balancing of Blocks.
- * This class will redistribute Blocks among different MPI ranks for two
- * reasons: 1) Eight (in 3D) or four (in 2D) blocks need to be compressed to
- * one, but they are owned by different ranks. PrepareCompression() will collect
- * them all to one rank, so that they can be compressed. 2) There is a load
- * imbalance after the grid is refined or compressed. If the imbalance is not
- * great (load imbalance ratio < 1.1), a 1D-diffusion based scheme is used to
- * redistribute blocks along the 1D Space-Filling-Curve. Otherwise, all blocks
- * are simply evenly redistributed among all ranks.
- * @tparam TGrid: the type of GridMPI to perform load-balancing for
- */
+# 5944 "main.cpp"
 template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
   typedef typename TGrid::Block::ElementType::RealType Real;
-  bool movedBlocks; ///< =true if load-balancing is performed when
-                    ///< Balance_Diffusion of Balance_Global is called
+  bool movedBlocks;
+
 
 protected:
-  TGrid *grid; ///< grid where load balancing will be performed
+  TGrid *grid;
 
-  /// MPI datatype and auxiliary struct used to send/receive blocks among ranks
+
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
-    long long mn[2]; ///< level and Z-order index of a BlockInfo
+    long long mn[2];
     Real data[sizeof(BlockType) /
-              sizeof(Real)]; ///< buffer array of data to send/receive
+              sizeof(Real)];
 
-    /** Constructor; calls 'prepare'.
-     * @param info: BlockInfo for block to be sent/received.
-     * @param Fillptr: true if we want the data of the GridBlock to be copied to
-     * this MPI_Block.
-     */
+
+
+
+
+
     MPI_Block(const BlockInfo &info, const bool Fillptr = true) {
       prepare(info, Fillptr);
     }
 
-    /** Prepare the MPI_Block with data from a GridBlock.
-     * @param info: BlockInfo for block to be sent/received.
-     * @param Fillptr: true if we want the data of the GridBlock to be copied to
-     * this MPI_Block.
-     */
+
+
+
+
+
     void prepare(const BlockInfo &info, const bool Fillptr = true) {
       mn[0] = info.level;
       mn[1] = info.Z;
@@ -5985,20 +5690,20 @@ protected:
     MPI_Block() {}
   };
 
-  /// Allocate a block at a given level and Z-index and fill it with received
-  /// data
+
+
   void AddBlock(const int level, const long long Z, Real *data) {
-    // 1. Allocate the block from the grid
+
     grid->_alloc(level, Z);
 
-    // 2. Fill the block with data received
+
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
     BlockType *b1 = (BlockType *)info.ptrBlock;
     assert(b1 != NULL);
     Real *a1 = &b1->data[0][0][0].member(0);
     std::memcpy(a1, data, sizeof(BlockType));
 
-// 3. Update status of children and parent block of newly allocated block
+
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
     if (level < grid->getlevelMax() - 1)
@@ -6015,13 +5720,13 @@ protected:
   }
 
 public:
-  /// Constructor
+
   LoadBalancer(TGrid &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
 
-    // Create MPI datatype to send/receive blocks (data) + two integers (their
-    // level and Z-index)
+
+
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
     MPI_Datatype array_of_types[2];
@@ -6037,12 +5742,12 @@ public:
     MPI_Type_commit(&MPI_BLOCK);
   }
 
-  /// Destructor
+
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
 
-  /// Compression of eight blocks requires all of them to be owned by one rank;
-  /// this function collects all groups of 8 blocks to be compressed to a single
-  /// rank.
+
+
+
   void PrepareCompression() {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
@@ -6051,17 +5756,17 @@ public:
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
 
-    // Loop over blocks
+
     for (auto &b : I) {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
 
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
 
-      // If the 'base' block does not exist, no compression will take place.
-      // Continue to next block. By now, if 'base' block is marked for
-      // compression it means that the remaining 7 (3, in 2D) blocks will also
-      // need compression, so we check if base.state == Compress.
+
+
+
+
       if (!grid->Tree(base).Exists() || base.state != Compress)
         continue;
 
@@ -6069,16 +5774,16 @@ public:
       const int baserank = grid->Tree(b.level, nBlock).rank();
       const int brank = grid->Tree(b.level, b.Z).rank();
 
-      // if 'b' is NOT the 'base' block we send it to the rank that owns the
-      // 'base' block.
+
+
       if (b.Z != nBlock) {
         if (baserank != rank && brank == rank) {
           send_blocks[baserank].push_back({bCopy});
           grid->Tree(b.level, b.Z).setrank(baserank);
         }
       }
-      // if 'b' is the 'base' block we collect the remaining 7 (3, in 2D) blocks
-      // that will be compressed with it.
+
+
       else {
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
@@ -6096,7 +5801,7 @@ public:
       }
     }
 
-    // 1/4 Perform the sends/receives of blocks
+
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
       if (r != rank) {
@@ -6114,8 +5819,8 @@ public:
         }
       }
 
-    // 2/4 Do some work while sending/receiving. Here we deallocate the blocks
-    // we sent.
+
+
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
@@ -6123,13 +5828,13 @@ public:
             .setCheckCoarser();
       }
 
-    // 3/4 Wait for communication to complete
+
     if (requests.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(requests.size(), &requests[0], MPI_STATUSES_IGNORE);
     }
 
-    // 4/4 Allocate the blocks we received and copy data to them.
+
     for (int r = 0; r < size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
@@ -6143,9 +5848,9 @@ public:
       }
   }
 
-  /// Redistributes blocks with diffusion algorithm along the 1D Space-Filling
-  /// Hilbert Curve; block_distribution[i] is the number of blocks owned by rank
-  /// i, for i=0,...,#of ranks -1
+
+
+
   void Balance_Diffusion(const bool verbose,
                          std::vector<long long> &block_distribution) {
     const int size = grid->get_world_size();
@@ -6204,7 +5909,7 @@ public:
 
     std::vector<MPI_Request> request;
 
-    if (flux_left > 0) // then I will send blocks to my left rank
+    if (flux_left > 0)
     {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
@@ -6214,7 +5919,7 @@ public:
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
                 grid->getWorldComm(), &request.back());
-    } else if (flux_left < 0) // then I will receive blocks from my left rank
+    } else if (flux_left < 0)
     {
       recv_left.resize(abs(flux_left));
       MPI_Request req{};
@@ -6222,7 +5927,7 @@ public:
       MPI_Irecv(&recv_left[0], recv_left.size(), MPI_BLOCK, left, 4560,
                 grid->getWorldComm(), &request.back());
     }
-    if (flux_right > 0) // then I will send blocks to my right rank
+    if (flux_right > 0)
     {
       send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
@@ -6232,7 +5937,7 @@ public:
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
                 grid->getWorldComm(), &request.back());
-    } else if (flux_right < 0) // then I will receive blocks from my right rank
+    } else if (flux_right < 0)
     {
       recv_right.resize(abs(flux_right));
       MPI_Request req{};
@@ -6272,21 +5977,21 @@ public:
     grid->FillPos();
   }
 
-  /// Redistributes all blocks evenly, along the 1D Space-Filling Hilbert Curve;
-  /// all_b[i] is the number of blocks owned by rank i, for i=0,...,#of ranks -1
+
+
   void Balance_Global(std::vector<long long> &all_b) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
 
-    // Redistribute all blocks evenly, along the 1D Hilbert curve.
-    // all_b[i] = # of blocks currently owned by rank i.
 
-    // sort blocks according to Z-index and level on the Hilbert curve.
+
+
+
     std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
     std::sort(SortedInfos.begin(), SortedInfos.end());
 
-    // compute the total number of blocks (total_load) and how many blocks each
-    // rank should have, for a balanced load distribution
+
+
     long long total_load = 0;
     for (int r = 0; r < size; r++)
       total_load += all_b[r];
@@ -6302,14 +6007,14 @@ public:
     long long ideal_index = (total_load / size) * rank;
     ideal_index += (rank < (total_load % size)) ? rank : (total_load % size);
 
-    // now check the actual block distribution and mark the blocks that should
-    // not be owned by a particular rank and should instead be sent to another
-    // rank.
+
+
+
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
     for (int r = 0; r < size; r++)
       if (rank != r) {
-        { // check if I need to receive blocks
+        {
           const long long a1 = ideal_index;
           const long long a2 = ideal_index + my_load - 1;
           const long long b1 = index_start[r];
@@ -6319,7 +6024,7 @@ public:
           if (c2 - c1 + 1 > 0)
             recv_blocks[r].resize(c2 - c1 + 1);
         }
-        { // check if I need to send blocks
+        {
           long long other_ideal_index = (total_load / size) * r;
           other_ideal_index +=
               (r < (total_load % size)) ? r : (total_load % size);
@@ -6337,7 +6042,7 @@ public:
         }
       }
 
-    // perform the sends and receives of blocks
+
     int tag = 12345;
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
@@ -6372,11 +6077,11 @@ public:
                   tag, grid->getWorldComm(), &requests.back());
       }
 
-    // no need to wait here, do some work first!
-    // MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 
-    // do some work while sending/receiving, by deallocating the blocks that are
-    // being sent
+
+
+
+
     movedBlocks = true;
     std::vector<long long> deallocIDs;
     counter_S = 0;
@@ -6402,10 +6107,10 @@ public:
       }
     grid->dealloc_many(deallocIDs);
 
-    // wait for communication
+
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 
-// allocate received blocks
+
 #pragma omp parallel
     {
       for (int r = 0; r < size; r++)
@@ -6420,37 +6125,10 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
-
-/**
- * @brief Class responsible for mesh refinement of a GridMPI.
- *
- * This class can label each GridBlock of a GridMPI as requiring
- * refinement/compression/nothing. It can then perform interpolation of points
- * for refinement and averaging down for compression, followed by load balancing
- * of GridBlocks among different processes.
- *
- * The user should use this class through its constructor and through the
- * functions 'Tag', 'TagLike' and 'Adapt'. When constructed, the user provides
- * this class with a Grid and two numbers: the tolerance for refinement (Rtol)
- * and the tolerance for compression (Ctol). By calling 'Tag', GridBlocks with
- * gridpoints that have magnitude() > Rtol will be tagged for refinement and
- * those with magnitude() < Ctol for compression. Alternatively, 'TagLike' can
- * be used to copy the tags of blocks from another already tagged grid to this
- * grid. Once tagged, the user needs to call 'Adapt', which will adapt the mesh,
- * interpolate new points and do the load-balancing of blocks among processes.
- *
- * In order to change the default refinement criterion, a new class can inherit
- * from this class and overload the function 'TagLoadedBlock'. In order to
- * change the default refinement interpolation, a new class can inherit from
- * this class and overload the function 'RefineBlocks'.
- *
- * @tparam TLab  The BlockLab type used for halo cells exchange and boundary
- * condition enforcement, when interpolation of gridpoints happens after mesh
- * refinement.
- */
+# 6454 "main.cpp"
 template <typename TLab> class MeshAdaptation {
 protected:
   typedef typename TLab::GridType TGrid;
@@ -6459,36 +6137,36 @@ protected:
   typedef typename TGrid::BlockType::ElementType::RealType Real;
   typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
 
-  StencilInfo stencil;  ///< stencil of +-1 point, needed for 2nd-order
-                        ///< refinement interpolation
-  bool CallValidStates; ///< will be true when 'Tag' is called and some
-                        ///< refinement/compression is needed
-  bool boundary_needed; ///< set true to update the boundary blocks of each
-                        ///< GridMPI
-  LoadBalancer<TGrid> *Balancer; ///< load-balancing of blocks
-  TGrid *grid;                   ///< pointer to Grid that will be adapted
-  double time; ///< (optional) time of simulation, for time-dependent refinement
-               ///< criteria
-  bool basic_refinement; ///< set to false if no interpolation is to be
-                         ///< performed after refinement
-  double tolerance_for_refinement;  ///< compare 'magnitude()' of each gridpoint
-                                    ///< to this number, to check if refinement
-                                    ///< is needed
-  double tolerance_for_compression; ///< compare 'magnitude()' of each gridpoint
-                                    ///< to this number, to check if compression
-                                    ///< is needed
+  StencilInfo stencil;
+
+  bool CallValidStates;
+
+  bool boundary_needed;
+
+  LoadBalancer<TGrid> *Balancer;
+  TGrid *grid;
+  double time;
+
+  bool basic_refinement;
+
+  double tolerance_for_refinement;
+
+
+  double tolerance_for_compression;
+
+
   std::vector<long long>
-      dealloc_IDs; ///< blockIDs for blocks that are deallocated because of mesh
-                   ///< refinement/compression
+      dealloc_IDs;
+
 
 public:
-  /**
-   * @brief Class constructor.
-   *
-   * @param g The Grid to be refined/compressed.
-   * @param Rtol Tolerance for refinement.
-   * @param Ctol Tolerance for compression.
-   */
+
+
+
+
+
+
+
   MeshAdaptation(TGrid &g, double Rtol, double Ctol) {
     grid = &g;
 
@@ -6513,17 +6191,17 @@ public:
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
 
-  /**
-   * @brief Class destructor.
-   */
+
+
+
   virtual ~MeshAdaptation() { delete Balancer; }
 
-  /**
-   * @brief Tag each block of this grid for refinement/compression based on
-   * criterion from 'TagLoadedBlock'.
-   * @param t Current time of the simulation; used only for time-dependent
-   * boundary conditions.
-   */
+
+
+
+
+
+
   void Tag(double t = 0) {
     time = t;
     boundary_needed = true;
@@ -6556,23 +6234,14 @@ public:
     if (CallValidStates)
       ValidStates();
   }
-
-  /**
-   * @brief Refine/compress the mesh after blocks are tagged.
-   * @param t Current time of the simulation; used only for time-dependent
-   * boundary conditions.
-   * @param verbosity Boolean variable controlling screen output.
-   * @param basic Boolean variable; if set to false, no refinement interpolation
-   * is performed and blocks are simply allocated (and filled with nothing)
-   * after refinement.
-   */
+# 6569 "main.cpp"
   void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<Real, TGrid> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
-      // TODO: the line below means there's no computation & communication
-      // overlap here
+
+
       grid->boundary = Synch->avail_halo();
       if (boundary_needed)
         grid->UpdateBoundary();
@@ -6668,12 +6337,12 @@ public:
     }
   }
 
-  /**
-   * @brief Tag each block of this grid for refinement/compression by copying
-   * the tags of the given BlockInfos.
-   * @param I1 Vector of BlockInfos whose 'state' (refine/compress/leave) will
-   * be copied to the BlockInfos of this grid.
-   */
+
+
+
+
+
+
   void TagLike(const std::vector<BlockInfo> &I1) {
     std::vector<BlockInfo> &I2 = grid->getBlocksInfo();
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
@@ -6709,14 +6378,7 @@ public:
   }
 
 protected:
-  /**
-   * @brief Auxiliary function to tag a vector of blocks
-   * @param I Vector of BlockInfos to tag.
-   * @param Reduction Boolean that will be set to true if any block is tagged;
-   * setting to true will cause a call to 'ValidStates()' after tagging blocks.
-   * @param Reduction_req MPI request that will be used if 'Reduction' is true
-   * @param tmp Same value as 'Reduction' by this is an integer
-   */
+# 6720 "main.cpp"
   void TagBlocksVector(std::vector<BlockInfo *> &I, bool &Reduction,
                        MPI_Request &Reduction_req, int &tmp) {
     const int levelMax = grid->getlevelMax();
@@ -6751,16 +6413,7 @@ protected:
       }
     }
   }
-
-  /**
-   * @brief First step of refinement of a block.
-   *
-   * The new blocks are allocated and the interpolation needed for refinement is
-   * perfomed. The parent block will be deallocated in step 2 (refine_2).
-   *
-   * @param level The refinement level of the block to be refined.
-   * @param Z The Z-order index of the block to be refined.
-   */
+# 6764 "main.cpp"
   void refine_1(const int level, const long long Z, TLab &lab) {
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     parent.state = Leave;
@@ -6785,16 +6438,7 @@ protected:
     if (basic_refinement == false)
       RefineBlocks(Blocks, lab);
   }
-
-  /**
-   * @brief Second step of refinement of a block.
-   *
-   * After all blocks are refined with refine_1, we can deallocate their parent
-   * blocks here.
-   *
-   * @param level The refinement level of the block to be refined.
-   * @param Z The Z-order index of the block to be refined.
-   */
+# 6798 "main.cpp"
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
     { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
@@ -6816,17 +6460,7 @@ protected:
               grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
       }
   }
-
-  /**
-   * @brief Compress eight blocks.
-   *
-   * The 'bottom left' block (i,j,k) is provided in the input, via its
-   * refinement level and Z-order index. The top right block would be the block
-   * (i+1,j+1,k+1).
-   *
-   * @param level The refinement level of the bottom left block to be refined.
-   * @param Z The Z-order index of the bottom left block to be refined.
-   */
+# 6830 "main.cpp"
   void compress(const int level, const long long Z) {
     assert(level > 0);
 
@@ -6881,17 +6515,7 @@ protected:
         grid->getBlockInfoAll(level, n).state = Leave;
       }
   }
-
-  /**
-   * @brief Make sure adjacent blocks of the to-be-adapted mesh do not differ by
-   * more than one refinement level.
-   *
-   * Given a set of tagged blocks, this function will mark some additional
-   * blocks for refinement, to make sure no adjacent blocks differ by more than
-   * one refinement level. It will also unmark some blocks from being
-   * compressed, if their adjacent blocks do not need compression and/or belong
-   * to a finer refinement level.
-   */
+# 6895 "main.cpp"
   void ValidStates() {
     const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
     const int levelMin = 0;
@@ -6917,13 +6541,13 @@ protected:
       }
     }
 
-    // 1.Change states of blocks next to finer resolution blocks
-    // 2.Change states of blocks next to same resolution blocks
-    // 3.Compress a block only if all blocks with the same parent need
-    // compression
+
+
+
+
     bool clean_boundary = true;
     for (int m = levelMax - 1; m >= levelMin; m--) {
-      // 1.
+
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state != Refine &&
@@ -6961,16 +6585,16 @@ protected:
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
               }
-              // if (info.level == levelMax - 1) break;
+
 
               const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
-              int Bstep = 1; // face
+              int Bstep = 1;
               if (tmp == 2)
-                Bstep = 3; // edge
+                Bstep = 3;
               else if (tmp == 3)
-                Bstep = 4; // corner
+                Bstep = 4;
 
-// loop over blocks that make up face/edge/corner(respectively 4,2 or 1 blocks)
+
               for (int B = 0; B <= 1; B += Bstep)
               {
                 const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -7000,7 +6624,7 @@ protected:
       if (m == levelMin)
         break;
 
-      // 2.
+
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
         if (info.level == m && info.state == Compress) {
@@ -7039,9 +6663,9 @@ protected:
           }
         }
       }
-    } // m
+    }
 
-    // 3.
+
     for (size_t jjj = 0; jjj < I.size(); jjj++) {
       BlockInfo &info = I[jjj];
       const int m = info.level;
@@ -7078,15 +6702,7 @@ protected:
             }
     }
   }
-
-  /**
-   * @brief How cells are interpolated after refinement
-   *
-   * Default interpolation is a 2nd order Taylor expansion. Can be overidden by
-   * a derived class, to enable a custom refinement interpolation.
-   *
-   * @param B Pointers to the eight new blocks to be interpolated.
-   */
+# 7090 "main.cpp"
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
@@ -7143,16 +6759,7 @@ protected:
           }
       }
   }
-
-  /**
-   * @brief Refinement criterion.
-   *
-   * Default refinement criterion is to compare the 'magnitude()' of each
-   * gridpoint to Rtol and Ctol. Can be overidden by a derived class, to enable
-   * a custom refinement criterion.
-   *
-   * @param info BlockInfo to be tagged.
-   */
+# 7156 "main.cpp"
   virtual State TagLoadedBlock(BlockInfo &info) {
     const int nx = BlockType::sizeX;
     const int ny = BlockType::sizeY;
@@ -7173,22 +6780,22 @@ protected:
   }
 };
 
-} // namespace cubism
+}
 
 namespace cubism {
 
 template <typename Lab, typename Kernel, typename TGrid,
           typename TGrid_corr = TGrid>
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
-  // If flux corrections are needed, prepare the flux correction object
+
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
 
-  // Start sending and receiving of data for blocks at the boundary of each rank
+
   cubism::SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
       *(g->sync(kernel.stencil));
 
-  // Access the inner blocks of each rank
+
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
 
   std::vector<cubism::BlockInfo *> *halo_next;
@@ -7198,14 +6805,14 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
     Lab lab;
     lab.prepare(*g, kernel.stencil);
 
-// First compute for inner blocks
+
 #pragma omp for nowait
     for (const auto &I : *inner) {
       lab.load(*I, 0);
       kernel(lab, *I);
     }
 
-    // Then compute for boundary blocks
+
 #if 1
     while (done == false) {
 #pragma omp master
@@ -7247,15 +6854,15 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
 #endif
   }
 
-  // Complete the send requests remaining
+
   Synch.avail_halo();
 
-  // Carry out flux corrections
+
   if (g_corr != nullptr)
     g_corr->Corrector.FillBlockCases();
 }
 
-// Get two BlockLabs from two different Grids
+
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2, typename TGrid_corr = TGrid>
 static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
@@ -7291,7 +6898,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   const int Ninner = avail0.size();
   std::vector<cubism::BlockInfo *> avail1;
   std::vector<cubism::BlockInfo *> avail12;
-// bool done = false;
+
 #pragma omp parallel
   {
     LabMPI lab;
@@ -7371,19 +6978,19 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     corrected_grid->Corrector.FillBlockCases();
 }
 
-/// Example of a gridpoint element that is merely a scalar quantity of type
-/// 'Real' (double/float).
-template <typename Real = double> struct ScalarElement {
-  using RealType = Real; ///< definition of 'RealType', needed by BlockLab
-  Real s = 0;            ///< scalar quantity
 
-  /// set scalar to zero
+
+template <typename Real = double> struct ScalarElement {
+  using RealType = Real;
+  Real s = 0;
+
+
   inline void clear() { s = 0; }
 
-  /// set scalar to a value
+
   inline void set(const Real v) { s = v; }
 
-  /// copy a ScalarElement
+
   inline void copy(const ScalarElement &c) { s = c.s; }
 
   ScalarElement &operator*=(const Real a) {
@@ -7423,28 +7030,28 @@ template <typename Real = double> struct ScalarElement {
   static constexpr int DIM = 1;
 };
 
-/// Example of a gridpoint element that is a vector quantity of type 'Real'
-/// (double/float); 'dim' are the number of dimensions of the vector
+
+
 template <int dim, typename Real = double> struct VectorElement {
-  using RealType = Real; ///< definition of 'RealType', needed by BlockLab
+  using RealType = Real;
   static constexpr int DIM = dim;
-  Real u[DIM]; ///< vector quantity
+  Real u[DIM];
 
   VectorElement() { clear(); }
 
-  /// set vector components to zero
+
   inline void clear() {
     for (int i = 0; i < DIM; ++i)
       u[i] = 0;
   }
 
-  /// set vector components to a number
+
   inline void set(const Real v) {
     for (int i = 0; i < DIM; ++i)
       u[i] = v;
   }
 
-  /// set copy one VectorElement to another
+
   inline void copy(const VectorElement &c) {
     for (int i = 0; i < DIM; ++i)
       u[i] = c.u[i];
@@ -7534,9 +7141,9 @@ template <int dim, typename Real = double> struct VectorElement {
   Real &member(int i) { return u[i]; }
 };
 
-/// array of blocksize^dim gridpoints of type 'TElement'.
+
 template <int blocksize, int dim, typename TElement> struct GridBlock {
-  // these identifiers are required by cubism!
+
   static constexpr int BS = blocksize;
   static constexpr int sizeX = blocksize;
   static constexpr int sizeY = blocksize;
@@ -7547,21 +7154,21 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
 
   ElementType data[sizeZ][sizeY][sizeX];
 
-  /// set 'data' to zero (call 'clear()' of each TElement)
+
   inline void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
 
-  /// set 'data' to a value (call 'set()' of each TElement)
+
   inline void set(const RealType v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
   }
 
-  /// copy one GridBlock to another  (call 'copy()' of each TElement)
+
   inline void copy(const GridBlock<blocksize, dim, ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
@@ -7569,14 +7176,14 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
       entry[i].copy(source[i]);
   }
 
-  /// Access an element of this GridBlock (const.)
+
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
     return data[iz][iy][ix];
   }
 
-  /// Access an element of this GridBlock
+
   ElementType &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
@@ -7586,26 +7193,26 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
   GridBlock &operator=(const GridBlock &) = delete;
 };
 
-/** BlockLab to apply zero Neumann boundary conditions (zero normal derivative
- * to the boundary).
- * @tparam TGrid: Grid/GridMPI type to apply the boundary conditions to.
- * @tparam dim: = 2 or 3, depending on the spatial dimensions
- * @tparam allocator: allocator object, same as the one from BlockLab.
- */
+
+
+
+
+
+
 template <typename TGrid, int dim,
           template <typename X> class allocator = std::allocator>
 class BlockLabNeumann : public cubism::BlockLab<TGrid, allocator> {
-  /*
-   * Apply 2nd order Neumann boundary condition: du/dn_{i+1/2} = 0 => u_{i} =
-   * u_{i+1}
-   */
+
+
+
+
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
   static constexpr int DIM = dim;
 
 protected:
-  /// Apply bc on face of direction dir and side side (0 or 1):
+
   template <int dir, int side> void Neumann3D(const bool coarse = false) {
     int stenBeg[3];
     int stenEnd[3];
@@ -7649,7 +7256,7 @@ protected:
     e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1) : bsize[1];
     e[2] = dir == 2 ? (side == 0 ? 0 : bsize[2] + stenEnd[2] - 1) : bsize[2];
 
-    // Fill face
+
     for (int iz = s[2]; iz < e[2]; iz++)
       for (int iy = s[1]; iy < e[1]; iy++)
         for (int ix = s[0]; ix < e[0]; ix++) {
@@ -7661,7 +7268,7 @@ protected:
                       stenBeg[2]);
         }
 
-    // Fill edges and corners (necessary for the coarse block)
+
     s[dir] = stenBeg[dir] * (1 - side) + bsize[dir] * side;
     e[dir] = (bsize[dir] - 1 + stenEnd[dir]) * side;
     const int d1 = (dir + 1) % 3;
@@ -7689,7 +7296,7 @@ protected:
       }
   }
 
-  /// Apply bc on face of direction dir and side side (0 or 1):
+
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -7735,25 +7342,25 @@ protected:
 public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  using Real = typename ElementType::RealType; ///< Number type used by Element
-                                               ///< (double/float etc.)
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+  using Real = typename ElementType::RealType;
+
+
+
   virtual bool is_xperiodic() override { return false; }
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+
+
   virtual bool is_yperiodic() override { return false; }
-  /// Will return 'false' as the boundary conditions are not periodic for this
-  /// BlockLab.
+
+
   virtual bool is_zperiodic() override { return false; }
 
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
 
-  /// Apply the boundary condition; 'coarse' is set to true if the boundary
-  /// condition should be applied to the coarsened version of the BlockLab (see
-  /// also BlockLab).
+
+
+
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (DIM == 2) {
@@ -7782,27 +7389,27 @@ public:
   }
 };
 
-} // namespace cubism
+}
 
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
   if (strFlag == "periodic") {
-    // printf("[CUP2D] Using periodic boundary conditions\n");
+
     return periodic;
   } else if (strFlag == "freespace") {
-    // printf("[CUP2D] Using freespace boundary conditions\n");
+
     return freespace;
   } else if (strFlag == "wall") {
-    // printf("[CUP2D] Using freespace boundary conditions\n");
+
     return wall;
   } else {
     fprintf(stderr, "BC not recognized %s\n", strFlag.c_str());
     fflush(0);
     abort();
-    return periodic; // dummy
+    return periodic;
   }
 }
-// CAREFUL THESE ARE GLOBAL VARIABLES!
+
 extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 
@@ -7819,7 +7426,7 @@ public:
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
 
-  // Apply bc on face of direction dir and side side (0 or 1):
+
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
 
@@ -7908,7 +7515,7 @@ public:
     }
   }
 
-  // Called by Cubism:
+
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     const BCflag BCX = cubismBCX;
@@ -7956,7 +7563,7 @@ public:
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
 
-  // Called by Cubism:
+
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
     if (is_xperiodic() == false) {
@@ -7993,7 +7600,7 @@ namespace cubism {
 const bool bVerboseProfiling = false;
 
 class ProfileAgent {
-  //	typedef tbb::tick_count ClockTime;
+
   typedef timeval ClockTime;
 
   enum ProfileAgentState {
@@ -8009,13 +7616,13 @@ class ProfileAgent {
   int m_nMoney;
 
   static void _getTime(ClockTime &time) {
-    // time = tick_count::now();
+
     gettimeofday(&time, NULL);
   }
 
   static double _getElapsedTime(const ClockTime &tS, const ClockTime &tE) {
     return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
-    // return (tE - tS).seconds();
+
   }
 
   void _reset() {
@@ -8175,7 +7782,7 @@ public:
   }
 
   void reset() {
-    // printf("reset\n");
+
     for (std::map<std::string, ProfileAgent *>::const_iterator it =
              m_mapAgents.begin();
          it != m_mapAgents.end(); it++)
@@ -8205,82 +7812,82 @@ public:
   friend class ProfileAgent;
 };
 
-} // namespace cubism
+}
 
 class Shape;
 
 struct SimulationData {
-  // MPI
+
   MPI_Comm comm;
   int rank;
 
-  /* parsed parameters */
-  /*********************/
 
-  // blocks per dimension
+
+
+
   int bpdx;
   int bpdy;
 
-  // number of levels
+
   int levelMax;
 
-  // initial level
+
   int levelStart;
 
-  // refinement/compression tolerance for voriticy magnitude
+
   Real Rtol;
   Real Ctol;
 
-  // check for mesh refinement every this many steps
+
   int AdaptSteps{20};
 
-  // boolean to switch between refinement according to chi or grad(chi)
+
   bool bAdaptChiGradient;
 
-  // maximal simulation extent (direction with max(bpd))
+
   Real extent;
 
-  // simulation extents
+
   std::array<Real, 2> extents;
 
-  // timestep / cfl condition
+
   Real dt;
   Real CFL;
   int rampup{0};
 
-  // simulation ending parameters
+
   int nsteps;
   Real endTime;
 
-  // penalisation coefficient
+
   Real lambda;
 
-  // constant for explicit penalisation lambda=dlm/dt
+
   Real dlm;
 
-  // kinematic viscosity
+
   Real nu;
 
-  // forcing
+
   bool bForcing;
   Real forcingWavenumber;
   Real forcingCoefficient;
 
-  // Smagorinsky Model
+
   Real smagorinskyCoeff;
 
-  // Flag for initial conditions
+
   std::string ic;
 
-  // poisson solver parameters
-  std::string poissonSolver; // for now only "iterative"
-  Real PoissonTol;           // absolute error tolerance
-  Real PoissonTolRel;        // relative error tolerance
-  int maxPoissonRestarts;    // maximal number of restarts of Poisson solver
-  int maxPoissonIterations;  // maximal number of iterations of Poisson solver
-  int bMeanConstraint;       // regularizing the poisson equation using the mean
 
-  // output setting
+  std::string poissonSolver;
+  Real PoissonTol;
+  Real PoissonTolRel;
+  int maxPoissonRestarts;
+  int maxPoissonIterations;
+  int bMeanConstraint;
+
+
   int profilerFreq = 0;
   int dumpFreq;
   Real dumpTime;
@@ -8289,12 +7896,12 @@ struct SimulationData {
   std::string path4serialization;
   std::string path2file;
 
-  /*********************/
 
-  // initialize profiler
+
+
   cubism::Profiler *profiler = new cubism::Profiler();
 
-  // declare grids
+
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
   VectorGrid *vOld = nullptr;
@@ -8304,36 +7911,36 @@ struct SimulationData {
   ScalarGrid *pold = nullptr;
   ScalarGrid *Cs = nullptr;
 
-  // vector containing obstacles
+
   std::vector<std::shared_ptr<Shape>> shapes;
 
-  // simulation time
+
   Real time = 0;
 
-  // simulation step
+
   int step = 0;
 
-  // velocity of simulation frame of reference
+
   Real uinfx = 0;
   Real uinfy = 0;
   Real uinfx_old = 0;
   Real uinfy_old = 0;
   Real dt_old =
-      1e10; // need to initialize to a big value so that restarting does not
-  Real dt_old2 = 1e10; // break when these are used in PressureSingle.cpp
+      1e10;
+  Real dt_old2 = 1e10;
 
-  // largest velocity measured
+
   Real uMax_measured = 0;
 
-  // time of next dump
+
   Real nextDumpTime = 0;
 
-  // bools specifying whether we dump or not
+
   bool _bDump = false;
   bool DumpUniform = false;
   bool bDumpCs = false;
 
-  // bool for detecting collisions
+
   bool bCollision = false;
   std::vector<int> bCollisionID;
 
@@ -8345,7 +7952,7 @@ struct SimulationData {
   void registerDump();
   bool bOver() const;
 
-  // minimal and maximal gridspacing possible
+
   Real minH;
   Real maxH;
 
@@ -8356,7 +7963,7 @@ struct SimulationData {
   SimulationData &operator=(SimulationData &&) = delete;
   ~SimulationData();
 
-  // minimal gridspacing present on grid
+
   Real getH() {
     Real minHGrid = std::numeric_limits<Real>::infinity();
     auto &infos = vel->getBlocksInfo();
@@ -8406,49 +8013,49 @@ struct ObstacleBlock {
   static const int sizeX = _BS_;
   static const int sizeY = _BS_;
 
-  // bulk quantities:
+
   Real chi[sizeY][sizeX];
   Real dist[sizeY][sizeX];
   Real udef[sizeY][sizeX][2];
 
-  // surface quantities:
+
   size_t n_surfPoints = 0;
   bool filled = false;
   std::vector<surface_data *> surface;
 
-  // surface quantities of interest (only needed for post-processing
-  // computations)
-  Real *x_s = nullptr;     // x-coordinate
-  Real *y_s = nullptr;     // y-coordinate
-  Real *p_s = nullptr;     // pressure
-  Real *u_s = nullptr;     // u velocity
-  Real *v_s = nullptr;     // v velocity
-  Real *nx_s = nullptr;    // x-component of unit normal vector
-  Real *ny_s = nullptr;    // y-component of unit normal vector
-  Real *omega_s = nullptr; // vorticity
-  Real *uDef_s = nullptr;  // x-component of deformation velocity
-  Real *vDef_s = nullptr;  // y-component of deformation velocity
-  Real *fX_s = nullptr;    // x-component of total force
-  Real *fY_s = nullptr;    // y-component of total force
-  Real *fXv_s = nullptr;   // x-component of viscous force
-  Real *fYv_s = nullptr;   // y-component of viscous force
 
-  // additive quantities:
+
+  Real *x_s = nullptr;
+  Real *y_s = nullptr;
+  Real *p_s = nullptr;
+  Real *u_s = nullptr;
+  Real *v_s = nullptr;
+  Real *nx_s = nullptr;
+  Real *ny_s = nullptr;
+  Real *omega_s = nullptr;
+  Real *uDef_s = nullptr;
+  Real *vDef_s = nullptr;
+  Real *fX_s = nullptr;
+  Real *fY_s = nullptr;
+  Real *fXv_s = nullptr;
+  Real *fYv_s = nullptr;
+
+
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
   Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
        defPower = 0, defPowerBnd = 0;
   Real circulation = 0;
 
-  // auxiliary quantities for shape center of mass
+
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
 
   ObstacleBlock() {
     clear();
-    // rough estimate of surface cutting the block diagonally
-    // with 2 points needed on each side of surface
+
+
     surface.reserve(4 * _BS_);
   }
   ~ObstacleBlock() { clear_surface(); }
@@ -8540,7 +8147,7 @@ struct ObstacleBlock {
 
     if (delta > 0) {
       n_surfPoints++;
-      // multiply by cell area h^2 and by 0.5/h due to finite diff of gradHX
+
       const Real dchidx = -delta * gradUX, dchidy = -delta * gradUY;
       surface.push_back(new surface_data(ix, iy, dchidx, dchidy, delta));
     }
@@ -8575,15 +8182,15 @@ struct ObstacleBlock {
 };
 
 class Shape {
-public: // data fields
+public:
   SimulationData &sim;
   unsigned obstacleID = 0;
   std::vector<ObstacleBlock *> obstacleBlocks;
-  // general quantities
+
   const Real origC[2], origAng;
-  Real center[2]; // for single density, this corresponds to centerOfMass
+  Real center[2];
   Real centerOfMass[2];
-  Real d_gm[2] = {0, 0}; // distance of center of geometry to center of mass
+  Real d_gm[2] = {0, 0};
   Real labCenterOfMass[2] = {0, 0};
   Real orientation = origAng;
 
@@ -8605,8 +8212,8 @@ public: // data fields
 
   Real M = 0;
   Real J = 0;
-  Real u = forcedu; // in lab frame, not sim frame
-  Real v = forcedv; // in lab frame, not sim frame
+  Real u = forcedu;
+  Real v = forcedv;
   Real omega = forcedomega;
   Real fluidAngMom = 0;
   Real fluidMomX = 0;
@@ -8652,14 +8259,7 @@ public: // data fields
   }
 
 protected:
-  /*
-    inline void rotate(Real p[2]) const
-    {
-      const Real x = p[0], y = p[1];
-      p[0] =  x*std::cos(orientation) + y*std::sin(orientation);
-      p[1] = -x*std::sin(orientation) + y*std::cos(orientation);
-    }
-  */
+# 8663 "main.cpp"
 public:
   Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
 
@@ -8923,14 +8523,14 @@ public:
     cubism::compute<VectorLab>(mykernel, sim.vel, sim.tmp);
 #if 0
     Real total = 0.0;
-    Real abs   = 0.0;
+    Real abs = 0.0;
     for (auto & info: sim.tmp->getBlocksInfo())
     {
       auto & TMP = *(ScalarBlock*) info.ptrBlock;
       for(int y=0; y<VectorBlock::sizeY; ++y)
       for(int x=0; x<VectorBlock::sizeX; ++x)
       {
-        abs   += std::fabs(TMP(x,y).s);
+        abs += std::fabs(TMP(x,y).s);
         total += TMP(x,y).s;
       }
     }
@@ -8952,8 +8552,8 @@ public:
 
 namespace fs = std::filesystem;
 
-// Function to retrieve HDF5 type (hid_t) for a given real type.
-// If using custom types, the user should specialize this function.
+
+
 template <typename T> hid_t get_hdf5_type();
 template <> inline hid_t get_hdf5_type<long long>() { return H5T_NATIVE_LLONG; }
 template <> inline hid_t get_hdf5_type<short int>() { return H5T_NATIVE_SHORT; }
@@ -8966,7 +8566,7 @@ template <> inline hid_t get_hdf5_type<long double>() {
 
 namespace cubism {
 
-/// used for dumping a ScalarElement
+
 struct StreamerScalar {
   static constexpr int NCHANNELS = 1;
   template <typename TBlock, typename T>
@@ -8978,7 +8578,7 @@ struct StreamerScalar {
   static const char *getAttributeName() { return "Scalar"; }
 };
 
-/// used for dumping a VectorElement
+
 struct StreamerVector {
   static constexpr int NCHANNELS = 3;
   template <typename TBlock, typename T>
@@ -8995,14 +8595,14 @@ template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
                       const std::string &fname,
                       const std::string &dpath = ".") {
-  // only for 2D!
+
 
   typedef typename TGrid::BlockType B;
   const unsigned int nX = B::sizeX;
   const unsigned int nY = B::sizeY;
-  // const unsigned int nZ = B::sizeZ;
 
-  // fname is the base filepath without file type extension
+
+
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
@@ -9012,15 +8612,15 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
   std::array<int, 3> bpd = grid.getMaxBlocks();
   const unsigned int unx = bpd[0] * (1 << (levelMax - 1)) * nX;
   const unsigned int uny = bpd[1] * (1 << (levelMax - 1)) * nY;
-  // const int unz = bpd[2]*(1<<(levelMax-1))*nZ;
+
   const unsigned int NCHANNELS = TStreamer::NCHANNELS;
   double hmin = 1e10;
   for (size_t i = 0; i < MyInfos.size(); i++)
     hmin = std::min(hmin, MyInfos[i].h);
   const double h = hmin;
 
-  // TODO: Refactor, move the interpolation logic into a separate function at
-  // the level of a Grid, see copyToUniformNoInterpolation for reference.
+
+
 
   std::vector<float> uniform_mesh(uny * unx * NCHANNELS);
   for (size_t i = 0; i < MyInfos.size(); i++) {
@@ -9097,9 +8697,9 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
 
   hid_t file_id, dataset_id, fspace_id, plist_id;
   H5open();
-  // 1.Set up file access property list with parallel I/O access
-  // 2.Create a new file collectively and release property list identifier.
-  // 3.All ranks need to create datasets dset*
+
+
+
   hsize_t dims[4] = {1, uny, unx, NCHANNELS};
 
   plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -9117,11 +8717,11 @@ void DumpHDF5_uniform(const TGrid &grid, const typename TGrid::Real absTime,
            uniform_mesh.data());
   H5Dclose(dataset_id);
 
-  // 5.Close hdf5 file
+
   H5Fclose(file_id);
   H5close();
 
-  // 6.Write grid meta-data
+
   {
     FILE *xmf = 0;
     xmf = fopen((fullpath.str() + "uniform.xmf").c_str(), "w");
@@ -9175,21 +8775,21 @@ void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
 
   hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 
-  // 1. Open file
+
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
   file_id = H5Fopen(name.c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
 
-  // 2. Dataset property list
+
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
 
-  // 3. Read dataset size
+
   dataset_id = H5Dopen2(file_id, dataset_name.c_str(), H5P_DEFAULT);
   hsize_t total = H5Dget_storage_size(dataset_id) / sizeof(data_type) / chunk;
 
-  // 4. Determine part of the dataset to be read by this rank
+
   unsigned long long my_data = total / size;
   if ((hsize_t)rank < total % (hsize_t)size)
     my_data++;
@@ -9204,14 +8804,14 @@ void read_buffer_from_file(std::vector<data_type> &buffer, MPI_Comm &comm,
   hsize_t count = my_data * chunk;
   buffer.resize(count);
 
-  // 5. Read from file
+
   fspace_id = H5Dget_space(dataset_id);
   mspace_id = H5Screate_simple(1, &count, NULL);
   H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL);
   H5Dread(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id, fapl_id,
           buffer.data());
 
-  // 6. Close stuff
+
   H5Pclose(fapl_id);
   H5Dclose(dataset_id);
   H5Sclose(fspace_id);
@@ -9256,7 +8856,7 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
 
-#if 0 // compression
+#if 0
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
     hsize_t cdims[1];
     cdims[0] = 8*8*8;
@@ -9281,11 +8881,11 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
 }
 
 static double latestTime{-1.0};
-// The following requirements for the data TStreamer are required:
-// TStreamer::NCHANNELS        : Number of data elements (1=Scalar, 3=Vector,
-// 9=Tensor) TStreamer::operate          : Data access methods for read and
-// write TStreamer::getAttributeName : Attribute name of the date ("Scalar",
-// "Vector", "Tensor")
+
+
+
+
+
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                   const std::string &fname, const std::string &dpath = ".",
@@ -9317,7 +8917,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   const int rank = grid.myrank;
   std::ostringstream filename;
   std::ostringstream fullpath;
-  filename << fname; // fname is the base filepath without file type extension
+  filename << fname;
   fullpath << dpath << "/" << filename.str();
 
   const int PtsPerElement = 4;
@@ -9330,11 +8930,11 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   H5open();
   hid_t file_id, fapl_id;
 
-  // 1.Set up file access property list with parallel I/O access
+
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
 
-  // 2.Create a new file collectively and release property list identifier.
+
   file_id = H5Fcreate((fullpath.str() + ".h5").c_str(), H5F_ACC_TRUNC,
                       H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
@@ -9352,18 +8952,18 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   std::string gridFilePath = gridFilePath_s.str();
 
   if (SaveGrid) {
-    // 1.Set up file access property list with parallel I/O access
+
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
 
-    // 2.Create a new file collectively and release property list identifier.
+
     file_id_grid = H5Fcreate(gridFilePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                              fapl_id_grid);
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
 
-  // Write grid meta-data
+
   if (rank == 0 && dumpGrid) {
     std::ostringstream myfilename;
     myfilename << filename.str();
@@ -9377,9 +8977,9 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "   <Topology NumberOfElements=\"" << TotalCells
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
-    // s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " <<
-    // TotalCells*PtsPerElement << " " << DIMENSION << "\" NumberType=\"Float\"
-    // Precision=\" " << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
+
+
+
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
       << TotalCells * PtsPerElement << " " << DIMENSION
       << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
@@ -9418,7 +9018,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
 
-  // Dump grid structure (used when restarting)
+
   {
     std::vector<short int> bufferlevel(MyInfos.size());
     std::vector<long long> bufferZ(MyInfos.size());
@@ -9431,7 +9031,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     save_buffer_to_file<long long>(bufferZ, 1, comm, fullpath.str() + ".h5",
                                    "blocksZ", file_id, fapl_id);
   }
-  // Dump vertices
+
   if (SaveGrid) {
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
@@ -9451,16 +9051,16 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
                               PtsPerElement * DIMENSION;
             double p[2];
             info.pos(p, x, y);
-            //(0,0)
+
             buffer[bbase] = p[0] - h2;
             buffer[bbase + 1] = p[1] - h2;
-            //(0,1)
+
             buffer[bbase + DIMENSION] = p[0] - h2;
             buffer[bbase + DIMENSION + 1] = p[1] + h2;
-            //(1,1)
+
             buffer[bbase + 2 * DIMENSION] = p[0] + h2;
             buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-            //(1,0)
+
             buffer[bbase + 3 * DIMENSION] = p[0] + h2;
             buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
           }
@@ -9471,7 +9071,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
-  // Dump data
+
   {
     std::vector<hdf5Real> buffer(MyCells * NCHANNELS);
     for (size_t i = 0; i < MyInfos.size(); i++) {
@@ -9498,7 +9098,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   H5close();
 }
 
-} // namespace cubism
+}
 
 void IC::operator()(const Real dt) {
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
@@ -9525,16 +9125,16 @@ void IC::operator()(const Real dt) {
     VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
     VOLD.clear();
   }
-  
+
   if (sim.smagorinskyCoeff != 0) {
     const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
 #pragma omp parallel for
     for (size_t i = 0; i < CsInfo.size(); i++) {
       ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
       for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-	for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-	  CS(ix, iy).s = sim.smagorinskyCoeff;
-	}
+ for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
+   CS(ix, iy).s = sim.smagorinskyCoeff;
+ }
     }
   }
 }
@@ -9594,8 +9194,8 @@ Real findMaxU::run() const {
   const size_t Nblocks = velInfo.size();
 
   const Real UINF = sim.uinfx, VINF = sim.uinfy;
-///*
-  //*/
+
+
   Real U = 0, V = 0, u = 0, v = 0;
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
   for (size_t i = 0; i < Nblocks; i++) {
@@ -9619,9 +9219,9 @@ Real findMaxU::run() const {
 }
 
 void ApplyObjVel::operator()(const Real dt) {
-  // We loop over each shape's obstacle blocks and copy the obstacle's
-  // deformation velocity UDEF to tmpV.
-  // Then, we put that velocity to the grid.
+
+
+
 
   const size_t Nblocks = velInfo.size();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
@@ -9635,10 +9235,10 @@ void ApplyObjVel::operator()(const Real dt) {
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
       const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock; // dest
+      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
       const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; iy++)
         for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
@@ -9678,7 +9278,7 @@ void Shape::updateVelocity(Real dt) {
   if (not bBlockang || sim.time > timeForced)
     omega = (fluidAngMom + dt * appliedTorque) / penalJ;
 #else
-  // A and b need to be declared as double (not Real)
+
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
                     {(double)-penalDY, (double)penalDX, (double)penalJ}};
@@ -9724,11 +9324,11 @@ void Shape::updateVelocity(Real dt) {
     const double charL = getCharLength();
     const double charV = std::abs(u);
 
-    // Set magintude of disturbance
-    if (breakSymmetryType == 1) { // add rotation
+
+    if (breakSymmetryType == 1) {
       omega = strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
     }
-    if (breakSymmetryType == 2) { // add translation
+    if (breakSymmetryType == 2) {
       v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
     }
   }
@@ -9750,8 +9350,8 @@ void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
 }
 
 void Shape::updatePosition(Real dt) {
-  // Remember, uinf is -ubox, therefore we sum it to u body to get
-  // velocity of shapre relative to the sim box
+
+
   centerOfMass[0] += dt * (u + sim.uinfx);
   centerOfMass[1] += dt * (v + sim.uinfy);
   labCenterOfMass[0] += dt * u;
@@ -9769,7 +9369,7 @@ void Shape::updatePosition(Real dt) {
   const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
 
-  // do not print/write for initial PutObjectOnGrid
+
   if (dt <= 0)
     return;
 
@@ -9796,7 +9396,7 @@ void Shape::updatePosition(Real dt) {
 Shape::Integrals
 Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
   Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
-#pragma omp parallel for schedule(dynamic, 1)                                  \
+#pragma omp parallel for schedule(dynamic, 1) \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
   for (size_t i = 0; i < vInfo.size(); i++) {
     const Real hsq = std::pow(vInfo[i].h, 2);
@@ -9844,8 +9444,8 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   M = I.m;
   J = I.j;
 
-  // with current center put shape on grid, with current shape on grid we
-  // updated the center of mass, now recompute the distance betweeen the two:
+
+
   const Real dCx = center[0] - centerOfMass[0];
   const Real dCy = center[1] - centerOfMass[1];
   d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
@@ -9870,7 +9470,7 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 };
 
 void Shape::computeForces() {
-  // additive quantities:
+
   perimeter = 0;
   forcex = 0;
   forcey = 0;
@@ -9955,7 +9555,7 @@ void Shape::computeForces() {
   defPowerBnd = quantities[17];
   defPower = quantities[18];
 
-  // derived quantities:
+
   Pthrust = thrust * std::sqrt(u * u + v * v);
   Pdrag = drag * std::sqrt(u * u + v * v);
   const Real denUnb = Pthrust - std::min(defPower, (Real)0);
@@ -9981,7 +9581,7 @@ void Shape::computeForces() {
     ssF << sim.path2file << "/surface_" << obstacleID << "_"
         << std::setfill('0') << std::setw(7) << sim.step << ".csv";
     MPI_File_delete(ssF.str().c_str(),
-                    MPI_INFO_NULL); // delete the file if it exists
+                    MPI_INFO_NULL);
     MPI_File_open(sim.chi->getWorldComm(), ssF.str().c_str(),
                   MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL,
                   &surface_file);
@@ -10034,7 +9634,7 @@ Shape::Shape(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
       bDumpSurface(p("-dumpSurf").asInt(0)),
       timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
       breakSymmetryType(
-          p("-breakSymmetryType").asInt(0)), // 0 is no symmetry breaking
+          p("-breakSymmetryType").asInt(0)),
       breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
       breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {}
 
@@ -10082,7 +9682,7 @@ void SimulationData::allocateGrid() {
   pold = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
 
-  // For RL SGS learning
+
   if (smagorinskyCoeff != 0)
     Cs = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
@@ -10096,13 +9696,13 @@ void SimulationData::allocateGrid() {
               << std::endl;
     MPI_Abort(chi->getWorldComm(), 1);
   }
-  // Compute extents, assume all blockinfos have same h at the start!!!
+
   int aux = pow(2, levelStart);
   extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
   extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
-  // printf("Extents %e %e (%e)\n", extents[0], extents[1], extent);
 
-  // compute min and max gridspacing for set AMR parameter
+
+
   int auxMax = pow(2, levelMax - 1);
   minH = extents[0] / (auxMax * bpdx * VectorBlock::sizeX);
   maxH = extents[0] / (bpdx * VectorBlock::sizeX);
@@ -10191,8 +9791,8 @@ void SimulationData::startProfiler(std::string name) {
 }
 
 void SimulationData::stopProfiler() {
-  // Checker check (*this);
-  // check.run("after" + profiler->currentAgentName());
+
+
   profiler->pop_stop();
 }
 
@@ -10206,13 +9806,13 @@ void SimulationData::dumpAll(std::string name) {
 
   auto K1 = computeVorticity(*this);
   K1(0);
-  dumpTmp(name); // dump vorticity
+  dumpTmp(name);
   dumpChi(name);
   dumpVel(name);
   dumpPres(name);
-  // dumpPold(name);
-  // dumpTmpV(name);
-  // dumpVold(name);
+
+
+
   if (bDumpCs)
     dumpCs(name);
 
@@ -10225,14 +9825,14 @@ struct IF2D_Frenet2D {
                     Real *const rX, Real *const rY, Real *const vX,
                     Real *const vY, Real *const norX, Real *const norY,
                     Real *const vNorX, Real *const vNorY) {
-    // initial conditions
+
     rX[0] = 0.0;
     rY[0] = 0.0;
     norX[0] = 0.0;
     norY[0] = 1.0;
     Real ksiX = 1.0;
     Real ksiY = 0.0;
-    // velocity variables
+
     vX[0] = 0.0;
     vY[0] = 0.0;
     vNorX[0] = 0.0;
@@ -10241,35 +9841,35 @@ struct IF2D_Frenet2D {
     Real vKsiY = 0.0;
 
     for (unsigned i = 1; i < Nm; i++) {
-      // compute derivatives positions
+
       const Real dksiX = curv[i - 1] * norX[i - 1];
       const Real dksiY = curv[i - 1] * norY[i - 1];
       const Real dnuX = -curv[i - 1] * ksiX;
       const Real dnuY = -curv[i - 1] * ksiY;
-      // compute derivatives velocity
+
       const Real dvKsiX =
           curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
       const Real dvKsiY =
           curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
       const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
       const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-      // compute current ds
+
       const Real ds = rS[i] - rS[i - 1];
-      // update
+
       rX[i] = rX[i - 1] + ds * ksiX;
       rY[i] = rY[i - 1] + ds * ksiY;
       norX[i] = norX[i - 1] + ds * dnuX;
       norY[i] = norY[i - 1] + ds * dnuY;
       ksiX += ds * dksiX;
       ksiY += ds * dksiY;
-      // update velocities
+
       vX[i] = vX[i - 1] + ds * vKsiX;
       vY[i] = vY[i - 1] + ds * vKsiY;
       vNorX[i] = vNorX[i - 1] + ds * dvNuX;
       vNorY[i] = vNorY[i - 1] + ds * dvNuY;
       vKsiX += ds * dvKsiX;
       vKsiY += ds * dvKsiY;
-      // normalize unit vectors
+
       const Real d1 = ksiX * ksiX + ksiY * ksiY;
       const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
       if (d1 > std::numeric_limits<Real>::epsilon()) {
@@ -10316,7 +9916,7 @@ public:
     for (unsigned k = n - 2; k > 0; k--)
       y2[k] = y2[k] * y2[k + 1] + u[k];
 
-    // #pragma omp parallel for schedule(static)
+
     for (unsigned j = 0; j < nn; j++) {
       unsigned int klo = 0;
       unsigned int khi = n - 1;
@@ -10363,7 +9963,7 @@ public:
                                  const Real y0, const Real y1, Real &y,
                                  Real &dy) {
     return cubicInterpolation(x0, x1, x, y0, y1, 0, 0, y,
-                              dy); // 0 slope at end points
+                              dy);
   }
 
   static void linearInterpolation(const Real x0, const Real x1, const Real x,
@@ -10377,10 +9977,10 @@ public:
 namespace Schedulers {
 template <int Npoints> struct ParameterScheduler {
   static constexpr int npoints = Npoints;
-  std::array<Real, Npoints> parameters_t0;  // parameters at t0
-  std::array<Real, Npoints> parameters_t1;  // parameters at t1
-  std::array<Real, Npoints> dparameters_t0; // derivative at t0
-  Real t0, t1;                              // t0 and t1
+  std::array<Real, Npoints> parameters_t0;
+  std::array<Real, Npoints> parameters_t1;
+  std::array<Real, Npoints> dparameters_t0;
+  Real t0, t1;
 
   void save(std::string filename) {
     std::ofstream savestream;
@@ -10425,17 +10025,17 @@ template <int Npoints> struct ParameterScheduler {
                   const std::array<Real, Npoints> parameters_tend,
                   const bool UseCurrentDerivative = false) {
     if (t < tstart or t > tend)
-      return; // this transition is out of scope
-    // if(tstart<t0) return; // this transition is not relevant: we are doing a
-    // next one already
+      return;
 
-    // we transition from whatever state we are in to a new state
-    // the start point is where we are now: lets find out
+
+
+
+
     std::array<Real, Npoints> parameters;
     std::array<Real, Npoints> dparameters;
     gimmeValues(tstart, parameters, dparameters);
 
-    // fill my members
+
     t0 = tstart;
     t1 = tend;
     parameters_t0 = parameters;
@@ -10448,12 +10048,12 @@ template <int Npoints> struct ParameterScheduler {
                   const std::array<Real, Npoints> parameters_tstart,
                   const std::array<Real, Npoints> parameters_tend) {
     if (t < tstart or t > tend)
-      return; // this transition is out of scope
+      return;
     if (tstart < t0)
-      return; // this transition is not relevant: we are doing a next one
-              // already
+      return;
 
-    // fill my members
+
+
     t0 = tstart;
     t1 = tend;
     parameters_t0 = parameters_tstart;
@@ -10462,14 +10062,14 @@ template <int Npoints> struct ParameterScheduler {
 
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters,
                    std::array<Real, Npoints> &dparameters) {
-    // look at the different cases
-    if (t < t0 or t0 < 0) { // no transition, we are in state 0
+
+    if (t < t0 or t0 < 0) {
       parameters = parameters_t0;
       dparameters = std::array<Real, Npoints>();
-    } else if (t > t1) { // no transition, we are in state 1
+    } else if (t > t1) {
       parameters = parameters_t1;
       dparameters = std::array<Real, Npoints>();
-    } else { // we are within transition: interpolate
+    } else {
       for (int i = 0; i < Npoints; ++i)
         IF2D_Interpolation1D::cubicInterpolation(
             t0, t1, t, parameters_t0[i], parameters_t1[i], dparameters_t0[i],
@@ -10479,14 +10079,14 @@ template <int Npoints> struct ParameterScheduler {
 
   void gimmeValuesLinear(const Real t, std::array<Real, Npoints> &parameters,
                          std::array<Real, Npoints> &dparameters) {
-    // look at the different cases
-    if (t < t0 or t0 < 0) { // no transition, we are in state 0
+
+    if (t < t0 or t0 < 0) {
       parameters = parameters_t0;
       dparameters = std::array<Real, Npoints>();
-    } else if (t > t1) { // no transition, we are in state 1
+    } else if (t > t1) {
       parameters = parameters_t1;
       dparameters = std::array<Real, Npoints>();
-    } else { // we are within transition: interpolate
+    } else {
       for (int i = 0; i < Npoints; ++i)
         IF2D_Interpolation1D::linearInterpolation(
             t0, t1, t, parameters_t0[i], parameters_t1[i], parameters[i],
@@ -10495,7 +10095,7 @@ template <int Npoints> struct ParameterScheduler {
   }
 
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters) {
-    std::array<Real, Npoints> dparameters_whocares; // no derivative info
+    std::array<Real, Npoints> dparameters_whocares;
     return gimmeValues(t, parameters, dparameters_whocares);
   }
 };
@@ -10535,7 +10135,7 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
   void gimmeValues(const Real t, const std::array<Real, Npoints> &positions,
                    const int Nfine, const Real *const positions_fine,
                    Real *const parameters_fine, Real *const dparameters_fine) {
-    // we interpolate in space the start and end point
+
     Real *parameters_t0_fine = new Real[Nfine];
     Real *parameters_t1_fine = new Real[Nfine];
     Real *dparameters_t0_fine = new Real[Nfine];
@@ -10550,17 +10150,17 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
         positions.data(), this->dparameters_t0.data(), Npoints, positions_fine,
         dparameters_t0_fine, Nfine);
 
-    // look at the different cases
-    if (t < this->t0 or this->t0 < 0) { // no transition, we are in state 0
+
+    if (t < this->t0 or this->t0 < 0) {
       memcpy(parameters_fine, parameters_t0_fine, Nfine * sizeof(Real));
       memset(dparameters_fine, 0, Nfine * sizeof(Real));
-    } else if (t > this->t1) { // no transition, we are in state 1
+    } else if (t > this->t1) {
       memcpy(parameters_fine, parameters_t1_fine, Nfine * sizeof(Real));
       memset(dparameters_fine, 0, Nfine * sizeof(Real));
     } else {
-      // we are within transition: interpolate in time for each point of the
-      // fine discretization
-      // #pragma omp parallel for schedule(static)
+
+
+
       for (int i = 0; i < Nfine; ++i)
         IF2D_Interpolation1D::cubicInterpolation(
             this->t0, this->t1, t, parameters_t0_fine[i], parameters_t1_fine[i],
@@ -10590,21 +10190,21 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
                    Real *const dparameters_fine) {
     const Real _1oL = 1. / Length;
     const Real _1oT = 1. / Twave;
-    // the fish goes through (as function of t and s) a wave function that
-    // describes the curvature
-    // #pragma omp parallel for schedule(static)
+
+
+
     for (int i = 0; i < Nfine; ++i) {
       const Real c = positions_fine[i] * _1oL -
-                     (t - this->t0) * _1oT; // traveling wave coord
+                     (t - this->t0) * _1oT;
       bool bCheck = true;
 
-      if (c < positions[0]) { // Are you before latest wave node?
+      if (c < positions[0]) {
         IF2D_Interpolation1D::cubicInterpolation(
             c, positions[0], c, this->parameters_t0[0], this->parameters_t0[0],
             parameters_fine[i], dparameters_fine[i]);
         bCheck = false;
       } else if (c >
-                 positions[Npoints - 1]) { // Are you after oldest wave node?
+                 positions[Npoints - 1]) {
         IF2D_Interpolation1D::cubicInterpolation(
             positions[Npoints - 1], c, c, this->parameters_t0[Npoints - 1],
             this->parameters_t0[Npoints - 1], parameters_fine[i],
@@ -10612,13 +10212,13 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
         bCheck = false;
       } else {
         for (int j = 1; j < Npoints;
-             ++j) { // Check at which point of the travelling wave we are
+             ++j) {
           if ((c >= positions[j - 1]) && (c <= positions[j])) {
             IF2D_Interpolation1D::cubicInterpolation(
                 positions[j - 1], positions[j], c, this->parameters_t0[j - 1],
                 this->parameters_t0[j], parameters_fine[i],
                 dparameters_fine[i]);
-            dparameters_fine[i] = -dparameters_fine[i] * _1oT; // df/dc * dc/dt
+            dparameters_fine[i] = -dparameters_fine[i] * _1oT;
             bCheck = false;
           }
         }
@@ -10632,8 +10232,8 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
 
   void
   Turn(const Real b,
-       const Real t_turn) // each decision adds a node at the beginning of the
-                          // wave (left, right, straight) and pops last node
+       const Real t_turn)
+
   {
     this->t0 = t_turn;
 
@@ -10643,7 +10243,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
     this->parameters_t0[0] = 0;
   }
 };
-} // namespace Schedulers
+}
 
 class Shape;
 
@@ -10664,7 +10264,7 @@ public:
 
   std::string getName() override { return "PutObjectsOnGrid"; }
 };
-// static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -10676,7 +10276,7 @@ struct ComputeSurfaceNormals {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const Real h = infoChi.h;
       ObstacleBlock &o = *OBLOCK[infoChi.blockID];
       const Real i2h = 0.5 / h;
@@ -10710,7 +10310,7 @@ struct PutChiOnGrid {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[info.blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const Real h = info.h;
       const Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.blockID];
@@ -10724,7 +10324,7 @@ struct PutChiOnGrid {
         for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
 #if 0
         X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
-#else // Towers mollified Heaviside
+#else
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
@@ -10767,7 +10367,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
 }
 
 void PutObjectsOnGrid::advanceShapes(const Real dt) {
-  // Update laboratory frame of reference
+
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   for (const auto &shape : sim.shapes)
@@ -10780,11 +10380,11 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
     sim.uinfy_old = sim.uinfy;
     sim.uinfy = uSum[1] / nSum[1];
   }
-  // Update position of object r^{t+1}=r^t+dt*v, \theta^{t+1}=\theta^t+dt*\omega
+
   for (const auto &shape : sim.shapes) {
     shape->updatePosition(dt);
 
-    // .. and check if shape is outside the simulation domain
+
     Real p[2] = {0, 0};
     shape->getCentroid(p);
     const auto &extent = sim.extents;
@@ -10800,18 +10400,18 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
 void PutObjectsOnGrid::putObjectsOnGrid() {
   const size_t Nblocks = velInfo.size();
 
-// 1) Clear fields related to obstacle
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((ScalarBlock *)chiInfo[i].ptrBlock)->clear();
     ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
   }
 
-  // 2) Compute signed dist function and udef
+
   for (const auto &shape : sim.shapes)
     shape->create(tmpInfo);
 
-  // 3) Compute chi and shape center of mass
+
   const PutChiOnGrid K(sim);
   cubism::compute<ScalarLab>(K, sim.tmp);
   const ComputeSurfaceNormals K1(sim);
@@ -10835,12 +10435,12 @@ void PutObjectsOnGrid::putObjectsOnGrid() {
     shape->centerOfMass[1] += com[2] / com[0];
   }
 
-  // 4) remove moments from characteristic function and put on grid U_s
+
   for (const auto &shape : sim.shapes) {
     shape->removeMoments(chiInfo);
   }
 
-  // 5) do anything else needed by some shapes
+
   for (const auto &shape : sim.shapes) {
     shape->finalize();
   }
@@ -10897,18 +10497,18 @@ public:
 struct GradChiOnTmp {
   GradChiOnTmp(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
-  // const StencilInfo stencil{-2, -2, 0, 3, 3, 1, true, {0}};
+
   const cubism::StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
 
-    // Loop over block and halo cells and set TMP(0,0) to a value which will
-    // cause mesh refinement if any of the cells have:
-    //  1. chi > 0 (if bAdaptChiGradient=false)
-    //  2. chi > 0 and chi < 0.9 (if bAdaptChiGradient=true)
-    //  Option 2 is equivalent to grad(chi) != 0
-    // const int offset = (info.level == sim.tmp->getlevelMax()-1) ? 2 : 1;
+
+
+
+
+
+
     const int offset = (info.level == sim.tmp->getlevelMax() - 1) ? 4 : 2;
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < VectorBlock::sizeY + offset; ++y)
@@ -10928,8 +10528,8 @@ struct GradChiOnTmp {
       }
 
 #ifdef CUP2D_CYLINDER_REF
-    // Hardcoded refinement close the wall, for the high Re cylinder cases.
-    // Cylinder center is supposed to be at (1.0,1.0) and its radius is 0.1
+
+
     for (int y = 0; y < VectorBlock::sizeY; ++y)
       for (int x = 0; x < VectorBlock::sizeX; ++x) {
         double p[2];
@@ -10963,12 +10563,12 @@ void AdaptTheMesh::adapt() {
 
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
 
-  // compute vorticity (and use it as refinement criterion) and store it to tmp.
+
   auto K1 = computeVorticity(sim);
   K1(0);
 
 
-  // compute grad(chi) and if it's >0 set tmp = infinity
+
   GradChiOnTmp K2(sim);
   cubism::compute<ScalarLab>(K2, sim.chi);
 
@@ -11207,7 +10807,7 @@ void advDiff::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   KernelAdvectDiffuse Step1(sim);
 
-// 1.Save u^{n} to dataOld
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -11219,12 +10819,12 @@ void advDiff::operator()(const Real dt) {
       }
   }
 
-  /********************************************************************/
-  // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
-  //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
+
+
+
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 
-//   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -11237,13 +10837,13 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
       }
   }
-  /********************************************************************/
 
-  /********************************************************************/
-  // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
-  //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
+
+
+
+
   cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-//   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -11256,7 +10856,7 @@ void advDiff::operator()(const Real dt) {
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
   }
-  /********************************************************************/
+
 
   sim.stopProfiler();
 }
@@ -11305,8 +10905,8 @@ struct KernelComputeForces {
     ScalarBlock &__restrict__ P =
         *(ScalarBlock *)presInfo[info.blockID].ptrBlock;
 
-    // const int big   = ScalarBlock::sizeX + 4;
-    // const int small = -4;
+
+
     for (const auto &_shape : sim.shapes) {
       const Shape *const shape = _shape.get();
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -11317,7 +10917,7 @@ struct KernelComputeForces {
           vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
           vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
 
-      const Real NUoH = sim.nu / info.h; // 2 nu / 2 h
+      const Real NUoH = sim.nu / info.h;
       ObstacleBlock *const O = OBLOCK[info.blockID];
       if (O == nullptr)
         continue;
@@ -11326,30 +10926,30 @@ struct KernelComputeForces {
         const int ix = O->surface[k]->ix, iy = O->surface[k]->iy;
         const std::array<Real, 2> p = info.pos<Real>(ix, iy);
 
-        const Real normX = O->surface[k]->dchidx; //*h^3 (multiplied in dchidx)
-        const Real normY = O->surface[k]->dchidy; //*h^3 (multiplied in dchidy)
+        const Real normX = O->surface[k]->dchidx;
+        const Real normY = O->surface[k]->dchidy;
         const Real norm = 1.0 / std::sqrt(normX * normX + normY * normY);
         const Real dx = normX * norm;
         const Real dy = normY * norm;
-        // shear stresses
-        //"lifted" surface: derivatives make no sense when the values used are
-        //in the object,
-        //  so we take one-sided stencils with values outside of the object
-        // Real D11 = 0.0;
-        // Real D22 = 0.0;
-        // Real D12 = 0.0;
+
+
+
+
+
+
+
         Real DuDx;
         Real DuDy;
         Real DvDx;
         Real DvDy;
         {
-          // The integers x and y will be the coordinates of the point on the
-          // lifted surface. To find them, we move along the normal vector to
-          // the surface, until we find a point outside of the object (where chi
-          // = 0).
+
+
+
+
           int x = ix;
           int y = iy;
-          for (int kk = 0; kk < 5; kk++) // 5 is arbitrary
+          for (int kk = 0; kk < 5; kk++)
           {
             const int dxi = round(kk * dx);
             const int dyi = round(kk * dy);
@@ -11364,14 +10964,7 @@ struct KernelComputeForces {
             if (chi(x, y).s < 0.01)
               break;
           }
-
-          // Now that we found the (x,y) of the point, we compute grad(u) there.
-          // grad(u) is computed with biased stencils. If available, larger
-          // stencils are used. Then, we compute higher order derivatives that
-          // are used to form a Taylor expansion around (x,y). Finally, this
-          // expansion is used to extrapolate grad(u) to (ix,iy) of the actual
-          // solid surface.
-
+# 11375 "main.cpp"
           const auto &l = lab;
           const int sx = normX > 0 ? +1 : -1;
           const int sy = normY > 0 ? +1 : -1;
@@ -11424,14 +11017,14 @@ struct KernelComputeForces {
               dveldy.u[0] + dveldy2.u[0] * (iy - y) + dveldxdy.u[0] * (ix - x);
           DvDy =
               dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
-        } // shear stress computation ends here
+        }
 
-        // normals computed with Towers 2009
-        //  Actually using the volume integral, since (/iint -P /hat{n} dS) =
-        //  (/iiint - /nabla P dV). Also, P*/nabla /Chi = /nabla P
-        //  penalty-accel and surf-force match up if resolution is high enough
-        // const Real fXV = D11*normX + D12*normY, fXP = - P(ix,iy).s * normX;
-        // const Real fYV = D12*normX + D22*normY, fYP = - P(ix,iy).s * normY;
+
+
+
+
+
+
         const Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
                    fXP = -P(ix, iy).s * normX;
         const Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
@@ -11439,7 +11032,7 @@ struct KernelComputeForces {
 
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
 
-        // store:
+
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
         O->p_s[k] = P(ix, iy).s;
@@ -11451,40 +11044,40 @@ struct KernelComputeForces {
         O->uDef_s[k] = O->udef[iy][ix][0];
         O->vDef_s[k] = O->udef[iy][ix][1];
         O->fX_s[k] = -P(ix, iy).s * dx + NUoH * DuDx * dx +
-                     NUoH * DuDy * dy; // scale by 1/h
+                     NUoH * DuDy * dy;
         O->fY_s[k] = -P(ix, iy).s * dy + NUoH * DvDx * dx +
-                     NUoH * DvDy * dy;                     // scale by 1/h
-        O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy; // scale by 1/h
-        O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy; // scale by 1/h
+                     NUoH * DvDy * dy;
+        O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
+        O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
 
-        // perimeter:
+
         O->perimeter += std::sqrt(normX * normX + normY * normY);
         O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
-        // forces (total, visc, pressure):
+
         O->forcex += fXT;
         O->forcey += fYT;
         O->forcex_V += fXV;
         O->forcey_V += fYV;
         O->forcex_P += fXP;
         O->forcey_P += fYP;
-        // torque:
+
         O->torque += (p[0] - Cx) * fYT - (p[1] - Cy) * fXT;
         O->torque_P += (p[0] - Cx) * fYP - (p[1] - Cy) * fXP;
         O->torque_V += (p[0] - Cx) * fYV - (p[1] - Cy) * fXV;
-        // thrust, drag:
+
         const Real forcePar = fXT * vel_unit[0] + fYT * vel_unit[1];
         O->thrust += .5 * (forcePar + std::fabs(forcePar));
         O->drag -= .5 * (forcePar - std::fabs(forcePar));
         const Real forcePerp = fXT * vel_unit[1] - fYT * vel_unit[0];
         O->lift += forcePerp;
-        // power output (and negative definite variant which ensures no elastic
-        // energy absorption)
-        //  This is total power, for overcoming not only deformation, but also
-        //  the oncoming velocity. Work done by fluid, not by the object (for
-        //  that, just take -ve)
+
+
+
+
+
         const Real powOut = fXT * O->u_s[k] + fYT * O->v_s[k];
-        // deformation power output (and negative definite variant which ensures
-        // no elastic energy absorption)
+
+
         const Real powDef = fXT * O->uDef_s[k] + fYT * O->vDef_s[k];
         O->Pout += powOut;
         O->defPower += powDef;
@@ -11502,7 +11095,7 @@ void ComputeForces::operator()(const Real dt) {
   cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
                   ScalarLab>(K, *sim.vel, *sim.chi);
 
-  // finalize partial sums
+
   for (const auto &shape : sim.shapes)
     shape->computeForces();
   sim.stopProfiler();
@@ -11510,8 +11103,8 @@ void ComputeForces::operator()(const Real dt) {
 
 ComputeForces::ComputeForces(SimulationData &s) : Operator(s) {}
 
-#define profile(func)                                                          \
-  do {                                                                         \
+#define profile(func) \
+  do { \
   } while (0)
 class PoissonSolver {
 public:
@@ -11520,25 +11113,25 @@ public:
 };
 
 class ExpAMRSolver : public PoissonSolver {
-  /*
-  Method used to solve Poisson's equation:
-  https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
-  */
+
+
+
+
 public:
   std::string getName() {
-    // ExpAMRSolver == AMRSolver for explicit linear system
+
     return "ExpAMRSolver";
   }
-  // Constructor and destructor
+
   ExpAMRSolver(SimulationData &s);
   ~ExpAMRSolver() = default;
 
-  // main function used to solve Poisson's equation
+
   void solve(const ScalarGrid *input, ScalarGrid *const output);
 
 protected:
-  // this struct contains information such as the currect timestep size, fluid
-  // properties and many others
+
+
   SimulationData &sim;
 
   int rank_;
@@ -11549,28 +11142,28 @@ protected:
   static constexpr int BSY_ = VectorBlock::sizeY;
   static constexpr int BLEN_ = BSX_ * BSY_;
 
-  // This returns element K_{I1,I2}. It is used when we invert K
+
   double getA_local(int I1, int I2);
 
-  // Method to add off-diagonal matrix element associated to cell in 'rhsNei'
-  // block
-  class EdgeCellIndexer; // forward declaration
+
+
+  class EdgeCellIndexer;
   void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
                 const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const;
 
-  // Method to compute A and b for the current mesh
-  void getMat(); // update LHS and RHS after refinement
-  void getVec(); // update initial guess and RHS vecs only
 
-  // Distributed linear system which uses local indexing
+  void getMat();
+  void getVec();
+
+
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
 
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
 
-  // Edge descriptors to allow algorithmic access to cell indices regardless of
-  // edge type
+
+
   class CellIndexer {
   public:
     CellIndexer(const ExpAMRSolver &pSolver) : ps(pSolver) {}
@@ -11612,24 +11205,24 @@ protected:
     static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
     static int iy_f(const int iy) { return (iy % (BSY_ / 2)) * 2; }
 
-    const ExpAMRSolver &ps; // poisson solver
+    const ExpAMRSolver &ps;
   };
 
   class EdgeCellIndexer : public CellIndexer {
   public:
     EdgeCellIndexer(const ExpAMRSolver &pSolver) : CellIndexer(pSolver) {}
 
-    // When I am uniform with the neighbouring block
+
     virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                               const int iy) const = 0;
 
-    // When I am finer than neighbouring block
+
     virtual long long neiInward(const cubism::BlockInfo &info, const int ix,
                                 const int iy) const = 0;
     virtual double taylorSign(const int ix, const int iy) const = 0;
 
-    // Indices of coarses cells in neighbouring blocks, to be overridden where
-    // appropriate
+
+
     virtual int ix_c(const cubism::BlockInfo &info, const int ix) const {
       return info.index[0] % 2 == 0 ? ix / 2 : ix / 2 + BSX_ / 2;
     }
@@ -11637,27 +11230,27 @@ protected:
       return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + BSY_ / 2;
     }
 
-    // When I am coarser than neighbouring block
-    // neiFine1 must correspond to cells where taylorSign == -1., neiFine2 must
-    // correspond to taylorSign == 1.
+
+
+
     virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int ix,
                                const int iy, const int offset = 0) const = 0;
     virtual long long neiFine2(const cubism::BlockInfo &nei_info, const int ix,
                                const int iy, const int offset = 0) const = 0;
 
-    // Indexing aids for derivatives in Taylor approximation in coarse cell
+
     virtual bool isBD(const int ix, const int iy) const = 0;
     virtual bool isFD(const int ix, const int iy) const = 0;
     virtual long long Nei(const cubism::BlockInfo &info, const int ix,
                           const int iy, const int dist) const = 0;
 
-    // When I am coarser and need to determine which Zchild I'm next to
+
     virtual long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                              const int iy) const = 0;
   };
 
-  // ----------------------------------------------------- Edges perpendicular
-  // to x-axis -----------------------------------
+
+
   class XbaseIndexer : public EdgeCellIndexer {
   public:
     XbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
@@ -11743,8 +11336,8 @@ protected:
     }
   };
 
-  // ----------------------------------------------------- Edges perpendicular
-  // to y-axis -----------------------------------
+
+
   class YbaseIndexer : public EdgeCellIndexer {
   public:
     YbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
@@ -11835,14 +11428,14 @@ protected:
   XmaxIndexer XmaxCell;
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
-  // Array of pointers for the indexers above for polymorphism in makeFlux
+
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
 
   std::array<std::pair<long long, double>, 3> D1(const cubism::BlockInfo &info,
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
-    // Scale D1 by h^l/4
+
     if (indexer.isBD(ix, iy))
       return {{{indexer.Nei(info, ix, iy, -2), 1. / 8.},
                {indexer.Nei(info, ix, iy, -1), -1. / 2.},
@@ -11861,7 +11454,7 @@ protected:
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
-    // Scale D2 by 0.5*(h^l/4)^2
+
     if (indexer.isBD(ix, iy))
       return {{{indexer.Nei(info, ix, iy, -2), 1. / 32.},
                {indexer.Nei(info, ix, iy, -1), -1. / 16.},
@@ -11884,7 +11477,7 @@ protected:
 };
 
 double ExpAMRSolver::getA_local(
-    int I1, int I2) // matrix for Poisson's equation on a uniform grid
+    int I1, int I2)
 {
   int j1 = I1 / BSX_;
   int i1 = I1 % BSX_;
@@ -11902,7 +11495,7 @@ ExpAMRSolver::ExpAMRSolver(SimulationData &s)
     : sim(s), m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
       XmaxCell(*this), YminCell(*this), YmaxCell(*this),
       edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
-  // MPI
+
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
 
@@ -11910,22 +11503,22 @@ ExpAMRSolver::ExpAMRSolver(SimulationData &s)
   Nrows_xcumsum_.resize(comm_size_ + 1);
 
   std::vector<std::vector<double>>
-      L; // lower triangular matrix of Cholesky decomposition
-  std::vector<std::vector<double>> L_inv; // inverse of L
+      L;
+  std::vector<std::vector<double>> L_inv;
 
   L.resize(BLEN_);
   L_inv.resize(BLEN_);
   for (int i(0); i < BLEN_; i++) {
     L[i].resize(i + 1);
     L_inv[i].resize(i + 1);
-    // L_inv will act as right block in GJ algorithm, init as identity
+
     for (int j(0); j <= i; j++) {
       L_inv[i][j] = (i == j) ? 1. : 0.;
     }
   }
 
-  // compute the Cholesky decomposition of the preconditioner with
-  // Cholesky-Crout
+
+
   for (int i(0); i < BLEN_; i++) {
     double s1 = 0;
     for (int k(0); k <= i - 1; k++)
@@ -11939,38 +11532,38 @@ ExpAMRSolver::ExpAMRSolver(SimulationData &s)
     }
   }
 
-  /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan
-     elimination. L will act as the left block (it does not need to be modified
-     in the process), L_inv will act as the right block and at the end of the
-     algo will contain the inverse */
-  for (int br(0); br < BLEN_; br++) { // 'br' - base row in which all columns up
-                                      // to L_lb[br][br] are already zero
+
+
+
+
+  for (int br(0); br < BLEN_; br++) {
+
     const double bsf = 1. / L[br][br];
     for (int c(0); c <= br; c++)
       L_inv[br][c] *= bsf;
 
     for (int wr(br + 1); wr < BLEN_;
-         wr++) { // 'wr' - working row where elements below L_lb[br][br] will be
-                 // set to zero
+         wr++) {
+
       const double wsf = L[wr][br];
       for (int c(0); c <= br; c++)
         L_inv[wr][c] -= (wsf * L_inv[br][c]);
     }
   }
 
-  // P_inv_ holds inverse preconditionner in row major order!
+
   std::vector<double> P_inv(BLEN_ * BLEN_);
   for (int i(0); i < BLEN_; i++)
     for (int j(0); j < BLEN_; j++) {
       double aux = 0.;
-      for (int k(0); k < BLEN_; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+      for (int k(0); k < BLEN_; k++)
         aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
 
       P_inv[i * BLEN_ + j] =
-          -aux; // Up to now Cholesky of negative P to avoid complex numbers
+          -aux;
     }
 
-  // Create Linear system and backend solver objects
+
   LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_ * BSY_,
                                                sim.bMeanConstraint, P_inv);
 }
@@ -11978,34 +11571,34 @@ void ExpAMRSolver::interpolate(
     const cubism::BlockInfo &info_c, const int ix_c, const int iy_c,
     const cubism::BlockInfo &info_f, const long long fine_close_idx,
     const long long fine_far_idx, const double signInt,
-    const double signTaylor, // sign of interpolation and sign of taylor
+    const double signTaylor,
     const EdgeCellIndexer &indexer, SpRowInfo &row) const {
   const int rank_c = sim.tmp->Tree(info_c).rank();
   const int rank_f = sim.tmp->Tree(info_f).rank();
 
-  // 2./3.*p_fine_close_idx - 1./5.*p_fine_far_idx
+
   row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
   row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
 
-  // 8./15 * p_T, constant term
+
   const double tf =
-      signInt * 8. / 15.; // common factor for all terms of Taylor expansion
+      signInt * 8. / 15.;
   row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
 
   std::array<std::pair<long long, double>, 3> D;
 
-  // first derivative
+
   D = D1(info_c, indexer, ix_c, iy_c);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
 
-  // second derivative
+
   D = D2(info_c, indexer, ix_c, iy_c);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
 
-// Methods for cell centric construction of discrete Laplace operator
+
 void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
                             const int iy, const cubism::BlockInfo &rhsNei,
                             const EdgeCellIndexer &indexer,
@@ -12016,7 +11609,7 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
     const int nei_rank = sim.tmp->Tree(rhsNei).rank();
     const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
 
-    // Map flux associated to out-of-block edges at the same level of refinement
+
     row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
   } else if (this->sim.tmp->Tree(rhsNei).CheckCoarser()) {
@@ -12035,13 +11628,13 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
         rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
     const int nei_rank = this->sim.tmp->Tree(rhsNei_f).rank();
 
-    // F1
+
     long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
     long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
     interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                 -1., indexer, row);
-    // F2
+
     fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
     fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -12056,75 +11649,75 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
 void ExpAMRSolver::getMat() {
   sim.startProfiler("Poisson solver: LS");
 
-  // This returns an array with the blocks that the coarsest possible
-  // mesh would have (i.e. all blocks are at level 0)
+
+
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
 
-  // Get a vector of all BlockInfos of the grid we're interested in
+
   sim.tmp->UpdateBlockInfoAll_States(
-      true); // update blockID's for blocks from other ranks
+      true);
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
   const int N = BSX_ * BSY_ * Nblocks;
 
-  // Reserve sufficient memory for LS proper to the rank
+
   LocalLS_->reserve(N);
 
-  // Calculate cumulative sums for blocks and rows for correct global indexing
+
   const long long Nblocks_long = Nblocks;
   MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
                 MPI_LONG_LONG, m_comm_);
   for (int i(Nblocks_xcumsum_.size() - 1); i > 0; i--) {
     Nblocks_xcumsum_[i] =
-        Nblocks_xcumsum_[i - 1]; // shift to right for rank 'i+1' to have cumsum
-                                 // of rank 'i'
+        Nblocks_xcumsum_[i - 1];
+
   }
 
-  // Set cumsum for rank 0 to zero
+
   Nblocks_xcumsum_[0] = 0;
   Nrows_xcumsum_[0] = 0;
 
-  // Perform cumulative sum
+
   for (size_t i(1); i < Nblocks_xcumsum_.size(); i++) {
     Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i - 1];
     Nrows_xcumsum_[i] = BLEN_ * Nblocks_xcumsum_[i];
   }
 
-  // No parallel for to ensure COO are ordered at construction
+
   for (int i = 0; i < Nblocks; i++) {
     const cubism::BlockInfo &rhs_info = RhsInfo[i];
 
-    // 1.Check if this is a boundary block
-    const int aux = 1 << rhs_info.level; // = 2^level
+
+    const int aux = 1 << rhs_info.level;
     const int MAX_X_BLOCKS =
         blocksPerDim[0] * aux -
-        1; // this means that if level 0 has blocksPerDim[0] blocks in the
-           // x-direction, level rhs.level will have this many blocks
+        1;
+
     const int MAX_Y_BLOCKS =
         blocksPerDim[1] * aux -
-        1; // this means that if level 0 has blocksPerDim[1] blocks in the
-           // y-direction, level rhs.level will have this many blocks
+        1;
 
-    // index is the (i,j) coordinates of a block at the current level
+
+
     std::array<bool, 4> isBoundary;
     isBoundary[0] = (rhs_info.index[0] ==
-                     0); // Xm, same order as faceIndexers made in constructor!
-    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS); // Xp
-    isBoundary[2] = (rhs_info.index[1] == 0);            // Ym
-    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS); // Yp
+                     0);
+    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
+    isBoundary[2] = (rhs_info.index[1] == 0);
+    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
 
-    std::array<bool, 2> isPeriodic; // same dimension ordering as isBoundary
+    std::array<bool, 2> isPeriodic;
     isPeriodic[0] = (cubismBCX == periodic);
     isPeriodic[1] = (cubismBCY == periodic);
 
-    // 2.Access the block's neighbors (for the Poisson solve in two dimensions
-    // we care about four neighbors in total)
+
+
     std::array<long long, 4> Z;
-    Z[0] = rhs_info.Znei[1 - 1][1][1]; // Xm
-    Z[1] = rhs_info.Znei[1 + 1][1][1]; // Xp
-    Z[2] = rhs_info.Znei[1][1 - 1][1]; // Ym
-    Z[3] = rhs_info.Znei[1][1 + 1][1]; // Yp
-    // rhs.Z == rhs.Znei[1][1][1] is true always
+    Z[0] = rhs_info.Znei[1 - 1][1][1];
+    Z[1] = rhs_info.Znei[1 + 1][1][1];
+    Z[2] = rhs_info.Znei[1][1 - 1][1];
+    Z[3] = rhs_info.Znei[1][1 + 1][1];
+
 
     std::array<const cubism::BlockInfo *, 4> rhsNei;
     rhsNei[0] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
@@ -12132,28 +11725,21 @@ void ExpAMRSolver::getMat() {
     rhsNei[2] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
     rhsNei[3] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
 
-    // Record local index of row which is to be modified with bMeanConstraint
-    // reduction result
+
+
     if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
         rhs_info.index[1] == 0 && rhs_info.index[2] == 0)
       LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) -
                              Nrows_xcumsum_[rank_]);
-
-    // For later: there's a total of three boolean variables:
-    //  I.   grid->Tree(rhsNei_west).Exists()
-    //  II.  grid->Tree(rhsNei_west).CheckCoarser()
-    //  III. grid->Tree(rhsNei_west).CheckFiner()
-    //  And only one of them is true
-
-    // Add matrix elements associated to interior cells of a block
+# 12149 "main.cpp"
     for (int iy = 0; iy < BSY_; iy++)
-      for (int ix = 0; ix < BSX_; ix++) { // Following logic needs to be in for
-                                          // loop to assure cooRows are ordered
+      for (int ix = 0; ix < BSX_; ix++) {
+
         const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
 
         if ((ix > 0 && ix < BSX_ - 1) &&
-            (iy > 0 && iy < BSY_ - 1)) { // Inner cells, push back in ascending
-                                         // order for column index
+            (iy > 0 && iy < BSY_ - 1)) {
+
           LocalLS_->cooPushBackVal(1, sfc_idx,
                                    GenericCell.This(rhs_info, ix, iy - 1));
           LocalLS_->cooPushBackVal(1, sfc_idx,
@@ -12163,15 +11749,15 @@ void ExpAMRSolver::getMat() {
                                    GenericCell.This(rhs_info, ix + 1, iy));
           LocalLS_->cooPushBackVal(1, sfc_idx,
                                    GenericCell.This(rhs_info, ix, iy + 1));
-        } else { // See which edge is shared with a cell from different block
+        } else {
           std::array<bool, 4> validNei;
           validNei[0] = GenericCell.validXm(ix, iy);
           validNei[1] = GenericCell.validXp(ix, iy);
           validNei[2] = GenericCell.validYm(ix, iy);
           validNei[3] = GenericCell.validYp(ix, iy);
 
-          // Get index of cell accross the edge (correct only for cells in this
-          // block)
+
+
           std::array<long long, 4> idxNei;
           idxNei[0] = GenericCell.This(rhs_info, ix - 1, iy);
           idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
@@ -12179,8 +11765,8 @@ void ExpAMRSolver::getMat() {
           idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
 
           SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8);
-          for (int j(0); j < 4; j++) { // Iterate over each edge of cell
-            if (validNei[j]) {         // This edge is 'inner' wrt to the block
+          for (int j(0); j < 4; j++) {
+            if (validNei[j]) {
               row.mapColVal(idxNei[j], 1);
               row.mapColVal(sfc_idx, -1);
             } else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j / 2]))
@@ -12190,8 +11776,8 @@ void ExpAMRSolver::getMat() {
 
           LocalLS_->cooPushBackRow(row);
         }
-      } // for(int iy=0; iy<BSY_; iy++) for(int ix=0; ix<BSX_; ix++)
-  } // for(int i=0; i< Nblocks; i++)
+      }
+  }
 
   LocalLS_->make(Nrows_xcumsum_);
 
@@ -12199,7 +11785,7 @@ void ExpAMRSolver::getMat() {
 }
 
 void ExpAMRSolver::getVec() {
-  // Get a vector of all BlockInfos of the grid we're interested in
+
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo> &zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
@@ -12208,8 +11794,8 @@ void ExpAMRSolver::getVec() {
   std::vector<double> &h2 = LocalLS_->get_h2();
   const long long shift = -Nrows_xcumsum_[rank_];
 
-// Copy RHS LHS vec initial guess, if LS was updated, updateMat reallocates
-// sufficient memory
+
+
 #pragma omp parallel for
   for (int i = 0; i < Nblocks; i++) {
     const cubism::BlockInfo &rhs_info = RhsInfo[i];
@@ -12217,7 +11803,7 @@ void ExpAMRSolver::getVec() {
     const ScalarBlock &__restrict__ p = *(ScalarBlock *)zInfo[i].ptrBlock;
 
     h2[i] = RhsInfo[i].h * RhsInfo[i].h;
-    // Construct RHS and x_0 vectors for linear system
+
     for (int iy = 0; iy < BSY_; iy++)
       for (int ix = 0; ix < BSX_; ix++) {
         const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
@@ -12257,9 +11843,9 @@ void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
     LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }
 
-  // Now that we found the solution, we just substract the mean to get a
-  // zero-mean solution. This can be done because the solver only cares about
-  // grad(P) = grad(P-mean(P))
+
+
+
   std::vector<cubism::BlockInfo> &zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = zInfo.size();
   const std::vector<double> &x = LocalLS_->get_x();
@@ -12330,19 +11916,19 @@ public:
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 
-// #define EXPL_INTEGRATE_MOM
+
 
 namespace {
 
 void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
               Real *J) {
-  // Invert I
-  const Real m00 = 1.0;  // I[0]; //set to these values for 2D!
-  const Real m01 = 0.0;  // I[3]; //set to these values for 2D!
-  const Real m02 = 0.0;  // I[4]; //set to these values for 2D!
-  const Real m11 = 1.0;  // I[1]; //set to these values for 2D!
-  const Real m12 = 0.0;  // I[5]; //set to these values for 2D!
-  const Real m22 = I[5]; // I[2]; //set to these values for 2D!
+
+  const Real m00 = 1.0;
+  const Real m01 = 0.0;
+  const Real m02 = 0.0;
+  const Real m11 = 1.0;
+  const Real m12 = 0.0;
+  const Real m22 = I[5];
   Real a00 = m22 * m11 - m12 * m12;
   Real a01 = m02 * m12 - m22 * m01;
   Real a02 = m01 * m12 - m02 * m11;
@@ -12372,7 +11958,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
                       const Real NX, const Real NY, const Real NZ,
                       const Real CX, const Real CY, const Real CZ, Real *vc1,
                       Real *vc2) {
-  const Real e = 1.0; // coefficient of restitution
+  const Real e = 1.0;
   const Real N[3] = {NX, NY, NZ};
   const Real C[3] = {CX, CY, CZ};
 
@@ -12430,7 +12016,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[2] = o2[2] + J2[2] * impulse;
 }
 
-} // namespace
+}
 
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(const SimulationData &s) : sim(s) {}
@@ -12514,7 +12100,7 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
   const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
   const Real Cx = shape->centerOfMass[0];
   const Real Cy = shape->centerOfMass[1];
-  Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0; // linear momenta
+  Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
   for (size_t i = 0; i < Nblocks; i++) {
@@ -12538,8 +12124,8 @@ void PressureSingle::integrateMomenta(Shape *const shape) const {
 #ifdef EXPL_INTEGRATE_MOM
         const Real F = hsq * chi[iy][ix];
 #else
-        // const Real Xlamdt = chi[iy][ix] * lambdt;
-        // need to use unmollified version when H(x) appears in fractions
+
+
         const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
         const Real F = hsq * Xlamdt / (1 + Xlamdt);
 #endif
@@ -12602,20 +12188,20 @@ void PressureSingle::penalize(const Real dt) const {
 
       for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
         for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-          // What if multiple obstacles share a block? Do not write udef onto
-          // grid if CHI stored on the grid is greater than obst's CHI.
+
+
           if (CHI(ix, iy).s > X[iy][ix])
             continue;
           if (X[iy][ix] <= 0)
-            continue; // no need to do anything
+            continue;
 
           Real p[2];
           velInfo[i].pos(p, ix, iy);
           p[0] -= Cx;
           p[1] -= Cy;
 #ifndef EXPL_INTEGRATE_MOM
-          // const Real alpha = 1/(1 + sim.lambda * dt * X[iy][ix]);
-          // need to use unmollified version when H(x) appears in fractions
+
+
           const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
 #else
           const Real alpha = 1 - X[iy][ix];
@@ -12630,8 +12216,8 @@ void PressureSingle::penalize(const Real dt) const {
 }
 
 struct updatePressureRHS {
-  // RHS of Poisson equation is div(u) - chi * div(u_def)
-  // It is computed here and stored in TMP
+
+
 
   updatePressureRHS(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -12709,8 +12295,8 @@ struct updatePressureRHS {
 };
 
 struct updatePressureRHS1 {
-  // RHS of Poisson equation is div(u) - chi * div(u_def)
-  // It is computed here and stored in TMP
+
+
 
   updatePressureRHS1(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -12768,7 +12354,7 @@ void PressureSingle::preventCollidingObstacles() const {
   const size_t N = shapes.size();
   sim.bCollisionID.clear();
 
-  struct CollisionInfo // hitter and hittee, symmetry but we do things twice
+  struct CollisionInfo
   {
     Real iM = 0;
     Real iPosX = 0;
@@ -12805,24 +12391,24 @@ void PressureSingle::preventCollidingObstacles() const {
       const auto &iBlocks = shapes[i]->obstacleBlocks;
       const Real iU0 = shapes[i]->u;
       const Real iU1 = shapes[i]->v;
-      // const Real iU2      = 0; //set to 0 for 2D
-      // const Real iomega0  = 0; //set to 0 for 2D
-      // const Real iomega1  = 0; //set to 0 for 2D
+
+
+
       const Real iomega2 = shapes[i]->omega;
       const Real iCx = shapes[i]->centerOfMass[0];
       const Real iCy = shapes[i]->centerOfMass[1];
-      // const Real iCz      = 0; //set to 0 for 2D
+
 
       const auto &jBlocks = shapes[j]->obstacleBlocks;
       const Real jU0 = shapes[j]->u;
       const Real jU1 = shapes[j]->v;
-      // const Real jU2      = 0; //set to 0 for 2D
-      // const Real jomega0  = 0; //set to 0 for 2D
-      // const Real jomega1  = 0; //set to 0 for 2D
+
+
+
       const Real jomega2 = shapes[j]->omega;
       const Real jCx = shapes[j]->centerOfMass[0];
       const Real jCy = shapes[j]->centerOfMass[1];
-      // const Real jCz      = 0; //set to 0 for 2D
+
 
       assert(iBlocks.size() == jBlocks.size());
 
@@ -12898,7 +12484,7 @@ void PressureSingle::preventCollidingObstacles() const {
       }
     }
 
-  std::vector<Real> buffer(20 * N); // CollisionInfo holds 20 Reals
+  std::vector<Real> buffer(20 * N);
   for (size_t i = 0; i < N; i++) {
     auto &coll = collisions[i];
     buffer[20 * i] = coll.iM;
@@ -12968,21 +12554,21 @@ void PressureSingle::preventCollidingObstacles() const {
 
       auto &coll = collisions[i];
       auto &coll_other = collisions[j];
-      // less than one fluid element of overlap: wait to get closer. no hit
+
       if (coll.iM < 2.0 || coll.jM < 2.0)
-        continue; // object i did not collide
+        continue;
       if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
-        continue; // object j did not collide
+        continue;
 
       if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
               shapes[i]->getCharLength() ||
           std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
               shapes[i]->getCharLength()) {
-        continue; // then both objects i and j collided, but not with each
-                  // other!
+        continue;
+
       }
 
-      // A collision happened!
+
       sim.bCollision = true;
 #pragma omp critical
       {
@@ -12996,7 +12582,7 @@ void PressureSingle::preventCollidingObstacles() const {
         std::cout
             << "[CUP2D] WARNING: Forced objects not supported for collision."
             << std::endl;
-        // MPI_Abort(sim.chi->getWorldComm(),1);
+
       }
 
       Real ho1[3];
@@ -13004,7 +12590,7 @@ void PressureSingle::preventCollidingObstacles() const {
       Real hv1[3];
       Real hv2[3];
 
-      // 1. Compute collision normal vector (NX,NY,NZ)
+
       const Real norm_i =
           std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
                     coll.ivecZ * coll.ivecZ);
@@ -13019,50 +12605,50 @@ void PressureSingle::preventCollidingObstacles() const {
       const Real NY = mY * inorm;
       const Real NZ = mZ * inorm;
 
-      // If objects are already moving away from each other, don't do anything
-      // if( (v2[0]-v1[0])*NX + (v2[1]-v1[1])*NY + (v2[2]-v1[2])*NZ <= 0 )
-      // continue;
+
+
+
       const Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
       const Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
       const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
       const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
 
-      /*const*/ Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
+                Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
                                coll.iMomZ / coll.iM};
-      /*const*/ Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
+                Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
                                coll.jMomZ / coll.jM};
 
       if (projVel <= 0)
-        continue; // vel goes away from collision: no need to bounce
+        continue;
 
-      // 2. Compute collision location
+
       const Real inv_iM = 1.0 / coll.iM;
       const Real inv_jM = 1.0 / coll.jM;
-      const Real iPX = coll.iPosX * inv_iM; // object i collision location
+      const Real iPX = coll.iPosX * inv_iM;
       const Real iPY = coll.iPosY * inv_iM;
       const Real iPZ = coll.iPosZ * inv_iM;
-      const Real jPX = coll.jPosX * inv_jM; // object j collision location
+      const Real jPX = coll.jPosX * inv_jM;
       const Real jPY = coll.jPosY * inv_jM;
       const Real jPZ = coll.jPosZ * inv_jM;
       const Real CX = 0.5 * (iPX + jPX);
       const Real CY = 0.5 * (iPY + jPY);
       const Real CZ = 0.5 * (iPZ + jPZ);
 
-      // 3. Take care of the collision. Assume elastic collision (kinetic energy
-      // is conserved)
+
+
       ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1,
                        C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
       shapes[i]->u = hv1[0];
       shapes[i]->v = hv1[1];
-      // shapes[i]->transVel[2] = hv1[2];
+
       shapes[j]->u = hv2[0];
       shapes[j]->v = hv2[1];
-      // shapes[j]->transVel[2] = hv2[2];
-      // shapes[i]->angVel[0] = ho1[0];
-      // shapes[i]->angVel[1] = ho1[1];
+
+
+
       shapes[i]->omega = ho1[2];
-      // shapes[j]->angVel[0] = ho2[0];
-      // shapes[j]->angVel[1] = ho2[1];
+
+
       shapes[j]->omega = ho2[2];
 
       if (sim.rank == 0) {
@@ -13103,20 +12689,20 @@ void PressureSingle::operator()(const Real dt) {
   sim.startProfiler("Pressure");
   const size_t Nblocks = velInfo.size();
 
-  // update velocity of obstacle
+
   for (const auto &shape : sim.shapes) {
     integrateMomenta(shape.get());
     shape->updateVelocity(dt);
   }
-  // take care if two obstacles collide
+
   preventCollidingObstacles();
 
-  // apply penalization force
+
   penalize(dt);
 
-  // compute pressure RHS
-  // first we put uDef to tmpV so that we can create a VectorLab to compute
-  // div(uDef)
+
+
+
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
 #pragma omp parallel for
@@ -13128,10 +12714,10 @@ void PressureSingle::operator()(const Real dt) {
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
-        continue; // obst not in block
+        continue;
       const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
       const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock; // dest
+      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
       const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; iy++)
         for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
@@ -13148,11 +12734,11 @@ void PressureSingle::operator()(const Real dt) {
   cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
                   VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
 
-  // Add p_old (+dp/dt) to RHS
+
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
 
-// initial guess etc.
+
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -13194,7 +12780,7 @@ void PressureSingle::operator()(const Real dt) {
         P(ix, iy).s += POLD(ix, iy).s - avg;
   }
 
-  // apply pressure correction
+
   pressureCorrection(dt);
 
   sim.stopProfiler();
@@ -13235,40 +12821,40 @@ struct FishSkin {
 
 struct FishData {
 public:
-  // Length and minimal gridspacing
+
   const Real length, h;
 
-  // Midline is discretized by more points in first fraction and last fraction:
+
   const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   const Real dSmid_tgt = h / std::sqrt(2);
   const Real dSrefine_tgt = 0.125 * h;
 
-  //// Nm should be divisible by 8, see Fish.cpp - 3)
-  // thus Nmid enforced to be divisible by 8
+
+
   const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
   const Real dSmid = length * fracMid / Nmid;
 
-  // thus Nend enforced to be divisible by 4
+
   const int Nend =
       (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
   const Real dSref = fracRefined * length * 2 / Nend - dSmid;
 
-  const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
+  const int Nm = Nmid + 2 * Nend + 1;
 
-  Real *const rS; // arclength discretization points
-  Real *const rX; // coordinates of midline discretization points
+  Real *const rS;
+  Real *const rX;
   Real *const rY;
-  Real *const vX; // midline discretization velocities
+  Real *const vX;
   Real *const vY;
-  Real *const norX; // normal vector to the midline discretization points
+  Real *const norX;
   Real *const norY;
   Real *const vNorX;
   Real *const vNorY;
   Real *const width;
 
-  Real linMom[2], area, J, angMom; // for diagnostics
-  // start and end indices in the arrays where the fish starts and ends (to
-  // ignore the extensions when interpolating the shapes)
+  Real linMom[2], area, J, angMom;
+
+
   FishSkin upperSkin = FishSkin(Nm);
   FishSkin lowerSkin = FishSkin(Nm);
   virtual void resetAll();
@@ -13354,7 +12940,7 @@ struct AreaSegment {
   const Real safe_distance;
   const std::pair<int, int> s_range;
   Real w[2], c[2];
-  // should be normalized and >=0:
+
   Real normalI[2] = {(Real)1, (Real)0};
   Real normalJ[2] = {(Real)0, (Real)1};
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
@@ -13384,19 +12970,19 @@ struct PutFishOnBlocks {
   void changeVelocityToComputationalFrame(Real x[2]) const {
     const Real p[2] = {x[0], x[1]};
     x[0] =
-        Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1]; // rotate (around CoM)
+        Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
   template <typename T> void changeToComputationalFrame(T x[2]) const {
     const T p[2] = {x[0], x[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-    x[0] += position[0]; // translate
+    x[0] += position[0];
     x[1] += position[1];
   }
   template <typename T> void changeFromComputationalFrame(T x[2]) const {
     const T p[2] = {x[0] - (T)position[0], x[1] - (T)position[1]};
-    // rotate back around CoM
+
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
@@ -13431,18 +13017,18 @@ FishData::FishData(Real L, Real _h)
 
   rS[0] = 0;
   int k = 0;
-  // extension head
+
   for (int i = 0; i < Nend; ++i, k++)
     rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-  // interior points
+
   for (int i = 0; i < Nmid; ++i, k++)
     rS[k + 1] = rS[k] + dSmid;
-  // extension tail
+
   for (int i = 0; i < Nend; ++i, k++)
     rS[k + 1] =
         rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
   assert(k + 1 == Nm);
-  // cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
+
   rS[k] = std::min(rS[k], (Real)L);
   std::fill(rX, rX + Nm, 0);
   std::fill(rY, rY + Nm, 0);
@@ -13461,8 +13047,8 @@ FishData::~FishData() {
   _dealloc(vNorX);
   _dealloc(vNorY);
   _dealloc(width);
-  // if(upperSkin not_eq nullptr) { delete upperSkin; upperSkin=nullptr; }
-  // if(lowerSkin not_eq nullptr) { delete lowerSkin; lowerSkin=nullptr; }
+
+
 }
 
 void FishData::resetAll() {}
@@ -13473,8 +13059,8 @@ void FishData::writeMidline2File(const int step_id, std::string filename) {
   FILE *f = fopen(buf, "a");
   fprintf(f, "s x y vX vY\n");
   for (int i = 0; i < Nm; i++) {
-    // dummy.changeToComputationalFrame(temp);
-    // dummy.changeVelocityToComputationalFrame(udef);
+
+
     fprintf(f, "%g %g %g %g %g %g\n", (double)rS[i], (double)rX[i],
             (double)rY[i], (double)vX[i], (double)vY[i], (double)width[i]);
   }
@@ -13501,11 +13087,11 @@ void FishData::_computeMidlineNormals() const {
 }
 
 Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
-  // already worked out the integrals for r, theta on paper
-  // remaining integral done with composite trapezoidal rule
-  // minimize rhs evaluations --> do first and last point separately
+
+
+
   Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
-#pragma omp parallel for schedule(static)                                      \
+#pragma omp parallel for schedule(static) \
     reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
   for (int i = 0; i < Nm; ++i) {
     const Real ds = (i == 0) ? rS[1] - rS[0]
@@ -13529,15 +13115,15 @@ Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
   CoM[1] /= area;
   vCoM[0] = linMom[0] / area;
   vCoM[1] = linMom[1] / area;
-  // printf("%f %f %f %f %f\n",CoM[0],CoM[1],vCoM[0],vCoM[1], vol);
+
   return area;
 }
 
 Real FishData::integrateAngularMomentum(Real &angVel) {
-  // assume we have already translated CoM and vCoM to nullify linear momentum
-  // already worked out the integrals for r, theta on paper
-  // remaining integral done with composite trapezoidal rule
-  // minimize rhs evaluations --> do first and last point separately
+
+
+
+
   Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
   for (int i = 0; i < Nm; ++i) {
@@ -13569,7 +13155,7 @@ Real FishData::integrateAngularMomentum(Real &angVel) {
 void FishData::changeToCoMFrameLinear(const Real Cin[2],
                                       const Real vCin[2]) const {
 #pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm; ++i) { // subtract internal CM and vCM
+  for (int i = 0; i < Nm; ++i) {
     rX[i] -= Cin[0];
     rY[i] -= Cin[1];
     vX[i] -= vCin[0];
@@ -13583,7 +13169,7 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
 
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm;
-       ++i) { // subtract internal angvel and rotate position by ang
+       ++i) {
     vX[i] += vAin * rY[i];
     vY[i] -= vAin * rX[i];
     _rotate2D(Rmatrix2D, rX[i], rY[i]);
@@ -13593,7 +13179,7 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
 }
 
 void FishData::computeSurface() const {
-// Compute surface points by adding width to the midline points
+
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < lowerSkin.Npoints; ++i) {
     Real norm[2] = {norX[i], norY[i]};
@@ -13620,7 +13206,7 @@ void FishData::computeSkinNormals(const Real theta_comp,
     rY[i] += CoM_comp[1];
   }
 
-// Compute midpoints as they will be pressure targets
+
 #pragma omp parallel for
   for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
     lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
@@ -13643,8 +13229,8 @@ void FishData::computeSkinNormals(const Real theta_comp,
     lowerSkin.normYSurf[i] /= normL;
     upperSkin.normYSurf[i] /= normU;
 
-    // if too close to the head or tail, consider a point further in, so that we
-    // are pointing out for sure
+
+
     const int ii =
         (i < 8) ? 8 : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
 
@@ -13669,11 +13255,11 @@ void FishData::surfaceToCOMFrame(const Real theta_internal,
   const Real Rmatrix2D[2][2] = {
       {std::cos(theta_internal), -std::sin(theta_internal)},
       {std::sin(theta_internal), std::cos(theta_internal)}};
-  // Surface points rotation and translation
+
 
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < upperSkin.Npoints; ++i)
-  // for(int i=0; i<upperSkin.Npoints-1; ++i)
+
   {
     upperSkin.xSurf[i] -= CoM_internal[0];
     upperSkin.ySurf[i] -= CoM_internal[1];
@@ -13702,8 +13288,8 @@ void FishData::surfaceToComputationalFrame(
 
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
-  // we are in CoM frame and change to comp frame --> first rotate around CoM
-  // (which is at (0,0) in CoM frame), then update center
+
+
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
                                 {std::sin(angle), std::cos(angle)}};
   const Real p[2] = {c[0], c[1]};
@@ -13730,8 +13316,8 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
   const Real invMagI = 1 / magI, invMagJ = 1 / magJ;
 
   for (int i = 0; i < 2; ++i) {
-    // also take absolute value since thats what we need when doing intersection
-    // checks later
+
+
     normalI[i] = std::fabs(normalI[i]) * invMagI;
     normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
   }
@@ -13739,7 +13325,7 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
   assert(normalI[0] >= 0 && normalI[1] >= 0);
   assert(normalJ[0] >= 0 && normalJ[1] >= 0);
 
-  // Find the x,y,z max extents in lab frame ( exploit normal(I,J,K)[:] >=0 )
+
   const Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
   const Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
 
@@ -13753,14 +13339,14 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
 
 bool AreaSegment::isIntersectingWithAABB(const Real start[2],
                                          const Real end[2]) const {
-  // Remember: Incoming coordinates are cell centers, not cell faces
-  // start and end are two diagonally opposed corners of grid block
-  // GN halved the safety here but added it back to w[] in prepare
-  const Real AABB_w[2] = {// half block width + safe distance
+
+
+
+  const Real AABB_w[2] = {
                           (end[0] - start[0]) / 2 + safe_distance,
                           (end[1] - start[1]) / 2 + safe_distance};
 
-  const Real AABB_c[2] = {// block center
+  const Real AABB_c[2] = {
                           (end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
 
   const Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
@@ -13768,7 +13354,7 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
 
   assert(AABB_w[0] > 0 && AABB_w[1] > 0);
 
-  // Now Identify the ones that do not intersect
+
   Real intersectionLabFrame[2][2] = {
       {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
        std::min(objBoxLabFr[0][1], AABB_box[0][1])},
@@ -13779,9 +13365,9 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
       intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
     return false;
 
-  // This is x-width of box, expressed in fish frame
+
   const Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
-  // This is y-width of box, expressed in fish frame
+
   const Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
 
   const Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
@@ -13805,30 +13391,30 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
 void PutFishOnBlocks::operator()(const cubism::BlockInfo &i, ScalarBlock &b,
                                  ObstacleBlock *const o,
                                  const std::vector<AreaSegment *> &v) const {
-  // std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t2, t3;
-  // t0 = std::chrono::high_resolution_clock::now();
+
+
   constructSurface(i, b, o, v);
-  // t1 = std::chrono::high_resolution_clock::now();
+
   constructInternl(i, b, o, v);
-  // t2 = std::chrono::high_resolution_clock::now();
+
   signedDistanceSqrt(i, b, o, v);
-  // t3 = std::chrono::high_resolution_clock::now();
-  // printf("%g %g %g\n",std::chrono::duration<Real>(t1-t0).count(),
-  //                     std::chrono::duration<Real>(t2-t1).count(),
-  //                     std::chrono::duration<Real>(t3-t2).count());
+
+
+
+
 }
 
 void PutFishOnBlocks::signedDistanceSqrt(
     const cubism::BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
     const std::vector<AreaSegment *> &vSegments) const {
-  // finalize signed distance function in tmpU
+
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
     for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
       const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
       o->udef[iy][ix][0] /= normfac;
       o->udef[iy][ix][1] /= normfac;
-      // change from signed squared distance function to normal sdf
+
       o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
                                              : -std::sqrt(-o->dist[iy][ix]);
       b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
@@ -13856,26 +13442,26 @@ void PutFishOnBlocks::constructSurface(
   std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
   std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
 
-  // construct the shape (P2M with min(distance) as kernel) onto ObstacleBlock
+
   for (int i = 0; i < (int)vSegments.size(); ++i) {
-    // iterate over segments contained in the vSegm intersecting this block:
+
     const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
     const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
     for (int ss = firstSegm; ss <= lastSegm; ++ss) {
       assert(width[ss] > 0);
-      // for each segment, we have one point to left and right of midl
+
       for (int signp = -1; signp <= 1; signp += 2) {
-        // create a surface point
-        // special treatment of tail (width = 0 --> no ellipse, just line)
+
+
         Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
                        rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
         changeToComputationalFrame(myP);
         const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
                             (int)std::floor((myP[1] - org[1]) * invh)};
         if (iap[0] + 3 <= 0 || iap[0] - 1 >= BS[0])
-          continue; // NearNeigh loop
+          continue;
         if (iap[1] + 3 <= 0 || iap[1] - 1 >= BS[1])
-          continue; // does not intersect
+          continue;
 
         Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
                       rY[ss + 1] + width[ss + 1] * signp * norY[ss + 1]};
@@ -13886,8 +13472,8 @@ void PutFishOnBlocks::constructSurface(
         Real udef[2] = {vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
                         vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
         changeVelocityToComputationalFrame(udef);
-        // support is two points left, two points right --> Towers Chi will
-        // be one point left, one point right, but needs SDF wider
+
+
         for (int sy = std::max(0, iap[1] - 2); sy < std::min(iap[1] + 4, BS[1]);
              ++sy)
           for (int sx = std::max(0, iap[0] - 2);
@@ -13902,7 +13488,7 @@ void PutFishOnBlocks::constructSurface(
               continue;
 
             changeFromComputationalFrame(p);
-#ifndef NDEBUG // check that change of ref frame does not affect dist
+#ifndef NDEBUG
             const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
                                 rY[ss] + width[ss] * signp * norY[ss]};
             const Real distC = eulerDistSq2D(p, p0);
@@ -13911,7 +13497,7 @@ void PutFishOnBlocks::constructSurface(
 
             int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
             Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
-            if (distP < dist0 || distM < dist0) { // switch nearest surf point
+            if (distP < dist0 || distM < dist0) {
               dist1 = dist2;
               dist2 = dist0;
               close_s = secnd_s;
@@ -13928,50 +13514,43 @@ void PutFishOnBlocks::constructSurface(
             const Real grd2ML = eulerDistSq2D(p, xMidl);
             const Real diffH = std::fabs(width[close_s] - width[secnd_s]);
             Real sign2d = 0;
-            // If width changes slowly or if point is very far away, this is
-            // safer:
+
+
             if (dSsq > diffH * diffH ||
-                grd2ML > safeW * safeW) { // if no abrupt changes in width we
-                                          // use nearest neighbour
+                grd2ML > safeW * safeW) {
+
               sign2d = grd2ML > cnt2ML ? -1 : 1;
             } else {
-              // else we model the span between ellipses as a spherical segment
-              // http://mathworld.wolfram.com/SphericalSegment.html
+
+
               const Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
               const Real Rsq =
-                  (cnt2ML + nxt2ML - corr + dSsq) // radius of the sphere
+                  (cnt2ML + nxt2ML - corr + dSsq)
                   * (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
               const Real maxAx = std::max(cnt2ML, nxt2ML);
               const int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
               const int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-              // 'submerged' fraction of radius:
-              const Real d = std::sqrt((Rsq - maxAx) / dSsq); // (divided by ds)
-              // position of the centre of the sphere:
+
+              const Real d = std::sqrt((Rsq - maxAx) / dSsq);
+
               const Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
                                       rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
               const Real grd2Core = eulerDistSq2D(p, xCentr);
-              sign2d = grd2Core > Rsq ? -1 : 1; // as always, neg outside
+              sign2d = grd2Core > Rsq ? -1 : 1;
             }
 
             if (std::fabs(o->dist[sy][sx]) > dist1) {
               const Real W =
                   1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-              // W behaves like hat interpolation kernel that is used for
-              // internal fish points. Introducing W (used to be W=1) smoothens
-              // transition from surface to internal points. In fact, later we
-              // plus equal udef*hat of internal points. If hat>0, point should
-              // behave like internal point, meaning that fish-section udef
-              // rotation should multiply distance from midline instead of
-              // entire half-width. Remember that uder will become udef / chi,
-              // so W simplifies out.
+# 13967 "main.cpp"
               assert(W >= 0);
               o->udef[sy][sx][0] = W * udef[0];
               o->udef[sy][sx][1] = W * udef[1];
               o->dist[sy][sx] = sign2d * dist1;
               o->chi[sy][sx] = W;
             }
-            // Not chi yet, I stored squared distance from analytical boundary
-            // distSq is updated only if curr value is smaller than the old one
+
+
           }
       }
     }
@@ -13985,38 +13564,38 @@ void PutFishOnBlocks::constructInternl(
   info.pos(org, 0, 0);
   const Real h = info.h, invh = 1.0 / info.h;
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-  // construct the deformation velocities (P2M with hat function as kernel)
+
   for (int i = 0; i < (int)vSegments.size(); ++i) {
     const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
     const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
     for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-      // P2M udef of a slice at this s
+
       const Real myWidth = cfish.width[ss];
       assert(myWidth > 0);
-      // here we process also all inner points. Nw to the left and right of midl
-      //  add xtension here to make sure we have it in each direction:
+
+
       const int Nw =
-          std::floor(myWidth / h); // floor bcz we already did interior
+          std::floor(myWidth / h);
       for (int iw = -Nw + 1; iw < Nw; ++iw) {
         const Real offsetW = iw * h;
         Real xp[2] = {cfish.rX[ss] + offsetW * cfish.norX[ss],
                       cfish.rY[ss] + offsetW * cfish.norY[ss]};
         changeToComputationalFrame(xp);
-        xp[0] = (xp[0] - org[0]) * invh; // how many grid points from this block
-        xp[1] = (xp[1] - org[1]) * invh; // origin is this fishpoint located at?
+        xp[0] = (xp[0] - org[0]) * invh;
+        xp[1] = (xp[1] - org[1]) * invh;
         const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
         const int iap[2] = {(int)ap[0], (int)ap[1]};
         if (iap[0] + 2 <= 0 || iap[0] >= BS[0])
-          continue; // hatP2M loop
+          continue;
         if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
-          continue; // does not intersect
+          continue;
 
         Real udef[2] = {cfish.vX[ss] + offsetW * cfish.vNorX[ss],
                         cfish.vY[ss] + offsetW * cfish.vNorY[ss]};
         changeVelocityToComputationalFrame(udef);
-        Real wghts[2][2]; // P2M weights
+        Real wghts[2][2];
         for (int c = 0; c < 2; ++c) {
-          const Real t[2] = {// we floored, hat between xp and grid point +-1
+          const Real t[2] = {
                              std::fabs(xp[c] - ap[c]),
                              std::fabs(xp[c] - (ap[c] + 1))};
           wghts[c][0] = 1 - t[0];
@@ -14034,7 +13613,7 @@ void PutFishOnBlocks::constructInternl(
             o->udef[idy][idx][0] += wxwy * udef[0];
             o->udef[idy][idx][1] += wxwy * udef[1];
             o->chi[idy][idx] += wxwy;
-            // set sign for all interior points
+
             static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
             if (std::fabs(o->dist[idy][idx] + 1) < EPS)
               o->dist[idy][idx] = 1;
@@ -14046,9 +13625,9 @@ void PutFishOnBlocks::constructInternl(
 
 class FactoryFileLineParser : public cubism::ArgumentParser {
 protected:
-  // from stackoverflow
 
-  // trim from start
+
+
   inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(),
             std::find_if(s.begin(), s.end(),
@@ -14056,7 +13635,7 @@ protected:
     return s;
   }
 
-  // trim from end
+
   inline std::string &rtrim(std::string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          std::not1(std::ptr_fun<int, int>(std::isspace)))
@@ -14065,19 +13644,19 @@ protected:
     return s;
   }
 
-  // trim from both ends
+
   inline std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
 
 public:
   FactoryFileLineParser(std::istringstream &is_line)
-      : cubism::ArgumentParser(0, NULL, '#') // last char is comment leader
+      : cubism::ArgumentParser(0, NULL, '#')
   {
     std::string key, value;
     while (std::getline(is_line, key, '=')) {
       if (std::getline(is_line, value, ' ')) {
-        // add "-" because then we can use the same code for parsing factory as
-        // command lines
-        // mapArguments["-"+trim(key)] = Value(trim(value));
+
+
+
         mapArguments[trim(key)] = cubism::Value(trim(value));
       }
     }
@@ -14111,12 +13690,12 @@ public:
 };
 
 void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
-  //// 0) clear obstacle blocks
+
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
 
-  //// 1) Update Midline and compute surface
+
   assert(myFish != nullptr);
   profile(push_start("midline"));
   myFish->computeMidline(sim.time, sim.dt);
@@ -14126,21 +13705,21 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   if (sim.rank == 0 && sim.bDump())
     myFish->writeMidline2File(0, "appending");
 
-  //// 2) Integrate Linear and Angular Momentum and shift Fish accordingly
+
   profile(push_start("2dmoments"));
-  // returns area, CoM_internal, vCoM_internal:
+
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-  // takes CoM_internal, vCoM_internal, puts CoM in and nullifies  lin mom:
+
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
-  // returns mom of intertia and angvel:
+
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
-  // rotates fish midline to current angle and removes angular moment:
+
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-#if 0 // ndef NDEBUG
+#if 0
   {
     Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-    // check that things are zero
+
     const Real area_internal_check =
     myFish->integrateLinearMomentum(dummy_CoM_internal, dummy_vCoM_internal);
     myFish->integrateAngularMomentum(dummy_angvel_internal);
@@ -14156,10 +13735,10 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
 
-  //// 3) Create Bounding Boxes around Fish
-  //- performance of create seems to decrease if VolumeSegment_OBB are bigger
-  //- this code groups segments together and finds a bounding box (maximal
-  //  x and y coords) to then be able to check intersection with cartesian grid
+
+
+
+
   const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
   assert((Nm - 1) % Nsegments == 0);
   profile(push_start("boxes"));
@@ -14170,7 +13749,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (int i = 0; i < Nsegments; ++i) {
     const int next_idx = (i + 1) * (Nm - 1) / Nsegments,
               idx = i * (Nm - 1) / Nsegments;
-    // find bounding box based on this
+
     Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
     for (int ss = idx; ss <= next_idx; ++ss) {
       const Real xBnd[2] = {
@@ -14188,8 +13767,8 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
       bbox[1][0] = std::min(bbox[1][0], minY);
       bbox[1][1] = std::max(bbox[1][1], maxY);
     }
-    const Real DD = 4 * h; // two points on each side
-    // const Real safe_distance = info.h; // one point on each side
+    const Real DD = 4 * h;
+
     AreaSegment *const tAS =
         new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
     tAS->changeToComputationalFrame(center, orientation);
@@ -14197,7 +13776,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   }
   profile(pop_stop());
 
-  //// 4) Interpolate shape with computational grid
+
   profile(push_start("intersect"));
   const auto N = vInfo.size();
   std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
@@ -14217,7 +13796,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
         segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
       }
 
-    // allocate new blocks if necessary
+
     if (segmentsPerBlock[info.blockID] not_eq nullptr) {
       assert(obstacleBlocks[info.blockID] == nullptr);
       ObstacleBlock *const block = new ObstacleBlock();
@@ -14245,7 +13824,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
     }
   }
 
-  // clear vSegments
+
   for (auto &E : vSegments) {
     if (E not_eq nullptr)
       delete E;
@@ -14263,9 +13842,9 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
 }
 
 void Fish::updatePosition(Real dt) {
-  // update position and angles
+
   Shape::updatePosition(dt);
-  theta_internal -= dt * angvel_internal; // negative: we subtracted this angvel
+  theta_internal -= dt * angvel_internal;
 }
 
 void Fish::resetAll() {
@@ -14297,7 +13876,7 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
     ssF<<"skinPoints"<<std::setfill('0')<<std::setw(9)<<sim.step<<".dat";
     std::ofstream ofs (ssF.str().c_str(), std::ofstream::out);
     for(size_t i=0; i<myFish->upperSkin.Npoints; ++i)
-      ofs<<myFish->upperSkin.xSurf[i]  <<" "<<myFish->upperSkin.ySurf[i]<<" " <<myFish->upperSkin.normXSurf[i]  <<" "<<myFish->upperSkin.normYSurf[i]  <<"\n";
+      ofs<<myFish->upperSkin.xSurf[i] <<" "<<myFish->upperSkin.ySurf[i]<<" " <<myFish->upperSkin.normXSurf[i] <<" "<<myFish->upperSkin.normYSurf[i] <<"\n";
     for(size_t i=myFish->lowerSkin.Npoints; i>0; --i)
       ofs<<myFish->lowerSkin.xSurf[i-1]<<" "<<myFish->lowerSkin.ySurf[i-1]<<" "<<myFish->lowerSkin.normXSurf[i-1]<<" "<<myFish->lowerSkin.normYSurf[i-1]<<"\n";
     ofs.flush();
@@ -14318,15 +13897,15 @@ public:
   StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
 
-  // member functions for state in RL
+
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
 
-  // Helpers for state function
+
   ssize_t holdingBlockID(const std::array<Real, 2> pos) const;
   std::array<Real, 2> getShear(const std::array<Real, 2> pSurf) const;
 
-  // Old Helpers (here for backward compatibility)
+
   ssize_t holdingBlockID(const std::array<Real, 2> pos,
                          const std::vector<cubism::BlockInfo> &velInfo) const;
   std::array<int, 2> safeIdInBlock(const std::array<Real, 2> pos,
@@ -14341,34 +13920,34 @@ class CurvatureFish : public FishData {
   const Real amplitudeFactor, phaseShift, Tperiod;
 
 public:
-  // PID controller of body curvature:
+
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;
-  // exponential averages:
+
   Real avgDeltaY = 0;
   Real avgDangle = 0;
   Real avgAngVel = 0;
-  // stored past action for RL state:
+
   Real lastTact = 0;
   Real lastCurv = 0;
   Real oldrCurv = 0;
-  // quantities needed to correctly control the speed of the midline maneuvers:
+
   Real periodPIDval = Tperiod;
   Real periodPIDdif = 0;
   bool TperiodPID = false;
-  // quantities needed for rl:
+
   Real time0 = 0;
   Real timeshift = 0;
-  // aux quantities for PID controllers:
+
   Real lastTime = 0;
   Real lastAvel = 0;
 
-  // next scheduler is used to ramp-up the curvature from 0 during first period:
+
   Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  // next scheduler is used for midline-bending control points for RL:
+
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 
-  // next scheduler is used to ramp-up the period
+
   Schedulers::ParameterSchedulerScalar periodScheduler;
   Real current_period = Tperiod;
   Real next_period = Tperiod;
@@ -14400,41 +13979,33 @@ public:
 
   void correctTailPeriod(const Real periodFac, const Real periodVel,
                          const Real t, const Real dt) {
-    assert(periodFac > 0 && periodFac < 2); // would be crazy
+    assert(periodFac > 0 && periodFac < 2);
 
     const Real lastArg = (lastTime - time0) / periodPIDval + timeshift;
     time0 = lastTime;
     timeshift = lastArg;
-    // so that new arg is only constant (prev arg) + dt / periodPIDval
-    // with the new l_Tp:
+
+
     periodPIDval = Tperiod * periodFac;
     periodPIDdif = Tperiod * periodVel;
     lastTime = t;
     TperiodPID = true;
   }
-
-  // Execute takes as arguments the current simulation time and the time
-  // the RL action should have actually started. This is important for the
-  // midline bending because it relies on matching the splines with the half
-  // period of the sinusoidal describing the swimming motion (in order to
-  // exactly amplify or dampen the undulation). Therefore, for Tp=1, t_rlAction
-  // might be K * 0.5 while t_current would be K * 0.5 plus a fraction of the
-  // timestep. This because the new RL discrete step is detected as soon as
-  // t_current>=t_rlAction
+# 14424 "main.cpp"
   void execute(const Real t_current, const Real t_rlAction,
                const std::vector<Real> &a) {
     assert(t_current >= t_rlAction);
-    oldrCurv = lastCurv; // store action
-    lastCurv = a[0];     // store action
+    oldrCurv = lastCurv;
+    lastCurv = a[0];
 
     rlBendingScheduler.Turn(a[0], t_rlAction);
 
-    if (a.size() > 1) // also modify the swimming period
+    if (a.size() > 1)
     {
       if (TperiodPID)
         std::cout << "Warning: PID controller should not be used with RL."
                   << std::endl;
-      lastTact = a[1]; // store action
+      lastTact = a[1];
       current_period = periodPIDval;
       next_period = Tperiod * (1 + a[1]);
       transition_start = t_rlAction;
@@ -14459,9 +14030,9 @@ public:
     const Real w =
         (s < sb ? std::sqrt(2 * wh * s - s * s)
                 : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
-                          : // pow(.,2) is 3D
+                          :
                        (wt * (L - s) / (L - st))));
-    // std::cout << "s=" << s << ", w=" << w << std::endl;
+
     assert(w >= 0);
     return w;
   }
@@ -14472,23 +14043,23 @@ StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
     : Fish(s, p, C), bCorrectTrajectory(p("-pid").asInt(0)),
       bCorrectPosition(p("-pidpos").asInt(0)) {
 #if 0
-  // parse tau
+
   tau = parser("-tau").asDouble(1.0);
-  // parse curvature controlpoint values
+
   curvature_values[0] = parser("-k1").asDouble(0.82014);
   curvature_values[1] = parser("-k2").asDouble(1.46515);
   curvature_values[2] = parser("-k3").asDouble(2.57136);
   curvature_values[3] = parser("-k4").asDouble(3.75425);
   curvature_values[4] = parser("-k5").asDouble(5.09147);
   curvature_values[5] = parser("-k6").asDouble(5.70449);
-  // if nonzero && Learnfreq<0 your fish is gonna keep turning
+
   baseline_values[0] = parser("-b1").asDouble(0.0);
   baseline_values[1] = parser("-b2").asDouble(0.0);
   baseline_values[2] = parser("-b3").asDouble(0.0);
   baseline_values[3] = parser("-b4").asDouble(0.0);
   baseline_values[4] = parser("-b5").asDouble(0.0);
   baseline_values[5] = parser("-b6").asDouble(0.0);
-  // curvature points are distributed by default but can be overridden
+
   curvature_points[0] = parser("-pk1").asDouble(0.00)*length;
   curvature_points[1] = parser("-pk2").asDouble(0.15)*length;
   curvature_points[2] = parser("-pk3").asDouble(0.40)*length;
@@ -14506,7 +14077,7 @@ StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
   printf("curvature values (normalized to L=1): k1=%3.3f k2=%3.3f k3=%3.3f k4=%3.3f k5=%3.3f k6=%3.3f\n",curvature_values[0],curvature_values[1],curvature_values[2],curvature_values[3],curvature_values[4],curvature_values[5]);
   printf("baseline points: pb1=%3.3f pb2=%3.3f pb3=%3.3f pb4=%3.3f pb5=%3.3f pb6=%3.3f\n",baseline_points[0],baseline_points[1],baseline_points[2],baseline_points[3],baseline_points[4],baseline_points[5]);
   printf("baseline values (normalized to L=1): b1=%3.3f b2=%3.3f b3=%3.3f b4=%3.3f b5=%3.3f b6=%3.3f\n",baseline_values[0],baseline_values[1],baseline_values[2],baseline_values[3],baseline_values[4],baseline_values[5]);
-  // make curvature dimensional for this length
+
   for(int i=0; i<6; ++i) curvature_values[i]/=length;
 #endif
 
@@ -14518,59 +14089,59 @@ StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
            (double)sim.minH, (double)Tperiod, (double)phaseShift);
 }
 
-// static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
+
 void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
-  // If PID controller to keep position or swim straight enabled
+
   if (bCorrectPosition || bCorrectTrajectory) {
     CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
     if (cFish == nullptr) {
       printf("Someone touched my fish\n");
       abort();
     }
-    const Real DT = sim.dt / Tperiod; //, time = sim.time;
-    // Control pos diffs
+    const Real DT = sim.dt / Tperiod;
+
     const Real xDiff = (centerOfMass[0] - origC[0]) / length;
     const Real yDiff = (centerOfMass[1] - origC[1]) / length;
     const Real angDiff = orientation - origAng;
     const Real relU = (u + sim.uinfx) / length;
     const Real relV = (v + sim.uinfy) / length;
     const Real angVel = omega, lastAngVel = cFish->lastAvel;
-    // compute ang vel at t - 1/2 dt such that we have a better derivative:
+
     const Real aVelMidP = (angVel + lastAngVel) * Tperiod / 2;
     const Real aVelDiff = (angVel - lastAngVel) * Tperiod / sim.dt;
-    cFish->lastAvel = angVel; // store for next time
+    cFish->lastAvel = angVel;
 
-    // derivatives of following 2 exponential averages:
+
     const Real velDAavg = (angDiff - cFish->avgDangle) / Tperiod + DT * angVel;
     const Real velDYavg = (yDiff - cFish->avgDeltaY) / Tperiod + DT * relV;
     const Real velAVavg =
         10 * ((aVelMidP - cFish->avgAngVel) / Tperiod + DT * aVelDiff);
-    // exponential averages
+
     cFish->avgDangle = (1.0 - DT) * cFish->avgDangle + DT * angDiff;
     cFish->avgDeltaY = (1.0 - DT) * cFish->avgDeltaY + DT * yDiff;
-    // faster average:
+
     cFish->avgAngVel = (1 - 10 * DT) * cFish->avgAngVel + 10 * DT * aVelMidP;
     const Real avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
 
-    // integral (averaged) and proportional absolute DY and their derivative
+
     const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
     const Real velAbsPy = yDiff > 0 ? relV : -relV;
     const Real velAbsIy = avgDeltaY > 0 ? velDYavg : -velDYavg;
     assert(origAng < 2e-16);
 
     if (bCorrectPosition && sim.dt > 0) {
-      // If angle is positive: positive curvature only if Dy<0 (must go up)
-      // If angle is negative: negative curvature only if Dy>0 (must go down)
+
+
       const Real IangPdy = (avgDangle * yDiff < 0) ? avgDangle * absPy : 0;
       const Real PangIdy = (angDiff * avgDeltaY < 0) ? angDiff * absIy : 0;
       const Real IangIdy = (avgDangle * avgDeltaY < 0) ? avgDangle * absIy : 0;
 
-      // derivatives multiplied by 0 when term is inactive later:
+
       const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
       const Real velPangIdy = velAbsIy * angDiff + absIy * angVel;
       const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
 
-      // zero also the derivatives when appropriate
+
       const Real coefIangPdy = avgDangle * yDiff < 0 ? 1 : 0;
       const Real coefPangIdy = angDiff * avgDeltaY < 0 ? 1 : 0;
       const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
@@ -14600,8 +14171,8 @@ void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
       cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
     }
-    // if absIy<EPS then we have just one fish that the simulation box follows
-    // therefore we control the average angle but not the Y disp (which is 0)
+
+
     else if (bCorrectTrajectory && sim.dt > 0) {
       const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
       const Real absAvelDiff = avgAngVel > 0 ? velAVavg : -velAVavg;
@@ -14634,7 +14205,7 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real> &a) const {
 
 Real StefanFish::getLearnTPeriod() const {
   const CurvatureFish *const cFish = dynamic_cast<CurvatureFish *>(myFish);
-  // return cFish->periodPIDval;
+
   return cFish->next_period;
 }
 
@@ -14662,32 +14233,32 @@ std::vector<Real> StefanFish::state(const std::vector<double> &origin) const {
   S[8] = cFish->lastCurv;
   S[9] = cFish->oldrCurv;
 
-  // Shear stress computation at three sensors
-  //******************************************
-  //  Get fish skin
+
+
+
   const auto &DU = myFish->upperSkin;
   const auto &DL = myFish->lowerSkin;
 
-  // index for sensors on the side of head
+
   int iHeadSide = 0;
   for (int i = 0; i < myFish->Nm - 1; ++i)
     if (myFish->rS[i] <= 0.04 * length && myFish->rS[i + 1] > 0.04 * length)
       iHeadSide = i;
   assert(iHeadSide > 0);
 
-  // sensor locations
+
   const std::array<Real, 2> locFront = {DU.xSurf[0], DU.ySurf[0]};
   const std::array<Real, 2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
   const std::array<Real, 2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
 
-  // compute shear stress force (x,y) components
+
   std::array<Real, 2> shearFront = getShear(locFront);
   std::array<Real, 2> shearUpper = getShear(locLower);
   std::array<Real, 2> shearLower = getShear(locUpper);
 
-  // normal vectors at sensor locations (these vectors already have unit length)
-  //  first point of the two skins is the same normal should be almost the same:
-  //  take the mean
+
+
+
   const std::array<Real, 2> norFront = {
       0.5 * (DU.normXSurf[0] + DL.normXSurf[0]),
       0.5 * (DU.normYSurf[0] + DL.normYSurf[0])};
@@ -14696,14 +14267,14 @@ std::vector<Real> StefanFish::state(const std::vector<double> &origin) const {
   const std::array<Real, 2> norLower = {DL.normXSurf[iHeadSide],
                                         DL.normYSurf[iHeadSide]};
 
-  // tangent vectors at sensor locations (these vectors already have unit
-  // length) signs alternate so that both upper and lower tangent vectors point
-  // towards fish tail
+
+
+
   const std::array<Real, 2> tanFront = {norFront[1], -norFront[0]};
   const std::array<Real, 2> tanUpper = {-norUpper[1], norUpper[0]};
   const std::array<Real, 2> tanLower = {norLower[1], -norLower[0]};
 
-  // project three stresses to normal and tangent directions
+
   const double shearFront_n =
       shearFront[0] * norFront[0] + shearFront[1] * norFront[1];
   const double shearUpper_n =
@@ -14717,7 +14288,7 @@ std::vector<Real> StefanFish::state(const std::vector<double> &origin) const {
   const double shearLower_t =
       shearLower[0] * tanLower[0] + shearLower[1] * tanLower[1];
 
-  // put non-dimensional results into state into state
+
   S[10] = shearFront_n * Tperiod / length;
   S[11] = shearFront_t * Tperiod / length;
   S[12] = shearLower_n * Tperiod / length;
@@ -14735,7 +14306,7 @@ std::vector<Real> StefanFish::state3D() const {
   S[1] = center[1];
   S[2] = 1.0;
 
-  // convert angle to quaternion
+
   S[3] = cos(0.5 * getOrientation());
   S[4] = 0.0;
   S[5] = 0.0;
@@ -14754,25 +14325,25 @@ std::vector<Real> StefanFish::state3D() const {
   S[14] = cFish->lastCurv;
   S[15] = cFish->oldrCurv;
 
-  // Shear stress computation at three sensors
-  //******************************************
-  //  Get fish skin
+
+
+
   const auto &DU = myFish->upperSkin;
   const auto &DL = myFish->lowerSkin;
 
-  // index for sensors on the side of head
+
   int iHeadSide = 0;
   for (int i = 0; i < myFish->Nm - 1; ++i)
     if (myFish->rS[i] <= 0.04 * length && myFish->rS[i + 1] > 0.04 * length)
       iHeadSide = i;
   assert(iHeadSide > 0);
 
-  // sensor locations
+
   const std::array<Real, 2> locFront = {DU.xSurf[0], DU.ySurf[0]};
   const std::array<Real, 2> locUpper = {DU.midX[iHeadSide], DU.midY[iHeadSide]};
   const std::array<Real, 2> locLower = {DL.midX[iHeadSide], DL.midY[iHeadSide]};
 
-  // compute shear stress force (x,y) components
+
   std::array<Real, 2> shearFront = getShear(locFront);
   std::array<Real, 2> shearUpper = getShear(locLower);
   std::array<Real, 2> shearLower = getShear(locUpper);
@@ -14786,19 +14357,19 @@ std::vector<Real> StefanFish::state3D() const {
   S[23] = shearUpper[1] * Tperiod / length;
   S[24] = 0.0;
 #if 0
-  //normal vectors at sensor locations (these vectors already have unit length)
-  // first point of the two skins is the same normal should be almost the same: take the mean
+
+
   const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
   const std::array<Real,2> norUpper = { DU.normXSurf[iHeadSide], DU.normYSurf[iHeadSide]};
   const std::array<Real,2> norLower = { DL.normXSurf[iHeadSide], DL.normYSurf[iHeadSide]};
 
-  //tangent vectors at sensor locations (these vectors already have unit length)
-  //signs alternate so that both upper and lower tangent vectors point towards fish tail
+
+
   const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
   const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
   const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
 
-  // project three stresses to normal and tangent directions
+
   const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
   const double shearUpper_n = shearUpper[0]*norUpper[0]+shearUpper[1]*norUpper[1];
   const double shearLower_n = shearLower[0]*norLower[0]+shearLower[1]*norLower[1];
@@ -14806,7 +14377,7 @@ std::vector<Real> StefanFish::state3D() const {
   const double shearUpper_t = shearUpper[0]*tanUpper[0]+shearUpper[1]*tanUpper[1];
   const double shearLower_t = shearLower[0]*tanLower[0]+shearLower[1]*tanLower[1];
 
-  // put non-dimensional results into state into state
+
   S[10] = shearFront_n * Tperiod / length;
   S[11] = shearFront_t * Tperiod / length;
   S[12] = shearLower_n * Tperiod / length;
@@ -14818,14 +14389,14 @@ std::vector<Real> StefanFish::state3D() const {
   return S;
 }
 
-/* helpers to compute sensor information */
 
-// function that finds block id of block containing pos (x,y)
+
+
 ssize_t StefanFish::holdingBlockID(const std::array<Real, 2> pos) const {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   for (size_t i = 0; i < velInfo.size(); ++i) {
-    // compute lower left and top right corners of block (+- 0.5 h because pos
-    // returns cell centers)
+
+
     std::array<Real, 2> MIN = velInfo[i].pos<Real>(0, 0);
     std::array<Real, 2> MAX =
         velInfo[i].pos<Real>(VectorBlock::sizeX - 1, VectorBlock::sizeY - 1);
@@ -14834,29 +14405,29 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real, 2> pos) const {
     MAX[0] += 0.5 * velInfo[i].h;
     MAX[1] += 0.5 * velInfo[i].h;
 
-    // check whether point is inside block
+
     if (pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] &&
         pos[1] <= MAX[1]) {
       return i;
     }
   }
-  return -1; // rank does not contain point
+  return -1;
 };
 
-// returns shear at given surface location
+
 std::array<Real, 2>
 StefanFish::getShear(const std::array<Real, 2> pSurf) const {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
 
   Real myF[2] = {0, 0};
 
-  // Get blockId of block that contains point pSurf.
+
   ssize_t blockIdSurf = holdingBlockID(pSurf);
   char error = false;
   if (blockIdSurf >= 0) {
     const auto &skinBinfo = velInfo[blockIdSurf];
 
-    // check whether obstacle block exists
+
     if (obstacleBlocks[blockIdSurf] == nullptr) {
       printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but "
              "obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n",
@@ -14893,7 +14464,7 @@ StefanFish::getShear(const std::array<Real, 2> pSurf) const {
   MPI_Allreduce(MPI_IN_PLACE, myF, 2, MPI_Real, MPI_SUM,
                 sim.chi->getWorldComm());
 
-// DEBUG purposes
+
 #if 1
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
                 sim.chi->getWorldComm());
@@ -14912,7 +14483,7 @@ StefanFish::getShear(const std::array<Real, 2> pSurf) const {
   }
 #endif
 
-  // return shear
+
   return std::array<Real, 2>{{myF[0], myF[1]}};
 };
 
@@ -14922,49 +14493,49 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
                              current_period, next_period);
   periodScheduler.gimmeValues(t, periodPIDval, periodPIDdif);
   if (transition_start < t &&
-      t < transition_start + transition_duration) // timeshift also rampedup
+      t < transition_start + transition_duration)
   {
     timeshift = (t - time0) / periodPIDval + timeshift;
     time0 = t;
   }
 
-  // define interpolation points on midline
+
   const std::array<Real, 6> curvaturePoints = {
-      (Real)0,           (Real).15 * length,
+      (Real)0, (Real).15 * length,
       (Real).4 * length, (Real).65 * length,
       (Real).9 * length, length};
-  // define values of curvature at interpolation points
+
   const std::array<Real, 6> curvatureValues = {
       (Real)0.82014 / length, (Real)1.46515 / length, (Real)2.57136 / length,
       (Real)3.75425 / length, (Real)5.09147 / length, (Real)5.70449 / length};
-  // define interpolation points for RL action
+
   const std::array<Real, 7> bendPoints = {
       (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
 
-// transition curvature from 0 to target values
-#if 1 // ramp-up over Tperiod
-  // Set 0.01*curvatureValues as initial values (not zeros).
-  // This prevents the Poisson solver from exploding in some cases, when
-  // starting from zero residuals.
+
+#if 1
+
+
+
   const std::array<Real, 6> curvatureZeros = {
       0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
       0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
       0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
   };
   curvatureScheduler.transition(0, 0, Tperiod, curvatureZeros, curvatureValues);
-#else // no rampup for debug
+#else
   curvatureScheduler.transition(t, 0, Tperiod, curvatureValues,
                                 curvatureValues);
 #endif
 
-  // write curvature values
+
   curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
   rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS,
                                  rB, vB);
 
-  // next term takes into account the derivative of periodPIDval in darg:
+
   const Real diffT = 1 - (t - time0) * periodPIDdif / periodPIDval;
-  // time derivative of arg:
+
   const Real darg = 2 * M_PI / periodPIDval * diffT;
   const Real arg0 =
       2 * M_PI * ((t - time0) / periodPIDval + timeshift) + M_PI * phaseShift;
@@ -14982,7 +14553,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
     assert(not std::isinf(vK[i]));
   }
 
-  // solve frenet to compute midline parameters
+
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 #if 0
@@ -14997,39 +14568,39 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 #endif
 }
 
-/***** Old Helpers (here for backward compatibility) ******/
 
-// function that finds block id of block containing pos (x,y)
+
+
 ssize_t StefanFish::holdingBlockID(
     const std::array<Real, 2> pos,
     const std::vector<cubism::BlockInfo> &velInfo) const {
   for (size_t i = 0; i < velInfo.size(); ++i) {
-    // get gridspacing in block
+
     const Real h = velInfo[i].h;
 
-    // compute lower left corner of block
+
     std::array<Real, 2> MIN = velInfo[i].pos<Real>(0, 0);
     for (int j = 0; j < 2; ++j)
-      MIN[j] -= 0.5 * h; // pos returns cell centers
+      MIN[j] -= 0.5 * h;
 
-    // compute top right corner of block
+
     std::array<Real, 2> MAX =
         velInfo[i].pos<Real>(VectorBlock::sizeX - 1, VectorBlock::sizeY - 1);
     for (int j = 0; j < 2; ++j)
-      MAX[j] += 0.5 * h; // pos returns cell centers
+      MAX[j] += 0.5 * h;
 
-    // check whether point is inside block
+
     if (pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] &&
         pos[1] <= MAX[1]) {
-      // point lies inside this block
+
       return i;
     }
   }
-  // rank does not contain point
+
   return -1;
 };
 
-// function that gives indice of point in block
+
 std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real, 2> pos,
                                              const std::array<Real, 2> org,
                                              const Real invh) const {
@@ -15040,25 +14611,25 @@ std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real, 2> pos,
   return std::array<int, 2>{{ix, iy}};
 };
 
-// returns shear at given surface location
+
 std::array<Real, 2>
 StefanFish::getShear(const std::array<Real, 2> pSurf,
                      const std::array<Real, 2> normSurf,
                      const std::vector<cubism::BlockInfo> &velInfo) const {
-  // Buffer to broadcast velcities and gridspacing
+
   Real velocityH[3] = {0.0, 0.0, 0.0};
 
-  // 1. Compute surface velocity on surface
-  // get blockId of surface
+
+
   ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
 
-  // get surface velocity if block containing point found
+
   char error = false;
   if (blockIdSurf >= 0) {
-    // get block
+
     const auto &skinBinfo = velInfo[blockIdSurf];
 
-    // check whether obstacle block exists
+
     if (obstacleBlocks[blockIdSurf] == nullptr) {
       printf("[CUP2D, rank %u] velInfo[%lu] contains point (%f,%f), but "
              "obstacleBlocks[%lu] is a nullptr! obstacleBlocks.size()=%lu\n",
@@ -15075,31 +14646,31 @@ StefanFish::getShear(const std::array<Real, 2> pSurf,
         }
       fflush(0);
       error = true;
-      // abort();
+
     } else {
-      // get origin of block
+
       const std::array<Real, 2> oBlockSkin = skinBinfo.pos<Real>(0, 0);
 
-      // get gridspacing on this block
+
       velocityH[2] = velInfo[blockIdSurf].h;
 
-      // get index of point in block
+
       const std::array<int, 2> iSkin =
           safeIdInBlock(pSurf, oBlockSkin, 1 / velocityH[2]);
 
-      // get deformation velocity
+
       const Real udefX =
           obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][0];
       const Real udefY =
           obstacleBlocks[blockIdSurf]->udef[iSkin[1]][iSkin[0]][1];
 
-      // compute velocity of skin point
+
       velocityH[0] = u - omega * (pSurf[1] - centerOfMass[1]) + udefX;
       velocityH[1] = v + omega * (pSurf[0] - centerOfMass[0]) + udefY;
     }
   }
 
-// DEBUG purposes
+
 #if 1
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
                 sim.chi->getWorldComm());
@@ -15119,59 +14690,59 @@ StefanFish::getShear(const std::array<Real, 2> pSurf,
   }
 #endif
 
-  // Allreduce to Bcast surface velocity
+
   MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM,
                 sim.chi->getWorldComm());
 
-  // Assign skin velocities and grid-spacing
+
   const Real uSkin = velocityH[0];
   const Real vSkin = velocityH[1];
   const Real h = velocityH[2];
   const Real invh = 1 / h;
 
-  // Reset buffer to 0
+
   velocityH[0] = 0.0;
   velocityH[1] = 0.0;
   velocityH[2] = 0.0;
 
-  // 2. Compute flow velocity away from surface
-  // compute point on lifted surface
+
+
   const std::array<Real, 2> pLiftedSurf = {pSurf[0] + h * normSurf[0],
                                            pSurf[1] + h * normSurf[1]};
 
-  // get blockId of lifted surface
+
   const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
 
-  // get surface velocity if block containing point found
+
   if (blockIdLifted >= 0) {
-    // get block
+
     const auto &liftedBinfo = velInfo[blockIdLifted];
 
-    // get origin of block
+
     const std::array<Real, 2> oBlockLifted = liftedBinfo.pos<Real>(0, 0);
 
-    // get inverse gridspacing in block
+
     const Real invhLifted = 1 / velInfo[blockIdLifted].h;
 
-    // get index for sensor
+
     const std::array<int, 2> iSens =
         safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);
 
-    // get velocity field at point
+
     const VectorBlock &b = *(const VectorBlock *)liftedBinfo.ptrBlock;
     velocityH[0] = b(iSens[0], iSens[1]).u[0];
     velocityH[1] = b(iSens[0], iSens[1]).u[1];
   }
 
-  // Allreduce to Bcast flow velocity
+
   MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM,
                 sim.chi->getWorldComm());
 
-  // Assign lifted skin velocities
+
   const Real uLifted = velocityH[0];
   const Real vLifted = velocityH[1];
 
-  // return shear
+
   return std::array<Real, 2>{
       {(uLifted - uSkin) * invh, (vLifted - vSkin) * invh}};
 };
@@ -15191,8 +14762,8 @@ public:
   Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
 
-  /// Find the first operator in the pipeline that matches the given type.
-  /// Returns `nullptr` if nothing was found.
+
+
   template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
@@ -15202,11 +14773,11 @@ public:
     return nullptr;
   }
 
-  /// Insert the operator at the end of the pipeline.
+
   void insertOperator(std::shared_ptr<Operator> op);
 
-  /// Insert an operator after the operator of the given name.
-  /// Throws an exception if the name is not found.
+
+
   void insertOperatorAfter(std::shared_ptr<Operator> op,
                            const std::string &name);
 
@@ -15288,19 +14859,19 @@ void Simulation::insertOperatorAfter(std::shared_ptr<Operator> op,
 }
 
 void Simulation::init() {
-  // parse field variables
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Parsing Simulation Configuration..." << std::endl;
   parseRuntime();
-  // allocate the grid
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Allocating Grid..." << std::endl;
   sim.allocateGrid();
-  // create shapes
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Creating Shapes..." << std::endl;
   createShapes();
-  // impose field initial condition
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Conditions..." << std::endl;
   if (sim.ic == "random") {
@@ -15310,7 +14881,7 @@ void Simulation::init() {
     IC ic(sim);
     ic(0);
   }
-  // create compute pipeline
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Creating Computational Pipeline..." << std::endl;
 
@@ -15326,7 +14897,7 @@ void Simulation::init() {
       std::cout << "[CUP2D] - " << pipeline[c]->getName() << "\n";
   }
 
-  // Put Object on Intially defined Mesh and impose obstacle velocities
+
   startObstacles();
 }
 
@@ -15351,31 +14922,31 @@ void Simulation::parseRuntime() {
   sim.endTime = parser("-tend").asDouble(0);
   sim.lambda = parser("-lambda").asDouble(1e7);
 
-  // constant for explicit penalisation lambda=dlm/dt
+
   sim.dlm = parser("-dlm").asDouble(0);
 
-  // kinematic viscocity
+
   sim.nu = parser("-nu").asDouble(1e-2);
 
-  // forcing
+
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
 
-  // Smagorinsky Model
+
   sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
   sim.bDumpCs = parser("-dumpCs").asInt(0);
 
-  // Flag for initial condition
+
   sim.ic = parser("-ic").asString("");
 
-  // Boundary conditions (freespace or periodic)
+
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
   cubismBCY = string2BCflag(BC_y);
 
-  // poisson solver parameters
+
   sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
@@ -15383,7 +14954,7 @@ void Simulation::parseRuntime() {
   sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt(1000);
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
 
-  // output parameters
+
   sim.profilerFreq = parser("-profilerFreq").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
@@ -15411,7 +14982,7 @@ void Simulation::createShapes() {
       if (sim.rank == 0 && sim.verbose)
         std::cout << "[CUP2D] " << line << std::endl;
       line_stream >> objectName;
-      // Comments and empty lines ignored:
+
       if (objectName.empty() or objectName[0] == '#')
         continue;
       FactoryFileLineParser ffparser(line_stream);
@@ -15433,7 +15004,7 @@ void Simulation::createShapes() {
 void Simulation::startObstacles() {
   Checker check(sim);
 
-  // put obstacles to grid and compress
+
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
   AdaptTheMesh *const adaptTheMesh = findOperator<AdaptTheMesh>();
   assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
@@ -15443,7 +15014,7 @@ void Simulation::startObstacles() {
   }
   (*putObjectsOnGrid)(0.0);
 
-  // impose velocity of obstacles
+
   if (sim.rank == 0 && sim.verbose)
     std::cout << "[CUP2D] Imposing Initial Velocity of Objects on field\n";
   ApplyObjVel initVel(sim);
@@ -15459,7 +15030,7 @@ void Simulation::simulate() {
 
     bool done = false;
 
-    // Ignore the final time step if `dt` is way too small.
+
     if (!done || dt > 2e-16)
       advance(dt);
 
@@ -15502,9 +15073,9 @@ Real Simulation::calcMaxTimestep() {
         0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
     const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
 
-    // non-constant timestep introduces a source term = (1-dt_new/dt_old)
-    // \nabla^2 P_{old} in the Poisson equation. Thus, we try to modify the
-    // timestep less often
+
+
+
     if (sim.step < sim.rampup) {
       const Real x = (sim.step + 1.0) / sim.rampup;
       const Real rampupFactor = std::exp(std::log(1e-3) * (1 - x));
@@ -15537,7 +15108,7 @@ void Simulation::advance(const Real dt) {
            (double)sim.uMax_measured, (double)CFL);
   }
 
-  // dump field
+
   const bool bDump = sim.bDump();
   if (bDump) {
     if (sim.rank == 0 && sim.verbose)
