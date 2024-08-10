@@ -7142,13 +7142,6 @@ struct ObstacleBlock {
     fYv_s = (Real *)calloc(n_surfPoints, sizeof(Real));
   }
 
-  void fill_stringstream(std::stringstream &s) {
-    for (size_t i = 0; i < n_surfPoints; i++)
-      s << x_s[i] << ", " << y_s[i] << ", " << p_s[i] << ", " << u_s[i] << ", "
-        << v_s[i] << ", " << nx_s[i] << ", " << ny_s[i] << ", " << omega_s[i]
-        << ", " << uDef_s[i] << ", " << vDef_s[i] << ", " << fX_s[i] << ", "
-        << fY_s[i] << ", " << fXv_s[i] << ", " << fYv_s[i] << "\n";
-  }
 };
 
 class Shape {
