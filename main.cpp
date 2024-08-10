@@ -174,8 +174,6 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       i += itemCount;
     }
 }
-} // namespace cubism
-namespace cubism {
 class SpaceFillingCurve2D {
 protected:
   int BX;
@@ -335,8 +333,6 @@ public:
     return retval;
   }
 };
-} // namespace cubism
-namespace cubism {
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 struct TreePosition {
   int position{-3};
@@ -441,8 +437,6 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename BlockType,
           typename ElementType = typename BlockType::ElementType>
 struct BlockCase {
@@ -678,8 +672,6 @@ public:
     }
   }
 };
-} // namespace cubism
-namespace cubism {
 struct BlockGroup {
   int i_min[3];
   int i_max[3];
@@ -960,8 +952,6 @@ public:
   virtual int get_world_size() const { return 1; }
   virtual void UpdateBoundary(bool clean = false) {}
 };
-} // namespace cubism
-namespace cubism {
 struct StencilInfo {
   int sx;
   int sy;
@@ -1009,8 +999,6 @@ struct StencilInfo {
     return !(not0 || not1 || not2 || not3);
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename Real>
 inline void pack(const Real *const srcbase, Real *const dst,
                  const unsigned int gptfloats, int *selected_components,
@@ -1082,8 +1070,6 @@ inline void unpack_subregion(
         }
   }
 }
-} // namespace cubism
-namespace cubism {
 template <typename T> class GrowingVector {
   size_t pos;
   size_t s;
@@ -2352,8 +2338,6 @@ public:
     }
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename TFluxCorrection>
 class FluxCorrectionMPI : public TFluxCorrection {
 public:
@@ -2734,8 +2718,6 @@ public:
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename TGrid> class GridMPI : public TGrid {
 public:
   typedef typename TGrid::Real Real;
@@ -3160,8 +3142,6 @@ public:
   MPI_Comm getWorldComm() const { return worldcomm; }
   virtual int get_world_size() const override { return world_size; }
 };
-} // namespace cubism
-namespace cubism {
 template <class DataType, template <typename T> class allocator>
 class Matrix3D {
 private:
@@ -3251,8 +3231,6 @@ public:
   inline unsigned int *getSize() const { return (unsigned int *)m_vSize; }
   inline unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
-} // namespace cubism
-namespace cubism {
 #define memcpy2(a, b, c) memcpy((a), (b), (c))
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
@@ -4259,8 +4237,6 @@ private:
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-} // namespace cubism
-namespace cubism {
 template <typename MyBlockLab> class BlockLabMPI : public MyBlockLab {
 public:
   using GridType = typename MyBlockLab::GridType;
@@ -4292,8 +4268,6 @@ public:
       MyBlockLab::post_load(info, t, applybc);
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
@@ -4655,8 +4629,6 @@ public:
     grid->FillPos();
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename TLab> class MeshAdaptation {
 protected:
   typedef typename TLab::GridType TGrid;
@@ -5176,8 +5148,6 @@ protected:
     return Leave;
   }
 };
-} // namespace cubism
-namespace cubism {
 template <typename Lab, typename Kernel, typename TGrid,
           typename TGrid_corr = TGrid>
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
@@ -10221,8 +10191,7 @@ int main(int argc, char **argv) {
   {
     int numThreads = omp_get_num_threads();
 #pragma omp master
-    printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size,
-           numThreads);
+    printf("%d rank and %d thread\n", size, numThreads);
   }
 #endif
   parser.set_strict_mode();
