@@ -10266,7 +10266,6 @@ struct Simulation {
     }
     return nullptr;
   }
-  Real calcMaxTimestep();
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
 static std::vector<std::string> split(const std::string &s, const char dlm) {
@@ -10380,7 +10379,32 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
   ApplyObjVel initVel(sim);
   initVel(0);
   while (1) {
-    Real dt = calcMaxTimestep();
+    sim.dt_old2 = sim.dt_old;
+    sim.dt_old = sim.dt;
+    Real CFL = sim.CFL;
+    const Real h = sim.getH();
+    const auto findMaxU_op = findMaxU(sim);
+    sim.uMax_measured = findMaxU_op.run();
+    if (CFL > 0) {
+      const Real dtDiffusion =
+          0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
+      const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
+      if (sim.step < sim.rampup) {
+        const Real x = (sim.step + 1.0) / sim.rampup;
+        const Real rampupFactor = std::exp(std::log(1e-3) * (1 - x));
+        sim.dt = rampupFactor * std::min({dtDiffusion, CFL * dtAdvection});
+      } else {
+        sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
+      }
+    }
+    if (sim.dt <= 0) {
+      std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
+      fflush(0);
+      abort();
+    }
+    if (sim.dlm > 0)
+      sim.lambda = sim.dlm / sim.dt;
+    Real dt = sim.dt;
     bool done = false;
     if (!done || dt > 2e-16) {
       const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
@@ -10405,35 +10429,6 @@ Simulation::Simulation(int argc, char **argv, MPI_Comm comm)
       break;
     }
   }
-}
-Simulation::~Simulation() = default;
-Real Simulation::calcMaxTimestep() {
-  sim.dt_old2 = sim.dt_old;
-  sim.dt_old = sim.dt;
-  Real CFL = sim.CFL;
-  const Real h = sim.getH();
-  const auto findMaxU_op = findMaxU(sim);
-  sim.uMax_measured = findMaxU_op.run();
-  if (CFL > 0) {
-    const Real dtDiffusion =
-        0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
-    const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
-    if (sim.step < sim.rampup) {
-      const Real x = (sim.step + 1.0) / sim.rampup;
-      const Real rampupFactor = std::exp(std::log(1e-3) * (1 - x));
-      sim.dt = rampupFactor * std::min({dtDiffusion, CFL * dtAdvection});
-    } else {
-      sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    }
-  }
-  if (sim.dt <= 0) {
-    std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
-    fflush(0);
-    abort();
-  }
-  if (sim.dlm > 0)
-    sim.lambda = sim.dlm / sim.dt;
-  return sim.dt;
 }
 int main(int argc, char **argv) {
   int threadSafety;
