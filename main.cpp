@@ -11993,17 +11993,13 @@ class Simulation {
 public:
   SimulationData sim;
   std::vector<std::shared_ptr<Operator>> pipeline;
-
 protected:
   cubism::ArgumentParser parser;
-
   void createShapes();
   void parseRuntime();
-
 public:
   Simulation(int argc, char **argv, MPI_Comm comm);
   ~Simulation();
-
   template <typename Op> Op *findOperator() const {
     for (const auto &ptr : pipeline) {
       Op *out = dynamic_cast<Op *>(ptr.get());
@@ -12012,24 +12008,18 @@ public:
     }
     return nullptr;
   }
-
   void init();
   void startObstacles();
   void simulate();
   Real calcMaxTimestep();
   void advance(const Real dt);
-
   const std::vector<std::shared_ptr<Shape>> &getShapes() { return sim.shapes; }
 };
 
 BCflag cubismBCX;
 BCflag cubismBCY;
 
-static const char kHorLine[] =
-    "=======================================================================\n";
-
-static inline std::vector<std::string> split(const std::string &s,
-                                             const char dlm) {
+static std::vector<std::string> split(const std::string &s, const char dlm) {
   std::stringstream ss(s);
   std::string item;
   std::vector<std::string> tokens;
@@ -12149,7 +12139,6 @@ void Simulation::createShapes() {
 
 void Simulation::startObstacles() {
   Checker check(sim);
-
   PutObjectsOnGrid *const putObjectsOnGrid = findOperator<PutObjectsOnGrid>();
   AdaptTheMesh *const adaptTheMesh = findOperator<AdaptTheMesh>();
   assert(putObjectsOnGrid != nullptr && adaptTheMesh != nullptr);
@@ -12188,7 +12177,6 @@ Real Simulation::calcMaxTimestep() {
   const Real h = sim.getH();
   const auto findMaxU_op = findMaxU(sim);
   sim.uMax_measured = findMaxU_op.run();
-
   if (CFL > 0) {
     const Real dtDiffusion =
         0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
