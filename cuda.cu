@@ -1,8 +1,4 @@
-#include <map>
-#include <set>
-#include <vector>
-#include <memory>
-#include <mpi.h>
+#include "cuda.h"
 #include <algorithm>
 #include <cassert>
 #include <cub/cub.cuh>
@@ -13,16 +9,15 @@
 #include <map>
 #include <memory>
 #include <mpi.h>
+#include <set>
 #include <stdexcept>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <memory>
 #include <unordered_map>
-#include <mpi.h>
-#include "cuda.h"
+#include <vector>
 
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
@@ -348,7 +343,6 @@ static const char *_cudaGetErrorEnum(NppStatus error) {
     return "NPP_ODD_ROI_WARNING";
 #else
 
-
   case NPP_BAD_ARGUMENT_ERROR:
     return "NPP_BAD_ARGUMENT_ERROR";
 
@@ -572,9 +566,7 @@ void check(T result, char const *const func, const char *const file,
 
 #ifdef __DRIVER_TYPES_H__
 
-
 #define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
-
 
 #define getLastCudaError(msg) __getLastCudaError(msg, __FILE__, __LINE__)
 
@@ -591,8 +583,6 @@ inline void __getLastCudaError(const char *errorMessage, const char *file,
     exit(EXIT_FAILURE);
   }
 }
-
-
 
 #define printLastCudaError(msg) __printLastCudaError(msg, __FILE__, __LINE__)
 
@@ -611,18 +601,15 @@ inline void __printLastCudaError(const char *errorMessage, const char *file,
 #endif
 
 #ifndef MAX
-#define MAX(a,b) (a > b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
 #endif
-
 
 inline int ftoi(float value) {
   return (value >= 0 ? static_cast<int>(value + 0.5)
                      : static_cast<int>(value - 0.5));
 }
 
-
 inline int _ConvertSMVer2Cores(int major, int minor) {
-
 
   typedef struct {
     int SM;
@@ -633,8 +620,8 @@ inline int _ConvertSMVer2Cores(int major, int minor) {
   sSMtoCores nGpuArchCoresPerSM[] = {
       {0x30, 192}, {0x32, 192}, {0x35, 192}, {0x37, 192},
       {0x50, 128}, {0x52, 128}, {0x53, 128}, {0x60, 64},
-      {0x61, 128}, {0x62, 128}, {0x70, 64}, {0x72, 64},
-      {0x75, 64}, {0x80, 64}, {0x86, 128}, {-1, -1}};
+      {0x61, 128}, {0x62, 128}, {0x70, 64},  {0x72, 64},
+      {0x75, 64},  {0x80, 64},  {0x86, 128}, {-1, -1}};
 
   int index = 0;
 
@@ -646,8 +633,6 @@ inline int _ConvertSMVer2Cores(int major, int minor) {
     index++;
   }
 
-
-
   printf("MapSMtoCores for SM %d.%d is undefined."
          "  Default to use %d Cores/SM\n",
          major, minor, nGpuArchCoresPerSM[index - 1].Cores);
@@ -656,7 +641,6 @@ inline int _ConvertSMVer2Cores(int major, int minor) {
 
 inline const char *_ConvertSMVer2ArchName(int major, int minor) {
 
-
   typedef struct {
     int SM;
 
@@ -664,11 +648,11 @@ inline const char *_ConvertSMVer2ArchName(int major, int minor) {
   } sSMtoArchName;
 
   sSMtoArchName nGpuArchNameSM[] = {
-      {0x30, "Kepler"}, {0x32, "Kepler"}, {0x35, "Kepler"},
-      {0x37, "Kepler"}, {0x50, "Maxwell"}, {0x52, "Maxwell"},
-      {0x53, "Maxwell"}, {0x60, "Pascal"}, {0x61, "Pascal"},
-      {0x62, "Pascal"}, {0x70, "Volta"}, {0x72, "Xavier"},
-      {0x75, "Turing"}, {0x80, "Ampere"}, {0x86, "Ampere"},
+      {0x30, "Kepler"},       {0x32, "Kepler"},  {0x35, "Kepler"},
+      {0x37, "Kepler"},       {0x50, "Maxwell"}, {0x52, "Maxwell"},
+      {0x53, "Maxwell"},      {0x60, "Pascal"},  {0x61, "Pascal"},
+      {0x62, "Pascal"},       {0x70, "Volta"},   {0x72, "Xavier"},
+      {0x75, "Turing"},       {0x80, "Ampere"},  {0x86, "Ampere"},
       {-1, "Graphics Device"}};
 
   int index = 0;
@@ -681,14 +665,11 @@ inline const char *_ConvertSMVer2ArchName(int major, int minor) {
     index++;
   }
 
-
-
   printf("MapSMtoArchName for SM %d.%d is undefined."
          "  Default to use %s\n",
          major, minor, nGpuArchNameSM[index - 1].name);
   return nGpuArchNameSM[index - 1].name;
 }
-
 
 #ifdef __CUDA_RUNTIME_H__
 
@@ -743,7 +724,6 @@ inline int gpuDeviceInit(int devID) {
   return devID;
 }
 
-
 inline int gpuGetMaxGflopsDeviceId() {
   int current_device = 0, sm_per_multiproc = 0;
   int max_perf_device = 0;
@@ -759,7 +739,6 @@ inline int gpuGetMaxGflopsDeviceId() {
     exit(EXIT_FAILURE);
   }
 
-
   current_device = 0;
 
   while (current_device < device_count) {
@@ -770,8 +749,6 @@ inline int gpuGetMaxGflopsDeviceId() {
         &major, cudaDevAttrComputeCapabilityMajor, current_device));
     checkCudaErrors(cudaDeviceGetAttribute(
         &minor, cudaDevAttrComputeCapabilityMinor, current_device));
-
-
 
     if (computeMode != cudaComputeModeProhibited) {
       if (major == 9999 && minor == 9999) {
@@ -786,7 +763,6 @@ inline int gpuGetMaxGflopsDeviceId() {
       cudaError_t result = cudaDeviceGetAttribute(
           &clockRate, cudaDevAttrClockRate, current_device);
       if (result != cudaSuccess) {
-
 
         if (result == cudaErrorInvalidValue) {
           clockRate = 1;
@@ -832,14 +808,12 @@ inline int findIntegratedGPU() {
     exit(EXIT_FAILURE);
   }
 
-
   while (current_device < device_count) {
     int computeMode = -1, integrated = -1;
     checkCudaErrors(cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode,
                                            current_device));
     checkCudaErrors(cudaDeviceGetAttribute(&integrated, cudaDevAttrIntegrated,
                                            current_device));
-
 
     if (integrated && (computeMode != cudaComputeModeProhibited)) {
       checkCudaErrors(cudaSetDevice(current_device));
@@ -870,7 +844,6 @@ inline int findIntegratedGPU() {
   return -1;
 }
 
-
 inline bool checkCudaCapabilities(int major_version, int minor_version) {
   int dev;
   int major = 0, minor = 0;
@@ -895,23 +868,18 @@ inline bool checkCudaCapabilities(int major_version, int minor_version) {
 }
 #endif
 
-
-
 #endif
-
 
 template <typename... Args>
 std::string string_format(const std::string &format, Args... args) {
-  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) +
-               1;
+  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
   if (size_s <= 0) {
     throw std::runtime_error("Error during formatting.");
   }
   auto size = static_cast<size_t>(size_s);
   std::unique_ptr<char[]> buf(new char[size]);
   std::snprintf(buf.get(), size, format.c_str(), args...);
-  return std::string(buf.get(),
-                     buf.get() + size - 1);
+  return std::string(buf.get(), buf.get() + size - 1);
 }
 
 class DeviceProfiler {
@@ -1008,33 +976,24 @@ public:
                  const bool bMeanConstraint, const std::vector<double> &P_inv);
   ~BiCGSTABSolver();
 
-
   void solveWithUpdate(const double max_error, const double max_rel_error,
                        const int max_restarts);
-
 
   void solveNoUpdate(const double max_error, const double max_rel_error,
                      const int max_restarts);
 
 private:
-
   void freeLast();
-
 
   void updateAll();
 
-
   void updateVec();
-
 
   void main(const double max_error, const double max_rel_error,
             const int restarts);
 
-
-  void hd_cusparseSpMV(double *d_op,
-                       cusparseDnVecDescr_t spDescrLocOp,
-                       cusparseDnVecDescr_t spDescrBdOp,
-                       double *d_res,
+  void hd_cusparseSpMV(double *d_op, cusparseDnVecDescr_t spDescrLocOp,
+                       cusparseDnVecDescr_t spDescrBdOp, double *d_res,
                        cusparseDnVecDescr_t Res);
 
   cudaStream_t solver_stream_;
@@ -1044,7 +1003,6 @@ private:
   cusparseHandle_t cusparse_handle_;
 
   bool dirty_ = false;
-
 
   int rank_;
   MPI_Comm m_comm_;
@@ -1058,9 +1016,7 @@ private:
   const bool bMeanConstraint_;
   int bMeanRow_;
 
-
   LocalSpMatDnVec &LocalLS_;
-
 
   int send_buff_sz_;
   int *d_send_pack_idx_;
@@ -1068,12 +1024,10 @@ private:
   double *h_send_buff_;
   double *h_recv_buff_;
 
-
   double *d_consts_;
   const double *d_eye_;
   const double *d_nye_;
   const double *d_nil_;
-
 
   BiCGSTABScalars *h_coeffs_;
   BiCGSTABScalars *d_coeffs_;
@@ -1088,13 +1042,11 @@ private:
   double *d_r_;
   double *d_P_inv_;
 
-
   size_t red_temp_storage_bytes_;
   void *d_red_temp_storage_;
   double *d_red_;
   double *d_red_res_;
   double *d_h2_;
-
 
   double *d_rhat_;
   double *d_p_;
@@ -1126,7 +1078,6 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
 
-
   checkCudaErrors(cudaStreamCreate(&solver_stream_));
   checkCudaErrors(cudaStreamCreate(&copy_stream_));
   checkCudaErrors(cudaEventCreate(&sync_event_));
@@ -1141,7 +1092,6 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   checkCudaErrors(
       cusparseSetPointerMode(cusparse_handle_, CUSPARSE_POINTER_MODE_DEVICE));
 
-
   double h_consts[3] = {1., -1., 0.};
   checkCudaErrors(cudaMalloc(&d_consts_, 3 * sizeof(double)));
   checkCudaErrors(cudaMemcpyAsync(d_consts_, h_consts, 3 * sizeof(double),
@@ -1151,7 +1101,6 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   d_nil_ = d_consts_ + 2;
   checkCudaErrors(cudaMalloc(&d_coeffs_, sizeof(BiCGSTABScalars)));
   checkCudaErrors(cudaMallocHost(&h_coeffs_, sizeof(BiCGSTABScalars)));
-
 
   checkCudaErrors(cudaMalloc(&d_P_inv_, BLEN_ * BLEN_ * sizeof(double)));
   checkCudaErrors(cudaMemcpyAsync(d_P_inv_, P_inv.data(),
@@ -1165,14 +1114,11 @@ BiCGSTABSolver::~BiCGSTABSolver() {
 
   prof_.print("Total");
 
-
   checkCudaErrors(cudaFree(d_P_inv_));
-
 
   checkCudaErrors(cudaFree(d_consts_));
   checkCudaErrors(cudaFree(d_coeffs_));
   checkCudaErrors(cudaFreeHost(h_coeffs_));
-
 
   checkCudaErrors(cublasDestroy(cublas_handle_));
   checkCudaErrors(cusparseDestroy(cusparse_handle_));
@@ -1180,9 +1126,6 @@ BiCGSTABSolver::~BiCGSTABSolver() {
   checkCudaErrors(cudaStreamDestroy(copy_stream_));
   checkCudaErrors(cudaStreamDestroy(solver_stream_));
 }
-
-
-
 
 void BiCGSTABSolver::solveWithUpdate(const double max_error,
                                      const double max_rel_error,
@@ -1199,12 +1142,8 @@ void BiCGSTABSolver::solveNoUpdate(const double max_error,
   this->main(max_error, max_rel_error, max_restarts);
 }
 
-
-
-
 void BiCGSTABSolver::freeLast() {
-  if (dirty_)
-  {
+  if (dirty_) {
 
     checkCudaErrors(cudaFree(dloc_cooValA_));
     checkCudaErrors(cudaFree(dloc_cooRowA_));
@@ -1249,7 +1188,6 @@ void BiCGSTABSolver::freeLast() {
 void BiCGSTABSolver::updateAll() {
   this->freeLast();
 
-
   m_ = LocalLS_.m_;
   halo_ = LocalLS_.halo_;
   hd_m_ = m_ + halo_;
@@ -1258,7 +1196,6 @@ void BiCGSTABSolver::updateAll() {
   send_buff_sz_ = LocalLS_.send_pack_idx_.size();
   const int Nblocks = m_ / BLEN_;
   bMeanRow_ = LocalLS_.bMeanRow_;
-
 
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&dloc_cooRowA_, loc_nnz_ * sizeof(int)));
@@ -1326,7 +1263,6 @@ void BiCGSTABSolver::updateAll() {
                                     cudaMemcpyHostToDevice, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
 
-
   checkCudaErrors(cusparseCreateCoo(
       &spDescrLocA_, m_, m_, loc_nnz_, dloc_cooRowA_, dloc_cooColA_,
       dloc_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
@@ -1357,7 +1293,6 @@ void BiCGSTABSolver::updateAll() {
 
 void BiCGSTABSolver::updateVec() {
   prof_.startProfiler("Memcpy", solver_stream_);
-
 
   checkCudaErrors(cudaMemcpyAsync(d_x_, LocalLS_.x_.data(), m_ * sizeof(double),
                                   cudaMemcpyHostToDevice, solver_stream_));
@@ -1435,8 +1370,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
     send_buff_pack<<<8 * 56, 32, 0, solver_stream_>>>(
         send_buff_sz_, d_send_pack_idx_, d_send_buff_, d_op_hd);
     checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaEventRecord(
-        sync_event_, solver_stream_));
+    checkCudaErrors(cudaEventRecord(sync_event_, solver_stream_));
   }
 
   prof_.startProfiler("KerSpMV", solver_stream_);
@@ -1456,7 +1390,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
                                     cudaMemcpyDeviceToHost, copy_stream_));
     checkCudaErrors(cudaStreamSynchronize(copy_stream_));
 
-
     std::vector<MPI_Request> recv_requests(recv_ranks.size());
     for (size_t i(0); i < recv_ranks.size(); i++)
       MPI_Irecv(&h_recv_buff_[recv_offset[i]], recv_sz[i], MPI_DOUBLE,
@@ -1470,8 +1403,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
     MPI_Waitall(send_ranks.size(), send_requests.data(), MPI_STATUS_IGNORE);
     MPI_Waitall(recv_ranks.size(), recv_requests.data(), MPI_STATUS_IGNORE);
     prof_.stopProfiler("HaloComm", copy_stream_);
-
-
 
     checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_,
                                     halo_ * sizeof(double),
@@ -1514,26 +1445,20 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
                           const int max_restarts) {
   prof_.startProfiler("Total", solver_stream_);
 
-
   double error = 1e50;
   double error_init = 1e50;
   double error_opt = 1e50;
   bool bConverged = false;
   int restarts = 0;
 
-
   *h_coeffs_ = {1., 1., 1., 1e-21, 1., 1., 0., 0., 0};
   checkCudaErrors(cudaMemcpyAsync(d_coeffs_, h_coeffs_, sizeof(BiCGSTABScalars),
                                   cudaMemcpyHostToDevice, solver_stream_));
 
-
-
   checkCudaErrors(cudaMemcpyAsync(d_z_, d_x_, m_ * sizeof(double),
                                   cudaMemcpyDeviceToDevice, solver_stream_));
   hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_nu_, spDescrNu_);
-  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_,
-                              1));
-
+  checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_nye_, d_nu_, 1, d_r_, 1));
 
   checkCudaErrors(
       cublasIdamax(cublas_handle_, m_, d_nu_, 1, &(d_coeffs_->amax_idx)));
@@ -1566,23 +1491,19 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
   checkCudaErrors(cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double),
                                   cudaMemcpyDeviceToDevice, solver_stream_));
 
-
   checkCudaErrors(cudaMemcpyAsync(d_rhat_, d_r_, m_ * sizeof(double),
                                   cudaMemcpyDeviceToDevice, solver_stream_));
-
 
   checkCudaErrors(
       cudaMemsetAsync(d_nu_, 0, m_ * sizeof(double), solver_stream_));
   checkCudaErrors(
       cudaMemsetAsync(d_p_, 0, m_ * sizeof(double), solver_stream_));
 
-
   const size_t max_iter = 1000;
   for (size_t k(0); k < max_iter; k++) {
 
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_r_, 1,
                                &(d_coeffs_->rho_curr)));
-
 
     checkCudaErrors(
         cublasDnrm2(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->buff_1)));
@@ -1602,7 +1523,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     const bool serious_breakdown =
         h_coeffs_->rho_curr * h_coeffs_->rho_curr <
         1e-16 * h_coeffs_->buff_1 * h_coeffs_->buff_2;
-
 
     set_beta<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
@@ -1639,17 +1559,14 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
       checkCudaErrors(cudaGetLastError());
     }
 
-
     set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1),
                                               &(d_coeffs_->omega));
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_,
                                 1, d_p_, 1));
-    checkCudaErrors(cublasDscal(cublas_handle_, m_, &(d_coeffs_->beta), d_p_,
-                                1));
-    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_eye_, d_r_, 1, d_p_,
-                                1));
-
+    checkCudaErrors(
+        cublasDscal(cublas_handle_, m_, &(d_coeffs_->beta), d_p_, 1));
+    checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_eye_, d_r_, 1, d_p_, 1));
 
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_,
@@ -1657,9 +1574,7 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
                                 d_p_, BLEN_, d_nil_, d_z_, BLEN_));
     prof_.stopProfiler("Prec", solver_stream_);
 
-
     hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_nu_, spDescrNu_);
-
 
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1,
                                &(d_coeffs_->buff_1)));
@@ -1675,10 +1590,8 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 
-
     checkCudaErrors(
         cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->alpha), d_z_, 1, d_x_, 1));
-
 
     set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1),
                                               &(d_coeffs_->alpha));
@@ -1686,17 +1599,13 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_,
                                 1, d_r_, 1));
 
-
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_,
                                 m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_,
                                 d_r_, BLEN_, d_nil_, d_z_, BLEN_));
     prof_.stopProfiler("Prec", solver_stream_);
 
-
     hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_t_, spDescrT_);
-
-
 
     checkCudaErrors(
         cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &(d_coeffs_->buff_1)));
@@ -1716,17 +1625,14 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
 
-
     checkCudaErrors(
         cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->omega), d_z_, 1, d_x_, 1));
-
 
     set_negative<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_1),
                                               &(d_coeffs_->omega));
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_t_,
                                 1, d_r_, 1));
-
 
     checkCudaErrors(
         cublasIdamax(cublas_handle_, m_, d_r_, 1, &(d_coeffs_->amax_idx)));
@@ -1758,7 +1664,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
         break;
       }
     }
-
 
     set_rho<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     checkCudaErrors(cudaGetLastError());
@@ -1813,7 +1718,6 @@ LocalSpMatDnVec::~LocalSpMatDnVec() {}
 void LocalSpMatDnVec::reserve(const int N) {
   m_ = N;
   bMeanRow_ = -1;
-
 
   for (size_t i(0); i < bd_recv_set_.size(); i++)
     bd_recv_set_[i].clear();
@@ -1874,10 +1778,8 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   for (int r(0); r < comm_size_; r++)
     recv_sz_allranks[r] = bd_recv_set_[r].size();
 
-
   MPI_Alltoall(recv_sz_allranks.data(), 1, MPI_INT, send_sz_allranks.data(), 1,
                MPI_INT, m_comm_);
-
 
   recv_ranks_.clear();
   recv_offset_.clear();
@@ -1892,7 +1794,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
     }
   }
   halo_ = offset;
-
 
   send_ranks_.clear();
   send_offset_.clear();
@@ -1909,12 +1810,10 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   std::vector<long long> send_pack_idx_long(offset);
   send_pack_idx_.resize(offset);
 
-
   std::vector<MPI_Request> recv_requests(send_ranks_.size());
   for (size_t i(0); i < send_ranks_.size(); i++)
     MPI_Irecv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG,
               send_ranks_[i], 546, m_comm_, &recv_requests[i]);
-
 
   std::vector<long long> recv_idx_list(halo_);
   std::vector<MPI_Request> send_requests(recv_ranks_.size());
@@ -1925,7 +1824,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
     MPI_Isend(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG,
               recv_ranks_[i], 546, m_comm_, &send_requests[i]);
   }
-
 
   const long long shift = -Nrows_xcumsum[rank_];
   loc_cooRowA_int_.resize(loc_nnz_);
@@ -1945,10 +1843,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
       bd_cooRowA_int_[i] = (int)(bd_cooRowA_long_[i] + shift);
   }
 
-
-
   MPI_Waitall(send_ranks_.size(), recv_requests.data(), MPI_STATUS_IGNORE);
-
 
   std::unordered_map<long long, int> bd_reindex_map;
   bd_reindex_map.reserve(halo_);
@@ -1964,12 +1859,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
 #pragma omp parallel for
   for (size_t i = 0; i < send_pack_idx_.size(); i++)
     send_pack_idx_[i] = (int)(send_pack_idx_long[i] + shift);
-
-
-
-
 }
-
 
 void LocalSpMatDnVec::solveWithUpdate(const double max_error,
                                       const double max_rel_error,
