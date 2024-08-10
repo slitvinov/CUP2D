@@ -6209,7 +6209,6 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
       kernel(lab, *I);
     }
 
-#if 1
     while (done == false) {
 #pragma omp master
       halo_next = &Synch.avail_next();
@@ -6227,27 +6226,6 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
           done = true;
       }
     }
-#else
-    std::vector<cubism::BlockInfo> &blk = g->getBlocksInfo();
-    std::vector<bool> ready(blk.size(), false);
-    std::vector<cubism::BlockInfo *> &avail1 = Synch.avail_halo_nowait();
-    const int Nhalo = avail1.size();
-    while (done == false) {
-      done = true;
-      for (int i = 0; i < Nhalo; i++) {
-        const cubism::BlockInfo &I = *avail1[i];
-        if (ready[I.blockID] == false) {
-          if (Synch.isready(I)) {
-            ready[I.blockID] = true;
-            lab.load(I, 0);
-            kernel(lab, I);
-          } else {
-            done = false;
-          }
-        }
-      }
-    }
-#endif
   }
 
   Synch.avail_halo();
@@ -6308,7 +6286,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       ready[I.blockID] = true;
     }
 
-#if 1
 #pragma omp master
     {
       avail1 = Synch.avail_halo();
@@ -6326,45 +6303,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       lab2.load(I2, 0);
       kernel(lab, lab2, I, I2);
     }
-#else
-
-#pragma omp master
-    {
-      avail1 = Synch.avail_halo_nowait();
-      avail12 = Synch2.avail_halo_nowait();
-    }
-#pragma omp barrier
-    const int Nhalo = avail1.size();
-
-    while (done == false) {
-#pragma omp barrier
-
-#pragma omp single
-      done = true;
-
-#pragma omp for
-      for (int i = 0; i < Nhalo; i++) {
-        const cubism::BlockInfo &I = *avail1[i];
-        const cubism::BlockInfo &I2 = *avail12[i];
-        if (ready[I.blockID] == false) {
-          bool blockready;
-#pragma omp critical
-          { blockready = (Synch.isready(I) && Synch.isready(I2)); }
-          if (blockready) {
-            ready[I.blockID] = true;
-            lab.load(I, 0);
-            lab2.load(I2, 0);
-            kernel(lab, lab2, I, I2);
-          } else {
-#pragma omp atomic write
-            done = false;
-          }
-        }
-      }
-    }
-    avail1 = Synch.avail_halo();
-    avail12 = Synch2.avail_halo();
-#endif
   }
 
   if (applyFluxCorrection)
@@ -7827,30 +7765,6 @@ public:
 
     const KernelDivergence mykernel(sim);
     cubism::compute<VectorLab>(mykernel, sim.vel, sim.tmp);
-#if 0
-    Real total = 0.0;
-    Real abs = 0.0;
-    for (auto & info: sim.tmp->getBlocksInfo())
-    {
-      auto & TMP = *(ScalarBlock*) info.ptrBlock;
-      for(int y=0; y<VectorBlock::sizeY; ++y)
-      for(int x=0; x<VectorBlock::sizeX; ++x)
-      {
-        abs += std::fabs(TMP(x,y).s);
-        total += TMP(x,y).s;
-      }
-    }
-    Real sendbuf[2]={total,abs};
-    Real recvbuf[2];
-    MPI_Reduce(sendbuf, recvbuf, 2, MPI_Real, MPI_SUM, 0, sim.chi->getWorldComm());
-    if (sim.rank == 0)
-    {
-      ofstream myfile;
-      myfile.open ("div.txt",ios::app);
-      myfile << sim.step << " " << total << " " << abs << std::endl;
-      myfile.close();
-    }
-#endif
   }
 
   std::string getName() { return "computeDivergence"; }
@@ -8142,28 +8056,6 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
 
-#if 0
-    hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    hsize_t cdims[1];
-    cdims[0] = 8*8*8;
-    if (compression==false)
-    {
-        const int PtsPerElement = 8;
-        cdims[0] *= PtsPerElement * DIMENSION;
-    }
-    H5Pset_chunk(plist_id, 1, cdims);
-    H5Pset_deflate(plist_id, 6);
-    dataset_id = H5Dcreate(file_id, dataset_name.c_str(), get_hdf5_type<data_type>(), fspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
-    hsize_t count[1] = {MyCells*NCHANNELS};
-    fspace_id = H5Dget_space(dataset_id);
-    mspace_id = H5Screate_simple(1, count, NULL);
-    H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
-    H5Dwrite(dataset_id, get_hdf5_type<data_type>(), mspace_id, fspace_id, fapl_id, buffer.data());
-    H5Sclose(mspace_id);
-    H5Sclose(fspace_id);
-    H5Dclose(dataset_id);
-    H5Pclose(plist_id);
-#endif
 }
 
 static double latestTime{-1.0};
@@ -9557,9 +9449,6 @@ struct PutChiOnGrid {
       auto &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.blockID].ptrBlock;
       for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
         for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
-#if 0
-        X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
-#else
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
@@ -9578,7 +9467,6 @@ struct PutChiOnGrid {
             const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-#endif
           CHI(ix, iy).s = std::max(CHI(ix, iy).s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
@@ -12719,22 +12607,6 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   J_internal = myFish->integrateAngularMomentum(angvel_internal);
 
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-#if 0
-  {
-    Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-
-    const Real area_internal_check =
-    myFish->integrateLinearMomentum(dummy_CoM_internal, dummy_vCoM_internal);
-    myFish->integrateAngularMomentum(dummy_angvel_internal);
-    const Real EPS = 10*std::numeric_limits<Real>::epsilon();
-    assert(std::fabs(dummy_CoM_internal[0])<EPS);
-    assert(std::fabs(dummy_CoM_internal[1])<EPS);
-    assert(std::fabs(myFish->linMom[0])<EPS);
-    assert(std::fabs(myFish->linMom[1])<EPS);
-    assert(std::fabs(myFish->angMom)<EPS);
-    assert(std::fabs(area_internal - area_internal_check) < EPS);
-  }
-#endif
   profile(pop_stop());
   myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
 
@@ -12866,19 +12738,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   Shape::removeMoments(vInfo);
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
   myFish->computeSkinNormals(orientation, centerOfMass);
-#if 0
-  {
-    std::stringstream ssF;
-    ssF<<"skinPoints"<<std::setfill('0')<<std::setw(9)<<sim.step<<".dat";
-    std::ofstream ofs (ssF.str().c_str(), std::ofstream::out);
-    for(size_t i=0; i<myFish->upperSkin.Npoints; ++i)
-      ofs<<myFish->upperSkin.xSurf[i] <<" "<<myFish->upperSkin.ySurf[i]<<" " <<myFish->upperSkin.normXSurf[i] <<" "<<myFish->upperSkin.normYSurf[i] <<"\n";
-    for(size_t i=myFish->lowerSkin.Npoints; i>0; --i)
-      ofs<<myFish->lowerSkin.xSurf[i-1]<<" "<<myFish->lowerSkin.ySurf[i-1]<<" "<<myFish->lowerSkin.normXSurf[i-1]<<" "<<myFish->lowerSkin.normYSurf[i-1]<<"\n";
-    ofs.flush();
-    ofs.close();
-  }
-#endif
 }
 
 class StefanFish : public Fish {
@@ -13027,44 +12886,6 @@ public:
 StefanFish::StefanFish(SimulationData &s, cubism::ArgumentParser &p, Real C[2])
     : Fish(s, p, C), bCorrectTrajectory(p("-pid").asInt(0)),
       bCorrectPosition(p("-pidpos").asInt(0)) {
-#if 0
-
-  tau = parser("-tau").asDouble(1.0);
-
-  curvature_values[0] = parser("-k1").asDouble(0.82014);
-  curvature_values[1] = parser("-k2").asDouble(1.46515);
-  curvature_values[2] = parser("-k3").asDouble(2.57136);
-  curvature_values[3] = parser("-k4").asDouble(3.75425);
-  curvature_values[4] = parser("-k5").asDouble(5.09147);
-  curvature_values[5] = parser("-k6").asDouble(5.70449);
-
-  baseline_values[0] = parser("-b1").asDouble(0.0);
-  baseline_values[1] = parser("-b2").asDouble(0.0);
-  baseline_values[2] = parser("-b3").asDouble(0.0);
-  baseline_values[3] = parser("-b4").asDouble(0.0);
-  baseline_values[4] = parser("-b5").asDouble(0.0);
-  baseline_values[5] = parser("-b6").asDouble(0.0);
-
-  curvature_points[0] = parser("-pk1").asDouble(0.00)*length;
-  curvature_points[1] = parser("-pk2").asDouble(0.15)*length;
-  curvature_points[2] = parser("-pk3").asDouble(0.40)*length;
-  curvature_points[3] = parser("-pk4").asDouble(0.65)*length;
-  curvature_points[4] = parser("-pk5").asDouble(0.90)*length;
-  curvature_points[5] = parser("-pk6").asDouble(1.00)*length;
-  baseline_points[0] = parser("-pb1").asDouble(curvature_points[0]/length)*length;
-  baseline_points[1] = parser("-pb2").asDouble(curvature_points[1]/length)*length;
-  baseline_points[2] = parser("-pb3").asDouble(curvature_points[2]/length)*length;
-  baseline_points[3] = parser("-pb4").asDouble(curvature_points[3]/length)*length;
-  baseline_points[4] = parser("-pb5").asDouble(curvature_points[4]/length)*length;
-  baseline_points[5] = parser("-pb6").asDouble(curvature_points[5]/length)*length;
-  printf("created IF2D_StefanFish: xpos=%3.3f ypos=%3.3f angle=%3.3f L=%3.3f Tp=%3.3f tau=%3.3f phi=%3.3f\n",position[0],position[1],angle,length,Tperiod,tau,phaseShift);
-  printf("curvature points: pk1=%3.3f pk2=%3.3f pk3=%3.3f pk4=%3.3f pk5=%3.3f pk6=%3.3f\n",curvature_points[0],curvature_points[1],curvature_points[2],curvature_points[3],curvature_points[4],curvature_points[5]);
-  printf("curvature values (normalized to L=1): k1=%3.3f k2=%3.3f k3=%3.3f k4=%3.3f k5=%3.3f k6=%3.3f\n",curvature_values[0],curvature_values[1],curvature_values[2],curvature_values[3],curvature_values[4],curvature_values[5]);
-  printf("baseline points: pb1=%3.3f pb2=%3.3f pb3=%3.3f pb4=%3.3f pb5=%3.3f pb6=%3.3f\n",baseline_points[0],baseline_points[1],baseline_points[2],baseline_points[3],baseline_points[4],baseline_points[5]);
-  printf("baseline values (normalized to L=1): b1=%3.3f b2=%3.3f b3=%3.3f b4=%3.3f b5=%3.3f b6=%3.3f\n",baseline_values[0],baseline_values[1],baseline_values[2],baseline_values[3],baseline_values[4],baseline_values[5]);
-
-  for(int i=0; i<6; ++i) curvature_values[i]/=length;
-#endif
 
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
@@ -13133,18 +12954,6 @@ void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
       const Real difIangIdy = coefIangIdy * velIangIdy;
       const Real periodFac = 1.0 - xDiff;
       const Real periodVel = -relU;
-#if 0
-      if(not sim.muteAll) {
-        std::ofstream filePID;
-        std::stringstream ssF;
-        ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
-        filePID.open(ssF.str().c_str(), std::ios::app);
-        filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
-                     <<" "<<valPangIdy<<" "<<difPangIdy
-                     <<" "<<valIangIdy<<" "<<difIangIdy
-                     <<" "<<periodFac <<" "<<periodVel <<"\n";
-      }
-#endif
       const Real totalTerm = valIangPdy + valPangIdy + valIangIdy;
       const Real totalDiff = difIangPdy + difPangIdy + difIangIdy;
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
@@ -13160,16 +12969,6 @@ void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
       const Real totalTerm = coefInst * termInst + coefAvg * avgDangle;
       const Real totalDiff = coefInst * diffInst + coefAvg * velDAavg;
 
-#if 0
-      if(not sim.muteAll) {
-        std::ofstream filePID;
-        std::stringstream ssF;
-        ssF<<sim.path2file<<"/PID_"<<obstacleID<<".dat";
-        filePID.open(ssF.str().c_str(), std::ios::app);
-        filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
-                     <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
-      }
-#endif
       cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
     }
   }
@@ -13313,35 +13112,6 @@ std::vector<Real> StefanFish::state3D() const {
   S[22] = shearUpper[0] * Tperiod / length;
   S[23] = shearUpper[1] * Tperiod / length;
   S[24] = 0.0;
-#if 0
-
-
-  const std::array<Real,2> norFront = {0.5*(DU.normXSurf[0] + DL.normXSurf[0]), 0.5*(DU.normYSurf[0] + DL.normYSurf[0]) };
-  const std::array<Real,2> norUpper = { DU.normXSurf[iHeadSide], DU.normYSurf[iHeadSide]};
-  const std::array<Real,2> norLower = { DL.normXSurf[iHeadSide], DL.normYSurf[iHeadSide]};
-
-
-
-  const std::array<Real,2> tanFront = { norFront[1],-norFront[0]};
-  const std::array<Real,2> tanUpper = {-norUpper[1], norUpper[0]};
-  const std::array<Real,2> tanLower = { norLower[1],-norLower[0]};
-
-
-  const double shearFront_n = shearFront[0]*norFront[0]+shearFront[1]*norFront[1];
-  const double shearUpper_n = shearUpper[0]*norUpper[0]+shearUpper[1]*norUpper[1];
-  const double shearLower_n = shearLower[0]*norLower[0]+shearLower[1]*norLower[1];
-  const double shearFront_t = shearFront[0]*tanFront[0]+shearFront[1]*tanFront[1];
-  const double shearUpper_t = shearUpper[0]*tanUpper[0]+shearUpper[1]*tanUpper[1];
-  const double shearLower_t = shearLower[0]*tanLower[0]+shearLower[1]*tanLower[1];
-
-
-  S[10] = shearFront_n * Tperiod / length;
-  S[11] = shearFront_t * Tperiod / length;
-  S[12] = shearLower_n * Tperiod / length;
-  S[13] = shearLower_t * Tperiod / length;
-  S[14] = shearUpper_n * Tperiod / length;
-  S[15] = shearUpper_t * Tperiod / length;
-#endif
 
   return S;
 }
@@ -13413,7 +13183,6 @@ StefanFish::getShear(const std::array<Real, 2> pSurf) const {
   MPI_Allreduce(MPI_IN_PLACE, myF, 2, MPI_Real, MPI_SUM,
                 sim.chi->getWorldComm());
 
-#if 1
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
                 sim.chi->getWorldComm());
   if (sim.rank == 0 && blockIdSurf == -1) {
@@ -13429,7 +13198,6 @@ StefanFish::getShear(const std::array<Real, 2> pSurf) const {
     sim.dumpAll("failed");
     abort();
   }
-#endif
 
   return std::array<Real, 2>{{myF[0], myF[1]}};
 };
@@ -13456,7 +13224,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
   const std::array<Real, 7> bendPoints = {
       (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
 
-#if 1
 
   const std::array<Real, 6> curvatureZeros = {
       0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
@@ -13464,10 +13231,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
       0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
   };
   curvatureScheduler.transition(0, 0, Tperiod, curvatureZeros, curvatureValues);
-#else
-  curvatureScheduler.transition(t, 0, Tperiod, curvatureValues,
-                                curvatureValues);
-#endif
 
   curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
   rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS,
@@ -13494,16 +13257,6 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
-#if 0
-   {
-    FILE * f = fopen("stefan_profile","w");
-    for(int i=0;i<Nm;++i)
-      fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
-        i,rS[i],rX[i],rY[i],vX[i],vY[i],
-        vNorX[i],vNorY[i],width[i],height[i]);
-    fclose(f);
-   }
-#endif
 }
 
 ssize_t StefanFish::holdingBlockID(
@@ -13592,7 +13345,6 @@ StefanFish::getShear(const std::array<Real, 2> pSurf,
     }
   }
 
-#if 1
   MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX,
                 sim.chi->getWorldComm());
   if (sim.rank == 0 && blockIdSurf == -1) {
@@ -13609,7 +13361,6 @@ StefanFish::getShear(const std::array<Real, 2> pSurf,
     sim.dumpAll("failed");
     abort();
   }
-#endif
 
   MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_Real, MPI_SUM,
                 sim.chi->getWorldComm());
