@@ -8512,29 +8512,6 @@ template <int Npoints> struct ParameterScheduler {
   std::array<Real, Npoints> dparameters_t0;
   Real t0, t1;
 
-  void save(std::string filename) {
-    std::ofstream savestream;
-    savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    savestream.open(filename);
-
-    savestream << t0 << "\t" << t1 << std::endl;
-    for (int i = 0; i < Npoints; ++i)
-      savestream << parameters_t0[i] << "\t" << parameters_t1[i] << "\t"
-                 << dparameters_t0[i] << std::endl;
-    savestream.close();
-  }
-
-  void restart(std::string filename) {
-    std::ifstream restartstream;
-    restartstream.open(filename);
-    restartstream >> t0 >> t1;
-    for (int i = 0; i < Npoints; ++i)
-      restartstream >> parameters_t0[i] >> parameters_t1[i] >>
-          dparameters_t0[i];
-    restartstream.close();
-  }
-
   ParameterScheduler() {
     t0 = -1;
     t1 = 0;
