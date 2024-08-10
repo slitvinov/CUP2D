@@ -6883,8 +6883,6 @@ struct SimulationData {
   Real forcingWavenumber;
   Real forcingCoefficient;
 
-  Real smagorinskyCoeff;
-
   std::string poissonSolver;
   Real PoissonTol;
   Real PoissonTolRel;
@@ -7765,18 +7763,6 @@ void IC::operator()(const Real dt) {
     VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
     VOLD.clear();
   }
-
-  if (sim.smagorinskyCoeff != 0) {
-    const std::vector<cubism::BlockInfo> &CsInfo = sim.Cs->getBlocksInfo();
-#pragma omp parallel for
-    for (size_t i = 0; i < CsInfo.size(); i++) {
-      ScalarBlock &CS = *(ScalarBlock *)CsInfo[i].ptrBlock;
-      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
-        for (int ix = 0; ix < ScalarBlock::sizeX; ++ix) {
-          CS(ix, iy).s = sim.smagorinskyCoeff;
-        }
-    }
-  }
 }
 
 Real findMaxU::run() const {
@@ -8237,10 +8223,6 @@ void SimulationData::allocateGrid() {
   tmp = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                        xperiodic, yperiodic, zperiodic);
   pold = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                        xperiodic, yperiodic, zperiodic);
-
-  if (smagorinskyCoeff != 0)
-    Cs = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
                         xperiodic, yperiodic, zperiodic);
 
   const std::vector<cubism::BlockInfo> &velInfo = vel->getBlocksInfo();
@@ -8927,8 +8909,6 @@ public:
     vel_amr = new VectorAMR(*sim.vel, sim.Rtol, sim.Ctol);
     vOld_amr = new VectorAMR(*sim.vOld, sim.Rtol, sim.Ctol);
     tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
-    if (sim.smagorinskyCoeff != 0)
-      Cs_amr = new ScalarAMR(*sim.Cs, sim.Rtol, sim.Ctol);
   }
 
   ~AdaptTheMesh() {
@@ -9008,9 +8988,6 @@ void AdaptTheMesh::adapt() {
   vel_amr->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
-  if (sim.smagorinskyCoeff != 0)
-    Cs_amr->TagLike(tmpInfo);
-
   tmp_amr->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
   chi_amr->Adapt(sim.time, false, false);
   vel_amr->Adapt(sim.time, false, false);
@@ -9018,8 +8995,6 @@ void AdaptTheMesh::adapt() {
   pres_amr->Adapt(sim.time, false, false);
   pold_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
-  if (sim.smagorinskyCoeff != 0)
-    Cs_amr->Adapt(sim.time, false, true);
 }
 
 class advDiff : public Operator {
@@ -12340,8 +12315,6 @@ void Simulation::parseRuntime() {
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
-
-  sim.smagorinskyCoeff = parser("-smagorinskyCoeff").asDouble(0);
   sim.bDumpCs = parser("-dumpCs").asInt(0);
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
