@@ -5801,8 +5801,6 @@ static struct {
   Real uinfy = 0;
   Real uinfx_old = 0;
   Real uinfy_old = 0;
-  Real dt_old = 1e10;
-  Real dt_old2 = 1e10;
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
   bool _bDump = false;
@@ -9861,8 +9859,6 @@ int main(int argc, char **argv) {
   }
 
   while (1) {
-    sim.dt_old2 = sim.dt_old;
-    sim.dt_old = sim.dt;
     Real CFL = sim.CFL;
     const Real h = getH(sim.vel);
     const size_t Nblocks = velInfo.size();
