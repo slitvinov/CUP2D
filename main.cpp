@@ -6157,8 +6157,6 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
   const int NCHANNELS = 1;
   MPI_Comm comm = grid.getWorldComm();
   const int rank = grid.myrank;
-  std::ostringstream filename;
-  std::ostringstream fullpath;
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
