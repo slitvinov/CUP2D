@@ -5764,7 +5764,7 @@ using ScalarLab =
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 class Shape;
-struct SimulationData {
+static struct {
   MPI_Comm comm;
   int rank;
   int bpdx;
@@ -5825,7 +5825,7 @@ struct SimulationData {
   bool bDump();
   Real minH;
   Real maxH;
-};
+} sim;
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
   auto &infos = vel->getBlocksInfo();
@@ -5837,8 +5837,7 @@ static Real getH(VectorGrid *vel) {
 }
 class Operator {
 public:
-  SimulationData &sim;
-  Operator(SimulationData &s) : sim(s) {}
+  Operator() {};
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
 };
@@ -5994,7 +5993,6 @@ struct ObstacleBlock {
 };
 class Shape {
 public:
-  SimulationData &sim;
   unsigned obstacleID = 0;
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
@@ -6040,7 +6038,7 @@ public:
 
 protected:
 public:
-  Shape(SimulationData &s, cubism::CommandlineParser &p, Real C[2]);
+  Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
   virtual Real getCharLength() const = 0;
   virtual Real getCharMass() const;
@@ -6093,8 +6091,7 @@ public:
   virtual void computeForces();
 };
 struct KernelVorticity {
-  KernelVorticity(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  KernelVorticity() {}
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   void operator()(VectorLab &lab, const cubism::BlockInfo &info) const {
@@ -6602,8 +6599,8 @@ void Shape::computeForces() {
     ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
   }
 }
-Shape::Shape(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
-    : sim(s), origC{C[0], C[1]},
+Shape::Shape(cubism::CommandlineParser &p, Real C[2])
+    : origC{C[0], C[1]},
       origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
       centerOfMass{C[0], C[1]}, orientation(origAng),
       bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
@@ -6961,8 +6958,7 @@ public:
   void operator()(Real dt) override;
 };
 struct ComputeSurfaceNormals {
-  ComputeSurfaceNormals(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  ComputeSurfaceNormals() {};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
@@ -6996,8 +6992,7 @@ struct ComputeSurfaceNormals {
   }
 };
 struct PutChiOnGrid {
-  PutChiOnGrid(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  PutChiOnGrid() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
@@ -7079,9 +7074,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   }
   for (const auto &shape : sim.shapes)
     shape->create(tmpInfo);
-  const PutChiOnGrid K(sim);
+  const PutChiOnGrid K;
   cubism::compute<ScalarLab>(K, sim.tmp);
-  const ComputeSurfaceNormals K1(sim);
+  const ComputeSurfaceNormals K1;
   cubism::compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid,
                   ScalarLab>(K1, *sim.chi, *sim.tmp);
   for (const auto &shape : sim.shapes) {
@@ -7118,7 +7113,7 @@ public:
   VectorAMR *vOld_amr = nullptr;
   VectorAMR *tmpV_amr = nullptr;
   ScalarAMR *Cs_amr = nullptr;
-  AdaptTheMesh(SimulationData &s) : Operator(s) {
+  AdaptTheMesh() : Operator() {
     tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
     chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
     pres_amr = new ScalarAMR(*sim.pres, sim.Rtol, sim.Ctol);
@@ -7149,8 +7144,7 @@ public:
   void adapt();
 };
 struct GradChiOnTmp {
-  GradChiOnTmp(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  GradChiOnTmp() {}
   const cubism::StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
@@ -7178,9 +7172,9 @@ void AdaptTheMesh::operator()(const Real dt) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const KernelVorticity mykernel(sim);
+  const KernelVorticity mykernel;
   cubism::compute<VectorLab>(mykernel, sim.vel);
-  GradChiOnTmp K2(sim);
+  GradChiOnTmp K2;
   cubism::compute<ScalarLab>(K2, sim.chi);
   tmp_amr->Tag();
   chi_amr->TagLike(tmpInfo);
@@ -7204,7 +7198,7 @@ protected:
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
 
 public:
-  advDiff(SimulationData &s) : Operator(s) {}
+  advDiff() { }
   void operator()(const Real dt) override;
 };
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
@@ -7320,11 +7314,10 @@ static inline Real dV_adv_dif(const VectorLab &V, const Real uinf[2],
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
 struct KernelAdvectDiffuse {
-  KernelAdvectDiffuse(const SimulationData &s) : sim(s) {
+  KernelAdvectDiffuse() {
     uinf[0] = sim.uinfx;
     uinf[1] = sim.uinfy;
   }
-  const SimulationData &sim;
   Real uinf[2];
   const cubism::StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
@@ -7384,7 +7377,7 @@ struct KernelAdvectDiffuse {
 };
 void advDiff::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
-  KernelAdvectDiffuse Step1(sim);
+  KernelAdvectDiffuse Step1;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
@@ -7428,15 +7421,14 @@ class ComputeForces : public Operator {
 
 public:
   void operator()(const Real dt) override;
-  ComputeForces(SimulationData &s);
+  ComputeForces();
   ~ComputeForces() {}
 };
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  KernelComputeForces(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  KernelComputeForces() {};
   cubism::StencilInfo stencil{small, small, 0, big, big, 1, true, {0, 1}};
   cubism::StencilInfo stencil2{small, small, 0, big, big, 1, true, {0}};
   const int bigg = ScalarBlock::sizeX + big - 1;
@@ -7594,13 +7586,13 @@ struct KernelComputeForces {
   }
 };
 void ComputeForces::operator()(const Real dt) {
-  KernelComputeForces K(sim);
+  KernelComputeForces K;
   cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
                   ScalarLab>(K, *sim.vel, *sim.chi);
   for (const auto &shape : sim.shapes)
     shape->computeForces();
 }
-ComputeForces::ComputeForces(SimulationData &s) : Operator(s) {}
+ComputeForces::ComputeForces() {};
 class PoissonSolver {
 public:
   virtual ~PoissonSolver() = default;
@@ -7608,12 +7600,11 @@ public:
 };
 class ExpAMRSolver : public PoissonSolver {
 public:
-  ExpAMRSolver(SimulationData &s);
+  ExpAMRSolver();
   ~ExpAMRSolver() = default;
   void solve(const ScalarGrid *input, ScalarGrid *const output);
 
 protected:
-  SimulationData &sim;
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
@@ -7662,7 +7653,7 @@ protected:
   protected:
     long long blockOffset(const cubism::BlockInfo &info) const {
       return (info.blockID +
-              ps.Nblocks_xcumsum_[ps.sim.tmp->Tree(info).rank()]) *
+              ps.Nblocks_xcumsum_[sim.tmp->Tree(info).rank()]) *
              BLEN_;
     }
     static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
@@ -7892,8 +7883,8 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
   else
     return 0.0;
 }
-ExpAMRSolver::ExpAMRSolver(SimulationData &s)
-    : sim(s), m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
+ExpAMRSolver::ExpAMRSolver()
+    : m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
       XmaxCell(*this), YminCell(*this),
       YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                     &YmaxCell} {
@@ -7971,14 +7962,14 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
                             const EdgeCellIndexer &indexer,
                             SpRowInfo &row) const {
   const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-  if (this->sim.tmp->Tree(rhsNei).Exists()) {
+  if (sim.tmp->Tree(rhsNei).Exists()) {
     const int nei_rank = sim.tmp->Tree(rhsNei).rank();
     const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
     row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
-  } else if (this->sim.tmp->Tree(rhsNei).CheckCoarser()) {
+  } else if (sim.tmp->Tree(rhsNei).CheckCoarser()) {
     const cubism::BlockInfo &rhsNei_c =
-        this->sim.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
+        sim.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
     const int ix_c = indexer.ix_c(rhs_info, ix);
     const int iy_c = indexer.iy_c(rhs_info, iy);
     const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
@@ -7986,10 +7977,10 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
     interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                 signTaylor, indexer, row);
     row.mapColVal(sfc_idx, -1.);
-  } else if (this->sim.tmp->Tree(rhsNei).CheckFiner()) {
-    const cubism::BlockInfo &rhsNei_f = this->sim.tmp->getBlockInfoAll(
+  } else if (sim.tmp->Tree(rhsNei).CheckFiner()) {
+    const cubism::BlockInfo &rhsNei_f = sim.tmp->getBlockInfoAll(
         rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-    const int nei_rank = this->sim.tmp->Tree(rhsNei_f).rank();
+    const int nei_rank = sim.tmp->Tree(rhsNei_f).rank();
     long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
     long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -8043,10 +8034,10 @@ void ExpAMRSolver::getMat() {
     Z[2] = rhs_info.Znei[1][1 - 1][1];
     Z[3] = rhs_info.Znei[1][1 + 1][1];
     std::array<const cubism::BlockInfo *, 4> rhsNei;
-    rhsNei[0] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
-    rhsNei[1] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
-    rhsNei[2] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
-    rhsNei[3] = &(this->sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
+    rhsNei[0] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
+    rhsNei[1] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
+    rhsNei[2] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
+    rhsNei[3] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
     if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
         rhs_info.index[1] == 0 && rhs_info.index[2] == 0)
       LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) -
@@ -8118,9 +8109,9 @@ void ExpAMRSolver::getVec() {
   }
 }
 void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
-  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonTol;
-  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-  const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
   if (sim.pres->UpdateFluxCorrection) {
     sim.pres->UpdateFluxCorrection = false;
     this->getMat();
@@ -8171,7 +8162,7 @@ protected:
 
 public:
   void operator()(const Real dt) override;
-  PressureSingle(SimulationData &s);
+  PressureSingle();
   ~PressureSingle();
 };
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
@@ -8267,8 +8258,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
 }
 } // namespace
 struct pressureCorrectionKernel {
-  pressureCorrectionKernel(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  pressureCorrectionKernel() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
@@ -8323,7 +8313,7 @@ struct pressureCorrectionKernel {
   }
 };
 void PressureSingle::pressureCorrection(const Real dt) {
-  const pressureCorrectionKernel K(sim);
+  const pressureCorrectionKernel K;
   cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
   std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
 #pragma omp parallel for
@@ -8430,8 +8420,7 @@ void PressureSingle::penalize(const Real dt) const {
     }
 }
 struct updatePressureRHS {
-  updatePressureRHS(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  updatePressureRHS() {};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
@@ -8504,8 +8493,7 @@ struct updatePressureRHS {
   }
 };
 struct updatePressureRHS1 {
-  updatePressureRHS1(const SimulationData &s) : sim(s) {}
-  const SimulationData &sim;
+  updatePressureRHS1() { }
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
@@ -8833,7 +8821,7 @@ void PressureSingle::operator()(const Real dt) {
         }
     }
   }
-  updatePressureRHS K(sim);
+  updatePressureRHS K;
   cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
                   VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
@@ -8848,7 +8836,7 @@ void PressureSingle::operator()(const Real dt) {
         PRES(ix, iy).s = 0;
       }
   }
-  updatePressureRHS1 K1(sim);
+  updatePressureRHS1 K1;
   cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
   pressureSolver->solve(sim.tmp, sim.pres);
   Real avg = 0;
@@ -8878,8 +8866,8 @@ void PressureSingle::operator()(const Real dt) {
   }
   pressureCorrection(dt);
 }
-PressureSingle::PressureSingle(SimulationData &s)
-    : Operator{s}, pressureSolver{std::make_shared<ExpAMRSolver>(s)} {}
+PressureSingle::PressureSingle()
+  : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
 PressureSingle::~PressureSingle() = default;
 struct SimulationData;
 struct FishSkin {
@@ -9569,8 +9557,8 @@ protected:
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
-  Fish(SimulationData &s, cubism::CommandlineParser &p, Real C[2])
-      : Shape(s, p, C), length(p("-L").asDouble(0.1)),
+  Fish(cubism::CommandlineParser &p, Real C[2])
+      : Shape(p, C), length(p("-L").asDouble(0.1)),
         Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {}
   virtual ~Fish() override;
 
@@ -9688,7 +9676,7 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 }
 class StefanFish : public Fish {
 public:
-  StefanFish(SimulationData &s, cubism::CommandlineParser &p, Real C[2]);
+  StefanFish(cubism::CommandlineParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   std::vector<Real> state(const std::vector<double> &origin) const;
   std::vector<Real> state3D() const;
@@ -9773,12 +9761,12 @@ public:
     return w;
   }
 };
-StefanFish::StefanFish(SimulationData &s, cubism::CommandlineParser &p,
+StefanFish::StefanFish(cubism::CommandlineParser &p,
                        Real C[2])
-    : Fish(s, p, C) {
+    : Fish(p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  if (sim.rank == 0 && s.verbose)
+  if (sim.rank == 0 && sim.verbose)
     printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n", myFish->Nm,
            (double)length, (double)myFish->dSref, (double)myFish->dSmid,
            (double)sim.minH, (double)Tperiod, (double)phaseShift);
@@ -9843,7 +9831,6 @@ static std::vector<std::string> split(const std::string &s, const char dlm) {
 int main(int argc, char **argv) {
   int threadSafety;
   int size;
-  SimulationData sim;
   std::vector<Operator *> pipeline;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   cubism::CommandlineParser parser(argc, argv);
@@ -9955,7 +9942,7 @@ int main(int argc, char **argv) {
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
       Shape *shape = nullptr;
       if (objectName == "stefanfish")
-        shape = new StefanFish(sim, ffparser, center);
+        shape = new StefanFish(ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
       shape->obstacleID = (unsigned)sim.shapes.size();
@@ -9986,13 +9973,13 @@ int main(int argc, char **argv) {
     VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
     VOLD.clear();
   }
-  PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid(sim);
-  AdaptTheMesh *adaptTheMesh = new AdaptTheMesh(sim);
+  PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid;
+  AdaptTheMesh *adaptTheMesh = new AdaptTheMesh;
   pipeline.push_back(adaptTheMesh);
   pipeline.push_back(putObjectsOnGrid);
-  pipeline.push_back(new advDiff(sim));
-  pipeline.push_back(new PressureSingle(sim));
-  pipeline.push_back(new ComputeForces(sim));
+  pipeline.push_back(new advDiff);
+  pipeline.push_back(new PressureSingle);
+  pipeline.push_back(new ComputeForces);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
@@ -10087,7 +10074,7 @@ int main(int argc, char **argv) {
       const bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-	const KernelVorticity mykernel(sim);
+	const KernelVorticity mykernel;
 	cubism::compute<VectorLab>(mykernel, sim.vel);
         std::stringstream ss;
         ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
