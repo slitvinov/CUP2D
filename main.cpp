@@ -5766,6 +5766,7 @@ class Shape;
 static struct {
   MPI_Comm comm;
   int rank;
+  int size;
   int bpdx;
   int bpdy;
   int levelMax;
@@ -6124,13 +6125,15 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   const int rank = grid.myrank;
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
-  unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
-  unsigned long long TotalCells;
-  MPI_Allreduce(&MyCells, &TotalCells, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM,
-                comm);
-  ncell = MyCells;
+  long MyCells = MyInfos.size() * nX * nY * nZ;
+
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-  if (rank == 0) {
+  if (rank == 0)
+    offset = 0;
+
+  if (rank == sim.size - 1) {
+    long ncell_total;
+    ncell_total = ncell + offset;
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
@@ -6138,11 +6141,11 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
     s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
-    s << "   <Topology NumberOfElements=\"" << TotalCells
+    s << "   <Topology NumberOfElements=\"" << ncell_total
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
-      << TotalCells * PtsPerElement << " " << DIMENSION
+      << ncell_total * PtsPerElement << " " << DIMENSION
       << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
       << "\" Format=\"Binary\">\n";
     s << "            " << xyz_base << "\n";
@@ -6151,7 +6154,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     s << "     <Attribute Name=\"data\" AttributeType=\""
       << "Scalar"
       << "\" Center=\"Cell\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
+    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << ncell_total
       << " " << 1 << "\" NumberType=\"Float\" Precision=\" "
       << (int)sizeof(hdf5Real) << "\" Format=\"Binary\">\n";
     s << "            " << attr_base << "\n";
@@ -6212,7 +6215,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   size = sizeof(hdf5Real);
-  MPI_File_write_at_all(mpi_file, size * offset * sizeof(hdf5Real), attr.data(), size * ncell,
+  MPI_File_write_at_all(mpi_file, size * offset, attr.data(), size * ncell,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
 }
@@ -9679,19 +9682,18 @@ static std::vector<std::string> split(const std::string &s, const char dlm) {
 }
 int main(int argc, char **argv) {
   int threadSafety;
-  int size;
   std::vector<Operator *> pipeline;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   cubism::CommandlineParser parser(argc, argv);
   sim.comm = MPI_COMM_WORLD;
-  MPI_Comm_size(sim.comm, &size);
+  MPI_Comm_size(sim.comm, &sim.size);
   MPI_Comm_rank(sim.comm, &sim.rank);
 #ifdef _OPENMP
 #pragma omp parallel
   {
     int numThreads = omp_get_num_threads();
 #pragma omp master
-    printf("%d rank and %d thread\n", size, numThreads);
+    printf("%d rank and %d thread\n", sim.size, numThreads);
   }
 #endif
   parser.set_strict_mode();
