@@ -3221,7 +3221,6 @@ public:
   inline unsigned int *getSize() const { return (unsigned int *)m_vSize; }
   inline unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
-#define memcpy2(a, b, c) memcpy((a), (b), (c))
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
 template <typename TGrid,
@@ -3427,10 +3426,10 @@ public:
               &m_cacheBlock->LinAccess(my_izx + (iy + 2) * m_vSize0);
           ElementType *__restrict__ ptrDestination3 =
               &m_cacheBlock->LinAccess(my_izx + (iy + 3) * m_vSize0);
-          memcpy2(ptrDestination0, (ptrSource), nbytes);
-          memcpy2(ptrDestination1, (ptrSource + nX), nbytes);
-          memcpy2(ptrDestination2, (ptrSource + 2 * nX), nbytes);
-          memcpy2(ptrDestination3, (ptrSource + 3 * nX), nbytes);
+          memcpy(ptrDestination0, (ptrSource), nbytes);
+          memcpy(ptrDestination1, (ptrSource + nX), nbytes);
+          memcpy(ptrDestination2, (ptrSource + 2 * nX), nbytes);
+          memcpy(ptrDestination3, (ptrSource + 3 * nX), nbytes);
           ptrSource += 4 * nX;
         }
       }
@@ -3606,10 +3605,10 @@ protected:
             &b(s[0] - code[0] * nX, iy + 2 - code[1] * nY, iz - code[2] * nZ);
         const ElementType *ptrSrc3 =
             &b(s[0] - code[0] * nX, iy + 3 - code[1] * nY, iz - code[2] * nZ);
-        memcpy2(ptrDest0, ptrSrc0, bytes);
-        memcpy2(ptrDest1, ptrSrc1, bytes);
-        memcpy2(ptrDest2, ptrSrc2, bytes);
-        memcpy2(ptrDest3, ptrSrc3, bytes);
+        memcpy(ptrDest0, ptrSrc0, bytes);
+        memcpy(ptrDest1, ptrSrc1, bytes);
+        memcpy(ptrDest2, ptrSrc2, bytes);
+        memcpy(ptrDest3, ptrSrc3, bytes);
       }
 #pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
@@ -3617,7 +3616,7 @@ protected:
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
         const ElementType *ptrSrc =
             &b(s[0] - code[0] * nX, iy - code[1] * nY, iz - code[2] * nZ);
-        memcpy2(ptrDest, ptrSrc, bytes);
+        memcpy(ptrDest, ptrSrc, bytes);
       }
     }
   }
@@ -3875,10 +3874,10 @@ protected:
             &b(s[0] + start[0], iy + 2 + start[1], iz + start[2]);
         const ElementType *ptrSrc3 =
             &b(s[0] + start[0], iy + 3 + start[1], iz + start[2]);
-        memcpy2(ptrDest0, ptrSrc0, bytes);
-        memcpy2(ptrDest1, ptrSrc1, bytes);
-        memcpy2(ptrDest2, ptrSrc2, bytes);
-        memcpy2(ptrDest3, ptrSrc3, bytes);
+        memcpy(ptrDest0, ptrSrc0, bytes);
+        memcpy(ptrDest1, ptrSrc1, bytes);
+        memcpy(ptrDest2, ptrSrc2, bytes);
+        memcpy(ptrDest3, ptrSrc3, bytes);
       }
 #pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
@@ -3886,7 +3885,7 @@ protected:
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
         const ElementType *ptrSrc =
             &b(s[0] + start[0], iy + start[1], iz + start[2]);
-        memcpy2(ptrDest, ptrSrc, bytes);
+        memcpy(ptrDest, ptrSrc, bytes);
       }
     }
   }
