@@ -6230,9 +6230,9 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
       bufferlevel[i] = MyInfos[i].level;
       bufferZ[i] = MyInfos[i].Z;
     }
-    save_buffer_to_file<short int>(bufferlevel, 1, comm, fullpath.str() + ".h5",
+    save_buffer_to_file<short int>(bufferlevel, 1, comm, "h5",
                                    "blockslevel", file_id, fapl_id);
-    save_buffer_to_file<long long>(bufferZ, 1, comm, fullpath.str() + ".h5",
+    save_buffer_to_file<long long>(bufferZ, 1, comm, "h5",
                                    "blocksZ", file_id, fapl_id);
   }
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
@@ -6284,7 +6284,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
           }
     }
     save_buffer_to_file<hdf5Real>(buffer, NCHANNELS, comm,
-                                  fullpath.str() + ".h5", "data", file_id,
+                                  "h5", "data", file_id,
                                   fapl_id);
   }
   H5Pclose(fapl_id);
