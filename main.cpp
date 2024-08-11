@@ -6801,7 +6801,6 @@ void SimulationData::dumpCs(std::string name) {
   cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
       *(Cs), time, "Cs_" + ss.str(), path4serialization);
 }
-void SimulationData::registerDump() { nextDumpTime += dumpTime; }
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
   if (vel not_eq nullptr)
@@ -10278,7 +10277,7 @@ int main(int argc, char **argv) {
       const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
       const bool bDump = sim.bDump();
       if (bDump) {
-        sim.registerDump();
+	sim.nextDumpTime += sim.dumpTime;
         sim.dumpAll("_");
       }
       for (size_t c = 0; c < pipeline.size(); c++)
@@ -10290,10 +10289,8 @@ int main(int argc, char **argv) {
       done = sim.bOver();
     if (done) {
       const bool bDump = sim.bDump();
-      if (bDump) {
-        sim.registerDump();
+      if (bDump)
         sim.dumpAll("_");
-      }
       break;
     }
   }
