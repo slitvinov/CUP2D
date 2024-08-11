@@ -6420,15 +6420,6 @@ void Shape::updatePosition(Real dt) {
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
   if (dt <= 0)
     return;
-  if (not sim.muteAll && sim.rank == 0) {
-    printf("CM:[%.02f %.02f] C:[%.02f %.02f] ang:%.02f u:%.05f v:%.05f av:%.03f"
-           " M:%.02e J:%.02e\n",
-           (double)cx, (double)cy, (double)center[0], (double)center[1],
-           (double)angle, (double)u, (double)v, (double)omega, (double)M,
-           (double)J);
-    std::stringstream ssF;
-    ssF << sim.path2file << "/velocity_" << obstacleID << ".dat";
-  }
 }
 Shape::Integrals
 Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
