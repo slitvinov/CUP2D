@@ -71,8 +71,6 @@ public:
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
 };
-} // namespace cubism
-namespace cubism {
 double Value::asDouble(double def) {
   if (content == "") {
     std::ostringstream sbuf;
