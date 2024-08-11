@@ -6153,24 +6153,24 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
 }
-static double latestTime{-1.0};
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
-                  const std::string &fname) {
-  const bool SaveGrid = latestTime < absTime;
-  int gridCount = 0;
-  for (auto &p : fs::recursive_directory_iterator(".")) {
-    if (p.path().extension() == ".h5") {
-      std::string g = p.path().stem().string();
-      g.resize(4);
-      if (g == "grid") {
-        gridCount++;
-      }
+                  char *path) {
+  int j;
+  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
+    *xyz_base, *attr_base;  
+  snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
+  snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
+  snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
+  xyz_base = xyz_path;
+  attr_base = attr_path;
+  for (j = 0; xyz_path[j] != '\0'; j++) {
+    if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0') {
+      xyz_base = &xyz_path[j + 1];
+      attr_base = &attr_path[j + 1];
     }
   }
-  if (SaveGrid == false)
-    gridCount--;
-  latestTime = absTime;
+  
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
@@ -6180,8 +6180,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   const int rank = grid.myrank;
   std::ostringstream filename;
   std::ostringstream fullpath;
-  filename << fname;
-  fullpath << "." << "/" << filename.str();
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
@@ -6197,22 +6195,12 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   H5Pclose(fapl_id);
   H5Fclose(file_id);
   hid_t file_id_grid, fapl_id_grid;
-  std::stringstream gridFile_s;
-  gridFile_s << "grid" << std::setfill('0') << std::setw(9) << gridCount
-             << ".h5";
-  std::string gridFile = gridFile_s.str();
-  std::stringstream gridFilePath_s;
-  gridFilePath_s << "." << "/grid" << std::setfill('0') << std::setw(9)
-                 << gridCount << ".h5";
-  std::string gridFilePath = gridFilePath_s.str();
-  if (SaveGrid) {
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-    file_id_grid = H5Fcreate(gridFilePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
+    file_id_grid = H5Fcreate(xyz_path, H5F_ACC_TRUNC, H5P_DEFAULT,
                              fapl_id_grid);
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
-  }
   if (rank == 0) {
     std::ostringstream myfilename;
     myfilename << filename.str();
@@ -6230,7 +6218,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
       << TotalCells * PtsPerElement << " " << DIMENSION
       << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
       << "\" Format=\"HDF\">\n";
-    s << "            " << gridFile.c_str() << ":/"
+    s << "            " << xyz_base << ":/"
       << "vertices"
       << "\n";
     s << "        </DataItem>\n";
@@ -6273,10 +6261,9 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     save_buffer_to_file<long long>(bufferZ, 1, comm, fullpath.str() + ".h5",
                                    "blocksZ", file_id, fapl_id);
   }
-  if (SaveGrid) {
     fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-    file_id_grid = H5Fopen(gridFilePath.c_str(), H5F_ACC_RDWR, fapl_id_grid);
+    file_id_grid = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id_grid);
     H5Pclose(fapl_id_grid);
     fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
@@ -6301,11 +6288,11 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
             buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
           }
     }
-    save_buffer_to_file<float>(buffer, 1, comm, gridFilePath, "vertices",
+    save_buffer_to_file<float>(buffer, 1, comm, xyz_path, "vertices",
                                file_id_grid, fapl_id_grid);
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
-  }
+  
   {
     std::vector<hdf5Real> buffer(MyCells * NCHANNELS);
     for (size_t i = 0; i < MyInfos.size(); i++) {
