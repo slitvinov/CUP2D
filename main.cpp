@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
@@ -6095,9 +6094,8 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-namespace fs = std::filesystem;
 namespace cubism {
-template <typename hdf5Real, typename TGrid>
+template <typename TGrid>
 static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   long j, ncell, ncell_total, offset;
   int size;
@@ -6156,7 +6154,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
       << "\" Center=\"Cell\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << ncell_total
       << " " << 1 << "\" NumberType=\"Float\" Precision=\" "
-      << (int)sizeof(hdf5Real) << "\" Format=\"Binary\">\n";
+      << sizeof(float) << "\" Format=\"Binary\">\n";
     s << "            " << attr_base << "\n";
     s << "        </DataItem>\n";
     s << "     </Attribute>\n";
@@ -6192,19 +6190,19 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  size = 8 * sizeof(hdf5Real);
+  size = 8 * sizeof(float);
   MPI_File_write_at_all(mpi_file, size * offset, xyz.data(), size * ncell,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
 
-  std::vector<hdf5Real> attr(MyCells);
+  std::vector<float> attr(MyCells);
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const BlockInfo &info = MyInfos[i];
     B &b = *(B *)info.ptrBlock;
     for (int z = 0; z < nZ; z++)
       for (int y = 0; y < nY; y++)
         for (int x = 0; x < nX; x++) {
-          hdf5Real output[1]{0};
+          float output[1]{0};
           output[0] = b(x, y, z).s;
           for (int nc = 0; nc < 1; nc++) {
             attr[(i * nZ * nY * nX + z * nY * nX + y * nX + x) + nc] =
@@ -6214,7 +6212,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  size = sizeof(hdf5Real);
+  size = sizeof(float);
   MPI_File_write_at_all(mpi_file, size * offset, attr.data(), size * ncell,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
@@ -9919,7 +9917,7 @@ int main(int argc, char **argv) {
         cubism::compute<VectorLab>(mykernel, sim.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
-        cubism::dump<Real>(*sim.tmp, sim.time, path);
+        cubism::dump(*sim.tmp, sim.time, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
