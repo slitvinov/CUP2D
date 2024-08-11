@@ -6134,15 +6134,6 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-class computeVorticity : public Operator {
-public:
-  computeVorticity(SimulationData &s) : Operator(s) {}
-  void operator()(const Real dt) {
-    const KernelVorticity mykernel(sim);
-    cubism::compute<VectorLab>(mykernel, sim.vel);
-  }
-  std::string getName() { return "computeVorticity"; }
-};
 namespace fs = std::filesystem;
 template <typename T> hid_t get_hdf5_type();
 template <> inline hid_t get_hdf5_type<long long>() { return H5T_NATIVE_LLONG; }
@@ -7298,8 +7289,8 @@ void AdaptTheMesh::operator()(const Real dt) {
 }
 void AdaptTheMesh::adapt() {
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  auto K1 = computeVorticity(sim);
-  K1(0);
+  const KernelVorticity mykernel(sim);
+  cubism::compute<VectorLab>(mykernel, sim.vel);
   GradChiOnTmp K2(sim);
   cubism::compute<ScalarLab>(K2, sim.chi);
   tmp_amr->Tag();
@@ -10186,9 +10177,9 @@ int main(int argc, char **argv) {
       const bool bDump = sim.bDump();
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
+	const KernelVorticity mykernel(sim);
+	cubism::compute<VectorLab>(mykernel, sim.vel);
         std::stringstream ss;
-        auto K1 = computeVorticity(sim);
-        K1(0);
         ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
         cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
             *sim.tmp, sim.time, "tmp_" + ss.str(), sim.path4serialization);
