@@ -6167,7 +6167,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   hid_t file_id, fapl_id;
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fcreate(attr_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+  file_id = H5Fcreate("dummy.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
   H5Fclose(file_id);
   hid_t file_id_grid, fapl_id_grid;
@@ -6287,7 +6287,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     }
     save_buffer_to_file<hdf5Real>(buffer, 1, comm, "h5", "data", file_id,
                                   fapl_id);
-    MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+    MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                   MPI_INFO_NULL, &mpi_file);
     int size = sizeof(hdf5Real);
     MPI_File_write_at_all(mpi_file, size * offset, buffer.data(), size * ncell,
