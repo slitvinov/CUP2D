@@ -10034,10 +10034,10 @@ int main(int argc, char **argv) {
         sim.nextDumpTime += sim.dumpTime;
 	const KernelVorticity mykernel;
 	cubism::compute<VectorLab>(mykernel, sim.vel);
-        std::stringstream ss;
-        ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
+	char path[FILENAME_MAX];
+	snprintf(path, sizeof path, "vert.%08d", sim.step);
         cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-            *sim.tmp, sim.time, "tmp_" + ss.str(), ".");
+            *sim.tmp, sim.time, path, ".");
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
