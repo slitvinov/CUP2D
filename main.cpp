@@ -6173,7 +6173,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   hid_t file_id_grid, fapl_id_grid;
   fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-  file_id_grid = H5Fcreate(xyz_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id_grid);
+  file_id_grid = H5Fcreate("dummpy.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id_grid);
   H5Pclose(fapl_id_grid);
   H5Fclose(file_id_grid);
 
@@ -6239,7 +6239,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
 
   fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-  file_id_grid = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id_grid);
+  file_id_grid = H5Fopen("dummp", H5F_ACC_RDWR, fapl_id_grid);
   H5Pclose(fapl_id_grid);
   fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
@@ -6264,7 +6264,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
           buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
         }
   }
-  save_buffer_to_file<float>(buffer, 1, comm, xyz_path, "vertices",
+  save_buffer_to_file<float>(buffer, 1, comm, "dummy", "vertices",
                              file_id_grid, fapl_id_grid);
   H5Pclose(fapl_id_grid);
   H5Fclose(file_id_grid);
@@ -6289,10 +6289,10 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
                                   fapl_id);
     MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                   MPI_INFO_NULL, &mpi_file);
-    MPI_File_close(&mpi_file);
     int size = sizeof(hdf5Real);
     MPI_File_write_at_all(mpi_file, size * offset, buffer.data(), size * ncell,
                           MPI_BYTE, MPI_STATUS_IGNORE);
+    MPI_File_close(&mpi_file);
   }
   H5Pclose(fapl_id);
   H5Fclose(file_id);
