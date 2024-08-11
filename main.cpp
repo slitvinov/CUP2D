@@ -5829,7 +5829,7 @@ static Real getH(VectorGrid *vel) {
 }
 class Operator {
 public:
-  Operator() {};
+  Operator(){};
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
 };
@@ -6133,11 +6133,12 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Dclose(dataset_id);
 }
 template <typename hdf5Real, typename TGrid>
-static void dump(TGrid &grid, typename TGrid::Real absTime,
-                  char *path) {
-  int j;
+static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
+  long j, ncell, ncell_total, offset;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
-    *xyz_base, *attr_base;  
+      *xyz_base, *attr_base;
+  MPI_File mpi_file;
+
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -6149,7 +6150,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
       attr_base = &attr_path[j + 1];
     }
   }
-  
+
   typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
@@ -6166,17 +6167,19 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
   hid_t file_id, fapl_id;
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fcreate(attr_path, H5F_ACC_TRUNC,
-                      H5P_DEFAULT, fapl_id);
+  file_id = H5Fcreate(attr_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
   H5Fclose(file_id);
   hid_t file_id_grid, fapl_id_grid;
-    fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-    file_id_grid = H5Fcreate(xyz_path, H5F_ACC_TRUNC, H5P_DEFAULT,
-                             fapl_id_grid);
-    H5Pclose(fapl_id_grid);
-    H5Fclose(file_id_grid);
+  fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
+  file_id_grid = H5Fcreate(xyz_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id_grid);
+  H5Pclose(fapl_id_grid);
+  H5Fclose(file_id_grid);
+
+  ncell = MyCells;
+  MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
   if (rank == 0) {
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
@@ -6198,13 +6201,12 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
     s << "        </DataItem>\n";
     s << "     </Geometry>\n";
     s << "     <Attribute Name=\"data\" AttributeType=\""
-      << "Scalar" << "\" Center=\"Cell\">\n";
+      << "Scalar"
+      << "\" Center=\"Cell\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
       << " " << 1 << "\" NumberType=\"Float\" Precision=\" "
-      << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
-    s << "            " << attr_base << ":/"
-      << "data"
-      << "\n";
+      << (int)sizeof(hdf5Real) << "\" Format=\"Binary\">\n";
+    s << "            " << attr_base << "\n";
     s << "        </DataItem>\n";
     s << "     </Attribute>\n";
     s << " </Grid>\n";
@@ -6229,43 +6231,44 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
       bufferlevel[i] = MyInfos[i].level;
       bufferZ[i] = MyInfos[i].Z;
     }
-    save_buffer_to_file<short int>(bufferlevel, 1, comm, "h5",
-                                   "blockslevel", file_id, fapl_id);
-    save_buffer_to_file<long long>(bufferZ, 1, comm, "h5",
-                                   "blocksZ", file_id, fapl_id);
+    save_buffer_to_file<short int>(bufferlevel, 1, comm, "h5", "blockslevel",
+                                   file_id, fapl_id);
+    save_buffer_to_file<long long>(bufferZ, 1, comm, "h5", "blocksZ", file_id,
+                                   fapl_id);
   }
-    fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-    file_id_grid = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id_grid);
-    H5Pclose(fapl_id_grid);
-    fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
-    H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
-    std::vector<float> buffer(MyCells * PtsPerElement * DIMENSION);
-    for (size_t i = 0; i < MyInfos.size(); i++) {
-      const BlockInfo &info = MyInfos[i];
-      const float h2 = 0.5 * info.h;
-      for (int z = 0; z < nZ; z++)
-        for (int y = 0; y < nY; y++)
-          for (int x = 0; x < nX; x++) {
-            const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
-                              PtsPerElement * DIMENSION;
-            double p[2];
-            info.pos(p, x, y);
-            buffer[bbase] = p[0] - h2;
-            buffer[bbase + 1] = p[1] - h2;
-            buffer[bbase + DIMENSION] = p[0] - h2;
-            buffer[bbase + DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 2 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-            buffer[bbase + 3 * DIMENSION] = p[0] + h2;
-            buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
-          }
-    }
-    save_buffer_to_file<float>(buffer, 1, comm, xyz_path, "vertices",
-                               file_id_grid, fapl_id_grid);
-    H5Pclose(fapl_id_grid);
-    H5Fclose(file_id_grid);
-  
+
+  fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
+  file_id_grid = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id_grid);
+  H5Pclose(fapl_id_grid);
+  fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
+  std::vector<float> buffer(MyCells * PtsPerElement * DIMENSION);
+  for (size_t i = 0; i < MyInfos.size(); i++) {
+    const BlockInfo &info = MyInfos[i];
+    const float h2 = 0.5 * info.h;
+    for (int z = 0; z < nZ; z++)
+      for (int y = 0; y < nY; y++)
+        for (int x = 0; x < nX; x++) {
+          const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
+                            PtsPerElement * DIMENSION;
+          double p[2];
+          info.pos(p, x, y);
+          buffer[bbase] = p[0] - h2;
+          buffer[bbase + 1] = p[1] - h2;
+          buffer[bbase + DIMENSION] = p[0] - h2;
+          buffer[bbase + DIMENSION + 1] = p[1] + h2;
+          buffer[bbase + 2 * DIMENSION] = p[0] + h2;
+          buffer[bbase + 2 * DIMENSION + 1] = p[1] + h2;
+          buffer[bbase + 3 * DIMENSION] = p[0] + h2;
+          buffer[bbase + 3 * DIMENSION + 1] = p[1] - h2;
+        }
+  }
+  save_buffer_to_file<float>(buffer, 1, comm, xyz_path, "vertices",
+                             file_id_grid, fapl_id_grid);
+  H5Pclose(fapl_id_grid);
+  H5Fclose(file_id_grid);
+
   {
     std::vector<hdf5Real> buffer(MyCells);
     for (size_t i = 0; i < MyInfos.size(); i++) {
@@ -6275,16 +6278,21 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
             hdf5Real output[1]{0};
-	    output[0] = b(x, y, z).s;
+            output[0] = b(x, y, z).s;
             for (int nc = 0; nc < 1; nc++) {
-              buffer[(i * nZ * nY * nX + z * nY * nX + y * nX + x) +
-                     nc] = output[nc];
+              buffer[(i * nZ * nY * nX + z * nY * nX + y * nX + x) + nc] =
+                  output[nc];
             }
           }
     }
-    save_buffer_to_file<hdf5Real>(buffer, 1, comm,
-                                  "h5", "data", file_id,
+    save_buffer_to_file<hdf5Real>(buffer, 1, comm, "h5", "data", file_id,
                                   fapl_id);
+    MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                  MPI_INFO_NULL, &mpi_file);
+    MPI_File_close(&mpi_file);
+    int size = sizeof(hdf5Real);
+    MPI_File_write_at_all(mpi_file, size * offset, buffer.data(), size * ncell,
+                          MPI_BYTE, MPI_STATUS_IGNORE);
   }
   H5Pclose(fapl_id);
   H5Fclose(file_id);
@@ -6895,7 +6903,7 @@ public:
   void operator()(Real dt) override;
 };
 struct ComputeSurfaceNormals {
-  ComputeSurfaceNormals() {};
+  ComputeSurfaceNormals(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
@@ -6929,7 +6937,7 @@ struct ComputeSurfaceNormals {
   }
 };
 struct PutChiOnGrid {
-  PutChiOnGrid() {};
+  PutChiOnGrid(){};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
@@ -7134,7 +7142,7 @@ protected:
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
 
 public:
-  advDiff() { }
+  advDiff() {}
   void operator()(const Real dt) override;
 };
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
@@ -7364,7 +7372,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  KernelComputeForces() {};
+  KernelComputeForces(){};
   cubism::StencilInfo stencil{small, small, 0, big, big, 1, true, {0, 1}};
   cubism::StencilInfo stencil2{small, small, 0, big, big, 1, true, {0}};
   const int bigg = ScalarBlock::sizeX + big - 1;
@@ -7528,7 +7536,7 @@ void ComputeForces::operator()(const Real dt) {
   for (const auto &shape : sim.shapes)
     shape->computeForces();
 }
-ComputeForces::ComputeForces() {};
+ComputeForces::ComputeForces(){};
 class PoissonSolver {
 public:
   virtual ~PoissonSolver() = default;
@@ -7588,8 +7596,7 @@ protected:
 
   protected:
     long long blockOffset(const cubism::BlockInfo &info) const {
-      return (info.blockID +
-              ps.Nblocks_xcumsum_[sim.tmp->Tree(info).rank()]) *
+      return (info.blockID + ps.Nblocks_xcumsum_[sim.tmp->Tree(info).rank()]) *
              BLEN_;
     }
     static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
@@ -7820,10 +7827,9 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
     return 0.0;
 }
 ExpAMRSolver::ExpAMRSolver()
-    : m_comm_(sim.comm), GenericCell(*this), XminCell(*this),
-      XmaxCell(*this), YminCell(*this),
-      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
-                                    &YmaxCell} {
+    : m_comm_(sim.comm), GenericCell(*this), XminCell(*this), XmaxCell(*this),
+      YminCell(*this), YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell,
+                                                     &YminCell, &YmaxCell} {
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);
@@ -8190,7 +8196,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
 }
 } // namespace
 struct pressureCorrectionKernel {
-  pressureCorrectionKernel() {};
+  pressureCorrectionKernel(){};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
@@ -8352,7 +8358,7 @@ void PressureSingle::penalize(const Real dt) const {
     }
 }
 struct updatePressureRHS {
-  updatePressureRHS() {};
+  updatePressureRHS(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
@@ -8425,7 +8431,7 @@ struct updatePressureRHS {
   }
 };
 struct updatePressureRHS1 {
-  updatePressureRHS1() { }
+  updatePressureRHS1() {}
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
@@ -8799,7 +8805,7 @@ void PressureSingle::operator()(const Real dt) {
   pressureCorrection(dt);
 }
 PressureSingle::PressureSingle()
-  : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
+    : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
 PressureSingle::~PressureSingle() = default;
 struct FishSkin {
   const size_t Npoints;
@@ -9692,9 +9698,7 @@ public:
     return w;
   }
 };
-StefanFish::StefanFish(cubism::CommandlineParser &p,
-                       Real C[2])
-    : Fish(p, C) {
+StefanFish::StefanFish(cubism::CommandlineParser &p, Real C[2]) : Fish(p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
@@ -9991,11 +9995,11 @@ int main(int argc, char **argv) {
       const bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-	const KernelVorticity mykernel;
-	cubism::compute<VectorLab>(mykernel, sim.vel);
-	char path[FILENAME_MAX];
-	snprintf(path, sizeof path, "vort.%08d", sim.step);
-	cubism::dump<Real>(*sim.tmp, sim.time, path);
+        const KernelVorticity mykernel;
+        cubism::compute<VectorLab>(mykernel, sim.vel);
+        char path[FILENAME_MAX];
+        snprintf(path, sizeof path, "vort.%08d", sim.step);
+        cubism::dump<Real>(*sim.tmp, sim.time, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);

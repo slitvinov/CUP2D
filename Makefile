@@ -13,6 +13,7 @@ FLAGS =\
 -DCUBISM_ALIGNMENT=32\
 -DDIMENSION=2\
 -DNDEBUG\
+-Wno-format-truncation\
 $(OPENMPFLAGS)\
 -O3\
 -std=c++17\
