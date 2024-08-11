@@ -6102,15 +6102,6 @@ public:
   void diagnostics();
   virtual void computeForces();
 };
-class findMaxU {
-  SimulationData &sim;
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  findMaxU(SimulationData &s) : sim(s) {}
-  Real run() const;
-  std::string getName() const { return "findMaxU"; }
-};
 class gaussianIC : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
@@ -6389,30 +6380,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   H5close();
 }
 } // namespace cubism
-Real findMaxU::run() const {
-  const size_t Nblocks = velInfo.size();
-  const Real UINF = sim.uinfx, VINF = sim.uinfy;
-  Real U = 0, V = 0, u = 0, v = 0;
-#pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        U = std::max(U, std::fabs(VEL(ix, iy).u[0] + UINF));
-        V = std::max(V, std::fabs(VEL(ix, iy).u[1] + VINF));
-        u = std::max(u, std::fabs(VEL(ix, iy).u[0]));
-        v = std::max(v, std::fabs(VEL(ix, iy).u[1]));
-      }
-  }
-  Real quantities[4] = {U, V, u, v};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX,
-                sim.chi->getWorldComm());
-  U = quantities[0];
-  V = quantities[1];
-  u = quantities[2];
-  v = quantities[3];
-  return std::max({U, V, u, v});
-}
+
 void ApplyObjVel::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
@@ -6764,8 +6732,7 @@ bool SimulationData::bDump() {
   _bDump = stepDump || timeDump;
   return _bDump;
 }
-void SimulationData::dumpAll(std::string name) {
-}
+void SimulationData::dumpAll(std::string name) {}
 
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
@@ -10180,8 +10147,28 @@ int main(int argc, char **argv) {
     sim.dt_old = sim.dt;
     Real CFL = sim.CFL;
     const Real h = getH(sim.vel);
-    const auto findMaxU_op = findMaxU(sim);
-    sim.uMax_measured = findMaxU_op.run();
+    const size_t Nblocks = velInfo.size();
+    const Real UINF = sim.uinfx, VINF = sim.uinfy;
+    Real U = 0, V = 0, u = 0, v = 0;
+#pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
+    for (size_t i = 0; i < Nblocks; i++) {
+      VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
+      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+          U = std::max(U, std::fabs(VEL(ix, iy).u[0] + UINF));
+          V = std::max(V, std::fabs(VEL(ix, iy).u[1] + VINF));
+          u = std::max(u, std::fabs(VEL(ix, iy).u[0]));
+          v = std::max(v, std::fabs(VEL(ix, iy).u[1]));
+        }
+    }
+    Real quantities[4] = {U, V, u, v};
+    MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX,
+                  MPI_COMM_WORLD);
+    U = quantities[0];
+    V = quantities[1];
+    u = quantities[2];
+    v = quantities[3];
+    sim.uMax_measured = std::max({U, V, u, v});
     if (CFL > 0) {
       const Real dtDiffusion =
           0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
@@ -10202,11 +10189,12 @@ int main(int argc, char **argv) {
       const bool bDump = sim.bDump();
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-	std::stringstream ss;
-	auto K1 = computeVorticity(sim);
-	K1(0);
-	ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
-	cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(*sim.tmp, sim.time, "tmp_" + ss.str(), sim.path4serialization);
+        std::stringstream ss;
+        auto K1 = computeVorticity(sim);
+        K1(0);
+        ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
+        cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
+            *sim.tmp, sim.time, "tmp_" + ss.str(), sim.path4serialization);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
