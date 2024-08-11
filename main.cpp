@@ -5781,7 +5781,6 @@ struct SimulationData {
   std::array<Real, 2> extents;
   Real dt;
   Real CFL;
-  int rampup{0};
   int nsteps;
   Real endTime;
   Real lambda;
@@ -10078,7 +10077,6 @@ int main(int argc, char **argv) {
   sim.extent = parser("-extent").asDouble(1);
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
-  sim.rampup = parser("-rampup").asInt(0);
   sim.nsteps = parser("-nsteps").asInt(0);
   sim.endTime = parser("-tend").asDouble(0);
   sim.lambda = parser("-lambda").asDouble(1e7);
@@ -10216,13 +10214,7 @@ int main(int argc, char **argv) {
       const Real dtDiffusion =
           0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
       const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
-      if (sim.step < sim.rampup) {
-        const Real x = (sim.step + 1.0) / sim.rampup;
-        const Real rampupFactor = std::exp(std::log(1e-3) * (1 - x));
-        sim.dt = rampupFactor * std::min({dtDiffusion, CFL * dtAdvection});
-      } else {
-        sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-      }
+      sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
     if (sim.dt <= 0) {
       std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
