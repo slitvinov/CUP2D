@@ -5828,8 +5828,6 @@ struct SimulationData {
   std::vector<int> bCollisionID;
   void addShape(std::shared_ptr<Shape> shape);
   bool bDump();
-  void registerDump();
-  bool bOver() const;
   Real minH;
   Real maxH;
   SimulationData();
@@ -6819,11 +6817,6 @@ SimulationData::~SimulationData() {
     delete tmp;
   if (Cs not_eq nullptr)
     delete Cs;
-}
-bool SimulationData::bOver() const {
-  const bool timeEnd = endTime > 0 && time >= endTime;
-  const bool stepEnd = nsteps > 0 && step >= nsteps;
-  return timeEnd || stepEnd;
 }
 bool SimulationData::bDump() {
   const bool timeDump = dumpTime > 0 && time >= nextDumpTime;
@@ -10285,8 +10278,11 @@ int main(int argc, char **argv) {
       sim.time += dt;
       sim.step++;
     }
-    if (!done)
-      done = sim.bOver();
+    if (!done) {
+      const bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
+      const bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
+      done = timeEnd || stepEnd;
+    }
     if (done) {
       const bool bDump = sim.bDump();
       if (bDump)
