@@ -5841,7 +5841,6 @@ struct SimulationData {
   void dumpVel(std::string name);
   void dumpUdef(std::string name);
   void dumpTmpV(std::string name);
-  void dumpCs(std::string name);
   void dumpAll(std::string name);
 };
 static Real getH(VectorGrid *vel) {
@@ -6792,12 +6791,6 @@ void SimulationData::dumpVel(std::string name) {
   cubism::DumpHDF5_MPI<cubism::StreamerVector, Real>(
       *(vel), time, "vel_" + ss.str(), path4serialization);
 }
-void SimulationData::dumpCs(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *(Cs), time, "Cs_" + ss.str(), path4serialization);
-}
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
   if (vel not_eq nullptr)
@@ -6830,8 +6823,6 @@ void SimulationData::dumpAll(std::string name) {
   dumpChi(name);
   dumpVel(name);
   dumpPres(name);
-  if (bDumpCs)
-    dumpCs(name);
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
@@ -10124,7 +10115,6 @@ int main(int argc, char **argv) {
   sim.bForcing = parser("-bForcing").asInt(0);
   sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
   sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
-  sim.bDumpCs = parser("-dumpCs").asInt(0);
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
