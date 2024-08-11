@@ -6154,7 +6154,6 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
-  const int NCHANNELS = 1;
   MPI_Comm comm = grid.getWorldComm();
   const int rank = grid.myrank;
   const int PtsPerElement = 4;
@@ -6201,7 +6200,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
     s << "     <Attribute Name=\"data\" AttributeType=\""
       << "Scalar" << "\" Center=\"Cell\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
-      << " " << NCHANNELS << "\" NumberType=\"Float\" Precision=\" "
+      << " " << 1 << "\" NumberType=\"Float\" Precision=\" "
       << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
     s << "            " << attr_base << ":/"
       << "data"
@@ -6268,22 +6267,22 @@ static void dump(TGrid &grid, typename TGrid::Real absTime,
     H5Fclose(file_id_grid);
   
   {
-    std::vector<hdf5Real> buffer(MyCells * NCHANNELS);
+    std::vector<hdf5Real> buffer(MyCells);
     for (size_t i = 0; i < MyInfos.size(); i++) {
       const BlockInfo &info = MyInfos[i];
       B &b = *(B *)info.ptrBlock;
       for (int z = 0; z < nZ; z++)
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
-            hdf5Real output[NCHANNELS]{0};
+            hdf5Real output[1]{0};
 	    output[0] = b(x, y, z).s;
-            for (int nc = 0; nc < NCHANNELS; nc++) {
-              buffer[(i * nZ * nY * nX + z * nY * nX + y * nX + x) * NCHANNELS +
+            for (int nc = 0; nc < 1; nc++) {
+              buffer[(i * nZ * nY * nX + z * nY * nX + y * nX + x) +
                      nc] = output[nc];
             }
           }
     }
-    save_buffer_to_file<hdf5Real>(buffer, NCHANNELS, comm,
+    save_buffer_to_file<hdf5Real>(buffer, 1, comm,
                                   "h5", "data", file_id,
                                   fapl_id);
   }
