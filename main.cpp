@@ -6202,8 +6202,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   if (rank == 0) {
-    std::ostringstream myfilename;
-    myfilename << filename.str();
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
@@ -6228,7 +6226,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
       << " " << NCHANNELS << "\" NumberType=\"Float\" Precision=\" "
       << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
-    s << "            " << (myfilename.str() + ".h5").c_str() << ":/"
+    s << "            " << attr_base << ":/"
       << "data"
       << "\n";
     s << "        </DataItem>\n";
@@ -6238,14 +6236,13 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "</Xdmf>\n";
     std::string st = s.str();
     FILE *xmf = 0;
-    xmf = fopen((fullpath.str() + ".xdmf2").c_str(), "w");
+    xmf = fopen(xdmf_path, "w");
     fprintf(xmf, "%s", st.c_str());
     fclose(xmf);
   }
-  std::string name = fullpath.str() + ".h5";
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fopen(name.c_str(), H5F_ACC_RDWR, fapl_id);
+  file_id = H5Fopen(attr_path, H5F_ACC_RDWR, fapl_id);
   H5Pclose(fapl_id);
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
