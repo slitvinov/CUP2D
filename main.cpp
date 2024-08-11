@@ -5822,16 +5822,9 @@ struct SimulationData {
   bool bDumpCs = false;
   bool bCollision = false;
   std::vector<int> bCollisionID;
-  void addShape(std::shared_ptr<Shape> shape);
   bool bDump();
   Real minH;
   Real maxH;
-  SimulationData();
-  SimulationData(const SimulationData &) = delete;
-  SimulationData(SimulationData &&) = delete;
-  SimulationData &operator=(const SimulationData &) = delete;
-  SimulationData &operator=(SimulationData &&) = delete;
-  ~SimulationData();
 };
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
@@ -6629,25 +6622,6 @@ Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
-}
-SimulationData::SimulationData() = default;
-SimulationData::~SimulationData() {
-  if (vel not_eq nullptr)
-    delete vel;
-  if (chi not_eq nullptr)
-    delete chi;
-  if (pres not_eq nullptr)
-    delete pres;
-  if (pold not_eq nullptr)
-    delete pold;
-  if (vOld not_eq nullptr)
-    delete vOld;
-  if (tmpV not_eq nullptr)
-    delete tmpV;
-  if (tmp not_eq nullptr)
-    delete tmp;
-  if (Cs not_eq nullptr)
-    delete Cs;
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
