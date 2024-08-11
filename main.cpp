@@ -10035,7 +10035,7 @@ int main(int argc, char **argv) {
 	const KernelVorticity mykernel;
 	cubism::compute<VectorLab>(mykernel, sim.vel);
 	char path[FILENAME_MAX];
-	snprintf(path, sizeof path, "vert.%08d", sim.step);
+	snprintf(path, sizeof path, "vort.%08d", sim.step);
         cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
             *sim.tmp, sim.time, path, ".");
       }
