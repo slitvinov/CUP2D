@@ -7285,9 +7285,6 @@ struct GradChiOnTmp {
 void AdaptTheMesh::operator()(const Real dt) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
-  adapt();
-}
-void AdaptTheMesh::adapt() {
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
   const KernelVorticity mykernel(sim);
   cubism::compute<VectorLab>(mykernel, sim.vel);
@@ -9112,7 +9109,6 @@ public:
   void surfaceToComputationalFrame(const Real theta_comp,
                                    const Real CoM_interpolated[2]) const;
   void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
-  void writeMidline2File(const int step_id, std::string filename);
   virtual void computeMidline(const Real time, const Real dt) = 0;
 };
 struct AreaSegment {
@@ -9211,17 +9207,6 @@ FishData::~FishData() {
   _dealloc(vNorX);
   _dealloc(vNorY);
   _dealloc(width);
-}
-void FishData::writeMidline2File(const int step_id, std::string filename) {
-  char buf[500];
-  sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
-  FILE *f = fopen(buf, "a");
-  fprintf(f, "s x y vX vY\n");
-  for (int i = 0; i < Nm; i++) {
-    fprintf(f, "%g %g %g %g %g %g\n", (double)rS[i], (double)rX[i],
-            (double)rY[i], (double)vX[i], (double)vY[i], (double)width[i]);
-  }
-  fflush(0);
 }
 void FishData::_computeMidlineNormals() const {
 #pragma omp parallel for schedule(static)
@@ -9714,8 +9699,6 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   assert(myFish != nullptr);
   myFish->computeMidline(sim.time, sim.dt);
   myFish->computeSurface();
-  if (sim.rank == 0 && sim.bDump())
-    myFish->writeMidline2File(0, "appending");
   area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
   angvel_internal_prev = angvel_internal;
@@ -9863,7 +9846,6 @@ public:
         rK(_alloc(Nm)), vK(_alloc(Nm)), rC(_alloc(Nm)), vC(_alloc(Nm)),
         rB(_alloc(Nm)), vB(_alloc(Nm)) {
     _computeWidth();
-    writeMidline2File(0, "initialCheck");
   }
   void execute(const Real t_current, const Real t_rlAction,
                const std::vector<Real> &a) {
