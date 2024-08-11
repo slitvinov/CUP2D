@@ -6190,7 +6190,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   hid_t file_id, fapl_id;
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fcreate((fullpath.str() + ".h5").c_str(), H5F_ACC_TRUNC,
+  file_id = H5Fcreate(attr_path, H5F_ACC_TRUNC,
                       H5P_DEFAULT, fapl_id);
   H5Pclose(fapl_id);
   H5Fclose(file_id);
