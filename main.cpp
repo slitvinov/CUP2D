@@ -134,11 +134,10 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       std::string values = "";
       int itemCount = 0;
       for (int j = i + 1; j < argc; j++) {
-        std::string sval(argv[j]);
-        const bool leadingDash = (sval[0] == '-');
+        const bool leadingDash = (argv[j][0] == '-');
 	char *end = NULL;
-	strtod(s.c_str(), &end);
-	const bool isNumeric = end != s.c_str();
+	strtod(argv[j], &end);
+	const bool isNumeric = end != argv[j];
         if (leadingDash && !isNumeric)
           break;
         else {
