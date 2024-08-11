@@ -6220,7 +6220,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
-  file_id = H5Fopen("dummy.h5", H5F_ACC_RDWR, fapl_id);
+  file_id = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id);
   H5Pclose(fapl_id);
   fapl_id = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
@@ -6239,7 +6239,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
 
   fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-  file_id_grid = H5Fopen("dummp", H5F_ACC_RDWR, fapl_id_grid);
+  file_id_grid = H5Fopen(xyz_path, H5F_ACC_RDWR, fapl_id_grid);
   H5Pclose(fapl_id_grid);
   fapl_id_grid = H5Pcreate(H5P_DATASET_XFER);
   H5Pset_dxpl_mpio(fapl_id_grid, H5FD_MPIO_COLLECTIVE);
