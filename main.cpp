@@ -6762,12 +6762,6 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
 }
-void SimulationData::dumpTmp(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *tmp, time, "tmp_" + ss.str(), path4serialization);
-}
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
   if (vel not_eq nullptr)
@@ -6794,10 +6788,14 @@ bool SimulationData::bDump() {
   return _bDump;
 }
 void SimulationData::dumpAll(std::string name) {
+  std::stringstream ss;
   auto K1 = computeVorticity(*this);
   K1(0);
-  dumpTmp(name);
+  ss << name << std::setfill('0') << std::setw(7) << step;
+  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
+      *tmp, time, "tmp_" + ss.str(), path4serialization);
 }
+
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
                     const Real *const curv, const Real *const curv_dt,
@@ -10245,12 +10243,8 @@ int main(int argc, char **argv) {
       const bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
       done = timeEnd || stepEnd;
     }
-    if (done) {
-      const bool bDump = sim.bDump();
-      if (bDump)
-        sim.dumpAll("_");
+    if (done)
       break;
-    }
   }
   //MPI_Finalize();
 }
