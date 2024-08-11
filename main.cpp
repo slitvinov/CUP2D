@@ -5848,7 +5848,6 @@ public:
   Operator(SimulationData &s) : sim(s) {}
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
-  virtual std::string getName() = 0;
 };
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
@@ -6986,7 +6985,6 @@ protected:
 public:
   using Operator::Operator;
   void operator()(Real dt) override;
-  std::string getName() override { return "PutObjectsOnGrid"; }
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(const SimulationData &s) : sim(s) {}
@@ -7175,7 +7173,6 @@ public:
   }
   void operator()(const Real dt) override;
   void adapt();
-  std::string getName() override { return "AdaptTheMesh"; }
 };
 struct GradChiOnTmp {
   GradChiOnTmp(const SimulationData &s) : sim(s) {}
@@ -7235,7 +7232,6 @@ protected:
 public:
   advDiff(SimulationData &s) : Operator(s) {}
   void operator()(const Real dt) override;
-  std::string getName() override { return "advDiff"; }
 };
 static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
                               const Real up1, const Real up2) {
@@ -7460,7 +7456,6 @@ public:
   void operator()(const Real dt) override;
   ComputeForces(SimulationData &s);
   ~ComputeForces() {}
-  std::string getName() override { return "ComputeForces"; }
 };
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
@@ -7639,7 +7634,6 @@ public:
 };
 class ExpAMRSolver : public PoissonSolver {
 public:
-  std::string getName() { return "ExpAMRSolver"; }
   ExpAMRSolver(SimulationData &s);
   ~ExpAMRSolver() = default;
   void solve(const ScalarGrid *input, ScalarGrid *const output);
@@ -8205,7 +8199,6 @@ public:
   void operator()(const Real dt) override;
   PressureSingle(SimulationData &s);
   ~PressureSingle();
-  std::string getName() override { return "PressureSingle"; }
 };
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
