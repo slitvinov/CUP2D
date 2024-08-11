@@ -5784,10 +5784,6 @@ static struct {
   Real lambda;
   Real dlm;
   Real nu;
-  bool bForcing;
-  Real forcingWavenumber;
-  Real forcingCoefficient;
-  std::string poissonSolver;
   Real PoissonTol;
   Real PoissonTolRel;
   int maxPoissonRestarts;
@@ -5795,8 +5791,6 @@ static struct {
   int bMeanConstraint;
   int dumpFreq;
   Real dumpTime;
-  bool verbose;
-  bool muteAll;
   std::string path4serialization;
   std::string path2file;
   ScalarGrid *chi = nullptr;
@@ -6584,11 +6578,6 @@ void Shape::computeForces() {
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
-  if (not sim.muteAll && sim.rank == 0) {
-    std::stringstream ssF, ssP;
-    ssF << sim.path2file << "/forceValues_" << obstacleID << ".dat";
-    ssP << sim.path2file << "/powerValues_" << obstacleID << ".dat";
-  }
 }
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
     : origC{C[0], C[1]},
@@ -7173,7 +7162,7 @@ void AdaptTheMesh::operator()(const Real dt) {
   vel_amr->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
-  tmp_amr->Adapt(sim.time, sim.rank == 0 && !sim.muteAll, false);
+  tmp_amr->Adapt(sim.time, sim.rank == 0, false);
   chi_amr->Adapt(sim.time, false, false);
   vel_amr->Adapt(sim.time, false, false);
   vOld_amr->Adapt(sim.time, false, false);
@@ -8859,7 +8848,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
   : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
 PressureSingle::~PressureSingle() = default;
-struct SimulationData;
 struct FishSkin {
   const size_t Npoints;
   Real *const xSurf;
@@ -9756,10 +9744,6 @@ StefanFish::StefanFish(cubism::CommandlineParser &p,
     : Fish(p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  if (sim.rank == 0 && sim.verbose)
-    printf("[CUP2D] - CurvatureFish %d %f %f %f %f %f %f\n", myFish->Nm,
-           (double)length, (double)myFish->dSref, (double)myFish->dSmid,
-           (double)sim.minH, (double)Tperiod, (double)phaseShift);
 }
 void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   Fish::create(vInfo);
@@ -9855,14 +9839,10 @@ int main(int argc, char **argv) {
   sim.lambda = parser("-lambda").asDouble(1e7);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
-  sim.bForcing = parser("-bForcing").asInt(0);
-  sim.forcingWavenumber = parser("-forcingWavenumber").asDouble(4);
-  sim.forcingCoefficient = parser("-forcingCoefficient").asDouble(4);
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
   cubismBCX = string2BCflag(BC_x);
   cubismBCY = string2BCflag(BC_y);
-  sim.poissonSolver = parser("-poissonSolver").asString("iterative");
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
@@ -9872,10 +9852,6 @@ int main(int argc, char **argv) {
   sim.dumpTime = parser("-tdump").asDouble(0);
   sim.path2file = parser("-file").asString("./");
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
-  sim.verbose = parser("-verbose").asInt(1);
-  sim.muteAll = parser("-muteAll").asInt(0);
-  if (sim.muteAll)
-    sim.verbose = 0;
 
   ScalarLab dummy;
   const bool xperiodic = dummy.is_xperiodic();
