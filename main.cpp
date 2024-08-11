@@ -127,11 +127,6 @@ Value &CommandlineParser::operator()(std::string key) {
   }
   return mapArguments[key];
 }
-bool CommandlineParser::_isnumber(const std::string &s) const {
-  char *end = NULL;
-  strtod(s.c_str(), &end);
-  return end != s.c_str();
-}
 CommandlineParser::CommandlineParser(const int argc, char **argv)
     : bStrictMode(false) {
   for (int i = 1; i < argc; i++)
@@ -141,7 +136,9 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       for (int j = i + 1; j < argc; j++) {
         std::string sval(argv[j]);
         const bool leadingDash = (sval[0] == '-');
-        const bool isNumeric = _isnumber(sval);
+	char *end = NULL;
+	strtod(s.c_str(), &end);
+	const bool isNumeric = end != s.c_str();
         if (leadingDash && !isNumeric)
           break;
         else {
