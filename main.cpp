@@ -5791,8 +5791,6 @@ static struct {
   int bMeanConstraint;
   int dumpFreq;
   Real dumpTime;
-  std::string path4serialization;
-  std::string path2file;
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
   VectorGrid *vOld = nullptr;
@@ -9846,8 +9844,6 @@ int main(int argc, char **argv) {
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
-  sim.path2file = parser("-file").asString("./");
-  sim.path4serialization = parser("-serialization").asString(sim.path2file);
 
   ScalarLab dummy;
   const bool xperiodic = dummy.is_xperiodic();
@@ -10041,7 +10037,7 @@ int main(int argc, char **argv) {
         std::stringstream ss;
         ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
         cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-            *sim.tmp, sim.time, "tmp_" + ss.str(), sim.path4serialization);
+            *sim.tmp, sim.time, "tmp_" + ss.str(), ".");
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
