@@ -6785,12 +6785,6 @@ bool SimulationData::bDump() {
   return _bDump;
 }
 void SimulationData::dumpAll(std::string name) {
-  std::stringstream ss;
-  auto K1 = computeVorticity(*this);
-  K1(0);
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *tmp, time, "tmp_" + ss.str(), path4serialization);
 }
 
 struct IF2D_Frenet2D {
@@ -10228,7 +10222,11 @@ int main(int argc, char **argv) {
       const bool bDump = sim.bDump();
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-        sim.dumpAll("_");
+	std::stringstream ss;
+	auto K1 = computeVorticity(sim);
+	K1(0);
+	ss << "_" << std::setfill('0') << std::setw(7) << sim.step;
+	cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(*sim.tmp, sim.time, "tmp_" + ss.str(), sim.path4serialization);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
