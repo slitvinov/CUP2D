@@ -6173,7 +6173,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   hid_t file_id_grid, fapl_id_grid;
   fapl_id_grid = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl_id_grid, comm, MPI_INFO_NULL);
-  file_id_grid = H5Fcreate("dummy.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id_grid);
+  file_id_grid = H5Fcreate(xyz_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id_grid);
   H5Pclose(fapl_id_grid);
   H5Fclose(file_id_grid);
 
