@@ -5832,8 +5832,6 @@ struct SimulationData {
   SimulationData &operator=(const SimulationData &) = delete;
   SimulationData &operator=(SimulationData &&) = delete;
   ~SimulationData();
-  void dumpTmp(std::string name);
-  void dumpAll(std::string name);
 };
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
@@ -6713,14 +6711,6 @@ SimulationData::~SimulationData() {
   if (Cs not_eq nullptr)
     delete Cs;
 }
-bool SimulationData::bDump() {
-  const bool timeDump = dumpTime > 0 && time >= nextDumpTime;
-  const bool stepDump = dumpFreq > 0 && (step % dumpFreq) == 0;
-  _bDump = stepDump || timeDump;
-  return _bDump;
-}
-void SimulationData::dumpAll(std::string name) {}
-
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
                     const Real *const curv, const Real *const curv_dt,
@@ -10156,7 +10146,9 @@ int main(int argc, char **argv) {
     bool done = false;
     if (!done || dt > 2e-16) {
       const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
-      const bool bDump = sim.bDump();
+      const bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
+      const bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
+      const bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
 	const KernelVorticity mykernel(sim);
