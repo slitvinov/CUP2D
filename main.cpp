@@ -6102,27 +6102,6 @@ template <> inline hid_t get_hdf5_type<short int>() { return H5T_NATIVE_SHORT; }
 template <> inline hid_t get_hdf5_type<float>() { return H5T_NATIVE_FLOAT; }
 template <> inline hid_t get_hdf5_type<double>() { return H5T_NATIVE_DOUBLE; }
 namespace cubism {
-struct StreamerScalar {
-  static constexpr int NCHANNELS = 1;
-  template <typename TBlock, typename T>
-  static inline void operate(TBlock &b, const int ix, const int iy,
-                             const int iz, T output[NCHANNELS]) {
-    output[0] = b(ix, iy, iz).s;
-  }
-  static std::string prefix() { return std::string(""); }
-  static const char *getAttributeName() { return "Scalar"; }
-};
-struct StreamerVector {
-  static constexpr int NCHANNELS = 3;
-  template <typename TBlock, typename T>
-  static void operate(TBlock &b, const int ix, const int iy, const int iz,
-                      T output[NCHANNELS]) {
-    for (int i = 0; i < TBlock::ElementType::DIM; i++)
-      output[i] = b(ix, iy, iz).u[i];
-  }
-  static std::string prefix() { return std::string(""); }
-  static const char *getAttributeName() { return "Vector"; }
-};
 template <typename data_type>
 void save_buffer_to_file(const std::vector<data_type> &buffer,
                          const int NCHANNELS, MPI_Comm &comm,
@@ -6153,8 +6132,8 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
   H5Sclose(fspace_id);
   H5Dclose(dataset_id);
 }
-template <typename TStreamer, typename hdf5Real, typename TGrid>
-void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
+template <typename hdf5Real, typename TGrid>
+static void dump(TGrid &grid, typename TGrid::Real absTime,
                   char *path) {
   int j;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
@@ -6175,7 +6154,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
-  const int NCHANNELS = TStreamer::NCHANNELS;
+  const int NCHANNELS = 1;
   MPI_Comm comm = grid.getWorldComm();
   const int rank = grid.myrank;
   std::ostringstream filename;
@@ -6222,7 +6201,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     s << "        </DataItem>\n";
     s << "     </Geometry>\n";
     s << "     <Attribute Name=\"data\" AttributeType=\""
-      << TStreamer::getAttributeName() << "\" Center=\"Cell\">\n";
+      << "Scalar" << "\" Center=\"Cell\">\n";
     s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << TotalCells
       << " " << NCHANNELS << "\" NumberType=\"Float\" Precision=\" "
       << (int)sizeof(hdf5Real) << "\" Format=\"HDF\">\n";
@@ -6299,7 +6278,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
         for (int y = 0; y < nY; y++)
           for (int x = 0; x < nX; x++) {
             hdf5Real output[NCHANNELS]{0};
-            TStreamer::operate(b, x, y, z, output);
+	    output[0] = b(x, y, z).s;
             for (int nc = 0; nc < NCHANNELS; nc++) {
               buffer[(i * nZ * nY * nX + z * nY * nX + y * nX + x) * NCHANNELS +
                      nc] = output[nc];
@@ -10019,8 +9998,7 @@ int main(int argc, char **argv) {
 	cubism::compute<VectorLab>(mykernel, sim.vel);
 	char path[FILENAME_MAX];
 	snprintf(path, sizeof path, "vort.%08d", sim.step);
-        cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-            *sim.tmp, sim.time, path);
+	cubism::dump<Real>(*sim.tmp, sim.time, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
