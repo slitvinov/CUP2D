@@ -5827,7 +5827,6 @@ struct SimulationData {
   bool bCollision = false;
   std::vector<int> bCollisionID;
   void addShape(std::shared_ptr<Shape> shape);
-  void allocateGrid();
   bool bDump();
   void registerDump();
   bool bOver() const;
@@ -6771,38 +6770,6 @@ Shape::~Shape() {
 void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
-}
-void SimulationData::allocateGrid() {
-  ScalarLab dummy;
-  const bool xperiodic = dummy.is_xperiodic();
-  const bool yperiodic = dummy.is_yperiodic();
-  const bool zperiodic = dummy.is_zperiodic();
-  chi = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                       xperiodic, yperiodic, zperiodic);
-  vel = new VectorGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                       xperiodic, yperiodic, zperiodic);
-  vOld = new VectorGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                        xperiodic, yperiodic, zperiodic);
-  pres = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                        xperiodic, yperiodic, zperiodic);
-  tmpV = new VectorGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                        xperiodic, yperiodic, zperiodic);
-  tmp = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                       xperiodic, yperiodic, zperiodic);
-  pold = new ScalarGrid(bpdx, bpdy, 1, extent, levelStart, levelMax, comm,
-                        xperiodic, yperiodic, zperiodic);
-  const std::vector<cubism::BlockInfo> &velInfo = vel->getBlocksInfo();
-  if (velInfo.size() == 0) {
-    std::cout << "You are using too many MPI ranks for the given initial "
-                 "number of blocks.";
-    MPI_Abort(chi->getWorldComm(), 1);
-  }
-  int aux = pow(2, levelStart);
-  extents[0] = aux * bpdx * velInfo[0].h * VectorBlock::sizeX;
-  extents[1] = aux * bpdy * velInfo[0].h * VectorBlock::sizeY;
-  int auxMax = pow(2, levelMax - 1);
-  minH = extents[0] / (auxMax * bpdx * VectorBlock::sizeX);
-  maxH = extents[0] / (bpdx * VectorBlock::sizeX);
 }
 void SimulationData::dumpChi(std::string name) {
   std::stringstream ss;
@@ -10186,7 +10153,38 @@ int main(int argc, char **argv) {
   sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if (sim.muteAll)
     sim.verbose = 0;
-  sim.allocateGrid();
+  
+  ScalarLab dummy;
+  const bool xperiodic = dummy.is_xperiodic();
+  const bool yperiodic = dummy.is_yperiodic();
+  const bool zperiodic = dummy.is_zperiodic();
+  sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                       xperiodic, yperiodic, zperiodic);
+  sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                       xperiodic, yperiodic, zperiodic);
+  sim.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                        xperiodic, yperiodic, zperiodic);
+  sim.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                        xperiodic, yperiodic, zperiodic);
+  sim.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                        xperiodic, yperiodic, zperiodic);
+  sim.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+                       xperiodic, yperiodic, zperiodic);
+  sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
+			    xperiodic, yperiodic, zperiodic);
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+  if (velInfo.size() == 0) {
+    std::cout << "You are using too many MPI ranks for the given initial "
+                 "number of blocks.";
+    MPI_Abort(sim.chi->getWorldComm(), 1);
+  }
+  int aux = pow(2, sim.levelStart);
+  sim.extents[0] = aux * sim.bpdx * velInfo[0].h * VectorBlock::sizeX;
+  sim.extents[1] = aux * sim.bpdy * velInfo[0].h * VectorBlock::sizeY;
+  int auxMax = pow(2, sim.levelMax - 1);
+  sim.minH = sim.extents[0] / (auxMax * sim.bpdx * VectorBlock::sizeX);
+  sim.maxH = sim.extents[0] / (sim.bpdx * VectorBlock::sizeX);
+
   const std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -10211,8 +10209,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-    const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
