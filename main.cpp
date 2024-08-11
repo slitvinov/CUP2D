@@ -6156,11 +6156,10 @@ void save_buffer_to_file(const std::vector<data_type> &buffer,
 static double latestTime{-1.0};
 template <typename TStreamer, typename hdf5Real, typename TGrid>
 void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
-                  const std::string &fname, const std::string &dpath = ".",
-                  const bool dumpGrid = true) {
-  const bool SaveGrid = latestTime < absTime && dumpGrid;
+                  const std::string &fname) {
+  const bool SaveGrid = latestTime < absTime;
   int gridCount = 0;
-  for (auto &p : fs::recursive_directory_iterator(dpath)) {
+  for (auto &p : fs::recursive_directory_iterator(".")) {
     if (p.path().extension() == ".h5") {
       std::string g = p.path().stem().string();
       g.resize(4);
@@ -6182,7 +6181,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
   std::ostringstream filename;
   std::ostringstream fullpath;
   filename << fname;
-  fullpath << dpath << "/" << filename.str();
+  fullpath << "." << "/" << filename.str();
   const int PtsPerElement = 4;
   std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
   unsigned long long MyCells = MyInfos.size() * nX * nY * nZ;
@@ -6203,7 +6202,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
              << ".h5";
   std::string gridFile = gridFile_s.str();
   std::stringstream gridFilePath_s;
-  gridFilePath_s << dpath << "/grid" << std::setfill('0') << std::setw(9)
+  gridFilePath_s << "." << "/grid" << std::setfill('0') << std::setw(9)
                  << gridCount << ".h5";
   std::string gridFilePath = gridFilePath_s.str();
   if (SaveGrid) {
@@ -6214,7 +6213,7 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
     H5Pclose(fapl_id_grid);
     H5Fclose(file_id_grid);
   }
-  if (rank == 0 && dumpGrid) {
+  if (rank == 0) {
     std::ostringstream myfilename;
     myfilename << filename.str();
     std::stringstream s;
@@ -10037,7 +10036,7 @@ int main(int argc, char **argv) {
 	char path[FILENAME_MAX];
 	snprintf(path, sizeof path, "vort.%08d", sim.step);
         cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-            *sim.tmp, sim.time, path, ".");
+            *sim.tmp, sim.time, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
