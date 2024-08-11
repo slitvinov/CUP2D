@@ -6149,26 +6149,6 @@ public:
   void operator()(const Real dt) {
     const KernelVorticity mykernel(sim);
     cubism::compute<VectorLab>(mykernel, sim.vel);
-    if (!sim.muteAll)
-      reportVorticity();
-  }
-  void reportVorticity() const {
-    Real maxv = -1e10;
-    Real minv = -1e10;
-#pragma omp parallel for reduction(max : minv, maxv)
-    for (auto &info : sim.tmp->getBlocksInfo()) {
-      auto &TMP = *(ScalarBlock *)info.ptrBlock;
-      for (int y = 0; y < VectorBlock::sizeY; ++y)
-        for (int x = 0; x < VectorBlock::sizeX; ++x) {
-          maxv = std::max(maxv, TMP(x, y).s);
-          minv = std::max(minv, -TMP(x, y).s);
-        }
-    }
-    Real buffer[2] = {maxv, minv};
-    Real recvbuf[2];
-    MPI_Reduce(buffer, recvbuf, 2, MPI_Real, MPI_MAX, 0,
-               sim.chi->getWorldComm());
-    recvbuf[1] = -recvbuf[1];
   }
   std::string getName() { return "computeVorticity"; }
 };
