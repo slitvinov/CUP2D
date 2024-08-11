@@ -5822,7 +5822,6 @@ struct SimulationData {
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
   bool _bDump = false;
-  bool DumpUniform = false;
   bool bDumpCs = false;
   bool bCollision = false;
   std::vector<int> bCollisionID;
@@ -10142,7 +10141,6 @@ int main(int argc, char **argv) {
   sim.path4serialization = parser("-serialization").asString(sim.path2file);
   sim.verbose = parser("-verbose").asInt(1);
   sim.muteAll = parser("-muteAll").asInt(0);
-  sim.DumpUniform = parser("-DumpUniform").asBool(false);
   if (sim.muteAll)
     sim.verbose = 0;
   
