@@ -8017,10 +8017,6 @@ void ExpAMRSolver::getMat() {
     rhsNei[1] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
     rhsNei[2] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
     rhsNei[3] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
-    if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
-        rhs_info.index[1] == 0 && rhs_info.index[2] == 0)
-      LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0) -
-                             Nrows_xcumsum_[rank_]);
     for (int iy = 0; iy < BSY_; iy++)
       for (int ix = 0; ix < BSX_; ix++) {
         const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
