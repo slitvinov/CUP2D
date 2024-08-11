@@ -6703,10 +6703,6 @@ Shape::~Shape() {
     delete entry;
   obstacleBlocks.clear();
 }
-void SimulationData::addShape(std::shared_ptr<Shape> shape) {
-  shape->obstacleID = (unsigned)shapes.size();
-  shapes.push_back(std::move(shape));
-}
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
   if (vel not_eq nullptr)
@@ -10101,7 +10097,8 @@ int main(int argc, char **argv) {
         shape = new StefanFish(sim, ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
-      sim.addShape(std::shared_ptr<Shape>{shape});
+      shape->obstacleID = (unsigned)sim.shapes.size();
+      sim.shapes.push_back(std::shared_ptr<Shape>(shape));
     }
   }
 
