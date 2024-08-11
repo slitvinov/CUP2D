@@ -6189,7 +6189,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  size = sizeof(hdf5Real);
+  size = 8 * sizeof(hdf5Real);
   MPI_File_write_at_all(mpi_file, size * offset, xyz.data(), size * ncell,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
