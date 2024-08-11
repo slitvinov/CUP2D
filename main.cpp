@@ -7132,7 +7132,6 @@ public:
       delete Cs_amr;
   }
   void operator()(const Real dt) override;
-  void adapt();
 };
 struct GradChiOnTmp {
   GradChiOnTmp() {}
