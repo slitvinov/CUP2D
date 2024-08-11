@@ -7047,8 +7047,6 @@ protected:
 public:
   using Operator::Operator;
   void operator()(Real dt) override;
-  void advanceShapes(Real dt);
-  void putObjectsOnGrid();
   std::string getName() override { return "PutObjectsOnGrid"; }
 };
 struct ComputeSurfaceNormals {
@@ -7138,10 +7136,6 @@ struct PutChiOnGrid {
   }
 };
 void PutObjectsOnGrid::operator()(const Real dt) {
-  advanceShapes(dt);
-  putObjectsOnGrid();
-}
-void PutObjectsOnGrid::advanceShapes(const Real dt) {
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   for (const auto &shape : sim.shapes)
@@ -7166,8 +7160,6 @@ void PutObjectsOnGrid::advanceShapes(const Real dt) {
       abort();
     }
   }
-}
-void PutObjectsOnGrid::putObjectsOnGrid() {
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
