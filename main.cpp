@@ -5835,12 +5835,7 @@ struct SimulationData {
   SimulationData &operator=(const SimulationData &) = delete;
   SimulationData &operator=(SimulationData &&) = delete;
   ~SimulationData();
-  void dumpChi(std::string name);
-  void dumpPres(std::string name);
   void dumpTmp(std::string name);
-  void dumpVel(std::string name);
-  void dumpUdef(std::string name);
-  void dumpTmpV(std::string name);
   void dumpAll(std::string name);
 };
 static Real getH(VectorGrid *vel) {
@@ -6767,29 +6762,11 @@ void SimulationData::addShape(std::shared_ptr<Shape> shape) {
   shape->obstacleID = (unsigned)shapes.size();
   shapes.push_back(std::move(shape));
 }
-void SimulationData::dumpChi(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *chi, time, "chi_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpPres(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
-      *pres, time, "pres_" + ss.str(), path4serialization);
-}
 void SimulationData::dumpTmp(std::string name) {
   std::stringstream ss;
   ss << name << std::setfill('0') << std::setw(7) << step;
   cubism::DumpHDF5_MPI<cubism::StreamerScalar, Real>(
       *tmp, time, "tmp_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpVel(std::string name) {
-  std::stringstream ss;
-  ss << name << std::setfill('0') << std::setw(7) << step;
-  cubism::DumpHDF5_MPI<cubism::StreamerVector, Real>(
-      *(vel), time, "vel_" + ss.str(), path4serialization);
 }
 SimulationData::SimulationData() = default;
 SimulationData::~SimulationData() {
@@ -6820,9 +6797,6 @@ void SimulationData::dumpAll(std::string name) {
   auto K1 = computeVorticity(*this);
   K1(0);
   dumpTmp(name);
-  dumpChi(name);
-  dumpVel(name);
-  dumpPres(name);
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
