@@ -6100,15 +6100,6 @@ public:
   void diagnostics();
   virtual void computeForces();
 };
-class gaussianIC : public Operator {
-protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  gaussianIC(SimulationData &s) : Operator(s) {}
-  void operator()(const Real dt);
-  std::string getName() { return "gaussianIC"; }
-};
 class ApplyObjVel : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
