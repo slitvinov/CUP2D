@@ -5838,15 +5838,6 @@ struct SimulationData {
   SimulationData &operator=(const SimulationData &) = delete;
   SimulationData &operator=(SimulationData &&) = delete;
   ~SimulationData();
-  Real getH() {
-    Real minHGrid = std::numeric_limits<Real>::infinity();
-    auto &infos = vel->getBlocksInfo();
-    for (size_t i = 0; i < infos.size(); i++) {
-      minHGrid = std::min((Real)infos[i].h, minHGrid);
-    }
-    MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, comm);
-    return minHGrid;
-  }
   void dumpChi(std::string name);
   void dumpPres(std::string name);
   void dumpTmp(std::string name);
@@ -5856,6 +5847,15 @@ struct SimulationData {
   void dumpCs(std::string name);
   void dumpAll(std::string name);
 };
+static Real getH(VectorGrid *vel) {
+  Real minHGrid = std::numeric_limits<Real>::infinity();
+  auto &infos = vel->getBlocksInfo();
+  for (size_t i = 0; i < infos.size(); i++) {
+    minHGrid = std::min((Real)infos[i].h, minHGrid);
+  }
+  MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
+  return minHGrid;
+}
 class Operator {
 public:
   SimulationData &sim;
@@ -9846,7 +9846,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
   assert((Nm - 1) % Nsegments == 0);
   std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-  const Real h = sim.getH();
+  const Real h = getH(sim.vel);
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nsegments; ++i) {
     const int next_idx = (i + 1) * (Nm - 1) / Nsegments,
@@ -10250,7 +10250,7 @@ int main(int argc, char **argv) {
     sim.dt_old2 = sim.dt_old;
     sim.dt_old = sim.dt;
     Real CFL = sim.CFL;
-    const Real h = sim.getH();
+    const Real h = getH(sim.vel);
     const auto findMaxU_op = findMaxU(sim);
     sim.uMax_measured = findMaxU_op.run();
     if (CFL > 0) {
@@ -10275,7 +10275,7 @@ int main(int argc, char **argv) {
     Real dt = sim.dt;
     bool done = false;
     if (!done || dt > 2e-16) {
-      const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / sim.getH();
+      const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
       const bool bDump = sim.bDump();
       if (bDump) {
         sim.registerDump();
