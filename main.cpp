@@ -6100,15 +6100,6 @@ public:
   void diagnostics();
   virtual void computeForces();
 };
-class ApplyObjVel : public Operator {
-protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-
-public:
-  ApplyObjVel(SimulationData &s) : Operator(s) {}
-  void operator()(const Real dt);
-  std::string getName() { return "ApplyObjVel"; }
-};
 struct KernelVorticity {
   KernelVorticity(const SimulationData &s) : sim(s) {}
   const SimulationData &sim;
@@ -6361,49 +6352,6 @@ void DumpHDF5_MPI(TGrid &grid, typename TGrid::Real absTime,
 }
 } // namespace cubism
 
-void ApplyObjVel::operator()(const Real dt) {
-  const size_t Nblocks = velInfo.size();
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
-  }
-  for (const auto &shape : sim.shapes) {
-    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for
-    for (size_t i = 0; i < Nblocks; i++) {
-      if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
-        continue;
-      const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
-      const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; iy++)
-        for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
-          if (chi[iy][ix] < CHI(ix, iy).s)
-            continue;
-          Real p[2];
-          tmpVInfo[i].pos(p, ix, iy);
-          UDEF(ix, iy).u[0] += udef[iy][ix][0];
-          UDEF(ix, iy).u[1] += udef[iy][ix][1];
-        }
-    }
-  }
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &UF = *(VectorBlock *)velInfo[i].ptrBlock;
-    VectorBlock &US = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    ScalarBlock &X = *(ScalarBlock *)chiInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        UF(ix, iy).u[0] =
-            UF(ix, iy).u[0] * (1 - X(ix, iy).s) + US(ix, iy).u[0] * X(ix, iy).s;
-        UF(ix, iy).u[1] =
-            UF(ix, iy).u[1] * (1 - X(ix, iy).s) + US(ix, iy).u[1] * X(ix, iy).s;
-      }
-  }
-}
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
 Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
@@ -10083,8 +10031,46 @@ int main(int argc, char **argv) {
     (*adaptTheMesh)(0.0);
   }
   (*putObjectsOnGrid)(0.0);
-  ApplyObjVel initVel(sim);
-  initVel(0);
+  const size_t Nblocks = velInfo.size();
+#pragma omp parallel for
+  for (size_t i = 0; i < Nblocks; i++) {
+    ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
+  }
+  for (const auto &shape : sim.shapes) {
+    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+#pragma omp parallel for
+    for (size_t i = 0; i < Nblocks; i++) {
+      if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
+        continue;
+      const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
+      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+      for (int iy = 0; iy < VectorBlock::sizeY; iy++)
+        for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
+          if (chi[iy][ix] < CHI(ix, iy).s)
+            continue;
+          Real p[2];
+          tmpVInfo[i].pos(p, ix, iy);
+          UDEF(ix, iy).u[0] += udef[iy][ix][0];
+          UDEF(ix, iy).u[1] += udef[iy][ix][1];
+        }
+    }
+  }
+#pragma omp parallel for schedule(static)
+  for (size_t i = 0; i < Nblocks; i++) {
+    VectorBlock &UF = *(VectorBlock *)velInfo[i].ptrBlock;
+    VectorBlock &US = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    ScalarBlock &X = *(ScalarBlock *)chiInfo[i].ptrBlock;
+    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+        UF(ix, iy).u[0] =
+            UF(ix, iy).u[0] * (1 - X(ix, iy).s) + US(ix, iy).u[0] * X(ix, iy).s;
+        UF(ix, iy).u[1] =
+            UF(ix, iy).u[1] * (1 - X(ix, iy).s) + US(ix, iy).u[1] * X(ix, iy).s;
+      }
+  }
+
   while (1) {
     sim.dt_old2 = sim.dt_old;
     sim.dt_old = sim.dt;
