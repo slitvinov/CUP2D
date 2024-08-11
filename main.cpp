@@ -10105,25 +10105,32 @@ int main(int argc, char **argv) {
   sim.muteAll = parser("-muteAll").asInt(0);
   if (sim.muteAll)
     sim.verbose = 0;
-  
+
   ScalarLab dummy;
   const bool xperiodic = dummy.is_xperiodic();
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
-  sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                       xperiodic, yperiodic, zperiodic);
-  sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                       xperiodic, yperiodic, zperiodic);
-  sim.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                        xperiodic, yperiodic, zperiodic);
-  sim.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                        xperiodic, yperiodic, zperiodic);
-  sim.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                        xperiodic, yperiodic, zperiodic);
-  sim.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-                       xperiodic, yperiodic, zperiodic);
-  sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart, sim.levelMax, MPI_COMM_WORLD,
-			    xperiodic, yperiodic, zperiodic);
+  sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           zperiodic);
+  sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           zperiodic);
+  sim.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            zperiodic);
+  sim.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            zperiodic);
+  sim.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            zperiodic);
+  sim.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           zperiodic);
+  sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            zperiodic);
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
@@ -10230,7 +10237,7 @@ int main(int argc, char **argv) {
       const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
       const bool bDump = sim.bDump();
       if (bDump) {
-	sim.nextDumpTime += sim.dumpTime;
+        sim.nextDumpTime += sim.dumpTime;
         sim.dumpAll("_");
       }
       for (size_t c = 0; c < pipeline.size(); c++)
@@ -10246,5 +10253,5 @@ int main(int argc, char **argv) {
     if (done)
       break;
   }
-  //MPI_Finalize();
+  // MPI_Finalize();
 }
