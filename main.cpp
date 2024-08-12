@@ -6039,7 +6039,7 @@ struct KernelVorticity {
 };
 template <typename TGrid>
 static void dump(Real time, TGrid *grid, char *path) {
-  long j, k, ncell, ncell_total, offset;
+  long i, j, k, x, y, z, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
@@ -6059,10 +6059,9 @@ static void dump(Real time, TGrid *grid, char *path) {
   typedef typename  TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
-  const int nZ = B::sizeZ;
   const int PtsPerElement = 4;
   std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
-  ncell = MyInfos.size() * nX * nY * nZ;
+  ncell = MyInfos.size() * nX * nY;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
@@ -6105,12 +6104,10 @@ static void dump(Real time, TGrid *grid, char *path) {
   }
   xyz = (float*)malloc(8 * ncell * sizeof *xyz);
   k = 0;
-  assert(nz == 1);
-  for (size_t i = 0; i < MyInfos.size(); i++) {
+  for (i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
-    for (int z = 0; z < nZ; z++)
-      for (int y = 0; y < nY; y++)
-        for (int x = 0; x < nX; x++) {
+      for (y = 0; y < nY; y++)
+        for (x = 0; x < nX; x++) {
 	  double u, v;
 	  u = info.origin[0] + info.h * x; 
 	  v = info.origin[1] + info.h * y;
@@ -6131,19 +6128,13 @@ static void dump(Real time, TGrid *grid, char *path) {
   MPI_File_close(&mpi_file);
   free(xyz);
   attr = (float*)malloc(ncell * sizeof *xyz);
-  for (size_t i = 0; i < MyInfos.size(); i++) {
+  k = 0;
+  for (i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
     B &b = *(B *)info.ptrBlock;
-    for (int z = 0; z < nZ; z++)
-      for (int y = 0; y < nY; y++)
-        for (int x = 0; x < nX; x++) {
-          float output[1]{0};
-          output[0] = b(x, y, z).s;
-          for (int nc = 0; nc < 1; nc++) {
-            attr[(i * nZ * nY * nX + z * nY * nX + y * nX + x) + nc] =
-                output[nc];
-          }
-        }
+      for (y = 0; y < nY; y++)
+        for (x = 0; x < nX; x++)
+	  attr[k++] = b(x, y, z).s;
   }
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
