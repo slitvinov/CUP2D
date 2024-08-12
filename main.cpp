@@ -16,10 +16,7 @@
 #include <sstream>
 #include <stack>
 #include <string>
-#include <sys/stat.h>
-#include <sys/time.h>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 #ifdef _OPENMP
 #include <omp.h>
