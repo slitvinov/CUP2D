@@ -6086,7 +6086,6 @@ struct Shape {
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   //Shape(cubism::CommandlineParser &p, Real C[2]);
   //  virtual ~Shape();
-  Real getCharLength();
   void create(const std::vector<cubism::BlockInfo> &vInfo);
   void finalize(){};
   void updateVelocity(Real dt);
