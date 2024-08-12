@@ -6042,7 +6042,6 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   free(attr);
 }
 struct Shape {
-  unsigned obstacleID = 0;
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
   Real center[2];
@@ -9639,7 +9638,6 @@ int main(int argc, char **argv) {
         shape = new Shape(ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
-      shape->obstacleID = (unsigned)sim.shapes.size();
       sim.shapes.push_back(std::shared_ptr<Shape>(shape));
     }
   }
