@@ -6095,7 +6095,6 @@ static void dump(Real time, TGrid *grid, char *path) {
       *xyz_base, *attr_base;
   MPI_File mpi_file;
   float *xyz, *attr;
-
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -6107,20 +6106,16 @@ static void dump(Real time, TGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-
   typedef typename  TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
   const int PtsPerElement = 4;
   std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
-
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
-
   if (sim.rank == sim.size - 1) {
-    long ncell_total;
     ncell_total = ncell + offset;
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
@@ -6184,7 +6179,6 @@ static void dump(Real time, TGrid *grid, char *path) {
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
-
   attr = (float*)malloc(ncell * sizeof *xyz);
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
