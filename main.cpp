@@ -5736,8 +5736,6 @@ static struct {
   Real uinfy_old = 0;
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
-  bool _bDump = false;
-  bool bDumpCs = false;
   bool bCollision = false;
   std::vector<int> bCollisionID;
   bool bDump();
