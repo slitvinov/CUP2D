@@ -6227,30 +6227,6 @@ Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
   _a /= _j;
   return Integrals(_x, _y, _m, _j, _u, _v, _a);
 }
-void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
-  Shape::Integrals I = integrateObstBlock(vInfo);
-  M = I.m;
-  J = I.j;
-  const Real dCx = center[0] - centerOfMass[0];
-  const Real dCy = center[1] - centerOfMass[1];
-  d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
-  d_gm[1] = -dCx * std::sin(orientation) + dCy * std::cos(orientation);
-#pragma omp parallel for schedule(dynamic)
-  for (size_t i = 0; i < vInfo.size(); i++) {
-    const auto pos = obstacleBlocks[vInfo[i].blockID];
-    if (pos == nullptr)
-      continue;
-    for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
-      for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
-        Real p[2];
-        vInfo[i].pos(p, ix, iy);
-        p[0] -= centerOfMass[0];
-        p[1] -= centerOfMass[1];
-        pos->udef[iy][ix][0] -= I.u - I.a * p[1];
-        pos->udef[iy][ix][1] -= I.v + I.a * p[0];
-      }
-  }
-};
 void Shape::computeForces() {
   perimeter = 0;
   forcex = 0;
@@ -9547,7 +9523,28 @@ Fish::~Fish() {
   }
 }
 void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
-  Shape::removeMoments(vInfo);
+  Shape::Integrals I = integrateObstBlock(vInfo);
+  M = I.m;
+  J = I.j;
+  const Real dCx = center[0] - centerOfMass[0];
+  const Real dCy = center[1] - centerOfMass[1];
+  d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
+  d_gm[1] = -dCx * std::sin(orientation) + dCy * std::cos(orientation);
+#pragma omp parallel for schedule(dynamic)
+  for (size_t i = 0; i < vInfo.size(); i++) {
+    const auto pos = obstacleBlocks[vInfo[i].blockID];
+    if (pos == nullptr)
+      continue;
+    for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
+      for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
+        Real p[2];
+        vInfo[i].pos(p, ix, iy);
+        p[0] -= centerOfMass[0];
+        p[1] -= centerOfMass[1];
+        pos->udef[iy][ix][0] -= I.u - I.a * p[1];
+        pos->udef[iy][ix][1] -= I.v + I.a * p[0];
+      }
+  }  
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
   myFish->computeSkinNormals(orientation, centerOfMass);
 }
