@@ -3,7 +3,7 @@ cd /scratch/lisergey/CUP2D &&
    git clean -fdxq &&
    git pull &&
    module load mpi &&
-   make -j 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = ' &&
+   make -j 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' OPENMPFLAGS= &&
    mpiexec -n 2 sh run.sh
 '
 rsync -avz glados:/scratch/lisergey/CUP2D/vort* .
