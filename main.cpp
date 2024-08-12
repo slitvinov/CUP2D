@@ -1329,7 +1329,6 @@ struct HaloBlockGroup {
   bool ready = false;
 };
 template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
-  MPI_Comm comm;
   int rank;
   int size;
   StencilInfo stencil;
@@ -2035,9 +2034,8 @@ public:
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || stencil.sz < -2 ||
                     stencil.ex > 3 || stencil.ey > 3 || stencil.ez > 3);
-    comm = grid->getWorldComm();
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     nX = TGrid::Block::sizeX;
     nY = TGrid::Block::sizeY;
     nZ = TGrid::Block::sizeZ;
@@ -2108,7 +2106,7 @@ public:
         requests.resize(requests.size() + 1);
         mapofrequests[r] = &requests.back();
         MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPIREAL, r,
-                  timestamp, comm, &requests.back());
+                  timestamp, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = 0; r < size; r++)
       if (send_buffer_size[r] != 0) {
@@ -2140,7 +2138,7 @@ public:
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
         MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * NC, MPIREAL, r,
-                  timestamp, comm, &requests.back());
+                  timestamp, MPI_COMM_WORLD, &requests.back());
       }
   }
   const StencilInfo &getstencil() const { return stencil; }
