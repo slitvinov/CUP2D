@@ -5700,10 +5700,8 @@ public:
     }
   }
 };
-using ScalarElement = cubism::ScalarElement;
-using VectorElement = cubism::VectorElement;
-using ScalarBlock = cubism::GridBlock<_BS_, 2, ScalarElement>;
-using VectorBlock = cubism::GridBlock<_BS_, 2, VectorElement>;
+using ScalarBlock = cubism::GridBlock<_BS_, 2, cubism::ScalarElement>;
+using VectorBlock = cubism::GridBlock<_BS_, 2, cubism::VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
 using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
 using VectorLab =
@@ -7138,7 +7136,7 @@ struct KernelComputeForces {
           const auto &l = lab;
           const int sx = normX > 0 ? +1 : -1;
           const int sy = normY > 0 ? +1 : -1;
-          VectorElement dveldx;
+	  cubism::VectorElement dveldx;
           if (inrange(x + 5 * sx))
             dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
                            c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
@@ -7148,7 +7146,7 @@ struct KernelComputeForces {
                            0.5 * l(x + 2 * sx, y));
           else
             dveldx = sx * (l(x + sx, y) - l(x, y));
-          VectorElement dveldy;
+	  cubism::VectorElement dveldy;
           if (inrange(y + 5 * sy))
             dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
                            c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
@@ -7158,11 +7156,11 @@ struct KernelComputeForces {
                            0.5 * l(x, y + 2 * sy));
           else
             dveldy = sx * (l(x, y + sy) - l(x, y));
-          const VectorElement dveldx2 =
+          const cubism::VectorElement dveldx2 =
               l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
-          const VectorElement dveldy2 =
+          const cubism::VectorElement dveldy2 =
               l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
-          VectorElement dveldxdy;
+	  cubism::VectorElement dveldxdy;
           if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
             dveldxdy =
                 sx * sy *
