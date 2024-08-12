@@ -23,7 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-enum {DIMENSION = 2};
+enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
@@ -663,8 +663,7 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-template <typename Block>
-class Grid {
+template <typename Block> class Grid {
 public:
   typedef Block BlockType;
   using ElementType = typename Block::ElementType;
@@ -713,13 +712,11 @@ public:
       _alloc(m, n);
     }
     if (m - 1 >= 0) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m - 1)), 2);
-           n++)
+      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m - 1)), 2); n++)
         Tree(m - 1, n).setCheckFiner();
     }
     if (m + 1 < levelMax) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m + 1)), 2);
-           n++)
+      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m + 1)), 2); n++)
         Tree(m + 1, n).setCheckCoarser();
     }
     FillPos();
@@ -2603,28 +2600,24 @@ public:
           MPI_Request req{};
           recv_requests.push_back(req);
           MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_real, r,
-                    123456, MPI_COMM_WORLD,
-                    &recv_requests.back());
+                    123456, MPI_COMM_WORLD, &recv_requests.back());
         }
         if (send_buffer[r].size() != 0) {
           MPI_Request req{};
           send_requests.push_back(req);
           MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_real, r,
-                    123456, MPI_COMM_WORLD,
-                    &send_requests.back());
+                    123456, MPI_COMM_WORLD, &send_requests.back());
         }
       }
     MPI_Request me_send_request;
     MPI_Request me_recv_request;
     if (recv_buffer[me].size() != 0) {
       MPI_Irecv(&recv_buffer[me][0], recv_buffer[me].size(), MPI_real, me,
-                123456, MPI_COMM_WORLD,
-                &me_recv_request);
+                123456, MPI_COMM_WORLD, &me_recv_request);
     }
     if (send_buffer[me].size() != 0) {
       MPI_Isend(&send_buffer[me][0], send_buffer[me].size(), MPI_real, me,
-                123456, MPI_COMM_WORLD,
-                &me_send_request);
+                123456, MPI_COMM_WORLD, &me_send_request);
     }
     if (recv_buffer[me].size() > 0)
       MPI_Waitall(1, &me_recv_request, MPI_STATUSES_IGNORE);
@@ -2659,7 +2652,8 @@ public:
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid>>> Corrector;
   std::vector<BlockInfo *> boundary;
-  GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart, int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
+  GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
+          int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
       : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, false,
               a_xperiodic, a_yperiodic, a_zperiodic),
         timestamp(0) {
@@ -3065,8 +3059,7 @@ public:
   size_t getTimeStamp() const { return timestamp; }
   virtual int get_world_size() const override { return world_size; }
 };
-template <class DataType>
-class Matrix3D {
+template <class DataType> class Matrix3D {
 private:
   DataType *m_pData{nullptr};
   unsigned int m_vSize[3]{0, 0, 0};
@@ -3156,8 +3149,7 @@ public:
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-template <typename TGrid>
-class BlockLab {
+template <typename TGrid> class BlockLab {
 public:
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
@@ -3308,8 +3300,7 @@ public:
             CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
-      m_CoarsenedBlock =
-	std::allocator<Matrix3D<ElementType>>().allocate(1);
+      m_CoarsenedBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
       std::allocator<Matrix3D<ElementType>>().construct(m_CoarsenedBlock);
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
                                CoarseBlockSize[1] + e[1] - offset[1] - 1,
@@ -4353,14 +4344,10 @@ public:
     const int my_blocks = grid->getBlocksInfo().size();
     int right_blocks, left_blocks;
     MPI_Request reqs[4];
-    MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD,
-              &reqs[0]);
-    MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD,
-              &reqs[1]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD,
-              &reqs[2]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD,
-              &reqs[3]);
+    MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
+    MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD, &reqs[1]);
+    MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD, &reqs[2]);
+    MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
     MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
     const int nu = 4;
     const int flux_left = (rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
@@ -4422,8 +4409,8 @@ public:
     }
     int temp = movedBlocks ? 1 : 0;
     MPI_Request request_reduction;
-    MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM,
-                   MPI_COMM_WORLD, &request_reduction);
+    MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+                   &request_reduction);
     for (int i = 0; i < -flux_left; i++)
       AddBlock(recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
@@ -4603,8 +4590,8 @@ public:
     if (!Reduction) {
       tmp = CallValidStates ? 1 : 0;
       Reduction = true;
-      MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                     MPI_COMM_WORLD, &Reduction_req);
+      MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+                     &Reduction_req);
     }
     MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
     CallValidStates = (tmp > 0);
@@ -5073,8 +5060,7 @@ template <typename Lab, typename Kernel, typename TGrid,
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch =
-      *(g->sync(kernel.stencil));
+  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<cubism::BlockInfo *> *halo_next;
   bool done = false;
@@ -5114,8 +5100,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-  SynchronizerMPI_AMR<Real, TGrid> &Synch =
-      *grid.sync(kernel.stencil);
+  SynchronizerMPI_AMR<Real, TGrid> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -5126,8 +5111,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 =
-      *grid2.sync(kernel2.stencil);
+  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
   std::vector<cubism::BlockInfo> &blk = grid.getBlocksInfo();
@@ -5608,10 +5592,8 @@ using ScalarBlock = cubism::GridBlock<cubism::ScalarElement>;
 using VectorBlock = cubism::GridBlock<cubism::VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock>>;
 using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock>>;
-using VectorLab =
-    cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid>>;
-using ScalarLab =
-    cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
+using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid>>;
+using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 class Shape;
@@ -6049,8 +6031,7 @@ Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
       }
   }
   Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
   _x = quantities[0];
   _y = quantities[1];
   _m = quantities[2];
@@ -6624,8 +6605,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       com[1] += OBLOCK[i]->COM_x;
       com[2] += OBLOCK[i]->COM_y;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
     shape->M = com[0];
     shape->centerOfMass[0] += com[1] / com[0];
     shape->centerOfMass[1] += com[2] / com[0];
@@ -7015,7 +6995,7 @@ struct KernelComputeForces {
           const auto &l = lab;
           const int sx = normX > 0 ? +1 : -1;
           const int sy = normY > 0 ? +1 : -1;
-	  cubism::VectorElement dveldx;
+          cubism::VectorElement dveldx;
           if (inrange(x + 5 * sx))
             dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
                            c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
@@ -7025,7 +7005,7 @@ struct KernelComputeForces {
                            0.5 * l(x + 2 * sx, y));
           else
             dveldx = sx * (l(x + sx, y) - l(x, y));
-	  cubism::VectorElement dveldy;
+          cubism::VectorElement dveldy;
           if (inrange(y + 5 * sy))
             dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
                            c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
@@ -7039,7 +7019,7 @@ struct KernelComputeForces {
               l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
           const cubism::VectorElement dveldy2 =
               l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
-	  cubism::VectorElement dveldxdy;
+          cubism::VectorElement dveldxdy;
           if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
             dveldxdy =
                 sx * sy *
@@ -7399,9 +7379,9 @@ double PoissonSolver::getA_local(int I1, int I2) {
     return 0.0;
 }
 PoissonSolver::PoissonSolver()
-    : GenericCell(*this), XminCell(*this), XmaxCell(*this),
-      YminCell(*this), YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell,
-                                                     &YminCell, &YmaxCell} {
+    : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
+      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                    &YmaxCell} {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);
@@ -7451,12 +7431,12 @@ PoissonSolver::PoissonSolver()
                                                sim.bMeanConstraint, P_inv);
 }
 void PoissonSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
-                               const int iy_c, const cubism::BlockInfo &info_f,
-                               const long long fine_close_idx,
-                               const long long fine_far_idx,
-                               const double signInt, const double signTaylor,
-                               const EdgeCellIndexer &indexer,
-                               SpRowInfo &row) const {
+                                const int iy_c, const cubism::BlockInfo &info_f,
+                                const long long fine_close_idx,
+                                const long long fine_far_idx,
+                                const double signInt, const double signTaylor,
+                                const EdgeCellIndexer &indexer,
+                                SpRowInfo &row) const {
   const int rank_c = sim.tmp->Tree(info_c).rank();
   const int rank_f = sim.tmp->Tree(info_f).rank();
   row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
@@ -7472,9 +7452,9 @@ void PoissonSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
 void PoissonSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
-                            const int iy, const cubism::BlockInfo &rhsNei,
-                            const EdgeCellIndexer &indexer,
-                            SpRowInfo &row) const {
+                             const int iy, const cubism::BlockInfo &rhsNei,
+                             const EdgeCellIndexer &indexer,
+                             SpRowInfo &row) const {
   const long long sfc_idx = indexer.This(rhs_info, ix, iy);
   if (sim.tmp->Tree(rhsNei).Exists()) {
     const int nei_rank = sim.tmp->Tree(rhsNei).rank();
@@ -7648,7 +7628,8 @@ void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
       }
   }
   double quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
+                MPI_COMM_WORLD);
   avg = quantities[0];
   avg1 = quantities[1];
   avg = avg / avg1;
@@ -8332,7 +8313,8 @@ void PressureSingle::operator()(const Real dt) {
       }
   }
   Real quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
+                MPI_COMM_WORLD);
   avg = quantities[0];
   avg1 = quantities[1];
   avg = avg / avg1;
@@ -9381,26 +9363,19 @@ int main(int argc, char **argv) {
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
   sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic,
-                           zperiodic);
+                           sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic,
-                           zperiodic);
+                           sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic,
-                            zperiodic);
+                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic,
-                            zperiodic);
+                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic,
-                            zperiodic);
+                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic,
-                           zperiodic);
+                           sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic,
-                            zperiodic);
+                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
