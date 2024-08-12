@@ -6,4 +6,5 @@ cd /scratch/lisergey/CUP2D &&
    make "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" -j &&
    mpiexec -n 2 sh run.sh
 '
-scp -avz glados@/scratch/lisergey/CUP2D/vort* .
+rsync -avz glados:/scratch/lisergey/CUP2D/vort* .
+
