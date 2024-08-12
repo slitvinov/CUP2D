@@ -7765,7 +7765,6 @@ struct pressureCorrectionKernel {
     }
   }
 };
-void PressureSingle::pressureCorrection(const Real dt) {}
 struct updatePressureRHS {
   updatePressureRHS(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
