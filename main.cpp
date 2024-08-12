@@ -6160,7 +6160,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     fprintf(xmf, "%s", st.c_str());
     fclose(xmf);
   }
-  std::vector<float> xyz(MyCells * PtsPerElement * DIMENSION);
+  xyz = (float*)malloc(8 * ncell * sizeof(*xyz));
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const BlockInfo &info = MyInfos[i];
     const float h2 = 0.5 * info.h;
@@ -6183,12 +6183,12 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  size = 8 * sizeof(float);
-  MPI_File_write_at_all(mpi_file, size * offset, xyz.data(), size * ncell,
+  MPI_File_write_at_all(mpi_file, offset * sizeof *xyz, xyz, ncell * sizeof *xyz,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
+  free(xyz);
 
-  std::vector<float> attr(MyCells);
+  attr = (float*)malloc(ncell * sizeof(*xyz));
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const BlockInfo &info = MyInfos[i];
     B &b = *(B *)info.ptrBlock;
@@ -6205,10 +6205,10 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  size = sizeof(float);
-  MPI_File_write_at_all(mpi_file, size * offset, attr.data(), size * ncell,
+  MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr, ncell * sizeof *attr,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
+  free(attr);
 }
 } // namespace cubism
 
