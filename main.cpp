@@ -9464,11 +9464,11 @@ public:
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
   }
-  virtual ~Fish() override;
+  virtual ~Fish();
   Real getCharLength() const override { return length; }
-  void removeMoments(const std::vector<cubism::BlockInfo> &vInfo) override;
-  virtual void updatePosition(Real dt) override;
-  virtual void create(const std::vector<cubism::BlockInfo> &vInfo) override;
+  void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
+  virtual void updatePosition(Real dt);
+  virtual void create(const std::vector<cubism::BlockInfo> &vInfo);
 };
 void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (auto &entry : obstacleBlocks)
