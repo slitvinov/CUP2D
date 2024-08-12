@@ -6044,7 +6044,7 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, ScalarGrid *grid, char *path) {
-  long i, j, k, l, x, y, z, ncell, ncell_total, offset;
+  long i, j, k, l, x, y, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
@@ -6122,7 +6122,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
         xyz[k++] = v + info.h;
         xyz[k++] = u + info.h;
         xyz[k++] = v;
-        attr[l++] = b(x, y, z).s;
+        attr[l++] = b.data[0][y][x].s;
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
