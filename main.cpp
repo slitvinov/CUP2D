@@ -6065,7 +6065,6 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  //std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
   ncell = grid->m_vInfo.size() * nX * nY;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
