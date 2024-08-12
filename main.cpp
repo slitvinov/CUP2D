@@ -6006,8 +6006,6 @@ public:
   Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
   virtual void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
   virtual void updateLabVelocity(int mSum[2], Real uSum[2]);
-  void penalize();
-  void diagnostics();
   virtual void computeForces();
 };
 struct KernelVorticity {
