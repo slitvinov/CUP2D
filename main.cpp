@@ -5840,62 +5840,20 @@ struct ObstacleBlock {
       trash = nullptr;
     }
     surface.clear();
-    if (x_s not_eq nullptr) {
-      free(x_s);
-      x_s = nullptr;
-    }
-    if (y_s not_eq nullptr) {
-      free(y_s);
-      y_s = nullptr;
-    }
-    if (p_s not_eq nullptr) {
-      free(p_s);
-      p_s = nullptr;
-    }
-    if (u_s not_eq nullptr) {
-      free(u_s);
-      u_s = nullptr;
-    }
-    if (v_s not_eq nullptr) {
-      free(v_s);
-      v_s = nullptr;
-    }
-    if (nx_s not_eq nullptr) {
-      free(nx_s);
-      nx_s = nullptr;
-    }
-    if (ny_s not_eq nullptr) {
-      free(ny_s);
-      ny_s = nullptr;
-    }
-    if (omega_s not_eq nullptr) {
-      free(omega_s);
-      omega_s = nullptr;
-    }
-    if (uDef_s not_eq nullptr) {
-      free(uDef_s);
-      uDef_s = nullptr;
-    }
-    if (vDef_s not_eq nullptr) {
-      free(vDef_s);
-      vDef_s = nullptr;
-    }
-    if (fX_s not_eq nullptr) {
-      free(fX_s);
-      fX_s = nullptr;
-    }
-    if (fY_s not_eq nullptr) {
-      free(fY_s);
-      fY_s = nullptr;
-    }
-    if (fXv_s not_eq nullptr) {
-      free(fXv_s);
-      fXv_s = nullptr;
-    }
-    if (fYv_s not_eq nullptr) {
-      free(fYv_s);
-      fYv_s = nullptr;
-    }
+    free(x_s);
+    free(y_s);
+    free(p_s);
+    free(u_s);
+    free(v_s);
+    free(nx_s);
+    free(ny_s);
+    free(omega_s);
+    free(uDef_s);
+    free(vDef_s);
+    free(fX_s);
+    free(fY_s);
+    free(fXv_s);
+    free(fYv_s);
   }
   void clear() {
     clear_surface();
@@ -6819,22 +6777,14 @@ public:
     tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
   }
   ~AdaptTheMesh() {
-    if (tmp_amr not_eq nullptr)
-      delete tmp_amr;
-    if (chi_amr not_eq nullptr)
-      delete chi_amr;
-    if (pres_amr not_eq nullptr)
-      delete pres_amr;
-    if (pold_amr not_eq nullptr)
-      delete pold_amr;
-    if (vel_amr not_eq nullptr)
-      delete vel_amr;
-    if (vOld_amr not_eq nullptr)
-      delete vOld_amr;
-    if (tmpV_amr not_eq nullptr)
-      delete tmpV_amr;
-    if (Cs_amr not_eq nullptr)
-      delete Cs_amr;
+    delete tmp_amr;
+    delete chi_amr;
+    delete pres_amr;
+    delete pold_amr;
+    delete vel_amr;
+    delete vOld_amr;
+    delete tmpV_amr;
+    delete Cs_amr;
   }
   void operator()(const Real dt) override;
 };
@@ -9460,11 +9410,9 @@ void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
     }
   }
   for (auto &E : vSegments) {
-    if (E not_eq nullptr)
       delete E;
   }
   for (auto &E : segmentsPerBlock) {
-    if (E not_eq nullptr)
       delete E;
   }
 }
