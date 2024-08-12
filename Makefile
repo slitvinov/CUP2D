@@ -16,9 +16,7 @@ FLAGS =\
 -Wno-format-truncation\
 -Wno-unused-result\
 $(OPENMPFLAGS)\
--O3\
 -std=c++17\
-
 
 O =\
 cuda.o\
