@@ -8622,12 +8622,6 @@ protected:
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
   template <typename T>
-  inline void _translateAndRotate2D(const T pos[2], const Real Rmatrix2D[2][2],
-                                    Real &x, Real &y) const {
-    const Real p[2] = {x - pos[0], y - pos[1]};
-    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
   static Real *_alloc(const int N) { return new Real[N]; }
   template <typename T> static void _dealloc(T *ptr) {
     if (ptr not_eq nullptr) {
