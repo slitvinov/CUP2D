@@ -7795,6 +7795,7 @@ protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   std::shared_ptr<PoissonSolver> pressureSolver;
   void pressureCorrection(const Real dt);
+
 public:
   void operator()(const Real dt) override;
   PressureSingle();
@@ -7947,8 +7948,7 @@ struct pressureCorrectionKernel {
     }
   }
 };
-void PressureSingle::pressureCorrection(const Real dt) {
-}
+void PressureSingle::pressureCorrection(const Real dt) {}
 struct updatePressureRHS {
   updatePressureRHS(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
@@ -8072,58 +8072,58 @@ struct updatePressureRHS1 {
 void PressureSingle::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   for (const auto &shape : sim.shapes) {
-  const size_t Nblocks = velInfo.size();
-  const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-  const Real Cx = shape->centerOfMass[0];
-  const Real Cy = shape->centerOfMass[1];
-  Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+    const size_t Nblocks = velInfo.size();
+    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+    const Real Cx = shape->centerOfMass[0];
+    const Real Cy = shape->centerOfMass[1];
+    Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-  for (size_t i = 0; i < Nblocks; i++) {
-    const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    const Real hsq = velInfo[i].h * velInfo[i].h;
-    if (OBLOCK[velInfo[i].blockID] == nullptr)
-      continue;
-    const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
-    const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
-    const Real lambdt = sim.lambda * sim.dt;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        if (chi[iy][ix] <= 0)
-          continue;
-        const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
-                               VEL(ix, iy).u[1] - udef[iy][ix][1]};
-        const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
-        const Real F = hsq * Xlamdt / (1 + Xlamdt);
-        Real p[2];
-        velInfo[i].pos(p, ix, iy);
-        p[0] -= Cx;
-        p[1] -= Cy;
-        PM += F;
-        PJ += F * (p[0] * p[0] + p[1] * p[1]);
-        PX += F * p[0];
-        PY += F * p[1];
-        UM += F * udiff[0];
-        VM += F * udiff[1];
-        AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
-      }
-  }
-  Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-  PM = quantities[0];
-  PJ = quantities[1];
-  PX = quantities[2];
-  PY = quantities[3];
-  UM = quantities[4];
-  VM = quantities[5];
-  AM = quantities[6];
-  shape->fluidAngMom = AM;
-  shape->fluidMomX = UM;
-  shape->fluidMomY = VM;
-  shape->penalDX = PX;
-  shape->penalDY = PY;
-  shape->penalM = PM;
-  shape->penalJ = PJ;
+    for (size_t i = 0; i < Nblocks; i++) {
+      const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
+      const Real hsq = velInfo[i].h * velInfo[i].h;
+      if (OBLOCK[velInfo[i].blockID] == nullptr)
+        continue;
+      const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
+      const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
+      const Real lambdt = sim.lambda * sim.dt;
+      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+          if (chi[iy][ix] <= 0)
+            continue;
+          const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
+                                 VEL(ix, iy).u[1] - udef[iy][ix][1]};
+          const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
+          const Real F = hsq * Xlamdt / (1 + Xlamdt);
+          Real p[2];
+          velInfo[i].pos(p, ix, iy);
+          p[0] -= Cx;
+          p[1] -= Cy;
+          PM += F;
+          PJ += F * (p[0] * p[0] + p[1] * p[1]);
+          PX += F * p[0];
+          PY += F * p[1];
+          UM += F * udiff[0];
+          VM += F * udiff[1];
+          AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
+        }
+    }
+    Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
+    MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+                  sim.chi->getWorldComm());
+    PM = quantities[0];
+    PJ = quantities[1];
+    PX = quantities[2];
+    PY = quantities[3];
+    UM = quantities[4];
+    VM = quantities[5];
+    AM = quantities[6];
+    shape->fluidAngMom = AM;
+    shape->fluidMomX = UM;
+    shape->fluidMomY = VM;
+    shape->penalDX = PX;
+    shape->penalDY = PY;
+    shape->penalM = PM;
+    shape->penalJ = PJ;
     shape->updateVelocity(dt);
   }
   const auto &shapes = sim.shapes;
@@ -9291,26 +9291,26 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 }
 
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-  : origC{C[0], C[1]},
-    origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-    centerOfMass{C[0], C[1]}, orientation(origAng),
-    bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
-    bFixedy(p("-bFixedy").asBool(bFixed)),
-    bForced(p("-bForced").asBool(false)),
-    bForcedx(p("-bForcedx").asBool(bForced)),
-    bForcedy(p("-bForcedy").asBool(bForced)),
-    bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
-    forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-    forcedomega(-p("-angvel").asDouble(0)),
-    timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-    breakSymmetryType(p("-breakSymmetryType").asInt(0)),
-    breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
-    breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)),
-    length(p("-L").asDouble(0.1)),
-    Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {
-      const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-      myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-			      }
+    : origC{C[0], C[1]},
+      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      centerOfMass{C[0], C[1]}, orientation(origAng),
+      bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
+      bFixedy(p("-bFixedy").asBool(bFixed)),
+      bForced(p("-bForced").asBool(false)),
+      bForcedx(p("-bForcedx").asBool(bForced)),
+      bForcedy(p("-bForcedy").asBool(bForced)),
+      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
+      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
+      forcedomega(-p("-angvel").asDouble(0)),
+      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
+      breakSymmetryType(p("-breakSymmetryType").asInt(0)),
+      breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
+      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)),
+      length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
+      phaseShift(p("-phi").asDouble(0)) {
+  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
+  myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
+}
 struct FishData;
 void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (auto &entry : obstacleBlocks)
@@ -9395,10 +9395,10 @@ void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
     }
   }
   for (auto &E : vSegments) {
-      delete E;
+    delete E;
   }
   for (auto &E : segmentsPerBlock) {
-      delete E;
+    delete E;
   }
 }
 void Shape::updatePosition(Real dt) {
@@ -9447,7 +9447,7 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
         pos->udef[iy][ix][0] -= I.u - I.a * p[1];
         pos->udef[iy][ix][1] -= I.v + I.a * p[0];
       }
-  }  
+  }
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
   myFish->computeSkinNormals(orientation, centerOfMass);
 }
