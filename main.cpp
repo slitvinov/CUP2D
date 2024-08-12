@@ -44,9 +44,6 @@ public:
     content += " " + rhs.content;
     return *this;
   }
-  Value operator+(const Value &rhs) {
-    return Value(content + " " + rhs.content);
-  }
   double asDouble(double def = 0);
   int asInt(int def = 0);
   bool asBool(bool def = false);
