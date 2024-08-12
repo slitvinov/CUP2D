@@ -6182,22 +6182,6 @@ void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
     uSum[1] -= v;
   }
 }
-void Shape::updatePosition(Real dt) {
-  centerOfMass[0] += dt * (u + sim.uinfx);
-  centerOfMass[1] += dt * (v + sim.uinfy);
-  labCenterOfMass[0] += dt * u;
-  labCenterOfMass[1] += dt * v;
-  orientation += dt * omega;
-  orientation = orientation > M_PI ? orientation - 2 * M_PI : orientation;
-  orientation = orientation < -M_PI ? orientation + 2 * M_PI : orientation;
-  const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
-  center[0] = centerOfMass[0] + cosang * d_gm[0] - sinang * d_gm[1];
-  center[1] = centerOfMass[1] + sinang * d_gm[0] + cosang * d_gm[1];
-  const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
-  const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
-  if (dt <= 0)
-    return;
-}
 Shape::Integrals
 Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
   Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
@@ -9542,7 +9526,18 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
   }
 }
 void Fish::updatePosition(Real dt) {
-  Shape::updatePosition(dt);
+  centerOfMass[0] += dt * (u + sim.uinfx);
+  centerOfMass[1] += dt * (v + sim.uinfy);
+  labCenterOfMass[0] += dt * u;
+  labCenterOfMass[1] += dt * v;
+  orientation += dt * omega;
+  orientation = orientation > M_PI ? orientation - 2 * M_PI : orientation;
+  orientation = orientation < -M_PI ? orientation + 2 * M_PI : orientation;
+  const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
+  center[0] = centerOfMass[0] + cosang * d_gm[0] - sinang * d_gm[1];
+  center[1] = centerOfMass[1] + sinang * d_gm[0] + cosang * d_gm[1];
+  const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
+  const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
   theta_internal -= dt * angvel_internal;
 }
 Fish::~Fish() {
