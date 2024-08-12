@@ -6043,7 +6043,7 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
+static void dump(Real time, ScalarGrid *grid, char *path) {
   long i, j, k, l, x, y, z, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
@@ -6051,7 +6051,7 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
-  typedef typename TGrid::BlockType B;
+  typedef typename ScalarGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
