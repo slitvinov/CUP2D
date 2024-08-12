@@ -9454,7 +9454,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
 class StefanFish : public Fish {
 public:
   StefanFish(cubism::CommandlineParser &p, Real C[2]);
-  void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   std::vector<Real> state(const std::vector<double> &origin) const;
 };
 class CurvatureFish : public FishData {
@@ -9540,9 +9539,6 @@ public:
 StefanFish::StefanFish(cubism::CommandlineParser &p, Real C[2]) : Fish(p, C) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-}
-void StefanFish::create(const std::vector<cubism::BlockInfo> &vInfo) {
-  Fish::create(vInfo);
 }
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
