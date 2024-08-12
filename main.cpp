@@ -6084,7 +6084,6 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   void create(const std::vector<cubism::BlockInfo> &vInfo);
-  void finalize(){};
   void updateVelocity(Real dt);
   void updatePosition(Real dt);
   void getCentroid(Real centroid[2]) const {
@@ -6799,8 +6798,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes) {
     shape->removeMoments(chiInfo);
   }
-  for (const auto &shape : sim.shapes) {
-    shape->finalize();
   }
 }
 class AdaptTheMesh : public Operator {
