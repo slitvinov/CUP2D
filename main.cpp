@@ -6103,7 +6103,7 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
             "    </Grid>\n"
             "  </Domain>\n"
             "</Xdmf>\n",
-            time, ncell_total, 2 * ncell_total, xyz_path, ncell_total, attr_path);
+            time, ncell_total, 4 * ncell_total, xyz_path, ncell_total, attr_path);
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
