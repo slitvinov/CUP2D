@@ -2667,11 +2667,7 @@ public:
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid>>> Corrector;
   std::vector<BlockInfo *> boundary;
-  GridMPI(const int nX, const int nY = 1, const int nZ = 1,
-          const double a_maxextent = 1, const int a_levelStart = 0,
-          const int a_levelMax = 1,
-          const bool a_xperiodic = true, const bool a_yperiodic = true,
-          const bool a_zperiodic = true)
+  GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart, int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
       : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, false,
               a_xperiodic, a_yperiodic, a_zperiodic),
         timestamp(0) {
@@ -5232,14 +5228,6 @@ struct VectorElement {
     for (int i = 0; i < DIMENSION; ++i)
       u[i] = 0;
   }
-  inline void set(const Real v) {
-    for (int i = 0; i < DIMENSION; ++i)
-      u[i] = v;
-  }
-  inline void copy(const VectorElement &c) {
-    for (int i = 0; i < DIMENSION; ++i)
-      u[i] = c.u[i];
-  }
   VectorElement &operator=(const VectorElement &c) = default;
   VectorElement &operator*=(const Real a) {
     for (int i = 0; i < DIMENSION; ++i)
@@ -5256,11 +5244,6 @@ struct VectorElement {
       this->u[i] -= rhs.u[i];
     return *this;
   }
-  VectorElement &operator/=(const VectorElement &rhs) {
-    for (int i = 0; i < DIMENSION; ++i)
-      this->u[i] /= rhs.u[i];
-    return *this;
-  }
   friend VectorElement operator*(const Real a, VectorElement el) {
     return (el *= a);
   }
@@ -5269,45 +5252,6 @@ struct VectorElement {
   }
   friend VectorElement operator-(VectorElement lhs, const VectorElement &rhs) {
     return (lhs -= rhs);
-  }
-  friend VectorElement operator/(VectorElement lhs, const VectorElement &rhs) {
-    return (lhs /= rhs);
-  }
-  bool operator<(const VectorElement &other) const {
-    Real s1 = 0.0;
-    Real s2 = 0.0;
-    for (int i = 0; i < DIMENSION; ++i) {
-      s1 += u[i] * u[i];
-      s2 += other.u[i] * other.u[i];
-    }
-    return (s1 < s2);
-  }
-  bool operator>(const VectorElement &other) const {
-    Real s1 = 0.0;
-    Real s2 = 0.0;
-    for (int i = 0; i < DIMENSION; ++i) {
-      s1 += u[i] * u[i];
-      s2 += other.u[i] * other.u[i];
-    }
-    return (s1 > s2);
-  }
-  bool operator<=(const VectorElement &other) const {
-    Real s1 = 0.0;
-    Real s2 = 0.0;
-    for (int i = 0; i < DIMENSION; ++i) {
-      s1 += u[i] * u[i];
-      s2 += other.u[i] * other.u[i];
-    }
-    return (s1 <= s2);
-  }
-  bool operator>=(const VectorElement &other) const {
-    Real s1 = 0.0;
-    Real s2 = 0.0;
-    for (int i = 0; i < DIMENSION; ++i) {
-      s1 += u[i] * u[i];
-      s2 += other.u[i] * other.u[i];
-    }
-    return (s1 >= s2);
   }
   Real magnitude() {
     Real s1 = 0.0;
