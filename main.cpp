@@ -5697,7 +5697,6 @@ using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 class Shape;
 static struct {
-  MPI_Comm comm;
   int rank;
   int size;
   int bpdx;
@@ -7511,7 +7510,7 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
     return 0.0;
 }
 ExpAMRSolver::ExpAMRSolver()
-    : m_comm_(sim.comm), GenericCell(*this), XminCell(*this), XmaxCell(*this),
+    : GenericCell(*this), XminCell(*this), XmaxCell(*this),
       YminCell(*this), YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell,
                                                      &YminCell, &YmaxCell} {
   MPI_Comm_rank(m_comm_, &rank_);
@@ -8445,7 +8444,7 @@ void PressureSingle::operator()(const Real dt) {
       }
   }
   Real quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM, sim.comm);
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
   avg = quantities[0];
   avg1 = quantities[1];
   avg = avg / avg1;
@@ -9447,9 +9446,8 @@ int main(int argc, char **argv) {
   std::vector<Operator *> pipeline;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   cubism::CommandlineParser parser(argc, argv);
-  sim.comm = MPI_COMM_WORLD;
-  MPI_Comm_size(sim.comm, &sim.size);
-  MPI_Comm_rank(sim.comm, &sim.rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
   if (sim.rank == 0)
     printf("%d ranks\n", sim.size);
 #ifdef _OPENMP
