@@ -7795,9 +7795,6 @@ protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   std::shared_ptr<PoissonSolver> pressureSolver;
   void pressureCorrection(const Real dt);
-  void integrateMomenta(Shape *const shape) const;
-  void penalize(const Real dt) const;
-
 public:
   void operator()(const Real dt) override;
   PressureSingle();
@@ -7966,97 +7963,6 @@ void PressureSingle::pressureCorrection(const Real dt) {
       }
   }
 }
-void PressureSingle::integrateMomenta(Shape *const shape) const {
-  const size_t Nblocks = velInfo.size();
-  const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-  const Real Cx = shape->centerOfMass[0];
-  const Real Cy = shape->centerOfMass[1];
-  Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
-#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-  for (size_t i = 0; i < Nblocks; i++) {
-    const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-    const Real hsq = velInfo[i].h * velInfo[i].h;
-    if (OBLOCK[velInfo[i].blockID] == nullptr)
-      continue;
-    const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
-    const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
-    const Real lambdt = sim.lambda * sim.dt;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        if (chi[iy][ix] <= 0)
-          continue;
-        const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
-                               VEL(ix, iy).u[1] - udef[iy][ix][1]};
-        const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
-        const Real F = hsq * Xlamdt / (1 + Xlamdt);
-        Real p[2];
-        velInfo[i].pos(p, ix, iy);
-        p[0] -= Cx;
-        p[1] -= Cy;
-        PM += F;
-        PJ += F * (p[0] * p[0] + p[1] * p[1]);
-        PX += F * p[0];
-        PY += F * p[1];
-        UM += F * udiff[0];
-        VM += F * udiff[1];
-        AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
-      }
-  }
-  Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
-  PM = quantities[0];
-  PJ = quantities[1];
-  PX = quantities[2];
-  PY = quantities[3];
-  UM = quantities[4];
-  VM = quantities[5];
-  AM = quantities[6];
-  shape->fluidAngMom = AM;
-  shape->fluidMomX = UM;
-  shape->fluidMomY = VM;
-  shape->penalDX = PX;
-  shape->penalDY = PY;
-  shape->penalM = PM;
-  shape->penalJ = PJ;
-}
-void PressureSingle::penalize(const Real dt) const {
-  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const size_t Nblocks = velInfo.size();
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++)
-    for (const auto &shape : sim.shapes) {
-      const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-      const ObstacleBlock *const o = OBLOCK[velInfo[i].blockID];
-      if (o == nullptr)
-        continue;
-      const Real u_s = shape->u;
-      const Real v_s = shape->v;
-      const Real omega_s = shape->omega;
-      const Real Cx = shape->centerOfMass[0];
-      const Real Cy = shape->centerOfMass[1];
-      const CHI_MAT &__restrict__ X = o->chi;
-      const UDEFMAT &__restrict__ UDEF = o->udef;
-      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-          if (CHI(ix, iy).s > X[iy][ix])
-            continue;
-          if (X[iy][ix] <= 0)
-            continue;
-          Real p[2];
-          velInfo[i].pos(p, ix, iy);
-          p[0] -= Cx;
-          p[1] -= Cy;
-          const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
-          const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
-          const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
-          V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
-          V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
-        }
-    }
-}
 struct updatePressureRHS {
   updatePressureRHS(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
@@ -8180,7 +8086,58 @@ struct updatePressureRHS1 {
 void PressureSingle::operator()(const Real dt) {
   const size_t Nblocks = velInfo.size();
   for (const auto &shape : sim.shapes) {
-    integrateMomenta(shape.get());
+  const size_t Nblocks = velInfo.size();
+  const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+  const Real Cx = shape->centerOfMass[0];
+  const Real Cy = shape->centerOfMass[1];
+  Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
+  for (size_t i = 0; i < Nblocks; i++) {
+    const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
+    const Real hsq = velInfo[i].h * velInfo[i].h;
+    if (OBLOCK[velInfo[i].blockID] == nullptr)
+      continue;
+    const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
+    const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
+    const Real lambdt = sim.lambda * sim.dt;
+    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+        if (chi[iy][ix] <= 0)
+          continue;
+        const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
+                               VEL(ix, iy).u[1] - udef[iy][ix][1]};
+        const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
+        const Real F = hsq * Xlamdt / (1 + Xlamdt);
+        Real p[2];
+        velInfo[i].pos(p, ix, iy);
+        p[0] -= Cx;
+        p[1] -= Cy;
+        PM += F;
+        PJ += F * (p[0] * p[0] + p[1] * p[1]);
+        PX += F * p[0];
+        PY += F * p[1];
+        UM += F * udiff[0];
+        VM += F * udiff[1];
+        AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
+      }
+  }
+  Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
+  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+                sim.chi->getWorldComm());
+  PM = quantities[0];
+  PJ = quantities[1];
+  PX = quantities[2];
+  PY = quantities[3];
+  UM = quantities[4];
+  VM = quantities[5];
+  AM = quantities[6];
+  shape->fluidAngMom = AM;
+  shape->fluidMomX = UM;
+  shape->fluidMomY = VM;
+  shape->penalDX = PX;
+  shape->penalDY = PY;
+  shape->penalM = PM;
+  shape->penalJ = PJ;
     shape->updateVelocity(dt);
   }
   const auto &shapes = sim.shapes;
@@ -8428,9 +8385,41 @@ void PressureSingle::operator()(const Real dt) {
       shapes[i]->omega = ho1[2];
       shapes[j]->omega = ho2[2];
     }
-  penalize(dt);
+  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+#pragma omp parallel for
+  for (size_t i = 0; i < Nblocks; i++)
+    for (const auto &shape : sim.shapes) {
+      const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      const ObstacleBlock *const o = OBLOCK[velInfo[i].blockID];
+      if (o == nullptr)
+        continue;
+      const Real u_s = shape->u;
+      const Real v_s = shape->v;
+      const Real omega_s = shape->omega;
+      const Real Cx = shape->centerOfMass[0];
+      const Real Cy = shape->centerOfMass[1];
+      const CHI_MAT &__restrict__ X = o->chi;
+      const UDEFMAT &__restrict__ UDEF = o->udef;
+      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+      VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+          if (CHI(ix, iy).s > X[iy][ix])
+            continue;
+          if (X[iy][ix] <= 0)
+            continue;
+          Real p[2];
+          velInfo[i].pos(p, ix, iy);
+          p[0] -= Cx;
+          p[1] -= Cy;
+          const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
+          const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
+          const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
+          V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
+          V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
+        }
+    }
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
