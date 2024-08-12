@@ -677,7 +677,6 @@ class Grid {
 public:
   typedef Block BlockType;
   using ElementType = typename Block::ElementType;
-  typedef typename Block::RealType Real;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> m_vInfo;
@@ -2662,7 +2661,6 @@ public:
 };
 template <typename TGrid> class GridMPI : public TGrid {
 public:
-  typedef typename TGrid::Real Real;
   typedef typename TGrid::BlockType Block;
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
@@ -5097,7 +5095,7 @@ template <typename Lab, typename Kernel, typename TGrid,
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-  cubism::SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
+  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch =
       *(g->sync(kernel.stencil));
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<cubism::BlockInfo *> *halo_next;
@@ -5138,7 +5136,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-  SynchronizerMPI_AMR<typename TGrid::Real, TGrid> &Synch =
+  SynchronizerMPI_AMR<Real, TGrid> &Synch =
       *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -5150,7 +5148,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<typename TGrid::Real, TGrid2> &Synch2 =
+  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 =
       *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
