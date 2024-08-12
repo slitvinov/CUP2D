@@ -7,5 +7,4 @@ cd /scratch/lisergey/CUP2D &&
    mpiexec -n 2 sh run.sh
    python -m gcovr --html-details cover.html
 '
-rsync -avz glados:/scratch/lisergey/CUP2D/vort* .
-rsync -avz glados:/scratch/lisergey/CUP2D/cover* .
+rsync -avz glados:/scratch/lisergey/CUP2D/vort* glados:/scratch/lisergey/CUP2D/cover* .
