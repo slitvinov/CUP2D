@@ -5981,7 +5981,6 @@ public:
   Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
   virtual Real getCharLength() const = 0;
-  virtual Real getMaxVel() const;
   virtual void create(const std::vector<cubism::BlockInfo> &vInfo) = 0;
   virtual void finalize(){};
   virtual void updateVelocity(Real dt);
@@ -6118,7 +6117,6 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
 }
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-Real Shape::getMaxVel() const { return std::sqrt(u * u + v * v); }
 void Shape::updateVelocity(Real dt) {
   double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
                     {(double)0, (double)penalM, (double)penalDX},
