@@ -984,7 +984,6 @@ struct StencilInfo {
     return !(not0 || not1 || not2 || not3);
   }
 };
-template <typename Real>
 inline void pack(const Real *const srcbase, Real *const dst,
                  const unsigned int gptfloats, int *selected_components,
                  const int ncomponents, const int xstart, const int ystart,
@@ -1014,8 +1013,7 @@ inline void pack(const Real *const srcbase, Real *const dst,
         }
   }
 }
-template <typename Real>
-inline void unpack_subregion(
+static void unpack_subregion(
     const Real *const pack, Real *const dstbase, const unsigned int gptfloats,
     const int *const selected_components, const int ncomponents,
     const int srcxstart, const int srcystart, const int srczstart, const int LX,
@@ -2404,8 +2402,8 @@ public:
       return;
     _grid.UpdateFluxCorrection = false;
     int temprank;
-    MPI_Comm_size(_grid.getWorldComm(), &size);
-    MPI_Comm_rank(_grid.getWorldComm(), &temprank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &temprank);
     TFluxCorrection::rank = temprank;
     send_buffer.resize(size);
     recv_buffer.resize(size);
@@ -2613,14 +2611,14 @@ public:
           MPI_Request req{};
           recv_requests.push_back(req);
           MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_real, r,
-                    123456, (*TFluxCorrection::grid).getWorldComm(),
+                    123456, MPI_COMM_WORLD,
                     &recv_requests.back());
         }
         if (send_buffer[r].size() != 0) {
           MPI_Request req{};
           send_requests.push_back(req);
           MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_real, r,
-                    123456, (*TFluxCorrection::grid).getWorldComm(),
+                    123456, MPI_COMM_WORLD,
                     &send_requests.back());
         }
       }
@@ -2628,12 +2626,12 @@ public:
     MPI_Request me_recv_request;
     if (recv_buffer[me].size() != 0) {
       MPI_Irecv(&recv_buffer[me][0], recv_buffer[me].size(), MPI_real, me,
-                123456, (*TFluxCorrection::grid).getWorldComm(),
+                123456, MPI_COMM_WORLD,
                 &me_recv_request);
     }
     if (send_buffer[me].size() != 0) {
       MPI_Isend(&send_buffer[me][0], send_buffer[me].size(), MPI_real, me,
-                123456, (*TFluxCorrection::grid).getWorldComm(),
+                123456, MPI_COMM_WORLD,
                 &me_send_request);
     }
     if (recv_buffer[me].size() > 0)
@@ -2664,7 +2662,6 @@ public:
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
   size_t timestamp;
-  MPI_Comm worldcomm;
   int myrank;
   int world_size;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
@@ -2677,9 +2674,9 @@ public:
           const bool a_zperiodic = true)
       : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, false,
               a_xperiodic, a_yperiodic, a_zperiodic),
-        timestamp(0), worldcomm(comm) {
-    MPI_Comm_size(worldcomm, &world_size);
-    MPI_Comm_rank(worldcomm, &myrank);
+        timestamp(0) {
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
     const long long total_blocks =
         nX * nY * nZ * pow(pow(2, a_levelStart), DIMENSION);
     long long my_blocks = total_blocks / world_size;
@@ -2697,13 +2694,13 @@ public:
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
     initialize_blocks(Zs, levels);
-    MPI_Barrier(worldcomm);
+    MPI_Barrier(MPI_COMM_WORLD);
   }
   virtual ~GridMPI() override {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       delete it->second;
     SynchronizerMPIs.clear();
-    MPI_Barrier(worldcomm);
+    MPI_Barrier(MPI_COMM_WORLD);
   }
   virtual Block *avail(const int m, const long long n) override {
     return (TGrid::Tree(m, n).rank() == myrank)
@@ -2713,8 +2710,8 @@ public:
   virtual void UpdateBoundary(bool clean = false) override {
     const auto blocksPerDim = TGrid::getMaxBlocks();
     int rank, size;
-    MPI_Comm_rank(worldcomm, &rank);
-    MPI_Comm_size(worldcomm, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     std::vector<std::vector<long long>> send_buffer(size);
     std::vector<BlockInfo *> &bbb = boundary;
     std::set<int> Neighbors;
@@ -2813,9 +2810,9 @@ public:
         requests.resize(requests.size() + 1);
         if (send_buffer[r].size() != 0)
           MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
-                    123, worldcomm, &requests[requests.size() - 1]);
+                    123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
         else {
-          MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, worldcomm,
+          MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
                     &requests[requests.size() - 1]);
         }
       }
@@ -2824,13 +2821,13 @@ public:
       if (r != rank) {
         int recv_size;
         MPI_Status status;
-        MPI_Probe(r, 123, worldcomm, &status);
+        MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
         MPI_Get_count(&status, MPI_LONG_LONG, &recv_size);
         if (recv_size > 0) {
           recv_buffer[r].resize(recv_size);
           requests.resize(requests.size() + 1);
           MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
-                    123, worldcomm, &requests[requests.size() - 1]);
+                    123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
         }
       }
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -2927,9 +2924,9 @@ public:
     int mysize = (int)myData.size();
     int kk = 0;
     for (auto r : myNeighbors) {
-      MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, timestamp, worldcomm,
+      MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
                 &size_requests[2 * kk]);
-      MPI_Isend(&mysize, 1, MPI_INT, r, timestamp, worldcomm,
+      MPI_Isend(&mysize, 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
                 &size_requests[2 * kk + 1]);
       kk++;
     }
@@ -2947,9 +2944,9 @@ public:
     for (auto r : myNeighbors) {
       recv_buffer[kk].resize(recv_size[kk]);
       MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG,
-                r, timestamp, worldcomm, &requests[2 * kk]);
+                r, timestamp, MPI_COMM_WORLD, &requests[2 * kk]);
       MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG,
-                r, timestamp, worldcomm, &requests[2 * kk + 1]);
+                r, timestamp, MPI_COMM_WORLD, &requests[2 * kk + 1]);
       kk++;
     }
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -3008,7 +3005,7 @@ public:
     std::vector<double> all_boxes(world_size * 6);
     double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
     MPI_Allgather(my_box, 6, MPI_DOUBLE, all_boxes.data(), 6, MPI_DOUBLE,
-                  worldcomm);
+                  MPI_COMM_WORLD);
     for (int i = 0; i < world_size; i++) {
       if (i == myrank)
         continue;
@@ -3078,7 +3075,6 @@ public:
   }
   virtual int rank() const override { return myrank; }
   size_t getTimeStamp() const { return timestamp; }
-  MPI_Comm getWorldComm() const { return worldcomm; }
   virtual int get_world_size() const override { return world_size; }
 };
 template <class DataType>
@@ -4315,13 +4311,13 @@ public:
           MPI_Request req{};
           requests.push_back(req);
           MPI_Irecv(&recv_blocks[r][0], recv_blocks[r].size(), MPI_BLOCK, r,
-                    2468, grid->getWorldComm(), &requests.back());
+                    2468, MPI_COMM_WORLD, &requests.back());
         }
         if (send_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
           MPI_Isend(&send_blocks[r][0], send_blocks[r].size(), MPI_BLOCK, r,
-                    2468, grid->getWorldComm(), &requests.back());
+                    2468, MPI_COMM_WORLD, &requests.back());
         }
       }
     for (int r = 0; r < size; r++)
@@ -4369,13 +4365,13 @@ public:
     const int my_blocks = grid->getBlocksInfo().size();
     int right_blocks, left_blocks;
     MPI_Request reqs[4];
-    MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, grid->getWorldComm(),
+    MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD,
               &reqs[0]);
-    MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, grid->getWorldComm(),
+    MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD,
               &reqs[1]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, grid->getWorldComm(),
+    MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD,
               &reqs[2]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, grid->getWorldComm(),
+    MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD,
               &reqs[3]);
     MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
     const int nu = 4;
@@ -4398,13 +4394,13 @@ public:
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
-                grid->getWorldComm(), &request.back());
+                MPI_COMM_WORLD, &request.back());
     } else if (flux_left < 0) {
       recv_left.resize(abs(flux_left));
       MPI_Request req{};
       request.push_back(req);
       MPI_Irecv(&recv_left[0], recv_left.size(), MPI_BLOCK, left, 4560,
-                grid->getWorldComm(), &request.back());
+                MPI_COMM_WORLD, &request.back());
     }
     if (flux_right > 0) {
       send_right.resize(flux_right);
@@ -4414,13 +4410,13 @@ public:
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
-                grid->getWorldComm(), &request.back());
+                MPI_COMM_WORLD, &request.back());
     } else if (flux_right < 0) {
       recv_right.resize(abs(flux_right));
       MPI_Request req{};
       request.push_back(req);
       MPI_Irecv(&recv_right[0], recv_right.size(), MPI_BLOCK, right, 7890,
-                grid->getWorldComm(), &request.back());
+                MPI_COMM_WORLD, &request.back());
     }
     for (int i = 0; i < flux_right; i++) {
       BlockInfo &info = SortedInfos[my_blocks - i - 1];
@@ -4439,7 +4435,7 @@ public:
     int temp = movedBlocks ? 1 : 0;
     MPI_Request request_reduction;
     MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM,
-                   grid->getWorldComm(), &request_reduction);
+                   MPI_COMM_WORLD, &request_reduction);
     for (int i = 0; i < -flux_left; i++)
       AddBlock(recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
@@ -4503,7 +4499,7 @@ public:
         MPI_Request req{};
         requests.push_back(req);
         MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCK, r,
-                  tag, grid->getWorldComm(), &requests.back());
+                  tag, MPI_COMM_WORLD, &requests.back());
       }
     long long counter_S = 0;
     long long counter_E = 0;
@@ -4515,7 +4511,7 @@ public:
         MPI_Request req{};
         requests.push_back(req);
         MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
-                  tag, grid->getWorldComm(), &requests.back());
+                  tag, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = size - 1; r > rank; r--)
       if (send_blocks[r].size() != 0) {
@@ -4526,7 +4522,7 @@ public:
         MPI_Request req{};
         requests.push_back(req);
         MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
-                  tag, grid->getWorldComm(), &requests.back());
+                  tag, MPI_COMM_WORLD, &requests.back());
       }
     movedBlocks = true;
     std::vector<long long> deallocIDs;
@@ -4620,7 +4616,7 @@ public:
       tmp = CallValidStates ? 1 : 0;
       Reduction = true;
       MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                     grid->getWorldComm(), &Reduction_req);
+                     MPI_COMM_WORLD, &Reduction_req);
     }
     MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
     CallValidStates = (tmp > 0);
@@ -4664,12 +4660,12 @@ public:
     int temp[2] = {r, c};
     int result[2];
     int size;
-    MPI_Comm_size(grid->getWorldComm(), &size);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     std::vector<long long> block_distribution(size);
-    MPI_Iallreduce(&temp, &result, 2, MPI_INT, MPI_SUM, grid->getWorldComm(),
+    MPI_Iallreduce(&temp, &result, 2, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &requests[0]);
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
-                   1, MPI_LONG_LONG, grid->getWorldComm(), &requests[1]);
+                   1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     dealloc_IDs.clear();
     {
       TLab lab;
@@ -4759,7 +4755,7 @@ protected:
               tmp = 1;
               Reduction = true;
               MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                             grid->getWorldComm(), &Reduction_req);
+                             MPI_COMM_WORLD, &Reduction_req);
             }
           }
         }
@@ -6151,7 +6147,7 @@ Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
   }
   Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
   MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
+                MPI_COMM_WORLD);
   _x = quantities[0];
   _y = quantities[1];
   _m = quantities[2];
@@ -6227,7 +6223,7 @@ void Shape::computeForces() {
   quantities[17] = defPowerBnd;
   quantities[18] = defPower;
   MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
+                MPI_COMM_WORLD);
   circulation = quantities[0];
   perimeter = quantities[1];
   forcex = quantities[2];
@@ -6257,7 +6253,7 @@ void Shape::computeForces() {
     return;
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
-  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
+  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
@@ -6730,7 +6726,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       com[2] += OBLOCK[i]->COM_y;
     }
     MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM,
-                  sim.chi->getWorldComm());
+                  MPI_COMM_WORLD);
     shape->M = com[0];
     shape->centerOfMass[0] += com[1] / com[0];
     shape->centerOfMass[1] += com[2] / com[0];
@@ -8091,7 +8087,7 @@ void PressureSingle::operator()(const Real dt) {
     }
     Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
     MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                  sim.chi->getWorldComm());
+                  MPI_COMM_WORLD);
     PM = quantities[0];
     PJ = quantities[1];
     PX = quantities[2];
@@ -8240,7 +8236,7 @@ void PressureSingle::operator()(const Real dt) {
     buffer[20 * i + 19] = coll.jvecZ;
   }
   MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM,
-                sim.chi->getWorldComm());
+                MPI_COMM_WORLD);
   for (size_t i = 0; i < N; i++) {
     auto &coll = collisions[i];
     coll.iM = buffer[20 * i];
@@ -9519,7 +9515,7 @@ int main(int argc, char **argv) {
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
-    MPI_Abort(sim.chi->getWorldComm(), 1);
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
   int aux = pow(2, sim.levelStart);
   sim.extents[0] = aux * sim.bpdx * velInfo[0].h * VectorBlock::sizeX;
