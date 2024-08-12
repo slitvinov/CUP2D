@@ -5991,10 +5991,6 @@ public:
     centroid[0] = this->center[0];
     centroid[1] = this->center[1];
   }
-  void getLabPosition(Real com[2]) const {
-    com[0] = this->labCenterOfMass[0];
-    com[1] = this->labCenterOfMass[1];
-  }
   Real getU() const { return u; }
   Real getV() const { return v; }
   Real getW() const { return omega; }
