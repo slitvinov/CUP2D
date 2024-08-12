@@ -6051,8 +6051,6 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
-  const int nX = ScalarBlock::sizeX;
-  const int nY = ScalarBlock::sizeY;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -6064,7 +6062,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  ncell = grid->m_vInfo.size() * nX * nY;
+  ncell = grid->m_vInfo.size() * _BS_ * _BS_;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
@@ -6111,8 +6109,8 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   for (i = 0; i < grid->m_vInfo.size(); i++) {
     const cubism::BlockInfo &info = grid->m_vInfo[i];
     ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
-    for (y = 0; y < nY; y++)
-      for (x = 0; x < nX; x++) {
+    for (y = 0; y < _BS_; y++)
+      for (x = 0; x < _BS_; x++) {
         double u, v;
         u = info.origin[0] + info.h * x;
         v = info.origin[1] + info.h * y;
