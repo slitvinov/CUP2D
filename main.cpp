@@ -3178,7 +3178,6 @@ public:
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-  using Real = typename ElementType::RealType;
 
 protected:
   Matrix3D<ElementType> *m_cacheBlock;
@@ -4182,7 +4181,6 @@ public:
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-  using Real = typename ElementType::RealType;
 
 private:
   typedef SynchronizerMPI_AMR<Real, GridType> SynchronizerMPIType;
@@ -4212,7 +4210,6 @@ template <typename TGrid> class LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
-  typedef typename TGrid::Block::ElementType::RealType Real;
   bool movedBlocks;
 
 protected:
@@ -4574,7 +4571,6 @@ protected:
   typedef typename TLab::GridType TGrid;
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  typedef typename TGrid::BlockType::ElementType::RealType Real;
   typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
@@ -5192,7 +5188,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
     corrected_grid->Corrector.FillBlockCases();
 }
 struct ScalarElement {
-  using RealType = Real;
   Real s = 0;
   inline void clear() { s = 0; }
   inline void set(const Real v) { s = v; }
@@ -5333,14 +5328,13 @@ template <typename TElement> struct GridBlock {
   static constexpr int sizeZ = 1;
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
-  using RealType = typename TElement::RealType;
   ElementType data[sizeZ][sizeY][sizeX];
   inline void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
-  inline void set(const RealType v) {
+  inline void set(const Real v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
@@ -5490,7 +5484,6 @@ protected:
 public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  using Real = typename ElementType::RealType;
   virtual bool is_xperiodic() override { return false; }
   virtual bool is_yperiodic() override { return false; }
   virtual bool is_zperiodic() override { return false; }
