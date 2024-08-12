@@ -5328,11 +5328,10 @@ struct VectorElement {
   }
   Real &member(int i) { return u[i]; }
 };
-template <int blocksize, int dim, typename TElement> struct GridBlock {
-  static constexpr int BS = blocksize;
-  static constexpr int sizeX = blocksize;
-  static constexpr int sizeY = blocksize;
-  static constexpr int sizeZ = dim > 2 ? blocksize : 1;
+template <typename TElement> struct GridBlock {
+  static constexpr int sizeX = _BS_;
+  static constexpr int sizeY = _BS_;
+  static constexpr int sizeZ = 1;
   static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
   using RealType = typename TElement::RealType;
@@ -5347,7 +5346,7 @@ template <int blocksize, int dim, typename TElement> struct GridBlock {
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
   }
-  inline void copy(const GridBlock<blocksize, dim, ElementType> &c) {
+  inline void copy(const GridBlock<ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
@@ -5695,8 +5694,8 @@ public:
     }
   }
 };
-using ScalarBlock = cubism::GridBlock<_BS_, 2, cubism::ScalarElement>;
-using VectorBlock = cubism::GridBlock<_BS_, 2, cubism::VectorElement>;
+using ScalarBlock = cubism::GridBlock<cubism::ScalarElement>;
+using VectorBlock = cubism::GridBlock<cubism::VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock>>;
 using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock>>;
 using VectorLab =
