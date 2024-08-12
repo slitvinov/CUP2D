@@ -6798,7 +6798,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes) {
     shape->removeMoments(chiInfo);
   }
-  }
 }
 class AdaptTheMesh : public Operator {
 public:
