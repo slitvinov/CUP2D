@@ -6362,25 +6362,8 @@ void Shape::computeForces() {
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
 }
-Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]},
-      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-      centerOfMass{C[0], C[1]}, orientation(origAng),
-      bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
-      bFixedy(p("-bFixedy").asBool(bFixed)),
-      bForced(p("-bForced").asBool(false)),
-      bForcedx(p("-bForcedx").asBool(bForced)),
-      bForcedy(p("-bForcedy").asBool(bForced)),
-      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
-      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-      forcedomega(-p("-angvel").asDouble(0)),
-      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      breakSymmetryType(p("-breakSymmetryType").asInt(0)),
-      breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
-      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {
-	assert(0);
-				}
 Shape::~Shape() {
+  assert(0);
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
