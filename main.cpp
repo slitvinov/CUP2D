@@ -6163,14 +6163,14 @@ static void dump(Real time, TGrid *grid, char *path) {
                             PtsPerElement * DIMENSION;
           double p[2];
           info.pos(p, x, y);
-          xyz[bbase] = p[0] - h2;
+          xyz[bbase + 0] = p[0] - h2;
           xyz[bbase + 1] = p[1] - h2;
-          xyz[bbase + DIMENSION] = p[0] - h2;
-          xyz[bbase + DIMENSION + 1] = p[1] + h2;
-          xyz[bbase + 2 * DIMENSION] = p[0] + h2;
-          xyz[bbase + 2 * DIMENSION + 1] = p[1] + h2;
-          xyz[bbase + 3 * DIMENSION] = p[0] + h2;
-          xyz[bbase + 3 * DIMENSION + 1] = p[1] - h2;
+          xyz[bbase + 2] = p[0] - h2;
+          xyz[bbase + 3] = p[1] + h2;
+          xyz[bbase + 4] = p[0] + h2;
+          xyz[bbase + 5] = p[1] + h2;
+          xyz[bbase + 6] = p[0] + h2;
+          xyz[bbase + 7] = p[1] - h2;
         }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
