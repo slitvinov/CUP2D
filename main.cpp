@@ -6039,7 +6039,7 @@ struct KernelVorticity {
 };
 template <typename TGrid>
 static void dump(Real time, TGrid *grid, char *path) {
-  long j, ncell, ncell_total, offset;
+  long j, k, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
@@ -6104,24 +6104,24 @@ static void dump(Real time, TGrid *grid, char *path) {
     fclose(xmf);
   }
   xyz = (float*)malloc(8 * ncell * sizeof *xyz);
+  k = 0;
+  assert(nz == 1);
   for (size_t i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
     for (int z = 0; z < nZ; z++)
       for (int y = 0; y < nY; y++)
         for (int x = 0; x < nX; x++) {
-          const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
-                            PtsPerElement * DIMENSION;
 	  double u, v;
 	  u = info.origin[0] + info.h * x; 
 	  v = info.origin[1] + info.h * y;
-          xyz[bbase + 0] = u;
-          xyz[bbase + 1] = v;
-          xyz[bbase + 2] = u;
-          xyz[bbase + 3] = v + info.h;
-          xyz[bbase + 4] = u + info.h;
-          xyz[bbase + 5] = v + info.h;
-          xyz[bbase + 6] = u + info.h;
-          xyz[bbase + 7] = v;
+          xyz[k++] = u;
+          xyz[k++] = v;
+          xyz[k++] = u;
+          xyz[k++] = v + info.h;
+          xyz[k++] = u + info.h;
+          xyz[k++] = v + info.h;
+          xyz[k++] = u + info.h;
+          xyz[k++] = v;
         }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
