@@ -8621,7 +8621,6 @@ protected:
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  template <typename T>
   static Real *_alloc(const int N) { return new Real[N]; }
   template <typename T> static void _dealloc(T *ptr) {
     if (ptr not_eq nullptr) {
