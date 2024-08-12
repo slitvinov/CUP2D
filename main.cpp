@@ -6051,6 +6051,9 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
+  typedef typename TGrid::BlockType B;
+  const int nX = B::sizeX;
+  const int nY = B::sizeY;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -6062,12 +6065,8 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  typedef typename TGrid::BlockType B;
-  const int nX = B::sizeX;
-  const int nY = B::sizeY;
-  const int PtsPerElement = 4;
-  std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
-  ncell = MyInfos.size() * nX * nY;
+  //std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
+  ncell = grid->m_vInfo.size() * nX * nY;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
@@ -6108,8 +6107,8 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
   k = 0;
-  for (i = 0; i < MyInfos.size(); i++) {
-    const cubism::BlockInfo &info = MyInfos[i];
+  for (i = 0; i < grid->m_vInfo.size(); i++) {
+    const cubism::BlockInfo &info = grid->m_vInfo[i];
     for (y = 0; y < nY; y++)
       for (x = 0; x < nX; x++) {
         double u, v;
@@ -6133,8 +6132,8 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
   free(xyz);
   attr = (float *)malloc(ncell * sizeof *xyz);
   k = 0;
-  for (i = 0; i < MyInfos.size(); i++) {
-    const cubism::BlockInfo &info = MyInfos[i];
+  for (i = 0; i < grid->m_vInfo.size(); i++) {
+    const cubism::BlockInfo &info = grid->m_vInfo[i];
     B &b = *(B *)info.ptrBlock;
     for (y = 0; y < nY; y++)
       for (x = 0; x < nX; x++)
