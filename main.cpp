@@ -3172,8 +3172,7 @@ public:
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-template <typename TGrid,
-          template <typename X> class allocator = std::allocator>
+template <typename TGrid>
 class BlockLab {
 public:
   using GridType = TGrid;
@@ -5365,9 +5364,8 @@ template <typename TElement> struct GridBlock {
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
-template <typename TGrid, int dim,
-          template <typename X> class allocator = std::allocator>
-class BlockLabNeumann : public cubism::BlockLab<TGrid, allocator> {
+template <typename TGrid, int dim>
+class BlockLabNeumann : public cubism::BlockLab<TGrid> {
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
@@ -5546,7 +5544,7 @@ static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
-class BlockLabDirichlet : public cubism::BlockLab<TGrid, allocator> {
+class BlockLabDirichlet : public cubism::BlockLab<TGrid> {
 public:
   using ElementType = typename TGrid::BlockType::ElementType;
   static constexpr int sizeX = TGrid::BlockType::sizeX;
@@ -5666,15 +5664,15 @@ public:
       }
     }
   }
-  BlockLabDirichlet() : cubism::BlockLab<TGrid, allocator>() {}
+  BlockLabDirichlet() : cubism::BlockLab<TGrid>() {}
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
 template <typename TGrid,
           template <typename X> class allocator = std::allocator>
-class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid, 2, allocator> {
+class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid, 2> {
 public:
-  using cubismLab = cubism::BlockLabNeumann<TGrid, 2, allocator>;
+  using cubismLab = cubism::BlockLabNeumann<TGrid, 2>;
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
