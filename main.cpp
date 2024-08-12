@@ -23,7 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-using Real = double;
+typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
 class Value {
@@ -5196,7 +5196,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   if (applyFluxCorrection)
     corrected_grid->Corrector.FillBlockCases();
 }
-template <typename Real = double> struct ScalarElement {
+struct ScalarElement {
   using RealType = Real;
   Real s = 0;
   inline void clear() { s = 0; }
@@ -5238,7 +5238,7 @@ template <typename Real = double> struct ScalarElement {
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
 };
-template <int dim, typename Real = double> struct VectorElement {
+template <int dim> struct VectorElement {
   using RealType = Real;
   static constexpr int DIM = dim;
   Real u[DIM];
@@ -5700,8 +5700,8 @@ public:
     }
   }
 };
-using ScalarElement = cubism::ScalarElement<Real>;
-using VectorElement = cubism::VectorElement<2, Real>;
+using ScalarElement = cubism::ScalarElement;
+using VectorElement = cubism::VectorElement<2>;
 using ScalarBlock = cubism::GridBlock<_BS_, 2, ScalarElement>;
 using VectorBlock = cubism::GridBlock<_BS_, 2, VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
