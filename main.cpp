@@ -1060,51 +1060,6 @@ inline void unpack_subregion(
         }
   }
 }
-template <typename T> class GrowingVector {
-  size_t pos;
-  size_t s;
-
-public:
-  std::vector<T> v;
-  GrowingVector() {
-    pos = 0;
-    s = 0;
-  }
-  GrowingVector(size_t size) { resize(size); }
-  GrowingVector(size_t size, T value) { resize(size, value); }
-  void resize(size_t new_size, T value) {
-    v.resize(new_size, value);
-    s = new_size;
-  }
-  void resize(size_t new_size) {
-    v.resize(new_size);
-    s = new_size;
-  }
-  size_t size() { return s; }
-  void clear() {
-    pos = 0;
-    s = 0;
-  }
-  void push_back(T value) {
-    if (pos < v.size())
-      v[pos] = value;
-    else
-      v.push_back(value);
-    pos++;
-    s++;
-  }
-  T *data() { return v.data(); }
-  T &operator[](size_t i) { return v[i]; }
-  T &back() { return v[pos - 1]; }
-  typename std::vector<T>::iterator begin() { return v.begin(); }
-  typename std::vector<T>::iterator end() { return v.begin() + pos; }
-  void EraseAll() {
-    v.clear();
-    pos = 0;
-    s = 0;
-  }
-  ~GrowingVector() { v.clear(); }
-};
 struct Interface {
   BlockInfo *infos[2];
   int icode[2];
@@ -1386,13 +1341,13 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
   MPI_Datatype MPIREAL;
   std::vector<BlockInfo *> inner_blocks;
   std::vector<BlockInfo *> halo_blocks;
-  std::vector<GrowingVector<Real>> send_buffer;
-  std::vector<GrowingVector<Real>> recv_buffer;
+  std::vector<std::vector<Real>> send_buffer;
+  std::vector<std::vector<Real>> recv_buffer;
   std::vector<MPI_Request> requests;
   std::vector<int> send_buffer_size;
   std::vector<int> recv_buffer_size;
   std::set<int> Neighbors;
-  GrowingVector<GrowingVector<UnPackInfo>> myunpacks;
+  std::vector<std::vector<UnPackInfo>> myunpacks;
   StencilManager SM;
   const unsigned int gptfloats;
   const int NC;
@@ -1406,16 +1361,16 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
     int ey;
     int ez;
   };
-  std::vector<GrowingVector<PackInfo>> send_packinfos;
-  std::vector<GrowingVector<Interface>> send_interfaces;
-  std::vector<GrowingVector<Interface>> recv_interfaces;
+  std::vector<std::vector<PackInfo>> send_packinfos;
+  std::vector<std::vector<Interface>> send_interfaces;
+  std::vector<std::vector<Interface>> recv_interfaces;
   std::vector<std::vector<int>> ToBeAveragedDown;
   bool use_averages;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::unordered_map<int, MPI_Request *> mapofrequests;
   struct DuplicatesManager {
     struct cube {
-      GrowingVector<MyRange> compass[27];
+      std::vector<MyRange> compass[27];
       void clear() {
         for (int i = 0; i < 27; i++)
           compass[i].clear();
@@ -1995,7 +1950,7 @@ public:
         }
         for (int r = 0; r < size; r++)
           if (DM.sizes[r] > 0) {
-            DM.RemoveDuplicates(r, send_interfaces[r].v, send_buffer_size[r]);
+            DM.RemoveDuplicates(r, send_interfaces[r], send_buffer_size[r]);
             DM.sizes[r] = 0;
           }
       }
@@ -2020,7 +1975,7 @@ public:
             break;
         }
         counter = j;
-        DM.RemoveDuplicates_recv(recv_interfaces[r].v, recv_buffer_size[r], r,
+        DM.RemoveDuplicates_recv(recv_interfaces[r], recv_buffer_size[r], r,
                                  start, finish);
       }
       send_buffer[r].resize(send_buffer_size[r] * NC);
