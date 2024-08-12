@@ -5704,7 +5704,7 @@ static struct {
   int AdaptSteps{20};
   bool bAdaptChiGradient;
   Real extent;
-  std::array<Real, 2> extents;
+  Real extents[2];
   Real dt;
   Real CFL;
   int nsteps;
