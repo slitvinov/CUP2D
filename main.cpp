@@ -5732,8 +5732,6 @@ static struct {
   int step = 0;
   Real uinfx = 0;
   Real uinfy = 0;
-  Real uinfx_old = 0;
-  Real uinfy_old = 0;
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
   std::vector<int> bCollisionID;
@@ -6678,11 +6676,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes)
     shape->updateLabVelocity(nSum, uSum);
   if (nSum[0] > 0) {
-    sim.uinfx_old = sim.uinfx;
     sim.uinfx = uSum[0] / nSum[0];
   }
   if (nSum[1] > 0) {
-    sim.uinfy_old = sim.uinfy;
     sim.uinfy = uSum[1] / nSum[1];
   }
   for (const auto &shape : sim.shapes) {
