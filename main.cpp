@@ -7030,7 +7030,7 @@ void AdaptTheMesh::operator()(const Real dt) {
   vel_amr->TagLike(tmpInfo);
   vOld_amr->TagLike(tmpInfo);
   tmpV_amr->TagLike(tmpInfo);
-  tmp_amr->Adapt(sim.time, false, false);
+  tmp_amr->Adapt(sim.time, sim.rank == 0, false);
   chi_amr->Adapt(sim.time, false, false);
   vel_amr->Adapt(sim.time, false, false);
   vOld_amr->Adapt(sim.time, false, false);
