@@ -6084,8 +6084,6 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  //Shape(cubism::CommandlineParser &p, Real C[2]);
-  //  virtual ~Shape();
   void create(const std::vector<cubism::BlockInfo> &vInfo);
   void finalize(){};
   void updateVelocity(Real dt);
@@ -6119,9 +6117,6 @@ struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
   Real getCharLength() const { return length; }
-  //void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
-  //virtual void updatePosition(Real dt);
-  //virtual void create(const std::vector<cubism::BlockInfo> &vInfo);  
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
