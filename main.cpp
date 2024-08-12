@@ -5736,7 +5736,6 @@ static struct {
   Real uinfy_old = 0;
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
-  bool bCollision = false;
   std::vector<int> bCollisionID;
   bool bDump();
   Real minH;
@@ -8287,7 +8286,6 @@ void PressureSingle::operator()(const Real dt) {
               shapes[i]->getCharLength()) {
         continue;
       }
-      sim.bCollision = true;
 #pragma omp critical
       {
         sim.bCollisionID.push_back(i);
