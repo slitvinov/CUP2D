@@ -11,7 +11,6 @@ OPENMPFLAGS = -fopenmp
 FLAGS =\
 -D_BS_=8\
 -DCUBISM_ALIGNMENT=32\
--DDIMENSION=2\
 -DNDEBUG\
 -Wno-format-truncation\
 -Wno-unused-result\

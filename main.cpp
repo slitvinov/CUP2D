@@ -23,6 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
+enum {DIMENSION = 2};
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
@@ -718,17 +719,17 @@ public:
   void _alloc() {
     const int m = levelStart;
     const int TwoPower = 1 << m;
-    for (long long n = 0; n < NX * NY * NZ * pow(TwoPower, DIMENSION); n++) {
+    for (long long n = 0; n < NX * NY * NZ * pow(TwoPower, 2); n++) {
       Tree(m, n).setrank(0);
       _alloc(m, n);
     }
     if (m - 1 >= 0) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m - 1)), DIMENSION);
+      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m - 1)), 2);
            n++)
         Tree(m - 1, n).setCheckFiner();
     }
     if (m + 1 < levelMax) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m + 1)), DIMENSION);
+      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m + 1)), 2);
            n++)
         Tree(m + 1, n).setCheckCoarser();
     }
@@ -838,7 +839,7 @@ public:
     const int lvlMax = dummy.levelMax(levelMax);
     for (int m = 0; m < lvlMax; m++) {
       const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, DIMENSION);
+      const long long Ntot = nx * ny * nz * pow(TwoPower, 2);
       if (m == 0)
         level_base.push_back(Ntot);
       if (m > 0)
@@ -2355,10 +2356,10 @@ protected:
                   .rank();
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
-        for (int j = 0; j < ElementType::DIM; j++)
+        for (int j = 0; j < DIMENSION; j++)
           CoarseFace[base + (i2 / 2)].member(j) +=
               recv_buffer[r][F.offset + dis + j];
-        dis += ElementType::DIM;
+        dis += DIMENSION;
       }
     }
   }
@@ -2420,7 +2421,7 @@ public:
     }
     std::vector<int> send_buffer_size(size, 0);
     std::vector<int> recv_buffer_size(size, 0);
-    const int NC = ElementType::DIM;
+    const int NC = DIMENSION;
     int blocksize[3];
     blocksize[0] = BlockType::sizeX;
     blocksize[1] = BlockType::sizeY;
@@ -2599,9 +2600,9 @@ public:
         const int N2 = FineCase.m_vSize[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
-          for (int j = 0; j < ElementType::DIM; j++)
+          for (int j = 0; j < DIMENSION; j++)
             send_buffer[r][displacement + j] = avg.member(j);
-          displacement += ElementType::DIM;
+          displacement += DIMENSION;
           FineFace[i2].clear();
           FineFace[i2 + 1].clear();
         }
@@ -4608,7 +4609,7 @@ public:
     stencil.ey = Gy + 1;
     stencil.ez = Gz + 1;
     stencil.tensorial = true;
-    for (int i = 0; i < ElementType::DIM; i++)
+    for (int i = 0; i < DIMENSION; i++)
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
@@ -5238,41 +5239,40 @@ struct ScalarElement {
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
 };
-template <int dim> struct VectorElement {
+struct VectorElement {
   using RealType = Real;
-  static constexpr int DIM = dim;
-  Real u[DIM];
+  Real u[DIMENSION];
   VectorElement() { clear(); }
   inline void clear() {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       u[i] = 0;
   }
   inline void set(const Real v) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       u[i] = v;
   }
   inline void copy(const VectorElement &c) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       u[i] = c.u[i];
   }
   VectorElement &operator=(const VectorElement &c) = default;
   VectorElement &operator*=(const Real a) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       this->u[i] *= a;
     return *this;
   }
   VectorElement &operator+=(const VectorElement &rhs) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       this->u[i] += rhs.u[i];
     return *this;
   }
   VectorElement &operator-=(const VectorElement &rhs) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       this->u[i] -= rhs.u[i];
     return *this;
   }
   VectorElement &operator/=(const VectorElement &rhs) {
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < DIMENSION; ++i)
       this->u[i] /= rhs.u[i];
     return *this;
   }
@@ -5291,7 +5291,7 @@ template <int dim> struct VectorElement {
   bool operator<(const VectorElement &other) const {
     Real s1 = 0.0;
     Real s2 = 0.0;
-    for (int i = 0; i < DIM; ++i) {
+    for (int i = 0; i < DIMENSION; ++i) {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
@@ -5300,7 +5300,7 @@ template <int dim> struct VectorElement {
   bool operator>(const VectorElement &other) const {
     Real s1 = 0.0;
     Real s2 = 0.0;
-    for (int i = 0; i < DIM; ++i) {
+    for (int i = 0; i < DIMENSION; ++i) {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
@@ -5309,7 +5309,7 @@ template <int dim> struct VectorElement {
   bool operator<=(const VectorElement &other) const {
     Real s1 = 0.0;
     Real s2 = 0.0;
-    for (int i = 0; i < DIM; ++i) {
+    for (int i = 0; i < DIMENSION; ++i) {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
@@ -5318,7 +5318,7 @@ template <int dim> struct VectorElement {
   bool operator>=(const VectorElement &other) const {
     Real s1 = 0.0;
     Real s2 = 0.0;
-    for (int i = 0; i < DIM; ++i) {
+    for (int i = 0; i < DIMENSION; ++i) {
       s1 += u[i] * u[i];
       s2 += other.u[i] * other.u[i];
     }
@@ -5326,7 +5326,7 @@ template <int dim> struct VectorElement {
   }
   Real magnitude() {
     Real s1 = 0.0;
-    for (int i = 0; i < DIM; ++i) {
+    for (int i = 0; i < DIMENSION; ++i) {
       s1 += u[i] * u[i];
     }
     return sqrt(s1);
@@ -5701,7 +5701,7 @@ public:
   }
 };
 using ScalarElement = cubism::ScalarElement;
-using VectorElement = cubism::VectorElement<2>;
+using VectorElement = cubism::VectorElement;
 using ScalarBlock = cubism::GridBlock<_BS_, 2, ScalarElement>;
 using VectorBlock = cubism::GridBlock<_BS_, 2, VectorElement>;
 using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
