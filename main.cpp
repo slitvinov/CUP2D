@@ -5987,22 +5987,6 @@ public:
   virtual void finalize(){};
   virtual void updateVelocity(Real dt);
   virtual void updatePosition(Real dt);
-  void setCentroid(Real C[2]) {
-    this->center[0] = C[0];
-    this->center[1] = C[1];
-    const Real cost = std::cos(this->orientation);
-    const Real sint = std::sin(this->orientation);
-    this->centerOfMass[0] = C[0] - cost * this->d_gm[0] + sint * this->d_gm[1];
-    this->centerOfMass[1] = C[1] - sint * this->d_gm[0] - cost * this->d_gm[1];
-  }
-  void setCenterOfMass(Real com[2]) {
-    this->centerOfMass[0] = com[0];
-    this->centerOfMass[1] = com[1];
-    const Real cost = std::cos(this->orientation);
-    const Real sint = std::sin(this->orientation);
-    this->center[0] = com[0] + cost * this->d_gm[0] - sint * this->d_gm[1];
-    this->center[1] = com[1] + sint * this->d_gm[0] + cost * this->d_gm[1];
-  }
   void getCentroid(Real centroid[2]) const {
     centroid[0] = this->center[0];
     centroid[1] = this->center[1];
