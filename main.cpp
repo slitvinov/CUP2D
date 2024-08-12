@@ -894,7 +894,7 @@ public:
     return {
         NX << (levelMax - 1),
         NY << (levelMax - 1),
-        DIMENSION == 3 ? (NZ << (levelMax - 1)) : 1,
+        1,
     };
   }
   std::array<int, 3> getMaxMostRefinedCells() const {
