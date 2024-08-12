@@ -2669,7 +2669,7 @@ public:
   std::vector<BlockInfo *> boundary;
   GridMPI(const int nX, const int nY = 1, const int nZ = 1,
           const double a_maxextent = 1, const int a_levelStart = 0,
-          const int a_levelMax = 1, const MPI_Comm comm = MPI_COMM_WORLD,
+          const int a_levelMax = 1,
           const bool a_xperiodic = true, const bool a_yperiodic = true,
           const bool a_zperiodic = true)
       : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, false,
@@ -7205,7 +7205,6 @@ public:
 
 protected:
   int rank_;
-  MPI_Comm m_comm_;
   int comm_size_;
   static constexpr int BSX_ = VectorBlock::sizeX;
   static constexpr int BSY_ = VectorBlock::sizeY;
@@ -7485,8 +7484,8 @@ ExpAMRSolver::ExpAMRSolver()
     : GenericCell(*this), XminCell(*this), XmaxCell(*this),
       YminCell(*this), YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell,
                                                      &YminCell, &YmaxCell} {
-  MPI_Comm_rank(m_comm_, &rank_);
-  MPI_Comm_size(m_comm_, &comm_size_);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);
   Nrows_xcumsum_.resize(comm_size_ + 1);
   std::vector<std::vector<double>> L;
@@ -7530,7 +7529,7 @@ ExpAMRSolver::ExpAMRSolver()
         aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * BLEN_ + j] = -aux;
     }
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, BSX_ * BSY_,
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, BSX_ * BSY_,
                                                sim.bMeanConstraint, P_inv);
 }
 void ExpAMRSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
@@ -7602,7 +7601,7 @@ void ExpAMRSolver::getMat() {
   LocalLS_->reserve(N);
   const long long Nblocks_long = Nblocks;
   MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
-                MPI_LONG_LONG, m_comm_);
+                MPI_LONG_LONG, MPI_COMM_WORLD);
   for (int i(Nblocks_xcumsum_.size() - 1); i > 0; i--) {
     Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i - 1];
   }
@@ -7731,7 +7730,7 @@ void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
       }
   }
   double quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, m_comm_);
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   avg = quantities[0];
   avg1 = quantities[1];
   avg = avg / avg1;
@@ -9464,25 +9463,25 @@ int main(int argc, char **argv) {
   const bool yperiodic = dummy.is_yperiodic();
   const bool zperiodic = dummy.is_zperiodic();
   sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           sim.levelMax, xperiodic, yperiodic,
                            zperiodic);
   sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           sim.levelMax, xperiodic, yperiodic,
                            zperiodic);
   sim.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            sim.levelMax, xperiodic, yperiodic,
                             zperiodic);
   sim.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            sim.levelMax, xperiodic, yperiodic,
                             zperiodic);
   sim.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            sim.levelMax, xperiodic, yperiodic,
                             zperiodic);
   sim.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                           sim.levelMax, xperiodic, yperiodic,
                            zperiodic);
   sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, MPI_COMM_WORLD, xperiodic, yperiodic,
+                            sim.levelMax, xperiodic, yperiodic,
                             zperiodic);
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   if (velInfo.size() == 0) {
