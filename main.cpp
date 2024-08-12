@@ -5931,8 +5931,7 @@ struct ObstacleBlock {
     fYv_s = (Real *)calloc(n_surfPoints, sizeof(Real));
   }
 };
-class Shape {
-public:
+struct Shape {
   unsigned obstacleID = 0;
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
@@ -5975,9 +5974,6 @@ public:
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-
-protected:
-public:
   Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
   virtual Real getCharLength() const = 0;
@@ -9387,8 +9383,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
                        vNorY);
 }
 struct FishData;
-class Fish : public Shape {
-public:
+struct Fish : public Shape {
   const Real length, Tperiod, phaseShift;
   FishData *myFish = nullptr;
   Real area_internal = 0, J_internal = 0;
