@@ -6087,14 +6087,14 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-namespace cubism {
 template <typename TGrid>
-static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
+static void dump(Real time, TGrid *grid, char *path) {
   long j, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
   MPI_File mpi_file;
+  float *xyz, *attr;
 
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
@@ -6108,21 +6108,18 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     }
   }
 
-  typedef typename TGrid::BlockType B;
+  typedef typename  TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int nZ = B::sizeZ;
-  MPI_Comm comm = grid.getWorldComm();
-  const int rank = grid.myrank;
   const int PtsPerElement = 4;
-  std::vector<BlockInfo> &MyInfos = grid.getBlocksInfo();
-  long MyCells = MyInfos.size() * nX * nY * nZ;
+  std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
 
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-  if (rank == 0)
+  if (sim.rank == 0)
     offset = 0;
 
-  if (rank == sim.size - 1) {
+  if (sim.rank == sim.size - 1) {
     long ncell_total;
     ncell_total = ncell + offset;
     std::stringstream s;
@@ -6131,7 +6128,7 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     s << "<Xdmf Version=\"2.0\">\n";
     s << "<Domain>\n";
     s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
-    s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
+    s << "  <Time Value=\"" << std::scientific << time << "\"/>\n\n";
     s << "   <Topology NumberOfElements=\"" << ncell_total
       << "\" TopologyType=\"Quadrilateral\"/>\n";
     s << "     <Geometry GeometryType=\"XY\">\n";
@@ -6160,9 +6157,9 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
     fprintf(xmf, "%s", st.c_str());
     fclose(xmf);
   }
-  xyz = (float*)malloc(8 * ncell * sizeof(*xyz));
+  xyz = (float*)malloc(8 * ncell * sizeof *xyz);
   for (size_t i = 0; i < MyInfos.size(); i++) {
-    const BlockInfo &info = MyInfos[i];
+    const cubism::BlockInfo &info = MyInfos[i];
     const float h2 = 0.5 * info.h;
     for (int z = 0; z < nZ; z++)
       for (int y = 0; y < nY; y++)
@@ -6188,9 +6185,9 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   MPI_File_close(&mpi_file);
   free(xyz);
 
-  attr = (float*)malloc(ncell * sizeof(*xyz));
+  attr = (float*)malloc(ncell * sizeof *xyz);
   for (size_t i = 0; i < MyInfos.size(); i++) {
-    const BlockInfo &info = MyInfos[i];
+    const cubism::BlockInfo &info = MyInfos[i];
     B &b = *(B *)info.ptrBlock;
     for (int z = 0; z < nZ; z++)
       for (int y = 0; y < nY; y++)
@@ -6210,7 +6207,6 @@ static void dump(TGrid &grid, typename TGrid::Real absTime, char *path) {
   MPI_File_close(&mpi_file);
   free(attr);
 }
-} // namespace cubism
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Real Shape::getCharMass() const { return 0; }
@@ -9908,7 +9904,7 @@ int main(int argc, char **argv) {
         cubism::compute<VectorLab>(mykernel, sim.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
-        cubism::dump(*sim.tmp, sim.time, path);
+        dump(sim.time, sim.tmp, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(dt);
