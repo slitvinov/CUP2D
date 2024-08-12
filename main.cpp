@@ -9670,7 +9670,7 @@ int main(int argc, char **argv) {
   sim.comm = MPI_COMM_WORLD;
   MPI_Comm_size(sim.comm, &sim.size);
   MPI_Comm_rank(sim.comm, &sim.rank);
-  if (rank == 0)
+  if (sim.rank == 0)
     printf("%d ranks\n", sim.size);
 #ifdef _OPENMP
 #pragma omp parallel
