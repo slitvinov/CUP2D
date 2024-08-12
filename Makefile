@@ -14,6 +14,8 @@ FLAGS =\
 -DNDEBUG\
 -Wno-format-truncation\
 -Wno-unused-result\
+-Wno-cast-function-type\
+-Wno-sign-compare\
 $(OPENMPFLAGS)\
 -std=c++17\
 

@@ -356,7 +356,7 @@ struct BlockInfo {
   static long long forward(int level, int ix, int iy) {
     return (*SFC()).forward(level, ix, iy);
   }
-  static long long Encode(int level, long long Z, int index[2]) {
+  static long long Encode(int level, int index[2]) {
     return (*SFC()).Encode(level, index);
   }
   static void inverse(long long Z, int l, int &i, int &j) {
@@ -407,7 +407,7 @@ struct BlockInfo {
                   ? 0
                   : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
                             (index[1] / 2 + Bmax[1]) % Bmax[1]);
-    blockID_2 = Encode(level, Z, index);
+    blockID_2 = Encode(level, index);
     blockID = blockID_2;
   }
   long long Znei_(const int i, const int j, const int k) const {
