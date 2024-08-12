@@ -5201,7 +5201,6 @@ struct ScalarElement {
   static constexpr int DIM = 1;
 };
 struct VectorElement {
-  using RealType = Real;
   Real u[DIMENSION];
   VectorElement() { clear(); }
   inline void clear() {
