@@ -671,8 +671,7 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-template <typename Block,
-          template <typename X> class allocator = std::allocator>
+template <typename Block>
 class Grid {
 public:
   typedef Block BlockType;
@@ -3082,7 +3081,7 @@ public:
   MPI_Comm getWorldComm() const { return worldcomm; }
   virtual int get_world_size() const override { return world_size; }
 };
-template <class DataType, template <typename T> class allocator>
+template <class DataType>
 class Matrix3D {
 private:
   DataType *m_pData{nullptr};
@@ -3183,7 +3182,7 @@ public:
   using Real = typename ElementType::RealType;
 
 protected:
-  Matrix3D<ElementType, allocator> *m_cacheBlock;
+  Matrix3D<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
   bool istensorial;
@@ -3196,7 +3195,7 @@ protected:
   std::array<int, 27> coarsened_nei_codes;
   int coarsened_nei_codes_size;
   int offset[3];
-  Matrix3D<ElementType, allocator> *m_CoarsenedBlock;
+  Matrix3D<ElementType> *m_CoarsenedBlock;
   int m_InterpStencilStart[3];
   int m_InterpStencilEnd[3];
   bool coarsened;
@@ -3305,8 +3304,8 @@ public:
             (int)BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
-      m_cacheBlock = allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-      std::allocator<Matrix3D<ElementType, allocator>>().construct(m_cacheBlock);
+      m_cacheBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
+      std::allocator<Matrix3D<ElementType>>().construct(m_cacheBlock);
       m_cacheBlock->_Setup(
           BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1,
           BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] - 1,
@@ -3328,8 +3327,8 @@ public:
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
       m_CoarsenedBlock =
-	std::allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-      std::allocator<Matrix3D<ElementType, allocator>>().construct(m_CoarsenedBlock);
+	std::allocator<Matrix3D<ElementType>>().allocate(1);
+      std::allocator<Matrix3D<ElementType>>().construct(m_CoarsenedBlock);
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
                                CoarseBlockSize[1] + e[1] - offset[1] - 1,
                                CoarseBlockSize[2] + e[2] - offset[2] - 1);
