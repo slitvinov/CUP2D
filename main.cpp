@@ -204,7 +204,6 @@ protected:
   }
 
 public:
-  SpaceFillingCurve2D(){};
   SpaceFillingCurve2D(int a_BX, int a_BY, int lmax)
       : BX(a_BX), BY(a_BY), levelMax(lmax) {
     const int n_max = std::max(BX, BY);
