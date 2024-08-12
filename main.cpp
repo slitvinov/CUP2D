@@ -5931,77 +5931,7 @@ struct ObstacleBlock {
     fYv_s = (Real *)calloc(n_surfPoints, sizeof(Real));
   }
 };
-struct Shape {
-  unsigned obstacleID = 0;
-  std::vector<ObstacleBlock *> obstacleBlocks;
-  const Real origC[2], origAng;
-  Real center[2];
-  Real centerOfMass[2];
-  Real d_gm[2] = {0, 0};
-  Real labCenterOfMass[2] = {0, 0};
-  Real orientation = origAng;
-  const bool bFixed;
-  const bool bFixedx;
-  const bool bFixedy;
-  const bool bForced;
-  const bool bForcedx;
-  const bool bForcedy;
-  const bool bBlockang;
-  const Real forcedu;
-  const Real forcedv;
-  const Real forcedomega;
-  const Real timeForced;
-  const int breakSymmetryType;
-  const Real breakSymmetryStrength;
-  const Real breakSymmetryTime;
-  Real M = 0;
-  Real J = 0;
-  Real u = forcedu;
-  Real v = forcedv;
-  Real omega = forcedomega;
-  Real fluidAngMom = 0;
-  Real fluidMomX = 0;
-  Real fluidMomY = 0;
-  Real penalDX = 0;
-  Real penalDY = 0;
-  Real penalM = 0;
-  Real penalJ = 0;
-  Real appliedForceX = 0;
-  Real appliedForceY = 0;
-  Real appliedTorque = 0;
-  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
-  Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
-       PoutBnd = 0, defPower = 0;
-  Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  Shape(cubism::CommandlineParser &p, Real C[2]);
-  virtual ~Shape();
-  virtual Real getCharLength() const = 0;
-  virtual void create(const std::vector<cubism::BlockInfo> &vInfo) = 0;
-  virtual void finalize(){};
-  virtual void updateVelocity(Real dt);
-  virtual void updatePosition(Real dt);
-  void getCentroid(Real centroid[2]) const {
-    centroid[0] = this->center[0];
-    centroid[1] = this->center[1];
-  }
-  Real getU() const { return u; }
-  Real getV() const { return v; }
-  Real getW() const { return omega; }
-  Real getOrientation() const { return this->orientation; }
-  void setOrientation(const Real angle) { this->orientation = angle; }
-  struct Integrals {
-    const Real x, y, m, j, u, v, a;
-    Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
-        : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
-    Integrals(const Integrals &c)
-        : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
-  };
-  Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void updateLabVelocity(int mSum[2], Real uSum[2]);
-  virtual void computeForces();
-};
+struct FishData;
 struct KernelVorticity {
   KernelVorticity() {}
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
@@ -6111,6 +6041,89 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   MPI_File_close(&mpi_file);
   free(attr);
 }
+struct Shape {
+  unsigned obstacleID = 0;
+  std::vector<ObstacleBlock *> obstacleBlocks;
+  const Real origC[2], origAng;
+  Real center[2];
+  Real centerOfMass[2];
+  Real d_gm[2] = {0, 0};
+  Real labCenterOfMass[2] = {0, 0};
+  Real orientation = origAng;
+  const bool bFixed;
+  const bool bFixedx;
+  const bool bFixedy;
+  const bool bForced;
+  const bool bForcedx;
+  const bool bForcedy;
+  const bool bBlockang;
+  const Real forcedu;
+  const Real forcedv;
+  const Real forcedomega;
+  const Real timeForced;
+  const int breakSymmetryType;
+  const Real breakSymmetryStrength;
+  const Real breakSymmetryTime;
+  Real M = 0;
+  Real J = 0;
+  Real u = forcedu;
+  Real v = forcedv;
+  Real omega = forcedomega;
+  Real fluidAngMom = 0;
+  Real fluidMomX = 0;
+  Real fluidMomY = 0;
+  Real penalDX = 0;
+  Real penalDY = 0;
+  Real penalM = 0;
+  Real penalJ = 0;
+  Real appliedForceX = 0;
+  Real appliedForceY = 0;
+  Real appliedTorque = 0;
+  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
+  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
+  Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
+       PoutBnd = 0, defPower = 0;
+  Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
+  //Shape(cubism::CommandlineParser &p, Real C[2]);
+  //  virtual ~Shape();
+  Real getCharLength();
+  void create(const std::vector<cubism::BlockInfo> &vInfo);
+  void finalize(){};
+  void updateVelocity(Real dt);
+  void updatePosition(Real dt);
+  void getCentroid(Real centroid[2]) const {
+    centroid[0] = this->center[0];
+    centroid[1] = this->center[1];
+  }
+  Real getU() const { return u; }
+  Real getV() const { return v; }
+  Real getW() const { return omega; }
+  Real getOrientation() const { return this->orientation; }
+  void setOrientation(const Real angle) { this->orientation = angle; }
+  struct Integrals {
+    const Real x, y, m, j, u, v, a;
+    Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
+        : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
+    Integrals(const Integrals &c)
+        : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
+  };
+  Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
+  virtual void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
+  virtual void updateLabVelocity(int mSum[2], Real uSum[2]);
+  virtual void computeForces();
+
+  const Real length, Tperiod, phaseShift;
+  FishData *myFish = nullptr;
+  Real area_internal = 0, J_internal = 0;
+  Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
+  Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
+  Shape(cubism::CommandlineParser &p, Real C[2]);
+  virtual ~Shape();
+  //Real getCharLength() const override { return length; }
+  //void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
+  //virtual void updatePosition(Real dt);
+  //virtual void create(const std::vector<cubism::BlockInfo> &vInfo);  
+};
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 void Shape::updateVelocity(Real dt) {
@@ -6313,29 +6326,6 @@ void Shape::computeForces() {
   int tot_blocks = 0;
   int nb = (int)sim.chi->getBlocksInfo().size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, sim.chi->getWorldComm());
-}
-Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]},
-      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-      centerOfMass{C[0], C[1]}, orientation(origAng),
-      bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
-      bFixedy(p("-bFixedy").asBool(bFixed)),
-      bForced(p("-bForced").asBool(false)),
-      bForcedx(p("-bForcedx").asBool(bForced)),
-      bForcedy(p("-bForcedy").asBool(bForced)),
-      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
-      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-      forcedomega(-p("-angvel").asDouble(0)),
-      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      breakSymmetryType(p("-breakSymmetryType").asInt(0)),
-      breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
-      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {
-	assert(0);
-				}
-Shape::~Shape() {
-  for (auto &entry : obstacleBlocks)
-    delete entry;
-  obstacleBlocks.clear();
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
@@ -9382,26 +9372,30 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
   IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
                        vNorY);
 }
+
+Shape::Shape(cubism::CommandlineParser &p, Real C[2])
+  : origC{C[0], C[1]},
+    origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+    centerOfMass{C[0], C[1]}, orientation(origAng),
+    bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
+    bFixedy(p("-bFixedy").asBool(bFixed)),
+    bForced(p("-bForced").asBool(false)),
+    bForcedx(p("-bForcedx").asBool(bForced)),
+    bForcedy(p("-bForcedy").asBool(bForced)),
+    bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
+    forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
+    forcedomega(-p("-angvel").asDouble(0)),
+    timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
+    breakSymmetryType(p("-breakSymmetryType").asInt(0)),
+    breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
+    breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)),
+    length(p("-L").asDouble(0.1)),
+    Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {
+      const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
+      myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
+			      }
 struct FishData;
-struct Fish : public Shape {
-  const Real length, Tperiod, phaseShift;
-  FishData *myFish = nullptr;
-  Real area_internal = 0, J_internal = 0;
-  Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
-  Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
-  Fish(cubism::CommandlineParser &p, Real C[2])
-      : Shape(p, C), length(p("-L").asDouble(0.1)),
-        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {
-    const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-    myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  }
-  virtual ~Fish();
-  Real getCharLength() const override { return length; }
-  void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void updatePosition(Real dt);
-  virtual void create(const std::vector<cubism::BlockInfo> &vInfo);
-};
-void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
+void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
@@ -9492,7 +9486,7 @@ void Fish::create(const std::vector<cubism::BlockInfo> &vInfo) {
       delete E;
   }
 }
-void Fish::updatePosition(Real dt) {
+void Shape::updatePosition(Real dt) {
   centerOfMass[0] += dt * (u + sim.uinfx);
   centerOfMass[1] += dt * (v + sim.uinfy);
   labCenterOfMass[0] += dt * u;
@@ -9507,13 +9501,16 @@ void Fish::updatePosition(Real dt) {
   const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
   theta_internal -= dt * angvel_internal;
 }
-Fish::~Fish() {
+Shape::~Shape() {
+  for (auto &entry : obstacleBlocks)
+    delete entry;
+  obstacleBlocks.clear();
   if (myFish not_eq nullptr) {
     delete myFish;
     myFish = nullptr;
   }
 }
-void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
+void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   Shape::Integrals I = integrateObstBlock(vInfo);
   M = I.m;
   J = I.j;
@@ -9652,7 +9649,7 @@ int main(int argc, char **argv) {
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
       Shape *shape = nullptr;
       if (objectName == "stefanfish")
-        shape = new Fish(ffparser, center);
+        shape = new Shape(ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
       shape->obstacleID = (unsigned)sim.shapes.size();
