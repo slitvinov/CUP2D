@@ -287,7 +287,7 @@ public:
     J = j_inverse[0][index];
     return;
   }
-  long long Encode(int level, long long Z, int index[2]) {
+  long long Encode(int level, int index[2]) {
     int lmax = levelMax;
     long long retval = 0;
     int ix = index[0];
@@ -357,7 +357,7 @@ struct BlockInfo {
     return (*SFC()).forward(level, ix, iy);
   }
   static long long Encode(int level, long long Z, int index[2]) {
-    return (*SFC()).Encode(level, Z, index);
+    return (*SFC()).Encode(level, index);
   }
   static void inverse(long long Z, int l, int &i, int &j) {
     (*SFC()).inverse(Z, l, i, j);
