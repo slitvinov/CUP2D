@@ -5737,7 +5737,6 @@ static struct {
   Real uMax_measured = 0;
   Real nextDumpTime = 0;
   std::vector<int> bCollisionID;
-  bool bDump();
   Real minH;
   Real maxH;
 } sim;
