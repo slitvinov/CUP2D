@@ -7948,20 +7948,6 @@ struct pressureCorrectionKernel {
   }
 };
 void PressureSingle::pressureCorrection(const Real dt) {
-  const pressureCorrectionKernel K;
-  cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
-  std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-#pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++) {
-    const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
-        V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
-        V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
-      }
-  }
 }
 struct updatePressureRHS {
   updatePressureRHS(){};
@@ -8488,7 +8474,21 @@ void PressureSingle::operator()(const Real dt) {
       for (int ix = 0; ix < VectorBlock::sizeX; ix++)
         P(ix, iy).s += POLD(ix, iy).s - avg;
   }
-  pressureCorrection(dt);
+  {
+    const pressureCorrectionKernel K;
+    cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
+  }
+#pragma omp parallel for
+  for (size_t i = 0; i < velInfo.size(); i++) {
+    const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
+    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+    VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
+      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+        V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
+        V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
+      }
+  }
 }
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
