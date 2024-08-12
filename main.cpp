@@ -734,7 +734,7 @@ public:
     FillPos();
   }
   void _alloc(const int m, const long long n) {
-    allocator<Block> alloc;
+    std::allocator<Block> alloc;
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.ptrBlock = alloc.allocate(1);
 #pragma omp critical
@@ -742,7 +742,7 @@ public:
     Tree(m, n).setrank(rank());
   }
   void _deallocAll() {
-    allocator<Block> alloc;
+    std::allocator<Block> alloc;
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
       const long long n = m_vInfo[i].Z;
@@ -762,7 +762,7 @@ public:
     Octree.clear();
   }
   void _dealloc(const int m, const long long n) {
-    allocator<Block> alloc;
+    std::allocator<Block> alloc;
     alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
     for (size_t j = 0; j < m_vInfo.size(); j++) {
       if (m_vInfo[j].level == m && m_vInfo[j].Z == n) {
@@ -774,7 +774,7 @@ public:
   void dealloc_many(const std::vector<long long> &dealloc_IDs) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
       m_vInfo[j].changed2 = false;
-    allocator<Block> alloc;
+    std::allocator<Block> alloc;
     for (size_t i = 0; i < dealloc_IDs.size(); i++)
       for (size_t j = 0; j < m_vInfo.size(); j++) {
         if (m_vInfo[j].blockID_2 == dealloc_IDs[i]) {
@@ -3306,7 +3306,7 @@ public:
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
       m_cacheBlock = allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-      allocator<Matrix3D<ElementType, allocator>>().construct(m_cacheBlock);
+      std::allocator<Matrix3D<ElementType, allocator>>().construct(m_cacheBlock);
       m_cacheBlock->_Setup(
           BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1,
           BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] - 1,
@@ -3328,8 +3328,8 @@ public:
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
       m_CoarsenedBlock =
-          allocator<Matrix3D<ElementType, allocator>>().allocate(1);
-      allocator<Matrix3D<ElementType, allocator>>().construct(m_CoarsenedBlock);
+	std::allocator<Matrix3D<ElementType, allocator>>().allocate(1);
+      std::allocator<Matrix3D<ElementType, allocator>>().construct(m_CoarsenedBlock);
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
                                CoarseBlockSize[1] + e[1] - offset[1] - 1,
                                CoarseBlockSize[2] + e[2] - offset[2] - 1);
@@ -4169,8 +4169,8 @@ protected:
                          bool coarse = false) {}
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
-      allocator<T>().destroy(t);
-      allocator<T>().deallocate(t, 1);
+      std::allocator<T>().destroy(t);
+      std::allocator<T>().deallocate(t, 1);
     }
     t = NULL;
   }
@@ -5698,12 +5698,12 @@ public:
 };
 using ScalarBlock = cubism::GridBlock<_BS_, 2, cubism::ScalarElement>;
 using VectorBlock = cubism::GridBlock<_BS_, 2, cubism::VectorElement>;
-using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock, std::allocator>>;
-using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock, std::allocator>>;
+using ScalarGrid = cubism::GridMPI<cubism::Grid<ScalarBlock>>;
+using VectorGrid = cubism::GridMPI<cubism::Grid<VectorBlock>>;
 using VectorLab =
-    cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid, std::allocator>>;
+    cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid>>;
 using ScalarLab =
-    cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid, std::allocator>>;
+    cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 class Shape;
