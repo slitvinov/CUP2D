@@ -7117,13 +7117,8 @@ void ComputeForces::operator()(const Real dt) {
 ComputeForces::ComputeForces(){};
 class PoissonSolver {
 public:
-  virtual ~PoissonSolver() = default;
-  virtual void solve(const ScalarGrid *input, ScalarGrid *output) = 0;
-};
-class ExpAMRSolver : public PoissonSolver {
-public:
-  ExpAMRSolver();
-  ~ExpAMRSolver() = default;
+  PoissonSolver();
+  ~PoissonSolver() = default;
   void solve(const ScalarGrid *input, ScalarGrid *const output);
 
 protected:
@@ -7144,7 +7139,7 @@ protected:
   std::vector<long long> Nrows_xcumsum_;
   class CellIndexer {
   public:
-    CellIndexer(const ExpAMRSolver &pSolver) : ps(pSolver) {}
+    CellIndexer(const PoissonSolver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
     long long This(const cubism::BlockInfo &info, const int ix,
                    const int iy) const {
@@ -7178,11 +7173,11 @@ protected:
     }
     static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
     static int iy_f(const int iy) { return (iy % (BSY_ / 2)) * 2; }
-    const ExpAMRSolver &ps;
+    const PoissonSolver &ps;
   };
   class EdgeCellIndexer : public CellIndexer {
   public:
-    EdgeCellIndexer(const ExpAMRSolver &pSolver) : CellIndexer(pSolver) {}
+    EdgeCellIndexer(const PoissonSolver &pSolver) : CellIndexer(pSolver) {}
     virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                               const int iy) const = 0;
     virtual long long neiInward(const cubism::BlockInfo &info, const int ix,
@@ -7207,7 +7202,7 @@ protected:
   };
   class XbaseIndexer : public EdgeCellIndexer {
   public:
-    XbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
+    XbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return iy % 2 == 0 ? -1. : 1.;
     }
@@ -7224,7 +7219,7 @@ protected:
   };
   class XminIndexer : public XbaseIndexer {
   public:
-    XminIndexer(const ExpAMRSolver &pSolver) : XbaseIndexer(pSolver) {}
+    XminIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
       return Xmax(nei_info, ix, iy);
@@ -7251,7 +7246,7 @@ protected:
   };
   class XmaxIndexer : public XbaseIndexer {
   public:
-    XmaxIndexer(const ExpAMRSolver &pSolver) : XbaseIndexer(pSolver) {}
+    XmaxIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
       return Xmin(nei_info, ix, iy);
@@ -7278,7 +7273,7 @@ protected:
   };
   class YbaseIndexer : public EdgeCellIndexer {
   public:
-    YbaseIndexer(const ExpAMRSolver &pSolver) : EdgeCellIndexer(pSolver) {}
+    YbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return ix % 2 == 0 ? -1. : 1.;
     }
@@ -7295,7 +7290,7 @@ protected:
   };
   class YminIndexer : public YbaseIndexer {
   public:
-    YminIndexer(const ExpAMRSolver &pSolver) : YbaseIndexer(pSolver) {}
+    YminIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
       return Ymax(nei_info, ix, iy);
@@ -7322,7 +7317,7 @@ protected:
   };
   class YmaxIndexer : public YbaseIndexer {
   public:
-    YmaxIndexer(const ExpAMRSolver &pSolver) : YbaseIndexer(pSolver) {}
+    YmaxIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
       return Ymin(nei_info, ix, iy);
@@ -7391,7 +7386,7 @@ protected:
                    const double signI, const double signT,
                    const EdgeCellIndexer &indexer, SpRowInfo &row) const;
 };
-double ExpAMRSolver::getA_local(int I1, int I2) {
+double PoissonSolver::getA_local(int I1, int I2) {
   int j1 = I1 / BSX_;
   int i1 = I1 % BSX_;
   int j2 = I2 / BSX_;
@@ -7403,7 +7398,7 @@ double ExpAMRSolver::getA_local(int I1, int I2) {
   else
     return 0.0;
 }
-ExpAMRSolver::ExpAMRSolver()
+PoissonSolver::PoissonSolver()
     : GenericCell(*this), XminCell(*this), XmaxCell(*this),
       YminCell(*this), YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell,
                                                      &YminCell, &YmaxCell} {
@@ -7455,7 +7450,7 @@ ExpAMRSolver::ExpAMRSolver()
   LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, BSX_ * BSY_,
                                                sim.bMeanConstraint, P_inv);
 }
-void ExpAMRSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
+void PoissonSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
                                const int iy_c, const cubism::BlockInfo &info_f,
                                const long long fine_close_idx,
                                const long long fine_far_idx,
@@ -7476,7 +7471,7 @@ void ExpAMRSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
-void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
+void PoissonSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
                             const int iy, const cubism::BlockInfo &rhsNei,
                             const EdgeCellIndexer &indexer,
                             SpRowInfo &row) const {
@@ -7515,7 +7510,7 @@ void ExpAMRSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
         "Neighbour doesn't exist, isn't coarser, nor finer...");
   }
 }
-void ExpAMRSolver::getMat() {
+void PoissonSolver::getMat() {
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
   sim.tmp->UpdateBlockInfoAll_States(true);
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
@@ -7596,7 +7591,7 @@ void ExpAMRSolver::getMat() {
   }
   LocalLS_->make(Nrows_xcumsum_);
 }
-void ExpAMRSolver::getVec() {
+void PoissonSolver::getVec() {
   std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
   std::vector<cubism::BlockInfo> &zInfo = sim.pres->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
@@ -7623,7 +7618,7 @@ void ExpAMRSolver::getVec() {
       }
   }
 }
-void ExpAMRSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
+void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
   const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -8366,7 +8361,7 @@ void PressureSingle::operator()(const Real dt) {
   }
 }
 PressureSingle::PressureSingle()
-    : Operator(), pressureSolver{std::make_shared<ExpAMRSolver>()} {}
+    : Operator(), pressureSolver{std::make_shared<PoissonSolver>()} {}
 PressureSingle::~PressureSingle() = default;
 struct FishSkin {
   const size_t Npoints;
