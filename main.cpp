@@ -463,7 +463,6 @@ public:
   using GridType = TGrid;
   typedef typename GridType::BlockType BlockType;
   typedef typename BlockType::ElementType ElementType;
-  typedef typename ElementType::RealType Real;
   typedef BlockCase<BlockType> Case;
   int rank{0};
 
@@ -2287,7 +2286,6 @@ class FluxCorrectionMPI : public TFluxCorrection {
 public:
   using TGrid = typename TFluxCorrection::GridType;
   typedef typename TFluxCorrection::ElementType ElementType;
-  typedef typename TFluxCorrection::Real Real;
   typedef typename TFluxCorrection::BlockType BlockType;
   typedef BlockCase<BlockType> Case;
   int size;
