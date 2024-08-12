@@ -7794,7 +7794,6 @@ class PressureSingle : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
   std::shared_ptr<PoissonSolver> pressureSolver;
-  void preventCollidingObstacles() const;
   void pressureCorrection(const Real dt);
   void integrateMomenta(Shape *const shape) const;
   void penalize(const Real dt) const;
@@ -8178,7 +8177,12 @@ struct updatePressureRHS1 {
     }
   }
 };
-void PressureSingle::preventCollidingObstacles() const {
+void PressureSingle::operator()(const Real dt) {
+  const size_t Nblocks = velInfo.size();
+  for (const auto &shape : sim.shapes) {
+    integrateMomenta(shape.get());
+    shape->updateVelocity(dt);
+  }
   const auto &shapes = sim.shapes;
   const auto &infos = sim.chi->getBlocksInfo();
   const size_t N = shapes.size();
@@ -8424,14 +8428,6 @@ void PressureSingle::preventCollidingObstacles() const {
       shapes[i]->omega = ho1[2];
       shapes[j]->omega = ho2[2];
     }
-}
-void PressureSingle::operator()(const Real dt) {
-  const size_t Nblocks = velInfo.size();
-  for (const auto &shape : sim.shapes) {
-    integrateMomenta(shape.get());
-    shape->updateVelocity(dt);
-  }
-  preventCollidingObstacles();
   penalize(dt);
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
