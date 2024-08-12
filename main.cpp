@@ -796,7 +796,7 @@ public:
   Grid(unsigned int _NX, unsigned int _NY,
        unsigned int _NZ, double _maxextent,
        unsigned int _levelStart, unsigned int _levelMax,
-       bool a_xperiodic, bool a_yperiodic, bool a_zperiodic, int preved)
+       bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
       : NX(_NX), NY(_NY), NZ(_NZ), maxextent(_maxextent), levelMax(_levelMax),
         levelStart(_levelStart), xperiodic(a_xperiodic), yperiodic(a_yperiodic),
         zperiodic(a_zperiodic) {
@@ -2634,7 +2634,7 @@ public:
   std::vector<BlockInfo *> boundary;
   GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
           int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
-      : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, false,
+      : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax,
               a_xperiodic, a_yperiodic, a_zperiodic),
         timestamp(0) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
