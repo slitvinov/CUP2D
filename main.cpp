@@ -6044,7 +6044,7 @@ struct KernelVorticity {
   }
 };
 template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
-  long i, j, k, x, y, z, ncell, ncell_total, offset;
+  long i, j, k, l, x, y, z, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
@@ -6101,13 +6101,17 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
             "    </Grid>\n"
             "  </Domain>\n"
             "</Xdmf>\n",
-            time, ncell_total, 4 * ncell_total, xyz_path, ncell_total, attr_path);
+            time, ncell_total, 4 * ncell_total, xyz_path, ncell_total,
+            attr_path);
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
+  attr = (float *)malloc(ncell * sizeof *xyz);
   k = 0;
+  l = 0;
   for (i = 0; i < grid->m_vInfo.size(); i++) {
     const cubism::BlockInfo &info = grid->m_vInfo[i];
+    B &b = *(B *)info.ptrBlock;
     for (y = 0; y < nY; y++)
       for (x = 0; x < nX; x++) {
         double u, v;
@@ -6121,6 +6125,7 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
         xyz[k++] = v + info.h;
         xyz[k++] = u + info.h;
         xyz[k++] = v;
+        attr[l++] = b(x, y, z).s;
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -6129,15 +6134,7 @@ template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
                         8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
-  attr = (float *)malloc(ncell * sizeof *xyz);
-  k = 0;
-  for (i = 0; i < grid->m_vInfo.size(); i++) {
-    const cubism::BlockInfo &info = grid->m_vInfo[i];
-    B &b = *(B *)info.ptrBlock;
-    for (y = 0; y < nY; y++)
-      for (x = 0; x < nX; x++)
-        attr[k++] = b(x, y, z).s;
-  }
+
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr,
