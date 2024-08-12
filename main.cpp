@@ -6175,7 +6175,7 @@ static void dump(Real time, TGrid *grid, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, offset * sizeof *xyz, xyz, ncell * sizeof *xyz,
+  MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz, 8 * ncell * sizeof *xyz,
                         MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
