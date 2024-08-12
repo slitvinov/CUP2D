@@ -9456,7 +9456,6 @@ public:
   StefanFish(cubism::CommandlineParser &p, Real C[2]);
   void create(const std::vector<cubism::BlockInfo> &vInfo) override;
   std::vector<Real> state(const std::vector<double> &origin) const;
-  std::vector<Real> state3D() const;
 };
 class CurvatureFish : public FishData {
   const Real amplitudeFactor, phaseShift, Tperiod;
