@@ -6112,6 +6112,7 @@ static void dump(Real time, TGrid *grid, char *path) {
   const int nZ = B::sizeZ;
   const int PtsPerElement = 4;
   std::vector<cubism::BlockInfo> &MyInfos = grid->getBlocksInfo();
+  ncell = MyInfos.size() * nX * nY * nZ;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
