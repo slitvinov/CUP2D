@@ -3204,10 +3204,6 @@ public:
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-  void release() {
-    _release(m_cacheBlock);
-    _release(m_CoarsenedBlock);
-  }
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
