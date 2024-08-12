@@ -6377,7 +6377,9 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
       timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
       breakSymmetryType(p("-breakSymmetryType").asInt(0)),
       breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
-      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {}
+      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)) {
+	assert(0);
+				}
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
