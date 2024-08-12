@@ -5183,7 +5183,6 @@ struct ScalarElement {
   Real s = 0;
   inline void clear() { s = 0; }
   inline void set(const Real v) { s = v; }
-  inline void copy(const ScalarElement &c) { s = c.s; }
   ScalarElement &operator*=(const Real a) {
     this->s *= a;
     return *this;
@@ -5196,10 +5195,6 @@ struct ScalarElement {
     this->s -= rhs.s;
     return *this;
   }
-  ScalarElement &operator/=(const ScalarElement &rhs) {
-    this->s /= rhs.s;
-    return *this;
-  }
   friend ScalarElement operator*(const Real a, ScalarElement el) {
     return (el *= a);
   }
@@ -5209,13 +5204,6 @@ struct ScalarElement {
   friend ScalarElement operator-(ScalarElement lhs, const ScalarElement &rhs) {
     return (lhs -= rhs);
   }
-  friend ScalarElement operator/(ScalarElement lhs, const ScalarElement &rhs) {
-    return (lhs /= rhs);
-  }
-  bool operator<(const ScalarElement &other) const { return (s < other.s); }
-  bool operator>(const ScalarElement &other) const { return (s > other.s); }
-  bool operator<=(const ScalarElement &other) const { return (s <= other.s); }
-  bool operator>=(const ScalarElement &other) const { return (s >= other.s); }
   Real magnitude() { return s; }
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
