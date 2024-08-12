@@ -6051,9 +6051,8 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
-  typedef typename ScalarGrid::BlockType B;
-  const int nX = B::sizeX;
-  const int nY = B::sizeY;
+  const int nX = ScalarBlock::sizeX;
+  const int nY = ScalarBlock::sizeY;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -6111,7 +6110,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   l = 0;
   for (i = 0; i < grid->m_vInfo.size(); i++) {
     const cubism::BlockInfo &info = grid->m_vInfo[i];
-    B &b = *(B *)info.ptrBlock;
+    ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
     for (y = 0; y < nY; y++)
       for (x = 0; x < nX; x++) {
         double u, v;
