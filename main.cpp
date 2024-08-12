@@ -704,23 +704,6 @@ public:
   }
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
-  void _alloc() {
-    const int m = levelStart;
-    const int TwoPower = 1 << m;
-    for (long long n = 0; n < NX * NY * NZ * pow(TwoPower, 2); n++) {
-      Tree(m, n).setrank(0);
-      _alloc(m, n);
-    }
-    if (m - 1 >= 0) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m - 1)), 2); n++)
-        Tree(m - 1, n).setCheckFiner();
-    }
-    if (m + 1 < levelMax) {
-      for (long long n = 0; n < NX * NY * NZ * pow((1 << (m + 1)), 2); n++)
-        Tree(m + 1, n).setCheckCoarser();
-    }
-    FillPos();
-  }
   void _alloc(const int m, const long long n) {
     std::allocator<Block> alloc;
     BlockInfo &new_info = getBlockInfoAll(m, n);
@@ -810,11 +793,10 @@ public:
         assert(Tree(m, n).Exists());
       }
   }
-  Grid(const unsigned int _NX, const unsigned int _NY = 1,
-       const unsigned int _NZ = 1, const double _maxextent = 1,
-       const unsigned int _levelStart = 0, const unsigned int _levelMax = 1,
-       const bool AllocateBlocks = true, const bool a_xperiodic = true,
-       const bool a_yperiodic = true, const bool a_zperiodic = true)
+  Grid(unsigned int _NX, unsigned int _NY,
+       unsigned int _NZ, double _maxextent,
+       unsigned int _levelStart, unsigned int _levelMax,
+       bool a_xperiodic, bool a_yperiodic, bool a_zperiodic, int preved)
       : NX(_NX), NY(_NY), NZ(_NZ), maxextent(_maxextent), levelMax(_levelMax),
         levelStart(_levelStart), xperiodic(a_xperiodic), yperiodic(a_yperiodic),
         zperiodic(a_zperiodic) {
@@ -831,8 +813,6 @@ public:
       if (m > 0)
         level_base.push_back(level_base[m - 1] + Ntot);
     }
-    if (AllocateBlocks)
-      _alloc();
   }
   virtual ~Grid() { _deallocAll(); }
   virtual Block *avail(const int m, const long long n) {
