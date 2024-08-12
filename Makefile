@@ -14,6 +14,7 @@ FLAGS =\
 -DDIMENSION=2\
 -DNDEBUG\
 -Wno-format-truncation\
+-Wno-unused-result\
 $(OPENMPFLAGS)\
 -O3\
 -std=c++17\
