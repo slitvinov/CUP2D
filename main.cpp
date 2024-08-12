@@ -132,9 +132,9 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       int itemCount = 0;
       for (int j = i + 1; j < argc; j++) {
         const bool leadingDash = (argv[j][0] == '-');
-	char *end = NULL;
-	strtod(argv[j], &end);
-	const bool isNumeric = end != argv[j];
+        char *end = NULL;
+        strtod(argv[j], &end);
+        const bool isNumeric = end != argv[j];
         if (leadingDash && !isNumeric)
           break;
         else {
@@ -1249,27 +1249,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3770,27 +3773,30 @@ protected:
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -6037,13 +6043,13 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-template <typename TGrid>
-static void dump(Real time, TGrid *grid, char *path) {
+template <typename TGrid> static void dump(Real time, TGrid *grid, char *path) {
   long i, j, k, x, y, z, ncell, ncell_total, offset;
   int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
   MPI_File mpi_file;
+  FILE *xmf;
   float *xyz, *attr;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
@@ -6056,7 +6062,7 @@ static void dump(Real time, TGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  typedef typename  TGrid::BlockType B;
+  typedef typename TGrid::BlockType B;
   const int nX = B::sizeX;
   const int nY = B::sizeY;
   const int PtsPerElement = 4;
@@ -6067,79 +6073,77 @@ static void dump(Real time, TGrid *grid, char *path) {
     offset = 0;
   if (sim.rank == sim.size - 1) {
     ncell_total = ncell + offset;
-    std::stringstream s;
-    s << "<?xml version=\"1.0\" ?>\n";
-    s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
-    s << "<Xdmf Version=\"2.0\">\n";
-    s << "<Domain>\n";
-    s << " <Grid Name=\"OctTree\" GridType=\"Uniform\">\n";
-    s << "  <Time Value=\"" << std::scientific << time << "\"/>\n\n";
-    s << "   <Topology NumberOfElements=\"" << ncell_total
-      << "\" TopologyType=\"Quadrilateral\"/>\n";
-    s << "     <Geometry GeometryType=\"XY\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" "
-      << ncell_total * PtsPerElement << " " << DIMENSION
-      << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(float)
-      << "\" Format=\"Binary\">\n";
-    s << "            " << xyz_base << "\n";
-    s << "        </DataItem>\n";
-    s << "     </Geometry>\n";
-    s << "     <Attribute Name=\"data\" AttributeType=\""
-      << "Scalar"
-      << "\" Center=\"Cell\">\n";
-    s << "        <DataItem ItemType=\"Uniform\"  Dimensions=\" " << ncell_total
-      << " " << 1 << "\" NumberType=\"Float\" Precision=\" "
-      << sizeof(float) << "\" Format=\"Binary\">\n";
-    s << "            " << attr_base << "\n";
-    s << "        </DataItem>\n";
-    s << "     </Attribute>\n";
-    s << " </Grid>\n";
-    s << "</Domain>\n";
-    s << "</Xdmf>\n";
-    std::string st = s.str();
-    FILE *xmf = 0;
     xmf = fopen(xdmf_path, "w");
-    fprintf(xmf, "%s", st.c_str());
+    fprintf(xmf,
+            "<Xdmf\n"
+            "    Version=\"2.0\">\n"
+            "  <Domain>\n"
+            "    <Grid>\n"
+            "      <Time Value=\"%.16e\"/>\n"
+            "      <Topology\n"
+            "	  Dimensions=\"%ld\"\n"
+            "	  TopologyType=\"Quadrilateral\"/>\n"
+            "      <Geometry\n"
+            "	  GeometryType=\"XY\">\n"
+            "	<DataItem\n"
+            "	    Dimensions=\"%ld 2\"\n"
+            "	    Format=\"Binary\">\n"
+            "	  %s\n"
+            "	</DataItem>\n"
+            "      </Geometry>\n"
+            "      <Attribute\n"
+            "	  Name=\"vort\"\n"
+            "	  Center=\"Cell\">\n"
+            "	<DataItem\n"
+            "	    Dimensions=\"%ld\"\n"
+            "	    Format=\"Binary\">\n"
+            "	  %s\n"
+            "	</DataItem>\n"
+            "      </Attribute>\n"
+            "    </Grid>\n"
+            "  </Domain>\n"
+            "</Xdmf>\n",
+            time, ncell_total, 2 * ncell_total, xyz_path, ncell_total, attr_path);
     fclose(xmf);
   }
-  xyz = (float*)malloc(8 * ncell * sizeof *xyz);
+  xyz = (float *)malloc(8 * ncell * sizeof *xyz);
   k = 0;
   for (i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
-      for (y = 0; y < nY; y++)
-        for (x = 0; x < nX; x++) {
-	  double u, v;
-	  u = info.origin[0] + info.h * x; 
-	  v = info.origin[1] + info.h * y;
-          xyz[k++] = u;
-          xyz[k++] = v;
-          xyz[k++] = u;
-          xyz[k++] = v + info.h;
-          xyz[k++] = u + info.h;
-          xyz[k++] = v + info.h;
-          xyz[k++] = u + info.h;
-          xyz[k++] = v;
-        }
+    for (y = 0; y < nY; y++)
+      for (x = 0; x < nX; x++) {
+        double u, v;
+        u = info.origin[0] + info.h * x;
+        v = info.origin[1] + info.h * y;
+        xyz[k++] = u;
+        xyz[k++] = v;
+        xyz[k++] = u;
+        xyz[k++] = v + info.h;
+        xyz[k++] = u + info.h;
+        xyz[k++] = v + info.h;
+        xyz[k++] = u + info.h;
+        xyz[k++] = v;
+      }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz, 8 * ncell * sizeof *xyz,
-                        MPI_BYTE, MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz,
+                        8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
-  attr = (float*)malloc(ncell * sizeof *xyz);
+  attr = (float *)malloc(ncell * sizeof *xyz);
   k = 0;
   for (i = 0; i < MyInfos.size(); i++) {
     const cubism::BlockInfo &info = MyInfos[i];
     B &b = *(B *)info.ptrBlock;
-      for (y = 0; y < nY; y++)
-        for (x = 0; x < nX; x++)
-	  attr[k++] = b(x, y, z).s;
+    for (y = 0; y < nY; y++)
+      for (x = 0; x < nX; x++)
+        attr[k++] = b(x, y, z).s;
   }
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr, ncell * sizeof *attr,
-                        MPI_BYTE, MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr,
+                        ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(attr);
 }
