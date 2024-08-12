@@ -5979,9 +5979,6 @@ struct Shape {
   Real d_gm[2] = {0, 0};
   Real labCenterOfMass[2] = {0, 0};
   Real orientation = origAng;
-  const bool bFixed;
-  const bool bFixedx;
-  const bool bFixedy;
   const bool bForced;
   const bool bForcedx;
   const bool bForcedy;
@@ -6034,7 +6031,6 @@ struct Shape {
   };
   Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
   virtual void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void updateLabVelocity(int mSum[2], Real uSum[2]);
   virtual void computeForces();
 
   const Real length, Tperiod, phaseShift;
@@ -6098,16 +6094,6 @@ void Shape::updateVelocity(Real dt) {
   }
   gsl_permutation_free(permgsl);
   gsl_vector_free(xgsl);
-}
-void Shape::updateLabVelocity(int nSum[2], Real uSum[2]) {
-  if (bFixedx) {
-    (nSum[0])++;
-    uSum[0] -= u;
-  }
-  if (bFixedy) {
-    (nSum[1])++;
-    uSum[1] -= v;
-  }
 }
 Shape::Integrals
 Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
@@ -6673,8 +6659,6 @@ struct PutChiOnGrid {
 void PutObjectsOnGrid::operator()(const Real dt) {
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
-  for (const auto &shape : sim.shapes)
-    shape->updateLabVelocity(nSum, uSum);
   if (nSum[0] > 0) {
     sim.uinfx = uSum[0] / nSum[0];
   }
@@ -9263,8 +9247,6 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
     : origC{C[0], C[1]},
       origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
       centerOfMass{C[0], C[1]}, orientation(origAng),
-      bFixed(p("-bFixed").asBool(false)), bFixedx(p("-bFixedx").asBool(bFixed)),
-      bFixedy(p("-bFixedy").asBool(bFixed)),
       bForced(p("-bForced").asBool(false)),
       bForcedx(p("-bForcedx").asBool(bForced)),
       bForcedy(p("-bForcedy").asBool(bForced)),
