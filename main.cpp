@@ -5194,7 +5194,6 @@ template <typename TElement> struct GridBlock {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
-  static constexpr std::array<int, 3> sizeArray = {sizeX, sizeY, sizeZ};
   using ElementType = TElement;
   ElementType data[sizeZ][sizeY][sizeX];
   inline void clear() {
