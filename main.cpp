@@ -6112,16 +6112,17 @@ static void dump(Real time, TGrid *grid, char *path) {
         for (int x = 0; x < nX; x++) {
           const int bbase = (i * nZ * nY * nX + z * nY * nX + y * nX + x) *
                             PtsPerElement * DIMENSION;
-          double p[2];
-          info.pos(p, x, y);
-          xyz[bbase + 0] = p[0] - h2;
-          xyz[bbase + 1] = p[1] - h2;
-          xyz[bbase + 2] = p[0] - h2;
-          xyz[bbase + 3] = p[1] + h2;
-          xyz[bbase + 4] = p[0] + h2;
-          xyz[bbase + 5] = p[1] + h2;
-          xyz[bbase + 6] = p[0] + h2;
-          xyz[bbase + 7] = p[1] - h2;
+	  double u, v;
+	  u = info.origin[0] + info.h * (x + 0.5);
+	  v = info.origin[1] + info.h * (y + 0.5);
+          xyz[bbase + 0] = u - h2;
+          xyz[bbase + 1] = v - h2;
+          xyz[bbase + 2] = u - h2;
+          xyz[bbase + 3] = v + h2;
+          xyz[bbase + 4] = u + h2;
+          xyz[bbase + 5] = v + h2;
+          xyz[bbase + 6] = u + h2;
+          xyz[bbase + 7] = v - h2;
         }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
