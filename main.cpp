@@ -9324,22 +9324,147 @@ public:
     }
   }
 };
+class CurvatureFish : public FishData {
+  const Real amplitudeFactor, phaseShift, Tperiod;
+
+public:
+  Real curv_PID_fac = 0;
+  Real curv_PID_dif = 0;
+  Real avgDeltaY = 0;
+  Real avgDangle = 0;
+  Real avgAngVel = 0;
+  Real lastTact = 0;
+  Real lastCurv = 0;
+  Real oldrCurv = 0;
+  Real periodPIDval = Tperiod;
+  Real periodPIDdif = 0;
+  bool TperiodPID = false;
+  Real time0 = 0;
+  Real timeshift = 0;
+  Real lastTime = 0;
+  Real lastAvel = 0;
+  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
+  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period = Tperiod;
+  Real next_period = Tperiod;
+  Real transition_start = 0.0;
+  Real transition_duration = 0.1 * Tperiod;
+
+protected:
+  Real *const rK;
+  Real *const vK;
+  Real *const rC;
+  Real *const vC;
+  Real *const rB;
+  Real *const vB;
+
+public:
+  CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
+      : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
+        rK(_alloc(Nm)), vK(_alloc(Nm)), rC(_alloc(Nm)), vC(_alloc(Nm)),
+        rB(_alloc(Nm)), vB(_alloc(Nm)) {
+    _computeWidth();
+  }
+  void execute(const Real t_current, const Real t_rlAction,
+               const std::vector<Real> &a) {
+    assert(t_current >= t_rlAction);
+    oldrCurv = lastCurv;
+    lastCurv = a[0];
+    rlBendingScheduler.Turn(a[0], t_rlAction);
+    if (a.size() > 1) {
+      if (TperiodPID)
+        std::cout << "Warning: PID controller should not be used with RL."
+                  << std::endl;
+      lastTact = a[1];
+      current_period = periodPIDval;
+      next_period = Tperiod * (1 + a[1]);
+      transition_start = t_rlAction;
+    }
+  }
+  ~CurvatureFish() override {
+    _dealloc(rK);
+    _dealloc(vK);
+    _dealloc(rC);
+    _dealloc(vC);
+    _dealloc(rB);
+    _dealloc(vB);
+  }
+  void computeMidline(const Real time, const Real dt) override;
+  Real _width(const Real s, const Real L) override {
+    const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+               wh = .04 * length;
+    if (s < 0 or s > L)
+      return 0;
+    const Real w =
+        (s < sb ? std::sqrt(2 * wh * s - s * s)
+                : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
+                          : (wt * (L - s) / (L - st))));
+    assert(w >= 0);
+    return w;
+  }
+};
+void CurvatureFish::computeMidline(const Real t, const Real dt) {
+  periodScheduler.transition(t, transition_start,
+                             transition_start + transition_duration,
+                             current_period, next_period);
+  periodScheduler.gimmeValues(t, periodPIDval, periodPIDdif);
+  if (transition_start < t && t < transition_start + transition_duration) {
+    timeshift = (t - time0) / periodPIDval + timeshift;
+    time0 = t;
+  }
+  const std::array<Real, 6> curvaturePoints = {
+      (Real)0,           (Real).15 * length,
+      (Real).4 * length, (Real).65 * length,
+      (Real).9 * length, length};
+  const std::array<Real, 6> curvatureValues = {
+      (Real)0.82014 / length, (Real)1.46515 / length, (Real)2.57136 / length,
+      (Real)3.75425 / length, (Real)5.09147 / length, (Real)5.70449 / length};
+  const std::array<Real, 7> bendPoints = {
+      (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
+  const std::array<Real, 6> curvatureZeros = {
+      0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
+      0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
+      0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
+  };
+  curvatureScheduler.transition(0, 0, Tperiod, curvatureZeros, curvatureValues);
+  curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
+  rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS,
+                                 rB, vB);
+  const Real diffT = 1 - (t - time0) * periodPIDdif / periodPIDval;
+  const Real darg = 2 * M_PI / periodPIDval * diffT;
+  const Real arg0 =
+      2 * M_PI * ((t - time0) / periodPIDval + timeshift) + M_PI * phaseShift;
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < Nm; ++i) {
+    const Real arg = arg0 - 2 * M_PI * rS[i] / length;
+    rK[i] = amplitudeFactor * rC[i] * (std::sin(arg) + rB[i] + curv_PID_fac);
+    vK[i] = amplitudeFactor *
+            (vC[i] * (std::sin(arg) + rB[i] + curv_PID_fac) +
+             rC[i] * (std::cos(arg) * darg + vB[i] + curv_PID_dif));
+    assert(not std::isnan(rK[i]));
+    assert(not std::isinf(rK[i]));
+    assert(not std::isnan(vK[i]));
+    assert(not std::isinf(vK[i]));
+  }
+  IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
+                       vNorY);
+}
 struct FishData;
 class Fish : public Shape {
 public:
   const Real length, Tperiod, phaseShift;
   FishData *myFish = nullptr;
-
-protected:
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
   Fish(cubism::CommandlineParser &p, Real C[2])
       : Shape(p, C), length(p("-L").asDouble(0.1)),
-        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {}
+        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)) {
+    const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
+    myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
+  }
   virtual ~Fish() override;
-
-public:
   Real getCharLength() const override { return length; }
   void removeMoments(const std::vector<cubism::BlockInfo> &vInfo) override;
   virtual void updatePosition(Real dt) override;
@@ -9450,141 +9575,6 @@ void Fish::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   Shape::removeMoments(vInfo);
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
   myFish->computeSkinNormals(orientation, centerOfMass);
-}
-class StefanFish : public Fish {
-public:
-  StefanFish(cubism::CommandlineParser &p, Real C[2]);
-  std::vector<Real> state(const std::vector<double> &origin) const;
-};
-class CurvatureFish : public FishData {
-  const Real amplitudeFactor, phaseShift, Tperiod;
-
-public:
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
-  Real avgDeltaY = 0;
-  Real avgDangle = 0;
-  Real avgAngVel = 0;
-  Real lastTact = 0;
-  Real lastCurv = 0;
-  Real oldrCurv = 0;
-  Real periodPIDval = Tperiod;
-  Real periodPIDdif = 0;
-  bool TperiodPID = false;
-  Real time0 = 0;
-  Real timeshift = 0;
-  Real lastTime = 0;
-  Real lastAvel = 0;
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  Schedulers::ParameterSchedulerScalar periodScheduler;
-  Real current_period = Tperiod;
-  Real next_period = Tperiod;
-  Real transition_start = 0.0;
-  Real transition_duration = 0.1 * Tperiod;
-
-protected:
-  Real *const rK;
-  Real *const vK;
-  Real *const rC;
-  Real *const vC;
-  Real *const rB;
-  Real *const vB;
-
-public:
-  CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-      : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
-        rK(_alloc(Nm)), vK(_alloc(Nm)), rC(_alloc(Nm)), vC(_alloc(Nm)),
-        rB(_alloc(Nm)), vB(_alloc(Nm)) {
-    _computeWidth();
-  }
-  void execute(const Real t_current, const Real t_rlAction,
-               const std::vector<Real> &a) {
-    assert(t_current >= t_rlAction);
-    oldrCurv = lastCurv;
-    lastCurv = a[0];
-    rlBendingScheduler.Turn(a[0], t_rlAction);
-    if (a.size() > 1) {
-      if (TperiodPID)
-        std::cout << "Warning: PID controller should not be used with RL."
-                  << std::endl;
-      lastTact = a[1];
-      current_period = periodPIDval;
-      next_period = Tperiod * (1 + a[1]);
-      transition_start = t_rlAction;
-    }
-  }
-  ~CurvatureFish() override {
-    _dealloc(rK);
-    _dealloc(vK);
-    _dealloc(rC);
-    _dealloc(vC);
-    _dealloc(rB);
-    _dealloc(vB);
-  }
-  void computeMidline(const Real time, const Real dt) override;
-  Real _width(const Real s, const Real L) override {
-    const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-               wh = .04 * length;
-    if (s < 0 or s > L)
-      return 0;
-    const Real w =
-        (s < sb ? std::sqrt(2 * wh * s - s * s)
-                : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
-                          : (wt * (L - s) / (L - st))));
-    assert(w >= 0);
-    return w;
-  }
-};
-StefanFish::StefanFish(cubism::CommandlineParser &p, Real C[2]) : Fish(p, C) {
-  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
-}
-void CurvatureFish::computeMidline(const Real t, const Real dt) {
-  periodScheduler.transition(t, transition_start,
-                             transition_start + transition_duration,
-                             current_period, next_period);
-  periodScheduler.gimmeValues(t, periodPIDval, periodPIDdif);
-  if (transition_start < t && t < transition_start + transition_duration) {
-    timeshift = (t - time0) / periodPIDval + timeshift;
-    time0 = t;
-  }
-  const std::array<Real, 6> curvaturePoints = {
-      (Real)0,           (Real).15 * length,
-      (Real).4 * length, (Real).65 * length,
-      (Real).9 * length, length};
-  const std::array<Real, 6> curvatureValues = {
-      (Real)0.82014 / length, (Real)1.46515 / length, (Real)2.57136 / length,
-      (Real)3.75425 / length, (Real)5.09147 / length, (Real)5.70449 / length};
-  const std::array<Real, 7> bendPoints = {
-      (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
-  const std::array<Real, 6> curvatureZeros = {
-      0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
-      0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
-      0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
-  };
-  curvatureScheduler.transition(0, 0, Tperiod, curvatureZeros, curvatureValues);
-  curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
-  rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS,
-                                 rB, vB);
-  const Real diffT = 1 - (t - time0) * periodPIDdif / periodPIDval;
-  const Real darg = 2 * M_PI / periodPIDval * diffT;
-  const Real arg0 =
-      2 * M_PI * ((t - time0) / periodPIDval + timeshift) + M_PI * phaseShift;
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm; ++i) {
-    const Real arg = arg0 - 2 * M_PI * rS[i] / length;
-    rK[i] = amplitudeFactor * rC[i] * (std::sin(arg) + rB[i] + curv_PID_fac);
-    vK[i] = amplitudeFactor *
-            (vC[i] * (std::sin(arg) + rB[i] + curv_PID_fac) +
-             rC[i] * (std::cos(arg) * darg + vB[i] + curv_PID_dif));
-    assert(not std::isnan(rK[i]));
-    assert(not std::isinf(rK[i]));
-    assert(not std::isnan(vK[i]));
-    assert(not std::isinf(vK[i]));
-  }
-  IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
-                       vNorY);
 }
 static std::vector<std::string> split(const std::string &s, const char dlm) {
   std::stringstream ss(s);
@@ -9699,7 +9689,7 @@ int main(int argc, char **argv) {
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
       Shape *shape = nullptr;
       if (objectName == "stefanfish")
-        shape = new StefanFish(ffparser, center);
+        shape = new Fish(ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
       shape->obstacleID = (unsigned)sim.shapes.size();
