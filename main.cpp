@@ -6119,7 +6119,7 @@ struct Shape {
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
   Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
-  //Real getCharLength() const override { return length; }
+  Real getCharLength() const { return length; }
   //void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
   //virtual void updatePosition(Real dt);
   //virtual void create(const std::vector<cubism::BlockInfo> &vInfo);  
