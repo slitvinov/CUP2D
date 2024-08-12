@@ -3177,7 +3177,6 @@ public:
     if (CoarseBlockSize[2] == 0)
       CoarseBlockSize[2] = 1;
   }
-  virtual std::string name() const { return "BlockLab"; }
   virtual bool is_xperiodic() { return true; }
   virtual bool is_yperiodic() { return true; }
   virtual bool is_zperiodic() { return true; }
