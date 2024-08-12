@@ -48,7 +48,6 @@ public:
   int asInt(int def = 0);
   bool asBool(bool def = false);
   std::string asString(const std::string &def = std::string());
-  friend std::ostream &operator<<(std::ostream &lhs, const Value &rhs);
 };
 class CommandlineParser {
 private:
@@ -97,10 +96,6 @@ std::string Value::asString(const std::string &def) {
   if (content == "")
     content = def;
   return content;
-}
-std::ostream &operator<<(std::ostream &lhs, const Value &rhs) {
-  lhs << rhs.content;
-  return lhs;
 }
 static inline void _normalizeKey(std::string &key) {
   if (key[0] == '-')
