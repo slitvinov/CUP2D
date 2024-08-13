@@ -5557,6 +5557,43 @@ public:
   virtual void computeMidline(const Real time, const Real dt) = 0;
 };
 class Shape;
+FishData::FishData(Real L, Real _h)
+    : length(L), h(_h), rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)),
+      vX(_alloc(Nm)), vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)),
+      vNorX(_alloc(Nm)), vNorY(_alloc(Nm)), width(_alloc(Nm)) {
+  if (dSref <= 0) {
+    std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+    fflush(0);
+    abort();
+  }
+  rS[0] = 0;
+  int k = 0;
+  for (int i = 0; i < Nend; ++i, k++)
+    rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
+  for (int i = 0; i < Nmid; ++i, k++)
+    rS[k + 1] = rS[k] + dSmid;
+  for (int i = 0; i < Nend; ++i, k++)
+    rS[k + 1] =
+        rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
+  assert(k + 1 == Nm);
+  rS[k] = std::min(rS[k], (Real)L);
+  std::fill(rX, rX + Nm, 0);
+  std::fill(rY, rY + Nm, 0);
+  std::fill(vX, vX + Nm, 0);
+  std::fill(vY, vY + Nm, 0);
+}
+FishData::~FishData() {
+  _dealloc(rS);
+  _dealloc(rX);
+  _dealloc(rY);
+  _dealloc(vX);
+  _dealloc(vY);
+  _dealloc(norX);
+  _dealloc(norY);
+  _dealloc(vNorX);
+  _dealloc(vNorY);
+  _dealloc(width);
+}
 static struct {
   int rank;
   int size;
@@ -8363,43 +8400,6 @@ struct PutFishOnBlocks {
                                   ObstacleBlock *const o,
                                   const std::vector<AreaSegment *> &v) const;
 };
-FishData::FishData(Real L, Real _h)
-    : length(L), h(_h), rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)),
-      vX(_alloc(Nm)), vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)),
-      vNorX(_alloc(Nm)), vNorY(_alloc(Nm)), width(_alloc(Nm)) {
-  if (dSref <= 0) {
-    std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-    fflush(0);
-    abort();
-  }
-  rS[0] = 0;
-  int k = 0;
-  for (int i = 0; i < Nend; ++i, k++)
-    rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-  for (int i = 0; i < Nmid; ++i, k++)
-    rS[k + 1] = rS[k] + dSmid;
-  for (int i = 0; i < Nend; ++i, k++)
-    rS[k + 1] =
-        rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-  assert(k + 1 == Nm);
-  rS[k] = std::min(rS[k], (Real)L);
-  std::fill(rX, rX + Nm, 0);
-  std::fill(rY, rY + Nm, 0);
-  std::fill(vX, vX + Nm, 0);
-  std::fill(vY, vY + Nm, 0);
-}
-FishData::~FishData() {
-  _dealloc(rS);
-  _dealloc(rX);
-  _dealloc(rY);
-  _dealloc(vX);
-  _dealloc(vY);
-  _dealloc(norX);
-  _dealloc(norY);
-  _dealloc(vNorX);
-  _dealloc(vNorY);
-  _dealloc(width);
-}
 void FishData::_computeMidlineNormals() const {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm - 1; i++) {
