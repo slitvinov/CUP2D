@@ -5224,62 +5224,6 @@ template <typename TElement> struct GridBlock {
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
-template <typename TGrid>
-class BlockLabNeumann : public cubism::BlockLab<TGrid> {
-  static constexpr int sizeX = TGrid::BlockType::sizeX;
-  static constexpr int sizeY = TGrid::BlockType::sizeY;
-  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
-
-protected:
-  template <int dir, int side> void Neumann2D(const bool coarse = false) {
-    int stenBeg[2];
-    int stenEnd[2];
-    int bsize[2];
-    if (!coarse) {
-      stenEnd[0] = this->m_stencilEnd[0];
-      stenEnd[1] = this->m_stencilEnd[1];
-      stenBeg[0] = this->m_stencilStart[0];
-      stenBeg[1] = this->m_stencilStart[1];
-      bsize[0] = sizeX;
-      bsize[1] = sizeY;
-    } else {
-      stenEnd[0] =
-          (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1;
-      stenEnd[1] =
-          (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1;
-      stenBeg[0] =
-          (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0];
-      stenBeg[1] =
-          (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1];
-      bsize[0] = sizeX / 2;
-      bsize[1] = sizeY / 2;
-    }
-    auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
-    int s[2];
-    int e[2];
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
-                    : bsize[0] + stenEnd[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
-                    : bsize[1] + stenEnd[1] - 1;
-    for (int iy = s[1]; iy < e[1]; iy++)
-      for (int ix = s[0]; ix < e[0]; ix++)
-        cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) = cb->Access(
-            (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
-            (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
-  }
-
-public:
-  typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
-  typedef typename TGrid::BlockType::ElementType ElementType;
-  virtual bool is_xperiodic() override { return false; }
-  virtual bool is_yperiodic() override { return false; }
-  virtual bool is_zperiodic() override { return false; }
-  BlockLabNeumann() = default;
-  BlockLabNeumann(const BlockLabNeumann &) = delete;
-  BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-};
 } // namespace cubism
 enum BCflag { freespace, periodic, wall };
 inline BCflag string2BCflag(const std::string &strFlag) {
@@ -5424,25 +5368,73 @@ public:
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
 template <typename TGrid>
-class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid> {
+class BlockLabNeumann : public cubism::BlockLab<TGrid> {
+  static constexpr int sizeX = TGrid::BlockType::sizeX;
+  static constexpr int sizeY = TGrid::BlockType::sizeY;
+  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
+
+protected:
+  template <int dir, int side> void Neumann2D(const bool coarse = false) {
+    int stenBeg[2];
+    int stenEnd[2];
+    int bsize[2];
+    if (!coarse) {
+      stenEnd[0] = this->m_stencilEnd[0];
+      stenEnd[1] = this->m_stencilEnd[1];
+      stenBeg[0] = this->m_stencilStart[0];
+      stenBeg[1] = this->m_stencilStart[1];
+      bsize[0] = sizeX;
+      bsize[1] = sizeY;
+    } else {
+      stenEnd[0] =
+          (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1;
+      stenEnd[1] =
+          (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1;
+      stenBeg[0] =
+          (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0];
+      stenBeg[1] =
+          (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1];
+      bsize[0] = sizeX / 2;
+      bsize[1] = sizeY / 2;
+    }
+    auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
+    int s[2];
+    int e[2];
+    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
+    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
+                    : bsize[0] + stenEnd[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
+                    : bsize[1] + stenEnd[1] - 1;
+    for (int iy = s[1]; iy < e[1]; iy++)
+      for (int ix = s[0]; ix < e[0]; ix++)
+        cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) = cb->Access(
+            (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
+            (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
+  }
+
 public:
-  using cubismLab = cubism::BlockLabNeumann<TGrid>;
-  virtual bool is_xperiodic() override { return cubismBCX == periodic; }
-  virtual bool is_yperiodic() override { return cubismBCY == periodic; }
-  virtual bool is_zperiodic() override { return false; }
+  typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
+  typedef typename TGrid::BlockType::ElementType ElementType;
+  bool is_xperiodic() override { return cubismBCX == periodic; }
+  bool is_yperiodic() override { return cubismBCY == periodic; }
+  bool is_zperiodic() override { return false; }
+  BlockLabNeumann() = default;
+  BlockLabNeumann(const BlockLabNeumann &) = delete;
+  BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
-                 const bool coarse = false) override {
+                 const bool coarse = false) {
     if (is_xperiodic() == false) {
       if (info.index[0] == 0)
-        cubismLab::template Neumann2D<0, 0>(coarse);
+        Neumann2D<0, 0>(coarse);
       if (info.index[0] == this->NX - 1)
-        cubismLab::template Neumann2D<0, 1>(coarse);
+        Neumann2D<0, 1>(coarse);
     }
     if (is_yperiodic() == false) {
       if (info.index[1] == 0)
-        cubismLab::template Neumann2D<1, 0>(coarse);
+        Neumann2D<1, 0>(coarse);
       if (info.index[1] == this->NY - 1)
-        cubismLab::template Neumann2D<1, 1>(coarse);
+        Neumann2D<1, 1>(coarse);
     }
   }
 };
