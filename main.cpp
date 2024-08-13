@@ -5416,7 +5416,7 @@ public:
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-  void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
+  virtual void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) {
     if (is_xperiodic() == false) {
       if (info.index[0] == 0)
