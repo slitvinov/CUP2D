@@ -524,7 +524,7 @@ public:
     Cases.clear();
     MapOfCases.clear();
     grid = &_grid;
-    std::vector<BlockInfo> &B = (*grid).getBlocksInfo();
+    std::vector<BlockInfo> &B = (*grid).m_vInfo;
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -585,7 +585,7 @@ public:
       }
   }
   virtual void FillBlockCases() {
-    std::vector<BlockInfo> &B = (*grid).getBlocksInfo();
+    std::vector<BlockInfo> &B = (*grid).m_vInfo;
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -899,8 +899,6 @@ public:
       return getBlockInfoAll(m, n);
     }
   }
-  std::vector<BlockInfo> &getBlocksInfo() { return m_vInfo; }
-  const std::vector<BlockInfo> &getBlocksInfo() const { return m_vInfo; }
   virtual int get_world_size() const { return 1; }
   virtual void UpdateBoundary(bool clean = false) {}
 };
@@ -1697,7 +1695,7 @@ public:
       myunpacks[i].clear();
     myunpacks.clear();
     DuplicatesManager DM(*(this));
-    for (BlockInfo &info : grid->getBlocksInfo()) {
+    for (BlockInfo &info : grid->m_vInfo) {
       info.halo_block_id = -1;
       const bool xskin =
           info.index[0] == 0 ||
@@ -2387,7 +2385,7 @@ public:
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
-    std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).getBlocksInfo();
+    std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).m_vInfo;
     std::array<int, 3> blocksPerDim = _grid.getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -4207,7 +4205,7 @@ public:
   void PrepareCompression() {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
-    std::vector<BlockInfo> &I = grid->getBlocksInfo();
+    std::vector<BlockInfo> &I = grid->m_vInfo;
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
     for (auto &b : I) {
@@ -4298,7 +4296,7 @@ public:
     }
     const int right = (rank == size - 1) ? MPI_PROC_NULL : rank + 1;
     const int left = (rank == 0) ? MPI_PROC_NULL : rank - 1;
-    const int my_blocks = grid->getBlocksInfo().size();
+    const int my_blocks = grid->m_vInfo.size();
     int right_blocks, left_blocks;
     MPI_Request reqs[4];
     MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
@@ -4310,7 +4308,7 @@ public:
     const int flux_left = (rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
         (rank == size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-    std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
+    std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     if (flux_right != 0 || flux_left != 0)
       std::sort(SortedInfos.begin(), SortedInfos.end());
     std::vector<MPI_Block> send_left;
@@ -4379,7 +4377,7 @@ public:
   void Balance_Global(std::vector<long long> &all_b) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
-    std::vector<BlockInfo> SortedInfos = grid->getBlocksInfo();
+    std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
     for (int r = 0; r < size; r++)
@@ -4571,7 +4569,7 @@ public:
     std::vector<int> m_ref;
     std::vector<long long> n_com;
     std::vector<long long> n_ref;
-    std::vector<BlockInfo> &I = grid->getBlocksInfo();
+    std::vector<BlockInfo> &I = grid->m_vInfo;
     long long blocks_after = I.size();
     for (auto &info : I) {
       if (info.state == Refine) {
@@ -4631,7 +4629,7 @@ public:
     }
   }
   void TagLike(const std::vector<BlockInfo> &I1) {
-    std::vector<BlockInfo> &I2 = grid->getBlocksInfo();
+    std::vector<BlockInfo> &I2 = grid->m_vInfo;
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
       BlockInfo &ary0 = I2[i1];
       BlockInfo &info = grid->getBlockInfoAll(ary0.level, ary0.Z);
@@ -4791,7 +4789,7 @@ protected:
     const bool xperiodic = grid->xperiodic;
     const bool yperiodic = grid->yperiodic;
     const bool zperiodic = grid->zperiodic;
-    std::vector<BlockInfo> &I = grid->getBlocksInfo();
+    std::vector<BlockInfo> &I = grid->m_vInfo;
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
       BlockInfo &info = I[j];
@@ -5071,7 +5069,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   SynchronizerMPI_AMR<Real, TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.getstencil();
   const StencilInfo &stencil2 = Synch2.getstencil();
-  std::vector<cubism::BlockInfo> &blk = grid.getBlocksInfo();
+  std::vector<cubism::BlockInfo> &blk = grid.m_vInfo;
   std::vector<bool> ready(blk.size(), false);
   std::vector<BlockInfo *> &avail0 = Synch.avail_inner();
   std::vector<BlockInfo *> &avail02 = Synch2.avail_inner();
@@ -5636,7 +5634,7 @@ static struct {
 } sim;
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
-  auto &infos = vel->getBlocksInfo();
+  auto &infos = vel->m_vInfo;
   for (size_t i = 0; i < infos.size(); i++) {
     minHGrid = std::min((Real)infos[i].h, minHGrid);
   }
@@ -5760,7 +5758,7 @@ struct ObstacleBlock {
 struct FishData;
 struct KernelVorticity {
   KernelVorticity() {}
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   void operator()(VectorLab &lab, const cubism::BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
@@ -6069,7 +6067,7 @@ void Shape::computeForces() {
   if (sim.dt <= 0)
     return;
   int tot_blocks = 0;
-  int nb = (int)sim.chi->getBlocksInfo().size();
+  int nb = (int)sim.chi->m_vInfo.size();
   MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 struct IF2D_Frenet2D {
@@ -6400,9 +6398,9 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
 class Shape;
 class PutObjectsOnGrid : public Operator {
 protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void putChiOnGrid(Shape *const shape) const;
 
 public:
@@ -6446,7 +6444,7 @@ struct ComputeSurfaceNormals {
 struct PutChiOnGrid {
   PutChiOnGrid() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -6627,7 +6625,7 @@ public:
 struct GradChiOnTmp {
   GradChiOnTmp() {}
   const cubism::StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     const int offset = (info.level == sim.tmp->getlevelMax() - 1) ? 4 : 2;
@@ -6652,7 +6650,7 @@ struct GradChiOnTmp {
 void AdaptTheMesh::operator()(const Real dt) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const KernelVorticity mykernel;
   cubism::compute<VectorLab>(mykernel, sim.vel);
   GradChiOnTmp K2;
@@ -6674,10 +6672,9 @@ void AdaptTheMesh::operator()(const Real dt) {
 }
 class advDiff : public Operator {
 protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
-
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
+  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
 public:
   advDiff() {}
   void operator()(const Real dt) override;
@@ -6801,7 +6798,7 @@ struct KernelAdvectDiffuse {
   }
   Real uinf[2];
   const cubism::StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   void operator()(VectorLab &lab, const cubism::BlockInfo &info) const {
     const Real h = info.h;
     const Real dfac = sim.nu * sim.dt;
@@ -6898,7 +6895,7 @@ void advDiff::operator()(const Real dt) {
 }
 class Shape;
 class ComputeForces : public Operator {
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
 
 public:
   void operator()(const Real dt) override;
@@ -6922,7 +6919,7 @@ struct KernelComputeForces {
   const Real c4 = -5. / 4.;
   const Real c5 = 1. / 5.;
   inline bool inrange(const int i) const { return (i >= small && i < bigg); }
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
   void operator()(VectorLab &lab, ScalarLab &chi, const cubism::BlockInfo &info,
                   const cubism::BlockInfo &info2) const {
     VectorLab &V = lab;
@@ -7471,7 +7468,7 @@ void PoissonSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
 void PoissonSolver::getMat() {
   std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
   sim.tmp->UpdateBlockInfoAll_States(true);
-  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
+  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
   const int Nblocks = RhsInfo.size();
   const int N = BSX_ * BSY_ * Nblocks;
   LocalLS_->reserve(N);
@@ -7550,8 +7547,8 @@ void PoissonSolver::getMat() {
   LocalLS_->make(Nrows_xcumsum_);
 }
 void PoissonSolver::getVec() {
-  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->getBlocksInfo();
-  std::vector<cubism::BlockInfo> &zInfo = sim.pres->getBlocksInfo();
+  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
+  std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
   const int Nblocks = RhsInfo.size();
   std::vector<double> &x = LocalLS_->get_x();
   std::vector<double> &b = LocalLS_->get_b();
@@ -7589,7 +7586,7 @@ void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
     this->getVec();
     LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
   }
-  std::vector<cubism::BlockInfo> &zInfo = sim.pres->getBlocksInfo();
+  std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
   const int Nblocks = zInfo.size();
   const std::vector<double> &x = LocalLS_->get_x();
   double avg = 0;
@@ -7622,7 +7619,7 @@ void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
 class Shape;
 class PressureSingle : public Operator {
 protected:
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
   void pressureCorrection(const Real dt);
 
@@ -7726,7 +7723,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
 struct pressureCorrectionKernel {
   pressureCorrectionKernel() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
     VectorBlock &__restrict__ tmpV =
@@ -7782,8 +7779,8 @@ struct updatePressureRHS {
   updatePressureRHS() {};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void operator()(VectorLab &velLab, VectorLab &uDefLab,
                   const cubism::BlockInfo &info,
                   const cubism::BlockInfo &info2) const {
@@ -7854,8 +7851,8 @@ struct updatePressureRHS {
 struct updatePressureRHS1 {
   updatePressureRHS1() {}
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
         *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
@@ -8007,7 +8004,7 @@ void PressureSingle::operator()(const Real dt) {
     gsl_vector_free(xgsl);
   }
   const auto &shapes = sim.shapes;
-  const auto &infos = sim.chi->getBlocksInfo();
+  const auto &infos = sim.chi->m_vInfo;
   const size_t N = shapes.size();
   sim.bCollisionID.clear();
   struct CollisionInfo {
@@ -8250,7 +8247,7 @@ void PressureSingle::operator()(const Real dt) {
       shapes[i]->omega = ho1[2];
       shapes[j]->omega = ho2[2];
     }
-  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
+  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
     for (const auto &shape : sim.shapes) {
@@ -8284,7 +8281,7 @@ void PressureSingle::operator()(const Real dt) {
           V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
         }
     }
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
@@ -8313,8 +8310,8 @@ void PressureSingle::operator()(const Real dt) {
   updatePressureRHS K;
   cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
                   VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -9207,7 +9204,7 @@ int main(int argc, char **argv) {
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                             sim.levelMax, xperiodic, yperiodic, zperiodic);
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
@@ -9245,12 +9242,12 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->getBlocksInfo();
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
+  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
     VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
