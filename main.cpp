@@ -5913,7 +5913,6 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   void create(const std::vector<cubism::BlockInfo> &vInfo);
-  void updatePosition(Real dt);
   void getCentroid(Real centroid[2]) const {
     centroid[0] = this->center[0];
     centroid[1] = this->center[1];
@@ -6514,7 +6513,30 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     sim.uinfy = uSum[1] / nSum[1];
   }
   for (const auto &shape : sim.shapes) {
-    shape->updatePosition(dt);
+    shape->centerOfMass[0] += dt * (shape->u + sim.uinfx);
+    shape->centerOfMass[1] += dt * (shape->v + sim.uinfy);
+    shape->labCenterOfMass[0] += dt * shape->u;
+    shape->labCenterOfMass[1] += dt * shape->v;
+    shape->orientation += dt * shape->omega;
+    shape->orientation = shape->orientation > M_PI
+                             ? shape->orientation - 2 * M_PI
+                             : shape->orientation;
+    shape->orientation = shape->orientation < -M_PI
+                             ? shape->orientation + 2 * M_PI
+                             : shape->orientation;
+    Real cosang = std::cos(shape->orientation);
+    Real sinang = std::sin(shape->orientation);
+    shape->center[0] = shape->centerOfMass[0] + cosang * shape->d_gm[0] -
+                       sinang * shape->d_gm[1];
+    shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
+                       cosang * shape->d_gm[1];
+    Real CX = shape->labCenterOfMass[0];
+    Real CY = shape->labCenterOfMass[1];
+    Real t = sim.time;
+    Real cx = shape->centerOfMass[0];
+    Real cy = shape->centerOfMass[1];
+    Real angle = shape->orientation;
+    shape->theta_internal -= dt * shape->angvel_internal;
     Real p[2] = {0, 0};
     shape->getCentroid(p);
     const auto &extent = sim.extents;
@@ -7944,55 +7966,58 @@ void PressureSingle::operator()(const Real dt) {
     shape->penalDY = PY;
     shape->penalM = PM;
     shape->penalJ = PJ;
-  double A[3][3] = {{(double)shape->penalM, (double)0, (double)-shape->penalDY},
-                    {(double)0, (double)shape->penalM, (double)shape->penalDX},
-                    {(double)-shape->penalDY, (double)shape->penalDX, (double)shape->penalJ}};
-  double b[3] = {(double)(shape->fluidMomX + dt * shape->appliedForceX),
-                 (double)(shape->fluidMomY + dt * shape->appliedForceY),
-                 (double)(shape->fluidAngMom + dt * shape->appliedTorque)};
-  if (shape->bForcedx && sim.time < shape->timeForced) {
-    A[0][1] = 0;
-    A[0][2] = 0;
-    b[0] = shape->penalM * shape->forcedu;
-  }
-  if (shape->bForcedy && sim.time < shape->timeForced) {
-    A[1][0] = 0;
-    A[1][2] = 0;
-    b[1] = shape->penalM * shape->forcedv;
-  }
-  if (shape->bBlockang && sim.time < shape->timeForced) {
-    A[2][0] = 0;
-    A[2][1] = 0;
-    b[2] = shape->penalJ * shape->forcedomega;
-  }
-  gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
-  gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
-  gsl_vector *xgsl = gsl_vector_alloc(3);
-  int sgsl;
-  gsl_permutation *permgsl = gsl_permutation_alloc(3);
-  gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
-  gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-  if (not shape->bForcedx || sim.time > shape->timeForced)
-    shape->u = gsl_vector_get(xgsl, 0);
-  if (not shape->bForcedy || sim.time > shape->timeForced)
-    shape->v = gsl_vector_get(xgsl, 1);
-  if (not shape->bBlockang || sim.time > shape->timeForced)
-    shape->omega = gsl_vector_get(xgsl, 2);
-  const double tStart = shape->breakSymmetryTime;
-  const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
-  if (shape->breakSymmetryType != 0 && shouldBreak) {
-    const double strength = shape->breakSymmetryStrength;
-    const double charL = shape->getCharLength();
-    const double charV = std::abs(shape->u);
-    if (shape->breakSymmetryType == 1) {
-      shape->omega = strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
+    double A[3][3] = {
+        {(double)shape->penalM, (double)0, (double)-shape->penalDY},
+        {(double)0, (double)shape->penalM, (double)shape->penalDX},
+        {(double)-shape->penalDY, (double)shape->penalDX,
+         (double)shape->penalJ}};
+    double b[3] = {(double)(shape->fluidMomX + dt * shape->appliedForceX),
+                   (double)(shape->fluidMomY + dt * shape->appliedForceY),
+                   (double)(shape->fluidAngMom + dt * shape->appliedTorque)};
+    if (shape->bForcedx && sim.time < shape->timeForced) {
+      A[0][1] = 0;
+      A[0][2] = 0;
+      b[0] = shape->penalM * shape->forcedu;
     }
-    if (shape->breakSymmetryType == 2) {
-      shape->v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
+    if (shape->bForcedy && sim.time < shape->timeForced) {
+      A[1][0] = 0;
+      A[1][2] = 0;
+      b[1] = shape->penalM * shape->forcedv;
     }
-  }
-  gsl_permutation_free(permgsl);
-  gsl_vector_free(xgsl);
+    if (shape->bBlockang && sim.time < shape->timeForced) {
+      A[2][0] = 0;
+      A[2][1] = 0;
+      b[2] = shape->penalJ * shape->forcedomega;
+    }
+    gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
+    gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
+    gsl_vector *xgsl = gsl_vector_alloc(3);
+    int sgsl;
+    gsl_permutation *permgsl = gsl_permutation_alloc(3);
+    gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
+    gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
+    if (not shape->bForcedx || sim.time > shape->timeForced)
+      shape->u = gsl_vector_get(xgsl, 0);
+    if (not shape->bForcedy || sim.time > shape->timeForced)
+      shape->v = gsl_vector_get(xgsl, 1);
+    if (not shape->bBlockang || sim.time > shape->timeForced)
+      shape->omega = gsl_vector_get(xgsl, 2);
+    const double tStart = shape->breakSymmetryTime;
+    const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
+    if (shape->breakSymmetryType != 0 && shouldBreak) {
+      const double strength = shape->breakSymmetryStrength;
+      const double charL = shape->getCharLength();
+      const double charV = std::abs(shape->u);
+      if (shape->breakSymmetryType == 1) {
+        shape->omega =
+            strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
+      }
+      if (shape->breakSymmetryType == 2) {
+        shape->v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
+      }
+    }
+    gsl_permutation_free(permgsl);
+    gsl_vector_free(xgsl);
   }
   const auto &shapes = sim.shapes;
   const auto &infos = sim.chi->getBlocksInfo();
@@ -9119,21 +9144,6 @@ void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
   for (auto &E : segmentsPerBlock) {
     delete E;
   }
-}
-void Shape::updatePosition(Real dt) {
-  centerOfMass[0] += dt * (u + sim.uinfx);
-  centerOfMass[1] += dt * (v + sim.uinfy);
-  labCenterOfMass[0] += dt * u;
-  labCenterOfMass[1] += dt * v;
-  orientation += dt * omega;
-  orientation = orientation > M_PI ? orientation - 2 * M_PI : orientation;
-  orientation = orientation < -M_PI ? orientation + 2 * M_PI : orientation;
-  const Real cosang = std::cos(orientation), sinang = std::sin(orientation);
-  center[0] = centerOfMass[0] + cosang * d_gm[0] - sinang * d_gm[1];
-  center[1] = centerOfMass[1] + sinang * d_gm[0] + cosang * d_gm[1];
-  const Real CX = labCenterOfMass[0], CY = labCenterOfMass[1], t = sim.time;
-  const Real cx = centerOfMass[0], cy = centerOfMass[1], angle = orientation;
-  theta_internal -= dt * angvel_internal;
 }
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
