@@ -9263,14 +9263,6 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   myFish->surfaceToComputationalFrame(orientation, centerOfMass);
   myFish->computeSkinNormals(orientation, centerOfMass);
 }
-static std::vector<std::string> split(const std::string &s, const char dlm) {
-  std::stringstream ss(s);
-  std::string item;
-  std::vector<std::string> tokens;
-  while (std::getline(ss, item, dlm))
-    tokens.push_back(item);
-  return tokens;
-}
 int main(int argc, char **argv) {
   int threadSafety;
   std::vector<Operator *> pipeline;
@@ -9356,7 +9348,11 @@ int main(int argc, char **argv) {
   std::string lines;
   while (std::getline(descriptors, lines)) {
     std::replace(lines.begin(), lines.end(), '_', ' ');
-    const std::vector<std::string> vlines = split(lines, ',');
+    std::stringstream ss(lines);
+    std::string item;
+    std::vector<std::string> vlines;
+    while (std::getline(ss, item, ','))
+      vlines.push_back(item);
     for (const auto &line : vlines) {
       std::istringstream line_stream(line);
       std::string objectName;
