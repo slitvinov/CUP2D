@@ -23,7 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-#define DIMENSION 2
+enum {DIMENSION = 2};
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
@@ -805,7 +805,7 @@ public:
     const int lvlMax = dummy.levelMax(levelMax);
     for (int m = 0; m < lvlMax; m++) {
       const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, DIMENSION);
+      const long long Ntot = nx * ny * nz * pow(TwoPower, (Real)DIMENSION);
       if (m == 0)
         level_base.push_back(Ntot);
       if (m > 0)
