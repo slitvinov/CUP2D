@@ -9349,11 +9349,8 @@ int main(int argc, char **argv) {
   while (std::getline(descriptors, lines)) {
     std::replace(lines.begin(), lines.end(), '_', ' ');
     std::stringstream ss(lines);
-    std::string item;
-    std::vector<std::string> vlines;
-    while (std::getline(ss, item, ','))
-      vlines.push_back(item);
-    for (const auto &line : vlines) {
+    std::string line;
+    while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       std::string objectName;
       line_stream >> objectName;
@@ -9362,7 +9359,6 @@ int main(int argc, char **argv) {
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
-      Shape *shape = nullptr;
       if (objectName == "stefanfish")
         shape = new Shape(ffparser, center);
       else
