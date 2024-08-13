@@ -373,7 +373,7 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const {
     return (blockID_2 < other.blockID_2);
   }
-  BlockInfo() {};
+  BlockInfo(){};
   void setup(const int a_level, const double a_h, const double a_origin[3],
              const long long a_Z) {
     level = a_level;
@@ -1210,27 +1210,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3700,27 +3703,30 @@ protected:
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -5415,7 +5421,7 @@ public:
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
   virtual void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
-                 const bool coarse = false) {
+                         const bool coarse = false) {
     if (is_xperiodic() == false) {
       if (info.index[0] == 0)
         Neumann2D<0, 0>(coarse);
@@ -5643,7 +5649,7 @@ static Real getH(VectorGrid *vel) {
 }
 class Operator {
 public:
-  Operator() {};
+  Operator(){};
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
 };
@@ -5913,8 +5919,6 @@ struct Shape {
         : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
   };
   Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void computeForces();
-
   const Real length, Tperiod, phaseShift;
   FishData *myFish = nullptr;
   Real area_internal = 0, J_internal = 0;
@@ -5968,101 +5972,6 @@ Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
   _v /= _m;
   _a /= _j;
   return Integrals(_x, _y, _m, _j, _u, _v, _a);
-}
-void Shape::computeForces() {
-  perimeter = 0;
-  forcex = 0;
-  forcey = 0;
-  forcex_P = 0;
-  forcey_P = 0;
-  forcex_V = 0;
-  forcey_V = 0;
-  torque = 0;
-  torque_P = 0;
-  torque_V = 0;
-  drag = 0;
-  thrust = 0;
-  lift = 0;
-  Pout = 0;
-  PoutNew = 0;
-  PoutBnd = 0;
-  defPower = 0;
-  defPowerBnd = 0;
-  circulation = 0;
-  for (auto &block : obstacleBlocks)
-    if (block not_eq nullptr) {
-      circulation += block->circulation;
-      perimeter += block->perimeter;
-      torque += block->torque;
-      forcex += block->forcex;
-      forcey += block->forcey;
-      forcex_P += block->forcex_P;
-      forcey_P += block->forcey_P;
-      forcex_V += block->forcex_V;
-      forcey_V += block->forcey_V;
-      torque_P += block->torque_P;
-      torque_V += block->torque_V;
-      drag += block->drag;
-      thrust += block->thrust;
-      lift += block->lift;
-      Pout += block->Pout;
-      PoutNew += block->PoutNew;
-      defPowerBnd += block->defPowerBnd;
-      PoutBnd += block->PoutBnd;
-      defPower += block->defPower;
-    }
-  Real quantities[19];
-  quantities[0] = circulation;
-  quantities[1] = perimeter;
-  quantities[2] = forcex;
-  quantities[3] = forcex_P;
-  quantities[4] = forcex_V;
-  quantities[5] = torque_P;
-  quantities[6] = drag;
-  quantities[7] = lift;
-  quantities[8] = Pout;
-  quantities[9] = PoutNew;
-  quantities[10] = PoutBnd;
-  quantities[11] = torque;
-  quantities[12] = forcey;
-  quantities[13] = forcey_P;
-  quantities[14] = forcey_V;
-  quantities[15] = torque_V;
-  quantities[16] = thrust;
-  quantities[17] = defPowerBnd;
-  quantities[18] = defPower;
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
-                MPI_COMM_WORLD);
-  circulation = quantities[0];
-  perimeter = quantities[1];
-  forcex = quantities[2];
-  forcex_P = quantities[3];
-  forcex_V = quantities[4];
-  torque_P = quantities[5];
-  drag = quantities[6];
-  lift = quantities[7];
-  Pout = quantities[8];
-  PoutNew = quantities[9];
-  PoutBnd = quantities[10];
-  torque = quantities[11];
-  forcey = quantities[12];
-  forcey_P = quantities[13];
-  forcey_V = quantities[14];
-  torque_V = quantities[15];
-  thrust = quantities[16];
-  defPowerBnd = quantities[17];
-  defPower = quantities[18];
-  Pthrust = thrust * std::sqrt(u * u + v * v);
-  Pdrag = drag * std::sqrt(u * u + v * v);
-  const Real denUnb = Pthrust - std::min(defPower, (Real)0);
-  const Real demBnd = Pthrust - defPowerBnd;
-  EffPDef = Pthrust / std::max(denUnb, EPS);
-  EffPDefBnd = Pthrust / std::max(demBnd, EPS);
-  if (sim.dt <= 0)
-    return;
-  int tot_blocks = 0;
-  int nb = (int)sim.chi->m_vInfo.size();
-  MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
@@ -6402,7 +6311,7 @@ public:
   void operator()(Real dt) override;
 };
 struct ComputeSurfaceNormals {
-  ComputeSurfaceNormals() {};
+  ComputeSurfaceNormals(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
@@ -6436,7 +6345,7 @@ struct ComputeSurfaceNormals {
   }
 };
 struct PutChiOnGrid {
-  PutChiOnGrid() {};
+  PutChiOnGrid(){};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
@@ -6542,7 +6451,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < OBLOCK.size(); i++) {
       if (OBLOCK[i] == nullptr)
         continue;
@@ -6669,6 +6578,7 @@ protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
+
 public:
   advDiff() {}
   void operator()(const Real dt) override;
@@ -6900,7 +6810,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  KernelComputeForces() {};
+  KernelComputeForces(){};
   cubism::StencilInfo stencil{small, small, 0, big, big, 1, true, {0, 1}};
   cubism::StencilInfo stencil2{small, small, 0, big, big, 1, true, {0}};
   const int bigg = ScalarBlock::sizeX + big - 1;
@@ -7060,10 +6970,105 @@ void ComputeForces::operator()(const Real dt) {
   KernelComputeForces K;
   cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
                   ScalarLab>(K, *sim.vel, *sim.chi);
-  for (const auto &shape : sim.shapes)
-    shape->computeForces();
+  for (const auto &shape : sim.shapes) {
+    shape->perimeter = 0;
+    shape->forcex = 0;
+    shape->forcey = 0;
+    shape->forcex_P = 0;
+    shape->forcey_P = 0;
+    shape->forcex_V = 0;
+    shape->forcey_V = 0;
+    shape->torque = 0;
+    shape->torque_P = 0;
+    shape->torque_V = 0;
+    shape->drag = 0;
+    shape->thrust = 0;
+    shape->lift = 0;
+    shape->Pout = 0;
+    shape->PoutNew = 0;
+    shape->PoutBnd = 0;
+    shape->defPower = 0;
+    shape->defPowerBnd = 0;
+    shape->circulation = 0;
+    for (auto &block : shape->obstacleBlocks)
+      if (block not_eq nullptr) {
+        shape->circulation += block->circulation;
+        shape->perimeter += block->perimeter;
+        shape->torque += block->torque;
+        shape->forcex += block->forcex;
+        shape->forcey += block->forcey;
+        shape->forcex_P += block->forcex_P;
+        shape->forcey_P += block->forcey_P;
+        shape->forcex_V += block->forcex_V;
+        shape->forcey_V += block->forcey_V;
+        shape->torque_P += block->torque_P;
+        shape->torque_V += block->torque_V;
+        shape->drag += block->drag;
+        shape->thrust += block->thrust;
+        shape->lift += block->lift;
+        shape->Pout += block->Pout;
+        shape->PoutNew += block->PoutNew;
+        shape->defPowerBnd += block->defPowerBnd;
+        shape->PoutBnd += block->PoutBnd;
+        shape->defPower += block->defPower;
+      }
+    Real quantities[19];
+    quantities[0] = shape->circulation;
+    quantities[1] = shape->perimeter;
+    quantities[2] = shape->forcex;
+    quantities[3] = shape->forcex_P;
+    quantities[4] = shape->forcex_V;
+    quantities[5] = shape->torque_P;
+    quantities[6] = shape->drag;
+    quantities[7] = shape->lift;
+    quantities[8] = shape->Pout;
+    quantities[9] = shape->PoutNew;
+    quantities[10] = shape->PoutBnd;
+    quantities[11] = shape->torque;
+    quantities[12] = shape->forcey;
+    quantities[13] = shape->forcey_P;
+    quantities[14] = shape->forcey_V;
+    quantities[15] = shape->torque_V;
+    quantities[16] = shape->thrust;
+    quantities[17] = shape->defPowerBnd;
+    quantities[18] = shape->defPower;
+    MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
+                  MPI_COMM_WORLD);
+    shape->circulation = quantities[0];
+    shape->perimeter = quantities[1];
+    shape->forcex = quantities[2];
+    shape->forcex_P = quantities[3];
+    shape->forcex_V = quantities[4];
+    shape->torque_P = quantities[5];
+    shape->drag = quantities[6];
+    shape->lift = quantities[7];
+    shape->Pout = quantities[8];
+    shape->PoutNew = quantities[9];
+    shape->PoutBnd = quantities[10];
+    shape->torque = quantities[11];
+    shape->forcey = quantities[12];
+    shape->forcey_P = quantities[13];
+    shape->forcey_V = quantities[14];
+    shape->torque_V = quantities[15];
+    shape->thrust = quantities[16];
+    shape->defPowerBnd = quantities[17];
+    shape->defPower = quantities[18];
+    shape->Pthrust =
+        shape->thrust * std::sqrt(shape->u * shape->u + shape->v * shape->v);
+    shape->Pdrag =
+        shape->drag * std::sqrt(shape->u * shape->u + shape->v * shape->v);
+    const Real denUnb = shape->Pthrust - std::min(shape->defPower, (Real)0);
+    const Real demBnd = shape->Pthrust - shape->defPowerBnd;
+    shape->EffPDef = shape->Pthrust / std::max(denUnb, EPS);
+    shape->EffPDefBnd = shape->Pthrust / std::max(demBnd, EPS);
+    if (sim.dt <= 0)
+      return;
+    int tot_blocks = 0;
+    int nb = (int)sim.chi->m_vInfo.size();
+    MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 }
-ComputeForces::ComputeForces() {};
+ComputeForces::ComputeForces(){};
 class PoissonSolver {
 public:
   PoissonSolver();
@@ -7349,8 +7354,8 @@ double PoissonSolver::getA_local(int I1, int I2) {
 }
 PoissonSolver::PoissonSolver()
     : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
-      YmaxCell(*this),
-      edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
+      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                    &YmaxCell} {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);
@@ -7715,7 +7720,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
 }
 } // namespace
 struct pressureCorrectionKernel {
-  pressureCorrectionKernel() {};
+  pressureCorrectionKernel(){};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
@@ -7770,7 +7775,7 @@ struct pressureCorrectionKernel {
   }
 };
 struct updatePressureRHS {
-  updatePressureRHS() {};
+  updatePressureRHS(){};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
@@ -8373,8 +8378,8 @@ struct AreaSegment {
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr),
-        w{(bb[0][1] - bb[0][0]) / 2 + safe, (bb[1][1] - bb[1][0]) / 2 + safe},
+      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
+                                            (bb[1][1] - bb[1][0]) / 2 + safe},
         c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
     assert(w[0] > 0);
     assert(w[1] > 0);
@@ -9015,8 +9020,9 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 }
 
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]}, origAng(p("-angle").asDouble(0) * M_PI / 180),
-      center{C[0], C[1]}, centerOfMass{C[0], C[1]}, orientation(origAng),
+    : origC{C[0], C[1]},
+      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      centerOfMass{C[0], C[1]}, orientation(origAng),
       bForced(p("-bForced").asBool(false)),
       bForcedx(p("-bForcedx").asBool(bForced)),
       bForcedy(p("-bForcedy").asBool(bForced)),
