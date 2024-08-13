@@ -373,7 +373,7 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const {
     return (blockID_2 < other.blockID_2);
   }
-  BlockInfo(){};
+  BlockInfo() {};
   void setup(const int a_level, const double a_h, const double a_origin[3],
              const long long a_Z) {
     level = a_level;
@@ -1212,30 +1212,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3705,30 +3702,27 @@ protected:
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -5651,7 +5645,7 @@ static Real getH(VectorGrid *vel) {
 }
 class Operator {
 public:
-  Operator(){};
+  Operator() {};
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
 };
@@ -6416,7 +6410,7 @@ public:
   void operator()(Real dt) override;
 };
 struct ComputeSurfaceNormals {
-  ComputeSurfaceNormals(){};
+  ComputeSurfaceNormals() {};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
@@ -6450,7 +6444,7 @@ struct ComputeSurfaceNormals {
   }
 };
 struct PutChiOnGrid {
-  PutChiOnGrid(){};
+  PutChiOnGrid() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->getBlocksInfo();
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
@@ -6533,7 +6527,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     Real cy = shape->centerOfMass[1];
     Real angle = shape->orientation;
     shape->theta_internal -= dt * shape->angvel_internal;
-    if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] || shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
+    if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
+        shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
       printf("[CUP2D] ABORT: Body out of domain\n");
       fflush(0);
       abort();
@@ -6555,7 +6550,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < OBLOCK.size(); i++) {
       if (OBLOCK[i] == nullptr)
         continue;
@@ -6914,7 +6909,7 @@ using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  KernelComputeForces(){};
+  KernelComputeForces() {};
   cubism::StencilInfo stencil{small, small, 0, big, big, 1, true, {0, 1}};
   cubism::StencilInfo stencil2{small, small, 0, big, big, 1, true, {0}};
   const int bigg = ScalarBlock::sizeX + big - 1;
@@ -7077,7 +7072,7 @@ void ComputeForces::operator()(const Real dt) {
   for (const auto &shape : sim.shapes)
     shape->computeForces();
 }
-ComputeForces::ComputeForces(){};
+ComputeForces::ComputeForces() {};
 class PoissonSolver {
 public:
   PoissonSolver();
@@ -7363,8 +7358,8 @@ double PoissonSolver::getA_local(int I1, int I2) {
 }
 PoissonSolver::PoissonSolver()
     : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
-      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
-                                    &YmaxCell} {
+      YmaxCell(*this),
+      edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
   Nblocks_xcumsum_.resize(comm_size_ + 1);
@@ -7729,7 +7724,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
 }
 } // namespace
 struct pressureCorrectionKernel {
-  pressureCorrectionKernel(){};
+  pressureCorrectionKernel() {};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->getBlocksInfo();
   void operator()(ScalarLab &P, const cubism::BlockInfo &info) const {
@@ -7784,7 +7779,7 @@ struct pressureCorrectionKernel {
   }
 };
 struct updatePressureRHS {
-  updatePressureRHS(){};
+  updatePressureRHS() {};
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   cubism::StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->getBlocksInfo();
@@ -8387,8 +8382,8 @@ struct AreaSegment {
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
-                                            (bb[1][1] - bb[1][0]) / 2 + safe},
+      : safe_distance(safe), s_range(sr),
+        w{(bb[0][1] - bb[0][0]) / 2 + safe, (bb[1][1] - bb[1][0]) / 2 + safe},
         c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
     assert(w[0] > 0);
     assert(w[1] > 0);
@@ -9029,9 +9024,8 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
 }
 
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]},
-      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-      centerOfMass{C[0], C[1]}, orientation(origAng),
+    : origC{C[0], C[1]}, origAng(p("-angle").asDouble(0) * M_PI / 180),
+      center{C[0], C[1]}, centerOfMass{C[0], C[1]}, orientation(origAng),
       bForced(p("-bForced").asBool(false)),
       bForcedx(p("-bForcedx").asBool(bForced)),
       bForcedy(p("-bForcedy").asBool(bForced)),
