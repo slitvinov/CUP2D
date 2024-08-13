@@ -5874,9 +5874,9 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
 struct Integrals {
   const Real x, y, m, j, u, v, a;
   Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
-    : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
+      : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
   Integrals(const Integrals &c)
-    : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
+      : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
 };
 struct Shape {
   std::vector<ObstacleBlock *> obstacleBlocks;
@@ -5923,67 +5923,64 @@ struct Shape {
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
   Shape(cubism::CommandlineParser &p, Real C[2]);
-  virtual ~Shape();
+  ~Shape();
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-struct IF2D_Frenet2D {
-  static void solve(const unsigned Nm, const Real *const rS,
-                    const Real *const curv, const Real *const curv_dt,
-                    Real *const rX, Real *const rY, Real *const vX,
-                    Real *const vY, Real *const norX, Real *const norY,
-                    Real *const vNorX, Real *const vNorY) {
-    rX[0] = 0.0;
-    rY[0] = 0.0;
-    norX[0] = 0.0;
-    norY[0] = 1.0;
-    Real ksiX = 1.0;
-    Real ksiY = 0.0;
-    vX[0] = 0.0;
-    vY[0] = 0.0;
-    vNorX[0] = 0.0;
-    vNorY[0] = 0.0;
-    Real vKsiX = 0.0;
-    Real vKsiY = 0.0;
-    for (unsigned i = 1; i < Nm; i++) {
-      const Real dksiX = curv[i - 1] * norX[i - 1];
-      const Real dksiY = curv[i - 1] * norY[i - 1];
-      const Real dnuX = -curv[i - 1] * ksiX;
-      const Real dnuY = -curv[i - 1] * ksiY;
-      const Real dvKsiX =
-          curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-      const Real dvKsiY =
-          curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
-      const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
-      const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-      const Real ds = rS[i] - rS[i - 1];
-      rX[i] = rX[i - 1] + ds * ksiX;
-      rY[i] = rY[i - 1] + ds * ksiY;
-      norX[i] = norX[i - 1] + ds * dnuX;
-      norY[i] = norY[i - 1] + ds * dnuY;
-      ksiX += ds * dksiX;
-      ksiY += ds * dksiY;
-      vX[i] = vX[i - 1] + ds * vKsiX;
-      vY[i] = vY[i - 1] + ds * vKsiY;
-      vNorX[i] = vNorX[i - 1] + ds * dvNuX;
-      vNorY[i] = vNorY[i - 1] + ds * dvNuY;
-      vKsiX += ds * dvKsiX;
-      vKsiY += ds * dvKsiY;
-      const Real d1 = ksiX * ksiX + ksiY * ksiY;
-      const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
-      if (d1 > std::numeric_limits<Real>::epsilon()) {
-        const Real normfac = 1 / std::sqrt(d1);
-        ksiX *= normfac;
-        ksiY *= normfac;
-      }
-      if (d2 > std::numeric_limits<Real>::epsilon()) {
-        const Real normfac = 1 / std::sqrt(d2);
-        norX[i] *= normfac;
-        norY[i] *= normfac;
-      }
+static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
+                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
+                       Real *norY, Real *vNorX, Real *vNorY) {
+  rX[0] = 0.0;
+  rY[0] = 0.0;
+  norX[0] = 0.0;
+  norY[0] = 1.0;
+  Real ksiX = 1.0;
+  Real ksiY = 0.0;
+  vX[0] = 0.0;
+  vY[0] = 0.0;
+  vNorX[0] = 0.0;
+  vNorY[0] = 0.0;
+  Real vKsiX = 0.0;
+  Real vKsiY = 0.0;
+  for (unsigned i = 1; i < Nm; i++) {
+    const Real dksiX = curv[i - 1] * norX[i - 1];
+    const Real dksiY = curv[i - 1] * norY[i - 1];
+    const Real dnuX = -curv[i - 1] * ksiX;
+    const Real dnuY = -curv[i - 1] * ksiY;
+    const Real dvKsiX =
+        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
+    const Real dvKsiY =
+        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
+    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
+    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
+    const Real ds = rS[i] - rS[i - 1];
+    rX[i] = rX[i - 1] + ds * ksiX;
+    rY[i] = rY[i - 1] + ds * ksiY;
+    norX[i] = norX[i - 1] + ds * dnuX;
+    norY[i] = norY[i - 1] + ds * dnuY;
+    ksiX += ds * dksiX;
+    ksiY += ds * dksiY;
+    vX[i] = vX[i - 1] + ds * vKsiX;
+    vY[i] = vY[i - 1] + ds * vKsiY;
+    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
+    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
+    vKsiX += ds * dvKsiX;
+    vKsiY += ds * dvKsiY;
+    const Real d1 = ksiX * ksiX + ksiY * ksiY;
+    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
+    if (d1 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d1);
+      ksiX *= normfac;
+      ksiY *= normfac;
+    }
+    if (d2 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d2);
+      norX[i] *= normfac;
+      norY[i] *= normfac;
     }
   }
-};
+}
+
 class IF2D_Interpolation1D {
 public:
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
@@ -9109,8 +9106,7 @@ void CurvatureFish::computeMidline(const Real t, const Real dt) {
     assert(not std::isnan(vK[i]));
     assert(not std::isinf(vK[i]));
   }
-  IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX,
-                       vNorY);
+  if2d_solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
 }
 
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
