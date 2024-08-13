@@ -5279,17 +5279,6 @@ public:
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-  void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
-                 const bool coarse = false) override {
-    if (info.index[0] == 0)
-      this->template Neumann2D<0, 0>(coarse);
-    if (info.index[0] == this->NX - 1)
-      this->template Neumann2D<0, 1>(coarse);
-    if (info.index[1] == 0)
-      this->template Neumann2D<1, 0>(coarse);
-    if (info.index[1] == this->NY - 1)
-      this->template Neumann2D<1, 1>(coarse);
-  }
 };
 } // namespace cubism
 enum BCflag { freespace, periodic, wall };
