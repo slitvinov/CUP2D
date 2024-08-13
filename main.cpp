@@ -23,7 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-enum {DIMENSION = 2};
+enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
@@ -5932,7 +5932,6 @@ struct Shape {
         : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
   };
   Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
-  virtual void removeMoments(const std::vector<cubism::BlockInfo> &vInfo);
   virtual void computeForces();
 
   const Real length, Tperiod, phaseShift;
@@ -6608,7 +6607,33 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->centerOfMass[1] += com[2] / com[0];
   }
   for (const auto &shape : sim.shapes) {
-    shape->removeMoments(chiInfo);
+    Shape::Integrals I = shape->integrateObstBlock(chiInfo);
+    shape->M = I.m;
+    shape->J = I.j;
+    const Real dCx = shape->center[0] - shape->centerOfMass[0];
+    const Real dCy = shape->center[1] - shape->centerOfMass[1];
+    shape->d_gm[0] =
+        dCx * std::cos(shape->orientation) + dCy * std::sin(shape->orientation);
+    shape->d_gm[1] = -dCx * std::sin(shape->orientation) +
+                     dCy * std::cos(shape->orientation);
+#pragma omp parallel for schedule(dynamic)
+    for (size_t i = 0; i < chiInfo.size(); i++) {
+      const auto pos = shape->obstacleBlocks[chiInfo[i].blockID];
+      if (pos == nullptr)
+        continue;
+      for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
+        for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
+          Real p[2];
+          chiInfo[i].pos(p, ix, iy);
+          p[0] -= shape->centerOfMass[0];
+          p[1] -= shape->centerOfMass[1];
+          pos->udef[iy][ix][0] -= I.u - I.a * p[1];
+          pos->udef[iy][ix][1] -= I.v + I.a * p[0];
+        }
+    }
+    shape->myFish->surfaceToComputationalFrame(shape->orientation,
+                                               shape->centerOfMass);
+    shape->myFish->computeSkinNormals(shape->orientation, shape->centerOfMass);
   }
 }
 class AdaptTheMesh : public Operator {
@@ -9122,32 +9147,6 @@ Shape::~Shape() {
     delete myFish;
     myFish = nullptr;
   }
-}
-void Shape::removeMoments(const std::vector<cubism::BlockInfo> &chiInfo) {
-  Shape::Integrals I = integrateObstBlock(chiInfo);
-  M = I.m;
-  J = I.j;
-  const Real dCx = center[0] - centerOfMass[0];
-  const Real dCy = center[1] - centerOfMass[1];
-  d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
-  d_gm[1] = -dCx * std::sin(orientation) + dCy * std::cos(orientation);
-#pragma omp parallel for schedule(dynamic)
-  for (size_t i = 0; i < chiInfo.size(); i++) {
-    const auto pos = obstacleBlocks[chiInfo[i].blockID];
-    if (pos == nullptr)
-      continue;
-    for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
-      for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
-        Real p[2];
-        chiInfo[i].pos(p, ix, iy);
-        p[0] -= centerOfMass[0];
-        p[1] -= centerOfMass[1];
-        pos->udef[iy][ix][0] -= I.u - I.a * p[1];
-        pos->udef[iy][ix][1] -= I.v + I.a * p[0];
-      }
-  }
-  myFish->surfaceToComputationalFrame(orientation, centerOfMass);
-  myFish->computeSkinNormals(orientation, centerOfMass);
 }
 int main(int argc, char **argv) {
   int threadSafety;
