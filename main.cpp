@@ -5188,7 +5188,6 @@ struct VectorElement {
     return sqrt(s1);
   }
   Real &member(int i) { return u[i]; }
-  static constexpr int DIM = 1;
 };
 template <typename TElement> struct GridBlock {
   static constexpr int sizeX = _BS_;
