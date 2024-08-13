@@ -5905,11 +5905,6 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   void create(const std::vector<cubism::BlockInfo> &vInfo);
-  Real getU() const { return u; }
-  Real getV() const { return v; }
-  Real getW() const { return omega; }
-  Real getOrientation() const { return this->orientation; }
-  void setOrientation(const Real angle) { this->orientation = angle; }
   struct Integrals {
     const Real x, y, m, j, u, v, a;
     Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
