@@ -5401,8 +5401,7 @@ inline BCflag string2BCflag(const std::string &strFlag) {
 }
 static BCflag cubismBCX;
 static BCflag cubismBCY;
-template <typename TGrid,
-          template <typename X> class allocator = std::allocator>
+template <typename TGrid>
 class BlockLabDirichlet : public cubism::BlockLab<TGrid> {
 public:
   using ElementType = typename TGrid::BlockType::ElementType;
@@ -5527,8 +5526,7 @@ public:
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename TGrid,
-          template <typename X> class allocator = std::allocator>
+template <typename TGrid>
 class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid, 2> {
 public:
   using cubismLab = cubism::BlockLabNeumann<TGrid, 2>;
