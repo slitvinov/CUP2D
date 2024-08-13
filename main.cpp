@@ -3328,7 +3328,7 @@ public:
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
-      int icodes[DIMENSION == 2 ? 8 : 26];
+      int icodes[8];
       int k = 0;
       coarsened_nei_codes_size = 0;
       for (int icode = (DIMENSION == 2 ? 9 : 0);
