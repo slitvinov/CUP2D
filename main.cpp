@@ -7607,7 +7607,7 @@ class Shape;
 class PressureSingle : public Operator {
 protected:
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->getBlocksInfo();
-  std::shared_ptr<PoissonSolver> pressureSolver;
+  PoissonSolver *pressureSolver;
   void pressureCorrection(const Real dt);
 
 public:
@@ -8304,7 +8304,7 @@ void PressureSingle::operator()(const Real dt) {
   }
 }
 PressureSingle::PressureSingle()
-    : Operator(), pressureSolver{std::make_shared<PoissonSolver>()} {}
+    : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
 struct FishSkin {
   const size_t Npoints;
