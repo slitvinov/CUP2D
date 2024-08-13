@@ -9142,8 +9142,8 @@ Shape::~Shape() {
     myFish = nullptr;
   }
 }
-void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
-  Shape::Integrals I = integrateObstBlock(vInfo);
+void Shape::removeMoments(const std::vector<cubism::BlockInfo> &chiInfo) {
+  Shape::Integrals I = integrateObstBlock(chiInfo);
   M = I.m;
   J = I.j;
   const Real dCx = center[0] - centerOfMass[0];
@@ -9151,14 +9151,14 @@ void Shape::removeMoments(const std::vector<cubism::BlockInfo> &vInfo) {
   d_gm[0] = dCx * std::cos(orientation) + dCy * std::sin(orientation);
   d_gm[1] = -dCx * std::sin(orientation) + dCy * std::cos(orientation);
 #pragma omp parallel for schedule(dynamic)
-  for (size_t i = 0; i < vInfo.size(); i++) {
-    const auto pos = obstacleBlocks[vInfo[i].blockID];
+  for (size_t i = 0; i < chiInfo.size(); i++) {
+    const auto pos = obstacleBlocks[chiInfo[i].blockID];
     if (pos == nullptr)
       continue;
     for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
       for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
         Real p[2];
-        vInfo[i].pos(p, ix, iy);
+        chiInfo[i].pos(p, ix, iy);
         p[0] -= centerOfMass[0];
         p[1] -= centerOfMass[1];
         pos->udef[iy][ix][0] -= I.u - I.a * p[1];
