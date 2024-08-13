@@ -5595,7 +5595,7 @@ static struct {
   ScalarGrid *tmp = nullptr;
   ScalarGrid *pold = nullptr;
   ScalarGrid *Cs = nullptr;
-  std::vector<std::shared_ptr<Shape>> shapes;
+  std::vector<Shape*> shapes;
   Real time = 0;
   int step = 0;
   Real uinfx = 0;
@@ -6912,8 +6912,7 @@ struct KernelComputeForces {
     VectorLab &V = lab;
     ScalarBlock &__restrict__ P =
         *(ScalarBlock *)presInfo[info.blockID].ptrBlock;
-    for (const auto &_shape : sim.shapes) {
-      const Shape *const shape = _shape.get();
+    for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
       const Real vel_norm =
@@ -9364,7 +9363,7 @@ int main(int argc, char **argv) {
         shape = new Shape(ffparser, center);
       else
         throw std::invalid_argument("unrecognized shape: " + objectName);
-      sim.shapes.push_back(std::shared_ptr<Shape>(shape));
+      sim.shapes.push_back(shape);
     }
   }
 
