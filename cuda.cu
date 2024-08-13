@@ -725,80 +725,7 @@ inline int gpuDeviceInit(int devID) {
   return devID;
 }
 
-inline int gpuGetMaxGflopsDeviceId() {
-  int current_device = 0, sm_per_multiproc = 0;
-  int max_perf_device = 0;
-  int device_count = 0;
-  int devices_prohibited = 0;
-
-  uint64_t max_compute_perf = 0;
-  checkCudaErrors(cudaGetDeviceCount(&device_count));
-
-  if (device_count == 0) {
-    fprintf(stderr, "gpuGetMaxGflopsDeviceId() CUDA error:"
-                    " no devices supporting CUDA.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  current_device = 0;
-
-  while (current_device < device_count) {
-    int computeMode = -1, major = 0, minor = 0;
-    checkCudaErrors(cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode,
-                                           current_device));
-    checkCudaErrors(cudaDeviceGetAttribute(
-        &major, cudaDevAttrComputeCapabilityMajor, current_device));
-    checkCudaErrors(cudaDeviceGetAttribute(
-        &minor, cudaDevAttrComputeCapabilityMinor, current_device));
-
-    if (computeMode != cudaComputeModeProhibited) {
-      if (major == 9999 && minor == 9999) {
-        sm_per_multiproc = 1;
-      } else {
-        sm_per_multiproc = _ConvertSMVer2Cores(major, minor);
-      }
-      int multiProcessorCount = 0, clockRate = 0;
-      checkCudaErrors(cudaDeviceGetAttribute(&multiProcessorCount,
-                                             cudaDevAttrMultiProcessorCount,
-                                             current_device));
-      cudaError_t result = cudaDeviceGetAttribute(
-          &clockRate, cudaDevAttrClockRate, current_device);
-      if (result != cudaSuccess) {
-
-        if (result == cudaErrorInvalidValue) {
-          clockRate = 1;
-        } else {
-          fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \n", __FILE__,
-                  __LINE__, static_cast<unsigned int>(result),
-                  _cudaGetErrorEnum(result));
-          exit(EXIT_FAILURE);
-        }
-      }
-      uint64_t compute_perf =
-          (uint64_t)multiProcessorCount * sm_per_multiproc * clockRate;
-
-      if (compute_perf > max_compute_perf) {
-        max_compute_perf = compute_perf;
-        max_perf_device = current_device;
-      }
-    } else {
-      devices_prohibited++;
-    }
-
-    ++current_device;
-  }
-
-  if (devices_prohibited == device_count) {
-    fprintf(stderr, "gpuGetMaxGflopsDeviceId() CUDA error:"
-                    " all devices have compute mode prohibited.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  return max_perf_device;
-}
-
 #endif
-
 #endif
 
 template <typename... Args>
@@ -812,82 +739,6 @@ std::string string_format(const std::string &format, Args... args) {
   std::snprintf(buf.get(), size, format.c_str(), args...);
   return std::string(buf.get(), buf.get() + size - 1);
 }
-
-class DeviceProfiler {
-public:
-  DeviceProfiler(MPI_Comm m_comm) : m_comm_(m_comm) {
-    MPI_Comm_rank(m_comm, &rank_);
-  }
-
-  ~DeviceProfiler() {
-#ifdef BICGSTAB_PROFILER
-    for (auto &[key, prof] : profs_) {
-      checkCudaErrors(cudaEventDestroy(prof.start));
-      checkCudaErrors(cudaEventDestroy(prof.stop));
-    }
-#endif
-  }
-
-  void startProfiler(std::string tag, cudaStream_t s) {
-#ifdef BICGSTAB_PROFILER
-    auto search_it = profs_.find(tag);
-    if (search_it != profs_.end()) {
-      assert(!profs_[tag].started);
-      profs_[tag].started = true;
-      checkCudaErrors(cudaEventRecord(profs_[tag].start, s));
-    } else {
-      ProfilerData dat = {true, 0.};
-      profs_.emplace(tag, dat);
-      checkCudaErrors(cudaEventCreate(&(profs_[tag].start)));
-      checkCudaErrors(cudaEventCreate(&(profs_[tag].stop)));
-      checkCudaErrors(cudaEventRecord(profs_[tag].start, s));
-    }
-#endif
-  }
-
-  void stopProfiler(std::string tag, cudaStream_t s) {
-#ifdef BICGSTAB_PROFILER
-    auto search_it = profs_.find(tag);
-    assert(search_it != profs_.end());
-
-    assert(profs_[tag].started);
-    profs_[tag].started = false;
-    checkCudaErrors(cudaEventRecord(profs_[tag].stop, s));
-    checkCudaErrors(cudaEventSynchronize(profs_[tag].stop));
-
-    float et = 0.;
-    checkCudaErrors(
-        cudaEventElapsedTime(&et, profs_[tag].start, profs_[tag].stop));
-    profs_[tag].elapsed += et;
-#endif
-  }
-
-  void print(std::string mt) {
-#ifdef BICGSTAB_PROFILER
-    std::string out;
-    out += string_format("[DeviceProfiler] rank %i:\n", rank_);
-    out += string_format("%10s:\t%.4e [ms]\n", mt.c_str(), profs_[mt].elapsed);
-    for (auto &[key, prof] : profs_)
-      if (key != mt)
-        out += string_format("%10s:\t%.4e [ms]\t%6.2f%% of runtime\n",
-                             key.c_str(), prof.elapsed,
-                             profs_[key].elapsed / profs_[mt].elapsed * 100.);
-
-    std::cout << out;
-#endif
-  }
-
-protected:
-  int rank_;
-  MPI_Comm m_comm_;
-  struct ProfilerData {
-    bool started;
-    float elapsed;
-    cudaEvent_t start;
-    cudaEvent_t stop;
-  };
-  std::map<std::string, ProfilerData> profs_;
-};
 
 struct BiCGSTABScalars {
   double alpha;
@@ -997,14 +848,13 @@ private:
   size_t bdSpMVBuffSz_;
   void *bdSpMVBuff_;
 
-  DeviceProfiler prof_;
 };
 
 BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
                                const int BLEN, const bool bMeanConstraint,
                                const std::vector<double> &P_inv)
     : m_comm_(m_comm), BLEN_(BLEN), bMeanConstraint_(bMeanConstraint),
-      LocalLS_(LocalLS), prof_(m_comm) {
+      LocalLS_(LocalLS) {
 
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
@@ -1042,15 +892,10 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
 BiCGSTABSolver::~BiCGSTABSolver() {
 
   this->freeLast();
-
-  prof_.print("Total");
-
   checkCudaErrors(cudaFree(d_P_inv_));
-
   checkCudaErrors(cudaFree(d_consts_));
   checkCudaErrors(cudaFree(d_coeffs_));
   checkCudaErrors(cudaFreeHost(h_coeffs_));
-
   checkCudaErrors(cublasDestroy(cublas_handle_));
   checkCudaErrors(cusparseDestroy(cusparse_handle_));
   checkCudaErrors(cudaEventDestroy(sync_event_));
@@ -1162,9 +1007,6 @@ void BiCGSTABSolver::updateAll() {
     checkCudaErrors(cudaMalloc(&dbd_cooRowA_, bd_nnz_ * sizeof(int)));
     checkCudaErrors(cudaMalloc(&dbd_cooColA_, bd_nnz_ * sizeof(int)));
   }
-
-  prof_.startProfiler("Memcpy", solver_stream_);
-
   checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_.loc_cooValA_.data(),
                                   loc_nnz_ * sizeof(double),
                                   cudaMemcpyHostToDevice, solver_stream_));
@@ -1192,8 +1034,6 @@ void BiCGSTABSolver::updateAll() {
     checkCudaErrors(cudaMemcpyAsync(d_h2_, LocalLS_.h2_.data(),
                                     Nblocks * sizeof(double),
                                     cudaMemcpyHostToDevice, solver_stream_));
-  prof_.stopProfiler("Memcpy", solver_stream_);
-
   checkCudaErrors(cusparseCreateCoo(
       &spDescrLocA_, m_, m_, loc_nnz_, dloc_cooRowA_, dloc_cooColA_,
       dloc_cooValA_, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F));
@@ -1223,13 +1063,10 @@ void BiCGSTABSolver::updateAll() {
 }
 
 void BiCGSTABSolver::updateVec() {
-  prof_.startProfiler("Memcpy", solver_stream_);
-
   checkCudaErrors(cudaMemcpyAsync(d_x_, LocalLS_.x_.data(), m_ * sizeof(double),
                                   cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_r_, LocalLS_.b_.data(), m_ * sizeof(double),
                                   cudaMemcpyHostToDevice, solver_stream_));
-  prof_.stopProfiler("Memcpy", solver_stream_);
 }
 
 __global__ void set_squared(double *const val) { val[0] *= val[0]; }
@@ -1303,18 +1140,11 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaEventRecord(sync_event_, solver_stream_));
   }
-
-  prof_.startProfiler("KerSpMV", solver_stream_);
-
   checkCudaErrors(
       cusparseSpMV(cusparse_handle_, CUSPARSE_OPERATION_NON_TRANSPOSE, d_eye_,
                    spDescrLocA_, spDescrLocOp, d_nil_, spDescrRes, CUDA_R_64F,
                    CUSPARSE_SPMV_ALG_DEFAULT, locSpMVBuff_));
-  prof_.stopProfiler("KerSpMV", solver_stream_);
-
   if (comm_size_ > 1) {
-    prof_.startProfiler("HaloComm", copy_stream_);
-
     checkCudaErrors(cudaStreamWaitEvent(copy_stream_, sync_event_, 0));
     checkCudaErrors(cudaMemcpyAsync(h_send_buff_, d_send_buff_,
                                     send_buff_sz_ * sizeof(double),
@@ -1333,19 +1163,13 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
 
     MPI_Waitall(send_ranks.size(), send_requests.data(), MPI_STATUS_IGNORE);
     MPI_Waitall(recv_ranks.size(), recv_requests.data(), MPI_STATUS_IGNORE);
-    prof_.stopProfiler("HaloComm", copy_stream_);
-
     checkCudaErrors(cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_,
                                     halo_ * sizeof(double),
                                     cudaMemcpyHostToDevice, solver_stream_));
-
-    prof_.startProfiler("HaloSpMV", solver_stream_);
-
     checkCudaErrors(
         cusparseSpMV(cusparse_handle_, CUSPARSE_OPERATION_NON_TRANSPOSE, d_eye_,
                      spDescrBdA_, spDescrBdOp, d_eye_, spDescrRes, CUDA_R_64F,
                      CUSPARSE_SPMV_ALG_DEFAULT, bdSpMVBuff_));
-    prof_.stopProfiler("HaloSpMV", solver_stream_);
   }
 
   if (bMeanConstraint_) {
@@ -1374,8 +1198,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
 
 void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
                           const int max_restarts) {
-  prof_.startProfiler("Total", solver_stream_);
-
   double error = 1e50;
   double error_init = 1e50;
   double error_opt = 1e50;
@@ -1498,13 +1320,9 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     checkCudaErrors(
         cublasDscal(cublas_handle_, m_, &(d_coeffs_->beta), d_p_, 1));
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, d_eye_, d_r_, 1, d_p_, 1));
-
-    prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_,
                                 m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_,
                                 d_p_, BLEN_, d_nil_, d_z_, BLEN_));
-    prof_.stopProfiler("Prec", solver_stream_);
-
     hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_nu_, spDescrNu_);
 
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_rhat_, 1, d_nu_, 1,
@@ -1529,13 +1347,9 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cublasDaxpy(cublas_handle_, m_, &(d_coeffs_->buff_1), d_nu_,
                                 1, d_r_, 1));
-
-    prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_,
                                 m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_,
                                 d_r_, BLEN_, d_nil_, d_z_, BLEN_));
-    prof_.stopProfiler("Prec", solver_stream_);
-
     hd_cusparseSpMV(d_z_, spDescrLocZ_, spDescrBdZ_, d_t_, spDescrT_);
 
     checkCudaErrors(
@@ -1613,14 +1427,9 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
                 << ")\n"
                 << std::flush;
   }
-
-  prof_.startProfiler("Memcpy", solver_stream_);
-
   checkCudaErrors(cudaMemcpyAsync(LocalLS_.x_.data(), d_x_opt_,
                                   m_ * sizeof(double), cudaMemcpyDeviceToHost,
-                                  solver_stream_));
-  prof_.stopProfiler("Memcpy", solver_stream_);
-  prof_.stopProfiler("Total", solver_stream_);
+
 }
 
 LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN,
