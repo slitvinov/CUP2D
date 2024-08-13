@@ -5913,10 +5913,6 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   void create(const std::vector<cubism::BlockInfo> &vInfo);
-  void getCentroid(Real centroid[2]) const {
-    centroid[0] = this->center[0];
-    centroid[1] = this->center[1];
-  }
   Real getU() const { return u; }
   Real getV() const { return v; }
   Real getW() const { return omega; }
@@ -6537,10 +6533,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     Real cy = shape->centerOfMass[1];
     Real angle = shape->orientation;
     shape->theta_internal -= dt * shape->angvel_internal;
-    Real p[2] = {0, 0};
-    shape->getCentroid(p);
     const auto &extent = sim.extents;
-    if (p[0] < 0 || p[0] > extent[0] || p[1] < 0 || p[1] > extent[1]) {
+    if (shape->center[0] < 0 || shape->center[0] > extent[0] || shape->center[1] < 0 || shape->center[1] > extent[1]) {
       printf("[CUP2D] ABORT: Body out of domain [0,%f]x[0,%f] CM:[%e,%e]\n",
              (double)extent[0], (double)extent[1], (double)p[0], (double)p[1]);
       fflush(0);
