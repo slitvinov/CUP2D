@@ -12,10 +12,6 @@ FLAGS =\
 -D_BS_=8\
 -DCUBISM_ALIGNMENT=32\
 -DNDEBUG\
--Wno-format-truncation\
--Wno-unused-result\
--Wno-cast-function-type\
--Wno-sign-compare\
 $(OPENMPFLAGS)\
 -std=c++17\
 

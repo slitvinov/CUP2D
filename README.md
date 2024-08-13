@@ -24,3 +24,10 @@ local
 ```
 make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
 ```
+
+```
+-Wno-format-truncation\
+-Wno-unused-result\
+-Wno-cast-function-type\
+-Wno-sign-compare\
+```
