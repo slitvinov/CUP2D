@@ -9039,7 +9039,7 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
 struct FishData;
-void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
+void Shape::create(const std::vector<cubism::BlockInfo> &tmpInfo) {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
@@ -9083,12 +9083,12 @@ void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
     tAS->changeToComputationalFrame(center, orientation);
     vSegments[i] = tAS;
   }
-  const auto N = vInfo.size();
+  const auto N = tmpInfo.size();
   std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
   obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); ++i) {
-    const cubism::BlockInfo &info = vInfo[i];
+  for (size_t i = 0; i < tmpInfo.size(); ++i) {
+    const cubism::BlockInfo &info = tmpInfo[i];
     Real pStart[2], pEnd[2];
     info.pos(pStart, 0, 0);
     info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
@@ -9112,12 +9112,12 @@ void Shape::create(const std::vector<cubism::BlockInfo> &vInfo) {
   {
     const PutFishOnBlocks putfish(*myFish, center, orientation);
 #pragma omp for schedule(dynamic)
-    for (size_t i = 0; i < vInfo.size(); i++) {
-      const auto pos = segmentsPerBlock[vInfo[i].blockID];
+    for (size_t i = 0; i < tmpInfo.size(); i++) {
+      const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
       if (pos not_eq nullptr) {
-        ObstacleBlock *const block = obstacleBlocks[vInfo[i].blockID];
+        ObstacleBlock *const block = obstacleBlocks[tmpInfo[i].blockID];
         assert(block not_eq nullptr);
-        putfish(vInfo[i], *(ScalarBlock *)vInfo[i].ptrBlock, block, *pos);
+        putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
       }
     }
   }
