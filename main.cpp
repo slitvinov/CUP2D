@@ -5917,7 +5917,6 @@ struct Shape {
     Integrals(const Integrals &c)
         : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
   };
-  Integrals integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo);
   const Real length, Tperiod, phaseShift;
   FishData *myFish = nullptr;
   Real area_internal = 0, J_internal = 0;
