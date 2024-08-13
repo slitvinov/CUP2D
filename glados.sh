@@ -1,5 +1,5 @@
 ssh glados '
-rm /scratch/lisergey/CUP2D &&
+rm -rf /scratch/lisergey/CUP2D &&
    git clone git@github.com:slitvinov/CUP2D /scratch/lisergey/CUP2D &&
    cd /scratch/lisergey/CUP2D
    module load mpi &&
