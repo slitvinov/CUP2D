@@ -797,28 +797,6 @@ inline int gpuGetMaxGflopsDeviceId() {
   return max_perf_device;
 }
 
-inline bool checkCudaCapabilities(int major_version, int minor_version) {
-  int dev;
-  int major = 0, minor = 0;
-
-  checkCudaErrors(cudaGetDevice(&dev));
-  checkCudaErrors(
-      cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, dev));
-  checkCudaErrors(
-      cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, dev));
-
-  if ((major > major_version) ||
-      (major == major_version && minor >= minor_version)) {
-    printf("  Device %d: <%16s >, Compute SM %d.%d detected\n", dev,
-           _ConvertSMVer2ArchName(major, minor), major, minor);
-    return true;
-  } else {
-    printf("  No GPU device was found that can support "
-           "CUDA compute capability %d.%d.\n",
-           major_version, minor_version);
-    return false;
-  }
-}
 #endif
 
 #endif
