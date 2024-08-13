@@ -9359,6 +9359,7 @@ int main(int argc, char **argv) {
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
+      Shape *shape;
       if (objectName == "stefanfish")
         shape = new Shape(ffparser, center);
       else
