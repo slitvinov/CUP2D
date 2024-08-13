@@ -2382,7 +2382,7 @@ public:
     }
     std::vector<int> send_buffer_size(size, 0);
     std::vector<int> recv_buffer_size(size, 0);
-    const int NC = DIMENSION;
+    const int NC = ElementType::DIM;
     int blocksize[3];
     blocksize[0] = BlockType::sizeX;
     blocksize[1] = BlockType::sizeY;
@@ -2561,9 +2561,9 @@ public:
         const int N2 = FineCase.m_vSize[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
-          for (int j = 0; j < DIMENSION; j++)
+          for (int j = 0; j < ElementType::DIM; j++)
             send_buffer[r][displacement + j] = avg.member(j);
-          displacement += DIMENSION;
+          displacement += ElementType::DIM;
           FineFace[i2].clear();
           FineFace[i2 + 1].clear();
         }
@@ -4533,7 +4533,7 @@ public:
     stencil.ey = Gy + 1;
     stencil.ez = Gz + 1;
     stencil.tensorial = true;
-    for (int i = 0; i < DIMENSION; i++)
+    for (int i = 0; i < ElementType::DIM; i++)
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
