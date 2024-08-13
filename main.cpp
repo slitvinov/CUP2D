@@ -5910,7 +5910,6 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  void create(const std::vector<cubism::BlockInfo> &vInfo);
   struct Integrals {
     const Real x, y, m, j, u, v, a;
     Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
@@ -6344,6 +6343,24 @@ struct ComputeSurfaceNormals {
     }
   }
 };
+struct AreaSegment {
+  const Real safe_distance;
+  const std::pair<int, int> s_range;
+  Real w[2], c[2];
+  Real normalI[2] = {(Real)1, (Real)0};
+  Real normalJ[2] = {(Real)0, (Real)1};
+  Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
+  Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
+  AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
+      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
+                                            (bb[1][1] - bb[1][0]) / 2 + safe},
+        c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
+    assert(w[0] > 0);
+    assert(w[1] > 0);
+  }
+  void changeToComputationalFrame(const Real position[2], const Real angle);
+  bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const;
+};
 struct PutChiOnGrid {
   PutChiOnGrid(){};
   const cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
@@ -6394,6 +6411,48 @@ struct PutChiOnGrid {
     }
   }
 };
+struct PutFishOnBlocks {
+  const FishData &cfish;
+  const Real position[2];
+  const Real angle;
+  const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
+                                {std::sin(angle), std::cos(angle)}};
+  static inline Real eulerDistSq2D(const Real a[2], const Real b[2]) {
+    return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
+  }
+  void changeVelocityToComputationalFrame(Real x[2]) const {
+    const Real p[2] = {x[0], x[1]};
+    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+  }
+  template <typename T> void changeToComputationalFrame(T x[2]) const {
+    const T p[2] = {x[0], x[1]};
+    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+    x[0] += position[0];
+    x[1] += position[1];
+  }
+  template <typename T> void changeFromComputationalFrame(T x[2]) const {
+    const T p[2] = {x[0] - (T)position[0], x[1] - (T)position[1]};
+    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
+    x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
+  }
+  PutFishOnBlocks(const FishData &cf, const Real pos[2], const Real ang)
+      : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
+  virtual ~PutFishOnBlocks() {}
+  void operator()(const cubism::BlockInfo &i, ScalarBlock &b,
+                  ObstacleBlock *const o,
+                  const std::vector<AreaSegment *> &v) const;
+  virtual void constructSurface(const cubism::BlockInfo &i, ScalarBlock &b,
+                                ObstacleBlock *const o,
+                                const std::vector<AreaSegment *> &v) const;
+  virtual void constructInternl(const cubism::BlockInfo &i, ScalarBlock &b,
+                                ObstacleBlock *const o,
+                                const std::vector<AreaSegment *> &v) const;
+  virtual void signedDistanceSqrt(const cubism::BlockInfo &i, ScalarBlock &b,
+                                  ObstacleBlock *const o,
+                                  const std::vector<AreaSegment *> &v) const;
+};
 void PutObjectsOnGrid::operator()(const Real dt) {
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
@@ -6441,8 +6500,96 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     ((ScalarBlock *)chiInfo[i].ptrBlock)->clear();
     ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
   }
-  for (const auto &shape : sim.shapes)
-    shape->create(tmpInfo);
+  for (const auto &shape : sim.shapes) {
+  for (auto &entry : shape->obstacleBlocks)
+    delete entry;
+  shape->obstacleBlocks.clear();
+  assert(myFish != nullptr);
+  shape->myFish->computeMidline(sim.time, sim.dt);
+  shape->myFish->computeSurface();
+  shape->area_internal = shape->myFish->integrateLinearMomentum(shape->CoM_internal, shape->vCoM_internal);
+  shape->myFish->changeToCoMFrameLinear(shape->CoM_internal, shape->vCoM_internal);
+  shape->angvel_internal_prev = shape->angvel_internal;
+  shape->J_internal = shape->myFish->integrateAngularMomentum(shape->angvel_internal);
+  shape->myFish->changeToCoMFrameAngular(shape->theta_internal, shape->angvel_internal);
+  shape->myFish->surfaceToCOMFrame(shape->theta_internal, shape->CoM_internal);
+  const int Nsegments = (shape->myFish->Nm - 1) / 8;
+  const int Nm = shape->myFish->Nm;
+  assert((Nm - 1) % Nsegments == 0);
+  std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
+  const Real h = getH(sim.vel);
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < Nsegments; ++i) {
+    const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
+    const int idx = i * (Nm - 1) / Nsegments;
+    Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
+    for (int ss = idx; ss <= next_idx; ++ss) {
+      const Real xBnd[2] = {
+          shape->myFish->rX[ss] - shape->myFish->norX[ss] * shape->myFish->width[ss],
+          shape->myFish->rX[ss] + shape->myFish->norX[ss] * shape->myFish->width[ss]};
+      const Real yBnd[2] = {
+          shape->myFish->rY[ss] - shape->myFish->norY[ss] * shape->myFish->width[ss],
+          shape->myFish->rY[ss] + shape->myFish->norY[ss] * shape->myFish->width[ss]};
+      const Real maxX = std::max(xBnd[0], xBnd[1]),
+                 minX = std::min(xBnd[0], xBnd[1]);
+      const Real maxY = std::max(yBnd[0], yBnd[1]),
+                 minY = std::min(yBnd[0], yBnd[1]);
+      bbox[0][0] = std::min(bbox[0][0], minX);
+      bbox[0][1] = std::max(bbox[0][1], maxX);
+      bbox[1][0] = std::min(bbox[1][0], minY);
+      bbox[1][1] = std::max(bbox[1][1], maxY);
+    }
+    const Real DD = 4 * h;
+    AreaSegment *const tAS =
+        new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
+    tAS->changeToComputationalFrame(shape->center, shape->orientation);
+    vSegments[i] = tAS;
+  }
+  const auto N = tmpInfo.size();
+  std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
+  shape->obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
+#pragma omp parallel for schedule(static)
+  for (size_t i = 0; i < tmpInfo.size(); ++i) {
+    const cubism::BlockInfo &info = tmpInfo[i];
+    Real pStart[2], pEnd[2];
+    info.pos(pStart, 0, 0);
+    info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
+    for (size_t s = 0; s < vSegments.size(); ++s)
+      if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
+        if (segmentsPerBlock[info.blockID] == nullptr)
+          segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
+        segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
+      }
+    if (segmentsPerBlock[info.blockID] not_eq nullptr) {
+      assert(obstacleBlocks[info.blockID] == nullptr);
+      ObstacleBlock *const block = new ObstacleBlock();
+      assert(block not_eq nullptr);
+      shape->obstacleBlocks[info.blockID] = block;
+      block->clear();
+    }
+  }
+  assert(not segmentsPerBlock.empty());
+  assert(segmentsPerBlock.size() == obstacleBlocks.size());
+#pragma omp parallel
+  {
+    const PutFishOnBlocks putfish(*shape->myFish, shape->center, shape->orientation);
+#pragma omp for schedule(dynamic)
+    for (size_t i = 0; i < tmpInfo.size(); i++) {
+      const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
+      if (pos not_eq nullptr) {
+        ObstacleBlock *const block = shape->obstacleBlocks[tmpInfo[i].blockID];
+        assert(block not_eq nullptr);
+        putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
+      }
+    }
+  }
+  for (auto &E : vSegments) {
+    delete E;
+  }
+  for (auto &E : segmentsPerBlock) {
+    delete E;
+  }
+  }
   const PutChiOnGrid K;
   cubism::compute<ScalarLab>(K, sim.tmp);
   const ComputeSurfaceNormals K1;
@@ -8369,66 +8516,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-struct AreaSegment {
-  const Real safe_distance;
-  const std::pair<int, int> s_range;
-  Real w[2], c[2];
-  Real normalI[2] = {(Real)1, (Real)0};
-  Real normalJ[2] = {(Real)0, (Real)1};
-  Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
-  Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
-  AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
-                                            (bb[1][1] - bb[1][0]) / 2 + safe},
-        c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
-    assert(w[0] > 0);
-    assert(w[1] > 0);
-  }
-  void changeToComputationalFrame(const Real position[2], const Real angle);
-  bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const;
-};
-struct PutFishOnBlocks {
-  const FishData &cfish;
-  const Real position[2];
-  const Real angle;
-  const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-                                {std::sin(angle), std::cos(angle)}};
-  static inline Real eulerDistSq2D(const Real a[2], const Real b[2]) {
-    return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
-  }
-  void changeVelocityToComputationalFrame(Real x[2]) const {
-    const Real p[2] = {x[0], x[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  template <typename T> void changeToComputationalFrame(T x[2]) const {
-    const T p[2] = {x[0], x[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-    x[0] += position[0];
-    x[1] += position[1];
-  }
-  template <typename T> void changeFromComputationalFrame(T x[2]) const {
-    const T p[2] = {x[0] - (T)position[0], x[1] - (T)position[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
-    x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  PutFishOnBlocks(const FishData &cf, const Real pos[2], const Real ang)
-      : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
-  virtual ~PutFishOnBlocks() {}
-  void operator()(const cubism::BlockInfo &i, ScalarBlock &b,
-                  ObstacleBlock *const o,
-                  const std::vector<AreaSegment *> &v) const;
-  virtual void constructSurface(const cubism::BlockInfo &i, ScalarBlock &b,
-                                ObstacleBlock *const o,
-                                const std::vector<AreaSegment *> &v) const;
-  virtual void constructInternl(const cubism::BlockInfo &i, ScalarBlock &b,
-                                ObstacleBlock *const o,
-                                const std::vector<AreaSegment *> &v) const;
-  virtual void signedDistanceSqrt(const cubism::BlockInfo &i, ScalarBlock &b,
-                                  ObstacleBlock *const o,
-                                  const std::vector<AreaSegment *> &v) const;
-};
 void FishData::_computeMidlineNormals() const {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm - 1; i++) {
@@ -9039,95 +9126,6 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
 struct FishData;
-void Shape::create(const std::vector<cubism::BlockInfo> &tmpInfo) {
-  for (auto &entry : obstacleBlocks)
-    delete entry;
-  obstacleBlocks.clear();
-  assert(myFish != nullptr);
-  myFish->computeMidline(sim.time, sim.dt);
-  myFish->computeSurface();
-  area_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-  myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
-  angvel_internal_prev = angvel_internal;
-  J_internal = myFish->integrateAngularMomentum(angvel_internal);
-  myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-  myFish->surfaceToCOMFrame(theta_internal, CoM_internal);
-  const int Nsegments = (myFish->Nm - 1) / 8, Nm = myFish->Nm;
-  assert((Nm - 1) % Nsegments == 0);
-  std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-  const Real h = getH(sim.vel);
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nsegments; ++i) {
-    const int next_idx = (i + 1) * (Nm - 1) / Nsegments,
-              idx = i * (Nm - 1) / Nsegments;
-    Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
-    for (int ss = idx; ss <= next_idx; ++ss) {
-      const Real xBnd[2] = {
-          myFish->rX[ss] - myFish->norX[ss] * myFish->width[ss],
-          myFish->rX[ss] + myFish->norX[ss] * myFish->width[ss]};
-      const Real yBnd[2] = {
-          myFish->rY[ss] - myFish->norY[ss] * myFish->width[ss],
-          myFish->rY[ss] + myFish->norY[ss] * myFish->width[ss]};
-      const Real maxX = std::max(xBnd[0], xBnd[1]),
-                 minX = std::min(xBnd[0], xBnd[1]);
-      const Real maxY = std::max(yBnd[0], yBnd[1]),
-                 minY = std::min(yBnd[0], yBnd[1]);
-      bbox[0][0] = std::min(bbox[0][0], minX);
-      bbox[0][1] = std::max(bbox[0][1], maxX);
-      bbox[1][0] = std::min(bbox[1][0], minY);
-      bbox[1][1] = std::max(bbox[1][1], maxY);
-    }
-    const Real DD = 4 * h;
-    AreaSegment *const tAS =
-        new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
-    tAS->changeToComputationalFrame(center, orientation);
-    vSegments[i] = tAS;
-  }
-  const auto N = tmpInfo.size();
-  std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
-  obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < tmpInfo.size(); ++i) {
-    const cubism::BlockInfo &info = tmpInfo[i];
-    Real pStart[2], pEnd[2];
-    info.pos(pStart, 0, 0);
-    info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
-    for (size_t s = 0; s < vSegments.size(); ++s)
-      if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-        if (segmentsPerBlock[info.blockID] == nullptr)
-          segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
-        segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
-      }
-    if (segmentsPerBlock[info.blockID] not_eq nullptr) {
-      assert(obstacleBlocks[info.blockID] == nullptr);
-      ObstacleBlock *const block = new ObstacleBlock();
-      assert(block not_eq nullptr);
-      obstacleBlocks[info.blockID] = block;
-      block->clear();
-    }
-  }
-  assert(not segmentsPerBlock.empty());
-  assert(segmentsPerBlock.size() == obstacleBlocks.size());
-#pragma omp parallel
-  {
-    const PutFishOnBlocks putfish(*myFish, center, orientation);
-#pragma omp for schedule(dynamic)
-    for (size_t i = 0; i < tmpInfo.size(); i++) {
-      const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
-      if (pos not_eq nullptr) {
-        ObstacleBlock *const block = obstacleBlocks[tmpInfo[i].blockID];
-        assert(block not_eq nullptr);
-        putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
-      }
-    }
-  }
-  for (auto &E : vSegments) {
-    delete E;
-  }
-  for (auto &E : segmentsPerBlock) {
-    delete E;
-  }
-}
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
