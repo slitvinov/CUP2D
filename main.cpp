@@ -5871,6 +5871,13 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   MPI_File_close(&mpi_file);
   free(attr);
 }
+struct Integrals {
+  const Real x, y, m, j, u, v, a;
+  Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
+    : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
+  Integrals(const Integrals &c)
+    : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
+};
 struct Shape {
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
@@ -5910,13 +5917,6 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  struct Integrals {
-    const Real x, y, m, j, u, v, a;
-    Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
-        : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
-    Integrals(const Integrals &c)
-        : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
-  };
   const Real length, Tperiod, phaseShift;
   FishData *myFish = nullptr;
   Real area_internal = 0, J_internal = 0;
@@ -6619,7 +6619,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     _u /= _m;
     _v /= _m;
     _a /= _j;
-    Shape::Integrals I = Shape::Integrals(_x, _y, _m, _j, _u, _v, _a);
+    Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
     shape->M = I.m;
     shape->J = I.j;
     const Real dCx = shape->center[0] - shape->centerOfMass[0];
