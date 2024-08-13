@@ -23,7 +23,7 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-enum { DIMENSION = 2 };
+#define DIMENSION 2
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
@@ -806,7 +806,7 @@ public:
     const int lvlMax = dummy.levelMax(levelMax);
     for (int m = 0; m < lvlMax; m++) {
       const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, 2);
+      const long long Ntot = nx * ny * nz * pow(TwoPower, DIMENSION);
       if (m == 0)
         level_base.push_back(Ntot);
       if (m > 0)
@@ -2318,10 +2318,10 @@ protected:
                   .rank();
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
-        for (int j = 0; j < DIMENSION; j++)
+        for (int j = 0; j < ElementType::DIM; j++)
           CoarseFace[base + (i2 / 2)].member(j) +=
               recv_buffer[r][F.offset + dis + j];
-        dis += DIMENSION;
+        dis += ElementType::DIM;
       }
     }
   }
@@ -5188,6 +5188,7 @@ struct VectorElement {
     return sqrt(s1);
   }
   Real &member(int i) { return u[i]; }
+  static constexpr int DIM = 1;
 };
 template <typename TElement> struct GridBlock {
   static constexpr int sizeX = _BS_;
