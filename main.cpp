@@ -5928,50 +5928,6 @@ struct Shape {
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-Shape::Integrals
-Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &chiInfo) {
-  Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
-#pragma omp parallel for schedule(dynamic, 1)                                  \
-    reduction(+ : _x, _y, _m, _j, _u, _v, _a)
-  for (size_t i = 0; i < chiInfo.size(); i++) {
-    const Real hsq = std::pow(chiInfo[i].h, 2);
-    const auto pos = obstacleBlocks[chiInfo[i].blockID];
-    if (pos == nullptr)
-      continue;
-    const CHI_MAT &__restrict__ CHI = pos->chi;
-    const UDEFMAT &__restrict__ UDEF = pos->udef;
-    for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
-      for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
-        if (CHI[iy][ix] <= 0)
-          continue;
-        Real p[2];
-        chiInfo[i].pos(p, ix, iy);
-        const Real chi = CHI[iy][ix] * hsq;
-        p[0] -= centerOfMass[0];
-        p[1] -= centerOfMass[1];
-        _x += chi * p[0];
-        _y += chi * p[1];
-        _m += chi;
-        _j += chi * (p[0] * p[0] + p[1] * p[1]);
-        _u += chi * UDEF[iy][ix][0];
-        _v += chi * UDEF[iy][ix][1];
-        _a += chi * (p[0] * UDEF[iy][ix][1] - p[1] * UDEF[iy][ix][0]);
-      }
-  }
-  Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
-  MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
-  _x = quantities[0];
-  _y = quantities[1];
-  _m = quantities[2];
-  _j = quantities[3];
-  _u = quantities[4];
-  _v = quantities[5];
-  _a = quantities[6];
-  _u /= _m;
-  _v /= _m;
-  _a /= _j;
-  return Integrals(_x, _y, _m, _j, _u, _v, _a);
-}
 struct IF2D_Frenet2D {
   static void solve(const unsigned Nm, const Real *const rS,
                     const Real *const curv, const Real *const curv_dt,
@@ -6623,7 +6579,48 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->centerOfMass[1] += com[2] / com[0];
   }
   for (const auto &shape : sim.shapes) {
-    Shape::Integrals I = shape->integrateObstBlock(chiInfo);
+    Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
+#pragma omp parallel for schedule(dynamic, 1)                                  \
+    reduction(+ : _x, _y, _m, _j, _u, _v, _a)
+    for (size_t i = 0; i < chiInfo.size(); i++) {
+      const Real hsq = std::pow(chiInfo[i].h, 2);
+      const auto pos = shape->obstacleBlocks[chiInfo[i].blockID];
+      if (pos == nullptr)
+        continue;
+      const CHI_MAT &__restrict__ CHI = pos->chi;
+      const UDEFMAT &__restrict__ UDEF = pos->udef;
+      for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
+        for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
+          if (CHI[iy][ix] <= 0)
+            continue;
+          Real p[2];
+          chiInfo[i].pos(p, ix, iy);
+          const Real chi = CHI[iy][ix] * hsq;
+          p[0] -= shape->centerOfMass[0];
+          p[1] -= shape->centerOfMass[1];
+          _x += chi * p[0];
+          _y += chi * p[1];
+          _m += chi;
+          _j += chi * (p[0] * p[0] + p[1] * p[1]);
+          _u += chi * UDEF[iy][ix][0];
+          _v += chi * UDEF[iy][ix][1];
+          _a += chi * (p[0] * UDEF[iy][ix][1] - p[1] * UDEF[iy][ix][0]);
+        }
+    }
+    Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
+    MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+                  MPI_COMM_WORLD);
+    _x = quantities[0];
+    _y = quantities[1];
+    _m = quantities[2];
+    _j = quantities[3];
+    _u = quantities[4];
+    _v = quantities[5];
+    _a = quantities[6];
+    _u /= _m;
+    _v /= _m;
+    _a /= _j;
+    Shape::Integrals I = Shape::Integrals(_x, _y, _m, _j, _u, _v, _a);
     shape->M = I.m;
     shape->J = I.j;
     const Real dCx = shape->center[0] - shape->centerOfMass[0];
