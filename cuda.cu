@@ -18,42 +18,10 @@
 #include <unordered_map>
 #include <vector>
 #include "cuda.h"
+
+#define checkCudaErrors(a) a;
+
 template <typename T>
-
-void check(T result, char const *const func, const char *const file,
-           int const line) {
-  if (result) {
-    fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \"%s\" \n", file, line,
-            static_cast<unsigned int>(result), _cudaGetErrorEnum(result), func);
-    exit(EXIT_FAILURE);
-  }
-}
-
-#define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
-#define getLastCudaError(msg) __getLastCudaError(msg, __FILE__, __LINE__)
-inline void __getLastCudaError(const char *errorMessage, const char *file,
-                               const int line) {
-  cudaError_t err = cudaGetLastError();
-  if (cudaSuccess != err) {
-    fprintf(stderr,
-            "%s(%i) : getLastCudaError() CUDA error :"
-            " %s : %d\n",
-            file, line, errorMessage, static_cast<int>(err));
-    exit(EXIT_FAILURE);
-  }
-}
-#define printLastCudaError(msg) __printLastCudaError(msg, __FILE__, __LINE__)
-inline void __printLastCudaError(const char *errorMessage, const char *file,
-                                 const int line) {
-  cudaError_t err = cudaGetLastError();
-
-  if (cudaSuccess != err) {
-    fprintf(stderr,
-            "%s(%i) : getLastCudaError() CUDA error :"
-            " %s : %d\n",
-            file, line, errorMessage, static_cast<int>(err));
-  }
-}
 struct BiCGSTABScalars {
   double alpha;
   double beta;
@@ -71,27 +39,20 @@ public:
   BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS, const int BLEN,
                  const bool bMeanConstraint, const std::vector<double> &P_inv);
   ~BiCGSTABSolver();
-
   void solveWithUpdate(const double max_error, const double max_rel_error,
                        const int max_restarts);
-
   void solveNoUpdate(const double max_error, const double max_rel_error,
                      const int max_restarts);
 
 private:
   void freeLast();
-
   void updateAll();
-
   void updateVec();
-
   void main(const double max_error, const double max_rel_error,
             const int restarts);
-
   void hd_cusparseSpMV(double *d_op, cusparseDnVecDescr_t spDescrLocOp,
                        cusparseDnVecDescr_t spDescrBdOp, double *d_res,
                        cusparseDnVecDescr_t Res);
-
   cudaStream_t solver_stream_;
   cudaStream_t copy_stream_;
   cudaEvent_t sync_event_;
