@@ -5929,13 +5929,13 @@ struct Shape {
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 Shape::Integrals
-Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
+Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &chiInfo) {
   Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
-  for (size_t i = 0; i < vInfo.size(); i++) {
-    const Real hsq = std::pow(vInfo[i].h, 2);
-    const auto pos = obstacleBlocks[vInfo[i].blockID];
+  for (size_t i = 0; i < chiInfo.size(); i++) {
+    const Real hsq = std::pow(chiInfo[i].h, 2);
+    const auto pos = obstacleBlocks[chiInfo[i].blockID];
     if (pos == nullptr)
       continue;
     const CHI_MAT &__restrict__ CHI = pos->chi;
@@ -5945,7 +5945,7 @@ Shape::integrateObstBlock(const std::vector<cubism::BlockInfo> &vInfo) {
         if (CHI[iy][ix] <= 0)
           continue;
         Real p[2];
-        vInfo[i].pos(p, ix, iy);
+        chiInfo[i].pos(p, ix, iy);
         const Real chi = CHI[iy][ix] * hsq;
         p[0] -= centerOfMass[0];
         p[1] -= centerOfMass[1];
