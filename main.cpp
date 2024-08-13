@@ -5224,12 +5224,11 @@ template <typename TElement> struct GridBlock {
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
-template <typename TGrid, int dim>
+template <typename TGrid>
 class BlockLabNeumann : public cubism::BlockLab<TGrid> {
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
-  static constexpr int DIM = dim;
 
 protected:
   template <int dir, int side> void Neumann3D(const bool coarse = false) {
@@ -5358,29 +5357,14 @@ public:
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
   void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
                  const bool coarse = false) override {
-    if (DIM == 2) {
-      if (info.index[0] == 0)
-        this->template Neumann2D<0, 0>(coarse);
-      if (info.index[0] == this->NX - 1)
-        this->template Neumann2D<0, 1>(coarse);
-      if (info.index[1] == 0)
-        this->template Neumann2D<1, 0>(coarse);
-      if (info.index[1] == this->NY - 1)
-        this->template Neumann2D<1, 1>(coarse);
-    } else if (DIM == 3) {
-      if (info.index[0] == 0)
-        this->template Neumann3D<0, 0>(coarse);
-      if (info.index[0] == this->NX - 1)
-        this->template Neumann3D<0, 1>(coarse);
-      if (info.index[1] == 0)
-        this->template Neumann3D<1, 0>(coarse);
-      if (info.index[1] == this->NY - 1)
-        this->template Neumann3D<1, 1>(coarse);
-      if (info.index[2] == 0)
-        this->template Neumann3D<2, 0>(coarse);
-      if (info.index[2] == this->NZ - 1)
-        this->template Neumann3D<2, 1>(coarse);
-    }
+    if (info.index[0] == 0)
+      this->template Neumann2D<0, 0>(coarse);
+    if (info.index[0] == this->NX - 1)
+      this->template Neumann2D<0, 1>(coarse);
+    if (info.index[1] == 0)
+      this->template Neumann2D<1, 0>(coarse);
+    if (info.index[1] == this->NY - 1)
+      this->template Neumann2D<1, 1>(coarse);
   }
 };
 } // namespace cubism
@@ -5527,9 +5511,9 @@ public:
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
 template <typename TGrid>
-class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid, 2> {
+class BlockLabNeumann : public cubism::BlockLabNeumann<TGrid> {
 public:
-  using cubismLab = cubism::BlockLabNeumann<TGrid, 2>;
+  using cubismLab = cubism::BlockLabNeumann<TGrid>;
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
