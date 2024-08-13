@@ -797,54 +797,6 @@ inline int gpuGetMaxGflopsDeviceId() {
   return max_perf_device;
 }
 
-inline int findIntegratedGPU() {
-  int current_device = 0;
-  int device_count = 0;
-  int devices_prohibited = 0;
-
-  checkCudaErrors(cudaGetDeviceCount(&device_count));
-
-  if (device_count == 0) {
-    fprintf(stderr, "CUDA error: no devices supporting CUDA.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  while (current_device < device_count) {
-    int computeMode = -1, integrated = -1;
-    checkCudaErrors(cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode,
-                                           current_device));
-    checkCudaErrors(cudaDeviceGetAttribute(&integrated, cudaDevAttrIntegrated,
-                                           current_device));
-
-    if (integrated && (computeMode != cudaComputeModeProhibited)) {
-      checkCudaErrors(cudaSetDevice(current_device));
-
-      int major = 0, minor = 0;
-      checkCudaErrors(cudaDeviceGetAttribute(
-          &major, cudaDevAttrComputeCapabilityMajor, current_device));
-      checkCudaErrors(cudaDeviceGetAttribute(
-          &minor, cudaDevAttrComputeCapabilityMinor, current_device));
-      printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n",
-             current_device, _ConvertSMVer2ArchName(major, minor), major,
-             minor);
-
-      return current_device;
-    } else {
-      devices_prohibited++;
-    }
-
-    current_device++;
-  }
-
-  if (devices_prohibited == device_count) {
-    fprintf(stderr, "CUDA error:"
-                    " No GLES-CUDA Interop capable GPU found.\n");
-    exit(EXIT_FAILURE);
-  }
-
-  return -1;
-}
-
 inline bool checkCudaCapabilities(int major_version, int minor_version) {
   int dev;
   int major = 0, minor = 0;
