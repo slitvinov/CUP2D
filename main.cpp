@@ -6533,10 +6533,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     Real cy = shape->centerOfMass[1];
     Real angle = shape->orientation;
     shape->theta_internal -= dt * shape->angvel_internal;
-    const auto &extent = sim.extents;
-    if (shape->center[0] < 0 || shape->center[0] > extent[0] || shape->center[1] < 0 || shape->center[1] > extent[1]) {
-      printf("[CUP2D] ABORT: Body out of domain [0,%f]x[0,%f] CM:[%e,%e]\n",
-             (double)extent[0], (double)extent[1], (double)p[0], (double)p[1]);
+    if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] || shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
+      printf("[CUP2D] ABORT: Body out of domain\n");
       fflush(0);
       abort();
     }
