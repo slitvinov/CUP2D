@@ -5922,7 +5922,6 @@ struct Shape {
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
   Shape(cubism::CommandlineParser &p, Real C[2]);
   virtual ~Shape();
-  Real getCharLength() const { return length; }
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
@@ -7985,7 +7984,7 @@ void PressureSingle::operator()(const Real dt) {
     const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
     if (shape->breakSymmetryType != 0 && shouldBreak) {
       const double strength = shape->breakSymmetryStrength;
-      const double charL = shape->getCharLength();
+      const double charL = shape->length;
       const double charV = std::abs(shape->u);
       if (shape->breakSymmetryType == 1) {
         shape->omega =
@@ -8178,9 +8177,9 @@ void PressureSingle::operator()(const Real dt) {
       if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
         continue;
       if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
-              shapes[i]->getCharLength() ||
+              shapes[i]->length ||
           std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
-              shapes[i]->getCharLength()) {
+              shapes[i]->length) {
         continue;
       }
 #pragma omp critical
