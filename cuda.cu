@@ -17,7 +17,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "cuda.h"
 struct BiCGSTABScalars {
   double alpha;
