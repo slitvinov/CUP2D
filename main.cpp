@@ -5465,6 +5465,116 @@ using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorGrid>>;
 using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
+struct FishSkin {
+  const size_t Npoints;
+  Real *const xSurf;
+  Real *const ySurf;
+  Real *const normXSurf;
+  Real *const normYSurf;
+  Real *const midX;
+  Real *const midY;
+  FishSkin(const FishSkin &c)
+      : Npoints(c.Npoints), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
+        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
+        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
+  FishSkin(const size_t N)
+      : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
+        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
+        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
+  ~FishSkin() {
+    delete[] xSurf;
+    delete[] ySurf;
+    delete[] normXSurf;
+    delete[] normYSurf;
+    delete[] midX;
+    delete[] midY;
+  }
+};
+struct FishData {
+public:
+  const Real length, h;
+  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
+  const Real dSmid_tgt = h / std::sqrt(2);
+  const Real dSrefine_tgt = 0.125 * h;
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  const Real dSmid = length * fracMid / Nmid;
+  const int Nend =
+      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
+  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
+  const int Nm = Nmid + 2 * Nend + 1;
+  Real *const rS;
+  Real *const rX;
+  Real *const rY;
+  Real *const vX;
+  Real *const vY;
+  Real *const norX;
+  Real *const norY;
+  Real *const vNorX;
+  Real *const vNorY;
+  Real *const width;
+  Real linMom[2], area, J, angMom;
+  FishSkin upperSkin = FishSkin(Nm);
+  FishSkin lowerSkin = FishSkin(Nm);
+
+protected:
+  template <typename T>
+  inline void _rotate2D(const Real Rmatrix2D[2][2], T &x, T &y) const {
+    const T p[2] = {x, y};
+    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+  }
+  static Real *_alloc(const int N) { return new Real[N]; }
+  template <typename T> static void _dealloc(T *ptr) {
+    if (ptr not_eq nullptr) {
+      delete[] ptr;
+      ptr = nullptr;
+    }
+  }
+  inline Real _d_ds(const int idx, const Real *const vals,
+                    const int maxidx) const {
+    if (idx == 0)
+      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
+    else if (idx == maxidx - 1)
+      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
+    else
+      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
+              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
+             2;
+  }
+  inline Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
+  inline Real _integrationFac2(const int idx) const {
+    const Real dnorXi = _d_ds(idx, norX, Nm);
+    const Real dnorYi = _d_ds(idx, norY, Nm);
+    return 2 * std::pow(width[idx], 3) *
+           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
+  }
+  inline Real _integrationFac3(const int idx) const {
+    return 2 * std::pow(width[idx], 3) / 3;
+  }
+  virtual void _computeMidlineNormals() const;
+  virtual Real _width(const Real s, const Real L) = 0;
+  void _computeWidth() {
+    for (int i = 0; i < Nm; ++i)
+      width[i] = _width(rS[i], length);
+  }
+
+public:
+  FishData(Real L, Real _h);
+  virtual ~FishData();
+  Real integrateLinearMomentum(Real CoM[2], Real vCoM[2]);
+  Real integrateAngularMomentum(Real &angVel);
+  void changeToCoMFrameLinear(const Real CoM_internal[2],
+                              const Real vCoM_internal[2]) const;
+  void changeToCoMFrameAngular(const Real theta_internal,
+                               const Real angvel_internal) const;
+  void computeSurface() const;
+  void surfaceToCOMFrame(const Real theta_internal,
+                         const Real CoM_internal[2]) const;
+  void surfaceToComputationalFrame(const Real theta_comp,
+                                   const Real CoM_interpolated[2]) const;
+  void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
+  virtual void computeMidline(const Real time, const Real dt) = 0;
+};
 class Shape;
 static struct {
   int rank;
@@ -8212,116 +8322,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-struct FishSkin {
-  const size_t Npoints;
-  Real *const xSurf;
-  Real *const ySurf;
-  Real *const normXSurf;
-  Real *const normYSurf;
-  Real *const midX;
-  Real *const midY;
-  FishSkin(const FishSkin &c)
-      : Npoints(c.Npoints), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
-        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
-        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
-  FishSkin(const size_t N)
-      : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
-        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
-        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
-  ~FishSkin() {
-    delete[] xSurf;
-    delete[] ySurf;
-    delete[] normXSurf;
-    delete[] normYSurf;
-    delete[] midX;
-    delete[] midY;
-  }
-};
-struct FishData {
-public:
-  const Real length, h;
-  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  const Real dSmid_tgt = h / std::sqrt(2);
-  const Real dSrefine_tgt = 0.125 * h;
-  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
-  const Real dSmid = length * fracMid / Nmid;
-  const int Nend =
-      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
-  const int Nm = Nmid + 2 * Nend + 1;
-  Real *const rS;
-  Real *const rX;
-  Real *const rY;
-  Real *const vX;
-  Real *const vY;
-  Real *const norX;
-  Real *const norY;
-  Real *const vNorX;
-  Real *const vNorY;
-  Real *const width;
-  Real linMom[2], area, J, angMom;
-  FishSkin upperSkin = FishSkin(Nm);
-  FishSkin lowerSkin = FishSkin(Nm);
-
-protected:
-  template <typename T>
-  inline void _rotate2D(const Real Rmatrix2D[2][2], T &x, T &y) const {
-    const T p[2] = {x, y};
-    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  static Real *_alloc(const int N) { return new Real[N]; }
-  template <typename T> static void _dealloc(T *ptr) {
-    if (ptr not_eq nullptr) {
-      delete[] ptr;
-      ptr = nullptr;
-    }
-  }
-  inline Real _d_ds(const int idx, const Real *const vals,
-                    const int maxidx) const {
-    if (idx == 0)
-      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
-    else if (idx == maxidx - 1)
-      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
-    else
-      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
-              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
-             2;
-  }
-  inline Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
-  inline Real _integrationFac2(const int idx) const {
-    const Real dnorXi = _d_ds(idx, norX, Nm);
-    const Real dnorYi = _d_ds(idx, norY, Nm);
-    return 2 * std::pow(width[idx], 3) *
-           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
-  }
-  inline Real _integrationFac3(const int idx) const {
-    return 2 * std::pow(width[idx], 3) / 3;
-  }
-  virtual void _computeMidlineNormals() const;
-  virtual Real _width(const Real s, const Real L) = 0;
-  void _computeWidth() {
-    for (int i = 0; i < Nm; ++i)
-      width[i] = _width(rS[i], length);
-  }
-
-public:
-  FishData(Real L, Real _h);
-  virtual ~FishData();
-  Real integrateLinearMomentum(Real CoM[2], Real vCoM[2]);
-  Real integrateAngularMomentum(Real &angVel);
-  void changeToCoMFrameLinear(const Real CoM_internal[2],
-                              const Real vCoM_internal[2]) const;
-  void changeToCoMFrameAngular(const Real theta_internal,
-                               const Real angvel_internal) const;
-  void computeSurface() const;
-  void surfaceToCOMFrame(const Real theta_internal,
-                         const Real CoM_internal[2]) const;
-  void surfaceToComputationalFrame(const Real theta_comp,
-                                   const Real CoM_interpolated[2]) const;
-  void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
-  virtual void computeMidline(const Real time, const Real dt) = 0;
-};
 struct AreaSegment {
   const Real safe_distance;
   const std::pair<int, int> s_range;
