@@ -6501,94 +6501,105 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
   }
   for (const auto &shape : sim.shapes) {
-  for (auto &entry : shape->obstacleBlocks)
-    delete entry;
-  shape->obstacleBlocks.clear();
-  assert(myFish != nullptr);
-  shape->myFish->computeMidline(sim.time, sim.dt);
-  shape->myFish->computeSurface();
-  shape->area_internal = shape->myFish->integrateLinearMomentum(shape->CoM_internal, shape->vCoM_internal);
-  shape->myFish->changeToCoMFrameLinear(shape->CoM_internal, shape->vCoM_internal);
-  shape->angvel_internal_prev = shape->angvel_internal;
-  shape->J_internal = shape->myFish->integrateAngularMomentum(shape->angvel_internal);
-  shape->myFish->changeToCoMFrameAngular(shape->theta_internal, shape->angvel_internal);
-  shape->myFish->surfaceToCOMFrame(shape->theta_internal, shape->CoM_internal);
-  const int Nsegments = (shape->myFish->Nm - 1) / 8;
-  const int Nm = shape->myFish->Nm;
-  assert((Nm - 1) % Nsegments == 0);
-  std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-  const Real h = getH(sim.vel);
+    for (auto &entry : shape->obstacleBlocks)
+      delete entry;
+    shape->obstacleBlocks.clear();
+    assert(myFish != nullptr);
+    shape->myFish->computeMidline(sim.time, sim.dt);
+    shape->myFish->computeSurface();
+    shape->area_internal = shape->myFish->integrateLinearMomentum(
+        shape->CoM_internal, shape->vCoM_internal);
+    shape->myFish->changeToCoMFrameLinear(shape->CoM_internal,
+                                          shape->vCoM_internal);
+    shape->angvel_internal_prev = shape->angvel_internal;
+    shape->J_internal =
+        shape->myFish->integrateAngularMomentum(shape->angvel_internal);
+    shape->myFish->changeToCoMFrameAngular(shape->theta_internal,
+                                           shape->angvel_internal);
+    shape->myFish->surfaceToCOMFrame(shape->theta_internal,
+                                     shape->CoM_internal);
+    const int Nsegments = (shape->myFish->Nm - 1) / 8;
+    const int Nm = shape->myFish->Nm;
+    assert((Nm - 1) % Nsegments == 0);
+    std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
+    const Real h = getH(sim.vel);
 #pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nsegments; ++i) {
-    const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
-    const int idx = i * (Nm - 1) / Nsegments;
-    Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
-    for (int ss = idx; ss <= next_idx; ++ss) {
-      const Real xBnd[2] = {
-          shape->myFish->rX[ss] - shape->myFish->norX[ss] * shape->myFish->width[ss],
-          shape->myFish->rX[ss] + shape->myFish->norX[ss] * shape->myFish->width[ss]};
-      const Real yBnd[2] = {
-          shape->myFish->rY[ss] - shape->myFish->norY[ss] * shape->myFish->width[ss],
-          shape->myFish->rY[ss] + shape->myFish->norY[ss] * shape->myFish->width[ss]};
-      const Real maxX = std::max(xBnd[0], xBnd[1]),
-                 minX = std::min(xBnd[0], xBnd[1]);
-      const Real maxY = std::max(yBnd[0], yBnd[1]),
-                 minY = std::min(yBnd[0], yBnd[1]);
-      bbox[0][0] = std::min(bbox[0][0], minX);
-      bbox[0][1] = std::max(bbox[0][1], maxX);
-      bbox[1][0] = std::min(bbox[1][0], minY);
-      bbox[1][1] = std::max(bbox[1][1], maxY);
-    }
-    const Real DD = 4 * h;
-    AreaSegment *const tAS =
-        new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
-    tAS->changeToComputationalFrame(shape->center, shape->orientation);
-    vSegments[i] = tAS;
-  }
-  const auto N = tmpInfo.size();
-  std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
-  shape->obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < tmpInfo.size(); ++i) {
-    const cubism::BlockInfo &info = tmpInfo[i];
-    Real pStart[2], pEnd[2];
-    info.pos(pStart, 0, 0);
-    info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
-    for (size_t s = 0; s < vSegments.size(); ++s)
-      if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-        if (segmentsPerBlock[info.blockID] == nullptr)
-          segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
-        segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
+    for (int i = 0; i < Nsegments; ++i) {
+      const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
+      const int idx = i * (Nm - 1) / Nsegments;
+      Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
+      for (int ss = idx; ss <= next_idx; ++ss) {
+        const Real xBnd[2] = {
+            shape->myFish->rX[ss] -
+                shape->myFish->norX[ss] * shape->myFish->width[ss],
+            shape->myFish->rX[ss] +
+                shape->myFish->norX[ss] * shape->myFish->width[ss]};
+        const Real yBnd[2] = {
+            shape->myFish->rY[ss] -
+                shape->myFish->norY[ss] * shape->myFish->width[ss],
+            shape->myFish->rY[ss] +
+                shape->myFish->norY[ss] * shape->myFish->width[ss]};
+        const Real maxX = std::max(xBnd[0], xBnd[1]),
+                   minX = std::min(xBnd[0], xBnd[1]);
+        const Real maxY = std::max(yBnd[0], yBnd[1]),
+                   minY = std::min(yBnd[0], yBnd[1]);
+        bbox[0][0] = std::min(bbox[0][0], minX);
+        bbox[0][1] = std::max(bbox[0][1], maxX);
+        bbox[1][0] = std::min(bbox[1][0], minY);
+        bbox[1][1] = std::max(bbox[1][1], maxY);
       }
-    if (segmentsPerBlock[info.blockID] not_eq nullptr) {
-      assert(obstacleBlocks[info.blockID] == nullptr);
-      ObstacleBlock *const block = new ObstacleBlock();
-      assert(block not_eq nullptr);
-      shape->obstacleBlocks[info.blockID] = block;
-      block->clear();
+      const Real DD = 4 * h;
+      AreaSegment *const tAS =
+          new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
+      tAS->changeToComputationalFrame(shape->center, shape->orientation);
+      vSegments[i] = tAS;
     }
-  }
-  assert(not segmentsPerBlock.empty());
-  assert(segmentsPerBlock.size() == obstacleBlocks.size());
-#pragma omp parallel
-  {
-    const PutFishOnBlocks putfish(*shape->myFish, shape->center, shape->orientation);
-#pragma omp for schedule(dynamic)
-    for (size_t i = 0; i < tmpInfo.size(); i++) {
-      const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
-      if (pos not_eq nullptr) {
-        ObstacleBlock *const block = shape->obstacleBlocks[tmpInfo[i].blockID];
+    const auto N = tmpInfo.size();
+    std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
+    shape->obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < tmpInfo.size(); ++i) {
+      const cubism::BlockInfo &info = tmpInfo[i];
+      Real pStart[2], pEnd[2];
+      info.pos(pStart, 0, 0);
+      info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
+      for (size_t s = 0; s < vSegments.size(); ++s)
+        if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
+          if (segmentsPerBlock[info.blockID] == nullptr)
+            segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
+          segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
+        }
+      if (segmentsPerBlock[info.blockID] not_eq nullptr) {
+        assert(obstacleBlocks[info.blockID] == nullptr);
+        ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
-        putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
+        shape->obstacleBlocks[info.blockID] = block;
+        block->clear();
       }
     }
-  }
-  for (auto &E : vSegments) {
-    delete E;
-  }
-  for (auto &E : segmentsPerBlock) {
-    delete E;
-  }
+    assert(not segmentsPerBlock.empty());
+    assert(segmentsPerBlock.size() == obstacleBlocks.size());
+#pragma omp parallel
+    {
+      const PutFishOnBlocks putfish(*shape->myFish, shape->center,
+                                    shape->orientation);
+#pragma omp for schedule(dynamic)
+      for (size_t i = 0; i < tmpInfo.size(); i++) {
+        const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
+        if (pos not_eq nullptr) {
+          ObstacleBlock *const block =
+              shape->obstacleBlocks[tmpInfo[i].blockID];
+          assert(block not_eq nullptr);
+          putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
+        }
+      }
+    }
+    for (auto &E : vSegments) {
+      delete E;
+    }
+    for (auto &E : segmentsPerBlock) {
+      delete E;
+    }
   }
   const PutChiOnGrid K;
   cubism::compute<ScalarLab>(K, sim.tmp);
