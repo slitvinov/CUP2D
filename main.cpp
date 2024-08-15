@@ -2035,7 +2035,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
       (it->second).ready = false;
       it++;
     }
-    const int timestamp = grid->getTimeStamp();
+    const int timestamp = grid->timestamp;
     mapofrequests.clear();
     requests.clear();
     requests.reserve(2 * size);
@@ -2986,7 +2986,6 @@ template <typename TGrid> struct GridMPI : public TGrid {
       (*it->second)._Setup();
   }
   virtual int rank() const override { return myrank; }
-  size_t getTimeStamp() const { return timestamp; }
   virtual int get_world_size() const override { return world_size; }
 };
 template <class DataType> struct Matrix3D {
