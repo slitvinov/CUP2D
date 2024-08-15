@@ -6460,11 +6460,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       delete E;
     }
   }
-  const PutChiOnGrid K;
-  cubism::compute<ScalarLab>(K, sim.tmp);
-  const ComputeSurfaceNormals K1;
+  cubism::compute<ScalarLab>(PutChiOnGrid(), sim.tmp);
   cubism::compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid,
-                  ScalarLab>(K1, *sim.chi, *sim.tmp);
+                  ScalarLab>(ComputeSurfaceNormals(), *sim.chi, *sim.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -9238,8 +9236,7 @@ int main(int argc, char **argv) {
       const bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-        const KernelVorticity mykernel;
-        cubism::compute<VectorLab>(mykernel, sim.vel);
+        cubism::compute<VectorLab>(KernelVorticity(), sim.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
         dump(sim.time, sim.tmp, path);
