@@ -27,11 +27,8 @@ enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 namespace cubism {
-class Value {
-private:
+struct Value {
   std::string content;
-
-public:
   Value() = default;
   Value(const std::string &content_) : content(content_) {}
   Value(const Value &c) = default;
@@ -49,15 +46,10 @@ public:
   bool asBool(bool def = false);
   std::string asString(const std::string &def = std::string());
 };
-class CommandlineParser {
-private:
+struct CommandlineParser {
   bool bStrictMode;
   bool _isnumber(const std::string &s) const;
-
-protected:
   std::map<std::string, Value> mapArguments;
-
-public:
   CommandlineParser(int argc, char **argv);
   Value &operator()(std::string key);
   void set_strict_mode() { bStrictMode = true; }
@@ -1289,7 +1281,7 @@ struct HaloBlockGroup {
   std::set<int> myranks;
   bool ready = false;
 };
-template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
+template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
   int rank;
   int size;
   StencilInfo stencil;
@@ -1420,7 +1412,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
       if (sizes[r] == 0)
         return;
       bool skip_needed = false;
-      const int nc = Synch_ptr->getstencil().selcomponents.size();
+      const int nc = Synch_ptr->stencil.selcomponents.size();
       std::sort(f.begin() + positions[r], f.begin() + sizes[r] + positions[r]);
       C.clear();
       for (size_t i = 0; i < sizes[r]; i++) {
@@ -1463,7 +1455,7 @@ template <typename Real, typename TGrid> class SynchronizerMPI_AMR {
                                const int otherrank, const size_t start,
                                const size_t finish) {
       bool skip_needed = false;
-      const int nc = Synch_ptr->getstencil().selcomponents.size();
+      const int nc = Synch_ptr->stencil.selcomponents.size();
       C.clear();
       for (size_t i = start; i < finish; i++) {
         C.compass[f[i].icode[0]].push_back(
@@ -2102,7 +2094,6 @@ public:
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
   }
-  const StencilInfo &getstencil() const { return stencil; }
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
@@ -3019,14 +3010,11 @@ public:
   size_t getTimeStamp() const { return timestamp; }
   virtual int get_world_size() const override { return world_size; }
 };
-template <class DataType> class Matrix3D {
-private:
+template <class DataType> struct Matrix3D {
   DataType *m_pData{nullptr};
   unsigned int m_vSize[3]{0, 0, 0};
   unsigned int m_nElements{0};
   unsigned int m_nElementsPerSlice{0};
-
-public:
   void _Release() {
     if (m_pData != nullptr) {
       free(m_pData);
@@ -4092,21 +4080,16 @@ protected:
     t = NULL;
   }
 
-private:
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename MyBlockLab> class BlockLabMPI : public MyBlockLab {
+template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
 public:
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-
-private:
   typedef SynchronizerMPI_AMR<Real, GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
-
-public:
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) override {
@@ -4590,7 +4573,7 @@ public:
     {
       TLab lab;
       if (Synch != nullptr)
-        lab.prepare(*grid, Synch->getstencil());
+        lab.prepare(*grid, Synch->stencil);
       for (size_t i = 0; i < m_ref.size(); i++) {
         refine_1(m_ref[i], n_ref[i], lab);
       }
@@ -5057,8 +5040,8 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
   SynchronizerMPI_AMR<Real, TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
-  const StencilInfo &stencil = Synch.getstencil();
-  const StencilInfo &stencil2 = Synch2.getstencil();
+  const StencilInfo &stencil = Synch.stencil;
+  const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<cubism::BlockInfo> &blk = grid.m_vInfo;
   std::vector<bool> ready(blk.size(), false);
   std::vector<BlockInfo *> &avail0 = Synch.avail_inner();
