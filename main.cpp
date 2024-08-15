@@ -2985,7 +2985,6 @@ template <typename TGrid> struct GridMPI : public TGrid {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
   }
-  virtual int rank() const override { return myrank; }
   virtual int get_world_size() const override { return world_size; }
 };
 template <class DataType> struct Matrix3D {
