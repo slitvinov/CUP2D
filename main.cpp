@@ -8997,7 +8997,6 @@ struct FishData;
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
-  obstacleBlocks.clear();
   delete myFish;
 }
 int main(int argc, char **argv) {
