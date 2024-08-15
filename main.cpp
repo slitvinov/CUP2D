@@ -5640,32 +5640,13 @@ struct ObstacleBlock {
     free(fXv_s);
     free(fYv_s);
   }
-  void write(int ix, int iy, Real delta, Real gradUX,
-             Real gradUY) {
+  void write(int ix, int iy, Real delta, Real gradUX, Real gradUY) {
     assert(!filled);
     if (delta > 0) {
       n_surfPoints++;
       const Real dchidx = -delta * gradUX, dchidy = -delta * gradUY;
       surface.push_back(new surface_data(ix, iy, dchidx, dchidy, delta));
     }
-  }
-  void allocate_surface() {
-    filled = true;
-    assert(surface.size() == n_surfPoints);
-    x_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    y_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    p_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    u_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    v_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    nx_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    ny_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    omega_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    uDef_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    vDef_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    fX_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    fY_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    fXv_s = (Real *)calloc(n_surfPoints, sizeof(Real));
-    fYv_s = (Real *)calloc(n_surfPoints, sizeof(Real));
   }
 };
 struct FishData;
@@ -6194,7 +6175,22 @@ struct ComputeSurfaceNormals {
           if (std::fabs(D) > EPS)
             o.write(ix, iy, D, gradUX, gradUY);
         }
-      o.allocate_surface();
+      o.filled = true;
+      assert(surface.size() == n_surfPoints);
+      o.x_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.y_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.p_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.u_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.v_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.nx_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.ny_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.omega_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.uDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.vDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.fX_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.fY_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.fXv_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
+      o.fYv_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
     }
   }
 };
@@ -6429,10 +6425,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info.blockID] = block;
-	block->clear_surface();
-	std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
-	std::fill(block->chi[0], block->chi[0] + _BS_ * _BS_, 0);
-	memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
+        block->clear_surface();
+        std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
+        std::fill(block->chi[0], block->chi[0] + _BS_ * _BS_, 0);
+        memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
     }
     assert(not segmentsPerBlock.empty());
