@@ -9100,10 +9100,7 @@ Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
-  if (myFish not_eq nullptr) {
-    delete myFish;
-    myFish = nullptr;
-  }
+  delete myFish
 }
 int main(int argc, char **argv) {
   int threadSafety;
