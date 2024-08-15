@@ -5630,11 +5630,9 @@ struct surface_data {
       : ix(_ix), iy(_iy), dchidx(Xdx), dchidy(Xdy), delta(D) {}
 };
 struct ObstacleBlock {
-  static const int sizeX = _BS_;
-  static const int sizeY = _BS_;
-  Real chi[sizeY][sizeX];
-  Real dist[sizeY][sizeX];
-  Real udef[sizeY][sizeX][2];
+  Real chi[_BS_][_BS_];
+  Real dist[_BS_][_BS_];
+  Real udef[_BS_][_BS_][2];
   size_t n_surfPoints = 0;
   bool filled = false;
   std::vector<surface_data *> surface;
@@ -5696,9 +5694,9 @@ struct ObstacleBlock {
   }
   void clear() {
     clear_surface();
-    std::fill(dist[0], dist[0] + sizeX * sizeY, -1);
-    std::fill(chi[0], chi[0] + sizeX * sizeY, 0);
-    memset(udef, 0, sizeof(Real) * sizeX * sizeY * 2);
+    std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
+    std::fill(chi[0], chi[0] + _BS_ * _BS_, 0);
+    memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
   }
   void write(const int ix, const int iy, const Real delta, const Real gradUX,
              const Real gradUY) {
@@ -6552,8 +6550,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         continue;
       const CHI_MAT &__restrict__ CHI = pos->chi;
       const UDEFMAT &__restrict__ UDEF = pos->udef;
-      for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
-        for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
+      for (int iy = 0; iy < _BS_; ++iy)
+        for (int ix = 0; ix < _BS_; ++ix) {
           if (CHI[iy][ix] <= 0)
             continue;
           Real p[2];
@@ -6597,8 +6595,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].blockID];
       if (pos == nullptr)
         continue;
-      for (int iy = 0; iy < ObstacleBlock::sizeY; ++iy)
-        for (int ix = 0; ix < ObstacleBlock::sizeX; ++ix) {
+      for (int iy = 0; iy < _BS_; ++iy)
+        for (int ix = 0; ix < _BS_; ++ix) {
           Real p[2];
           chiInfo[i].pos(p, ix, iy);
           p[0] -= shape->centerOfMass[0];
@@ -9100,7 +9098,7 @@ Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
   obstacleBlocks.clear();
-  delete myFish
+  delete myFish;
 }
 int main(int argc, char **argv) {
   int threadSafety;
