@@ -146,8 +146,7 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       i += itemCount;
     }
 }
-class SpaceFillingCurve2D {
-protected:
+struct SpaceFillingCurve2D {
   int BX;
   int BY;
   int levelMax;
@@ -441,15 +440,12 @@ struct BlockCase {
   }
   ~BlockCase() {}
 };
-template <typename TGrid> class FluxCorrection {
-public:
+template <typename TGrid> struct FluxCorrection {
   using GridType = TGrid;
   typedef typename GridType::BlockType BlockType;
   typedef typename BlockType::ElementType ElementType;
   typedef BlockCase<BlockType> Case;
   int rank{0};
-
-protected:
   std::map<std::array<long long, 2>, Case *> MapOfCases;
   TGrid *grid;
   std::vector<Case> Cases;
@@ -654,8 +650,7 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-template <typename Block> class Grid {
-public:
+template <typename Block> struct Grid {
   typedef Block BlockType;
   using ElementType = typename Block::ElementType;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
@@ -970,13 +965,12 @@ inline void pack(const Real *const srcbase, Real *const dst,
         }
   }
 }
-static void unpack_subregion(
-    Real *pack, Real *dstbase, unsigned int gptfloats,
-    int *selected_components, int ncomponents,
-    int srcxstart, int srcystart, int srczstart, int LX,
-    int LY, int dstxstart, int dstystart, int dstzstart,
-    int dstxend, int dstyend, int dstzend, int xsize,
-    int ysize, int zsize) {
+static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
+                             int *selected_components, int ncomponents,
+                             int srcxstart, int srcystart, int srczstart,
+                             int LX, int LY, int dstxstart, int dstystart,
+                             int dstzstart, int dstxend, int dstyend,
+                             int dstzend, int xsize, int ysize, int zsize) {
   if (gptfloats == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
@@ -1202,30 +1196,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -2218,8 +2209,7 @@ public:
   }
 };
 template <typename TFluxCorrection>
-class FluxCorrectionMPI : public TFluxCorrection {
-public:
+struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
   typedef typename TFluxCorrection::ElementType ElementType;
   typedef typename TFluxCorrection::BlockType BlockType;
@@ -2592,8 +2582,7 @@ public:
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-template <typename TGrid> class GridMPI : public TGrid {
-public:
+template <typename TGrid> struct GridMPI : public TGrid {
   typedef typename TGrid::BlockType Block;
   typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
@@ -3007,7 +2996,7 @@ public:
       (*it->second)._Setup();
   }
   virtual int rank() const override { return myrank; }
-  size_t getTimeStamp() const { return timestamp; }
+  size_t getTimeStamp(q) const { return timestamp; }
   virtual int get_world_size() const override { return world_size; }
 };
 template <class DataType> struct Matrix3D {
@@ -3097,8 +3086,7 @@ template <class DataType> struct Matrix3D {
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-template <typename TGrid> class BlockLab {
-public:
+template <typename TGrid> struct BlockLab {
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
@@ -3675,30 +3663,27 @@ protected:
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -4109,7 +4094,7 @@ public:
       MyBlockLab::post_load(info, t, applybc);
   }
 };
-template <typename TGrid> class LoadBalancer {
+template <typename TGrid> struct LoadBalancer {
 public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
@@ -4465,8 +4450,7 @@ public:
     grid->FillPos();
   }
 };
-template <typename TLab> class MeshAdaptation {
-protected:
+template <typename TLab> struct MeshAdaptation {
   typedef typename TLab::GridType TGrid;
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::BlockType::ElementType ElementType;
@@ -5208,8 +5192,7 @@ inline BCflag string2BCflag(const std::string &strFlag) {
 static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid>
-class BlockLabDirichlet : public cubism::BlockLab<TGrid> {
-public:
+struct BlockLabDirichlet : public cubism::BlockLab<TGrid> {
   using ElementType = typename TGrid::BlockType::ElementType;
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
@@ -5333,12 +5316,10 @@ public:
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
 template <typename TGrid>
-class BlockLabNeumann : public cubism::BlockLab<TGrid> {
+struct BlockLabNeumann : public cubism::BlockLab<TGrid> {
   static constexpr int sizeX = TGrid::BlockType::sizeX;
   static constexpr int sizeY = TGrid::BlockType::sizeY;
   static constexpr int sizeZ = TGrid::BlockType::sizeZ;
-
-protected:
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -5521,7 +5502,7 @@ public:
   void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
   virtual void computeMidline(const Real time, const Real dt) = 0;
 };
-class Shape;
+struct Shape;
 FishData::FishData(Real L, Real _h)
     : length(L), h(_h), rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)),
       vX(_alloc(Nm)), vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)),
@@ -5614,8 +5595,7 @@ static Real getH(VectorGrid *vel) {
   MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
   return minHGrid;
 }
-class Operator {
-public:
+struct Operator {
   Operator(){};
   virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
@@ -5946,7 +5926,7 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 
-class IF2D_Interpolation1D {
+struct IF2D_Interpolation1D {
 public:
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
                                  const Real *xx, Real *yy, const unsigned nn) {
@@ -6214,9 +6194,8 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
   }
 };
 } // namespace Schedulers
-class Shape;
-class PutObjectsOnGrid : public Operator {
-protected:
+struct Shape;
+struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
@@ -6610,8 +6589,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->myFish->computeSkinNormals(shape->orientation, shape->centerOfMass);
   }
 }
-class AdaptTheMesh : public Operator {
-public:
+struct AdaptTheMesh : public Operator {
   ScalarAMR *tmp_amr = nullptr;
   ScalarAMR *chi_amr = nullptr;
   ScalarAMR *pres_amr = nullptr;
@@ -6689,8 +6667,7 @@ void AdaptTheMesh::operator()(const Real dt) {
   pold_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
 }
-class advDiff : public Operator {
-protected:
+struct advDiff : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
@@ -6913,11 +6890,9 @@ void advDiff::operator()(const Real dt) {
       }
   }
 }
-class Shape;
-class ComputeForces : public Operator {
+struct Shape;
+struct ComputeForces : public Operator {
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-
-public:
   void operator()(const Real dt) override;
   ComputeForces();
   ~ComputeForces() {}
@@ -7185,20 +7160,17 @@ void ComputeForces::operator()(const Real dt) {
   }
 }
 ComputeForces::ComputeForces(){};
-class PoissonSolver {
-public:
+struct PoissonSolver {
   PoissonSolver();
   ~PoissonSolver() = default;
   void solve(const ScalarGrid *input, ScalarGrid *const output);
-
-protected:
   int rank_;
   int comm_size_;
   static constexpr int BSX_ = VectorBlock::sizeX;
   static constexpr int BSY_ = VectorBlock::sizeY;
   static constexpr int BLEN_ = BSX_ * BSY_;
   double getA_local(int I1, int I2);
-  class EdgeCellIndexer;
+  struct EdgeCellIndexer;
   void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
                 const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const;
@@ -7207,8 +7179,7 @@ protected:
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
-  class CellIndexer {
-  public:
+  struct CellIndexer {
     CellIndexer(const PoissonSolver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
     long long This(const cubism::BlockInfo &info, const int ix,
@@ -7245,7 +7216,7 @@ protected:
     static int iy_f(const int iy) { return (iy % (BSY_ / 2)) * 2; }
     const PoissonSolver &ps;
   };
-  class EdgeCellIndexer : public CellIndexer {
+  struct EdgeCellIndexer : public CellIndexer {
   public:
     EdgeCellIndexer(const PoissonSolver &pSolver) : CellIndexer(pSolver) {}
     virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
@@ -7270,8 +7241,7 @@ protected:
     virtual long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                              const int iy) const = 0;
   };
-  class XbaseIndexer : public EdgeCellIndexer {
-  public:
+  struct XbaseIndexer : public EdgeCellIndexer {
     XbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return iy % 2 == 0 ? -1. : 1.;
@@ -7287,8 +7257,7 @@ protected:
       return This(info, ix, iy + dist);
     }
   };
-  class XminIndexer : public XbaseIndexer {
-  public:
+  struct XminIndexer : public XbaseIndexer {
     XminIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
@@ -7314,8 +7283,7 @@ protected:
       return nei_info.Zchild[1][int(iy >= BSY_ / 2)][0];
     }
   };
-  class XmaxIndexer : public XbaseIndexer {
-  public:
+  struct XmaxIndexer : public XbaseIndexer {
     XmaxIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
@@ -7341,8 +7309,7 @@ protected:
       return nei_info.Zchild[0][int(iy >= BSY_ / 2)][0];
     }
   };
-  class YbaseIndexer : public EdgeCellIndexer {
-  public:
+  struct YbaseIndexer : public EdgeCellIndexer {
     YbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return ix % 2 == 0 ? -1. : 1.;
@@ -7358,8 +7325,7 @@ protected:
       return This(info, ix + dist, iy);
     }
   };
-  class YminIndexer : public YbaseIndexer {
-  public:
+  struct YminIndexer : public YbaseIndexer {
     YminIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
@@ -7385,8 +7351,7 @@ protected:
       return nei_info.Zchild[int(ix >= BSX_ / 2)][1][0];
     }
   };
-  class YmaxIndexer : public YbaseIndexer {
-  public:
+  struct YmaxIndexer : public YbaseIndexer {
     YmaxIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                       const int iy) const override {
@@ -7731,9 +7696,8 @@ void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         P(ix, iy).s += -avg;
   }
 }
-class Shape;
-class PressureSingle : public Operator {
-protected:
+struct Shape;
+struct PressureSingle : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
   void pressureCorrection(const Real dt);
@@ -8920,8 +8884,7 @@ void PutFishOnBlocks::constructInternl(
     }
   }
 }
-class FactoryFileLineParser : public cubism::CommandlineParser {
-protected:
+struct FactoryFileLineParser : public cubism::CommandlineParser {
   inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(),
             std::find_if(s.begin(), s.end(),
@@ -8948,10 +8911,8 @@ public:
     }
   }
 };
-class CurvatureFish : public FishData {
+struct CurvatureFish : public FishData {
   const Real amplitudeFactor, phaseShift, Tperiod;
-
-public:
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;
   Real avgDeltaY = 0;
