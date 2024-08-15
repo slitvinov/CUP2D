@@ -2103,22 +2103,6 @@ public:
       }
   }
   const StencilInfo &getstencil() const { return stencil; }
-  bool isready(const BlockInfo &info) {
-    const int id = info.halo_block_id;
-    if (id < 0)
-      return true;
-    UnPackInfo *unpacks = myunpacks[id].data();
-    for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
-      const UnPackInfo &unpack = unpacks[jj];
-      const int otherrank = unpack.rank;
-      int flag = 0;
-      const auto retval = mapofrequests.find(otherrank);
-      MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
-      if (flag == 0)
-        return false;
-    }
-    return true;
-  }
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
