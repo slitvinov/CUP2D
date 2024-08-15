@@ -979,12 +979,12 @@ inline void pack(const Real *const srcbase, Real *const dst,
   }
 }
 static void unpack_subregion(
-    const Real *const pack, Real *const dstbase, const unsigned int gptfloats,
-    const int *const selected_components, const int ncomponents,
-    const int srcxstart, const int srcystart, const int srczstart, const int LX,
-    const int LY, const int dstxstart, const int dstystart, const int dstzstart,
-    const int dstxend, const int dstyend, const int dstzend, const int xsize,
-    const int ysize, const int zsize) {
+    Real *pack, Real *dstbase, unsigned int gptfloats,
+    int *selected_components, int ncomponents,
+    int srcxstart, int srcystart, int srczstart, int LX,
+    int LY, int dstxstart, int dstystart, int dstzstart,
+    int dstxend, int dstyend, int dstzend, int xsize,
+    int ysize, int zsize) {
   if (gptfloats == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
