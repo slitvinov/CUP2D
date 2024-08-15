@@ -193,8 +193,6 @@ struct SpaceFillingCurve2D {
       *y = t;
     }
   }
-
-public:
   SpaceFillingCurve2D(int a_BX, int a_BY, int lmax)
       : BX(a_BX), BY(a_BY), levelMax(lmax) {
     const int n_max = std::max(BX, BY);
@@ -503,8 +501,6 @@ template <typename TGrid> struct FluxCorrection {
       }
     }
   }
-
-public:
   virtual void prepare(TGrid &_grid) {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -1666,8 +1662,6 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
     }
     return retval;
   }
-
-public:
   void _Setup() {
     Neighbors.clear();
     inner_blocks.clear();
@@ -2215,8 +2209,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   typedef typename TFluxCorrection::BlockType BlockType;
   typedef BlockCase<BlockType> Case;
   int size;
-
-protected:
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -2325,8 +2317,6 @@ protected:
       }
     }
   }
-
-public:
   virtual void prepare(TGrid &_grid) override {
     if (_grid.UpdateFluxCorrection == false)
       return;
@@ -2996,7 +2986,7 @@ template <typename TGrid> struct GridMPI : public TGrid {
       (*it->second)._Setup();
   }
   virtual int rank() const override { return myrank; }
-  size_t getTimeStamp(q) const { return timestamp; }
+  size_t getTimeStamp() const { return timestamp; }
   virtual int get_world_size() const override { return world_size; }
 };
 template <class DataType> struct Matrix3D {
@@ -3090,8 +3080,6 @@ template <typename TGrid> struct BlockLab {
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-
-protected:
   Matrix3D<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
@@ -3114,8 +3102,6 @@ protected:
                                  0.90625,  -0.09375, 0.4375,  0.15625};
   const double d_coef_minus[9] = {0.15625, -0.5625, 0.90625, -0.09375, 0.4375,
                                   0.15625, 0.15625, 0.4375,  -0.09375};
-
-public:
   BlockLab()
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
     m_stencilStart[0] = m_stencilStart[1] = m_stencilStart[2] = 0;
@@ -3342,8 +3328,6 @@ public:
       }
     }
   }
-
-protected:
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
     const int nX = BlockType::sizeX;
     const int nY = BlockType::sizeY;
@@ -4069,7 +4053,6 @@ protected:
   BlockLab &operator=(const BlockLab &) = delete;
 };
 template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
-public:
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
@@ -4095,12 +4078,9 @@ public:
   }
 };
 template <typename TGrid> struct LoadBalancer {
-public:
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::Block::ElementType ElementType;
   bool movedBlocks;
-
-protected:
   TGrid *grid;
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
@@ -4140,8 +4120,6 @@ protected:
       grid->Tree(level - 1, nf).setCheckFiner();
     }
   }
-
-public:
   LoadBalancer(TGrid &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
@@ -4465,8 +4443,6 @@ template <typename TLab> struct MeshAdaptation {
   double tolerance_for_refinement;
   double tolerance_for_compression;
   std::vector<long long> dealloc_IDs;
-
-public:
   MeshAdaptation(TGrid &g, double Rtol, double Ctol) {
     grid = &g;
     tolerance_for_refinement = Rtol;
@@ -4617,8 +4593,6 @@ public:
       }
     }
   }
-
-protected:
   void TagBlocksVector(std::vector<BlockInfo *> &I, bool &Reduction,
                        MPI_Request &Reduction_req, int &tmp) {
     const int levelMax = grid->getlevelMax();
@@ -5358,8 +5332,6 @@ struct BlockLabNeumann : public cubism::BlockLab<TGrid> {
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
   }
-
-public:
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   typedef typename TGrid::BlockType::ElementType ElementType;
   bool is_xperiodic() override { return cubismBCX == periodic; }
@@ -5418,7 +5390,6 @@ struct FishSkin {
   }
 };
 struct FishData {
-public:
   const Real length, h;
   const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   const Real dSmid_tgt = h / std::sqrt(2);
@@ -5442,8 +5413,6 @@ public:
   Real linMom[2], area, J, angMom;
   FishSkin upperSkin = FishSkin(Nm);
   FishSkin lowerSkin = FishSkin(Nm);
-
-protected:
   template <typename T>
   inline void _rotate2D(const Real Rmatrix2D[2][2], T &x, T &y) const {
     const T p[2] = {x, y};
@@ -5484,8 +5453,6 @@ protected:
     for (int i = 0; i < Nm; ++i)
       width[i] = _width(rS[i], length);
   }
-
-public:
   FishData(Real L, Real _h);
   virtual ~FishData();
   Real integrateLinearMomentum(Real CoM[2], Real vCoM[2]);
@@ -5927,7 +5894,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 }
 
 struct IF2D_Interpolation1D {
-public:
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
                                  const Real *xx, Real *yy, const unsigned nn) {
     return naturalCubicSpline(x, y, n, xx, yy, nn, 0);
@@ -6200,8 +6166,6 @@ struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void putChiOnGrid(Shape *const shape) const;
-
-public:
   using Operator::Operator;
   void operator()(Real dt) override;
 };
@@ -6671,8 +6635,6 @@ struct advDiff : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
   const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
-
-public:
   advDiff() {}
   void operator()(const Real dt) override;
 };
@@ -7206,8 +7168,6 @@ struct PoissonSolver {
                    const int offset = 0) const {
       return blockOffset(info) + (long long)((BSY_ - 1 - offset) * BSX_ + ix);
     }
-
-  protected:
     long long blockOffset(const cubism::BlockInfo &info) const {
       return (info.blockID + ps.Nblocks_xcumsum_[sim.tmp->Tree(info).rank()]) *
              BLEN_;
@@ -7217,7 +7177,6 @@ struct PoissonSolver {
     const PoissonSolver &ps;
   };
   struct EdgeCellIndexer : public CellIndexer {
-  public:
     EdgeCellIndexer(const PoissonSolver &pSolver) : CellIndexer(pSolver) {}
     virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int ix,
                               const int iy) const = 0;
@@ -7701,8 +7660,6 @@ struct PressureSingle : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
   void pressureCorrection(const Real dt);
-
-public:
   void operator()(const Real dt) override;
   PressureSingle();
   ~PressureSingle();
@@ -8899,8 +8856,6 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
     return s;
   }
   inline std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
-
-public:
   FactoryFileLineParser(std::istringstream &is_line)
       : cubism::CommandlineParser(0, NULL) {
     std::string key, value;
@@ -8935,16 +8890,12 @@ struct CurvatureFish : public FishData {
   Real next_period = Tperiod;
   Real transition_start = 0.0;
   Real transition_duration = 0.1 * Tperiod;
-
-protected:
   Real *const rK;
   Real *const vK;
   Real *const rC;
   Real *const vC;
   Real *const rB;
   Real *const vB;
-
-public:
   CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
       : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
         rK(_alloc(Nm)), vK(_alloc(Nm)), rC(_alloc(Nm)), vC(_alloc(Nm)),
