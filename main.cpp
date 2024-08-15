@@ -5640,14 +5640,6 @@ struct ObstacleBlock {
     free(fXv_s);
     free(fYv_s);
   }
-  void write(int ix, int iy, Real delta, Real gradUX, Real gradUY) {
-    assert(!filled);
-    if (delta > 0) {
-      n_surfPoints++;
-      const Real dchidx = -delta * gradUX, dchidy = -delta * gradUY;
-      surface.push_back(new surface_data(ix, iy, dchidx, dchidy, delta));
-    }
-  }
 };
 struct FishData;
 struct KernelVorticity {
@@ -6172,8 +6164,12 @@ struct ComputeSurfaceNormals {
               i2h * (labSDF(ix, iy + 1).s - labSDF(ix, iy - 1).s);
           const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           const Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
-          if (std::fabs(D) > EPS)
-            o.write(ix, iy, D, gradUX, gradUY);
+          if (std::fabs(D) > EPS) {
+            assert(!filled);
+            o.n_surfPoints++;
+            const Real dchidx = -D * gradUX, dchidy = -D * gradUY;
+            o.surface.push_back(new surface_data(ix, iy, dchidx, dchidy, D));
+          }
         }
       o.filled = true;
       assert(surface.size() == n_surfPoints);
