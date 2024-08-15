@@ -5640,10 +5640,8 @@ struct ObstacleBlock {
     free(fXv_s);
     free(fYv_s);
   }
-  void clear0() {
-  }
-  void write(const int ix, const int iy, const Real delta, const Real gradUX,
-             const Real gradUY) {
+  void write(int ix, int iy, Real delta, Real gradUX,
+             Real gradUY) {
     assert(!filled);
     if (delta > 0) {
       n_surfPoints++;
