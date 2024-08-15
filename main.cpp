@@ -5604,7 +5604,10 @@ struct ObstacleBlock {
   Real COM_y = 0;
   Real Mass = 0;
   ObstacleBlock() {
-    clear();
+    clear_surface();
+    std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
+    std::fill(chi[0], chi[0] + _BS_ * _BS_, 0);
+    memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
     surface.reserve(4 * _BS_);
   }
   ~ObstacleBlock() { clear_surface(); }
@@ -5637,11 +5640,7 @@ struct ObstacleBlock {
     free(fXv_s);
     free(fYv_s);
   }
-  void clear() {
-    clear_surface();
-    std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
-    std::fill(chi[0], chi[0] + _BS_ * _BS_, 0);
-    memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
+  void clear0() {
   }
   void write(const int ix, const int iy, const Real delta, const Real gradUX,
              const Real gradUY) {
@@ -6432,7 +6431,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info.blockID] = block;
-        block->clear();
+	block->clear_surface();
+	std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
+	std::fill(block->chi[0], block->chi[0] + _BS_ * _BS_, 0);
+	memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
     }
     assert(not segmentsPerBlock.empty());
