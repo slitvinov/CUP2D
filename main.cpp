@@ -7174,7 +7174,6 @@ void advDiff::operator()(const Real dt) {
       }
   }
 }
-struct Shape;
 struct ComputeForces : public Operator {
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
   void operator()(const Real dt) override;
