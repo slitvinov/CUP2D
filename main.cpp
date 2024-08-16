@@ -5766,9 +5766,6 @@ struct Shape {
   const Real forcedv;
   const Real forcedomega;
   const Real timeForced;
-  const int breakSymmetryType;
-  const Real breakSymmetryStrength;
-  const Real breakSymmetryTime;
   Real M = 0;
   Real J = 0;
   Real u = forcedu;
@@ -8091,20 +8088,6 @@ void PressureSingle::operator()(const Real dt) {
       shape->v = gsl_vector_get(xgsl, 1);
     if (not shape->bBlockang || sim.time > shape->timeForced)
       shape->omega = gsl_vector_get(xgsl, 2);
-    const double tStart = shape->breakSymmetryTime;
-    const bool shouldBreak = (sim.time > tStart && sim.time < tStart + 1.0);
-    if (shape->breakSymmetryType != 0 && shouldBreak) {
-      const double strength = shape->breakSymmetryStrength;
-      const double charL = shape->length;
-      const double charV = std::abs(shape->u);
-      if (shape->breakSymmetryType == 1) {
-        shape->omega =
-            strength * charV * charL * sin(2 * M_PI * (sim.time - tStart));
-      }
-      if (shape->breakSymmetryType == 2) {
-        shape->v = strength * charV * sin(2 * M_PI * (sim.time - tStart));
-      }
-    }
     gsl_permutation_free(permgsl);
     gsl_vector_free(xgsl);
   }
@@ -8976,9 +8959,6 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
       forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
       forcedomega(-p("-angvel").asDouble(0)),
       timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      breakSymmetryType(p("-breakSymmetryType").asInt(0)),
-      breakSymmetryStrength(p("-breakSymmetryStrength").asDouble(0.1)),
-      breakSymmetryTime(p("-breakSymmetryTime").asDouble(1.0)),
       length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
       phaseShift(p("-phi").asDouble(0)) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
