@@ -427,11 +427,10 @@ struct BlockCase {
   bool storedFace[6];
   int level;
   long long Z;
-  BlockCase(bool _storedFace[6], unsigned int nX, unsigned int nY,
-            unsigned int nZ, int _level, long long _Z) {
-    m_vSize[0] = nX;
-    m_vSize[1] = nY;
-    m_vSize[2] = nZ;
+  BlockCase(bool _storedFace[6], int _level, long long _Z) {
+    m_vSize[0] = _BS_;
+    m_vSize[1] = _BS_;
+    m_vSize[2] = 1;
     storedFace[0] = _storedFace[0];
     storedFace[1] = _storedFace[1];
     storedFace[2] = _storedFace[2];
@@ -560,7 +559,7 @@ template <typename TGrid> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(Case(storeFace, _BS_, _BS_, 1, info.level, info.Z));
+        Cases.push_back(Case(storeFace, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -2448,8 +2447,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         }
       }
       if (stored) {
-        TFluxCorrection::Cases.push_back(
-            Case(storeFace, _BS_, _BS_, 1, info.level, info.Z));
+        TFluxCorrection::Cases.push_back(Case(storeFace, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
