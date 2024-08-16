@@ -6167,7 +6167,7 @@ struct Shape {
   Fish *fish = nullptr;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
-  Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
+  Real theta_internal = 0, angvel_internal = 0;
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
@@ -6723,7 +6723,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       shape->fish->vX[i] -= shape->vCoM_internal[0];
       shape->fish->vY[i] -= shape->vCoM_internal[1];
     }
-    shape->angvel_internal_prev = shape->angvel_internal;
 
     Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
