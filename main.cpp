@@ -8947,7 +8947,6 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
-struct Fish;
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
