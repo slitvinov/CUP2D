@@ -5408,7 +5408,6 @@ static struct {
   int step = 0;
   Real uinfx = 0;
   Real uinfy = 0;
-  Real uMax_measured = 0;
   Real nextDumpTime = 0;
   std::vector<int> bCollisionID;
   Real minH;
@@ -8984,10 +8983,10 @@ int main(int argc, char **argv) {
     V = quantities[1];
     u = quantities[2];
     v = quantities[3];
-    sim.uMax_measured = std::max({U, V, u, v});
+    Real uMax_measured = std::max({U, V, u, v});
     if (CFL > 0) {
-      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
-      Real dtAdvection = h / (sim.uMax_measured + 1e-8);
+      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * uMax_measured);
+      Real dtAdvection = h / (uMax_measured + 1e-8);
       sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
     if (sim.dt <= 0) {
@@ -9000,7 +8999,7 @@ int main(int argc, char **argv) {
     Real dt = sim.dt;
     bool done = false;
     if (!done || dt > 2e-16) {
-      Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
+      Real CFL = (uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
       bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
       bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
       bool bDump = stepDump || timeDump;
