@@ -970,7 +970,7 @@ static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
                              int srcxstart, int srcystart, int srczstart,
                              int LX, int LY, int dstxstart, int dstystart,
                              int dstzstart, int dstxend, int dstyend,
-                             int dstzend, int xsize, int ysize, int zsize) {
+                             int dstzend, int xsize, int ysize) {
   if (gptfloats == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
@@ -2111,7 +2111,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
-                         Length[0], Length[1], Length[2]);
+                         Length[0], Length[1]);
         if (unpack.CoarseVersionOffset >= 0) {
           const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
@@ -2134,7 +2134,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
               stencil.selcomponents.size(), unpack.CoarseVersionsrcxstart,
               unpack.CoarseVersionsrcystart, unpack.CoarseVersionsrczstart,
               unpack.CoarseVersionLX, unpack.CoarseVersionLY, 0, 0, 0, L[0],
-              L[1], L[2], CLength[0], CLength[1], CLength[2]);
+              L[1], L[2], CLength[0], CLength[1]);
         }
       } else if (unpack.level < info.level) {
         const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
@@ -2153,7 +2153,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
-                         CLength[0], CLength[1], CLength[2]);
+                         CLength[0], CLength[1]);
       } else {
         int B;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
@@ -2200,7 +2200,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
-                         Length[0], Length[1], Length[2]);
+                         Length[0], Length[1]);
       }
     }
   }
