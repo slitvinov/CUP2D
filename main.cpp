@@ -8673,11 +8673,6 @@ void PutFishOnBlocks::operator()(const cubism::BlockInfo &i, ScalarBlock &b,
                                  const std::vector<AreaSegment *> &v) const {
   constructSurface(i, b, o, v);
   constructInternl(i, b, o, v);
-  signedDistanceSqrt(i, b, o, v);
-}
-void PutFishOnBlocks::signedDistanceSqrt(
-    const cubism::BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
-    const std::vector<AreaSegment *> &vSegments) const {
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
     for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
