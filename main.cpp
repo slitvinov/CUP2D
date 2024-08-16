@@ -93,13 +93,13 @@ std::string Value::asString(const std::string &def) {
     content = def;
   return content;
 }
-static inline void _normalizeKey(std::string &key) {
+static  void _normalizeKey(std::string &key) {
   if (key[0] == '-')
     key.erase(0, 1);
   if (key[0] == '+')
     key.erase(0, 1);
 }
-static inline bool _existKey(const std::string &key,
+static  bool _existKey(const std::string &key,
                              const std::map<std::string, Value> &container) {
   return container.find(key) != container.end();
 }
@@ -354,11 +354,11 @@ struct BlockInfo {
   static void inverse(long long Z, int l, int &i, int &j) {
     (*SFC()).inverse(Z, l, i, j);
   }
-  template <typename T> inline void pos(T p[2], int ix, int iy) const {
+  template <typename T>  void pos(T p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
     p[1] = origin[1] + h * (iy + 0.5);
   }
-  template <typename T> inline std::array<T, 2> pos(int ix, int iy) const {
+  template <typename T>  std::array<T, 2> pos(int ix, int iy) const {
     std::array<T, 2> result;
     pos(result.data(), ix, iy);
     return result;
@@ -855,7 +855,7 @@ template <typename Block> struct Grid {
     const auto b = getMaxMostRefinedBlocks();
     return {b[0] * Block::sizeX, b[1] * Block::sizeY, b[2] * Block::sizeZ};
   }
-  inline int getlevelMax() const { return levelMax; }
+   int getlevelMax() const { return levelMax; }
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
@@ -936,7 +936,7 @@ struct StencilInfo {
     return !(not0 || not1 || not2 || not3);
   }
 };
-inline void pack(const Real *const srcbase, Real *const dst,
+ void pack(const Real *const srcbase, Real *const dst,
                  const unsigned int gptfloats, int *selected_components,
                  const int ncomponents, const int xstart, const int ystart,
                  const int zstart, const int xend, const int yend,
@@ -3029,7 +3029,7 @@ template <class DataType> struct Matrix3D {
         m_nElements{m.m_nElements}, m_nElementsPerSlice{m.m_nElementsPerSlice} {
     m.m_pData = nullptr;
   }
-  inline Matrix3D &operator=(const Matrix3D &m) {
+   Matrix3D &operator=(const Matrix3D &m) {
 #ifndef NDEBUG
     assert(m_vSize[0] == m.m_vSize[0]);
     assert(m_vSize[1] == m.m_vSize[1]);
@@ -3039,17 +3039,17 @@ template <class DataType> struct Matrix3D {
       m_pData[i] = m.m_pData[i];
     return *this;
   }
-  inline Matrix3D &operator=(DataType d) {
+   Matrix3D &operator=(DataType d) {
     for (unsigned int i = 0; i < m_nElements; i++)
       m_pData[i] = d;
     return *this;
   }
-  inline Matrix3D &operator=(const double a) {
+   Matrix3D &operator=(const double a) {
     for (unsigned int i = 0; i < m_nElements; i++)
       m_pData[i].set(a);
     return *this;
   }
-  inline DataType &Access(unsigned int ix, unsigned int iy,
+   DataType &Access(unsigned int ix, unsigned int iy,
                           unsigned int iz) const {
 #ifndef NDEBUG
     assert(ix < m_vSize[0]);
@@ -3058,7 +3058,7 @@ template <class DataType> struct Matrix3D {
 #endif
     return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
   }
-  inline const DataType &Read(unsigned int ix, unsigned int iy,
+   const DataType &Read(unsigned int ix, unsigned int iy,
                               unsigned int iz) const {
 #ifndef NDEBUG
     assert(ix < m_vSize[0]);
@@ -3067,18 +3067,18 @@ template <class DataType> struct Matrix3D {
 #endif
     return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
   }
-  inline DataType &LinAccess(unsigned int i) const {
+   DataType &LinAccess(unsigned int i) const {
 #ifndef NDEBUG
     assert(i < m_nElements);
 #endif
     return m_pData[i];
   }
-  inline unsigned int getNumberOfElements() const { return m_nElements; }
-  inline unsigned int getNumberOfElementsPerSlice() const {
+   unsigned int getNumberOfElements() const { return m_nElements; }
+   unsigned int getNumberOfElementsPerSlice() const {
     return m_nElementsPerSlice;
   }
-  inline unsigned int *getSize() const { return (unsigned int *)m_vSize; }
-  inline unsigned int getSize(int dim) const { return m_vSize[dim]; }
+   unsigned int *getSize() const { return (unsigned int *)m_vSize; }
+   unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
@@ -5052,8 +5052,8 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
 }
 struct ScalarElement {
   Real s = 0;
-  inline void clear() { s = 0; }
-  inline void set(const Real v) { s = v; }
+   void clear() { s = 0; }
+   void set(const Real v) { s = v; }
   ScalarElement &operator*=(const Real a) {
     this->s *= a;
     return *this;
@@ -5082,7 +5082,7 @@ struct ScalarElement {
 struct VectorElement {
   Real u[DIMENSION];
   VectorElement() { clear(); }
-  inline void clear() {
+   void clear() {
     for (int i = 0; i < DIMENSION; ++i)
       u[i] = 0;
   }
@@ -5127,17 +5127,17 @@ template <typename TElement> struct GridBlock {
   static constexpr int sizeZ = 1;
   using ElementType = TElement;
   ElementType data[sizeZ][sizeY][sizeX];
-  inline void clear() {
+   void clear() {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].clear();
   }
-  inline void set(const Real v) {
+   void set(const Real v) {
     ElementType *const entry = &data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
       entry[i].set(v);
   }
-  inline void copy(const GridBlock<ElementType> &c) {
+   void copy(const GridBlock<ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
     for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
@@ -5158,7 +5158,7 @@ template <typename TElement> struct GridBlock {
 };
 } // namespace cubism
 enum BCflag { freespace, periodic, wall };
-inline BCflag string2BCflag(const std::string &strFlag) {
+ BCflag string2BCflag(const std::string &strFlag) {
   if (strFlag == "periodic") {
     return periodic;
   } else if (strFlag == "freespace") {
@@ -6204,14 +6204,14 @@ struct Fish {
   Real *const vC;
   Real *const rB;
   Real *const vB;
-  inline Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
-  inline Real _integrationFac2(const int idx) const {
+   Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
+   Real _integrationFac2(const int idx) const {
     const Real dnorXi = _d_ds(idx, norX, Nm);
     const Real dnorYi = _d_ds(idx, norY, Nm);
     return 2 * std::pow(width[idx], 3) *
            (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
   }
-  inline Real _integrationFac3(const int idx) const {
+   Real _integrationFac3(const int idx) const {
     return 2 * std::pow(width[idx], 3) / 3;
   }
   void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
@@ -6219,7 +6219,7 @@ struct Fish {
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  inline Real _d_ds(const int idx, const Real *const vals,
+   Real _d_ds(const int idx, const Real *const vals,
                     const int maxidx) const {
     if (idx == 0)
       return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
@@ -6744,7 +6744,7 @@ struct advDiff : public Operator {
   advDiff() {}
   void operator()(const Real dt) override;
 };
-static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
+static  Real weno5_plus(const Real um2, const Real um1, const Real u,
                               const Real up1, const Real up2) {
   const Real exponent = 2;
   const Real e = 1e-6;
@@ -6769,7 +6769,7 @@ static inline Real weno5_plus(const Real um2, const Real um1, const Real u,
   const Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-static inline Real weno5_minus(const Real um2, const Real um1, const Real u,
+static  Real weno5_minus(const Real um2, const Real um1, const Real u,
                                const Real up1, const Real up2) {
   const Real exponent = 2;
   const Real e = 1e-6;
@@ -6794,7 +6794,7 @@ static inline Real weno5_minus(const Real um2, const Real um1, const Real u,
   const Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-static inline Real derivative(const Real U, const Real um3, const Real um2,
+static  Real derivative(const Real U, const Real um3, const Real um2,
                               const Real um1, const Real u, const Real up1,
                               const Real up2, const Real up3) {
   Real fp = 0.0;
@@ -6808,7 +6808,7 @@ static inline Real derivative(const Real U, const Real um3, const Real um2,
   }
   return (fp - fm);
 }
-static inline Real dU_adv_dif(const VectorLab &V, const Real uinf[2],
+static  Real dU_adv_dif(const VectorLab &V, const Real uinf[2],
                               const Real advF, const Real difF, const int ix,
                               const int iy) {
   const Real u = V(ix, iy).u[0];
@@ -6832,7 +6832,7 @@ static inline Real dU_adv_dif(const VectorLab &V, const Real uinf[2],
   return advF * (UU * dudx + VV * dudy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
 }
-static inline Real dV_adv_dif(const VectorLab &V, const Real uinf[2],
+static  Real dV_adv_dif(const VectorLab &V, const Real uinf[2],
                               const Real advF, const Real difF, const int ix,
                               const int iy) {
   const Real u = V(ix, iy).u[0];
@@ -6981,7 +6981,7 @@ struct KernelComputeForces {
   const Real c3 = 10. / 3.;
   const Real c4 = -5. / 4.;
   const Real c5 = 1. / 5.;
-  inline bool inrange(const int i) const { return (i >= small && i < bigg); }
+   bool inrange(const int i) const { return (i >= small && i < bigg); }
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
   void operator()(VectorLab &lab, ScalarLab &chi, const cubism::BlockInfo &info,
                   const cubism::BlockInfo &info2) const {
@@ -8861,20 +8861,20 @@ void PutFishOnBlocks::constructInternl(
   }
 }
 struct FactoryFileLineParser : public cubism::CommandlineParser {
-  inline std::string &ltrim(std::string &s) {
+   std::string &ltrim(std::string &s) {
     s.erase(s.begin(),
             std::find_if(s.begin(), s.end(),
                          std::not1(std::ptr_fun<int, int>(std::isspace))));
     return s;
   }
-  inline std::string &rtrim(std::string &s) {
+   std::string &rtrim(std::string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          std::not1(std::ptr_fun<int, int>(std::isspace)))
                 .base(),
             s.end());
     return s;
   }
-  inline std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
+   std::string &trim(std::string &s) { return ltrim(rtrim(s)); }
   FactoryFileLineParser(std::istringstream &is_line)
       : cubism::CommandlineParser(0, NULL) {
     std::string key, value;
