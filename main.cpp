@@ -5377,10 +5377,6 @@ struct FishSkin {
   Real *const normYSurf;
   Real *const midX;
   Real *const midY;
-  FishSkin(const FishSkin &c)
-      : Npoints(c.Npoints), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
-        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
-        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
   FishSkin(const size_t N)
       : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
         normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
