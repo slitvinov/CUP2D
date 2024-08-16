@@ -6146,63 +6146,64 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 }
 struct Fish {
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
-  const Real Rmatrix2D[2][2] = {
-      {std::cos(theta_internal), -std::sin(theta_internal)},
-      {std::sin(theta_internal), std::cos(theta_internal)}};
+    const Real Rmatrix2D[2][2] = {
+        {std::cos(theta_internal), -std::sin(theta_internal)},
+        {std::sin(theta_internal), std::cos(theta_internal)}};
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < upperSkin.Npoints; ++i) {
-    upperSkin.xSurf[i] -= CoM_internal[0];
-    upperSkin.ySurf[i] -= CoM_internal[1];
-    _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
-    lowerSkin.xSurf[i] -= CoM_internal[0];
-    lowerSkin.ySurf[i] -= CoM_internal[1];
-    _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
+    for (size_t i = 0; i < upperSkin.Npoints; ++i) {
+      upperSkin.xSurf[i] -= CoM_internal[0];
+      upperSkin.ySurf[i] -= CoM_internal[1];
+      _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
+      lowerSkin.xSurf[i] -= CoM_internal[0];
+      lowerSkin.ySurf[i] -= CoM_internal[1];
+      _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
+    }
   }
-}
 
-void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
-  const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
-                                {std::sin(theta_comp), std::cos(theta_comp)}};
-  for (int i = 0; i < Nm; ++i) {
-    _rotate2D(Rmatrix2D, rX[i], rY[i]);
-    _rotate2D(Rmatrix2D, norX[i], norY[i]);
-    rX[i] += CoM_comp[0];
-    rY[i] += CoM_comp[1];
-  }
+  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
+    const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
+                                  {std::sin(theta_comp), std::cos(theta_comp)}};
+    for (int i = 0; i < Nm; ++i) {
+      _rotate2D(Rmatrix2D, rX[i], rY[i]);
+      _rotate2D(Rmatrix2D, norX[i], norY[i]);
+      rX[i] += CoM_comp[0];
+      rY[i] += CoM_comp[1];
+    }
 #pragma omp parallel for
-  for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
-    lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
-    upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
-    lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
-    upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
-    lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
-    upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
-    lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
-    upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
-    Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
-                           std::pow(lowerSkin.normYSurf[i], 2));
-    Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
-                           std::pow(upperSkin.normYSurf[i], 2));
-    lowerSkin.normXSurf[i] /= normL;
-    upperSkin.normXSurf[i] /= normU;
-    lowerSkin.normYSurf[i] /= normL;
-    upperSkin.normYSurf[i] /= normU;
-    const int ii =
-        (i < 8) ? 8 : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
-    const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
-                      lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
-    const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
-                      upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
-    if (dirL < 0) {
-      lowerSkin.normXSurf[i] *= -1.0;
-      lowerSkin.normYSurf[i] *= -1.0;
-    }
-    if (dirU < 0) {
-      upperSkin.normXSurf[i] *= -1.0;
-      upperSkin.normYSurf[i] *= -1.0;
+    for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
+      lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
+      upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
+      lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
+      upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
+      lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
+      upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
+      lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
+      upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
+      Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
+                             std::pow(lowerSkin.normYSurf[i], 2));
+      Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
+                             std::pow(upperSkin.normYSurf[i], 2));
+      lowerSkin.normXSurf[i] /= normL;
+      upperSkin.normXSurf[i] /= normU;
+      lowerSkin.normYSurf[i] /= normL;
+      upperSkin.normYSurf[i] /= normU;
+      const int ii =
+          (i < 8) ? 8
+                  : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
+      const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
+                        lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
+      const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
+                        upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
+      if (dirL < 0) {
+        lowerSkin.normXSurf[i] *= -1.0;
+        lowerSkin.normYSurf[i] *= -1.0;
+      }
+      if (dirU < 0) {
+        upperSkin.normXSurf[i] *= -1.0;
+        upperSkin.normYSurf[i] *= -1.0;
+      }
     }
   }
-}
   const Real length, h;
   const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   const Real dSmid_tgt = h / std::sqrt(2);
