@@ -1056,28 +1056,10 @@ struct MyRange {
   }
 };
 struct UnPackInfo {
-  int offset;
-  int lx;
-  int ly;
-  int lz;
-  int srcxstart;
-  int srcystart;
-  int srczstart;
-  int LX;
-  int LY;
-  int CoarseVersionOffset;
-  int CoarseVersionLX;
-  int CoarseVersionLY;
-  int CoarseVersionsrcxstart;
-  int CoarseVersionsrcystart;
-  int CoarseVersionsrczstart;
-  int level;
-  int icode;
-  int rank;
-  int index_0;
-  int index_1;
-  int index_2;
-  long long IDreceiver;
+  int CoarseVersionLX, CoarseVersionLY, CoarseVersionOffset,
+      CoarseVersionsrcxstart, CoarseVersionsrcystart, CoarseVersionsrczstart,
+      icode, index_0, index_1, index_2, level, lx, LX, ly, LY, lz, offset, rank,
+      srcxstart, srcystart, srczstart, long long IDreceiver;
 };
 struct StencilManager {
   const StencilInfo stencil;
