@@ -8591,40 +8591,40 @@ void PressureSingle::operator()(const Real dt) {
       Real ho2[3];
       Real hv1[3];
       Real hv2[3];
-      const Real norm_i =
+      Real norm_i =
           std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
                     coll.ivecZ * coll.ivecZ);
-      const Real norm_j =
+      Real norm_j =
           std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
                     coll.jvecZ * coll.jvecZ);
-      const Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
-      const Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
-      const Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
-      const Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
-      const Real NX = mX * inorm;
-      const Real NY = mY * inorm;
-      const Real NZ = mZ * inorm;
-      const Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
-      const Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
-      const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
-      const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
+      Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
+      Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
+      Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
+      Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
+      Real NX = mX * inorm;
+      Real NY = mY * inorm;
+      Real NZ = mZ * inorm;
+      Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
+      Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
+      Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
+      Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
       Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
                      coll.iMomZ / coll.iM};
       Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
                      coll.jMomZ / coll.jM};
       if (projVel <= 0)
         continue;
-      const Real inv_iM = 1.0 / coll.iM;
-      const Real inv_jM = 1.0 / coll.jM;
-      const Real iPX = coll.iPosX * inv_iM;
-      const Real iPY = coll.iPosY * inv_iM;
-      const Real iPZ = coll.iPosZ * inv_iM;
-      const Real jPX = coll.jPosX * inv_jM;
-      const Real jPY = coll.jPosY * inv_jM;
-      const Real jPZ = coll.jPosZ * inv_jM;
-      const Real CX = 0.5 * (iPX + jPX);
-      const Real CY = 0.5 * (iPY + jPY);
-      const Real CZ = 0.5 * (iPZ + jPZ);
+      Real inv_iM = 1.0 / coll.iM;
+      Real inv_jM = 1.0 / coll.jM;
+      Real iPX = coll.iPosX * inv_iM;
+      Real iPY = coll.iPosY * inv_iM;
+      Real iPZ = coll.iPosZ * inv_iM;
+      Real jPX = coll.jPosX * inv_jM;
+      Real jPY = coll.jPosY * inv_jM;
+      Real jPZ = coll.jPosZ * inv_jM;
+      Real CX = 0.5 * (iPX + jPX);
+      Real CY = 0.5 * (iPY + jPY);
+      Real CZ = 0.5 * (iPZ + jPZ);
       ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1,
                        C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
       shapes[i]->u = hv1[0];
@@ -8637,19 +8637,19 @@ void PressureSingle::operator()(const Real dt) {
   std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
-    for (const auto &shape : sim.shapes) {
-      const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-      const ObstacleBlock *const o = OBLOCK[velInfo[i].blockID];
+    for (auto &shape : sim.shapes) {
+      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      ObstacleBlock *o = OBLOCK[velInfo[i].blockID];
       if (o == nullptr)
         continue;
-      const Real u_s = shape->u;
-      const Real v_s = shape->v;
-      const Real omega_s = shape->omega;
-      const Real Cx = shape->centerOfMass[0];
-      const Real Cy = shape->centerOfMass[1];
-      const CHI_MAT &__restrict__ X = o->chi;
-      const UDEFMAT &__restrict__ UDEF = o->udef;
-      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+      Real u_s = shape->u;
+      Real v_s = shape->v;
+      Real omega_s = shape->omega;
+      Real Cx = shape->centerOfMass[0];
+      Real Cy = shape->centerOfMass[1];
+      CHI_MAT &__restrict__ X = o->chi;
+      UDEFMAT &__restrict__ UDEF = o->udef;
+      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
         for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
@@ -8661,28 +8661,28 @@ void PressureSingle::operator()(const Real dt) {
           velInfo[i].pos(p, ix, iy);
           p[0] -= Cx;
           p[1] -= Cy;
-          const Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
-          const Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
-          const Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
+          Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
+          Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
+          Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
           V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
           V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
         }
     }
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
+  std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
   }
-  for (const auto &shape : sim.shapes) {
-    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+  for (auto &shape : sim.shapes) {
+    std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
         continue;
-      const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
-      const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
+      UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; iy++)
         for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
           if (chi[iy][ix] < CHI(ix, iy).s)
@@ -8697,8 +8697,8 @@ void PressureSingle::operator()(const Real dt) {
   updatePressureRHS K;
   cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
                   VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
+  std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+  std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -8776,9 +8776,9 @@ void Fish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
     upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
     lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
     upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
-    const Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
+    Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
                                  std::pow(lowerSkin.normYSurf[i], 2));
-    const Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
+    Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
                                  std::pow(upperSkin.normYSurf[i], 2));
     lowerSkin.normXSurf[i] /= normL;
     upperSkin.normXSurf[i] /= normU;
@@ -8830,11 +8830,11 @@ void Fish::surfaceToComputationalFrame(Real theta_comp,
 }
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
-  const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
+  Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
                                 {std::sin(angle), std::cos(angle)}};
-  const Real p[2] = {c[0], c[1]};
-  const Real nx[2] = {normalI[0], normalI[1]};
-  const Real ny[2] = {normalJ[0], normalJ[1]};
+  Real p[2] = {c[0], c[1]};
+  Real nx[2] = {normalI[0], normalI[1]};
+  Real ny[2] = {normalJ[0], normalJ[1]};
   for (int i = 0; i < 2; ++i) {
     c[i] = Rmatrix2D[i][0] * p[0] + Rmatrix2D[i][1] * p[1];
     normalI[i] = Rmatrix2D[i][0] * nx[0] + Rmatrix2D[i][1] * nx[1];
@@ -8842,21 +8842,21 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
   }
   c[0] += pos[0];
   c[1] += pos[1];
-  const Real magI =
+  Real magI =
       std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
-  const Real magJ =
+  Real magJ =
       std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
   assert(magI > std::numeric_limits<Real>::epsilon());
   assert(magJ > std::numeric_limits<Real>::epsilon());
-  const Real invMagI = 1 / magI, invMagJ = 1 / magJ;
+  Real invMagI = 1 / magI, invMagJ = 1 / magJ;
   for (int i = 0; i < 2; ++i) {
     normalI[i] = std::fabs(normalI[i]) * invMagI;
     normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
   }
   assert(normalI[0] >= 0 && normalI[1] >= 0);
   assert(normalJ[0] >= 0 && normalJ[1] >= 0);
-  const Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
-  const Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
+  Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
+  Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
   for (int i = 0; i < 2; ++i) {
     objBoxLabFr[i][0] = c[i] - widthXvec[i] - widthYvec[i];
     objBoxLabFr[i][1] = c[i] + widthXvec[i] + widthYvec[i];
