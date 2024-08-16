@@ -6028,7 +6028,6 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Real _integrationFac1(int idx) { return 2 * width[idx]; }
   Real _integrationFac2(int idx) {
     Real dnorXi = _d_ds(idx, norX, Nm);
     Real dnorYi = _d_ds(idx, norY, Nm);
@@ -6698,7 +6697,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                           ? shape->fish->rS[shape->fish->Nm - 1] -
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
-      const Real fac1 = shape->fish->_integrationFac1(i);
+      const Real fac1 = 2 * shape->fish->width[i];
       const Real fac2 = shape->fish->_integrationFac2(i);
       _area += fac1 * ds / 2;
       _cmx +=
@@ -6740,7 +6739,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                           ? shape->fish->rS[shape->fish->Nm - 1] -
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
-      const Real fac1 = shape->fish->_integrationFac1(i);
+      const Real fac1 = 2 * shape->fish->width[i];
       const Real fac2 = shape->fish->_integrationFac2(i);
       const Real fac3 = shape->fish->_integrationFac3(i);
       const Real tmp_M = (shape->fish->rX[i] * shape->fish->vY[i] -
