@@ -6144,7 +6144,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 }
 struct Fish {
   Fish(Real L, Real _h);
-  void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
   void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
   void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
@@ -6286,7 +6285,6 @@ struct Fish {
     delete[] rB;
     delete[] vB;
   }
-  void computeMidline(const Real time, const Real dt);
 };
 struct PutFishOnBlocks {
   const Fish &cfish;
@@ -6314,173 +6312,175 @@ struct PutFishOnBlocks {
   PutFishOnBlocks(const Fish &cf, const Real pos[2], const Real ang)
       : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
   virtual ~PutFishOnBlocks() {}
-void operator()(const cubism::BlockInfo &info, ScalarBlock &b,
-                                 ObstacleBlock *const o,
-                                 const std::vector<AreaSegment *> &v) const {
-  Real org[2];
-  info.pos(org, 0, 0);
+  void operator()(const cubism::BlockInfo &info, ScalarBlock &b,
+                  ObstacleBlock *const o,
+                  const std::vector<AreaSegment *> &v) const {
+    Real org[2];
+    info.pos(org, 0, 0);
 #ifndef NDEBUG
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 #endif
-  const Real h = info.h, invh = 1.0 / info.h;
-  const Real *const rX = cfish.rX, *const norX = cfish.norX;
-  const Real *const rY = cfish.rY, *const norY = cfish.norY;
-  const Real *const vX = cfish.vX, *const vNorX = cfish.vNorX;
-  const Real *const vY = cfish.vY, *const vNorY = cfish.vNorY;
-  const Real *const width = cfish.width;
-  static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-  std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
-  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
-  for (int i = 0; i < (int)v.size(); ++i) {
-    const int firstSegm = std::max(v[i]->s_range.first, 1);
-    const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
-    for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-      assert(width[ss] > 0);
-      for (int signp = -1; signp <= 1; signp += 2) {
-        Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
-                       rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
-        changeToComputationalFrame(myP);
-        const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
-                            (int)std::floor((myP[1] - org[1]) * invh)};
-        if (iap[0] + 3 <= 0 || iap[0] - 1 >= BS[0])
-          continue;
-        if (iap[1] + 3 <= 0 || iap[1] - 1 >= BS[1])
-          continue;
-        Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
-                      rY[ss + 1] + width[ss + 1] * signp * norY[ss + 1]};
-        changeToComputationalFrame(pP);
-        Real pM[2] = {rX[ss - 1] + width[ss - 1] * signp * norX[ss - 1],
-                      rY[ss - 1] + width[ss - 1] * signp * norY[ss - 1]};
-        changeToComputationalFrame(pM);
-        Real udef[2] = {vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
-                        vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
-        changeVelocityToComputationalFrame(udef);
-        for (int sy = std::max(0, iap[1] - 2); sy < std::min(iap[1] + 4, BS[1]);
-             ++sy)
-          for (int sx = std::max(0, iap[0] - 2);
-               sx < std::min(iap[0] + 4, BS[0]); ++sx) {
-            Real p[2];
-            info.pos(p, sx, sy);
-            const Real dist0 = dist(p, myP);
-            const Real distP = dist(p, pP);
-            const Real distM = dist(p, pM);
-            if (std::fabs(o->dist[sy][sx]) < std::min({dist0, distP, distM}))
-              continue;
-            changeFromComputationalFrame(p);
+    const Real h = info.h, invh = 1.0 / info.h;
+    const Real *const rX = cfish.rX, *const norX = cfish.norX;
+    const Real *const rY = cfish.rY, *const norY = cfish.norY;
+    const Real *const vX = cfish.vX, *const vNorX = cfish.vNorX;
+    const Real *const vY = cfish.vY, *const vNorY = cfish.vNorY;
+    const Real *const width = cfish.width;
+    static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
+    std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
+    std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+    for (int i = 0; i < (int)v.size(); ++i) {
+      const int firstSegm = std::max(v[i]->s_range.first, 1);
+      const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
+      for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+        assert(width[ss] > 0);
+        for (int signp = -1; signp <= 1; signp += 2) {
+          Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
+                         rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
+          changeToComputationalFrame(myP);
+          const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
+                              (int)std::floor((myP[1] - org[1]) * invh)};
+          if (iap[0] + 3 <= 0 || iap[0] - 1 >= BS[0])
+            continue;
+          if (iap[1] + 3 <= 0 || iap[1] - 1 >= BS[1])
+            continue;
+          Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
+                        rY[ss + 1] + width[ss + 1] * signp * norY[ss + 1]};
+          changeToComputationalFrame(pP);
+          Real pM[2] = {rX[ss - 1] + width[ss - 1] * signp * norX[ss - 1],
+                        rY[ss - 1] + width[ss - 1] * signp * norY[ss - 1]};
+          changeToComputationalFrame(pM);
+          Real udef[2] = {vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
+                          vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
+          changeVelocityToComputationalFrame(udef);
+          for (int sy = std::max(0, iap[1] - 2);
+               sy < std::min(iap[1] + 4, BS[1]); ++sy)
+            for (int sx = std::max(0, iap[0] - 2);
+                 sx < std::min(iap[0] + 4, BS[0]); ++sx) {
+              Real p[2];
+              info.pos(p, sx, sy);
+              const Real dist0 = dist(p, myP);
+              const Real distP = dist(p, pP);
+              const Real distM = dist(p, pM);
+              if (std::fabs(o->dist[sy][sx]) < std::min({dist0, distP, distM}))
+                continue;
+              changeFromComputationalFrame(p);
 #ifndef NDEBUG
-            const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
-                                rY[ss] + width[ss] * signp * norY[ss]};
-            const Real distC = dist(p, p0);
-            assert(std::fabs(distC - dist0) < EPS);
+              const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
+                                  rY[ss] + width[ss] * signp * norY[ss]};
+              const Real distC = dist(p, p0);
+              assert(std::fabs(distC - dist0) < EPS);
 #endif
-            int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
-            Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
-            if (distP < dist0 || distM < dist0) {
-              dist1 = dist2;
-              dist2 = dist0;
-              close_s = secnd_s;
-              secnd_s = ss;
+              int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
+              Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
+              if (distP < dist0 || distM < dist0) {
+                dist1 = dist2;
+                dist2 = dist0;
+                close_s = secnd_s;
+                secnd_s = ss;
+              }
+              const Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
+                                std::pow(rY[close_s] - rY[secnd_s], 2);
+              assert(dSsq > 2.2e-16);
+              const Real cnt2ML = std::pow(width[close_s], 2);
+              const Real nxt2ML = std::pow(width[secnd_s], 2);
+              const Real safeW =
+                  std::max(width[close_s], width[secnd_s]) + 2 * h;
+              const Real xMidl[2] = {rX[close_s], rY[close_s]};
+              const Real grd2ML = dist(p, xMidl);
+              const Real diffH = std::fabs(width[close_s] - width[secnd_s]);
+              Real sign2d = 0;
+              if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
+                sign2d = grd2ML > cnt2ML ? -1 : 1;
+              } else {
+                const Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
+                const Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
+                                 (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
+                const Real maxAx = std::max(cnt2ML, nxt2ML);
+                const int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
+                const int idAx2 = idAx1 == close_s ? secnd_s : close_s;
+                const Real d = std::sqrt((Rsq - maxAx) / dSsq);
+                const Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
+                                        rY[idAx1] +
+                                            (rY[idAx1] - rY[idAx2]) * d};
+                const Real grd2Core = dist(p, xCentr);
+                sign2d = grd2Core > Rsq ? -1 : 1;
+              }
+              if (std::fabs(o->dist[sy][sx]) > dist1) {
+                const Real W =
+                    1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
+                assert(W >= 0);
+                o->udef[sy][sx][0] = W * udef[0];
+                o->udef[sy][sx][1] = W * udef[1];
+                o->dist[sy][sx] = sign2d * dist1;
+                o->chi[sy][sx] = W;
+              }
             }
-            const Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
-                              std::pow(rY[close_s] - rY[secnd_s], 2);
-            assert(dSsq > 2.2e-16);
-            const Real cnt2ML = std::pow(width[close_s], 2);
-            const Real nxt2ML = std::pow(width[secnd_s], 2);
-            const Real safeW = std::max(width[close_s], width[secnd_s]) + 2 * h;
-            const Real xMidl[2] = {rX[close_s], rY[close_s]};
-            const Real grd2ML = dist(p, xMidl);
-            const Real diffH = std::fabs(width[close_s] - width[secnd_s]);
-            Real sign2d = 0;
-            if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
-              sign2d = grd2ML > cnt2ML ? -1 : 1;
-            } else {
-              const Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
-              const Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
-                               (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
-              const Real maxAx = std::max(cnt2ML, nxt2ML);
-              const int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
-              const int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-              const Real d = std::sqrt((Rsq - maxAx) / dSsq);
-              const Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
-                                      rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
-              const Real grd2Core = dist(p, xCentr);
-              sign2d = grd2Core > Rsq ? -1 : 1;
-            }
-            if (std::fabs(o->dist[sy][sx]) > dist1) {
-              const Real W =
-                  1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-              assert(W >= 0);
-              o->udef[sy][sx][0] = W * udef[0];
-              o->udef[sy][sx][1] = W * udef[1];
-              o->dist[sy][sx] = sign2d * dist1;
-              o->chi[sy][sx] = W;
-            }
-          }
-      }
-    }
-  }
-  info.pos(org, 0, 0);
-  for (int i = 0; i < (int)v.size(); ++i) {
-    const int firstSegm = std::max(v[i]->s_range.first, 1);
-    const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
-    for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-      const Real myWidth = cfish.width[ss];
-      assert(myWidth > 0);
-      const int Nw = std::floor(myWidth / h);
-      for (int iw = -Nw + 1; iw < Nw; ++iw) {
-        const Real offsetW = iw * h;
-        Real xp[2] = {cfish.rX[ss] + offsetW * cfish.norX[ss],
-                      cfish.rY[ss] + offsetW * cfish.norY[ss]};
-        changeToComputationalFrame(xp);
-        xp[0] = (xp[0] - org[0]) * invh;
-        xp[1] = (xp[1] - org[1]) * invh;
-        const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
-        const int iap[2] = {(int)ap[0], (int)ap[1]};
-        if (iap[0] + 2 <= 0 || iap[0] >= BS[0])
-          continue;
-        if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
-          continue;
-        Real udef[2] = {cfish.vX[ss] + offsetW * cfish.vNorX[ss],
-                        cfish.vY[ss] + offsetW * cfish.vNorY[ss]};
-        changeVelocityToComputationalFrame(udef);
-        Real wghts[2][2];
-        for (int c = 0; c < 2; ++c) {
-          const Real t[2] = {std::fabs(xp[c] - ap[c]),
-                             std::fabs(xp[c] - (ap[c] + 1))};
-          wghts[c][0] = 1 - t[0];
-          wghts[c][1] = 1 - t[1];
         }
-        for (int idy = std::max(0, iap[1]); idy < std::min(iap[1] + 2, BS[1]);
-             ++idy)
-          for (int idx = std::max(0, iap[0]); idx < std::min(iap[0] + 2, BS[0]);
-               ++idx) {
-            const int sx = idx - iap[0], sy = idy - iap[1];
-            const Real wxwy = wghts[1][sy] * wghts[0][sx];
-            assert(idx >= 0 && idx < ScalarBlock::sizeX && wxwy >= 0);
-            assert(idy >= 0 && idy < ScalarBlock::sizeY && wxwy <= 1);
-            o->udef[idy][idx][0] += wxwy * udef[0];
-            o->udef[idy][idx][1] += wxwy * udef[1];
-            o->chi[idy][idx] += wxwy;
-            static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-            if (std::fabs(o->dist[idy][idx] + 1) < EPS)
-              o->dist[idy][idx] = 1;
-          }
       }
     }
-  }
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
-    for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
-      const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
-      o->udef[iy][ix][0] /= normfac;
-      o->udef[iy][ix][1] /= normfac;
-      o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
-                                             : -std::sqrt(-o->dist[iy][ix]);
-      b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
-      ;
+    info.pos(org, 0, 0);
+    for (int i = 0; i < (int)v.size(); ++i) {
+      const int firstSegm = std::max(v[i]->s_range.first, 1);
+      const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
+      for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+        const Real myWidth = cfish.width[ss];
+        assert(myWidth > 0);
+        const int Nw = std::floor(myWidth / h);
+        for (int iw = -Nw + 1; iw < Nw; ++iw) {
+          const Real offsetW = iw * h;
+          Real xp[2] = {cfish.rX[ss] + offsetW * cfish.norX[ss],
+                        cfish.rY[ss] + offsetW * cfish.norY[ss]};
+          changeToComputationalFrame(xp);
+          xp[0] = (xp[0] - org[0]) * invh;
+          xp[1] = (xp[1] - org[1]) * invh;
+          const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
+          const int iap[2] = {(int)ap[0], (int)ap[1]};
+          if (iap[0] + 2 <= 0 || iap[0] >= BS[0])
+            continue;
+          if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
+            continue;
+          Real udef[2] = {cfish.vX[ss] + offsetW * cfish.vNorX[ss],
+                          cfish.vY[ss] + offsetW * cfish.vNorY[ss]};
+          changeVelocityToComputationalFrame(udef);
+          Real wghts[2][2];
+          for (int c = 0; c < 2; ++c) {
+            const Real t[2] = {std::fabs(xp[c] - ap[c]),
+                               std::fabs(xp[c] - (ap[c] + 1))};
+            wghts[c][0] = 1 - t[0];
+            wghts[c][1] = 1 - t[1];
+          }
+          for (int idy = std::max(0, iap[1]); idy < std::min(iap[1] + 2, BS[1]);
+               ++idy)
+            for (int idx = std::max(0, iap[0]);
+                 idx < std::min(iap[0] + 2, BS[0]); ++idx) {
+              const int sx = idx - iap[0], sy = idy - iap[1];
+              const Real wxwy = wghts[1][sy] * wghts[0][sx];
+              assert(idx >= 0 && idx < ScalarBlock::sizeX && wxwy >= 0);
+              assert(idy >= 0 && idy < ScalarBlock::sizeY && wxwy <= 1);
+              o->udef[idy][idx][0] += wxwy * udef[0];
+              o->udef[idy][idx][1] += wxwy * udef[1];
+              o->chi[idy][idx] += wxwy;
+              static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+              if (std::fabs(o->dist[idy][idx] + 1) < EPS)
+                o->dist[idy][idx] = 1;
+            }
+        }
+      }
     }
-  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
-}
+    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+    for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
+      for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
+        const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
+        o->udef[iy][ix][0] /= normfac;
+        o->udef[iy][ix][1] /= normfac;
+        o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
+                                               : -std::sqrt(-o->dist[iy][ix]);
+        b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
+        ;
+      }
+    std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+  }
 };
 void PutObjectsOnGrid::operator()(const Real dt) {
   int nSum[2] = {0, 0};
@@ -6534,7 +6534,82 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       delete entry;
     shape->obstacleBlocks.clear();
     assert(myFish != nullptr);
-    shape->myFish->computeMidline(sim.time, sim.dt);
+    shape->myFish->periodScheduler.transition(
+        sim.time, shape->myFish->transition_start,
+        shape->myFish->transition_start + shape->myFish->transition_duration,
+        shape->myFish->current_period, shape->myFish->next_period);
+    shape->myFish->periodScheduler.gimmeValues(
+        sim.time, shape->myFish->periodPIDval, shape->myFish->periodPIDdif);
+    if (shape->myFish->transition_start < sim.time &&
+        sim.time < shape->myFish->transition_start +
+                       shape->myFish->transition_duration) {
+      shape->myFish->timeshift =
+          (sim.time - shape->myFish->time0) / shape->myFish->periodPIDval +
+          shape->myFish->timeshift;
+      shape->myFish->time0 = sim.time;
+    }
+    const std::array<Real, 6> curvaturePoints = {
+        (Real)0,
+        (Real).15 * shape->myFish->length,
+        (Real).4 * shape->myFish->length,
+        (Real).65 * shape->myFish->length,
+        (Real).9 * shape->myFish->length,
+        shape->myFish->length};
+    const std::array<Real, 6> curvatureValues = {
+        (Real)0.82014 / shape->myFish->length,
+        (Real)1.46515 / shape->myFish->length,
+        (Real)2.57136 / shape->myFish->length,
+        (Real)3.75425 / shape->myFish->length,
+        (Real)5.09147 / shape->myFish->length,
+        (Real)5.70449 / shape->myFish->length};
+    const std::array<Real, 7> bendPoints = {(Real)-.5, (Real)-.25, (Real)0,
+                                            (Real).25, (Real).5,   (Real).75,
+                                            (Real)1};
+    const std::array<Real, 6> curvatureZeros = {
+        0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
+        0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
+        0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
+    };
+    shape->myFish->curvatureScheduler.transition(
+        0, 0, shape->myFish->Tperiod, curvatureZeros, curvatureValues);
+    shape->myFish->curvatureScheduler.gimmeValues(
+        sim.time, curvaturePoints, shape->myFish->Nm, shape->myFish->rS,
+        shape->myFish->rC, shape->myFish->vC);
+    shape->myFish->rlBendingScheduler.gimmeValues(
+        sim.time, shape->myFish->periodPIDval, shape->myFish->length,
+        bendPoints, shape->myFish->Nm, shape->myFish->rS, shape->myFish->rB,
+        shape->myFish->vB);
+    const Real diffT = 1 - (sim.time - shape->myFish->time0) *
+                               shape->myFish->periodPIDdif /
+                               shape->myFish->periodPIDval;
+    const Real darg = 2 * M_PI / shape->myFish->periodPIDval * diffT;
+    const Real arg0 =
+        2 * M_PI *
+            ((sim.time - shape->myFish->time0) / shape->myFish->periodPIDval +
+             shape->myFish->timeshift) +
+        M_PI * shape->myFish->phaseShift;
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < shape->myFish->Nm; ++i) {
+      const Real arg =
+          arg0 - 2 * M_PI * shape->myFish->rS[i] / shape->myFish->length;
+      shape->myFish->rK[i] =
+          shape->myFish->amplitudeFactor * shape->myFish->rC[i] *
+          (std::sin(arg) + shape->myFish->rB[i] + shape->myFish->curv_PID_fac);
+      shape->myFish->vK[i] =
+          shape->myFish->amplitudeFactor *
+          (shape->myFish->vC[i] * (std::sin(arg) + shape->myFish->rB[i] +
+                                   shape->myFish->curv_PID_fac) +
+           shape->myFish->rC[i] * (std::cos(arg) * darg + shape->myFish->vB[i] +
+                                   shape->myFish->curv_PID_dif));
+      assert(not std::isnan(rK[i]));
+      assert(not std::isinf(rK[i]));
+      assert(not std::isnan(vK[i]));
+      assert(not std::isinf(vK[i]));
+    }
+    if2d_solve(shape->myFish->Nm, shape->myFish->rS, shape->myFish->rK,
+               shape->myFish->vK, shape->myFish->rX, shape->myFish->rY,
+               shape->myFish->vX, shape->myFish->vY, shape->myFish->norX,
+               shape->myFish->norY, shape->myFish->vNorX, shape->myFish->vNorY);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->myFish->lowerSkin.Npoints; ++i) {
       Real norm[2] = {shape->myFish->norX[i], shape->myFish->norY[i]};
@@ -6586,8 +6661,13 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->vCoM_internal[1] = shape->myFish->linMom[1] / shape->myFish->area;
     shape->area_internal = shape->myFish->area;
 
-    shape->myFish->changeToCoMFrameLinear(shape->CoM_internal,
-                                          shape->vCoM_internal);
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < shape->myFish->Nm; ++i) {
+      shape->myFish->rX[i] -= shape->CoM_internal[0];
+      shape->myFish->rY[i] -= shape->CoM_internal[1];
+      shape->myFish->vX[i] -= shape->vCoM_internal[0];
+      shape->myFish->vY[i] -= shape->vCoM_internal[1];
+    }
     shape->angvel_internal_prev = shape->angvel_internal;
 
     Real _J = 0, _am = 0;
@@ -8648,15 +8728,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void Fish::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm; ++i) {
-    rX[i] -= Cin[0];
-    rY[i] -= Cin[1];
-    vX[i] -= vCin[0];
-    vY[i] -= vCin[1];
-  }
-}
 void Fish::changeToCoMFrameAngular(Real Ain, Real vAin) {
   const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
                                 {std::sin(Ain), std::cos(Ain)}};
@@ -8848,52 +8919,6 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
     }
   }
 };
-void Fish::computeMidline(const Real t, const Real dt) {
-  periodScheduler.transition(t, transition_start,
-                             transition_start + transition_duration,
-                             current_period, next_period);
-  periodScheduler.gimmeValues(t, periodPIDval, periodPIDdif);
-  if (transition_start < t && t < transition_start + transition_duration) {
-    timeshift = (t - time0) / periodPIDval + timeshift;
-    time0 = t;
-  }
-  const std::array<Real, 6> curvaturePoints = {
-      (Real)0,           (Real).15 * length,
-      (Real).4 * length, (Real).65 * length,
-      (Real).9 * length, length};
-  const std::array<Real, 6> curvatureValues = {
-      (Real)0.82014 / length, (Real)1.46515 / length, (Real)2.57136 / length,
-      (Real)3.75425 / length, (Real)5.09147 / length, (Real)5.70449 / length};
-  const std::array<Real, 7> bendPoints = {
-      (Real)-.5, (Real)-.25, (Real)0, (Real).25, (Real).5, (Real).75, (Real)1};
-  const std::array<Real, 6> curvatureZeros = {
-      0.01 * curvatureValues[0], 0.01 * curvatureValues[1],
-      0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
-      0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
-  };
-  curvatureScheduler.transition(0, 0, Tperiod, curvatureZeros, curvatureValues);
-  curvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rC, vC);
-  rlBendingScheduler.gimmeValues(t, periodPIDval, length, bendPoints, Nm, rS,
-                                 rB, vB);
-  const Real diffT = 1 - (t - time0) * periodPIDdif / periodPIDval;
-  const Real darg = 2 * M_PI / periodPIDval * diffT;
-  const Real arg0 =
-      2 * M_PI * ((t - time0) / periodPIDval + timeshift) + M_PI * phaseShift;
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm; ++i) {
-    const Real arg = arg0 - 2 * M_PI * rS[i] / length;
-    rK[i] = amplitudeFactor * rC[i] * (std::sin(arg) + rB[i] + curv_PID_fac);
-    vK[i] = amplitudeFactor *
-            (vC[i] * (std::sin(arg) + rB[i] + curv_PID_fac) +
-             rC[i] * (std::cos(arg) * darg + vB[i] + curv_PID_dif));
-    assert(not std::isnan(rK[i]));
-    assert(not std::isinf(rK[i]));
-    assert(not std::isnan(vK[i]));
-    assert(not std::isinf(vK[i]));
-  }
-  if2d_solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
-}
-
 Shape::Shape(cubism::CommandlineParser &p, Real C[2])
     : origC{C[0], C[1]},
       origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
