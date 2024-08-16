@@ -6143,7 +6143,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 struct Fish {
-  Fish(Real L, Real _h);
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
   void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
 
