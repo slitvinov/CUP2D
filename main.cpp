@@ -5465,7 +5465,6 @@ struct FishData {
                               const Real vCoM_internal[2]) const;
   void changeToCoMFrameAngular(const Real theta_internal,
                                const Real angvel_internal) const;
-  void computeSurface() const;
   void surfaceToCOMFrame(const Real theta_internal,
                          const Real CoM_internal[2]) const;
   void surfaceToComputationalFrame(const Real theta_comp,
@@ -6359,7 +6358,24 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->obstacleBlocks.clear();
     assert(myFish != nullptr);
     shape->myFish->computeMidline(sim.time, sim.dt);
-    shape->myFish->computeSurface();
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < shape->myFish->lowerSkin.Npoints; ++i) {
+      Real norm[2] = {shape->myFish->norX[i], shape->myFish->norY[i]};
+      Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
+      norm[0] /= norm_mod1;
+      norm[1] /= norm_mod1;
+      assert(width[i] >= 0);
+      shape->myFish->lowerSkin.xSurf[i] =
+          shape->myFish->rX[i] - shape->myFish->width[i] * norm[0];
+      shape->myFish->lowerSkin.ySurf[i] =
+          shape->myFish->rY[i] - shape->myFish->width[i] * norm[1];
+      shape->myFish->upperSkin.xSurf[i] =
+          shape->myFish->rX[i] + shape->myFish->width[i] * norm[0];
+      shape->myFish->upperSkin.ySurf[i] =
+          shape->myFish->rY[i] + shape->myFish->width[i] * norm[1];
+    }
+
     shape->area_internal = shape->myFish->integrateLinearMomentum(
         shape->CoM_internal, shape->vCoM_internal);
     shape->myFish->changeToCoMFrameLinear(shape->CoM_internal,
@@ -8490,20 +8506,6 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
   norY[Nm - 1] = norY[Nm - 2];
   vNorX[Nm - 1] = vNorX[Nm - 2];
   vNorY[Nm - 1] = vNorY[Nm - 2];
-}
-void FishData::computeSurface() const {
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < lowerSkin.Npoints; ++i) {
-    Real norm[2] = {norX[i], norY[i]};
-    Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
-    norm[0] /= norm_mod1;
-    norm[1] /= norm_mod1;
-    assert(width[i] >= 0);
-    lowerSkin.xSurf[i] = rX[i] - width[i] * norm[0];
-    lowerSkin.ySurf[i] = rY[i] - width[i] * norm[1];
-    upperSkin.xSurf[i] = rX[i] + width[i] * norm[0];
-    upperSkin.ySurf[i] = rY[i] + width[i] * norm[1];
-  }
 }
 void FishData::computeSkinNormals(const Real theta_comp,
                                   const Real CoM_comp[3]) const {
