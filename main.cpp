@@ -5424,12 +5424,6 @@ struct FishData {
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  template <typename T> static void _dealloc(T *ptr) {
-    if (ptr not_eq nullptr) {
-      delete[] ptr;
-      ptr = nullptr;
-    }
-  }
   inline Real _d_ds(const int idx, const Real *const vals,
                     const int maxidx) const {
     if (idx == 0)
@@ -5497,16 +5491,16 @@ FishData::FishData(Real L, Real _h)
   std::fill(vY, vY + Nm, 0);
 }
 FishData::~FishData() {
-  _dealloc(rS);
-  _dealloc(rX);
-  _dealloc(rY);
-  _dealloc(vX);
-  _dealloc(vY);
-  _dealloc(norX);
-  _dealloc(norY);
-  _dealloc(vNorX);
-  _dealloc(vNorY);
-  _dealloc(width);
+  delete[] rS;
+  delete[] rX;
+  delete[] rY;
+  delete[] vX;
+  delete[] vY;
+  delete[] norX;
+  delete[] norY;
+  delete[] vNorX;
+  delete[] vNorY;
+  delete[] width;
 }
 static struct {
   int rank;
@@ -8912,12 +8906,12 @@ struct CurvatureFish : public FishData {
     _computeWidth();
   }
   ~CurvatureFish() override {
-    _dealloc(rK);
-    _dealloc(vK);
-    _dealloc(rC);
-    _dealloc(vC);
-    _dealloc(rB);
-    _dealloc(vB);
+    delete[] rK;
+    delete[] vK;
+    delete[] rC;
+    delete[] vC;
+    delete[] rB;
+    delete[] vB;
   }
   void computeMidline(const Real time, const Real dt) override;
   Real _width(const Real s, const Real L) override {
