@@ -5933,7 +5933,7 @@ struct Fish {
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  Real _d_ds(const int idx, const Real *const vals, const int maxidx) const {
+  Real _d_ds(int idx, Real *vals, int maxidx) {
     if (idx == 0)
       return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
     else if (idx == maxidx - 1)
