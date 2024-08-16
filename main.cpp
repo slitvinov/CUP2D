@@ -3308,7 +3308,7 @@ template <typename TGrid> struct BlockLab {
                                         (info.index[1] + code[1] + NY) % NY,
                                         (info.index[2] + code[2] + NZ) % NZ};
           if (UseCoarseStencil(info, infoNei_index)) {
-            FillCoarseVersion(info, code);
+            FillCoarseVersion(code);
             coarsened = true;
           }
         }
@@ -3705,7 +3705,7 @@ template <typename TGrid> struct BlockLab {
       }
     }
   }
-  void FillCoarseVersion(const BlockInfo &info, const int *const code) {
+  void FillCoarseVersion(const int *const code) {
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
       return;
@@ -4048,8 +4048,8 @@ template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
   typedef SynchronizerMPI_AMR<Real, GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
-                       const int Istencil_start[3] = default_start,
-                       const int Istencil_end[3] = default_end) override {
+                       const int[3] = default_start,
+                       const int[3] = default_end) override {
     auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
@@ -5562,8 +5562,8 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
             "    </Grid>\n"
             "  </Domain>\n"
             "</Xdmf>\n",
-            time, ncell_total, 4 * ncell_total, xyz_path, ncell_total,
-            attr_path);
+            time, ncell_total, 4 * ncell_total, xyz_base, ncell_total,
+            attr_base);
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
@@ -7419,7 +7419,49 @@ void ComputeForces::operator()(const Real dt) {
 ComputeForces::ComputeForces(){};
 struct PoissonSolver {
   PoissonSolver();
-  void solve(const ScalarGrid *input, ScalarGrid *const output);
+  void solve(const ScalarGrid *input) {
+    const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+    const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+    const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+    if (sim.pres->UpdateFluxCorrection) {
+      sim.pres->UpdateFluxCorrection = false;
+      this->getMat();
+      this->getVec();
+      LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+    } else {
+      this->getVec();
+      LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+    }
+    std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
+    const int Nblocks = zInfo.size();
+    const std::vector<double> &x = LocalLS_->get_x();
+    double avg = 0;
+    double avg1 = 0;
+#pragma omp parallel for reduction(+ : avg, avg1)
+    for (int i = 0; i < Nblocks; i++) {
+      ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
+      const double vv = zInfo[i].h * zInfo[i].h;
+      for (int iy = 0; iy < BSY_; iy++)
+        for (int ix = 0; ix < BSX_; ix++) {
+          P(ix, iy).s = x[i * BSX_ * BSY_ + iy * BSX_ + ix];
+          avg += P(ix, iy).s * vv;
+          avg1 += vv;
+        }
+    }
+    double quantities[2] = {avg, avg1};
+    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
+                  MPI_COMM_WORLD);
+    avg = quantities[0];
+    avg1 = quantities[1];
+    avg = avg / avg1;
+#pragma omp parallel for
+    for (int i = 0; i < Nblocks; i++) {
+      ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
+      for (int iy = 0; iy < BSY_; iy++)
+        for (int ix = 0; ix < BSX_; ix++)
+          P(ix, iy).s += -avg;
+    }
+  }
   int rank_;
   int comm_size_;
   static constexpr int BSX_ = _BS_;
@@ -7906,49 +7948,6 @@ void PoissonSolver::getVec() {
       }
   }
 }
-void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
-  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
-  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-  if (sim.pres->UpdateFluxCorrection) {
-    sim.pres->UpdateFluxCorrection = false;
-    this->getMat();
-    this->getVec();
-    LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
-  } else {
-    this->getVec();
-    LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
-  }
-  std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
-  const int Nblocks = zInfo.size();
-  const std::vector<double> &x = LocalLS_->get_x();
-  double avg = 0;
-  double avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-  for (int i = 0; i < Nblocks; i++) {
-    ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
-    const double vv = zInfo[i].h * zInfo[i].h;
-    for (int iy = 0; iy < BSY_; iy++)
-      for (int ix = 0; ix < BSX_; ix++) {
-        P(ix, iy).s = x[i * BSX_ * BSY_ + iy * BSX_ + ix];
-        avg += P(ix, iy).s * vv;
-        avg1 += vv;
-      }
-  }
-  double quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
-                MPI_COMM_WORLD);
-  avg = quantities[0];
-  avg1 = quantities[1];
-  avg = avg / avg1;
-#pragma omp parallel for
-  for (int i = 0; i < Nblocks; i++) {
-    ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
-    for (int iy = 0; iy < BSY_; iy++)
-      for (int ix = 0; ix < BSX_; ix++)
-        P(ix, iy).s += -avg;
-  }
-}
 struct PressureSingle : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
@@ -8111,7 +8110,7 @@ struct updatePressureRHS {
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void operator()(VectorLab &velLab, VectorLab &uDefLab,
                   const cubism::BlockInfo &info,
-                  const cubism::BlockInfo &info2) const {
+                  const cubism::BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
     ScalarBlock &__restrict__ TMP =
@@ -8637,7 +8636,7 @@ void PressureSingle::operator()(const Real dt) {
   }
   updatePressureRHS1 K1;
   cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
-  pressureSolver->solve(sim.tmp, sim.pres);
+  pressureSolver->solve(sim.tmp);
   Real avg = 0;
   Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
