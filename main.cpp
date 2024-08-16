@@ -9024,5 +9024,5 @@ int main(int argc, char **argv) {
     if (done)
       break;
   }
-  // MPI_Finalize();
+  MPI_Finalize();
 }
