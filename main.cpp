@@ -6144,7 +6144,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 }
 struct Fish {
   Fish(Real L, Real _h);
-  void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
   void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
   void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
@@ -6710,9 +6709,39 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     assert(J > std::numeric_limits<Real>::epsilon());
     shape->angvel_internal = shape->myFish->angMom / shape->myFish->J;
     shape->J_internal = shape->myFish->J;
+    const Real Rmatrix2D[2][2] = {
+        {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
+        {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < shape->myFish->Nm; ++i) {
+      shape->myFish->vX[i] += shape->angvel_internal * shape->myFish->rY[i];
+      shape->myFish->vY[i] -= shape->angvel_internal * shape->myFish->rX[i];
+      shape->myFish->_rotate2D(Rmatrix2D, shape->myFish->rX[i],
+                               shape->myFish->rY[i]);
+      shape->myFish->_rotate2D(Rmatrix2D, shape->myFish->vX[i],
+                               shape->myFish->vY[i]);
+    }
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < shape->myFish->Nm - 1; i++) {
+      const auto ds = shape->myFish->rS[i + 1] - shape->myFish->rS[i];
+      const auto tX = shape->myFish->rX[i + 1] - shape->myFish->rX[i];
+      const auto tY = shape->myFish->rY[i + 1] - shape->myFish->rY[i];
+      const auto tVX = shape->myFish->vX[i + 1] - shape->myFish->vX[i];
+      const auto tVY = shape->myFish->vY[i + 1] - shape->myFish->vY[i];
+      shape->myFish->norX[i] = -tY / ds;
+      shape->myFish->norY[i] = tX / ds;
+      shape->myFish->vNorX[i] = -tVY / ds;
+      shape->myFish->vNorY[i] = tVX / ds;
+    }
+    shape->myFish->norX[shape->myFish->Nm - 1] =
+        shape->myFish->norX[shape->myFish->Nm - 2];
+    shape->myFish->norY[shape->myFish->Nm - 1] =
+        shape->myFish->norY[shape->myFish->Nm - 2];
+    shape->myFish->vNorX[shape->myFish->Nm - 1] =
+        shape->myFish->vNorX[shape->myFish->Nm - 2];
+    shape->myFish->vNorY[shape->myFish->Nm - 1] =
+        shape->myFish->vNorY[shape->myFish->Nm - 2];
 
-    shape->myFish->changeToCoMFrameAngular(shape->theta_internal,
-                                           shape->angvel_internal);
     shape->myFish->surfaceToCOMFrame(shape->theta_internal,
                                      shape->CoM_internal);
     const int Nsegments = (shape->myFish->Nm - 1) / 8;
@@ -8728,33 +8757,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void Fish::changeToCoMFrameAngular(Real Ain, Real vAin) {
-  const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
-                                {std::sin(Ain), std::cos(Ain)}};
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm; ++i) {
-    vX[i] += vAin * rY[i];
-    vY[i] -= vAin * rX[i];
-    _rotate2D(Rmatrix2D, rX[i], rY[i]);
-    _rotate2D(Rmatrix2D, vX[i], vY[i]);
-  }
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm - 1; i++) {
-    const auto ds = rS[i + 1] - rS[i];
-    const auto tX = rX[i + 1] - rX[i];
-    const auto tY = rY[i + 1] - rY[i];
-    const auto tVX = vX[i + 1] - vX[i];
-    const auto tVY = vY[i + 1] - vY[i];
-    norX[i] = -tY / ds;
-    norY[i] = tX / ds;
-    vNorX[i] = -tVY / ds;
-    vNorY[i] = tVX / ds;
-  }
-  norX[Nm - 1] = norX[Nm - 2];
-  norY[Nm - 1] = norY[Nm - 2];
-  vNorX[Nm - 1] = vNorX[Nm - 2];
-  vNorY[Nm - 1] = vNorY[Nm - 2];
-}
 void Fish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
