@@ -5960,7 +5960,7 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   const Real length, Tperiod, phaseShift;
-  Fish *myFish = nullptr;
+  Fish *fish = nullptr;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
@@ -6532,35 +6532,35 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    assert(myFish != nullptr);
-    shape->myFish->periodScheduler.transition(
-        sim.time, shape->myFish->transition_start,
-        shape->myFish->transition_start + shape->myFish->transition_duration,
-        shape->myFish->current_period, shape->myFish->next_period);
-    shape->myFish->periodScheduler.gimmeValues(
-        sim.time, shape->myFish->periodPIDval, shape->myFish->periodPIDdif);
-    if (shape->myFish->transition_start < sim.time &&
-        sim.time < shape->myFish->transition_start +
-                       shape->myFish->transition_duration) {
-      shape->myFish->timeshift =
-          (sim.time - shape->myFish->time0) / shape->myFish->periodPIDval +
-          shape->myFish->timeshift;
-      shape->myFish->time0 = sim.time;
+    assert(fish != nullptr);
+    shape->fish->periodScheduler.transition(
+        sim.time, shape->fish->transition_start,
+        shape->fish->transition_start + shape->fish->transition_duration,
+        shape->fish->current_period, shape->fish->next_period);
+    shape->fish->periodScheduler.gimmeValues(
+        sim.time, shape->fish->periodPIDval, shape->fish->periodPIDdif);
+    if (shape->fish->transition_start < sim.time &&
+        sim.time < shape->fish->transition_start +
+                       shape->fish->transition_duration) {
+      shape->fish->timeshift =
+          (sim.time - shape->fish->time0) / shape->fish->periodPIDval +
+          shape->fish->timeshift;
+      shape->fish->time0 = sim.time;
     }
     const std::array<Real, 6> curvaturePoints = {
         (Real)0,
-        (Real).15 * shape->myFish->length,
-        (Real).4 * shape->myFish->length,
-        (Real).65 * shape->myFish->length,
-        (Real).9 * shape->myFish->length,
-        shape->myFish->length};
+        (Real).15 * shape->fish->length,
+        (Real).4 * shape->fish->length,
+        (Real).65 * shape->fish->length,
+        (Real).9 * shape->fish->length,
+        shape->fish->length};
     const std::array<Real, 6> curvatureValues = {
-        (Real)0.82014 / shape->myFish->length,
-        (Real)1.46515 / shape->myFish->length,
-        (Real)2.57136 / shape->myFish->length,
-        (Real)3.75425 / shape->myFish->length,
-        (Real)5.09147 / shape->myFish->length,
-        (Real)5.70449 / shape->myFish->length};
+        (Real)0.82014 / shape->fish->length,
+        (Real)1.46515 / shape->fish->length,
+        (Real)2.57136 / shape->fish->length,
+        (Real)3.75425 / shape->fish->length,
+        (Real)5.09147 / shape->fish->length,
+        (Real)5.70449 / shape->fish->length};
     const std::array<Real, 7> bendPoints = {(Real)-.5, (Real)-.25, (Real)0,
                                             (Real).25, (Real).5,   (Real).75,
                                             (Real)1};
@@ -6569,183 +6569,183 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
         0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
     };
-    shape->myFish->curvatureScheduler.transition(
-        0, 0, shape->myFish->Tperiod, curvatureZeros, curvatureValues);
-    shape->myFish->curvatureScheduler.gimmeValues(
-        sim.time, curvaturePoints, shape->myFish->Nm, shape->myFish->rS,
-        shape->myFish->rC, shape->myFish->vC);
-    shape->myFish->rlBendingScheduler.gimmeValues(
-        sim.time, shape->myFish->periodPIDval, shape->myFish->length,
-        bendPoints, shape->myFish->Nm, shape->myFish->rS, shape->myFish->rB,
-        shape->myFish->vB);
-    const Real diffT = 1 - (sim.time - shape->myFish->time0) *
-                               shape->myFish->periodPIDdif /
-                               shape->myFish->periodPIDval;
-    const Real darg = 2 * M_PI / shape->myFish->periodPIDval * diffT;
+    shape->fish->curvatureScheduler.transition(
+        0, 0, shape->fish->Tperiod, curvatureZeros, curvatureValues);
+    shape->fish->curvatureScheduler.gimmeValues(
+        sim.time, curvaturePoints, shape->fish->Nm, shape->fish->rS,
+        shape->fish->rC, shape->fish->vC);
+    shape->fish->rlBendingScheduler.gimmeValues(
+        sim.time, shape->fish->periodPIDval, shape->fish->length,
+        bendPoints, shape->fish->Nm, shape->fish->rS, shape->fish->rB,
+        shape->fish->vB);
+    const Real diffT = 1 - (sim.time - shape->fish->time0) *
+                               shape->fish->periodPIDdif /
+                               shape->fish->periodPIDval;
+    const Real darg = 2 * M_PI / shape->fish->periodPIDval * diffT;
     const Real arg0 =
         2 * M_PI *
-            ((sim.time - shape->myFish->time0) / shape->myFish->periodPIDval +
-             shape->myFish->timeshift) +
-        M_PI * shape->myFish->phaseShift;
+            ((sim.time - shape->fish->time0) / shape->fish->periodPIDval +
+             shape->fish->timeshift) +
+        M_PI * shape->fish->phaseShift;
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->myFish->Nm; ++i) {
+    for (int i = 0; i < shape->fish->Nm; ++i) {
       const Real arg =
-          arg0 - 2 * M_PI * shape->myFish->rS[i] / shape->myFish->length;
-      shape->myFish->rK[i] =
-          shape->myFish->amplitudeFactor * shape->myFish->rC[i] *
-          (std::sin(arg) + shape->myFish->rB[i] + shape->myFish->curv_PID_fac);
-      shape->myFish->vK[i] =
-          shape->myFish->amplitudeFactor *
-          (shape->myFish->vC[i] * (std::sin(arg) + shape->myFish->rB[i] +
-                                   shape->myFish->curv_PID_fac) +
-           shape->myFish->rC[i] * (std::cos(arg) * darg + shape->myFish->vB[i] +
-                                   shape->myFish->curv_PID_dif));
+          arg0 - 2 * M_PI * shape->fish->rS[i] / shape->fish->length;
+      shape->fish->rK[i] =
+          shape->fish->amplitudeFactor * shape->fish->rC[i] *
+          (std::sin(arg) + shape->fish->rB[i] + shape->fish->curv_PID_fac);
+      shape->fish->vK[i] =
+          shape->fish->amplitudeFactor *
+          (shape->fish->vC[i] * (std::sin(arg) + shape->fish->rB[i] +
+                                   shape->fish->curv_PID_fac) +
+           shape->fish->rC[i] * (std::cos(arg) * darg + shape->fish->vB[i] +
+                                   shape->fish->curv_PID_dif));
       assert(not std::isnan(rK[i]));
       assert(not std::isinf(rK[i]));
       assert(not std::isnan(vK[i]));
       assert(not std::isinf(vK[i]));
     }
-    if2d_solve(shape->myFish->Nm, shape->myFish->rS, shape->myFish->rK,
-               shape->myFish->vK, shape->myFish->rX, shape->myFish->rY,
-               shape->myFish->vX, shape->myFish->vY, shape->myFish->norX,
-               shape->myFish->norY, shape->myFish->vNorX, shape->myFish->vNorY);
+    if2d_solve(shape->fish->Nm, shape->fish->rS, shape->fish->rK,
+               shape->fish->vK, shape->fish->rX, shape->fish->rY,
+               shape->fish->vX, shape->fish->vY, shape->fish->norX,
+               shape->fish->norY, shape->fish->vNorX, shape->fish->vNorY);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < shape->myFish->lowerSkin.Npoints; ++i) {
-      Real norm[2] = {shape->myFish->norX[i], shape->myFish->norY[i]};
+    for (size_t i = 0; i < shape->fish->lowerSkin.Npoints; ++i) {
+      Real norm[2] = {shape->fish->norX[i], shape->fish->norY[i]};
       Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
       norm[0] /= norm_mod1;
       norm[1] /= norm_mod1;
       assert(width[i] >= 0);
-      shape->myFish->lowerSkin.xSurf[i] =
-          shape->myFish->rX[i] - shape->myFish->width[i] * norm[0];
-      shape->myFish->lowerSkin.ySurf[i] =
-          shape->myFish->rY[i] - shape->myFish->width[i] * norm[1];
-      shape->myFish->upperSkin.xSurf[i] =
-          shape->myFish->rX[i] + shape->myFish->width[i] * norm[0];
-      shape->myFish->upperSkin.ySurf[i] =
-          shape->myFish->rY[i] + shape->myFish->width[i] * norm[1];
+      shape->fish->lowerSkin.xSurf[i] =
+          shape->fish->rX[i] - shape->fish->width[i] * norm[0];
+      shape->fish->lowerSkin.ySurf[i] =
+          shape->fish->rY[i] - shape->fish->width[i] * norm[1];
+      shape->fish->upperSkin.xSurf[i] =
+          shape->fish->rX[i] + shape->fish->width[i] * norm[0];
+      shape->fish->upperSkin.ySurf[i] =
+          shape->fish->rY[i] + shape->fish->width[i] * norm[1];
     }
     Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
 #pragma omp parallel for schedule(static)                                      \
     reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
-    for (int i = 0; i < shape->myFish->Nm; ++i) {
+    for (int i = 0; i < shape->fish->Nm; ++i) {
       const Real ds =
           (i == 0)
-              ? shape->myFish->rS[1] - shape->myFish->rS[0]
-              : ((i == shape->myFish->Nm - 1)
-                     ? shape->myFish->rS[shape->myFish->Nm - 1] -
-                           shape->myFish->rS[shape->myFish->Nm - 2]
-                     : shape->myFish->rS[i + 1] - shape->myFish->rS[i - 1]);
-      const Real fac1 = shape->myFish->_integrationFac1(i);
-      const Real fac2 = shape->myFish->_integrationFac2(i);
+              ? shape->fish->rS[1] - shape->fish->rS[0]
+              : ((i == shape->fish->Nm - 1)
+                     ? shape->fish->rS[shape->fish->Nm - 1] -
+                           shape->fish->rS[shape->fish->Nm - 2]
+                     : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
+      const Real fac1 = shape->fish->_integrationFac1(i);
+      const Real fac2 = shape->fish->_integrationFac2(i);
       _area += fac1 * ds / 2;
-      _cmx += (shape->myFish->rX[i] * fac1 + shape->myFish->norX[i] * fac2) *
+      _cmx += (shape->fish->rX[i] * fac1 + shape->fish->norX[i] * fac2) *
               ds / 2;
-      _cmy += (shape->myFish->rY[i] * fac1 + shape->myFish->norY[i] * fac2) *
+      _cmy += (shape->fish->rY[i] * fac1 + shape->fish->norY[i] * fac2) *
               ds / 2;
-      _lmx += (shape->myFish->vX[i] * fac1 + shape->myFish->vNorX[i] * fac2) *
+      _lmx += (shape->fish->vX[i] * fac1 + shape->fish->vNorX[i] * fac2) *
               ds / 2;
-      _lmy += (shape->myFish->vY[i] * fac1 + shape->myFish->vNorY[i] * fac2) *
+      _lmy += (shape->fish->vY[i] * fac1 + shape->fish->vNorY[i] * fac2) *
               ds / 2;
     }
-    shape->myFish->area = _area;
+    shape->fish->area = _area;
     shape->CoM_internal[0] = _cmx;
     shape->CoM_internal[1] = _cmy;
-    shape->myFish->linMom[0] = _lmx;
-    shape->myFish->linMom[1] = _lmy;
+    shape->fish->linMom[0] = _lmx;
+    shape->fish->linMom[1] = _lmy;
     assert(area > std::numeric_limits<Real>::epsilon());
-    shape->CoM_internal[0] /= shape->myFish->area;
-    shape->CoM_internal[1] /= shape->myFish->area;
-    shape->vCoM_internal[0] = shape->myFish->linMom[0] / shape->myFish->area;
-    shape->vCoM_internal[1] = shape->myFish->linMom[1] / shape->myFish->area;
-    shape->area_internal = shape->myFish->area;
+    shape->CoM_internal[0] /= shape->fish->area;
+    shape->CoM_internal[1] /= shape->fish->area;
+    shape->vCoM_internal[0] = shape->fish->linMom[0] / shape->fish->area;
+    shape->vCoM_internal[1] = shape->fish->linMom[1] / shape->fish->area;
+    shape->area_internal = shape->fish->area;
 
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->myFish->Nm; ++i) {
-      shape->myFish->rX[i] -= shape->CoM_internal[0];
-      shape->myFish->rY[i] -= shape->CoM_internal[1];
-      shape->myFish->vX[i] -= shape->vCoM_internal[0];
-      shape->myFish->vY[i] -= shape->vCoM_internal[1];
+    for (int i = 0; i < shape->fish->Nm; ++i) {
+      shape->fish->rX[i] -= shape->CoM_internal[0];
+      shape->fish->rY[i] -= shape->CoM_internal[1];
+      shape->fish->vX[i] -= shape->vCoM_internal[0];
+      shape->fish->vY[i] -= shape->vCoM_internal[1];
     }
     shape->angvel_internal_prev = shape->angvel_internal;
 
     Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
-    for (int i = 0; i < shape->myFish->Nm; ++i) {
+    for (int i = 0; i < shape->fish->Nm; ++i) {
       const Real ds =
           (i == 0)
-              ? shape->myFish->rS[1] - shape->myFish->rS[0]
-              : ((i == shape->myFish->Nm - 1)
-                     ? shape->myFish->rS[shape->myFish->Nm - 1] -
-                           shape->myFish->rS[shape->myFish->Nm - 2]
-                     : shape->myFish->rS[i + 1] - shape->myFish->rS[i - 1]);
-      const Real fac1 = shape->myFish->_integrationFac1(i);
-      const Real fac2 = shape->myFish->_integrationFac2(i);
-      const Real fac3 = shape->myFish->_integrationFac3(i);
-      const Real tmp_M = (shape->myFish->rX[i] * shape->myFish->vY[i] -
-                          shape->myFish->rY[i] * shape->myFish->vX[i]) *
+              ? shape->fish->rS[1] - shape->fish->rS[0]
+              : ((i == shape->fish->Nm - 1)
+                     ? shape->fish->rS[shape->fish->Nm - 1] -
+                           shape->fish->rS[shape->fish->Nm - 2]
+                     : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
+      const Real fac1 = shape->fish->_integrationFac1(i);
+      const Real fac2 = shape->fish->_integrationFac2(i);
+      const Real fac3 = shape->fish->_integrationFac3(i);
+      const Real tmp_M = (shape->fish->rX[i] * shape->fish->vY[i] -
+                          shape->fish->rY[i] * shape->fish->vX[i]) *
                              fac1 +
-                         (shape->myFish->rX[i] * shape->myFish->vNorY[i] -
-                          shape->myFish->rY[i] * shape->myFish->vNorX[i] +
-                          shape->myFish->vY[i] * shape->myFish->norX[i] -
-                          shape->myFish->vX[i] * shape->myFish->norY[i]) *
+                         (shape->fish->rX[i] * shape->fish->vNorY[i] -
+                          shape->fish->rY[i] * shape->fish->vNorX[i] +
+                          shape->fish->vY[i] * shape->fish->norX[i] -
+                          shape->fish->vX[i] * shape->fish->norY[i]) *
                              fac2 +
-                         (shape->myFish->norX[i] * shape->myFish->vNorY[i] -
-                          shape->myFish->norY[i] * shape->myFish->vNorX[i]) *
+                         (shape->fish->norX[i] * shape->fish->vNorY[i] -
+                          shape->fish->norY[i] * shape->fish->vNorX[i]) *
                              fac3;
-      const Real tmp_J = (shape->myFish->rX[i] * shape->myFish->rX[i] +
-                          shape->myFish->rY[i] * shape->myFish->rY[i]) *
+      const Real tmp_J = (shape->fish->rX[i] * shape->fish->rX[i] +
+                          shape->fish->rY[i] * shape->fish->rY[i]) *
                              fac1 +
                          2 *
-                             (shape->myFish->rX[i] * shape->myFish->norX[i] +
-                              shape->myFish->rY[i] * shape->myFish->norY[i]) *
+                             (shape->fish->rX[i] * shape->fish->norX[i] +
+                              shape->fish->rY[i] * shape->fish->norY[i]) *
                              fac2 +
                          fac3;
       _am += tmp_M * ds / 2;
       _J += tmp_J * ds / 2;
     }
-    shape->myFish->J = _J;
-    shape->myFish->angMom = _am;
+    shape->fish->J = _J;
+    shape->fish->angMom = _am;
     assert(J > std::numeric_limits<Real>::epsilon());
-    shape->angvel_internal = shape->myFish->angMom / shape->myFish->J;
-    shape->J_internal = shape->myFish->J;
+    shape->angvel_internal = shape->fish->angMom / shape->fish->J;
+    shape->J_internal = shape->fish->J;
     const Real Rmatrix2D[2][2] = {
         {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
         {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->myFish->Nm; ++i) {
-      shape->myFish->vX[i] += shape->angvel_internal * shape->myFish->rY[i];
-      shape->myFish->vY[i] -= shape->angvel_internal * shape->myFish->rX[i];
-      shape->myFish->_rotate2D(Rmatrix2D, shape->myFish->rX[i],
-                               shape->myFish->rY[i]);
-      shape->myFish->_rotate2D(Rmatrix2D, shape->myFish->vX[i],
-                               shape->myFish->vY[i]);
+    for (int i = 0; i < shape->fish->Nm; ++i) {
+      shape->fish->vX[i] += shape->angvel_internal * shape->fish->rY[i];
+      shape->fish->vY[i] -= shape->angvel_internal * shape->fish->rX[i];
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i],
+                               shape->fish->rY[i]);
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->vX[i],
+                               shape->fish->vY[i]);
     }
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->myFish->Nm - 1; i++) {
-      const auto ds = shape->myFish->rS[i + 1] - shape->myFish->rS[i];
-      const auto tX = shape->myFish->rX[i + 1] - shape->myFish->rX[i];
-      const auto tY = shape->myFish->rY[i + 1] - shape->myFish->rY[i];
-      const auto tVX = shape->myFish->vX[i + 1] - shape->myFish->vX[i];
-      const auto tVY = shape->myFish->vY[i + 1] - shape->myFish->vY[i];
-      shape->myFish->norX[i] = -tY / ds;
-      shape->myFish->norY[i] = tX / ds;
-      shape->myFish->vNorX[i] = -tVY / ds;
-      shape->myFish->vNorY[i] = tVX / ds;
+    for (int i = 0; i < shape->fish->Nm - 1; i++) {
+      const auto ds = shape->fish->rS[i + 1] - shape->fish->rS[i];
+      const auto tX = shape->fish->rX[i + 1] - shape->fish->rX[i];
+      const auto tY = shape->fish->rY[i + 1] - shape->fish->rY[i];
+      const auto tVX = shape->fish->vX[i + 1] - shape->fish->vX[i];
+      const auto tVY = shape->fish->vY[i + 1] - shape->fish->vY[i];
+      shape->fish->norX[i] = -tY / ds;
+      shape->fish->norY[i] = tX / ds;
+      shape->fish->vNorX[i] = -tVY / ds;
+      shape->fish->vNorY[i] = tVX / ds;
     }
-    shape->myFish->norX[shape->myFish->Nm - 1] =
-        shape->myFish->norX[shape->myFish->Nm - 2];
-    shape->myFish->norY[shape->myFish->Nm - 1] =
-        shape->myFish->norY[shape->myFish->Nm - 2];
-    shape->myFish->vNorX[shape->myFish->Nm - 1] =
-        shape->myFish->vNorX[shape->myFish->Nm - 2];
-    shape->myFish->vNorY[shape->myFish->Nm - 1] =
-        shape->myFish->vNorY[shape->myFish->Nm - 2];
+    shape->fish->norX[shape->fish->Nm - 1] =
+        shape->fish->norX[shape->fish->Nm - 2];
+    shape->fish->norY[shape->fish->Nm - 1] =
+        shape->fish->norY[shape->fish->Nm - 2];
+    shape->fish->vNorX[shape->fish->Nm - 1] =
+        shape->fish->vNorX[shape->fish->Nm - 2];
+    shape->fish->vNorY[shape->fish->Nm - 1] =
+        shape->fish->vNorY[shape->fish->Nm - 2];
 
-    shape->myFish->surfaceToCOMFrame(shape->theta_internal,
+    shape->fish->surfaceToCOMFrame(shape->theta_internal,
                                      shape->CoM_internal);
-    const int Nsegments = (shape->myFish->Nm - 1) / 8;
-    const int Nm = shape->myFish->Nm;
+    const int Nsegments = (shape->fish->Nm - 1) / 8;
+    const int Nm = shape->fish->Nm;
     assert((Nm - 1) % Nsegments == 0);
     std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
     const Real h = getH(sim.vel);
@@ -6756,15 +6756,15 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
       for (int ss = idx; ss <= next_idx; ++ss) {
         const Real xBnd[2] = {
-            shape->myFish->rX[ss] -
-                shape->myFish->norX[ss] * shape->myFish->width[ss],
-            shape->myFish->rX[ss] +
-                shape->myFish->norX[ss] * shape->myFish->width[ss]};
+            shape->fish->rX[ss] -
+                shape->fish->norX[ss] * shape->fish->width[ss],
+            shape->fish->rX[ss] +
+                shape->fish->norX[ss] * shape->fish->width[ss]};
         const Real yBnd[2] = {
-            shape->myFish->rY[ss] -
-                shape->myFish->norY[ss] * shape->myFish->width[ss],
-            shape->myFish->rY[ss] +
-                shape->myFish->norY[ss] * shape->myFish->width[ss]};
+            shape->fish->rY[ss] -
+                shape->fish->norY[ss] * shape->fish->width[ss],
+            shape->fish->rY[ss] +
+                shape->fish->norY[ss] * shape->fish->width[ss]};
         const Real maxX = std::max(xBnd[0], xBnd[1]),
                    minX = std::min(xBnd[0], xBnd[1]);
         const Real maxY = std::max(yBnd[0], yBnd[1]),
@@ -6810,7 +6810,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     assert(segmentsPerBlock.size() == obstacleBlocks.size());
 #pragma omp parallel
     {
-      const PutFishOnBlocks putfish(*shape->myFish, shape->center,
+      const PutFishOnBlocks putfish(*shape->fish, shape->center,
                                     shape->orientation);
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
@@ -6915,9 +6915,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
     }
-    shape->myFish->surfaceToComputationalFrame(shape->orientation,
+    shape->fish->surfaceToComputationalFrame(shape->orientation,
                                                shape->centerOfMass);
-    shape->myFish->computeSkinNormals(shape->orientation, shape->centerOfMass);
+    shape->fish->computeSkinNormals(shape->orientation, shape->centerOfMass);
   }
 }
 struct AdaptTheMesh : public Operator {
@@ -8935,12 +8935,12 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
       length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
       phaseShift(p("-phi").asDouble(0)) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
+  fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
-  delete myFish;
+  delete fish;
 }
 int main(int argc, char **argv) {
   int threadSafety;
