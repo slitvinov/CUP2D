@@ -5424,7 +5424,7 @@ struct FishData {
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  static Real *_alloc(const int N) { return new Real[N]; }
+  static Real *_alloc0(const int N) { return new Real[N]; }
   template <typename T> static void _dealloc(T *ptr) {
     if (ptr not_eq nullptr) {
       delete[] ptr;
@@ -5472,9 +5472,9 @@ struct FishData {
 };
 struct Shape;
 FishData::FishData(Real L, Real _h)
-    : length(L), h(_h), rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)),
-      vX(_alloc(Nm)), vY(_alloc(Nm)), norX(_alloc(Nm)), norY(_alloc(Nm)),
-      vNorX(_alloc(Nm)), vNorY(_alloc(Nm)), width(_alloc(Nm)) {
+    : length(L), h(_h), rS(_alloc0(Nm)), rX(_alloc0(Nm)), rY(_alloc0(Nm)),
+      vX(_alloc0(Nm)), vY(_alloc0(Nm)), norX(_alloc0(Nm)), norY(_alloc0(Nm)),
+      vNorX(_alloc0(Nm)), vNorY(_alloc0(Nm)), width(_alloc0(Nm)) {
   if (dSref <= 0) {
     std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
     fflush(0);
@@ -8907,8 +8907,8 @@ struct CurvatureFish : public FishData {
   Real *const vB;
   CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
       : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
-        rK(_alloc(Nm)), vK(_alloc(Nm)), rC(_alloc(Nm)), vC(_alloc(Nm)),
-        rB(_alloc(Nm)), vB(_alloc(Nm)) {
+        rK(_alloc0(Nm)), vK(_alloc0(Nm)), rC(_alloc0(Nm)), vC(_alloc0(Nm)),
+        rB(_alloc0(Nm)), vB(_alloc0(Nm)) {
     _computeWidth();
   }
   ~CurvatureFish() override {
