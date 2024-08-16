@@ -5919,7 +5919,6 @@ struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
-  void putChiOnGrid(Shape *const shape) const;
   using Operator::Operator;
   void operator()(Real dt) override;
 };
