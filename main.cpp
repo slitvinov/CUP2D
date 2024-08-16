@@ -5949,7 +5949,6 @@ struct Shape {
   Real center[2];
   Real centerOfMass[2];
   Real d_gm[2] = {0, 0};
-  Real labCenterOfMass[2] = {0, 0};
   Real orientation = origAng;
   const bool bForced;
   const bool bForcedx;
@@ -6424,8 +6423,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
   for (const auto &shape : sim.shapes) {
     shape->centerOfMass[0] += dt * (shape->u + sim.uinfx);
     shape->centerOfMass[1] += dt * (shape->v + sim.uinfy);
-    shape->labCenterOfMass[0] += dt * shape->u;
-    shape->labCenterOfMass[1] += dt * shape->v;
     shape->orientation += dt * shape->omega;
     shape->orientation = shape->orientation > M_PI
                              ? shape->orientation - 2 * M_PI
