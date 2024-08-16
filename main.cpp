@@ -5924,6 +5924,10 @@ struct PutObjectsOnGrid : public Operator {
   void operator()(Real dt) override;
 };
 struct Shape {
+  ~Shape() {
+    for (auto &entry : obstacleBlocks)
+      delete entry;
+  }
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
   Real center[2];
@@ -5965,7 +5969,6 @@ struct Shape {
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
   Shape(cubism::CommandlineParser &p, Real C[2]);
-  ~Shape();
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
@@ -8920,11 +8923,6 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
       phaseShift(p("-phi").asDouble(0)) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
-}
-Shape::~Shape() {
-  for (auto &entry : obstacleBlocks)
-    delete entry;
-  delete fish;
 }
 int main(int argc, char **argv) {
   int threadSafety;
