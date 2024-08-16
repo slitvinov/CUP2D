@@ -8898,22 +8898,6 @@ struct CurvatureFish : public FishData {
         rB(_alloc(Nm)), vB(_alloc(Nm)) {
     _computeWidth();
   }
-  void execute(const Real t_current, const Real t_rlAction,
-               const std::vector<Real> &a) {
-    assert(t_current >= t_rlAction);
-    oldrCurv = lastCurv;
-    lastCurv = a[0];
-    rlBendingScheduler.Turn(a[0], t_rlAction);
-    if (a.size() > 1) {
-      if (TperiodPID)
-        std::cout << "Warning: PID controller should not be used with RL."
-                  << std::endl;
-      lastTact = a[1];
-      current_period = periodPIDval;
-      next_period = Tperiod * (1 + a[1]);
-      transition_start = t_rlAction;
-    }
-  }
   ~CurvatureFish() override {
     _dealloc(rK);
     _dealloc(vK);
