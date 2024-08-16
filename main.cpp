@@ -5910,42 +5910,39 @@ struct Shape {
         rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {
-    const Real amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
-    {
-      if (dSref <= 0) {
-        std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-        fflush(0);
-        abort();
-      }
-      rS[0] = 0;
-      int k = 0;
-      for (int i = 0; i < Nend; ++i, k++)
-        rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-      for (int i = 0; i < Nmid; ++i, k++)
-        rS[k + 1] = rS[k] + dSmid;
-      for (int i = 0; i < Nend; ++i, k++)
-        rS[k + 1] = rS[k] + dSref +
-                    (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-      assert(k + 1 == Nm);
-      rS[k] = std::min(rS[k], (Real)length);
-      std::fill(rX, rX + Nm, 0);
-      std::fill(rY, rY + Nm, 0);
-      std::fill(vX, vX + Nm, 0);
-      std::fill(vY, vY + Nm, 0);
-      for (int i = 0; i < Nm; ++i) {
-        const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-                   wh = .04 * length;
-        if (rS[i] < 0 or rS[i] > length)
-          width[i] = 0;
-        else
-          width[i] =
-              (rS[i] < sb
-                   ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
-                   : (rS[i] < st
-                          ? wh - (wh - wt) *
-                                     std::pow((rS[i] - sb) / (st - sb), 1)
-                          : (wt * (length - rS[i]) / (length - st))));
-      }
+    amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
+    if (dSref <= 0) {
+      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+      fflush(0);
+      abort();
+    }
+    rS[0] = 0;
+    int k = 0;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
+    for (int i = 0; i < Nmid; ++i, k++)
+      rS[k + 1] = rS[k] + dSmid;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] =
+          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
+    assert(k + 1 == Nm);
+    rS[k] = std::min(rS[k], (Real)length);
+    std::fill(rX, rX + Nm, 0);
+    std::fill(rY, rY + Nm, 0);
+    std::fill(vX, vX + Nm, 0);
+    std::fill(vY, vY + Nm, 0);
+    for (int i = 0; i < Nm; ++i) {
+      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+                 wh = .04 * length;
+      if (rS[i] < 0 or rS[i] > length)
+        width[i] = 0;
+      else
+        width[i] =
+            (rS[i] < sb
+                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
+                 : (rS[i] < st
+                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
+                        : (wt * (length - rS[i]) / (length - st))));
     }
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
@@ -6472,30 +6469,24 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         sim.time, shape->transition_start,
         shape->transition_start + shape->transition_duration,
         shape->current_period, shape->next_period);
-    shape->periodScheduler.gimmeValues(
-        sim.time, shape->periodPIDval, shape->periodPIDdif);
+    shape->periodScheduler.gimmeValues(sim.time, shape->periodPIDval,
+                                       shape->periodPIDdif);
     if (shape->transition_start < sim.time &&
-        sim.time <
-            shape->transition_start + shape->transition_duration) {
+        sim.time < shape->transition_start + shape->transition_duration) {
       shape->timeshift =
-          (sim.time - shape->time0) / shape->periodPIDval +
-          shape->timeshift;
+          (sim.time - shape->time0) / shape->periodPIDval + shape->timeshift;
       shape->time0 = sim.time;
     }
-    const std::array<Real, 6> curvaturePoints = {
-        (Real)0,
-        (Real).15 * shape->length,
-        (Real).4 * shape->length,
-        (Real).65 * shape->length,
-        (Real).9 * shape->length,
-        shape->length};
+    const std::array<Real, 6> curvaturePoints = {(Real)0,
+                                                 (Real).15 * shape->length,
+                                                 (Real).4 * shape->length,
+                                                 (Real).65 * shape->length,
+                                                 (Real).9 * shape->length,
+                                                 shape->length};
     const std::array<Real, 6> curvatureValues = {
-        (Real)0.82014 / shape->length,
-        (Real)1.46515 / shape->length,
-        (Real)2.57136 / shape->length,
-        (Real)3.75425 / shape->length,
-        (Real)5.09147 / shape->length,
-        (Real)5.70449 / shape->length};
+        (Real)0.82014 / shape->length, (Real)1.46515 / shape->length,
+        (Real)2.57136 / shape->length, (Real)3.75425 / shape->length,
+        (Real)5.09147 / shape->length, (Real)5.70449 / shape->length};
     const std::array<Real, 7> bendPoints = {(Real)-.5, (Real)-.25, (Real)0,
                                             (Real).25, (Real).5,   (Real).75,
                                             (Real)1};
@@ -6504,45 +6495,38 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
         0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
     };
-    shape->curvatureScheduler.transition(0, 0, shape->Tperiod,
-                                               curvatureZeros, curvatureValues);
-    shape->curvatureScheduler.gimmeValues(
-        sim.time, curvaturePoints, shape->Nm, shape->rS,
-        shape->rC, shape->vC);
-    shape->rlBendingScheduler.gimmeValues(
-        sim.time, shape->periodPIDval, shape->length, bendPoints,
-        shape->Nm, shape->rS, shape->rB, shape->vB);
-    const Real diffT = 1 - (sim.time - shape->time0) *
-                               shape->periodPIDdif /
+    shape->curvatureScheduler.transition(0, 0, shape->Tperiod, curvatureZeros,
+                                         curvatureValues);
+    shape->curvatureScheduler.gimmeValues(sim.time, curvaturePoints, shape->Nm,
+                                          shape->rS, shape->rC, shape->vC);
+    shape->rlBendingScheduler.gimmeValues(sim.time, shape->periodPIDval,
+                                          shape->length, bendPoints, shape->Nm,
+                                          shape->rS, shape->rB, shape->vB);
+    const Real diffT = 1 - (sim.time - shape->time0) * shape->periodPIDdif /
                                shape->periodPIDval;
     const Real darg = 2 * M_PI / shape->periodPIDval * diffT;
-    const Real arg0 =
-        2 * M_PI *
-            ((sim.time - shape->time0) / shape->periodPIDval +
-             shape->timeshift) +
-        M_PI * shape->phaseShift;
+    const Real arg0 = 2 * M_PI *
+                          ((sim.time - shape->time0) / shape->periodPIDval +
+                           shape->timeshift) +
+                      M_PI * shape->phaseShift;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
-      const Real arg =
-          arg0 - 2 * M_PI * shape->rS[i] / shape->length;
-      shape->rK[i] =
-          shape->amplitudeFactor * shape->rC[i] *
-          (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac);
+      const Real arg = arg0 - 2 * M_PI * shape->rS[i] / shape->length;
+      shape->rK[i] = shape->amplitudeFactor * shape->rC[i] *
+                     (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac);
       shape->vK[i] =
           shape->amplitudeFactor *
-          (shape->vC[i] * (std::sin(arg) + shape->rB[i] +
-                                 shape->curv_PID_fac) +
-           shape->rC[i] * (std::cos(arg) * darg + shape->vB[i] +
-                                 shape->curv_PID_dif));
+          (shape->vC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac) +
+           shape->rC[i] *
+               (std::cos(arg) * darg + shape->vB[i] + shape->curv_PID_dif));
       assert(not std::isnan(rK[i]));
       assert(not std::isinf(rK[i]));
       assert(not std::isnan(vK[i]));
       assert(not std::isinf(vK[i]));
     }
-    if2d_solve(shape->Nm, shape->rS, shape->rK,
-               shape->vK, shape->rX, shape->rY,
-               shape->vX, shape->vY, shape->norX,
-               shape->norY, shape->vNorX, shape->vNorY);
+    if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
+               shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
+               shape->vNorY);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->lowerSkin.Npoints; ++i) {
       Real norm[2] = {shape->norX[i], shape->norY[i]};
@@ -6550,14 +6534,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       norm[0] /= norm_mod1;
       norm[1] /= norm_mod1;
       assert(width[i] >= 0);
-      shape->lowerSkin.xSurf[i] =
-          shape->rX[i] - shape->width[i] * norm[0];
-      shape->lowerSkin.ySurf[i] =
-          shape->rY[i] - shape->width[i] * norm[1];
-      shape->upperSkin.xSurf[i] =
-          shape->rX[i] + shape->width[i] * norm[0];
-      shape->upperSkin.ySurf[i] =
-          shape->rY[i] + shape->width[i] * norm[1];
+      shape->lowerSkin.xSurf[i] = shape->rX[i] - shape->width[i] * norm[0];
+      shape->lowerSkin.ySurf[i] = shape->rY[i] - shape->width[i] * norm[1];
+      shape->upperSkin.xSurf[i] = shape->rX[i] + shape->width[i] * norm[0];
+      shape->upperSkin.ySurf[i] = shape->rY[i] + shape->width[i] * norm[1];
     }
     Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
 #pragma omp parallel for schedule(static)                                      \
@@ -6566,26 +6546,19 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
                    : ((i == shape->Nm - 1)
-                          ? shape->rS[shape->Nm - 1] -
-                                shape->rS[shape->Nm - 2]
+                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
       const Real fac1 = 2 * shape->width[i];
       const Real fac2 =
           2 * std::pow(shape->width[i], 3) *
-          (dds(i, shape->Nm, shape->norX, shape->rS) *
-               shape->norY[i] -
-           dds(i, shape->Nm, shape->norY, shape->rS) *
-               shape->norX[i]) /
+          (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
+           dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
           3;
       _area += fac1 * ds / 2;
-      _cmx +=
-          (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
-      _cmy +=
-          (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
-      _lmx +=
-          (shape->vX[i] * fac1 + shape->vNorX[i] * fac2) * ds / 2;
-      _lmy +=
-          (shape->vY[i] * fac1 + shape->vNorY[i] * fac2) * ds / 2;
+      _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
+      _cmy += (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
+      _lmx += (shape->vX[i] * fac1 + shape->vNorX[i] * fac2) * ds / 2;
+      _lmy += (shape->vY[i] * fac1 + shape->vNorY[i] * fac2) * ds / 2;
     }
     shape->area = _area;
     shape->CoM_internal[0] = _cmx;
@@ -6613,37 +6586,28 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
                    : ((i == shape->Nm - 1)
-                          ? shape->rS[shape->Nm - 1] -
-                                shape->rS[shape->Nm - 2]
+                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
       const Real fac1 = 2 * shape->width[i];
       const Real fac2 =
           2 * std::pow(shape->width[i], 3) *
-          (dds(i, shape->Nm, shape->norX, shape->rS) *
-               shape->norY[i] -
-           dds(i, shape->Nm, shape->norY, shape->rS) *
-               shape->norX[i]) /
+          (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
+           dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
           3;
       const Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
-      const Real tmp_M = (shape->rX[i] * shape->vY[i] -
-                          shape->rY[i] * shape->vX[i]) *
-                             fac1 +
-                         (shape->rX[i] * shape->vNorY[i] -
-                          shape->rY[i] * shape->vNorX[i] +
-                          shape->vY[i] * shape->norX[i] -
-                          shape->vX[i] * shape->norY[i]) *
-                             fac2 +
-                         (shape->norX[i] * shape->vNorY[i] -
-                          shape->norY[i] * shape->vNorX[i]) *
-                             fac3;
-      const Real tmp_J = (shape->rX[i] * shape->rX[i] +
-                          shape->rY[i] * shape->rY[i]) *
-                             fac1 +
-                         2 *
-                             (shape->rX[i] * shape->norX[i] +
-                              shape->rY[i] * shape->norY[i]) *
-                             fac2 +
-                         fac3;
+      const Real tmp_M =
+          (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
+          (shape->rX[i] * shape->vNorY[i] - shape->rY[i] * shape->vNorX[i] +
+           shape->vY[i] * shape->norX[i] - shape->vX[i] * shape->norY[i]) *
+              fac2 +
+          (shape->norX[i] * shape->vNorY[i] -
+           shape->norY[i] * shape->vNorX[i]) *
+              fac3;
+      const Real tmp_J =
+          (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
+          2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
+              fac2 +
+          fac3;
       _am += tmp_M * ds / 2;
       _J += tmp_J * ds / 2;
     }
@@ -6674,14 +6638,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       shape->vNorX[i] = -tVY / ds;
       shape->vNorY[i] = tVX / ds;
     }
-    shape->norX[shape->Nm - 1] =
-        shape->norX[shape->Nm - 2];
-    shape->norY[shape->Nm - 1] =
-        shape->norY[shape->Nm - 2];
-    shape->vNorX[shape->Nm - 1] =
-        shape->vNorX[shape->Nm - 2];
-    shape->vNorY[shape->Nm - 1] =
-        shape->vNorY[shape->Nm - 2];
+    shape->norX[shape->Nm - 1] = shape->norX[shape->Nm - 2];
+    shape->norY[shape->Nm - 1] = shape->norY[shape->Nm - 2];
+    shape->vNorX[shape->Nm - 1] = shape->vNorX[shape->Nm - 2];
+    shape->vNorY[shape->Nm - 1] = shape->vNorY[shape->Nm - 2];
 
     {
       const Real Rmatrix2D[2][2] = {
@@ -6711,14 +6671,12 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const int idx = i * (Nm - 1) / Nsegments;
       Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
       for (int ss = idx; ss <= next_idx; ++ss) {
-        const Real xBnd[2] = {shape->rX[ss] - shape->norX[ss] *
-                                                        shape->width[ss],
-                              shape->rX[ss] + shape->norX[ss] *
-                                                        shape->width[ss]};
-        const Real yBnd[2] = {shape->rY[ss] - shape->norY[ss] *
-                                                        shape->width[ss],
-                              shape->rY[ss] + shape->norY[ss] *
-                                                        shape->width[ss]};
+        const Real xBnd[2] = {
+            shape->rX[ss] - shape->norX[ss] * shape->width[ss],
+            shape->rX[ss] + shape->norX[ss] * shape->width[ss]};
+        const Real yBnd[2] = {
+            shape->rY[ss] - shape->norY[ss] * shape->width[ss],
+            shape->rY[ss] + shape->norY[ss] * shape->width[ss]};
         const Real maxX = std::max(xBnd[0], xBnd[1]),
                    minX = std::min(xBnd[0], xBnd[1]);
         const Real maxY = std::max(yBnd[0], yBnd[1]),
@@ -6764,8 +6722,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     assert(segmentsPerBlock.size() == obstacleBlocks.size());
 #pragma omp parallel
     {
-      const PutFishOnBlocks putfish(*shape, shape->center,
-                                    shape->orientation);
+      const PutFishOnBlocks putfish(*shape, shape->center, shape->orientation);
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
         const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
@@ -6872,12 +6829,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         {std::sin(shape->orientation), std::cos(shape->orientation)}};
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->upperSkin.Npoints; ++i) {
-      rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i],
-               shape->upperSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i], shape->upperSkin.ySurf[i]);
       shape->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->upperSkin.ySurf[i] += shape->centerOfMass[1];
-      rotate2D(Rmatrix2D, shape->lowerSkin.xSurf[i],
-               shape->lowerSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, shape->lowerSkin.xSurf[i], shape->lowerSkin.ySurf[i]);
       shape->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->lowerSkin.ySurf[i] += shape->centerOfMass[1];
     }
@@ -6893,36 +6848,26 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       }
 #pragma omp parallel for
       for (size_t i = 0; i < shape->lowerSkin.Npoints - 1; ++i) {
-        shape->lowerSkin.midX[i] = (shape->lowerSkin.xSurf[i] +
-                                          shape->lowerSkin.xSurf[i + 1]) /
-                                         2;
-        shape->upperSkin.midX[i] = (shape->upperSkin.xSurf[i] +
-                                          shape->upperSkin.xSurf[i + 1]) /
-                                         2;
-        shape->lowerSkin.midY[i] = (shape->lowerSkin.ySurf[i] +
-                                          shape->lowerSkin.ySurf[i + 1]) /
-                                         2;
-        shape->upperSkin.midY[i] = (shape->upperSkin.ySurf[i] +
-                                          shape->upperSkin.ySurf[i + 1]) /
-                                         2;
+        shape->lowerSkin.midX[i] =
+            (shape->lowerSkin.xSurf[i] + shape->lowerSkin.xSurf[i + 1]) / 2;
+        shape->upperSkin.midX[i] =
+            (shape->upperSkin.xSurf[i] + shape->upperSkin.xSurf[i + 1]) / 2;
+        shape->lowerSkin.midY[i] =
+            (shape->lowerSkin.ySurf[i] + shape->lowerSkin.ySurf[i + 1]) / 2;
+        shape->upperSkin.midY[i] =
+            (shape->upperSkin.ySurf[i] + shape->upperSkin.ySurf[i + 1]) / 2;
         shape->lowerSkin.normXSurf[i] =
-            (shape->lowerSkin.ySurf[i + 1] -
-             shape->lowerSkin.ySurf[i]);
+            (shape->lowerSkin.ySurf[i + 1] - shape->lowerSkin.ySurf[i]);
         shape->upperSkin.normXSurf[i] =
-            (shape->upperSkin.ySurf[i + 1] -
-             shape->upperSkin.ySurf[i]);
+            (shape->upperSkin.ySurf[i + 1] - shape->upperSkin.ySurf[i]);
         shape->lowerSkin.normYSurf[i] =
-            -(shape->lowerSkin.xSurf[i + 1] -
-              shape->lowerSkin.xSurf[i]);
+            -(shape->lowerSkin.xSurf[i + 1] - shape->lowerSkin.xSurf[i]);
         shape->upperSkin.normYSurf[i] =
-            -(shape->upperSkin.xSurf[i + 1] -
-              shape->upperSkin.xSurf[i]);
-        Real normL =
-            std::sqrt(std::pow(shape->lowerSkin.normXSurf[i], 2) +
-                      std::pow(shape->lowerSkin.normYSurf[i], 2));
-        Real normU =
-            std::sqrt(std::pow(shape->upperSkin.normXSurf[i], 2) +
-                      std::pow(shape->upperSkin.normYSurf[i], 2));
+            -(shape->upperSkin.xSurf[i + 1] - shape->upperSkin.xSurf[i]);
+        Real normL = std::sqrt(std::pow(shape->lowerSkin.normXSurf[i], 2) +
+                               std::pow(shape->lowerSkin.normYSurf[i], 2));
+        Real normU = std::sqrt(std::pow(shape->upperSkin.normXSurf[i], 2) +
+                               std::pow(shape->upperSkin.normYSurf[i], 2));
         shape->lowerSkin.normXSurf[i] /= normL;
         shape->upperSkin.normXSurf[i] /= normU;
         shape->lowerSkin.normYSurf[i] /= normL;
@@ -6931,16 +6876,14 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                                : ((i > shape->lowerSkin.Npoints - 9)
                                       ? shape->lowerSkin.Npoints - 9
                                       : i);
-        const Real dirL =
-            shape->lowerSkin.normXSurf[i] *
-                (shape->lowerSkin.midX[i] - shape->rX[ii]) +
-            shape->lowerSkin.normYSurf[i] *
-                (shape->lowerSkin.midY[i] - shape->rY[ii]);
-        const Real dirU =
-            shape->upperSkin.normXSurf[i] *
-                (shape->upperSkin.midX[i] - shape->rX[ii]) +
-            shape->upperSkin.normYSurf[i] *
-                (shape->upperSkin.midY[i] - shape->rY[ii]);
+        const Real dirL = shape->lowerSkin.normXSurf[i] *
+                              (shape->lowerSkin.midX[i] - shape->rX[ii]) +
+                          shape->lowerSkin.normYSurf[i] *
+                              (shape->lowerSkin.midY[i] - shape->rY[ii]);
+        const Real dirU = shape->upperSkin.normXSurf[i] *
+                              (shape->upperSkin.midX[i] - shape->rX[ii]) +
+                          shape->upperSkin.normYSurf[i] *
+                              (shape->upperSkin.midY[i] - shape->rY[ii]);
         if (dirL < 0) {
           shape->lowerSkin.normXSurf[i] *= -1.0;
           shape->lowerSkin.normYSurf[i] *= -1.0;
