@@ -5895,9 +5895,9 @@ struct PutObjectsOnGrid : public Operator {
   void operator()(Real dt) override;
 };
 struct Fish {
-  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
-    const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
-                                  {std::sin(theta_comp), std::cos(theta_comp)}};
+  void computeSkinNormals(Real orientation, Real CoM_comp[3]) {
+    const Real Rmatrix2D[2][2] = {{std::cos(orientation), -std::sin(orientation)},
+                                  {std::sin(orientation), std::cos(orientation)}};
     for (int i = 0; i < Nm; ++i) {
       _rotate2D(Rmatrix2D, rX[i], rY[i]);
       _rotate2D(Rmatrix2D, norX[i], norY[i]);
