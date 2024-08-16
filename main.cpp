@@ -35,6 +35,16 @@ static void rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) {
   x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
   y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
 }
+static Real dds(int i, int m, Real *a, Real *b) {
+  if (i == 0)
+    return (a[i + 1] - a[i]) / (b[i + 1] - b[i]);
+  else if (i == m - 1)
+    return (a[i] - a[i - 1]) / (b[i] - b[i - 1]);
+  else
+    return ((a[i + 1] - a[i]) / (b[i + 1] - b[i]) +
+            (a[i] - a[i - 1]) / (b[i] - b[i - 1])) /
+           2;
+}
 namespace cubism {
 struct Value {
   std::string content;
@@ -5928,16 +5938,6 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Real _d_ds(int idx, Real *vals, int maxidx) {
-    if (idx == 0)
-      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
-    else if (idx == maxidx - 1)
-      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
-    else
-      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
-              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
-             2;
-  }
   Fish(Real L, Real T, Real phi, Real _h, Real _A)
       : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
         vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
@@ -6563,9 +6563,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const Real fac1 = 2 * shape->fish->width[i];
       const Real fac2 =
           2 * std::pow(shape->fish->width[i], 3) *
-          (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) *
+          (dds(i, shape->fish->Nm, shape->fish->norX, shape->fish->rS) *
                shape->fish->norY[i] -
-           shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) *
+           dds(i, shape->fish->Nm, shape->fish->norY, shape->fish->rS) *
                shape->fish->norX[i]) /
           3;
       _area += fac1 * ds / 2;
@@ -6610,9 +6610,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const Real fac1 = 2 * shape->fish->width[i];
       const Real fac2 =
           2 * std::pow(shape->fish->width[i], 3) *
-          (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) *
+          (dds(i, shape->fish->Nm, shape->fish->norX, shape->fish->rS) *
                shape->fish->norY[i] -
-           shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) *
+           dds(i, shape->fish->Nm, shape->fish->norY, shape->fish->rS) *
                shape->fish->norX[i]) /
           3;
       const Real fac3 = 2 * std::pow(shape->fish->width[i], 3) / 3;
