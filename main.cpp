@@ -5412,7 +5412,6 @@ static struct {
   Real nextDumpTime = 0;
   std::vector<int> bCollisionID;
   Real minH;
-  Real maxH;
 } sim;
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
@@ -8875,8 +8874,6 @@ int main(int argc, char **argv) {
   sim.extents[1] = aux * sim.bpdy * velInfo[0].h * _BS_;
   int auxMax = pow(2, sim.levelMax - 1);
   sim.minH = sim.extents[0] / (auxMax * sim.bpdx * _BS_);
-  sim.maxH = sim.extents[0] / (sim.bpdx * _BS_);
-
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
