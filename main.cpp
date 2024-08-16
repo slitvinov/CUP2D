@@ -5900,7 +5900,6 @@ struct Shape {
         bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
         forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
         forcedomega(-p("-angvel").asDouble(0)),
-        timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
         length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
         phaseShift(p("-phi").asDouble(0)), amplitudeFactor(amplitudeFactor),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
@@ -5956,7 +5955,6 @@ struct Shape {
   const Real forcedu;
   const Real forcedv;
   const Real forcedomega;
-  const Real timeForced;
   Real M = 0;
   Real J = 0;
   Real u = forcedu;
@@ -8308,17 +8306,17 @@ void PressureSingle::operator()(const Real dt) {
     double b[3] = {(double)(shape->fluidMomX + dt * shape->appliedForceX),
                    (double)(shape->fluidMomY + dt * shape->appliedForceY),
                    (double)(shape->fluidAngMom + dt * shape->appliedTorque)};
-    if (shape->bForcedx && sim.time < shape->timeForced) {
+    if (shape->bForcedx) {
       A[0][1] = 0;
       A[0][2] = 0;
       b[0] = shape->penalM * shape->forcedu;
     }
-    if (shape->bForcedy && sim.time < shape->timeForced) {
+    if (shape->bForcedy) {
       A[1][0] = 0;
       A[1][2] = 0;
       b[1] = shape->penalM * shape->forcedv;
     }
-    if (shape->bBlockang && sim.time < shape->timeForced) {
+    if (shape->bBlockang) {
       A[2][0] = 0;
       A[2][1] = 0;
       b[2] = shape->penalJ * shape->forcedomega;
@@ -8330,11 +8328,11 @@ void PressureSingle::operator()(const Real dt) {
     gsl_permutation *permgsl = gsl_permutation_alloc(3);
     gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
     gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-    if (not shape->bForcedx || sim.time > shape->timeForced)
+    if (not shape->bForcedx)
       shape->u = gsl_vector_get(xgsl, 0);
-    if (not shape->bForcedy || sim.time > shape->timeForced)
+    if (not shape->bForcedy)
       shape->v = gsl_vector_get(xgsl, 1);
-    if (not shape->bBlockang || sim.time > shape->timeForced)
+    if (not shape->bBlockang)
       shape->omega = gsl_vector_get(xgsl, 2);
     gsl_permutation_free(permgsl);
     gsl_vector_free(xgsl);
