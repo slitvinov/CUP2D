@@ -5895,50 +5895,6 @@ struct PutObjectsOnGrid : public Operator {
   void operator()(Real dt) override;
 };
 struct Fish {
-  void computeSkinNormals(Real orientation, Real centerOfMass[3]) {
-    const Real Rmatrix2D[2][2] = {{std::cos(orientation), -std::sin(orientation)},
-                                  {std::sin(orientation), std::cos(orientation)}};
-    for (int i = 0; i < Nm; ++i) {
-      _rotate2D(Rmatrix2D, rX[i], rY[i]);
-      _rotate2D(Rmatrix2D, norX[i], norY[i]);
-      rX[i] += centerOfMass[0];
-      rY[i] += centerOfMass[1];
-    }
-#pragma omp parallel for
-    for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
-      lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
-      upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
-      lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
-      upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
-      lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
-      upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
-      lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
-      upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
-      Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
-                             std::pow(lowerSkin.normYSurf[i], 2));
-      Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
-                             std::pow(upperSkin.normYSurf[i], 2));
-      lowerSkin.normXSurf[i] /= normL;
-      upperSkin.normXSurf[i] /= normU;
-      lowerSkin.normYSurf[i] /= normL;
-      upperSkin.normYSurf[i] /= normU;
-      const int ii =
-          (i < 8) ? 8
-                  : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
-      const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
-                        lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
-      const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
-                        upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
-      if (dirL < 0) {
-        lowerSkin.normXSurf[i] *= -1.0;
-        lowerSkin.normYSurf[i] *= -1.0;
-      }
-      if (dirU < 0) {
-        upperSkin.normXSurf[i] *= -1.0;
-        upperSkin.normYSurf[i] *= -1.0;
-      }
-    }
-  }
   const Real length, h;
   const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   const Real dSmid_tgt = h / std::sqrt(2);
@@ -6934,7 +6890,50 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       shape->fish->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->fish->lowerSkin.ySurf[i] += shape->centerOfMass[1];
     }
-    shape->fish->computeSkinNormals(shape->orientation, shape->centerOfMass);
+    {
+    const Real Rmatrix2D[2][2] = {{std::cos(shape->orientation), -std::sin(shape->orientation)},
+                                  {std::sin(shape->orientation), std::cos(shape->orientation)}};
+    for (int i = 0; i < shape->fish->Nm; ++i) {
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i], shape->fish->rY[i]);
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->norX[i], shape->fish->norY[i]);
+      shape->fish->rX[i] += shape->centerOfMass[0];
+      shape->fish->rY[i] += shape->centerOfMass[1];
+    }
+#pragma omp parallel for
+    for (size_t i = 0; i < shape->fish->lowerSkin.Npoints - 1; ++i) {
+      shape->fish->lowerSkin.midX[i] = (shape->fish->lowerSkin.xSurf[i] + shape->fish->lowerSkin.xSurf[i + 1]) / 2;
+      shape->fish->upperSkin.midX[i] = (shape->fish->upperSkin.xSurf[i] + shape->fish->upperSkin.xSurf[i + 1]) / 2;
+      shape->fish->lowerSkin.midY[i] = (shape->fish->lowerSkin.ySurf[i] + shape->fish->lowerSkin.ySurf[i + 1]) / 2;
+      shape->fish->upperSkin.midY[i] = (shape->fish->upperSkin.ySurf[i] + shape->fish->upperSkin.ySurf[i + 1]) / 2;
+      shape->fish->lowerSkin.normXSurf[i] = (shape->fish->lowerSkin.ySurf[i + 1] - shape->fish->lowerSkin.ySurf[i]);
+      shape->fish->upperSkin.normXSurf[i] = (shape->fish->upperSkin.ySurf[i + 1] - shape->fish->upperSkin.ySurf[i]);
+      shape->fish->lowerSkin.normYSurf[i] = -(shape->fish->lowerSkin.xSurf[i + 1] - shape->fish->lowerSkin.xSurf[i]);
+      shape->fish->upperSkin.normYSurf[i] = -(shape->fish->upperSkin.xSurf[i + 1] - shape->fish->upperSkin.xSurf[i]);
+      Real normL = std::sqrt(std::pow(shape->fish->lowerSkin.normXSurf[i], 2) +
+                             std::pow(shape->fish->lowerSkin.normYSurf[i], 2));
+      Real normU = std::sqrt(std::pow(shape->fish->upperSkin.normXSurf[i], 2) +
+                             std::pow(shape->fish->upperSkin.normYSurf[i], 2));
+      shape->fish->lowerSkin.normXSurf[i] /= normL;
+      shape->fish->upperSkin.normXSurf[i] /= normU;
+      shape->fish->lowerSkin.normYSurf[i] /= normL;
+      shape->fish->upperSkin.normYSurf[i] /= normU;
+      const int ii =
+          (i < 8) ? 8
+                  : ((i > shape->fish->lowerSkin.Npoints - 9) ? shape->fish->lowerSkin.Npoints - 9 : i);
+      const Real dirL = shape->fish->lowerSkin.normXSurf[i] * (shape->fish->lowerSkin.midX[i] - shape->fish->rX[ii]) +
+                        shape->fish->lowerSkin.normYSurf[i] * (shape->fish->lowerSkin.midY[i] - shape->fish->rY[ii]);
+      const Real dirU = shape->fish->upperSkin.normXSurf[i] * (shape->fish->upperSkin.midX[i] - shape->fish->rX[ii]) +
+                        shape->fish->upperSkin.normYSurf[i] * (shape->fish->upperSkin.midY[i] - shape->fish->rY[ii]);
+      if (dirL < 0) {
+        shape->fish->lowerSkin.normXSurf[i] *= -1.0;
+        shape->fish->lowerSkin.normYSurf[i] *= -1.0;
+      }
+      if (dirU < 0) {
+        shape->fish->upperSkin.normXSurf[i] *= -1.0;
+        shape->fish->upperSkin.normYSurf[i] *= -1.0;
+      }
+    }
+  }
   }
 }
 struct AdaptTheMesh : public Operator {
