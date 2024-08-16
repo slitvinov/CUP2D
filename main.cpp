@@ -6909,7 +6909,7 @@ struct GradChiOnTmp {
       }
   }
 };
-void AdaptTheMesh::operator()(const Real dt) {
+void AdaptTheMesh::operator()(const Real) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
