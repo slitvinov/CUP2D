@@ -322,21 +322,16 @@ struct TreePosition {
   void setCheckFiner() { position = -1; }
 };
 struct BlockInfo {
-  long long blockID;
-  long long blockID_2;
-  long long Z;
-  long long Znei[3][3][3];
-  long long halo_block_id;
-  long long Zparent;
-  long long Zchild[2][2][2];
+  bool changed2;
   double h;
   double origin[3];
   int index[3];
   int level;
-  void *ptrBlock{nullptr};
-  void *auxiliary;
-  bool changed2;
+  long long blockID, blockID_2, halo_block_id, Z, Zchild[2][2][2],
+      Znei[3][3][3], Zparent;
   State state;
+  void *auxiliary;
+  void *ptrBlock{nullptr};
   static int levelMax(int l = 0) {
     static int lmax = l;
     return lmax;
@@ -6566,10 +6561,13 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = 2 * shape->fish->width[i];
-      const Real fac2 = 2 * std::pow(shape->fish->width[i], 3) *
-           (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) * shape->fish->norY[i] -
-            shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) * shape->fish->norX[i]) /
-	3;
+      const Real fac2 =
+          2 * std::pow(shape->fish->width[i], 3) *
+          (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) *
+               shape->fish->norY[i] -
+           shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) *
+               shape->fish->norX[i]) /
+          3;
       _area += fac1 * ds / 2;
       _cmx +=
           (shape->fish->rX[i] * fac1 + shape->fish->norX[i] * fac2) * ds / 2;
@@ -6610,10 +6608,13 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = 2 * shape->fish->width[i];
-      const Real fac2 = 2 * std::pow(shape->fish->width[i], 3) *
-           (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) * shape->fish->norY[i] -
-            shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) * shape->fish->norX[i]) /
-	3;
+      const Real fac2 =
+          2 * std::pow(shape->fish->width[i], 3) *
+          (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) *
+               shape->fish->norY[i] -
+           shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) *
+               shape->fish->norX[i]) /
+          3;
       const Real fac3 = 2 * std::pow(shape->fish->width[i], 3) / 3;
       const Real tmp_M = (shape->fish->rX[i] * shape->fish->vY[i] -
                           shape->fish->rY[i] * shape->fish->vX[i]) *
@@ -6682,11 +6683,11 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         shape->fish->upperSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->fish->upperSkin.ySurf[i] -= shape->CoM_internal[1];
         rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
-                               shape->fish->upperSkin.ySurf[i]);
+                 shape->fish->upperSkin.ySurf[i]);
         shape->fish->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->fish->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
         rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
-                               shape->fish->lowerSkin.ySurf[i]);
+                 shape->fish->lowerSkin.ySurf[i]);
       }
     }
 
@@ -6863,11 +6864,11 @@ void PutObjectsOnGrid::operator()(const Real dt) {
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->fish->upperSkin.Npoints; ++i) {
       rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
-                             shape->fish->upperSkin.ySurf[i]);
+               shape->fish->upperSkin.ySurf[i]);
       shape->fish->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->fish->upperSkin.ySurf[i] += shape->centerOfMass[1];
       rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
-                             shape->fish->lowerSkin.ySurf[i]);
+               shape->fish->lowerSkin.ySurf[i]);
       shape->fish->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->fish->lowerSkin.ySurf[i] += shape->centerOfMass[1];
     }
@@ -6876,10 +6877,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
           {std::cos(shape->orientation), -std::sin(shape->orientation)},
           {std::sin(shape->orientation), std::cos(shape->orientation)}};
       for (int i = 0; i < shape->fish->Nm; ++i) {
-        rotate2D(Rmatrix2D, shape->fish->rX[i],
-                               shape->fish->rY[i]);
-        rotate2D(Rmatrix2D, shape->fish->norX[i],
-                               shape->fish->norY[i]);
+        rotate2D(Rmatrix2D, shape->fish->rX[i], shape->fish->rY[i]);
+        rotate2D(Rmatrix2D, shape->fish->norX[i], shape->fish->norY[i]);
         shape->fish->rX[i] += shape->centerOfMass[0];
         shape->fish->rY[i] += shape->centerOfMass[1];
       }
