@@ -5893,8 +5893,7 @@ struct PutObjectsOnGrid : public Operator {
 };
 struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2])
-      : origC{C[0], C[1]},
-        origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      : origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
         centerOfMass{C[0], C[1]}, orientation(origAng),
         bForced(p("-bForced").asBool(false)),
         bForcedx(p("-bForcedx").asBool(bForced)),
@@ -5946,7 +5945,7 @@ struct Shape {
     }
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
-  const Real origC[2], origAng;
+  const Real origAng;
   Real center[2];
   Real centerOfMass[2];
   Real d_gm[2] = {0, 0};
