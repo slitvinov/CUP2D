@@ -5459,7 +5459,6 @@ struct FishData {
   }
   FishData(Real L, Real _h);
   virtual ~FishData();
-  Real integrateLinearMomentum(Real CoM[2], Real vCoM[2]);
   Real integrateAngularMomentum(Real &angVel);
   void changeToCoMFrameLinear(const Real CoM_internal[2],
                               const Real vCoM_internal[2]) const;
@@ -6375,9 +6374,41 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       shape->myFish->upperSkin.ySurf[i] =
           shape->myFish->rY[i] + shape->myFish->width[i] * norm[1];
     }
+    Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
+#pragma omp parallel for schedule(static)                                      \
+    reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
+    for (int i = 0; i < shape->myFish->Nm; ++i) {
+      const Real ds =
+          (i == 0)
+              ? shape->myFish->rS[1] - shape->myFish->rS[0]
+              : ((i == shape->myFish->Nm - 1)
+                     ? shape->myFish->rS[shape->myFish->Nm - 1] -
+                           shape->myFish->rS[shape->myFish->Nm - 2]
+                     : shape->myFish->rS[i + 1] - shape->myFish->rS[i - 1]);
+      const Real fac1 = shape->myFish->_integrationFac1(i);
+      const Real fac2 = shape->myFish->_integrationFac2(i);
+      _area += fac1 * ds / 2;
+      _cmx += (shape->myFish->rX[i] * fac1 + shape->myFish->norX[i] * fac2) *
+              ds / 2;
+      _cmy += (shape->myFish->rY[i] * fac1 + shape->myFish->norY[i] * fac2) *
+              ds / 2;
+      _lmx += (shape->myFish->vX[i] * fac1 + shape->myFish->vNorX[i] * fac2) *
+              ds / 2;
+      _lmy += (shape->myFish->vY[i] * fac1 + shape->myFish->vNorY[i] * fac2) *
+              ds / 2;
+    }
+    shape->myFish->area = _area;
+    shape->CoM_internal[0] = _cmx;
+    shape->CoM_internal[1] = _cmy;
+    shape->myFish->linMom[0] = _lmx;
+    shape->myFish->linMom[1] = _lmy;
+    assert(area > std::numeric_limits<Real>::epsilon());
+    shape->CoM_internal[0] /= shape->myFish->area;
+    shape->CoM_internal[1] /= shape->myFish->area;
+    shape->vCoM_internal[0] = shape->myFish->linMom[0] / shape->myFish->area;
+    shape->vCoM_internal[1] = shape->myFish->linMom[1] / shape->myFish->area;
+    shape->area_internal = shape->myFish->area;
 
-    shape->area_internal = shape->myFish->integrateLinearMomentum(
-        shape->CoM_internal, shape->vCoM_internal);
     shape->myFish->changeToCoMFrameLinear(shape->CoM_internal,
                                           shape->vCoM_internal);
     shape->angvel_internal_prev = shape->angvel_internal;
@@ -8416,34 +8447,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
-  Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
-#pragma omp parallel for schedule(static)                                      \
-    reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
-  for (int i = 0; i < Nm; ++i) {
-    const Real ds = (i == 0) ? rS[1] - rS[0]
-                             : ((i == Nm - 1) ? rS[Nm - 1] - rS[Nm - 2]
-                                              : rS[i + 1] - rS[i - 1]);
-    const Real fac1 = _integrationFac1(i);
-    const Real fac2 = _integrationFac2(i);
-    _area += fac1 * ds / 2;
-    _cmx += (rX[i] * fac1 + norX[i] * fac2) * ds / 2;
-    _cmy += (rY[i] * fac1 + norY[i] * fac2) * ds / 2;
-    _lmx += (vX[i] * fac1 + vNorX[i] * fac2) * ds / 2;
-    _lmy += (vY[i] * fac1 + vNorY[i] * fac2) * ds / 2;
-  }
-  area = _area;
-  CoM[0] = _cmx;
-  CoM[1] = _cmy;
-  linMom[0] = _lmx;
-  linMom[1] = _lmy;
-  assert(area > std::numeric_limits<Real>::epsilon());
-  CoM[0] /= area;
-  CoM[1] /= area;
-  vCoM[0] = linMom[0] / area;
-  vCoM[1] = linMom[1] / area;
-  return area;
-}
 Real FishData::integrateAngularMomentum(Real &angVel) {
   Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
