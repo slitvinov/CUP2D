@@ -1,9 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cmath>
 #include <cstring>
-#include <fstream>
 #include <gsl/gsl_linalg.h>
 #include <iomanip>
 #include <iostream>
@@ -14,7 +12,6 @@
 #include <numeric>
 #include <set>
 #include <sstream>
-#include <stack>
 #include <string>
 #include <unordered_map>
 #include <vector>
