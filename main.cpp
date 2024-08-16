@@ -798,7 +798,6 @@ template <typename Block> struct Grid {
         level_base.push_back(level_base[m - 1] + Ntot);
     }
   }
-  virtual ~Grid() { _deallocAll(); }
   virtual Block *avail(const int m, const long long n) {
     return (Block *)getBlockInfoAll(m, n).ptrBlock;
   }
