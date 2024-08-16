@@ -1059,7 +1059,8 @@ struct UnPackInfo {
   int CoarseVersionLX, CoarseVersionLY, CoarseVersionOffset,
       CoarseVersionsrcxstart, CoarseVersionsrcystart, CoarseVersionsrczstart,
       icode, index_0, index_1, index_2, level, lx, LX, ly, LY, lz, offset, rank,
-      srcxstart, srcystart, srczstart, long long IDreceiver;
+      srcxstart, srcystart, srczstart;
+  long long IDreceiver;
 };
 struct StencilManager {
   const StencilInfo stencil;
