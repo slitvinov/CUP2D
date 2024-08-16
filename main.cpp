@@ -560,8 +560,7 @@ template <typename TGrid> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(Case(storeFace, _BS_, _BS_,
-                             1, info.level, info.Z));
+        Cases.push_back(Case(storeFace, _BS_, _BS_, 1, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -876,7 +875,8 @@ template <typename Block> struct Grid {
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
           const int TwoPower = 1 << m;
-          const double h0 = (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
+          const double h0 =
+              (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
           const double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
@@ -2449,8 +2449,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       }
       if (stored) {
         TFluxCorrection::Cases.push_back(
-            Case(storeFace, _BS_, _BS_,
-                 1, info.level, info.Z));
+            Case(storeFace, _BS_, _BS_, 1, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -2510,11 +2509,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         assert(search != TFluxCorrection::MapOfCases.end());
         Case &FineCase = (*search->second);
         int icode = f.icode[0];
-        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
-                           abs(code[1]) * (std::max(0, code[1]) + 2) +
-                           abs(code[2]) * (std::max(0, code[2]) + 4);
+                     abs(code[1]) * (std::max(0, code[1]) + 2) +
+                     abs(code[2]) * (std::max(0, code[2]) + 4);
         std::vector<ElementType> &FineFace = FineCase.m_pData[myFace];
         int d = myFace / 2;
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -2929,11 +2927,9 @@ template <typename TGrid> struct GridMPI : public TGrid {
   }
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
-        (TGrid::maxextent / std::max(TGrid::NX * _BS_,
-                                     std::max(TGrid::NY * _BS_,
-                                              TGrid::NZ * 1)));
-    const double extent[3] = {TGrid::NX * _BS_ * h0,
-                              TGrid::NY * _BS_ * h0,
+        (TGrid::maxextent /
+         std::max(TGrid::NX * _BS_, std::max(TGrid::NY * _BS_, TGrid::NZ * 1)));
+    const double extent[3] = {TGrid::NX * _BS_ * h0, TGrid::NY * _BS_ * h0,
                               TGrid::NZ * 1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
@@ -3186,10 +3182,9 @@ template <typename TGrid> struct BlockLab {
         _release(m_cacheBlock);
       m_cacheBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
       std::allocator<Matrix3D<ElementType>>().construct(m_cacheBlock);
-      m_cacheBlock->_Setup(
-          _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
-          _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1,
-          1 + m_stencilEnd[2] - m_stencilStart[2] - 1);
+      m_cacheBlock->_Setup(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
+                           _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1,
+                           1 + m_stencilEnd[2] - m_stencilStart[2] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
@@ -5896,101 +5891,6 @@ struct PutObjectsOnGrid : public Operator {
   using Operator::Operator;
   void operator()(Real dt) override;
 };
-struct Fish {
-  Real length, h;
-  Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  Real dSmid_tgt = h / std::sqrt(2);
-  Real dSrefine_tgt = 0.125 * h;
-  int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
-  Real dSmid = length * fracMid / Nmid;
-  int Nend =
-      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  Real dSref = fracRefined * length * 2 / Nend - dSmid;
-  int Nm = Nmid + 2 * Nend + 1;
-  Real *rS;
-  Real *rX;
-  Real *rY;
-  Real *vX;
-  Real *vY;
-  Real *norX;
-  Real *norY;
-  Real *vNorX;
-  Real *vNorY;
-  Real *width;
-  Real linMom[2], area, J, angMom;
-  FishSkin upperSkin = FishSkin(Nm);
-  FishSkin lowerSkin = FishSkin(Nm);
-  Real amplitudeFactor, phaseShift, Tperiod;
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
-  Real avgDeltaY = 0;
-  Real avgDangle = 0;
-  Real avgAngVel = 0;
-  Real lastTact = 0;
-  Real lastCurv = 0;
-  Real oldrCurv = 0;
-  Real periodPIDval = Tperiod;
-  Real periodPIDdif = 0;
-  bool TperiodPID = false;
-  Real time0 = 0;
-  Real timeshift = 0;
-  Real lastTime = 0;
-  Real lastAvel = 0;
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  Schedulers::ParameterSchedulerScalar periodScheduler;
-  Real current_period = Tperiod;
-  Real next_period = Tperiod;
-  Real transition_start = 0.0;
-  Real transition_duration = 0.1 * Tperiod;
-  Real *rK;
-  Real *vK;
-  Real *rC;
-  Real *vC;
-  Real *rB;
-  Real *vB;
-  Fish(Real length, Real Tperiod, Real phaseShift, Real amplitudeFactor)
-      : amplitudeFactor(amplitudeFactor), phaseShift(phaseShift), Tperiod(Tperiod), rK(new Real[Nm]),
-        vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
-        vB(new Real[Nm]), length(length), h(sim.minH), rS(new Real[Nm]), rX(new Real[Nm]),
-        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
-        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
-        vNorY(new Real[Nm]), width(new Real[Nm]) {
-    if (dSref <= 0) {
-      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-      fflush(0);
-      abort();
-    }
-    rS[0] = 0;
-    int k = 0;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-    for (int i = 0; i < Nmid; ++i, k++)
-      rS[k + 1] = rS[k] + dSmid;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] =
-          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-    assert(k + 1 == Nm);
-    rS[k] = std::min(rS[k], (Real)length);
-    std::fill(rX, rX + Nm, 0);
-    std::fill(rY, rY + Nm, 0);
-    std::fill(vX, vX + Nm, 0);
-    std::fill(vY, vY + Nm, 0);
-    for (int i = 0; i < Nm; ++i) {
-      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-                 wh = .04 * length;
-      if (rS[i] < 0 or rS[i] > length)
-        width[i] = 0;
-      else
-        width[i] =
-            (rS[i] < sb
-                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
-                 : (rS[i] < st
-                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
-                        : (wt * (length - rS[i]) / (length - st))));
-    }
-  }
-};
 struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2])
       : origC{C[0], C[1]},
@@ -6004,9 +5904,49 @@ struct Shape {
         forcedomega(-p("-angvel").asDouble(0)),
         timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
         length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
-        phaseShift(p("-phi").asDouble(0)) {
+        phaseShift(p("-phi").asDouble(0)), amplitudeFactor(amplitudeFactor),
+        rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
+        rB(new Real[Nm]), vB(new Real[Nm]), h(sim.minH), rS(new Real[Nm]),
+        rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
+        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
+        vNorY(new Real[Nm]), width(new Real[Nm]) {
     const Real amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
-    fish = new Fish(length, Tperiod, phaseShift, amplitudeFactor);
+    {
+      if (dSref <= 0) {
+        std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+        fflush(0);
+        abort();
+      }
+      rS[0] = 0;
+      int k = 0;
+      for (int i = 0; i < Nend; ++i, k++)
+        rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
+      for (int i = 0; i < Nmid; ++i, k++)
+        rS[k + 1] = rS[k] + dSmid;
+      for (int i = 0; i < Nend; ++i, k++)
+        rS[k + 1] = rS[k] + dSref +
+                    (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
+      assert(k + 1 == Nm);
+      rS[k] = std::min(rS[k], (Real)length);
+      std::fill(rX, rX + Nm, 0);
+      std::fill(rY, rY + Nm, 0);
+      std::fill(vX, vX + Nm, 0);
+      std::fill(vY, vY + Nm, 0);
+      for (int i = 0; i < Nm; ++i) {
+        const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+                   wh = .04 * length;
+        if (rS[i] < 0 or rS[i] > length)
+          width[i] = 0;
+        else
+          width[i] =
+              (rS[i] < sb
+                   ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
+                   : (rS[i] < st
+                          ? wh - (wh - wt) *
+                                     std::pow((rS[i] - sb) / (st - sb), 1)
+                          : (wt * (length - rS[i]) / (length - st))));
+      }
+    }
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
@@ -6043,11 +5983,70 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  const Real length, Tperiod, phaseShift;
-  Fish *fish = nullptr;
+  const Real Tperiod, phaseShift;
+  struct Shape *fish = nullptr;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0;
+  Real length, h;
+  Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
+  Real dSmid_tgt = h / std::sqrt(2);
+  Real dSrefine_tgt = 0.125 * h;
+  int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  Real dSmid = length * fracMid / Nmid;
+  int Nend =
+      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
+  Real dSref = fracRefined * length * 2 / Nend - dSmid;
+  int Nm = Nmid + 2 * Nend + 1;
+  Real *rS;
+  Real *rX;
+  Real *rY;
+  Real *vX;
+  Real *vY;
+  Real *norX;
+  Real *norY;
+  Real *vNorX;
+  Real *vNorY;
+  Real *width;
+  Real linMom[2], area, angMom;
+  FishSkin upperSkin = FishSkin(Nm);
+  FishSkin lowerSkin = FishSkin(Nm);
+  Real amplitudeFactor;
+  Real curv_PID_fac = 0;
+  Real curv_PID_dif = 0;
+  Real avgDeltaY = 0;
+  Real avgDangle = 0;
+  Real avgAngVel = 0;
+  Real lastTact = 0;
+  Real lastCurv = 0;
+  Real oldrCurv = 0;
+  Real periodPIDval = Tperiod;
+  Real periodPIDdif = 0;
+  bool TperiodPID = false;
+  Real time0 = 0;
+  Real timeshift = 0;
+  Real lastTime = 0;
+  Real lastAvel = 0;
+  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
+  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period = Tperiod;
+  Real next_period = Tperiod;
+  Real transition_start = 0.0;
+  Real transition_duration = 0.1 * Tperiod;
+  Real *rK;
+  Real *vK;
+  Real *rC;
+  Real *vC;
+  Real *rB;
+  Real *vB;
+  /* Fish(Real length, Real Tperiod, Real phaseShift, Real amplitudeFactor)
+      : amplitudeFactor(amplitudeFactor), phaseShift(phaseShift),
+     Tperiod(Tperiod), rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]),
+     vC(new Real[Nm]), rB(new Real[Nm]), vB(new Real[Nm]), length(length),
+     h(sim.minH), rS(new Real[Nm]), rX(new Real[Nm]), rY(new Real[Nm]), vX(new
+     Real[Nm]), vY(new Real[Nm]), norX(new Real[Nm]), norY(new Real[Nm]),
+     vNorX(new Real[Nm]), vNorY(new Real[Nm]), width(new Real[Nm])  */
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
@@ -6224,7 +6223,7 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 struct PutFishOnBlocks {
-  const Fish &cfish;
+  const Shape &cfish;
   const Real position[2];
   const Real angle;
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
@@ -6246,7 +6245,7 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const Fish &cf, const Real pos[2], const Real ang)
+  PutFishOnBlocks(const Shape &cf, const Real pos[2], const Real ang)
       : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
   void operator()(const cubism::BlockInfo &info, ScalarBlock &b,
                   ObstacleBlock *const o,
@@ -6988,13 +6987,10 @@ struct GradChiOnTmp {
         lab(x, y).s = std::min(lab(x, y).s, (Real)1.0);
         lab(x, y).s = std::max(lab(x, y).s, (Real)0.0);
         if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
-          TMP(_BS_ / 2 - 1, _BS_ / 2).s =
-              2 * sim.Rtol;
-          TMP(_BS_ / 2 - 1, _BS_ / 2 - 1).s =
-              2 * sim.Rtol;
+          TMP(_BS_ / 2 - 1, _BS_ / 2).s = 2 * sim.Rtol;
+          TMP(_BS_ / 2 - 1, _BS_ / 2 - 1).s = 2 * sim.Rtol;
           TMP(_BS_ / 2, _BS_ / 2).s = 2 * sim.Rtol;
-          TMP(_BS_ / 2, _BS_ / 2 - 1).s =
-              2 * sim.Rtol;
+          TMP(_BS_ / 2, _BS_ / 2 - 1).s = 2 * sim.Rtol;
           break;
         }
       }
@@ -7302,11 +7298,9 @@ struct KernelComputeForces {
           for (int kk = 0; kk < 5; kk++) {
             const int dxi = round(kk * dx);
             const int dyi = round(kk * dy);
-            if (ix + dxi + 1 >= _BS_ + big - 1 ||
-                ix + dxi - 1 < small)
+            if (ix + dxi + 1 >= _BS_ + big - 1 || ix + dxi - 1 < small)
               continue;
-            if (iy + dyi + 1 >= _BS_ + big - 1 ||
-                iy + dyi - 1 < small)
+            if (iy + dyi + 1 >= _BS_ + big - 1 || iy + dyi - 1 < small)
               continue;
             x = ix + dxi;
             y = iy + dyi;
