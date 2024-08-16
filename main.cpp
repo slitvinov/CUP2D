@@ -27,6 +27,9 @@ enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+static Real dist(const Real a[2], const Real b[2]) {
+  return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
+}
 namespace cubism {
 struct Value {
   std::string content;
@@ -6294,9 +6297,6 @@ struct PutFishOnBlocks {
   const Real angle;
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
                                 {std::sin(angle), std::cos(angle)}};
-  static inline Real eulerDistSq2D(const Real a[2], const Real b[2]) {
-    return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
-  }
   void changeVelocityToComputationalFrame(Real x[2]) const {
     const Real p[2] = {x[0], x[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
@@ -8745,16 +8745,16 @@ void PutFishOnBlocks::constructSurface(
                sx < std::min(iap[0] + 4, BS[0]); ++sx) {
             Real p[2];
             info.pos(p, sx, sy);
-            const Real dist0 = eulerDistSq2D(p, myP);
-            const Real distP = eulerDistSq2D(p, pP);
-            const Real distM = eulerDistSq2D(p, pM);
+            const Real dist0 = dist(p, myP);
+            const Real distP = dist(p, pP);
+            const Real distM = dist(p, pM);
             if (std::fabs(o->dist[sy][sx]) < std::min({dist0, distP, distM}))
               continue;
             changeFromComputationalFrame(p);
 #ifndef NDEBUG
             const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
                                 rY[ss] + width[ss] * signp * norY[ss]};
-            const Real distC = eulerDistSq2D(p, p0);
+            const Real distC = dist(p, p0);
             assert(std::fabs(distC - dist0) < EPS);
 #endif
             int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
@@ -8772,7 +8772,7 @@ void PutFishOnBlocks::constructSurface(
             const Real nxt2ML = std::pow(width[secnd_s], 2);
             const Real safeW = std::max(width[close_s], width[secnd_s]) + 2 * h;
             const Real xMidl[2] = {rX[close_s], rY[close_s]};
-            const Real grd2ML = eulerDistSq2D(p, xMidl);
+            const Real grd2ML = dist(p, xMidl);
             const Real diffH = std::fabs(width[close_s] - width[secnd_s]);
             Real sign2d = 0;
             if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
@@ -8787,7 +8787,7 @@ void PutFishOnBlocks::constructSurface(
               const Real d = std::sqrt((Rsq - maxAx) / dSsq);
               const Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
                                       rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
-              const Real grd2Core = eulerDistSq2D(p, xCentr);
+              const Real grd2Core = dist(p, xCentr);
               sign2d = grd2Core > Rsq ? -1 : 1;
             }
             if (std::fabs(o->dist[sy][sx]) > dist1) {
