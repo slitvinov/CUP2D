@@ -8191,18 +8191,16 @@ struct updatePressureRHS {
 struct updatePressureRHS1 {
   updatePressureRHS1() {}
   cubism::StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
-        *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
+        *(ScalarBlock *)sim.tmp->m_vInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
         TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     cubism::BlockCase<ScalarBlock> *tempCase =
-        (cubism::BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+        (cubism::BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
     ScalarBlock::ElementType *faceXm = nullptr;
     ScalarBlock::ElementType *faceXp = nullptr;
     ScalarBlock::ElementType *faceYm = nullptr;
