@@ -8866,10 +8866,10 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
 }
 bool AreaSegment::isIntersectingWithAABB(const Real start[2],
                                          const Real end[2]) const {
-  const Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
+  Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
                           (end[1] - start[1]) / 2 + safe_distance};
-  const Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
-  const Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
+  Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
+  Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
                                {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
   assert(AABB_w[0] > 0 && AABB_w[1] > 0);
   Real intersectionLabFrame[2][2] = {
@@ -8880,9 +8880,9 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
   if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
       intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
     return false;
-  const Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
-  const Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
-  const Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
+  Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
+  Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
+  Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
                               AABB_c[0] + widthXbox[0] + widthYbox[0]},
                              {AABB_c[1] - widthXbox[1] - widthYbox[1],
                               AABB_c[1] + widthXbox[1] + widthYbox[1]}};
