@@ -5984,7 +5984,7 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   const Real Tperiod, phaseShift;
-  struct Shape *fish = nullptr;
+  struct Shape *fish = this;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0;
