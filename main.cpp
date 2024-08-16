@@ -6145,7 +6145,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 struct Fish {
   Fish(Real L, Real _h);
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
-  void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
   void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
 
   const Real length, h;
@@ -6540,8 +6539,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->fish->periodScheduler.gimmeValues(
         sim.time, shape->fish->periodPIDval, shape->fish->periodPIDdif);
     if (shape->fish->transition_start < sim.time &&
-        sim.time < shape->fish->transition_start +
-                       shape->fish->transition_duration) {
+        sim.time <
+            shape->fish->transition_start + shape->fish->transition_duration) {
       shape->fish->timeshift =
           (sim.time - shape->fish->time0) / shape->fish->periodPIDval +
           shape->fish->timeshift;
@@ -6569,15 +6568,14 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
         0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
     };
-    shape->fish->curvatureScheduler.transition(
-        0, 0, shape->fish->Tperiod, curvatureZeros, curvatureValues);
+    shape->fish->curvatureScheduler.transition(0, 0, shape->fish->Tperiod,
+                                               curvatureZeros, curvatureValues);
     shape->fish->curvatureScheduler.gimmeValues(
         sim.time, curvaturePoints, shape->fish->Nm, shape->fish->rS,
         shape->fish->rC, shape->fish->vC);
     shape->fish->rlBendingScheduler.gimmeValues(
-        sim.time, shape->fish->periodPIDval, shape->fish->length,
-        bendPoints, shape->fish->Nm, shape->fish->rS, shape->fish->rB,
-        shape->fish->vB);
+        sim.time, shape->fish->periodPIDval, shape->fish->length, bendPoints,
+        shape->fish->Nm, shape->fish->rS, shape->fish->rB, shape->fish->vB);
     const Real diffT = 1 - (sim.time - shape->fish->time0) *
                                shape->fish->periodPIDdif /
                                shape->fish->periodPIDval;
@@ -6597,9 +6595,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       shape->fish->vK[i] =
           shape->fish->amplitudeFactor *
           (shape->fish->vC[i] * (std::sin(arg) + shape->fish->rB[i] +
-                                   shape->fish->curv_PID_fac) +
+                                 shape->fish->curv_PID_fac) +
            shape->fish->rC[i] * (std::cos(arg) * darg + shape->fish->vB[i] +
-                                   shape->fish->curv_PID_dif));
+                                 shape->fish->curv_PID_dif));
       assert(not std::isnan(rK[i]));
       assert(not std::isinf(rK[i]));
       assert(not std::isnan(vK[i]));
@@ -6630,23 +6628,22 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
     for (int i = 0; i < shape->fish->Nm; ++i) {
       const Real ds =
-          (i == 0)
-              ? shape->fish->rS[1] - shape->fish->rS[0]
-              : ((i == shape->fish->Nm - 1)
-                     ? shape->fish->rS[shape->fish->Nm - 1] -
-                           shape->fish->rS[shape->fish->Nm - 2]
-                     : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
+          (i == 0) ? shape->fish->rS[1] - shape->fish->rS[0]
+                   : ((i == shape->fish->Nm - 1)
+                          ? shape->fish->rS[shape->fish->Nm - 1] -
+                                shape->fish->rS[shape->fish->Nm - 2]
+                          : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = shape->fish->_integrationFac1(i);
       const Real fac2 = shape->fish->_integrationFac2(i);
       _area += fac1 * ds / 2;
-      _cmx += (shape->fish->rX[i] * fac1 + shape->fish->norX[i] * fac2) *
-              ds / 2;
-      _cmy += (shape->fish->rY[i] * fac1 + shape->fish->norY[i] * fac2) *
-              ds / 2;
-      _lmx += (shape->fish->vX[i] * fac1 + shape->fish->vNorX[i] * fac2) *
-              ds / 2;
-      _lmy += (shape->fish->vY[i] * fac1 + shape->fish->vNorY[i] * fac2) *
-              ds / 2;
+      _cmx +=
+          (shape->fish->rX[i] * fac1 + shape->fish->norX[i] * fac2) * ds / 2;
+      _cmy +=
+          (shape->fish->rY[i] * fac1 + shape->fish->norY[i] * fac2) * ds / 2;
+      _lmx +=
+          (shape->fish->vX[i] * fac1 + shape->fish->vNorX[i] * fac2) * ds / 2;
+      _lmy +=
+          (shape->fish->vY[i] * fac1 + shape->fish->vNorY[i] * fac2) * ds / 2;
     }
     shape->fish->area = _area;
     shape->CoM_internal[0] = _cmx;
@@ -6673,12 +6670,11 @@ void PutObjectsOnGrid::operator()(const Real dt) {
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
     for (int i = 0; i < shape->fish->Nm; ++i) {
       const Real ds =
-          (i == 0)
-              ? shape->fish->rS[1] - shape->fish->rS[0]
-              : ((i == shape->fish->Nm - 1)
-                     ? shape->fish->rS[shape->fish->Nm - 1] -
-                           shape->fish->rS[shape->fish->Nm - 2]
-                     : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
+          (i == 0) ? shape->fish->rS[1] - shape->fish->rS[0]
+                   : ((i == shape->fish->Nm - 1)
+                          ? shape->fish->rS[shape->fish->Nm - 1] -
+                                shape->fish->rS[shape->fish->Nm - 2]
+                          : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = shape->fish->_integrationFac1(i);
       const Real fac2 = shape->fish->_integrationFac2(i);
       const Real fac3 = shape->fish->_integrationFac3(i);
@@ -6716,10 +6712,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     for (int i = 0; i < shape->fish->Nm; ++i) {
       shape->fish->vX[i] += shape->angvel_internal * shape->fish->rY[i];
       shape->fish->vY[i] -= shape->angvel_internal * shape->fish->rX[i];
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i],
-                               shape->fish->rY[i]);
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->vX[i],
-                               shape->fish->vY[i]);
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i], shape->fish->rY[i]);
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->vX[i], shape->fish->vY[i]);
     }
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->fish->Nm - 1; i++) {
@@ -6742,8 +6736,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->fish->vNorY[shape->fish->Nm - 1] =
         shape->fish->vNorY[shape->fish->Nm - 2];
 
-    shape->fish->surfaceToCOMFrame(shape->theta_internal,
-                                     shape->CoM_internal);
+    shape->fish->surfaceToCOMFrame(shape->theta_internal, shape->CoM_internal);
     const int Nsegments = (shape->fish->Nm - 1) / 8;
     const int Nm = shape->fish->Nm;
     assert((Nm - 1) % Nsegments == 0);
@@ -6755,16 +6748,14 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const int idx = i * (Nm - 1) / Nsegments;
       Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
       for (int ss = idx; ss <= next_idx; ++ss) {
-        const Real xBnd[2] = {
-            shape->fish->rX[ss] -
-                shape->fish->norX[ss] * shape->fish->width[ss],
-            shape->fish->rX[ss] +
-                shape->fish->norX[ss] * shape->fish->width[ss]};
-        const Real yBnd[2] = {
-            shape->fish->rY[ss] -
-                shape->fish->norY[ss] * shape->fish->width[ss],
-            shape->fish->rY[ss] +
-                shape->fish->norY[ss] * shape->fish->width[ss]};
+        const Real xBnd[2] = {shape->fish->rX[ss] - shape->fish->norX[ss] *
+                                                        shape->fish->width[ss],
+                              shape->fish->rX[ss] + shape->fish->norX[ss] *
+                                                        shape->fish->width[ss]};
+        const Real yBnd[2] = {shape->fish->rY[ss] - shape->fish->norY[ss] *
+                                                        shape->fish->width[ss],
+                              shape->fish->rY[ss] + shape->fish->norY[ss] *
+                                                        shape->fish->width[ss]};
         const Real maxX = std::max(xBnd[0], xBnd[1]),
                    minX = std::min(xBnd[0], xBnd[1]);
         const Real maxY = std::max(yBnd[0], yBnd[1]),
@@ -6915,8 +6906,20 @@ void PutObjectsOnGrid::operator()(const Real dt) {
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
     }
-    shape->fish->surfaceToComputationalFrame(shape->orientation,
-                                               shape->centerOfMass);
+    const Real Rmatrix2D[2][2] = {
+        {std::cos(shape->orientation), -std::sin(shape->orientation)},
+        {std::sin(shape->orientation), std::cos(shape->orientation)}};
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < shape->fish->upperSkin.Npoints; ++i) {
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
+                             shape->fish->upperSkin.ySurf[i]);
+      shape->fish->upperSkin.xSurf[i] += shape->centerOfMass[0];
+      shape->fish->upperSkin.ySurf[i] += shape->centerOfMass[1];
+      shape->fish->_rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
+                             shape->fish->lowerSkin.ySurf[i]);
+      shape->fish->lowerSkin.xSurf[i] += shape->centerOfMass[0];
+      shape->fish->lowerSkin.ySurf[i] += shape->centerOfMass[1];
+    }
     shape->fish->computeSkinNormals(shape->orientation, shape->centerOfMass);
   }
 }
@@ -8777,9 +8780,9 @@ void Fish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
     lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
     upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
     Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
-                                 std::pow(lowerSkin.normYSurf[i], 2));
+                           std::pow(lowerSkin.normYSurf[i], 2));
     Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
-                                 std::pow(upperSkin.normYSurf[i], 2));
+                           std::pow(upperSkin.normYSurf[i], 2));
     lowerSkin.normXSurf[i] /= normL;
     upperSkin.normXSurf[i] /= normU;
     lowerSkin.normYSurf[i] /= normL;
@@ -8814,24 +8817,10 @@ void Fish::surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
     _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
   }
 }
-void Fish::surfaceToComputationalFrame(Real theta_comp,
-                                       Real CoM_interpolated[2]) {
-  const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
-                                {std::sin(theta_comp), std::cos(theta_comp)}};
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < upperSkin.Npoints; ++i) {
-    _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
-    upperSkin.xSurf[i] += CoM_interpolated[0];
-    upperSkin.ySurf[i] += CoM_interpolated[1];
-    _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
-    lowerSkin.xSurf[i] += CoM_interpolated[0];
-    lowerSkin.ySurf[i] += CoM_interpolated[1];
-  }
-}
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
   Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-                                {std::sin(angle), std::cos(angle)}};
+                          {std::sin(angle), std::cos(angle)}};
   Real p[2] = {c[0], c[1]};
   Real nx[2] = {normalI[0], normalI[1]};
   Real ny[2] = {normalJ[0], normalJ[1]};
@@ -8842,10 +8831,8 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
   }
   c[0] += pos[0];
   c[1] += pos[1];
-  Real magI =
-      std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
-  Real magJ =
-      std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
+  Real magI = std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
+  Real magJ = std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
   assert(magI > std::numeric_limits<Real>::epsilon());
   assert(magJ > std::numeric_limits<Real>::epsilon());
   Real invMagI = 1 / magI, invMagJ = 1 / magJ;
@@ -8867,10 +8854,10 @@ void AreaSegment::changeToComputationalFrame(const Real pos[2],
 bool AreaSegment::isIntersectingWithAABB(const Real start[2],
                                          const Real end[2]) const {
   Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
-                          (end[1] - start[1]) / 2 + safe_distance};
+                    (end[1] - start[1]) / 2 + safe_distance};
   Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
   Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
-                               {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
+                         {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
   assert(AABB_w[0] > 0 && AABB_w[1] > 0);
   Real intersectionLabFrame[2][2] = {
       {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
@@ -8883,9 +8870,9 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
   Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
   Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
   Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
-                              AABB_c[0] + widthXbox[0] + widthYbox[0]},
-                             {AABB_c[1] - widthXbox[1] - widthYbox[1],
-                              AABB_c[1] + widthXbox[1] + widthYbox[1]}};
+                        AABB_c[0] + widthXbox[0] + widthYbox[0]},
+                       {AABB_c[1] - widthXbox[1] - widthYbox[1],
+                        AABB_c[1] + widthXbox[1] + widthYbox[1]}};
   Real intersectionFishFrame[2][2] = {
       {std::max(boxBox[0][0], objBoxObjFr[0][0]),
        std::min(boxBox[0][1], objBoxObjFr[0][1])},
