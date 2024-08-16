@@ -7938,9 +7938,9 @@ void PoissonSolver::getVec() {
 struct PressureSingle : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
-  void pressureCorrection(const Real dt);
   void operator()(const Real dt) override;
-  PressureSingle();
+  PressureSingle()
+    : Operator(), pressureSolver{new PoissonSolver()} {}
 };
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
@@ -8666,8 +8666,7 @@ void PressureSingle::operator()(const Real dt) {
       }
   }
 }
-PressureSingle::PressureSingle()
-    : Operator(), pressureSolver{new PoissonSolver()} {}
+
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
   Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
