@@ -6121,6 +6121,22 @@ struct Fish {
   }
 };
 struct Shape {
+Shape(cubism::CommandlineParser &p, Real C[2])
+    : origC{C[0], C[1]},
+      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+      centerOfMass{C[0], C[1]}, orientation(origAng),
+      bForced(p("-bForced").asBool(false)),
+      bForcedx(p("-bForcedx").asBool(bForced)),
+      bForcedy(p("-bForcedy").asBool(bForced)),
+      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
+      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
+      forcedomega(-p("-angvel").asDouble(0)),
+      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
+      length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
+      phaseShift(p("-phi").asDouble(0)) {
+  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
+  fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
+}
   ~Shape() {
     for (auto &entry : obstacleBlocks)
       delete entry;
@@ -6165,7 +6181,6 @@ struct Shape {
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
-  Shape(cubism::CommandlineParser &p, Real C[2]);
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
@@ -8908,22 +8923,6 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
     }
   }
 };
-Shape::Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]},
-      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-      centerOfMass{C[0], C[1]}, orientation(origAng),
-      bForced(p("-bForced").asBool(false)),
-      bForcedx(p("-bForcedx").asBool(bForced)),
-      bForcedy(p("-bForcedy").asBool(bForced)),
-      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
-      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-      forcedomega(-p("-angvel").asDouble(0)),
-      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
-      phaseShift(p("-phi").asDouble(0)) {
-  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
-}
 int main(int argc, char **argv) {
   int threadSafety;
   std::vector<Operator *> pipeline;
