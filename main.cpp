@@ -5370,14 +5370,6 @@ struct FishSkin {
       : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
         normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
         midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
-  ~FishSkin() {
-    delete[] xSurf;
-    delete[] ySurf;
-    delete[] normXSurf;
-    delete[] normYSurf;
-    delete[] midX;
-    delete[] midY;
-  }
 };
 struct Shape;
 static struct {
@@ -5437,7 +5429,6 @@ static Real getH(VectorGrid *vel) {
 }
 struct Operator {
   Operator(){};
-  virtual ~Operator() {}
   virtual void operator()(const Real dt) = 0;
 };
 using CHI_MAT = Real[_BS_][_BS_];
@@ -5485,7 +5476,6 @@ struct ObstacleBlock {
     memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
     surface.reserve(4 * _BS_);
   }
-  ~ObstacleBlock() { clear_surface(); }
   void clear_surface() {
     filled = false;
     n_surfPoints = 0;
@@ -5719,7 +5709,6 @@ template <int Npoints> struct ParameterScheduler {
     parameters_t1 = std::array<Real, Npoints>();
     dparameters_t0 = std::array<Real, Npoints>();
   }
-  virtual ~ParameterScheduler() {}
   void transition(const Real t, const Real tstart, const Real tend,
                   const std::array<Real, Npoints> parameters_tend,
                   const bool UseCurrentDerivative = false) {
@@ -6080,24 +6069,6 @@ struct Fish {
                         : (wt * (L - rS[i]) / (L - st))));
     }
   }
-  ~Fish() {
-    delete[] rS;
-    delete[] rX;
-    delete[] rY;
-    delete[] vX;
-    delete[] vY;
-    delete[] norX;
-    delete[] norY;
-    delete[] vNorX;
-    delete[] vNorY;
-    delete[] width;
-    delete[] rK;
-    delete[] vK;
-    delete[] rC;
-    delete[] vC;
-    delete[] rB;
-    delete[] vB;
-  }
 };
 struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2])
@@ -6115,10 +6086,6 @@ struct Shape {
         phaseShift(p("-phi").asDouble(0)) {
     const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
     fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
-  }
-  ~Shape() {
-    for (auto &entry : obstacleBlocks)
-      delete entry;
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
@@ -6360,7 +6327,6 @@ struct PutFishOnBlocks {
   }
   PutFishOnBlocks(const Fish &cf, const Real pos[2], const Real ang)
       : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
-  virtual ~PutFishOnBlocks() {}
   void operator()(const cubism::BlockInfo &info, ScalarBlock &b,
                   ObstacleBlock *const o,
                   const std::vector<AreaSegment *> &v) const {
@@ -6991,16 +6957,6 @@ struct AdaptTheMesh : public Operator {
     vOld_amr = new VectorAMR(*sim.vOld, sim.Rtol, sim.Ctol);
     tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
   }
-  ~AdaptTheMesh() {
-    delete tmp_amr;
-    delete chi_amr;
-    delete pres_amr;
-    delete pold_amr;
-    delete vel_amr;
-    delete vOld_amr;
-    delete tmpV_amr;
-    delete Cs_amr;
-  }
   void operator()(const Real dt) override;
 };
 struct GradChiOnTmp {
@@ -7275,7 +7231,6 @@ struct ComputeForces : public Operator {
   const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
   void operator()(const Real dt) override;
   ComputeForces();
-  ~ComputeForces() {}
 };
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
 struct KernelComputeForces {
@@ -7542,7 +7497,6 @@ void ComputeForces::operator()(const Real dt) {
 ComputeForces::ComputeForces(){};
 struct PoissonSolver {
   PoissonSolver();
-  ~PoissonSolver() = default;
   void solve(const ScalarGrid *input, ScalarGrid *const output);
   int rank_;
   int comm_size_;
@@ -8080,7 +8034,6 @@ struct PressureSingle : public Operator {
   void pressureCorrection(const Real dt);
   void operator()(const Real dt) override;
   PressureSingle();
-  ~PressureSingle();
 };
 using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
 using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
@@ -8809,7 +8762,6 @@ void PressureSingle::operator()(const Real dt) {
 }
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
-PressureSingle::~PressureSingle() = default;
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
   Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
