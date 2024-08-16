@@ -5418,9 +5418,8 @@ struct FishData {
   Real linMom[2], area, J, angMom;
   FishSkin upperSkin = FishSkin(Nm);
   FishSkin lowerSkin = FishSkin(Nm);
-  template <typename T>
-  inline void _rotate2D(const Real Rmatrix2D[2][2], T &x, T &y) const {
-    const T p[2] = {x, y};
+  inline void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
+    Real p[2] = {x, y};
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
