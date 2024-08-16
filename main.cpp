@@ -2610,12 +2610,6 @@ template <typename TGrid> struct GridMPI : public TGrid {
     initialize_blocks(Zs, levels);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  virtual ~GridMPI() override {
-    for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
-      delete it->second;
-    SynchronizerMPIs.clear();
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
   virtual Block *avail(const int m, const long long n) override {
     return (TGrid::Tree(m, n).rank() == myrank)
                ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
