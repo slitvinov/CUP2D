@@ -7972,7 +7972,6 @@ void PoissonSolver::solve(const ScalarGrid *input, ScalarGrid *const output) {
         P(ix, iy).s += -avg;
   }
 }
-struct Shape;
 struct PressureSingle : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   PoissonSolver *pressureSolver;
