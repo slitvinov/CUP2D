@@ -5895,14 +5895,14 @@ struct PutObjectsOnGrid : public Operator {
   void operator()(Real dt) override;
 };
 struct Fish {
-  void computeSkinNormals(Real orientation, Real CoM_comp[3]) {
+  void computeSkinNormals(Real orientation, Real centerOfMass[3]) {
     const Real Rmatrix2D[2][2] = {{std::cos(orientation), -std::sin(orientation)},
                                   {std::sin(orientation), std::cos(orientation)}};
     for (int i = 0; i < Nm; ++i) {
       _rotate2D(Rmatrix2D, rX[i], rY[i]);
       _rotate2D(Rmatrix2D, norX[i], norY[i]);
-      rX[i] += CoM_comp[0];
-      rY[i] += CoM_comp[1];
+      rX[i] += centerOfMass[0];
+      rY[i] += centerOfMass[1];
     }
 #pragma omp parallel for
     for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
