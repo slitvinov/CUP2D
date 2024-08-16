@@ -5912,7 +5912,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
 };
 } // namespace Schedulers
 struct Shape;
-struct CurvatureFish;
+struct Fish;
 struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
@@ -5958,7 +5958,7 @@ struct Shape {
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
   const Real length, Tperiod, phaseShift;
-  CurvatureFish *myFish = nullptr;
+  Fish *myFish = nullptr;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
@@ -6086,7 +6086,7 @@ struct PutChiOnGrid {
     }
   }
 };
-struct CurvatureFish;
+struct Fish;
 
 static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
                        Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
@@ -6141,8 +6141,8 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
     }
   }
 }
-struct CurvatureFish {
-  CurvatureFish(Real L, Real _h);
+struct Fish {
+  Fish(Real L, Real _h);
   void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
   void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
   void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
@@ -6227,7 +6227,7 @@ struct CurvatureFish {
               (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
              2;
   }
-  CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
+  Fish(Real L, Real T, Real phi, Real _h, Real _A)
       : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
         vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
         vB(new Real[Nm]), length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
@@ -6268,7 +6268,7 @@ struct CurvatureFish {
                         : (wt * (L - rS[i]) / (L - st))));
     }
   }
-  ~CurvatureFish() {
+  ~Fish() {
     delete[] rS;
     delete[] rX;
     delete[] rY;
@@ -6289,7 +6289,7 @@ struct CurvatureFish {
   void computeMidline(const Real time, const Real dt);
 };
 struct PutFishOnBlocks {
-  const CurvatureFish &cfish;
+  const Fish &cfish;
   const Real position[2];
   const Real angle;
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
@@ -6314,7 +6314,7 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const CurvatureFish &cf, const Real pos[2], const Real ang)
+  PutFishOnBlocks(const Fish &cf, const Real pos[2], const Real ang)
       : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
   virtual ~PutFishOnBlocks() {}
   void operator()(const cubism::BlockInfo &i, ScalarBlock &b,
@@ -8498,7 +8498,7 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void CurvatureFish::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
+void Fish::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm; ++i) {
     rX[i] -= Cin[0];
@@ -8507,7 +8507,7 @@ void CurvatureFish::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
     vY[i] -= vCin[1];
   }
 }
-void CurvatureFish::changeToCoMFrameAngular(Real Ain, Real vAin) {
+void Fish::changeToCoMFrameAngular(Real Ain, Real vAin) {
   const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
                                 {std::sin(Ain), std::cos(Ain)}};
 #pragma omp parallel for schedule(static)
@@ -8534,7 +8534,7 @@ void CurvatureFish::changeToCoMFrameAngular(Real Ain, Real vAin) {
   vNorX[Nm - 1] = vNorX[Nm - 2];
   vNorY[Nm - 1] = vNorY[Nm - 2];
 }
-void CurvatureFish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
+void Fish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
   for (int i = 0; i < Nm; ++i) {
@@ -8577,7 +8577,7 @@ void CurvatureFish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
     }
   }
 }
-void CurvatureFish::surfaceToCOMFrame(Real theta_internal,
+void Fish::surfaceToCOMFrame(Real theta_internal,
                                       Real CoM_internal[2]) {
   const Real Rmatrix2D[2][2] = {
       {std::cos(theta_internal), -std::sin(theta_internal)},
@@ -8592,7 +8592,7 @@ void CurvatureFish::surfaceToCOMFrame(Real theta_internal,
     _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
   }
 }
-void CurvatureFish::surfaceToComputationalFrame(Real theta_comp,
+void Fish::surfaceToComputationalFrame(Real theta_comp,
                                                 Real CoM_interpolated[2]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
@@ -8885,7 +8885,7 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
     }
   }
 };
-void CurvatureFish::computeMidline(const Real t, const Real dt) {
+void Fish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
                              transition_start + transition_duration,
                              current_period, next_period);
@@ -8945,9 +8945,9 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
       length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
       phaseShift(p("-phi").asDouble(0)) {
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
+  myFish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
-struct CurvatureFish;
+struct Fish;
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
