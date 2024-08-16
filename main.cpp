@@ -2496,15 +2496,15 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         assert(search != TFluxCorrection::MapOfCases.end());
         Case &FineCase = (*search->second);
         int icode = f.icode[0];
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-        const int myFace = abs(code[0]) * std::max(0, code[0]) +
+        int myFace = abs(code[0]) * std::max(0, code[0]) +
                            abs(code[1]) * (std::max(0, code[1]) + 2) +
                            abs(code[2]) * (std::max(0, code[2]) + 4);
         std::vector<ElementType> &FineFace = FineCase.m_pData[myFace];
-        const int d = myFace / 2;
-        const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-        const int N2 = FineCase.m_vSize[d2];
+        int d = myFace / 2;
+        int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+        int N2 = FineCase.m_vSize[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
           for (int j = 0; j < ElementType::DIM; j++)
@@ -2517,7 +2517,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     }
     std::vector<MPI_Request> send_requests;
     std::vector<MPI_Request> recv_requests;
-    const int me = TFluxCorrection::rank;
+    int me = TFluxCorrection::rank;
     for (int r = 0; r < size; r++)
       if (r != me) {
         if (recv_buffer[r].size() != 0) {
