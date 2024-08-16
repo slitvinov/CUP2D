@@ -6915,8 +6915,7 @@ void AdaptTheMesh::operator()(const Real) {
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const KernelVorticity mykernel;
   cubism::compute<VectorLab>(mykernel, sim.vel);
-  GradChiOnTmp K2;
-  cubism::compute<ScalarLab>(K2, sim.chi);
+  cubism::compute<ScalarLab>(GradChiOnTmp(), sim.chi);
   tmp_amr->Tag();
   chi_amr->TagLike(tmpInfo);
   pres_amr->TagLike(tmpInfo);
