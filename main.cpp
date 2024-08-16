@@ -6439,8 +6439,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                        sinang * shape->d_gm[1];
     shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
                        cosang * shape->d_gm[1];
-    Real CX = shape->labCenterOfMass[0];
-    Real CY = shape->labCenterOfMass[1];
     Real t = sim.time;
     Real cx = shape->centerOfMass[0];
     Real cy = shape->centerOfMass[1];
