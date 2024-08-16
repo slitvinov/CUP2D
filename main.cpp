@@ -5452,7 +5452,6 @@ struct FishData {
   inline Real _integrationFac3(const int idx) const {
     return 2 * std::pow(width[idx], 3) / 3;
   }
-  virtual void _computeMidlineNormals() const;
   virtual Real _width(const Real s, const Real L) = 0;
   void _computeWidth() {
     for (int i = 0; i < Nm; ++i)
@@ -8401,24 +8400,6 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void FishData::_computeMidlineNormals() const {
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < Nm - 1; i++) {
-    const auto ds = rS[i + 1] - rS[i];
-    const auto tX = rX[i + 1] - rX[i];
-    const auto tY = rY[i + 1] - rY[i];
-    const auto tVX = vX[i + 1] - vX[i];
-    const auto tVY = vY[i + 1] - vY[i];
-    norX[i] = -tY / ds;
-    norY[i] = tX / ds;
-    vNorX[i] = -tVY / ds;
-    vNorY[i] = tVX / ds;
-  }
-  norX[Nm - 1] = norX[Nm - 2];
-  norY[Nm - 1] = norY[Nm - 2];
-  vNorX[Nm - 1] = vNorX[Nm - 2];
-  vNorY[Nm - 1] = vNorY[Nm - 2];
-}
 Real FishData::integrateLinearMomentum(Real CoM[2], Real vCoM[2]) {
   Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
 #pragma omp parallel for schedule(static)                                      \
@@ -8493,7 +8474,22 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
     _rotate2D(Rmatrix2D, rX[i], rY[i]);
     _rotate2D(Rmatrix2D, vX[i], vY[i]);
   }
-  _computeMidlineNormals();
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < Nm - 1; i++) {
+    const auto ds = rS[i + 1] - rS[i];
+    const auto tX = rX[i + 1] - rX[i];
+    const auto tY = rY[i + 1] - rY[i];
+    const auto tVX = vX[i + 1] - vX[i];
+    const auto tVY = vY[i + 1] - vY[i];
+    norX[i] = -tY / ds;
+    norY[i] = tX / ds;
+    vNorX[i] = -tVY / ds;
+    vNorY[i] = tVX / ds;
+  }
+  norX[Nm - 1] = norX[Nm - 2];
+  norY[Nm - 1] = norY[Nm - 2];
+  vNorX[Nm - 1] = vNorX[Nm - 2];
+  vNorY[Nm - 1] = vNorY[Nm - 2];
 }
 void FishData::computeSurface() const {
 #pragma omp parallel for schedule(static)
