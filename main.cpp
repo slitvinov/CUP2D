@@ -5907,8 +5907,6 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
   }
 };
 } // namespace Schedulers
-struct Shape;
-struct Fish;
 struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
