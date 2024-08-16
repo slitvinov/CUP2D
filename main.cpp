@@ -6317,9 +6317,6 @@ struct PutFishOnBlocks {
   void operator()(const cubism::BlockInfo &i, ScalarBlock &b,
                   ObstacleBlock *const o,
                   const std::vector<AreaSegment *> &v) const;
-  virtual void constructSurface(const cubism::BlockInfo &i, ScalarBlock &b,
-                                ObstacleBlock *const o,
-                                const std::vector<AreaSegment *> &v) const;
   virtual void constructInternl(const cubism::BlockInfo &i, ScalarBlock &b,
                                 ObstacleBlock *const o,
                                 const std::vector<AreaSegment *> &v) const;
@@ -8665,28 +8662,9 @@ bool AreaSegment::isIntersectingWithAABB(const Real start[2],
     return false;
   return true;
 }
-void PutFishOnBlocks::operator()(const cubism::BlockInfo &i, ScalarBlock &b,
+void PutFishOnBlocks::operator()(const cubism::BlockInfo &info, ScalarBlock &b,
                                  ObstacleBlock *const o,
                                  const std::vector<AreaSegment *> &v) const {
-  constructSurface(i, b, o, v);
-  constructInternl(i, b, o, v);
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
-    for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
-      const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
-      o->udef[iy][ix][0] /= normfac;
-      o->udef[iy][ix][1] /= normfac;
-      o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
-                                             : -std::sqrt(-o->dist[iy][ix]);
-      b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
-      ;
-    }
-  static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
-  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
-}
-void PutFishOnBlocks::constructSurface(
-    const cubism::BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
-    const std::vector<AreaSegment *> &vSegments) const {
   Real org[2];
   info.pos(org, 0, 0);
 #ifndef NDEBUG
@@ -8701,9 +8679,9 @@ void PutFishOnBlocks::constructSurface(
   static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
   std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
   std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
-  for (int i = 0; i < (int)vSegments.size(); ++i) {
-    const int firstSegm = std::max(vSegments[i]->s_range.first, 1);
-    const int lastSegm = std::min(vSegments[i]->s_range.second, cfish.Nm - 2);
+  for (int i = 0; i < (int)v.size(); ++i) {
+    const int firstSegm = std::max(v[i]->s_range.first, 1);
+    const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
     for (int ss = firstSegm; ss <= lastSegm; ++ss) {
       assert(width[ss] > 0);
       for (int signp = -1; signp <= 1; signp += 2) {
@@ -8789,6 +8767,19 @@ void PutFishOnBlocks::constructSurface(
       }
     }
   }
+  constructInternl(info, b, o, v);
+  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+  for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
+    for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
+      const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
+      o->udef[iy][ix][0] /= normfac;
+      o->udef[iy][ix][1] /= normfac;
+      o->dist[iy][ix] = o->dist[iy][ix] >= 0 ? std::sqrt(o->dist[iy][ix])
+                                             : -std::sqrt(-o->dist[iy][ix]);
+      b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
+      ;
+    }
+  std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
 }
 void PutFishOnBlocks::constructInternl(
     const cubism::BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
