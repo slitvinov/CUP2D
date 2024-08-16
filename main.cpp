@@ -30,6 +30,11 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static Real dist(const Real a[2], const Real b[2]) {
   return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
 }
+static void rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) {
+  Real p[2] = {x, y};
+  x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+  y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+}
 namespace cubism {
 struct Value {
   std::string content;
@@ -5928,11 +5933,6 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
-    Real p[2] = {x, y};
-    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
   Real _d_ds(int idx, Real *vals, int maxidx) {
     if (idx == 0)
       return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
@@ -6649,8 +6649,8 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     for (int i = 0; i < shape->fish->Nm; ++i) {
       shape->fish->vX[i] += shape->angvel_internal * shape->fish->rY[i];
       shape->fish->vY[i] -= shape->angvel_internal * shape->fish->rX[i];
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i], shape->fish->rY[i]);
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->vX[i], shape->fish->vY[i]);
+      rotate2D(Rmatrix2D, shape->fish->rX[i], shape->fish->rY[i]);
+      rotate2D(Rmatrix2D, shape->fish->vX[i], shape->fish->vY[i]);
     }
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->fish->Nm - 1; i++) {
@@ -6681,11 +6681,11 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       for (size_t i = 0; i < shape->fish->upperSkin.Npoints; ++i) {
         shape->fish->upperSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->fish->upperSkin.ySurf[i] -= shape->CoM_internal[1];
-        shape->fish->_rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
+        rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
                                shape->fish->upperSkin.ySurf[i]);
         shape->fish->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->fish->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
-        shape->fish->_rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
+        rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
                                shape->fish->lowerSkin.ySurf[i]);
       }
     }
@@ -6862,11 +6862,11 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         {std::sin(shape->orientation), std::cos(shape->orientation)}};
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->fish->upperSkin.Npoints; ++i) {
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
+      rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
                              shape->fish->upperSkin.ySurf[i]);
       shape->fish->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->fish->upperSkin.ySurf[i] += shape->centerOfMass[1];
-      shape->fish->_rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
+      rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
                              shape->fish->lowerSkin.ySurf[i]);
       shape->fish->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->fish->lowerSkin.ySurf[i] += shape->centerOfMass[1];
@@ -6876,9 +6876,9 @@ void PutObjectsOnGrid::operator()(const Real dt) {
           {std::cos(shape->orientation), -std::sin(shape->orientation)},
           {std::sin(shape->orientation), std::cos(shape->orientation)}};
       for (int i = 0; i < shape->fish->Nm; ++i) {
-        shape->fish->_rotate2D(Rmatrix2D, shape->fish->rX[i],
+        rotate2D(Rmatrix2D, shape->fish->rX[i],
                                shape->fish->rY[i]);
-        shape->fish->_rotate2D(Rmatrix2D, shape->fish->norX[i],
+        rotate2D(Rmatrix2D, shape->fish->norX[i],
                                shape->fish->norY[i]);
         shape->fish->rX[i] += shape->centerOfMass[0];
         shape->fish->rY[i] += shape->centerOfMass[1];
