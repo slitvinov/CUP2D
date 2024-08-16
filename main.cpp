@@ -5895,21 +5895,6 @@ struct PutObjectsOnGrid : public Operator {
   void operator()(Real dt) override;
 };
 struct Fish {
-  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
-    const Real Rmatrix2D[2][2] = {
-        {std::cos(theta_internal), -std::sin(theta_internal)},
-        {std::sin(theta_internal), std::cos(theta_internal)}};
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < upperSkin.Npoints; ++i) {
-      upperSkin.xSurf[i] -= CoM_internal[0];
-      upperSkin.ySurf[i] -= CoM_internal[1];
-      _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
-      lowerSkin.xSurf[i] -= CoM_internal[0];
-      lowerSkin.ySurf[i] -= CoM_internal[1];
-      _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
-    }
-  }
-
   void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
     const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                   {std::sin(theta_comp), std::cos(theta_comp)}};
@@ -6751,7 +6736,23 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->fish->vNorY[shape->fish->Nm - 1] =
         shape->fish->vNorY[shape->fish->Nm - 2];
 
-    shape->fish->surfaceToCOMFrame(shape->theta_internal, shape->CoM_internal);
+    {
+      const Real Rmatrix2D[2][2] = {
+          {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
+          {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
+#pragma omp parallel for schedule(static)
+      for (size_t i = 0; i < shape->fish->upperSkin.Npoints; ++i) {
+        shape->fish->upperSkin.xSurf[i] -= shape->CoM_internal[0];
+        shape->fish->upperSkin.ySurf[i] -= shape->CoM_internal[1];
+        shape->fish->_rotate2D(Rmatrix2D, shape->fish->upperSkin.xSurf[i],
+                               shape->fish->upperSkin.ySurf[i]);
+        shape->fish->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
+        shape->fish->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
+        shape->fish->_rotate2D(Rmatrix2D, shape->fish->lowerSkin.xSurf[i],
+                               shape->fish->lowerSkin.ySurf[i]);
+      }
+    }
+
     const int Nsegments = (shape->fish->Nm - 1) / 8;
     const int Nm = shape->fish->Nm;
     assert((Nm - 1) % Nsegments == 0);
@@ -7016,11 +7017,11 @@ static Real weno5_plus(const Real um2, const Real um1, const Real u,
   Real exponent = 2;
   Real e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-                  0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
+            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
   Real b2 =
       13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
   Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-                  0.25 * pow((3 * u + up2) - 4 * up1, 2);
+            0.25 * pow((3 * u + up2) - 4 * up1, 2);
   Real g1 = 0.1;
   Real g2 = 0.6;
   Real g3 = 0.3;
