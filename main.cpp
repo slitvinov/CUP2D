@@ -5370,13 +5370,13 @@ using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 struct FishSkin {
-  const size_t Npoints;
-  Real *const xSurf;
-  Real *const ySurf;
-  Real *const normXSurf;
-  Real *const normYSurf;
-  Real *const midX;
-  Real *const midY;
+   size_t Npoints;
+  Real * xSurf;
+  Real * ySurf;
+  Real * normXSurf;
+  Real * normYSurf;
+  Real * midX;
+  Real * midY;
   FishSkin(const size_t N)
       : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
         normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
