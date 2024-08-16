@@ -5928,11 +5928,11 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Real _integrationFac2(int idx) {
-    Real dnorXi = _d_ds(idx, norX, Nm);
-    Real dnorYi = _d_ds(idx, norY, Nm);
-    return 2 * std::pow(width[idx], 3) *
-           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
+  Real _integrationFac2(int i) {
+    return 2 * std::pow(this->width[i], 3) *
+           (this->_d_ds(i, this->norX, this->Nm) * this->norY[i] -
+            this->_d_ds(i, this->norY, this->Nm) * this->norX[i]) /
+           3;
   }
   void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
     Real p[2] = {x, y};
