@@ -5949,10 +5949,10 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Fish(Real L, Real T, Real phi, Real _h, Real _A)
-      : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
+  Fish(Real length, Real Tperiod, Real phi, Real _h, Real _A)
+      : amplitudeFactor(_A), phaseShift(phi), Tperiod(Tperiod), rK(new Real[Nm]),
         vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
-        vB(new Real[Nm]), length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
+        vB(new Real[Nm]), length(length), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
         rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {
@@ -5971,7 +5971,7 @@ struct Fish {
       rS[k + 1] =
           rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
     assert(k + 1 == Nm);
-    rS[k] = std::min(rS[k], (Real)L);
+    rS[k] = std::min(rS[k], (Real)length);
     std::fill(rX, rX + Nm, 0);
     std::fill(rY, rY + Nm, 0);
     std::fill(vX, vX + Nm, 0);
@@ -5979,7 +5979,7 @@ struct Fish {
     for (int i = 0; i < Nm; ++i) {
       const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
                  wh = .04 * length;
-      if (rS[i] < 0 or rS[i] > L)
+      if (rS[i] < 0 or rS[i] > length)
         width[i] = 0;
       else
         width[i] =
@@ -5987,7 +5987,7 @@ struct Fish {
                  ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
                  : (rS[i] < st
                         ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
-                        : (wt * (L - rS[i]) / (L - st))));
+                        : (wt * (length - rS[i]) / (length - st))));
     }
   }
 };
