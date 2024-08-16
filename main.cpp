@@ -26,6 +26,7 @@
 enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
+static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 namespace cubism {
 struct Value {
   std::string content;
@@ -5390,104 +5391,7 @@ struct FishSkin {
     delete[] midY;
   }
 };
-struct FishData {
-  const Real length, h;
-  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  const Real dSmid_tgt = h / std::sqrt(2);
-  const Real dSrefine_tgt = 0.125 * h;
-  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
-  const Real dSmid = length * fracMid / Nmid;
-  const int Nend =
-      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
-  const int Nm = Nmid + 2 * Nend + 1;
-  Real *const rS;
-  Real *const rX;
-  Real *const rY;
-  Real *const vX;
-  Real *const vY;
-  Real *const norX;
-  Real *const norY;
-  Real *const vNorX;
-  Real *const vNorY;
-  Real *const width;
-  Real linMom[2], area, J, angMom;
-  FishSkin upperSkin = FishSkin(Nm);
-  FishSkin lowerSkin = FishSkin(Nm);
-  inline void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
-    Real p[2] = {x, y};
-    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  inline Real _d_ds(const int idx, const Real *const vals,
-                    const int maxidx) const {
-    if (idx == 0)
-      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
-    else if (idx == maxidx - 1)
-      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
-    else
-      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
-              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
-             2;
-  }
-  inline Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
-  inline Real _integrationFac2(const int idx) const {
-    const Real dnorXi = _d_ds(idx, norX, Nm);
-    const Real dnorYi = _d_ds(idx, norY, Nm);
-    return 2 * std::pow(width[idx], 3) *
-           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
-  }
-  inline Real _integrationFac3(const int idx) const {
-    return 2 * std::pow(width[idx], 3) / 3;
-  }
-  FishData(Real L, Real _h);
-  virtual ~FishData();
-  void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
-  void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
-  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
-  void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
-  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
-  virtual void computeMidline(Real time, Real dt) = 0;
-};
 struct Shape;
-FishData::FishData(Real L, Real _h)
-    : length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]), rY(new Real[Nm]),
-      vX(new Real[Nm]), vY(new Real[Nm]), norX(new Real[Nm]),
-      norY(new Real[Nm]), vNorX(new Real[Nm]), vNorY(new Real[Nm]),
-      width(new Real[Nm]) {
-  if (dSref <= 0) {
-    std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-    fflush(0);
-    abort();
-  }
-  rS[0] = 0;
-  int k = 0;
-  for (int i = 0; i < Nend; ++i, k++)
-    rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-  for (int i = 0; i < Nmid; ++i, k++)
-    rS[k + 1] = rS[k] + dSmid;
-  for (int i = 0; i < Nend; ++i, k++)
-    rS[k + 1] =
-        rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-  assert(k + 1 == Nm);
-  rS[k] = std::min(rS[k], (Real)L);
-  std::fill(rX, rX + Nm, 0);
-  std::fill(rY, rY + Nm, 0);
-  std::fill(vX, vX + Nm, 0);
-  std::fill(vY, vY + Nm, 0);
-}
-FishData::~FishData() {
-  delete[] rS;
-  delete[] rX;
-  delete[] rY;
-  delete[] vX;
-  delete[] vY;
-  delete[] norX;
-  delete[] norY;
-  delete[] vNorX;
-  delete[] vNorY;
-  delete[] width;
-}
 static struct {
   int rank;
   int size;
@@ -5624,7 +5528,6 @@ struct ObstacleBlock {
     free(fYv_s);
   }
 };
-struct FishData;
 struct KernelVorticity {
   KernelVorticity() {}
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
@@ -5741,106 +5644,6 @@ struct Integrals {
   Integrals(const Integrals &c)
       : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
 };
-struct Shape {
-  std::vector<ObstacleBlock *> obstacleBlocks;
-  const Real origC[2], origAng;
-  Real center[2];
-  Real centerOfMass[2];
-  Real d_gm[2] = {0, 0};
-  Real labCenterOfMass[2] = {0, 0};
-  Real orientation = origAng;
-  const bool bForced;
-  const bool bForcedx;
-  const bool bForcedy;
-  const bool bBlockang;
-  const Real forcedu;
-  const Real forcedv;
-  const Real forcedomega;
-  const Real timeForced;
-  Real M = 0;
-  Real J = 0;
-  Real u = forcedu;
-  Real v = forcedv;
-  Real omega = forcedomega;
-  Real fluidAngMom = 0;
-  Real fluidMomX = 0;
-  Real fluidMomY = 0;
-  Real penalDX = 0;
-  Real penalDY = 0;
-  Real penalM = 0;
-  Real penalJ = 0;
-  Real appliedForceX = 0;
-  Real appliedForceY = 0;
-  Real appliedTorque = 0;
-  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
-  Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
-       PoutBnd = 0, defPower = 0;
-  Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  const Real length, Tperiod, phaseShift;
-  FishData *myFish = nullptr;
-  Real area_internal = 0, J_internal = 0;
-  Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
-  Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
-  Shape(cubism::CommandlineParser &p, Real C[2]);
-  ~Shape();
-};
-
-static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
-                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
-                       Real *norY, Real *vNorX, Real *vNorY) {
-  rX[0] = 0.0;
-  rY[0] = 0.0;
-  norX[0] = 0.0;
-  norY[0] = 1.0;
-  Real ksiX = 1.0;
-  Real ksiY = 0.0;
-  vX[0] = 0.0;
-  vY[0] = 0.0;
-  vNorX[0] = 0.0;
-  vNorY[0] = 0.0;
-  Real vKsiX = 0.0;
-  Real vKsiY = 0.0;
-  for (unsigned i = 1; i < Nm; i++) {
-    const Real dksiX = curv[i - 1] * norX[i - 1];
-    const Real dksiY = curv[i - 1] * norY[i - 1];
-    const Real dnuX = -curv[i - 1] * ksiX;
-    const Real dnuY = -curv[i - 1] * ksiY;
-    const Real dvKsiX =
-        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-    const Real dvKsiY =
-        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
-    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
-    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-    const Real ds = rS[i] - rS[i - 1];
-    rX[i] = rX[i - 1] + ds * ksiX;
-    rY[i] = rY[i - 1] + ds * ksiY;
-    norX[i] = norX[i - 1] + ds * dnuX;
-    norY[i] = norY[i - 1] + ds * dnuY;
-    ksiX += ds * dksiX;
-    ksiY += ds * dksiY;
-    vX[i] = vX[i - 1] + ds * vKsiX;
-    vY[i] = vY[i - 1] + ds * vKsiY;
-    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
-    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
-    vKsiX += ds * dvKsiX;
-    vKsiY += ds * dvKsiY;
-    const Real d1 = ksiX * ksiX + ksiY * ksiY;
-    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
-    if (d1 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d1);
-      ksiX *= normfac;
-      ksiY *= normfac;
-    }
-    if (d2 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d2);
-      norX[i] *= normfac;
-      norY[i] *= normfac;
-    }
-  }
-}
-
 struct IF2D_Interpolation1D {
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
                                  const Real *xx, Real *yy, const unsigned nn) {
@@ -6109,6 +5912,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
 };
 } // namespace Schedulers
 struct Shape;
+struct CurvatureFish;
 struct PutObjectsOnGrid : public Operator {
   const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
@@ -6116,6 +5920,50 @@ struct PutObjectsOnGrid : public Operator {
   void putChiOnGrid(Shape *const shape) const;
   using Operator::Operator;
   void operator()(Real dt) override;
+};
+struct Shape {
+  std::vector<ObstacleBlock *> obstacleBlocks;
+  const Real origC[2], origAng;
+  Real center[2];
+  Real centerOfMass[2];
+  Real d_gm[2] = {0, 0};
+  Real labCenterOfMass[2] = {0, 0};
+  Real orientation = origAng;
+  const bool bForced;
+  const bool bForcedx;
+  const bool bForcedy;
+  const bool bBlockang;
+  const Real forcedu;
+  const Real forcedv;
+  const Real forcedomega;
+  const Real timeForced;
+  Real M = 0;
+  Real J = 0;
+  Real u = forcedu;
+  Real v = forcedv;
+  Real omega = forcedomega;
+  Real fluidAngMom = 0;
+  Real fluidMomX = 0;
+  Real fluidMomY = 0;
+  Real penalDX = 0;
+  Real penalDY = 0;
+  Real penalM = 0;
+  Real penalJ = 0;
+  Real appliedForceX = 0;
+  Real appliedForceY = 0;
+  Real appliedTorque = 0;
+  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
+  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
+  Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
+       PoutBnd = 0, defPower = 0;
+  Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
+  const Real length, Tperiod, phaseShift;
+  CurvatureFish *myFish = nullptr;
+  Real area_internal = 0, J_internal = 0;
+  Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
+  Real theta_internal = 0, angvel_internal = 0, angvel_internal_prev = 0;
+  Shape(cubism::CommandlineParser &p, Real C[2]);
+  ~Shape();
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
@@ -6238,8 +6086,210 @@ struct PutChiOnGrid {
     }
   }
 };
+struct CurvatureFish;
+
+static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
+                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
+                       Real *norY, Real *vNorX, Real *vNorY) {
+  rX[0] = 0.0;
+  rY[0] = 0.0;
+  norX[0] = 0.0;
+  norY[0] = 1.0;
+  Real ksiX = 1.0;
+  Real ksiY = 0.0;
+  vX[0] = 0.0;
+  vY[0] = 0.0;
+  vNorX[0] = 0.0;
+  vNorY[0] = 0.0;
+  Real vKsiX = 0.0;
+  Real vKsiY = 0.0;
+  for (unsigned i = 1; i < Nm; i++) {
+    const Real dksiX = curv[i - 1] * norX[i - 1];
+    const Real dksiY = curv[i - 1] * norY[i - 1];
+    const Real dnuX = -curv[i - 1] * ksiX;
+    const Real dnuY = -curv[i - 1] * ksiY;
+    const Real dvKsiX =
+        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
+    const Real dvKsiY =
+        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
+    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
+    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
+    const Real ds = rS[i] - rS[i - 1];
+    rX[i] = rX[i - 1] + ds * ksiX;
+    rY[i] = rY[i - 1] + ds * ksiY;
+    norX[i] = norX[i - 1] + ds * dnuX;
+    norY[i] = norY[i - 1] + ds * dnuY;
+    ksiX += ds * dksiX;
+    ksiY += ds * dksiY;
+    vX[i] = vX[i - 1] + ds * vKsiX;
+    vY[i] = vY[i - 1] + ds * vKsiY;
+    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
+    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
+    vKsiX += ds * dvKsiX;
+    vKsiY += ds * dvKsiY;
+    const Real d1 = ksiX * ksiX + ksiY * ksiY;
+    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
+    if (d1 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d1);
+      ksiX *= normfac;
+      ksiY *= normfac;
+    }
+    if (d2 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d2);
+      norX[i] *= normfac;
+      norY[i] *= normfac;
+    }
+  }
+}
+struct CurvatureFish {
+  CurvatureFish(Real L, Real _h);
+  void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
+  void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
+  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
+  void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
+  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
+
+  const Real length, h;
+  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
+  const Real dSmid_tgt = h / std::sqrt(2);
+  const Real dSrefine_tgt = 0.125 * h;
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  const Real dSmid = length * fracMid / Nmid;
+  const int Nend =
+      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
+  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
+  const int Nm = Nmid + 2 * Nend + 1;
+  Real *const rS;
+  Real *const rX;
+  Real *const rY;
+  Real *const vX;
+  Real *const vY;
+  Real *const norX;
+  Real *const norY;
+  Real *const vNorX;
+  Real *const vNorY;
+  Real *const width;
+  Real linMom[2], area, J, angMom;
+  FishSkin upperSkin = FishSkin(Nm);
+  FishSkin lowerSkin = FishSkin(Nm);
+  const Real amplitudeFactor, phaseShift, Tperiod;
+  Real curv_PID_fac = 0;
+  Real curv_PID_dif = 0;
+  Real avgDeltaY = 0;
+  Real avgDangle = 0;
+  Real avgAngVel = 0;
+  Real lastTact = 0;
+  Real lastCurv = 0;
+  Real oldrCurv = 0;
+  Real periodPIDval = Tperiod;
+  Real periodPIDdif = 0;
+  bool TperiodPID = false;
+  Real time0 = 0;
+  Real timeshift = 0;
+  Real lastTime = 0;
+  Real lastAvel = 0;
+  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
+  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period = Tperiod;
+  Real next_period = Tperiod;
+  Real transition_start = 0.0;
+  Real transition_duration = 0.1 * Tperiod;
+  Real *const rK;
+  Real *const vK;
+  Real *const rC;
+  Real *const vC;
+  Real *const rB;
+  Real *const vB;
+  inline Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
+  inline Real _integrationFac2(const int idx) const {
+    const Real dnorXi = _d_ds(idx, norX, Nm);
+    const Real dnorYi = _d_ds(idx, norY, Nm);
+    return 2 * std::pow(width[idx], 3) *
+           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
+  }
+  inline Real _integrationFac3(const int idx) const {
+    return 2 * std::pow(width[idx], 3) / 3;
+  }
+  void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
+    Real p[2] = {x, y};
+    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+  }
+  inline Real _d_ds(const int idx, const Real *const vals,
+                    const int maxidx) const {
+    if (idx == 0)
+      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
+    else if (idx == maxidx - 1)
+      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
+    else
+      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
+              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
+             2;
+  }
+  CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
+      : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
+        vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
+        vB(new Real[Nm]), length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
+        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
+        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
+        vNorY(new Real[Nm]), width(new Real[Nm]) {
+    if (dSref <= 0) {
+      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+      fflush(0);
+      abort();
+    }
+    rS[0] = 0;
+    int k = 0;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
+    for (int i = 0; i < Nmid; ++i, k++)
+      rS[k + 1] = rS[k] + dSmid;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] =
+          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
+    assert(k + 1 == Nm);
+    rS[k] = std::min(rS[k], (Real)L);
+    std::fill(rX, rX + Nm, 0);
+    std::fill(rY, rY + Nm, 0);
+    std::fill(vX, vX + Nm, 0);
+    std::fill(vY, vY + Nm, 0);
+    for (int i = 0; i < Nm; ++i) {
+      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+                 wh = .04 * length;
+      if (rS[i] < 0 or rS[i] > L)
+        width[i] = 0;
+      else
+        width[i] =
+            (rS[i] < sb
+                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
+                 : (rS[i] < st
+                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
+                        : (wt * (L - rS[i]) / (L - st))));
+    }
+  }
+  ~CurvatureFish() {
+    delete[] rS;
+    delete[] rX;
+    delete[] rY;
+    delete[] vX;
+    delete[] vY;
+    delete[] norX;
+    delete[] norY;
+    delete[] vNorX;
+    delete[] vNorY;
+    delete[] width;
+    delete[] rK;
+    delete[] vK;
+    delete[] rC;
+    delete[] vC;
+    delete[] rB;
+    delete[] vB;
+  }
+  void computeMidline(const Real time, const Real dt);
+};
 struct PutFishOnBlocks {
-  const FishData &cfish;
+  const CurvatureFish &cfish;
   const Real position[2];
   const Real angle;
   const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
@@ -6264,7 +6314,7 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const FishData &cf, const Real pos[2], const Real ang)
+  PutFishOnBlocks(const CurvatureFish &cf, const Real pos[2], const Real ang)
       : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
   virtual ~PutFishOnBlocks() {}
   void operator()(const cubism::BlockInfo &i, ScalarBlock &b,
@@ -6333,7 +6383,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     shape->obstacleBlocks.clear();
     assert(myFish != nullptr);
     shape->myFish->computeMidline(sim.time, sim.dt);
-
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->myFish->lowerSkin.Npoints; ++i) {
       Real norm[2] = {shape->myFish->norX[i], shape->myFish->norY[i]};
@@ -8449,7 +8498,7 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void FishData::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
+void CurvatureFish::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm; ++i) {
     rX[i] -= Cin[0];
@@ -8458,7 +8507,7 @@ void FishData::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
     vY[i] -= vCin[1];
   }
 }
-void FishData::changeToCoMFrameAngular(Real Ain, Real vAin) {
+void CurvatureFish::changeToCoMFrameAngular(Real Ain, Real vAin) {
   const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
                                 {std::sin(Ain), std::cos(Ain)}};
 #pragma omp parallel for schedule(static)
@@ -8485,7 +8534,7 @@ void FishData::changeToCoMFrameAngular(Real Ain, Real vAin) {
   vNorX[Nm - 1] = vNorX[Nm - 2];
   vNorY[Nm - 1] = vNorY[Nm - 2];
 }
-void FishData::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
+void CurvatureFish::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
   for (int i = 0; i < Nm; ++i) {
@@ -8528,7 +8577,8 @@ void FishData::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
     }
   }
 }
-void FishData::surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
+void CurvatureFish::surfaceToCOMFrame(Real theta_internal,
+                                      Real CoM_internal[2]) {
   const Real Rmatrix2D[2][2] = {
       {std::cos(theta_internal), -std::sin(theta_internal)},
       {std::sin(theta_internal), std::cos(theta_internal)}};
@@ -8542,8 +8592,8 @@ void FishData::surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
     _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
   }
 }
-void FishData::surfaceToComputationalFrame(Real theta_comp,
-                                           Real CoM_interpolated[2]) {
+void CurvatureFish::surfaceToComputationalFrame(Real theta_comp,
+                                                Real CoM_interpolated[2]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
 #pragma omp parallel for schedule(static)
@@ -8835,64 +8885,6 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
     }
   }
 };
-struct CurvatureFish : public FishData {
-  const Real amplitudeFactor, phaseShift, Tperiod;
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
-  Real avgDeltaY = 0;
-  Real avgDangle = 0;
-  Real avgAngVel = 0;
-  Real lastTact = 0;
-  Real lastCurv = 0;
-  Real oldrCurv = 0;
-  Real periodPIDval = Tperiod;
-  Real periodPIDdif = 0;
-  bool TperiodPID = false;
-  Real time0 = 0;
-  Real timeshift = 0;
-  Real lastTime = 0;
-  Real lastAvel = 0;
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  Schedulers::ParameterSchedulerScalar periodScheduler;
-  Real current_period = Tperiod;
-  Real next_period = Tperiod;
-  Real transition_start = 0.0;
-  Real transition_duration = 0.1 * Tperiod;
-  Real *const rK;
-  Real *const vK;
-  Real *const rC;
-  Real *const vC;
-  Real *const rB;
-  Real *const vB;
-  CurvatureFish(Real L, Real T, Real phi, Real _h, Real _A)
-      : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
-        rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
-        rB(new Real[Nm]), vB(new Real[Nm]) {
-    for (int i = 0; i < Nm; ++i) {
-      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-                 wh = .04 * length;
-      if (rS[i] < 0 or rS[i] > L)
-        width[i] = 0;
-      else
-        width[i] =
-            (rS[i] < sb
-                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
-                 : (rS[i] < st
-                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
-                        : (wt * (L - rS[i]) / (L - st))));
-    }
-  }
-  ~CurvatureFish() override {
-    delete[] rK;
-    delete[] vK;
-    delete[] rC;
-    delete[] vC;
-    delete[] rB;
-    delete[] vB;
-  }
-  void computeMidline(const Real time, const Real dt) override;
-};
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
                              transition_start + transition_duration,
@@ -8955,7 +8947,7 @@ Shape::Shape(cubism::CommandlineParser &p, Real C[2])
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureFish(length, Tperiod, phaseShift, sim.minH, ampFac);
 }
-struct FishData;
+struct CurvatureFish;
 Shape::~Shape() {
   for (auto &entry : obstacleBlocks)
     delete entry;
