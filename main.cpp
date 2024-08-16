@@ -5326,7 +5326,7 @@ struct BlockLabNeumann : public cubism::BlockLab<TGrid> {
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
   virtual void _apply_bc(const cubism::BlockInfo &info, const Real t = 0,
-                         const bool coarse = false) {
+                         const bool coarse = false) override {
     if (is_xperiodic() == false) {
       if (info.index[0] == 0)
         Neumann2D<0, 0>(coarse);
@@ -5510,7 +5510,6 @@ struct KernelVorticity {
 };
 static void dump(Real time, ScalarGrid *grid, char *path) {
   long i, j, k, l, x, y, ncell, ncell_total, offset;
-  int size;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
   MPI_File mpi_file;
@@ -5886,17 +5885,15 @@ struct PutObjectsOnGrid : public Operator {
 };
 struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2])
-      : center{C[0], C[1]},
-        centerOfMass{C[0], C[1]},
-	orientation(p("-angle").asDouble(0) * M_PI / 180),
+      : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
+        orientation(p("-angle").asDouble(0) * M_PI / 180),
         bForced(p("-bForced").asBool(false)),
         bForcedx(p("-bForcedx").asBool(bForced)),
         bForcedy(p("-bForcedy").asBool(bForced)),
         bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
         forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-        forcedomega(-p("-angvel").asDouble(0)),
-        length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
-        phaseShift(p("-phi").asDouble(0)), amplitudeFactor(amplitudeFactor),
+        forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
+        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
         rB(new Real[Nm]), vB(new Real[Nm]), h(sim.minH), rS(new Real[Nm]),
         rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
@@ -6420,10 +6417,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                        sinang * shape->d_gm[1];
     shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
                        cosang * shape->d_gm[1];
-    Real t = sim.time;
-    Real cx = shape->centerOfMass[0];
-    Real cy = shape->centerOfMass[1];
-    Real angle = shape->orientation;
     shape->theta_internal -= dt * shape->angvel_internal;
     if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
         shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
@@ -8195,7 +8188,8 @@ struct updatePressureRHS1 {
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     cubism::BlockCase<ScalarBlock> *tempCase =
-        (cubism::BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
+        (cubism::BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID]
+                                               .auxiliary);
     ScalarBlock::ElementType *faceXm = nullptr;
     ScalarBlock::ElementType *faceXp = nullptr;
     ScalarBlock::ElementType *faceYm = nullptr;
@@ -8989,10 +8983,8 @@ int main(int argc, char **argv) {
     }
     if (sim.dlm > 0)
       sim.lambda = sim.dlm / sim.dt;
-    Real dt = sim.dt;
     bool done = false;
-    if (!done || dt > 2e-16) {
-      Real CFL = (uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
+    if (!done || sim.dt > 2e-16) {
       bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
       bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
       bool bDump = stepDump || timeDump;
@@ -9004,8 +8996,8 @@ int main(int argc, char **argv) {
         dump(sim.time, sim.tmp, path);
       }
       for (size_t c = 0; c < pipeline.size(); c++)
-        (*pipeline[c])(dt);
-      sim.time += dt;
+        (*pipeline[c])(sim.dt);
+      sim.time += sim.dt;
       sim.step++;
     }
     if (!done) {
