@@ -5441,10 +5441,6 @@ struct FishData {
     return 2 * std::pow(width[idx], 3) / 3;
   }
   virtual Real _width(const Real s, const Real L) = 0;
-  void _computeWidth() {
-    for (int i = 0; i < Nm; ++i)
-      width[i] = _width(rS[i], length);
-  }
   FishData(Real L, Real _h);
   virtual ~FishData();
   void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
@@ -8874,7 +8870,8 @@ struct CurvatureFish : public FishData {
       : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
         rB(new Real[Nm]), vB(new Real[Nm]) {
-    _computeWidth();
+    for (int i = 0; i < Nm; ++i)
+      width[i] = _width(rS[i], length);
   }
   ~CurvatureFish() override {
     delete[] rK;
