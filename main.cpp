@@ -5370,13 +5370,13 @@ using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
 using ScalarAMR = cubism::MeshAdaptation<ScalarLab>;
 using VectorAMR = cubism::MeshAdaptation<VectorLab>;
 struct FishSkin {
-   size_t Npoints;
-  Real * xSurf;
-  Real * ySurf;
-  Real * normXSurf;
-  Real * normYSurf;
-  Real * midX;
-  Real * midY;
+  size_t Npoints;
+  Real *xSurf;
+  Real *ySurf;
+  Real *normXSurf;
+  Real *normYSurf;
+  Real *midX;
+  Real *midY;
   FishSkin(const size_t N)
       : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
         normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
@@ -5440,7 +5440,6 @@ struct FishData {
   inline Real _integrationFac3(const int idx) const {
     return 2 * std::pow(width[idx], 3) / 3;
   }
-  virtual Real _width(const Real s, const Real L) = 0;
   FishData(Real L, Real _h);
   virtual ~FishData();
   void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
@@ -8870,8 +8869,19 @@ struct CurvatureFish : public FishData {
       : FishData(L, _h), amplitudeFactor(_A), phaseShift(phi), Tperiod(T),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
         rB(new Real[Nm]), vB(new Real[Nm]) {
-    for (int i = 0; i < Nm; ++i)
-      width[i] = _width(rS[i], length);
+    for (int i = 0; i < Nm; ++i) {
+      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+                 wh = .04 * length;
+      if (rS[i] < 0 or rS[i] > L)
+        width[i] = 0;
+      else
+        width[i] =
+            (rS[i] < sb
+                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
+                 : (rS[i] < st
+                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
+                        : (wt * (L - rS[i]) / (L - st))));
+    }
   }
   ~CurvatureFish() override {
     delete[] rK;
@@ -8882,18 +8892,6 @@ struct CurvatureFish : public FishData {
     delete[] vB;
   }
   void computeMidline(const Real time, const Real dt) override;
-  Real _width(const Real s, const Real L) override {
-    const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-               wh = .04 * length;
-    if (s < 0 or s > L)
-      return 0;
-    const Real w =
-        (s < sb ? std::sqrt(2 * wh * s - s * s)
-                : (s < st ? wh - (wh - wt) * std::pow((s - sb) / (st - sb), 1)
-                          : (wt * (L - s) / (L - st))));
-    assert(w >= 0);
-    return w;
-  }
 };
 void CurvatureFish::computeMidline(const Real t, const Real dt) {
   periodScheduler.transition(t, transition_start,
@@ -9164,8 +9162,7 @@ int main(int argc, char **argv) {
     v = quantities[3];
     sim.uMax_measured = std::max({U, V, u, v});
     if (CFL > 0) {
-      Real dtDiffusion =
-          0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
+      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
       Real dtAdvection = h / (sim.uMax_measured + 1e-8);
       sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
