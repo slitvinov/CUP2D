@@ -6912,16 +6912,15 @@ struct GradChiOnTmp {
 void AdaptTheMesh::operator()(const Real) {
   if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
     return;
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   cubism::compute<VectorLab>(KernelVorticity(), sim.vel);
   cubism::compute<ScalarLab>(GradChiOnTmp(), sim.chi);
   tmp_amr->Tag();
-  chi_amr->TagLike(tmpInfo);
-  pres_amr->TagLike(tmpInfo);
-  pold_amr->TagLike(tmpInfo);
-  vel_amr->TagLike(tmpInfo);
-  vOld_amr->TagLike(tmpInfo);
-  tmpV_amr->TagLike(tmpInfo);
+  chi_amr->TagLike(sim.tmp->m_vInfo);
+  pres_amr->TagLike(sim.tmp->m_vInfo);
+  pold_amr->TagLike(sim.tmp->m_vInfo);
+  vel_amr->TagLike(sim.tmp->m_vInfo);
+  vOld_amr->TagLike(sim.tmp->m_vInfo);
+  tmpV_amr->TagLike(sim.tmp->m_vInfo);
   tmp_amr->Adapt(sim.time, false, false);
   chi_amr->Adapt(sim.time, false, false);
   vel_amr->Adapt(sim.time, false, false);
