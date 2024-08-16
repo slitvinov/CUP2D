@@ -5949,8 +5949,8 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Fish(Real length, Real Tperiod, Real phi, Real _h, Real _A)
-      : amplitudeFactor(_A), phaseShift(phi), Tperiod(Tperiod), rK(new Real[Nm]),
+  Fish(Real length, Real Tperiod, Real phaseShift, Real _h, Real _A)
+      : amplitudeFactor(_A), phaseShift(phaseShift), Tperiod(Tperiod), rK(new Real[Nm]),
         vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
         vB(new Real[Nm]), length(length), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
         rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
