@@ -6091,7 +6091,6 @@ struct PutChiOnGrid {
     }
   }
 };
-struct Fish;
 static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
                        Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
                        Real *norY, Real *vNorX, Real *vNorY) {
