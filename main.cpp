@@ -1196,30 +1196,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3652,30 +3649,27 @@ template <typename TGrid> struct BlockLab {
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
             code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
@@ -6028,16 +6022,16 @@ struct Fish {
   Real next_period = Tperiod;
   Real transition_start = 0.0;
   Real transition_duration = 0.1 * Tperiod;
-  Real *const rK;
-  Real *const vK;
-  Real *const rC;
-  Real *const vC;
-  Real *const rB;
-  Real *const vB;
-  Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
-  Real _integrationFac2(const int idx) const {
-    const Real dnorXi = _d_ds(idx, norX, Nm);
-    const Real dnorYi = _d_ds(idx, norY, Nm);
+  Real *rK;
+  Real *vK;
+  Real *rC;
+  Real *vC;
+  Real *rB;
+  Real *vB;
+  Real _integrationFac1(int idx) { return 2 * width[idx]; }
+  Real _integrationFac2(int idx) {
+    Real dnorXi = _d_ds(idx, norX, Nm);
+    Real dnorYi = _d_ds(idx, norY, Nm);
     return 2 * std::pow(width[idx], 3) *
            (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
   }
@@ -6120,22 +6114,22 @@ struct Fish {
   }
 };
 struct Shape {
-Shape(cubism::CommandlineParser &p, Real C[2])
-    : origC{C[0], C[1]},
-      origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
-      centerOfMass{C[0], C[1]}, orientation(origAng),
-      bForced(p("-bForced").asBool(false)),
-      bForcedx(p("-bForcedx").asBool(bForced)),
-      bForcedy(p("-bForcedy").asBool(bForced)),
-      bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
-      forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-      forcedomega(-p("-angvel").asDouble(0)),
-      timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
-      length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
-      phaseShift(p("-phi").asDouble(0)) {
-  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
-}
+  Shape(cubism::CommandlineParser &p, Real C[2])
+      : origC{C[0], C[1]},
+        origAng(p("-angle").asDouble(0) * M_PI / 180), center{C[0], C[1]},
+        centerOfMass{C[0], C[1]}, orientation(origAng),
+        bForced(p("-bForced").asBool(false)),
+        bForcedx(p("-bForcedx").asBool(bForced)),
+        bForcedy(p("-bForcedy").asBool(bForced)),
+        bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
+        forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
+        forcedomega(-p("-angvel").asDouble(0)),
+        timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
+        length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
+        phaseShift(p("-phi").asDouble(0)) {
+    const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
+    fish = new Fish(length, Tperiod, phaseShift, sim.minH, ampFac);
+  }
   ~Shape() {
     for (auto &entry : obstacleBlocks)
       delete entry;
