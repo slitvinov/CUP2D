@@ -5451,16 +5451,12 @@ struct FishData {
   }
   FishData(Real L, Real _h);
   virtual ~FishData();
-  void changeToCoMFrameLinear(const Real CoM_internal[2],
-                              const Real vCoM_internal[2]) const;
-  void changeToCoMFrameAngular(const Real theta_internal,
-                               const Real angvel_internal) const;
-  void surfaceToCOMFrame(const Real theta_internal,
-                         const Real CoM_internal[2]) const;
-  void surfaceToComputationalFrame(const Real theta_comp,
-                                   const Real CoM_interpolated[2]) const;
-  void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3]) const;
-  virtual void computeMidline(const Real time, const Real dt) = 0;
+  void changeToCoMFrameLinear(Real CoM_internal[2], Real vCoM_internal[2]);
+  void changeToCoMFrameAngular(Real theta_internal, Real angvel_internal);
+  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]);
+  void surfaceToComputationalFrame(Real theta_comp, Real CoM_interpolated[2]);
+  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]);
+  virtual void computeMidline(Real time, Real dt) = 0;
 };
 struct Shape;
 FishData::FishData(Real L, Real _h)
@@ -8479,8 +8475,7 @@ void PressureSingle::operator()(const Real dt) {
 PressureSingle::PressureSingle()
     : Operator(), pressureSolver{new PoissonSolver()} {}
 PressureSingle::~PressureSingle() = default;
-void FishData::changeToCoMFrameLinear(const Real Cin[2],
-                                      const Real vCin[2]) const {
+void FishData::changeToCoMFrameLinear(Real Cin[2], Real vCin[2]) {
 #pragma omp parallel for schedule(static)
   for (int i = 0; i < Nm; ++i) {
     rX[i] -= Cin[0];
@@ -8489,7 +8484,7 @@ void FishData::changeToCoMFrameLinear(const Real Cin[2],
     vY[i] -= vCin[1];
   }
 }
-void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
+void FishData::changeToCoMFrameAngular(Real Ain, Real vAin) {
   const Real Rmatrix2D[2][2] = {{std::cos(Ain), -std::sin(Ain)},
                                 {std::sin(Ain), std::cos(Ain)}};
 #pragma omp parallel for schedule(static)
@@ -8516,8 +8511,7 @@ void FishData::changeToCoMFrameAngular(const Real Ain, const Real vAin) const {
   vNorX[Nm - 1] = vNorX[Nm - 2];
   vNorY[Nm - 1] = vNorY[Nm - 2];
 }
-void FishData::computeSkinNormals(const Real theta_comp,
-                                  const Real CoM_comp[3]) const {
+void FishData::computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
   for (int i = 0; i < Nm; ++i) {
@@ -8560,8 +8554,7 @@ void FishData::computeSkinNormals(const Real theta_comp,
     }
   }
 }
-void FishData::surfaceToCOMFrame(const Real theta_internal,
-                                 const Real CoM_internal[2]) const {
+void FishData::surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
   const Real Rmatrix2D[2][2] = {
       {std::cos(theta_internal), -std::sin(theta_internal)},
       {std::sin(theta_internal), std::cos(theta_internal)}};
@@ -8575,8 +8568,8 @@ void FishData::surfaceToCOMFrame(const Real theta_internal,
     _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
   }
 }
-void FishData::surfaceToComputationalFrame(
-    const Real theta_comp, const Real CoM_interpolated[2]) const {
+void FishData::surfaceToComputationalFrame(Real theta_comp,
+                                           Real CoM_interpolated[2]) {
   const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
                                 {std::sin(theta_comp), std::cos(theta_comp)}};
 #pragma omp parallel for schedule(static)
