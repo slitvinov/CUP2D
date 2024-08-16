@@ -5949,8 +5949,8 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Fish(Real length, Real Tperiod, Real phaseShift, Real _A)
-      : amplitudeFactor(_A), phaseShift(phaseShift), Tperiod(Tperiod), rK(new Real[Nm]),
+  Fish(Real length, Real Tperiod, Real phaseShift, Real amplitudeFactor)
+      : amplitudeFactor(amplitudeFactor), phaseShift(phaseShift), Tperiod(Tperiod), rK(new Real[Nm]),
         vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
         vB(new Real[Nm]), length(length), h(sim.minH), rS(new Real[Nm]), rX(new Real[Nm]),
         rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
@@ -6005,8 +6005,8 @@ struct Shape {
         timeForced(p("-timeForced").asDouble(std::numeric_limits<Real>::max())),
         length(p("-L").asDouble(0.1)), Tperiod(p("-T").asDouble(1)),
         phaseShift(p("-phi").asDouble(0)) {
-    const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-    fish = new Fish(length, Tperiod, phaseShift, ampFac);
+    const Real amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
+    fish = new Fish(length, Tperiod, phaseShift, amplitudeFactor);
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   const Real origC[2], origAng;
