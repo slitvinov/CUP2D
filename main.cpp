@@ -440,7 +440,6 @@ struct BlockCase {
     level = _level;
     Z = _Z;
   }
-  ~BlockCase() {}
 };
 template <typename TGrid> struct FluxCorrection {
   using GridType = TGrid;
