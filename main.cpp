@@ -6323,9 +6323,6 @@ struct PutFishOnBlocks {
   virtual void constructInternl(const cubism::BlockInfo &i, ScalarBlock &b,
                                 ObstacleBlock *const o,
                                 const std::vector<AreaSegment *> &v) const;
-  virtual void signedDistanceSqrt(const cubism::BlockInfo &i, ScalarBlock &b,
-                                  ObstacleBlock *const o,
-                                  const std::vector<AreaSegment *> &v) const;
 };
 void PutObjectsOnGrid::operator()(const Real dt) {
   int nSum[2] = {0, 0};
