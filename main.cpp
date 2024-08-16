@@ -4456,7 +4456,6 @@ template <typename TLab> struct MeshAdaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
-  virtual ~MeshAdaptation() { delete Balancer; }
   void Tag(double t = 0) {
     time = t;
     boundary_needed = true;
@@ -6830,12 +6829,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
         }
       }
     }
-    for (auto &E : vSegments) {
+    for (auto &E : vSegments)
       delete E;
-    }
-    for (auto &E : segmentsPerBlock) {
+    for (auto &E : segmentsPerBlock)
       delete E;
-    }
   }
   cubism::compute<ScalarLab>(PutChiOnGrid(), sim.tmp);
   cubism::compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid,
@@ -7016,27 +7013,27 @@ struct advDiff : public Operator {
 };
 static Real weno5_plus(const Real um2, const Real um1, const Real u,
                        const Real up1, const Real up2) {
-  const Real exponent = 2;
-  const Real e = 1e-6;
-  const Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
+  Real exponent = 2;
+  Real e = 1e-6;
+  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
                   0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
-  const Real b2 =
+  Real b2 =
       13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
-  const Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
+  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
                   0.25 * pow((3 * u + up2) - 4 * up1, 2);
-  const Real g1 = 0.1;
-  const Real g2 = 0.6;
-  const Real g3 = 0.3;
-  const Real what1 = g1 / pow(b1 + e, exponent);
-  const Real what2 = g2 / pow(b2 + e, exponent);
-  const Real what3 = g3 / pow(b3 + e, exponent);
-  const Real aux = 1.0 / ((what1 + what3) + what2);
-  const Real w1 = what1 * aux;
-  const Real w2 = what2 * aux;
-  const Real w3 = what3 * aux;
-  const Real f1 = (11.0 / 6.0) * u + ((1.0 / 3.0) * um2 - (7.0 / 6.0) * um1);
-  const Real f2 = (5.0 / 6.0) * u + ((-1.0 / 6.0) * um1 + (1.0 / 3.0) * up1);
-  const Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
+  Real g1 = 0.1;
+  Real g2 = 0.6;
+  Real g3 = 0.3;
+  Real what1 = g1 / pow(b1 + e, exponent);
+  Real what2 = g2 / pow(b2 + e, exponent);
+  Real what3 = g3 / pow(b3 + e, exponent);
+  Real aux = 1.0 / ((what1 + what3) + what2);
+  Real w1 = what1 * aux;
+  Real w2 = what2 * aux;
+  Real w3 = what3 * aux;
+  Real f1 = (11.0 / 6.0) * u + ((1.0 / 3.0) * um2 - (7.0 / 6.0) * um1);
+  Real f2 = (5.0 / 6.0) * u + ((-1.0 / 6.0) * um1 + (1.0 / 3.0) * up1);
+  Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
 static Real weno5_minus(const Real um2, const Real um1, const Real u,
