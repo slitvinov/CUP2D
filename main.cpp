@@ -934,11 +934,9 @@ struct StencilInfo {
     return !(not0 || not1 || not2 || not3);
   }
 };
-void pack(const Real *const srcbase, Real *const dst,
-          const unsigned int gptfloats, int *selected_components,
-          const int ncomponents, const int xstart, const int ystart,
-          const int zstart, const int xend, const int yend, const int zend,
-          const int BSX, const int BSY) {
+void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
+          int *selected_components, int ncomponents, int xstart, int ystart,
+          int zstart, int xend, int yend, int zend, int BSX, int BSY) {
   if (gptfloats == 1) {
     const int mod = (xend - xstart) % 4;
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
