@@ -5928,12 +5928,6 @@ struct Fish {
   Real *vC;
   Real *rB;
   Real *vB;
-  Real _integrationFac2(int i) {
-    return 2 * std::pow(this->width[i], 3) *
-           (this->_d_ds(i, this->norX, this->Nm) * this->norY[i] -
-            this->_d_ds(i, this->norY, this->Nm) * this->norX[i]) /
-           3;
-  }
   void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
     Real p[2] = {x, y};
     x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
@@ -6572,7 +6566,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = 2 * shape->fish->width[i];
-      const Real fac2 = shape->fish->_integrationFac2(i);
+      const Real fac2 = 2 * std::pow(shape->fish->width[i], 3) *
+           (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) * shape->fish->norY[i] -
+            shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) * shape->fish->norX[i]) /
+	3;
       _area += fac1 * ds / 2;
       _cmx +=
           (shape->fish->rX[i] * fac1 + shape->fish->norX[i] * fac2) * ds / 2;
@@ -6613,7 +6610,10 @@ void PutObjectsOnGrid::operator()(const Real dt) {
                                 shape->fish->rS[shape->fish->Nm - 2]
                           : shape->fish->rS[i + 1] - shape->fish->rS[i - 1]);
       const Real fac1 = 2 * shape->fish->width[i];
-      const Real fac2 = shape->fish->_integrationFac2(i);
+      const Real fac2 = 2 * std::pow(shape->fish->width[i], 3) *
+           (shape->fish->_d_ds(i, shape->fish->norX, shape->fish->Nm) * shape->fish->norY[i] -
+            shape->fish->_d_ds(i, shape->fish->norY, shape->fish->Nm) * shape->fish->norX[i]) /
+	3;
       const Real fac3 = 2 * std::pow(shape->fish->width[i], 3) / 3;
       const Real tmp_M = (shape->fish->rX[i] * shape->fish->vY[i] -
                           shape->fish->rY[i] * shape->fish->vX[i]) *
