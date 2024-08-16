@@ -560,8 +560,8 @@ template <typename TGrid> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(Case(storeFace, BlockType::sizeX, BlockType::sizeY,
-                             BlockType::sizeZ, info.level, info.Z));
+        Cases.push_back(Case(storeFace, _BS_, _BS_,
+                             1, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -630,13 +630,13 @@ template <typename TGrid> struct FluxCorrection {
           BlockType &block = *(BlockType *)info.ptrBlock;
           assert(d != 2);
           if (d == 0) {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
+            const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block(j, i2) += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
           } else {
-            const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
+            const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block(i2, j) += CoarseFace[i2];
               CoarseFace[i2].clear();
@@ -861,7 +861,7 @@ template <typename Block> struct Grid {
   }
   std::array<int, 3> getMaxMostRefinedCells() const {
     const auto b = getMaxMostRefinedBlocks();
-    return {b[0] * Block::sizeX, b[1] * Block::sizeY, b[2] * Block::sizeZ};
+    return {b[0] * _BS_, b[1] * _BS_, b[2] * 1};
   }
   int getlevelMax() const { return levelMax; }
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
@@ -876,17 +876,15 @@ template <typename Block> struct Grid {
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
           const int TwoPower = 1 << m;
-          const double h0 = (maxextent / std::max(NX * Block::sizeX,
-                                                  std::max(NY * Block::sizeY,
-                                                           NZ * Block::sizeZ)));
+          const double h0 = (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
           const double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
           BlockInfo::inverse(n, m, i, j);
           k = 0;
-          origin[0] = i * Block::sizeX * h;
-          origin[1] = j * Block::sizeY * h;
-          origin[2] = k * Block::sizeZ * h;
+          origin[0] = i * _BS_ * h;
+          origin[1] = j * _BS_ * h;
+          origin[2] = k * 1 * h;
           dumm->setup(m, h, origin, n);
           BlockInfoAll[aux] = dumm;
         }
@@ -1957,8 +1955,7 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid)
       : stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, TGrid::Block::sizeX, TGrid::Block::sizeY,
-           TGrid::Block::sizeZ),
+        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
         gptfloats(sizeof(typename TGrid::Block::ElementType) / sizeof(Real)),
         NC(a_stencil.selcomponents.size()) {
     grid = _grid;
@@ -1967,9 +1964,9 @@ template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
                     stencil.ex > 3 || stencil.ey > 3 || stencil.ez > 3);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    nX = TGrid::Block::sizeX;
-    nY = TGrid::Block::sizeY;
-    nZ = TGrid::Block::sizeZ;
+    nX = _BS_;
+    nY = _BS_;
+    nZ = 1;
     send_interfaces.resize(size);
     recv_interfaces.resize(size);
     send_packinfos.resize(size);
@@ -2297,13 +2294,13 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     BlockType &block = *(BlockType *)info.ptrBlock;
     assert(d != 2);
     if (d == 0) {
-      const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeX - 1;
+      const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block(j, i2) += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
     } else {
-      const int j = (myFace % 2 == 0) ? 0 : BlockType::sizeY - 1;
+      const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block(i2, j) += CoarseFace[i2];
         CoarseFace[i2].clear();
@@ -2330,9 +2327,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<int> recv_buffer_size(size, 0);
     const int NC = ElementType::DIM;
     int blocksize[3];
-    blocksize[0] = BlockType::sizeX;
-    blocksize[1] = BlockType::sizeY;
-    blocksize[2] = BlockType::sizeZ;
+    blocksize[0] = _BS_;
+    blocksize[1] = _BS_;
+    blocksize[2] = 1;
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
@@ -2435,8 +2432,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       }
       if (stored) {
         TFluxCorrection::Cases.push_back(
-            Case(storeFace, BlockType::sizeX, BlockType::sizeY,
-                 BlockType::sizeZ, info.level, info.Z));
+            Case(storeFace, _BS_, _BS_,
+                 1, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -2887,7 +2884,7 @@ template <typename TGrid> struct GridMPI : public TGrid {
     for (auto &info : TGrid::m_vInfo) {
       const double h = 2 * info.h;
       info.pos(p_low, 0, 0);
-      info.pos(p_high, Block::sizeX - 1, Block::sizeY - 1);
+      info.pos(p_high, _BS_ - 1, _BS_ - 1);
       p_low[0] -= h;
       p_low[1] -= h;
       p_low[2] = 0;
@@ -2915,12 +2912,12 @@ template <typename TGrid> struct GridMPI : public TGrid {
   }
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
-        (TGrid::maxextent / std::max(TGrid::NX * Block::sizeX,
-                                     std::max(TGrid::NY * Block::sizeY,
-                                              TGrid::NZ * Block::sizeZ)));
-    const double extent[3] = {TGrid::NX * Block::sizeX * h0,
-                              TGrid::NY * Block::sizeY * h0,
-                              TGrid::NZ * Block::sizeZ * h0};
+        (TGrid::maxextent / std::max(TGrid::NX * _BS_,
+                                     std::max(TGrid::NY * _BS_,
+                                              TGrid::NZ * 1)));
+    const double extent[3] = {TGrid::NX * _BS_ * h0,
+                              TGrid::NY * _BS_ * h0,
+                              TGrid::NZ * 1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
         {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
@@ -3094,9 +3091,9 @@ template <typename TGrid> struct BlockLab {
     m_InterpStencilStart[0] = m_InterpStencilStart[1] =
         m_InterpStencilStart[2] = 0;
     m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
-    CoarseBlockSize[0] = (int)BlockType::sizeX / 2;
-    CoarseBlockSize[1] = (int)BlockType::sizeY / 2;
-    CoarseBlockSize[2] = (int)BlockType::sizeZ / 2;
+    CoarseBlockSize[0] = _BS_ / 2;
+    CoarseBlockSize[1] = _BS_ / 2;
+    CoarseBlockSize[2] = 1 / 2;
     if (CoarseBlockSize[0] == 0)
       CoarseBlockSize[0] = 1;
     if (CoarseBlockSize[1] == 0)
@@ -3154,28 +3151,28 @@ template <typename TGrid> struct BlockLab {
     assert(stencil.sx <= stencil.ex);
     assert(stencil.sy <= stencil.ey);
     assert(stencil.sz <= stencil.ez);
-    assert(stencil.sx >= -BlockType::sizeX);
-    assert(stencil.sy >= -BlockType::sizeY);
-    assert(stencil.sz >= -BlockType::sizeZ);
-    assert(stencil.ex < 2 * BlockType::sizeX);
-    assert(stencil.ey < 2 * BlockType::sizeY);
-    assert(stencil.ez < 2 * BlockType::sizeZ);
+    assert(stencil.sx >= -_BS_);
+    assert(stencil.sy >= -_BS_);
+    assert(stencil.sz >= -1);
+    assert(stencil.ex < 2 * _BS_);
+    assert(stencil.ey < 2 * _BS_);
+    assert(stencil.ez < 2 * 1);
     m_refGrid = &grid;
     if (m_cacheBlock == NULL ||
         (int)m_cacheBlock->getSize()[0] !=
-            (int)BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1 ||
+            _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1 ||
         (int)m_cacheBlock->getSize()[1] !=
-            (int)BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] - 1 ||
+            _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1 ||
         (int)m_cacheBlock->getSize()[2] !=
-            (int)BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] - 1) {
+            1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
       m_cacheBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
       std::allocator<Matrix3D<ElementType>>().construct(m_cacheBlock);
       m_cacheBlock->_Setup(
-          BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] - 1,
-          BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] - 1,
-          BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] - 1);
+          _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
+          _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1,
+          1 + m_stencilEnd[2] - m_stencilStart[2] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
@@ -3204,9 +3201,9 @@ template <typename TGrid> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const bool xperiodic = is_xperiodic();
     const bool yperiodic = is_yperiodic();
     const bool zperiodic = is_zperiodic();
@@ -3314,8 +3311,8 @@ template <typename TGrid> struct BlockLab {
     }
   }
   void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
+    const int nX = _BS_;
+    const int nY = _BS_;
     if (coarsened) {
 #pragma GCC ivdep
       for (int j = 0; j < nY / 2; j++) {
@@ -3389,9 +3386,9 @@ template <typename TGrid> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - m_stencilStart[0];
@@ -3466,9 +3463,9 @@ template <typename TGrid> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int yStep = (code[1] == 0) ? 2 : 1;
@@ -3609,9 +3606,9 @@ template <typename TGrid> struct BlockLab {
     if (b_ptr == nullptr)
       return;
     const BlockType &b = *b_ptr;
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const int s[3] = {
         code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
@@ -3706,9 +3703,9 @@ template <typename TGrid> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const int eC[3] = {(m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0],
                        (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
                        (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
@@ -3763,9 +3760,9 @@ template <typename TGrid> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    const int nX = BlockType::sizeX;
-    const int nY = BlockType::sizeY;
-    const int nZ = BlockType::sizeZ;
+    const int nX = _BS_;
+    const int nY = _BS_;
+    const int nZ = 1;
     const bool xperiodic = is_xperiodic();
     const bool yperiodic = is_yperiodic();
     const bool zperiodic = is_zperiodic();
@@ -4660,8 +4657,8 @@ template <typename TLab> struct MeshAdaptation {
             grid->getZforward(level, info.index[0] + I, info.index[1] + J);
         Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
       }
-    const int nx = BlockType::sizeX;
-    const int ny = BlockType::sizeY;
+    const int nx = _BS_;
+    const int ny = _BS_;
     const int offsetX[2] = {0, nx / 2};
     const int offsetY[2] = {0, ny / 2};
     if (basic_refinement == false)
@@ -4861,8 +4858,8 @@ template <typename TLab> struct MeshAdaptation {
     }
   }
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
-    const int nx = BlockType::sizeX;
-    const int ny = BlockType::sizeY;
+    const int nx = _BS_;
+    const int ny = _BS_;
     int offsetX[2] = {0, nx / 2};
     int offsetY[2] = {0, ny / 2};
     for (int J = 0; J < 2; J++)
@@ -4910,8 +4907,8 @@ template <typename TLab> struct MeshAdaptation {
       }
   }
   virtual State TagLoadedBlock(BlockInfo &info) {
-    const int nx = BlockType::sizeX;
-    const int ny = BlockType::sizeY;
+    const int nx = _BS_;
+    const int ny = _BS_;
     BlockType &b = *(BlockType *)info.ptrBlock;
     double Linf = 0.0;
     for (int j = 0; j < ny; j++)
@@ -5097,25 +5094,22 @@ struct VectorElement {
   static constexpr int DIM = 2;
 };
 template <typename TElement> struct GridBlock {
-  static constexpr int sizeX = _BS_;
-  static constexpr int sizeY = _BS_;
-  static constexpr int sizeZ = 1;
   using ElementType = TElement;
-  ElementType data[sizeZ][sizeY][sizeX];
+  ElementType data[1][_BS_][_BS_];
   void clear() {
     ElementType *const entry = &data[0][0][0];
-    for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
+    for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].clear();
   }
   void set(const Real v) {
     ElementType *const entry = &data[0][0][0];
-    for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
+    for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].set(v);
   }
   void copy(const GridBlock<ElementType> &c) {
     ElementType *const entry = &data[0][0][0];
     const ElementType *const source = &c.data[0][0][0];
-    for (int i = 0; i < sizeX * sizeY * sizeZ; ++i)
+    for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].copy(source[i]);
   }
   const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
@@ -5152,9 +5146,9 @@ static BCflag cubismBCY;
 template <typename TGrid>
 struct BlockLabDirichlet : public cubism::BlockLab<TGrid> {
   using ElementType = typename TGrid::BlockType::ElementType;
-  static constexpr int sizeX = TGrid::BlockType::sizeX;
-  static constexpr int sizeY = TGrid::BlockType::sizeY;
-  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
+  static constexpr int sizeX = _BS_;
+  static constexpr int sizeY = _BS_;
+  static constexpr int sizeZ = 1;
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
@@ -5275,9 +5269,9 @@ struct BlockLabDirichlet : public cubism::BlockLab<TGrid> {
 };
 template <typename TGrid>
 struct BlockLabNeumann : public cubism::BlockLab<TGrid> {
-  static constexpr int sizeX = TGrid::BlockType::sizeX;
-  static constexpr int sizeY = TGrid::BlockType::sizeY;
-  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
+  static constexpr int sizeX = _BS_;
+  static constexpr int sizeY = _BS_;
+  static constexpr int sizeZ = 1;
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -5503,8 +5497,8 @@ struct KernelVorticity {
   void operator()(VectorLab &lab, const cubism::BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
-    for (int y = 0; y < VectorBlock::sizeY; ++y)
-      for (int x = 0; x < VectorBlock::sizeX; ++x)
+    for (int y = 0; y < _BS_; ++y)
+      for (int x = 0; x < _BS_; ++x)
         TMP(x, y).s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
@@ -6053,8 +6047,8 @@ struct ComputeSurfaceNormals {
       ObstacleBlock &o = *OBLOCK[infoChi.blockID];
       const Real i2h = 0.5 / h;
       const Real fac = 0.5 * h;
-      for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
-        for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           const Real gradHX = labChi(ix + 1, iy).s - labChi(ix - 1, iy).s;
           const Real gradHY = labChi(ix, iy + 1).s - labChi(ix, iy - 1).s;
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
@@ -6127,8 +6121,8 @@ struct PutChiOnGrid {
       o.COM_y = 0;
       o.Mass = 0;
       auto &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.blockID].ptrBlock;
-      for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
-        for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
@@ -6251,7 +6245,7 @@ struct PutFishOnBlocks {
     const Real *const vX = cfish.vX, *const vNorX = cfish.vNorX;
     const Real *const vY = cfish.vY, *const vNorY = cfish.vNorY;
     const Real *const width = cfish.width;
-    static constexpr int BS[2] = {ScalarBlock::sizeX, ScalarBlock::sizeY};
+    static constexpr int BS[2] = {_BS_, _BS_};
     std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
     std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
     for (int i = 0; i < (int)v.size(); ++i) {
@@ -6381,8 +6375,8 @@ struct PutFishOnBlocks {
                  idx < std::min(iap[0] + 2, BS[0]); ++idx) {
               const int sx = idx - iap[0], sy = idy - iap[1];
               const Real wxwy = wghts[1][sy] * wghts[0][sx];
-              assert(idx >= 0 && idx < ScalarBlock::sizeX && wxwy >= 0);
-              assert(idy >= 0 && idy < ScalarBlock::sizeY && wxwy <= 1);
+              assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
+              assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
               o->udef[idy][idx][0] += wxwy * udef[0];
               o->udef[idy][idx][1] += wxwy * udef[1];
               o->chi[idy][idx] += wxwy;
@@ -6394,8 +6388,8 @@ struct PutFishOnBlocks {
       }
     }
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-    for (int iy = 0; iy < ScalarBlock::sizeY; iy++)
-      for (int ix = 0; ix < ScalarBlock::sizeX; ix++) {
+    for (int iy = 0; iy < _BS_; iy++)
+      for (int ix = 0; ix < _BS_; ix++) {
         const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
         o->udef[iy][ix][0] /= normfac;
         o->udef[iy][ix][1] /= normfac;
@@ -6733,7 +6727,7 @@ void PutObjectsOnGrid::operator()(const Real dt) {
       const cubism::BlockInfo &info = tmpInfo[i];
       Real pStart[2], pEnd[2];
       info.pos(pStart, 0, 0);
-      info.pos(pEnd, ScalarBlock::sizeX - 1, ScalarBlock::sizeY - 1);
+      info.pos(pEnd, _BS_ - 1, _BS_ - 1);
       for (size_t s = 0; s < vSegments.size(); ++s)
         if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
           if (segmentsPerBlock[info.blockID] == nullptr)
@@ -6972,17 +6966,17 @@ struct GradChiOnTmp {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     const int offset = (info.level == sim.tmp->getlevelMax() - 1) ? 4 : 2;
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
-    for (int y = -offset; y < VectorBlock::sizeY + offset; ++y)
-      for (int x = -offset; x < VectorBlock::sizeX + offset; ++x) {
+    for (int y = -offset; y < _BS_ + offset; ++y)
+      for (int x = -offset; x < _BS_ + offset; ++x) {
         lab(x, y).s = std::min(lab(x, y).s, (Real)1.0);
         lab(x, y).s = std::max(lab(x, y).s, (Real)0.0);
         if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
-          TMP(VectorBlock::sizeX / 2 - 1, VectorBlock::sizeY / 2).s =
+          TMP(_BS_ / 2 - 1, _BS_ / 2).s =
               2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2 - 1, VectorBlock::sizeY / 2 - 1).s =
+          TMP(_BS_ / 2 - 1, _BS_ / 2 - 1).s =
               2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2, VectorBlock::sizeY / 2).s = 2 * sim.Rtol;
-          TMP(VectorBlock::sizeX / 2, VectorBlock::sizeY / 2 - 1).s =
+          TMP(_BS_ / 2, _BS_ / 2).s = 2 * sim.Rtol;
+          TMP(_BS_ / 2, _BS_ / 2 - 1).s =
               2 * sim.Rtol;
           break;
         }
@@ -7143,8 +7137,8 @@ struct KernelAdvectDiffuse {
     const Real afac = -sim.dt * h;
     VectorBlock &__restrict__ TMP =
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         TMP(ix, iy).u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP(ix, iy).u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
@@ -7163,28 +7157,28 @@ struct KernelAdvectDiffuse {
     }
     if (faceXm != nullptr) {
       int ix = 0;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
         faceXm[iy].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
       }
     }
     if (faceXp != nullptr) {
-      int ix = VectorBlock::sizeX - 1;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      int ix = _BS_ - 1;
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
         faceXp[iy].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
         faceYm[ix].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
       }
     }
     if (faceYp != nullptr) {
-      int iy = VectorBlock::sizeY - 1;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      int iy = _BS_ - 1;
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
         faceYp[ix].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
       }
@@ -7198,8 +7192,8 @@ void advDiff::operator()(const Real dt) {
   for (size_t i = 0; i < Nblocks; i++) {
     VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
     const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         Vold(ix, iy).u[0] = V(ix, iy).u[0];
         Vold(ix, iy).u[1] = V(ix, iy).u[1];
       }
@@ -7211,8 +7205,8 @@ void advDiff::operator()(const Real dt) {
     const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
     const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
     const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         V(ix, iy).u[0] = Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
       }
@@ -7224,8 +7218,8 @@ void advDiff::operator()(const Real dt) {
     const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
     const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
     const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
         V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
       }
@@ -7237,14 +7231,14 @@ struct ComputeForces : public Operator {
   void operator()(const Real dt) override;
   ComputeForces();
 };
-using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
+using UDEFMAT = Real[_BS_][_BS_][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
   KernelComputeForces(){};
   cubism::StencilInfo stencil{small, small, 0, big, big, 1, true, {0, 1}};
   cubism::StencilInfo stencil2{small, small, 0, big, big, 1, true, {0}};
-  const int bigg = ScalarBlock::sizeX + big - 1;
+  const int bigg = _BS_ + big - 1;
   const int stencil_start[3] = {small, small, small},
             stencil_end[3] = {big, big, big};
   const Real c0 = -137. / 60.;
@@ -7291,10 +7285,10 @@ struct KernelComputeForces {
           for (int kk = 0; kk < 5; kk++) {
             const int dxi = round(kk * dx);
             const int dyi = round(kk * dy);
-            if (ix + dxi + 1 >= ScalarBlock::sizeX + big - 1 ||
+            if (ix + dxi + 1 >= _BS_ + big - 1 ||
                 ix + dxi - 1 < small)
               continue;
-            if (iy + dyi + 1 >= ScalarBlock::sizeY + big - 1 ||
+            if (iy + dyi + 1 >= _BS_ + big - 1 ||
                 iy + dyi - 1 < small)
               continue;
             x = ix + dxi;
@@ -7505,8 +7499,8 @@ struct PoissonSolver {
   void solve(const ScalarGrid *input, ScalarGrid *const output);
   int rank_;
   int comm_size_;
-  static constexpr int BSX_ = VectorBlock::sizeX;
-  static constexpr int BSY_ = VectorBlock::sizeY;
+  static constexpr int BSX_ = _BS_;
+  static constexpr int BSY_ = _BS_;
   static constexpr int BLEN_ = BSX_ * BSY_;
   double getA_local(int I1, int I2);
   struct EdgeCellIndexer;
@@ -8040,8 +8034,8 @@ struct PressureSingle : public Operator {
   void operator()(const Real dt) override;
   PressureSingle();
 };
-using CHI_MAT = Real[VectorBlock::sizeY][VectorBlock::sizeX];
-using UDEFMAT = Real[VectorBlock::sizeY][VectorBlock::sizeX][2];
+using CHI_MAT = Real[_BS_][_BS_];
+using UDEFMAT = Real[_BS_][_BS_][2];
 namespace {
 void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
               Real *J) {
@@ -8140,8 +8134,8 @@ struct pressureCorrectionKernel {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
     VectorBlock &__restrict__ tmpV =
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         tmpV(ix, iy).u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
         tmpV(ix, iy).u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
@@ -8159,28 +8153,28 @@ struct pressureCorrectionKernel {
     }
     if (faceXm != nullptr) {
       int ix = 0;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy].clear();
         faceXm[iy].u[0] = pFac * (P(ix - 1, iy).s + P(ix, iy).s);
       }
     }
     if (faceXp != nullptr) {
-      int ix = VectorBlock::sizeX - 1;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      int ix = _BS_ - 1;
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy].clear();
         faceXp[iy].u[0] = -pFac * (P(ix + 1, iy).s + P(ix, iy).s);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].clear();
         faceYm[ix].u[1] = pFac * (P(ix, iy - 1).s + P(ix, iy).s);
       }
     }
     if (faceYp != nullptr) {
-      int iy = VectorBlock::sizeY - 1;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      int iy = _BS_ - 1;
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].clear();
         faceYp[ix].u[1] = -pFac * (P(ix, iy + 1).s + P(ix, iy).s);
       }
@@ -8202,8 +8196,8 @@ struct updatePressureRHS {
         *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     ScalarBlock &__restrict__ CHI =
         *(ScalarBlock *)chiInfo[info.blockID].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         TMP(ix, iy).s =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
@@ -8226,15 +8220,15 @@ struct updatePressureRHS {
     }
     if (faceXm != nullptr) {
       int ix = 0;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy].s = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
         faceXm[iy].s += -(facDiv * CHI(ix, iy).s) *
                         (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceXp != nullptr) {
-      int ix = VectorBlock::sizeX - 1;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy) {
+      int ix = _BS_ - 1;
+      for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy].s =
             -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
         faceXp[iy].s -= -(facDiv * CHI(ix, iy).s) *
@@ -8243,15 +8237,15 @@ struct updatePressureRHS {
     }
     if (faceYm != nullptr) {
       int iy = 0;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].s = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
         faceYm[ix].s += -(facDiv * CHI(ix, iy).s) *
                         (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
     if (faceYp != nullptr) {
-      int iy = VectorBlock::sizeY - 1;
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      int iy = _BS_ - 1;
+      for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].s =
             -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
         faceYp[ix].s -= -(facDiv * CHI(ix, iy).s) *
@@ -8268,8 +8262,8 @@ struct updatePressureRHS1 {
   void operator()(ScalarLab &lab, const cubism::BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
         *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix)
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix)
         TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
@@ -8287,22 +8281,22 @@ struct updatePressureRHS1 {
     }
     if (faceXm != nullptr) {
       int ix = 0;
-      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
+      for (int iy = 0; iy < _BS_; ++iy)
         faceXm[iy] = lab(ix - 1, iy) - lab(ix, iy);
     }
     if (faceXp != nullptr) {
-      int ix = ScalarBlock::sizeX - 1;
-      for (int iy = 0; iy < ScalarBlock::sizeY; ++iy)
+      int ix = _BS_ - 1;
+      for (int iy = 0; iy < _BS_; ++iy)
         faceXp[iy] = lab(ix + 1, iy) - lab(ix, iy);
     }
     if (faceYm != nullptr) {
       int iy = 0;
-      for (int ix = 0; ix < ScalarBlock::sizeX; ++ix)
+      for (int ix = 0; ix < _BS_; ++ix)
         faceYm[ix] = lab(ix, iy - 1) - lab(ix, iy);
     }
     if (faceYp != nullptr) {
-      int iy = ScalarBlock::sizeY - 1;
-      for (int ix = 0; ix < ScalarBlock::sizeX; ++ix)
+      int iy = _BS_ - 1;
+      for (int ix = 0; ix < _BS_; ++ix)
         faceYp[ix] = lab(ix, iy + 1) - lab(ix, iy);
     }
   }
@@ -8324,8 +8318,8 @@ void PressureSingle::operator()(const Real dt) {
       const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
       const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
       const Real lambdt = sim.lambda * sim.dt;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int iy = 0; iy < _BS_; ++iy)
+        for (int ix = 0; ix < _BS_; ++ix) {
           if (chi[iy][ix] <= 0)
             continue;
           const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
@@ -8458,8 +8452,8 @@ void PressureSingle::operator()(const Real dt) {
         const CHI_MAT &jChi = jBlocks[k]->chi;
         const UDEFMAT &iUDEF = iBlocks[k]->udef;
         const UDEFMAT &jUDEF = jBlocks[k]->udef;
-        for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-          for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
             if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
               continue;
             const auto pos = infos[k].pos<Real>(ix, iy);
@@ -8482,7 +8476,7 @@ void PressureSingle::operator()(const Real dt) {
             if (ix == 0) {
               dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
               dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
-            } else if (ix == VectorBlock::sizeX - 1) {
+            } else if (ix == _BS_ - 1) {
               dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
               dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
             } else {
@@ -8494,7 +8488,7 @@ void PressureSingle::operator()(const Real dt) {
             if (iy == 0) {
               dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
               dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
-            } else if (iy == VectorBlock::sizeY - 1) {
+            } else if (iy == _BS_ - 1) {
               dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
               dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
             } else {
@@ -8662,8 +8656,8 @@ void PressureSingle::operator()(const Real dt) {
       UDEFMAT &__restrict__ UDEF = o->udef;
       ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int iy = 0; iy < _BS_; ++iy)
+        for (int ix = 0; ix < _BS_; ++ix) {
           if (CHI(ix, iy).s > X[iy][ix])
             continue;
           if (X[iy][ix] <= 0)
@@ -8694,8 +8688,8 @@ void PressureSingle::operator()(const Real dt) {
       CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
       ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; iy++)
-        for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI(ix, iy).s)
             continue;
           Real p[2];
@@ -8714,8 +8708,8 @@ void PressureSingle::operator()(const Real dt) {
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
     ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         POLD(ix, iy).s = PRES(ix, iy).s;
         PRES(ix, iy).s = 0;
       }
@@ -8729,8 +8723,8 @@ void PressureSingle::operator()(const Real dt) {
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
     const Real vv = presInfo[i].h * presInfo[i].h;
-    for (int iy = 0; iy < VectorBlock::sizeY; iy++)
-      for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
+    for (int iy = 0; iy < _BS_; iy++)
+      for (int ix = 0; ix < _BS_; ix++) {
         avg += P(ix, iy).s * vv;
         avg1 += vv;
       }
@@ -8745,8 +8739,8 @@ void PressureSingle::operator()(const Real dt) {
   for (size_t i = 0; i < Nblocks; i++) {
     ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
     const ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; iy++)
-      for (int ix = 0; ix < VectorBlock::sizeX; ix++)
+    for (int iy = 0; iy < _BS_; iy++)
+      for (int ix = 0; ix < _BS_; ix++)
         P(ix, iy).s += POLD(ix, iy).s - avg;
   }
   {
@@ -8758,8 +8752,8 @@ void PressureSingle::operator()(const Real dt) {
     const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
     VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
     VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
         V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
       }
@@ -8932,11 +8926,11 @@ int main(int argc, char **argv) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   int aux = pow(2, sim.levelStart);
-  sim.extents[0] = aux * sim.bpdx * velInfo[0].h * VectorBlock::sizeX;
-  sim.extents[1] = aux * sim.bpdy * velInfo[0].h * VectorBlock::sizeY;
+  sim.extents[0] = aux * sim.bpdx * velInfo[0].h * _BS_;
+  sim.extents[1] = aux * sim.bpdy * velInfo[0].h * _BS_;
   int auxMax = pow(2, sim.levelMax - 1);
-  sim.minH = sim.extents[0] / (auxMax * sim.bpdx * VectorBlock::sizeX);
-  sim.maxH = sim.extents[0] / (sim.bpdx * VectorBlock::sizeX);
+  sim.minH = sim.extents[0] / (auxMax * sim.bpdx * _BS_);
+  sim.maxH = sim.extents[0] / (sim.bpdx * _BS_);
 
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
@@ -9008,8 +9002,8 @@ int main(int argc, char **argv) {
       CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
       ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; iy++)
-        for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI(ix, iy).s)
             continue;
           Real p[2];
@@ -9024,8 +9018,8 @@ int main(int argc, char **argv) {
     VectorBlock &UF = *(VectorBlock *)velInfo[i].ptrBlock;
     VectorBlock &US = *(VectorBlock *)tmpVInfo[i].ptrBlock;
     ScalarBlock &X = *(ScalarBlock *)chiInfo[i].ptrBlock;
-    for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-      for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
         UF(ix, iy).u[0] =
             UF(ix, iy).u[0] * (1 - X(ix, iy).s) + US(ix, iy).u[0] * X(ix, iy).s;
         UF(ix, iy).u[1] =
@@ -9042,8 +9036,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
     for (size_t i = 0; i < Nblocks; i++) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < VectorBlock::sizeY; ++iy)
-        for (int ix = 0; ix < VectorBlock::sizeX; ++ix) {
+      for (int iy = 0; iy < _BS_; ++iy)
+        for (int ix = 0; ix < _BS_; ++ix) {
           U = std::max(U, std::fabs(VEL(ix, iy).u[0] + UINF));
           V = std::max(V, std::fabs(VEL(ix, iy).u[1] + VINF));
           u = std::max(u, std::fabs(VEL(ix, iy).u[0]));
