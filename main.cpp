@@ -5923,6 +5923,203 @@ struct PutObjectsOnGrid : public Operator {
   using Operator::Operator;
   void operator()(Real dt) override;
 };
+struct Fish {
+  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
+    const Real Rmatrix2D[2][2] = {
+        {std::cos(theta_internal), -std::sin(theta_internal)},
+        {std::sin(theta_internal), std::cos(theta_internal)}};
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < upperSkin.Npoints; ++i) {
+      upperSkin.xSurf[i] -= CoM_internal[0];
+      upperSkin.ySurf[i] -= CoM_internal[1];
+      _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
+      lowerSkin.xSurf[i] -= CoM_internal[0];
+      lowerSkin.ySurf[i] -= CoM_internal[1];
+      _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
+    }
+  }
+
+  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
+    const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
+                                  {std::sin(theta_comp), std::cos(theta_comp)}};
+    for (int i = 0; i < Nm; ++i) {
+      _rotate2D(Rmatrix2D, rX[i], rY[i]);
+      _rotate2D(Rmatrix2D, norX[i], norY[i]);
+      rX[i] += CoM_comp[0];
+      rY[i] += CoM_comp[1];
+    }
+#pragma omp parallel for
+    for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
+      lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
+      upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
+      lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
+      upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
+      lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
+      upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
+      lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
+      upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
+      Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
+                             std::pow(lowerSkin.normYSurf[i], 2));
+      Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
+                             std::pow(upperSkin.normYSurf[i], 2));
+      lowerSkin.normXSurf[i] /= normL;
+      upperSkin.normXSurf[i] /= normU;
+      lowerSkin.normYSurf[i] /= normL;
+      upperSkin.normYSurf[i] /= normU;
+      const int ii =
+          (i < 8) ? 8
+                  : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
+      const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
+                        lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
+      const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
+                        upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
+      if (dirL < 0) {
+        lowerSkin.normXSurf[i] *= -1.0;
+        lowerSkin.normYSurf[i] *= -1.0;
+      }
+      if (dirU < 0) {
+        upperSkin.normXSurf[i] *= -1.0;
+        upperSkin.normYSurf[i] *= -1.0;
+      }
+    }
+  }
+  const Real length, h;
+  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
+  const Real dSmid_tgt = h / std::sqrt(2);
+  const Real dSrefine_tgt = 0.125 * h;
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  const Real dSmid = length * fracMid / Nmid;
+  const int Nend =
+      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
+  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
+  const int Nm = Nmid + 2 * Nend + 1;
+  Real *const rS;
+  Real *const rX;
+  Real *const rY;
+  Real *const vX;
+  Real *const vY;
+  Real *const norX;
+  Real *const norY;
+  Real *const vNorX;
+  Real *const vNorY;
+  Real *const width;
+  Real linMom[2], area, J, angMom;
+  FishSkin upperSkin = FishSkin(Nm);
+  FishSkin lowerSkin = FishSkin(Nm);
+  const Real amplitudeFactor, phaseShift, Tperiod;
+  Real curv_PID_fac = 0;
+  Real curv_PID_dif = 0;
+  Real avgDeltaY = 0;
+  Real avgDangle = 0;
+  Real avgAngVel = 0;
+  Real lastTact = 0;
+  Real lastCurv = 0;
+  Real oldrCurv = 0;
+  Real periodPIDval = Tperiod;
+  Real periodPIDdif = 0;
+  bool TperiodPID = false;
+  Real time0 = 0;
+  Real timeshift = 0;
+  Real lastTime = 0;
+  Real lastAvel = 0;
+  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
+  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period = Tperiod;
+  Real next_period = Tperiod;
+  Real transition_start = 0.0;
+  Real transition_duration = 0.1 * Tperiod;
+  Real *const rK;
+  Real *const vK;
+  Real *const rC;
+  Real *const vC;
+  Real *const rB;
+  Real *const vB;
+  Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
+  Real _integrationFac2(const int idx) const {
+    const Real dnorXi = _d_ds(idx, norX, Nm);
+    const Real dnorYi = _d_ds(idx, norY, Nm);
+    return 2 * std::pow(width[idx], 3) *
+           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
+  }
+  Real _integrationFac3(const int idx) const {
+    return 2 * std::pow(width[idx], 3) / 3;
+  }
+  void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
+    Real p[2] = {x, y};
+    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+  }
+  Real _d_ds(const int idx, const Real *const vals, const int maxidx) const {
+    if (idx == 0)
+      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
+    else if (idx == maxidx - 1)
+      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
+    else
+      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
+              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
+             2;
+  }
+  Fish(Real L, Real T, Real phi, Real _h, Real _A)
+      : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
+        vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
+        vB(new Real[Nm]), length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
+        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
+        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
+        vNorY(new Real[Nm]), width(new Real[Nm]) {
+    if (dSref <= 0) {
+      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
+      fflush(0);
+      abort();
+    }
+    rS[0] = 0;
+    int k = 0;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
+    for (int i = 0; i < Nmid; ++i, k++)
+      rS[k + 1] = rS[k] + dSmid;
+    for (int i = 0; i < Nend; ++i, k++)
+      rS[k + 1] =
+          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
+    assert(k + 1 == Nm);
+    rS[k] = std::min(rS[k], (Real)L);
+    std::fill(rX, rX + Nm, 0);
+    std::fill(rY, rY + Nm, 0);
+    std::fill(vX, vX + Nm, 0);
+    std::fill(vY, vY + Nm, 0);
+    for (int i = 0; i < Nm; ++i) {
+      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
+                 wh = .04 * length;
+      if (rS[i] < 0 or rS[i] > L)
+        width[i] = 0;
+      else
+        width[i] =
+            (rS[i] < sb
+                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
+                 : (rS[i] < st
+                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
+                        : (wt * (L - rS[i]) / (L - st))));
+    }
+  }
+  ~Fish() {
+    delete[] rS;
+    delete[] rX;
+    delete[] rY;
+    delete[] vX;
+    delete[] vY;
+    delete[] norX;
+    delete[] norY;
+    delete[] vNorX;
+    delete[] vNorY;
+    delete[] width;
+    delete[] rK;
+    delete[] vK;
+    delete[] rC;
+    delete[] vC;
+    delete[] rB;
+    delete[] vB;
+  }
+};
 struct Shape {
   ~Shape() {
     for (auto &entry : obstacleBlocks)
@@ -6144,203 +6341,6 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
     }
   }
 }
-struct Fish {
-  void surfaceToCOMFrame(Real theta_internal, Real CoM_internal[2]) {
-    const Real Rmatrix2D[2][2] = {
-        {std::cos(theta_internal), -std::sin(theta_internal)},
-        {std::sin(theta_internal), std::cos(theta_internal)}};
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < upperSkin.Npoints; ++i) {
-      upperSkin.xSurf[i] -= CoM_internal[0];
-      upperSkin.ySurf[i] -= CoM_internal[1];
-      _rotate2D(Rmatrix2D, upperSkin.xSurf[i], upperSkin.ySurf[i]);
-      lowerSkin.xSurf[i] -= CoM_internal[0];
-      lowerSkin.ySurf[i] -= CoM_internal[1];
-      _rotate2D(Rmatrix2D, lowerSkin.xSurf[i], lowerSkin.ySurf[i]);
-    }
-  }
-
-  void computeSkinNormals(Real theta_comp, Real CoM_comp[3]) {
-    const Real Rmatrix2D[2][2] = {{std::cos(theta_comp), -std::sin(theta_comp)},
-                                  {std::sin(theta_comp), std::cos(theta_comp)}};
-    for (int i = 0; i < Nm; ++i) {
-      _rotate2D(Rmatrix2D, rX[i], rY[i]);
-      _rotate2D(Rmatrix2D, norX[i], norY[i]);
-      rX[i] += CoM_comp[0];
-      rY[i] += CoM_comp[1];
-    }
-#pragma omp parallel for
-    for (size_t i = 0; i < lowerSkin.Npoints - 1; ++i) {
-      lowerSkin.midX[i] = (lowerSkin.xSurf[i] + lowerSkin.xSurf[i + 1]) / 2;
-      upperSkin.midX[i] = (upperSkin.xSurf[i] + upperSkin.xSurf[i + 1]) / 2;
-      lowerSkin.midY[i] = (lowerSkin.ySurf[i] + lowerSkin.ySurf[i + 1]) / 2;
-      upperSkin.midY[i] = (upperSkin.ySurf[i] + upperSkin.ySurf[i + 1]) / 2;
-      lowerSkin.normXSurf[i] = (lowerSkin.ySurf[i + 1] - lowerSkin.ySurf[i]);
-      upperSkin.normXSurf[i] = (upperSkin.ySurf[i + 1] - upperSkin.ySurf[i]);
-      lowerSkin.normYSurf[i] = -(lowerSkin.xSurf[i + 1] - lowerSkin.xSurf[i]);
-      upperSkin.normYSurf[i] = -(upperSkin.xSurf[i + 1] - upperSkin.xSurf[i]);
-      Real normL = std::sqrt(std::pow(lowerSkin.normXSurf[i], 2) +
-                             std::pow(lowerSkin.normYSurf[i], 2));
-      Real normU = std::sqrt(std::pow(upperSkin.normXSurf[i], 2) +
-                             std::pow(upperSkin.normYSurf[i], 2));
-      lowerSkin.normXSurf[i] /= normL;
-      upperSkin.normXSurf[i] /= normU;
-      lowerSkin.normYSurf[i] /= normL;
-      upperSkin.normYSurf[i] /= normU;
-      const int ii =
-          (i < 8) ? 8
-                  : ((i > lowerSkin.Npoints - 9) ? lowerSkin.Npoints - 9 : i);
-      const Real dirL = lowerSkin.normXSurf[i] * (lowerSkin.midX[i] - rX[ii]) +
-                        lowerSkin.normYSurf[i] * (lowerSkin.midY[i] - rY[ii]);
-      const Real dirU = upperSkin.normXSurf[i] * (upperSkin.midX[i] - rX[ii]) +
-                        upperSkin.normYSurf[i] * (upperSkin.midY[i] - rY[ii]);
-      if (dirL < 0) {
-        lowerSkin.normXSurf[i] *= -1.0;
-        lowerSkin.normYSurf[i] *= -1.0;
-      }
-      if (dirU < 0) {
-        upperSkin.normXSurf[i] *= -1.0;
-        upperSkin.normYSurf[i] *= -1.0;
-      }
-    }
-  }
-  const Real length, h;
-  const Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  const Real dSmid_tgt = h / std::sqrt(2);
-  const Real dSrefine_tgt = 0.125 * h;
-  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
-  const Real dSmid = length * fracMid / Nmid;
-  const int Nend =
-      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
-  const int Nm = Nmid + 2 * Nend + 1;
-  Real *const rS;
-  Real *const rX;
-  Real *const rY;
-  Real *const vX;
-  Real *const vY;
-  Real *const norX;
-  Real *const norY;
-  Real *const vNorX;
-  Real *const vNorY;
-  Real *const width;
-  Real linMom[2], area, J, angMom;
-  FishSkin upperSkin = FishSkin(Nm);
-  FishSkin lowerSkin = FishSkin(Nm);
-  const Real amplitudeFactor, phaseShift, Tperiod;
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
-  Real avgDeltaY = 0;
-  Real avgDangle = 0;
-  Real avgAngVel = 0;
-  Real lastTact = 0;
-  Real lastCurv = 0;
-  Real oldrCurv = 0;
-  Real periodPIDval = Tperiod;
-  Real periodPIDdif = 0;
-  bool TperiodPID = false;
-  Real time0 = 0;
-  Real timeshift = 0;
-  Real lastTime = 0;
-  Real lastAvel = 0;
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  Schedulers::ParameterSchedulerScalar periodScheduler;
-  Real current_period = Tperiod;
-  Real next_period = Tperiod;
-  Real transition_start = 0.0;
-  Real transition_duration = 0.1 * Tperiod;
-  Real *const rK;
-  Real *const vK;
-  Real *const rC;
-  Real *const vC;
-  Real *const rB;
-  Real *const vB;
-  Real _integrationFac1(const int idx) const { return 2 * width[idx]; }
-  Real _integrationFac2(const int idx) const {
-    const Real dnorXi = _d_ds(idx, norX, Nm);
-    const Real dnorYi = _d_ds(idx, norY, Nm);
-    return 2 * std::pow(width[idx], 3) *
-           (dnorXi * norY[idx] - dnorYi * norX[idx]) / 3;
-  }
-  Real _integrationFac3(const int idx) const {
-    return 2 * std::pow(width[idx], 3) / 3;
-  }
-  void _rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) const {
-    Real p[2] = {x, y};
-    x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  Real _d_ds(const int idx, const Real *const vals, const int maxidx) const {
-    if (idx == 0)
-      return (vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]);
-    else if (idx == maxidx - 1)
-      return (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1]);
-    else
-      return ((vals[idx + 1] - vals[idx]) / (rS[idx + 1] - rS[idx]) +
-              (vals[idx] - vals[idx - 1]) / (rS[idx] - rS[idx - 1])) /
-             2;
-  }
-  Fish(Real L, Real T, Real phi, Real _h, Real _A)
-      : amplitudeFactor(_A), phaseShift(phi), Tperiod(T), rK(new Real[Nm]),
-        vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]), rB(new Real[Nm]),
-        vB(new Real[Nm]), length(L), h(_h), rS(new Real[Nm]), rX(new Real[Nm]),
-        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
-        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
-        vNorY(new Real[Nm]), width(new Real[Nm]) {
-    if (dSref <= 0) {
-      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-      fflush(0);
-      abort();
-    }
-    rS[0] = 0;
-    int k = 0;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-    for (int i = 0; i < Nmid; ++i, k++)
-      rS[k + 1] = rS[k] + dSmid;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] =
-          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-    assert(k + 1 == Nm);
-    rS[k] = std::min(rS[k], (Real)L);
-    std::fill(rX, rX + Nm, 0);
-    std::fill(rY, rY + Nm, 0);
-    std::fill(vX, vX + Nm, 0);
-    std::fill(vY, vY + Nm, 0);
-    for (int i = 0; i < Nm; ++i) {
-      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-                 wh = .04 * length;
-      if (rS[i] < 0 or rS[i] > L)
-        width[i] = 0;
-      else
-        width[i] =
-            (rS[i] < sb
-                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
-                 : (rS[i] < st
-                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
-                        : (wt * (L - rS[i]) / (L - st))));
-    }
-  }
-  ~Fish() {
-    delete[] rS;
-    delete[] rX;
-    delete[] rY;
-    delete[] vX;
-    delete[] vY;
-    delete[] norX;
-    delete[] norY;
-    delete[] vNorX;
-    delete[] vNorY;
-    delete[] width;
-    delete[] rK;
-    delete[] vK;
-    delete[] rC;
-    delete[] vC;
-    delete[] rB;
-    delete[] vB;
-  }
-};
 struct PutFishOnBlocks {
   const Fish &cfish;
   const Real position[2];
