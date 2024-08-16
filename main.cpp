@@ -889,7 +889,7 @@ template <typename Block> struct Grid {
     }
   }
   virtual int get_world_size() const { return 1; }
-  virtual void UpdateBoundary(bool clean = false) {}
+  virtual void UpdateBoundary(bool) {}
 };
 struct StencilInfo {
   int sx;
