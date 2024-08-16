@@ -9040,9 +9040,9 @@ int main(int argc, char **argv) {
   sim.dumpTime = parser("-tdump").asDouble(0);
 
   ScalarLab dummy;
-  const bool xperiodic = dummy.is_xperiodic();
-  const bool yperiodic = dummy.is_yperiodic();
-  const bool zperiodic = dummy.is_zperiodic();
+  bool xperiodic = dummy.is_xperiodic();
+  bool yperiodic = dummy.is_yperiodic();
+  bool zperiodic = dummy.is_zperiodic();
   sim.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
@@ -9057,7 +9057,7 @@ int main(int argc, char **argv) {
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   sim.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                             sim.levelMax, xperiodic, yperiodic, zperiodic);
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
+  std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
@@ -9070,7 +9070,7 @@ int main(int argc, char **argv) {
   sim.minH = sim.extents[0] / (auxMax * sim.bpdx * VectorBlock::sizeX);
   sim.maxH = sim.extents[0] / (sim.bpdx * VectorBlock::sizeX);
 
-  const std::string shapeArg = parser("-shapes").asString("");
+  std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
   while (std::getline(descriptors, lines)) {
@@ -9095,12 +9095,12 @@ int main(int argc, char **argv) {
     }
   }
 
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-  const std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
+  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
+  std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+  std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
+  std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
+  std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
     VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -9130,21 +9130,21 @@ int main(int argc, char **argv) {
     (*adaptTheMesh)(0.0);
   }
   (*putObjectsOnGrid)(0.0);
-  const size_t Nblocks = velInfo.size();
+  size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
   }
-  for (const auto &shape : sim.shapes) {
-    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+  for (auto &shape : sim.shapes) {
+    std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < Nblocks; i++) {
       if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
         continue;
-      const UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
-      const CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
+      UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+      CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      const ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
       for (int iy = 0; iy < VectorBlock::sizeY; iy++)
         for (int ix = 0; ix < VectorBlock::sizeX; ix++) {
           if (chi[iy][ix] < CHI(ix, iy).s)
@@ -9172,9 +9172,9 @@ int main(int argc, char **argv) {
 
   while (1) {
     Real CFL = sim.CFL;
-    const Real h = getH(sim.vel);
-    const size_t Nblocks = velInfo.size();
-    const Real UINF = sim.uinfx, VINF = sim.uinfy;
+    Real h = getH(sim.vel);
+    size_t Nblocks = velInfo.size();
+    Real UINF = sim.uinfx, VINF = sim.uinfy;
     Real U = 0, V = 0, u = 0, v = 0;
 #pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
     for (size_t i = 0; i < Nblocks; i++) {
@@ -9196,9 +9196,9 @@ int main(int argc, char **argv) {
     v = quantities[3];
     sim.uMax_measured = std::max({U, V, u, v});
     if (CFL > 0) {
-      const Real dtDiffusion =
+      Real dtDiffusion =
           0.25 * h * h / (sim.nu + 0.25 * h * sim.uMax_measured);
-      const Real dtAdvection = h / (sim.uMax_measured + 1e-8);
+      Real dtAdvection = h / (sim.uMax_measured + 1e-8);
       sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
     if (sim.dt <= 0) {
@@ -9211,10 +9211,10 @@ int main(int argc, char **argv) {
     Real dt = sim.dt;
     bool done = false;
     if (!done || dt > 2e-16) {
-      const Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
-      const bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
-      const bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
-      const bool bDump = stepDump || timeDump;
+      Real CFL = (sim.uMax_measured + 1e-8) * sim.dt / getH(sim.vel);
+      bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
+      bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
+      bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
         cubism::compute<VectorLab>(KernelVorticity(), sim.vel);
@@ -9228,8 +9228,8 @@ int main(int argc, char **argv) {
       sim.step++;
     }
     if (!done) {
-      const bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
-      const bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
+      bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
+      bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
       done = timeEnd || stepEnd;
     }
     if (done)
