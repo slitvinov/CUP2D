@@ -6929,13 +6929,6 @@ void AdaptTheMesh::operator()(const Real) {
   pold_amr->Adapt(sim.time, false, false);
   tmpV_amr->Adapt(sim.time, false, true);
 }
-struct advDiff : public Operator {
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
-  const std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
-  const std::vector<cubism::BlockInfo> &vOldInfo = sim.vOld->m_vInfo;
-  advDiff() {}
-  void operator()(const Real dt) override;
-};
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
@@ -7098,46 +7091,6 @@ struct KernelAdvectDiffuse {
     }
   }
 };
-void advDiff::operator()(const Real dt) {
-  const size_t Nblocks = velInfo.size();
-  KernelAdvectDiffuse Step1;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        Vold(ix, iy).u[0] = V(ix, iy).u[0];
-        Vold(ix, iy).u[1] = V(ix, iy).u[1];
-      }
-  }
-  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        V(ix, iy).u[0] = Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
-        V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
-      }
-  }
-  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-        V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
-      }
-  }
-}
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
@@ -8310,7 +8263,6 @@ int main(int argc, char **argv) {
   AdaptTheMesh *adaptTheMesh = new AdaptTheMesh;
   pipeline.push_back(adaptTheMesh);
   pipeline.push_back(putObjectsOnGrid);
-  pipeline.push_back(new advDiff);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
@@ -8400,7 +8352,46 @@ int main(int argc, char **argv) {
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(sim.dt);
 
-      const size_t Nblocks = velInfo.size();
+  size_t Nblocks = velInfo.size();
+  KernelAdvectDiffuse Step1;
+#pragma omp parallel for
+  for (size_t i = 0; i < Nblocks; i++) {
+    VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
+    const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        Vold(ix, iy).u[0] = V(ix, iy).u[0];
+        Vold(ix, iy).u[1] = V(ix, iy).u[1];
+      }
+  }
+  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+#pragma omp parallel for
+  for (size_t i = 0; i < Nblocks; i++) {
+    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
+    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        V(ix, iy).u[0] = Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
+        V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
+      }
+  }
+  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+#pragma omp parallel for
+  for (size_t i = 0; i < Nblocks; i++) {
+    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
+    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
+        V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+      }
+  }
+
+      Nblocks = velInfo.size();
       for (const auto &shape : sim.shapes) {
         const size_t Nblocks = velInfo.size();
         const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
