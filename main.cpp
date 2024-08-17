@@ -692,26 +692,6 @@ template <typename Block> struct Grid {
     { m_vInfo.push_back(new_info); }
     Tree(m, n).setrank(rank());
   }
-  void _deallocAll() {
-    std::allocator<Block> alloc;
-    for (size_t i = 0; i < m_vInfo.size(); i++) {
-      const int m = m_vInfo[i].level;
-      const long long n = m_vInfo[i].Z;
-      alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
-    }
-    std::vector<long long> aux;
-    for (auto &m : BlockInfoAll)
-      aux.push_back(m.first);
-    for (size_t i = 0; i < aux.size(); i++) {
-      const auto retval = BlockInfoAll.find(aux[i]);
-      if (retval != BlockInfoAll.end()) {
-        delete retval->second;
-      }
-    }
-    m_vInfo.clear();
-    BlockInfoAll.clear();
-    Octree.clear();
-  }
   void _dealloc(const int m, const long long n) {
     std::allocator<Block> alloc;
     alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
@@ -799,7 +779,24 @@ template <typename Block> struct Grid {
   virtual int rank() const { return 0; }
   virtual void initialize_blocks(const std::vector<long long> &blocksZ,
                                  const std::vector<short int> &blockslevel) {
-    _deallocAll();
+    std::allocator<Block> alloc;
+    for (size_t i = 0; i < m_vInfo.size(); i++) {
+      const int m = m_vInfo[i].level;
+      const long long n = m_vInfo[i].Z;
+      alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
+    }
+    std::vector<long long> aux;
+    for (auto &m : BlockInfoAll)
+      aux.push_back(m.first);
+    for (size_t i = 0; i < aux.size(); i++) {
+      const auto retval = BlockInfoAll.find(aux[i]);
+      if (retval != BlockInfoAll.end()) {
+        delete retval->second;
+      }
+    }
+    m_vInfo.clear();
+    BlockInfoAll.clear();
+    Octree.clear();
     for (size_t i = 0; i < blocksZ.size(); i++) {
       const int level = blockslevel[i];
       const long long Z = blocksZ[i];
@@ -6120,7 +6117,7 @@ struct PutFishOnBlocks {
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
   PutFishOnBlocks(const Shape *shape, const Real pos[2], const Real angle)
-    : shape(shape), position{(Real)pos[0], (Real)pos[1]}, angle(angle) {
+      : shape(shape), position{(Real)pos[0], (Real)pos[1]}, angle(angle) {
     Rmatrix2D[0][0] = std::cos(angle);
     Rmatrix2D[0][1] = -std::sin(angle);
     Rmatrix2D[1][0] = std::sin(angle);
@@ -6596,10 +6593,10 @@ static void ongrid(Real dt) {
           ObstacleBlock *const block =
               shape->obstacleBlocks[tmpInfo[i].blockID];
           assert(block not_eq nullptr);
-	  const cubism::BlockInfo &info = tmpInfo[i];
-	  ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].ptrBlock;
-	  ObstacleBlock *const o = block;
-	  const std::vector<AreaSegment *> &v = *pos;
+          const cubism::BlockInfo &info = tmpInfo[i];
+          ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].ptrBlock;
+          ObstacleBlock *const o = block;
+          const std::vector<AreaSegment *> &v = *pos;
           putfish(info, b, o, v);
         }
       }
