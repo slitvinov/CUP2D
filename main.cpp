@@ -5887,34 +5887,6 @@ struct Shape {
       fflush(0);
       abort();
     }
-    rS[0] = 0;
-    int k = 0;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] = rS[k] + dSref + (dSmid - dSref) * i / ((Real)Nend - 1.);
-    for (int i = 0; i < Nmid; ++i, k++)
-      rS[k + 1] = rS[k] + dSmid;
-    for (int i = 0; i < Nend; ++i, k++)
-      rS[k + 1] =
-          rS[k] + dSref + (dSmid - dSref) * (Nend - i - 1) / ((Real)Nend - 1.);
-    assert(k + 1 == Nm);
-    rS[k] = std::min(rS[k], (Real)length);
-    std::fill(rX, rX + Nm, 0);
-    std::fill(rY, rY + Nm, 0);
-    std::fill(vX, vX + Nm, 0);
-    std::fill(vY, vY + Nm, 0);
-    for (int i = 0; i < Nm; ++i) {
-      const Real sb = .04 * length, st = .95 * length, wt = .01 * length,
-                 wh = .04 * length;
-      if (rS[i] < 0 or rS[i] > length)
-        width[i] = 0;
-      else
-        width[i] =
-            (rS[i] < sb
-                 ? std::sqrt(2 * wh * rS[i] - rS[i] * rS[i])
-                 : (rS[i] < st
-                        ? wh - (wh - wt) * std::pow((rS[i] - sb) / (st - sb), 1)
-                        : (wt * (length - rS[i]) / (length - st))));
-    }
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   Real center[2];
@@ -8175,6 +8147,41 @@ int main(int argc, char **argv) {
       Real center[2] = {p("-xpos").asDouble(.5 * sim.extents[0]),
                         p("-ypos").asDouble(.5 * sim.extents[1])};
       Shape *shape = new Shape(p, center);
+      shape->rS[0] = 0;
+      int k = 0;
+      for (int i = 0; i < shape->Nend; ++i, k++)
+        shape->rS[k + 1] =
+            shape->rS[k] + shape->dSref +
+            (shape->dSmid - shape->dSref) * i / ((Real)shape->Nend - 1.);
+      for (int i = 0; i < shape->Nmid; ++i, k++)
+        shape->rS[k + 1] = shape->rS[k] + shape->dSmid;
+      for (int i = 0; i < shape->Nend; ++i, k++)
+        shape->rS[k + 1] = shape->rS[k] + shape->dSref +
+                           (shape->dSmid - shape->dSref) *
+                               (shape->Nend - i - 1) / ((Real)shape->Nend - 1.);
+      assert(k + 1 == Nm);
+      shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
+      std::fill(shape->rX, shape->rX + shape->Nm, 0);
+      std::fill(shape->rY, shape->rY + shape->Nm, 0);
+      std::fill(shape->vX, shape->vX + shape->Nm, 0);
+      std::fill(shape->vY, shape->vY + shape->Nm, 0);
+      for (int i = 0; i < shape->Nm; ++i) {
+        const Real sb = .04 * shape->length, st = .95 * shape->length,
+                   wt = .01 * shape->length, wh = .04 * shape->length;
+        if (shape->rS[i] < 0 or shape->rS[i] > shape->length)
+          shape->width[i] = 0;
+        else
+          shape->width[i] =
+              (shape->rS[i] < sb
+                   ? std::sqrt(2 * wh * shape->rS[i] -
+                               shape->rS[i] * shape->rS[i])
+                   : (shape->rS[i] < st
+                          ? wh -
+                                (wh - wt) *
+                                    std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                          : (wt * (shape->length - shape->rS[i]) /
+                             (shape->length - st))));
+      }
       sim.shapes.push_back(shape);
     }
   }
