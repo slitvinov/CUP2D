@@ -42,6 +42,18 @@ static Real dds(int i, int m, Real *a, Real *b) {
             (a[i] - a[i - 1]) / (b[i] - b[i - 1])) /
            2;
 }
+static double getA_local(int I1, int I2) {
+  int j1 = I1 / _BS_;
+  int i1 = I1 % _BS_;
+  int j2 = I2 / _BS_;
+  int i2 = I2 % _BS_;
+  if (i1 == i2 && j1 == j2)
+    return 4.0;
+  else if (abs(i1 - i2) + abs(j1 - j2) == 1)
+    return -1.0;
+  else
+    return 0.0;
+}
 namespace cubism {
 struct Value {
   std::string content;
@@ -7128,18 +7140,6 @@ struct PoissonSolver {
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
-  double getA_local(int I1, int I2) {
-    int j1 = I1 / _BS_;
-    int i1 = I1 % _BS_;
-    int j2 = I2 / _BS_;
-    int i2 = I2 % _BS_;
-    if (i1 == i2 && j1 == j2)
-      return 4.0;
-    else if (abs(i1 - i2) + abs(j1 - j2) == 1)
-      return -1.0;
-    else
-      return 0.0;
-  }
   PoissonSolver()
       : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
         YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
