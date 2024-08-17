@@ -3603,9 +3603,6 @@ template <typename TGrid> struct BlockLab {
     if (b_ptr == nullptr)
       return;
     const BlockType &b = *b_ptr;
-    const int nX = _BS_;
-    const int nY = _BS_;
-    const int nZ = 1;
     const int s[3] = {
         code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
@@ -3648,12 +3645,15 @@ template <typename TGrid> struct BlockLab {
                         ? 1
                         : 0;
     const int start[3] = {
-        std::max(code[0], 0) * nX / 2 + (1 - abs(code[0])) * base[0] * nX / 2 -
-            code[0] * nX + CoarseEdge[0] * code[0] * nX / 2,
-        std::max(code[1], 0) * nY / 2 + (1 - abs(code[1])) * base[1] * nY / 2 -
-            code[1] * nY + CoarseEdge[1] * code[1] * nY / 2,
-        std::max(code[2], 0) * nZ / 2 + (1 - abs(code[2])) * base[2] * nZ / 2 -
-            code[2] * nZ + CoarseEdge[2] * code[2] * nZ / 2};
+        std::max(code[0], 0) * _BS_ / 2 +
+            (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
+            CoarseEdge[0] * code[0] * _BS_ / 2,
+        std::max(code[1], 0) * _BS_ / 2 +
+            (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
+            CoarseEdge[1] * code[1] * _BS_ / 2,
+        std::max(code[2], 0) / 2 + (1 - abs(code[2])) * base[2] / 2 - code[2] +
+            CoarseEdge[2] * code[2] / 2};
+
     const int m_vSize0 = m_CoarsenedBlock->getSize(0);
     const int m_nElemsPerSlice =
         m_CoarsenedBlock->getNumberOfElementsPerSlice();
