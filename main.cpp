@@ -6098,11 +6098,10 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 struct PutFishOnBlocks {
-  const Shape &cfish;
-  const Real position[2];
-  const Real angle;
-  const Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-                                {std::sin(angle), std::cos(angle)}};
+  const Shape &shape;
+  Real position[2];
+  Real angle;
+  Real Rmatrix2D[2][2];
   void changeVelocityToComputationalFrame(Real x[2]) const {
     const Real p[2] = {x[0], x[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
@@ -6120,25 +6119,30 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const Shape &cf, const Real pos[2], const Real ang)
-      : cfish(cf), position{(Real)pos[0], (Real)pos[1]}, angle(ang) {}
+  PutFishOnBlocks(const Shape &shape, const Real pos[2], const Real angle)
+    : shape(shape), position{(Real)pos[0], (Real)pos[1]}, angle(angle) {
+    Rmatrix2D[0][0] = std::cos(angle);
+    Rmatrix2D[0][1] = -std::sin(angle);
+    Rmatrix2D[1][0] = std::sin(angle);
+    Rmatrix2D[1][1] = std::cos(angle);
+  }
   void operator()(const cubism::BlockInfo &info, ScalarBlock &b,
                   ObstacleBlock *const o,
                   const std::vector<AreaSegment *> &v) const {
     Real org[2];
     info.pos(org, 0, 0);
     const Real h = info.h, invh = 1.0 / info.h;
-    const Real *const rX = cfish.rX, *const norX = cfish.norX;
-    const Real *const rY = cfish.rY, *const norY = cfish.norY;
-    const Real *const vX = cfish.vX, *const vNorX = cfish.vNorX;
-    const Real *const vY = cfish.vY, *const vNorY = cfish.vNorY;
-    const Real *const width = cfish.width;
+    const Real *const rX = shape.rX, *const norX = shape.norX;
+    const Real *const rY = shape.rY, *const norY = shape.norY;
+    const Real *const vX = shape.vX, *const vNorX = shape.vNorX;
+    const Real *const vY = shape.vY, *const vNorY = shape.vNorY;
+    const Real *const width = shape.width;
     static constexpr int BS[2] = {_BS_, _BS_};
     std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
     std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
     for (int i = 0; i < (int)v.size(); ++i) {
       const int firstSegm = std::max(v[i]->s_range.first, 1);
-      const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
+      const int lastSegm = std::min(v[i]->s_range.second, shape.Nm - 2);
       for (int ss = firstSegm; ss <= lastSegm; ++ss) {
         assert(width[ss] > 0);
         for (int signp = -1; signp <= 1; signp += 2) {
@@ -6229,15 +6233,15 @@ struct PutFishOnBlocks {
     info.pos(org, 0, 0);
     for (int i = 0; i < (int)v.size(); ++i) {
       const int firstSegm = std::max(v[i]->s_range.first, 1);
-      const int lastSegm = std::min(v[i]->s_range.second, cfish.Nm - 2);
+      const int lastSegm = std::min(v[i]->s_range.second, shape.Nm - 2);
       for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-        const Real myWidth = cfish.width[ss];
+        const Real myWidth = shape.width[ss];
         assert(myWidth > 0);
         const int Nw = std::floor(myWidth / h);
         for (int iw = -Nw + 1; iw < Nw; ++iw) {
           const Real offsetW = iw * h;
-          Real xp[2] = {cfish.rX[ss] + offsetW * cfish.norX[ss],
-                        cfish.rY[ss] + offsetW * cfish.norY[ss]};
+          Real xp[2] = {shape.rX[ss] + offsetW * shape.norX[ss],
+                        shape.rY[ss] + offsetW * shape.norY[ss]};
           changeToComputationalFrame(xp);
           xp[0] = (xp[0] - org[0]) * invh;
           xp[1] = (xp[1] - org[1]) * invh;
@@ -6247,8 +6251,8 @@ struct PutFishOnBlocks {
             continue;
           if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
             continue;
-          Real udef[2] = {cfish.vX[ss] + offsetW * cfish.vNorX[ss],
-                          cfish.vY[ss] + offsetW * cfish.vNorY[ss]};
+          Real udef[2] = {shape.vX[ss] + offsetW * shape.vNorX[ss],
+                          shape.vY[ss] + offsetW * shape.vNorY[ss]};
           changeVelocityToComputationalFrame(udef);
           Real wghts[2][2];
           for (int c = 0; c < 2; ++c) {
