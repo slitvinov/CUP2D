@@ -7227,6 +7227,15 @@ struct KernelComputeForces {
 };
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
+  int rank_;
+  int comm_size_;
+  static constexpr int BSX_ = _BS_;
+  static constexpr int BSY_ = _BS_;
+  static constexpr int BLEN_ = BSX_ * BSY_;
+  struct EdgeCellIndexer;
+  std::unique_ptr<LocalSpMatDnVec> LocalLS_;
+  std::vector<long long> Nblocks_xcumsum_;
+  std::vector<long long> Nrows_xcumsum_;
   double getA_local(int I1, int I2) {
     int j1 = I1 / BSX_;
     int i1 = I1 % BSX_;
@@ -7334,15 +7343,6 @@ struct PoissonSolver {
           P(ix, iy).s += -avg;
     }
   }
-  int rank_;
-  int comm_size_;
-  static constexpr int BSX_ = _BS_;
-  static constexpr int BSY_ = _BS_;
-  static constexpr int BLEN_ = BSX_ * BSY_;
-  struct EdgeCellIndexer;
-  std::unique_ptr<LocalSpMatDnVec> LocalLS_;
-  std::vector<long long> Nblocks_xcumsum_;
-  std::vector<long long> Nrows_xcumsum_;
   struct CellIndexer {
     CellIndexer(const PoissonSolver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
