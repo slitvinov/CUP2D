@@ -7857,10 +7857,10 @@ struct updatePressureRHS {
       }
     cubism::BlockCase<ScalarBlock> *tempCase =
         (cubism::BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
-    ScalarBlock::ElementType *faceXm = nullptr;
-    ScalarBlock::ElementType *faceXp = nullptr;
-    ScalarBlock::ElementType *faceYm = nullptr;
-    ScalarBlock::ElementType *faceYp = nullptr;
+    cubism::ScalarElement *faceXm = nullptr;
+    cubism::ScalarElement *faceXp = nullptr;
+    cubism::ScalarElement *faceYm = nullptr;
+    cubism::ScalarElement *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7917,10 +7917,10 @@ struct updatePressureRHS1 {
     cubism::BlockCase<ScalarBlock> *tempCase =
         (cubism::BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID]
                                                .auxiliary);
-    ScalarBlock::ElementType *faceXm = nullptr;
-    ScalarBlock::ElementType *faceXp = nullptr;
-    ScalarBlock::ElementType *faceYm = nullptr;
-    ScalarBlock::ElementType *faceYp = nullptr;
+    cubism::ScalarElement *faceXm = nullptr;
+    cubism::ScalarElement *faceXp = nullptr;
+    cubism::ScalarElement *faceYm = nullptr;
+    cubism::ScalarElement *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
