@@ -3408,13 +3408,13 @@ template <typename TGrid> struct BlockLab {
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
         const ElementType *ptrSrc0 =
-            &b(s[0] - code[0] * nX, iy - code[1] * nY, iz - code[2] * nZ);
+            &b(s[0] - code[0] * nX, iy - code[1] * nY);
         const ElementType *ptrSrc1 =
-            &b(s[0] - code[0] * nX, iy + 1 - code[1] * nY, iz - code[2] * nZ);
+            &b(s[0] - code[0] * nX, iy + 1 - code[1] * nY);
         const ElementType *ptrSrc2 =
-            &b(s[0] - code[0] * nX, iy + 2 - code[1] * nY, iz - code[2] * nZ);
+            &b(s[0] - code[0] * nX, iy + 2 - code[1] * nY);
         const ElementType *ptrSrc3 =
-            &b(s[0] - code[0] * nX, iy + 3 - code[1] * nY, iz - code[2] * nZ);
+            &b(s[0] - code[0] * nX, iy + 3 - code[1] * nY);
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3425,7 +3425,7 @@ template <typename TGrid> struct BlockLab {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
         const ElementType *ptrSrc =
-            &b(s[0] - code[0] * nX, iy - code[1] * nY, iz - code[2] * nZ);
+            &b(s[0] - code[0] * nX, iy - code[1] * nY);
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3677,13 +3677,13 @@ template <typename TGrid> struct BlockLab {
         ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->LinAccess(
             my_izx + (iy + 3 - offset[1]) * m_vSize0);
         const ElementType *ptrSrc0 =
-            &b(s[0] + start[0], iy + 0 + start[1], iz + start[2]);
+            &b(s[0] + start[0], iy + 0 + start[1]);
         const ElementType *ptrSrc1 =
-            &b(s[0] + start[0], iy + 1 + start[1], iz + start[2]);
+            &b(s[0] + start[0], iy + 1 + start[1]);
         const ElementType *ptrSrc2 =
-            &b(s[0] + start[0], iy + 2 + start[1], iz + start[2]);
+            &b(s[0] + start[0], iy + 2 + start[1]);
         const ElementType *ptrSrc3 =
-            &b(s[0] + start[0], iy + 3 + start[1], iz + start[2]);
+            &b(s[0] + start[0], iy + 3 + start[1]);
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3694,7 +3694,7 @@ template <typename TGrid> struct BlockLab {
         ElementType *ptrDest =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
         const ElementType *ptrSrc =
-            &b(s[0] + start[0], iy + start[1], iz + start[2]);
+            &b(s[0] + start[0], iy + start[1]);
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3749,8 +3749,8 @@ template <typename TGrid> struct BlockLab {
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
         const int YY = 2 * (iy - s[1]) + start[1];
-        const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY, ZZ);
-        const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1, ZZ);
+        const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY);
+        const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1);
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -4075,7 +4075,7 @@ template <typename TGrid> struct LoadBalancer {
       mn[0] = info.level;
       mn[1] = info.Z;
       if (Fillptr) {
-        Real *aux = &((BlockType *)info.ptrBlock)->data[0][0][0].member(0);
+        Real *aux = &((BlockType *)info.ptrBlock)->data[0][0].member(0);
         std::memcpy(&data[0], aux, sizeof(BlockType));
       }
     }
@@ -4086,7 +4086,7 @@ template <typename TGrid> struct LoadBalancer {
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
     BlockType *b1 = (BlockType *)info.ptrBlock;
     assert(b1 != NULL);
-    Real *a1 = &b1->data[0][0][0].member(0);
+    Real *a1 = &b1->data[0][0].member(0);
     std::memcpy(a1, data, sizeof(BlockType));
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
@@ -4190,7 +4190,7 @@ template <typename TGrid> struct LoadBalancer {
         BlockInfo &info = grid->getBlockInfoAll(level, Z);
         BlockType *b1 = (BlockType *)info.ptrBlock;
         assert(b1 != NULL);
-        Real *a1 = &b1->data[0][0][0].member(0);
+        Real *a1 = &b1->data[0][0].member(0);
         std::memcpy(a1, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
@@ -5093,34 +5093,34 @@ struct VectorElement {
   Real &member(int i) { return u[i]; }
   static constexpr int DIM = 2;
 };
-template <typename TElement> struct GridBlock {
-  using ElementType = TElement;
-  ElementType data[1][_BS_][_BS_];
+template <typename T> struct GridBlock {
+  using ElementType = T;
+  T data[_BS_][_BS_];
   void clear() {
-    ElementType *const entry = &data[0][0][0];
+    T *const entry = &data[0][0];
     for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].clear();
   }
   void set(const Real v) {
-    ElementType *const entry = &data[0][0][0];
+    T *const entry = &data[0][0];
     for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].set(v);
   }
-  void copy(const GridBlock<ElementType> &c) {
-    ElementType *const entry = &data[0][0][0];
-    const ElementType *const source = &c.data[0][0][0];
+  void copy(const GridBlock<T> &c) {
+    T *const entry = &data[0][0][0];
+    const T *const source = &c.data[0][0][0];
     for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].copy(source[i]);
   }
-  const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
+  const T &operator()(int ix, int iy = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
-    return data[iz][iy][ix];
+    return data[iy][ix];
   }
-  ElementType &operator()(int ix, int iy = 0, int iz = 0) {
+  T &operator()(int ix, int iy = 0, int iz = 0) {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
-    return data[iz][iy][ix];
+    return data[iy][ix];
   }
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
@@ -5574,7 +5574,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
         xyz[k++] = v + info.h;
         xyz[k++] = u + info.h;
         xyz[k++] = v;
-        attr[l++] = b.data[0][y][x].s;
+        attr[l++] = b.data[y][x].s;
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
