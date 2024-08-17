@@ -6100,9 +6100,7 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 struct PutFishOnBlocks {
-  const Shape *shape;
   Real position[2];
-  Real angle;
   Real Rmatrix2D[2][2];
   void changeVelocityToComputationalFrame(Real x[2]) const {
     const Real p[2] = {x[0], x[1]};
@@ -6121,7 +6119,6 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks() {}
 };
 static void ongrid(Real dt) {
   const std::vector<BlockInfo> &velInfo = sim.vel->m_vInfo;
@@ -6419,8 +6416,6 @@ static void ongrid(Real dt) {
 #pragma omp parallel
     {
       PutFishOnBlocks putfish;
-      putfish.shape = shape;
-      putfish.angle = shape->orientation;
       putfish.position[0] = shape->center[0];
       putfish.position[1] = shape->center[1];
 
