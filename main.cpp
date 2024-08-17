@@ -416,8 +416,7 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-template <typename BlockType>
-struct BlockCase {
+template <typename BlockType> struct BlockCase {
   std::vector<typename BlockType::ElementType> m_pData[6];
   static constexpr unsigned int m_vSize[] = {_BS_, _BS_, 1};
   bool storedFace[6];
