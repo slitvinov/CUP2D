@@ -5092,13 +5092,9 @@ template <typename T> struct GridBlock {
       entry[j].clear();
   }
   const T &operator()(int ix, int iy = 0) const {
-    assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
-           iz < sizeZ);
     return data[iy][ix];
   }
   T &operator()(int ix, int iy = 0, int iz = 0) {
-    assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
-           iz < sizeZ);
     return data[iy][ix];
   }
   GridBlock(const GridBlock &) = delete;
@@ -5975,14 +5971,12 @@ struct ComputeSurfaceNormals {
           const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           const Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
-            assert(!filled);
             o.n_surfPoints++;
             const Real dchidx = -D * gradUX, dchidy = -D * gradUY;
             o.surface.push_back(new surface_data(ix, iy, dchidx, dchidy, D));
           }
         }
       o.filled = true;
-      assert(surface.size() == n_surfPoints);
       o.x_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.y_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.p_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
@@ -6151,9 +6145,6 @@ struct PutFishOnBlocks {
                   const std::vector<AreaSegment *> &v) const {
     Real org[2];
     info.pos(org, 0, 0);
-#ifndef NDEBUG
-    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-#endif
     const Real h = info.h, invh = 1.0 / info.h;
     const Real *const rX = cfish.rX, *const norX = cfish.norX;
     const Real *const rY = cfish.rY, *const norY = cfish.norY;
@@ -6364,7 +6355,6 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    assert(fish != nullptr);
     shape->periodScheduler.transition(
         sim.time, shape->transition_start,
         shape->transition_start + shape->transition_duration,
@@ -6419,10 +6409,6 @@ static void ongrid(Real dt) {
           (shape->vC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac) +
            shape->rC[i] *
                (std::cos(arg) * darg + shape->vB[i] + shape->curv_PID_dif));
-      assert(not std::isnan(rK[i]));
-      assert(not std::isinf(rK[i]));
-      assert(not std::isnan(vK[i]));
-      assert(not std::isinf(vK[i]));
     }
     if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
                shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
@@ -6433,7 +6419,6 @@ static void ongrid(Real dt) {
       Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
       norm[0] /= norm_mod1;
       norm[1] /= norm_mod1;
-      assert(width[i] >= 0);
       shape->lowerSkin.xSurf[i] = shape->rX[i] - shape->width[i] * norm[0];
       shape->lowerSkin.ySurf[i] = shape->rY[i] - shape->width[i] * norm[1];
       shape->upperSkin.xSurf[i] = shape->rX[i] + shape->width[i] * norm[0];
@@ -6465,7 +6450,6 @@ static void ongrid(Real dt) {
     shape->CoM_internal[1] = _cmy;
     shape->linMom[0] = _lmx;
     shape->linMom[1] = _lmy;
-    assert(area > std::numeric_limits<Real>::epsilon());
     shape->CoM_internal[0] /= shape->area;
     shape->CoM_internal[1] /= shape->area;
     shape->vCoM_internal[0] = shape->linMom[0] / shape->area;
@@ -6511,7 +6495,6 @@ static void ongrid(Real dt) {
     }
     shape->J = _J;
     shape->angMom = _am;
-    assert(J > std::numeric_limits<Real>::epsilon());
     shape->angvel_internal = shape->angMom / shape->J;
     shape->J_internal = shape->J;
     const Real Rmatrix2D[2][2] = {
@@ -6607,7 +6590,6 @@ static void ongrid(Real dt) {
           segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
         }
       if (segmentsPerBlock[info.blockID] not_eq nullptr) {
-        assert(obstacleBlocks[info.blockID] == nullptr);
         ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info.blockID] = block;
@@ -6618,7 +6600,6 @@ static void ongrid(Real dt) {
       }
     }
     assert(not segmentsPerBlock.empty());
-    assert(segmentsPerBlock.size() == obstacleBlocks.size());
 #pragma omp parallel
     {
       const PutFishOnBlocks putfish(*shape, shape->center, shape->orientation);
@@ -8127,7 +8108,6 @@ int main(int argc, char **argv) {
         shape->rS[k + 1] = shape->rS[k] + shape->dSref +
                            (shape->dSmid - shape->dSref) *
                                (shape->Nend - i - 1) / ((Real)shape->Nend - 1.);
-      assert(k + 1 == Nm);
       shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
       std::fill(shape->rX, shape->rX + shape->Nm, 0);
       std::fill(shape->rY, shape->rY + shape->Nm, 0);

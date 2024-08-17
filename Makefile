@@ -11,7 +11,6 @@ OPENMPFLAGS = -fopenmp
 FLAGS =\
 -D_BS_=8\
 -DCUBISM_ALIGNMENT=32\
--DNDEBUG\
 -Wno-unknown-pragmas\
 $(OPENMPFLAGS)\
 -std=c++17\
