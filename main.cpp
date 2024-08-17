@@ -5990,8 +5990,70 @@ struct AreaSegment {
     assert(w[0] > 0);
     assert(w[1] > 0);
   }
-  void changeToComputationalFrame(const Real position[2], const Real angle);
-  bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const;
+  void changeToComputationalFrame(const Real pos[2], const Real angle) {
+    Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
+                            {std::sin(angle), std::cos(angle)}};
+    Real p[2] = {c[0], c[1]};
+    Real nx[2] = {normalI[0], normalI[1]};
+    Real ny[2] = {normalJ[0], normalJ[1]};
+    for (int i = 0; i < 2; ++i) {
+      c[i] = Rmatrix2D[i][0] * p[0] + Rmatrix2D[i][1] * p[1];
+      normalI[i] = Rmatrix2D[i][0] * nx[0] + Rmatrix2D[i][1] * nx[1];
+      normalJ[i] = Rmatrix2D[i][0] * ny[0] + Rmatrix2D[i][1] * ny[1];
+    }
+    c[0] += pos[0];
+    c[1] += pos[1];
+    Real magI = std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
+    Real magJ = std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
+    assert(magI > std::numeric_limits<Real>::epsilon());
+    assert(magJ > std::numeric_limits<Real>::epsilon());
+    Real invMagI = 1 / magI, invMagJ = 1 / magJ;
+    for (int i = 0; i < 2; ++i) {
+      normalI[i] = std::fabs(normalI[i]) * invMagI;
+      normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
+    }
+    assert(normalI[0] >= 0 && normalI[1] >= 0);
+    assert(normalJ[0] >= 0 && normalJ[1] >= 0);
+    Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
+    Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
+    for (int i = 0; i < 2; ++i) {
+      objBoxLabFr[i][0] = c[i] - widthXvec[i] - widthYvec[i];
+      objBoxLabFr[i][1] = c[i] + widthXvec[i] + widthYvec[i];
+      objBoxObjFr[i][0] = c[i] - w[i];
+      objBoxObjFr[i][1] = c[i] + w[i];
+    }
+  }
+  bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
+    Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
+                      (end[1] - start[1]) / 2 + safe_distance};
+    Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
+    Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
+                           {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
+    assert(AABB_w[0] > 0 && AABB_w[1] > 0);
+    Real intersectionLabFrame[2][2] = {
+        {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
+         std::min(objBoxLabFr[0][1], AABB_box[0][1])},
+        {std::max(objBoxLabFr[1][0], AABB_box[1][0]),
+         std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
+    if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
+        intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
+      return false;
+    Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
+    Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
+    Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
+                          AABB_c[0] + widthXbox[0] + widthYbox[0]},
+                         {AABB_c[1] - widthXbox[1] - widthYbox[1],
+                          AABB_c[1] + widthXbox[1] + widthYbox[1]}};
+    Real intersectionFishFrame[2][2] = {
+        {std::max(boxBox[0][0], objBoxObjFr[0][0]),
+         std::min(boxBox[0][1], objBoxObjFr[0][1])},
+        {std::max(boxBox[1][0], objBoxObjFr[1][0]),
+         std::min(boxBox[1][1], objBoxObjFr[1][1])}};
+    if (intersectionFishFrame[0][1] - intersectionFishFrame[0][0] < 0 ||
+        intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
+      return false;
+    return true;
+  }
 };
 struct PutChiOnGrid {
   PutChiOnGrid(){};
@@ -7884,72 +7946,6 @@ struct updatePressureRHS1 {
     }
   }
 };
-void AreaSegment::changeToComputationalFrame(const Real pos[2],
-                                             const Real angle) {
-  Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-                          {std::sin(angle), std::cos(angle)}};
-  Real p[2] = {c[0], c[1]};
-  Real nx[2] = {normalI[0], normalI[1]};
-  Real ny[2] = {normalJ[0], normalJ[1]};
-  for (int i = 0; i < 2; ++i) {
-    c[i] = Rmatrix2D[i][0] * p[0] + Rmatrix2D[i][1] * p[1];
-    normalI[i] = Rmatrix2D[i][0] * nx[0] + Rmatrix2D[i][1] * nx[1];
-    normalJ[i] = Rmatrix2D[i][0] * ny[0] + Rmatrix2D[i][1] * ny[1];
-  }
-  c[0] += pos[0];
-  c[1] += pos[1];
-  Real magI = std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
-  Real magJ = std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
-  assert(magI > std::numeric_limits<Real>::epsilon());
-  assert(magJ > std::numeric_limits<Real>::epsilon());
-  Real invMagI = 1 / magI, invMagJ = 1 / magJ;
-  for (int i = 0; i < 2; ++i) {
-    normalI[i] = std::fabs(normalI[i]) * invMagI;
-    normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
-  }
-  assert(normalI[0] >= 0 && normalI[1] >= 0);
-  assert(normalJ[0] >= 0 && normalJ[1] >= 0);
-  Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
-  Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
-  for (int i = 0; i < 2; ++i) {
-    objBoxLabFr[i][0] = c[i] - widthXvec[i] - widthYvec[i];
-    objBoxLabFr[i][1] = c[i] + widthXvec[i] + widthYvec[i];
-    objBoxObjFr[i][0] = c[i] - w[i];
-    objBoxObjFr[i][1] = c[i] + w[i];
-  }
-}
-bool AreaSegment::isIntersectingWithAABB(const Real start[2],
-                                         const Real end[2]) const {
-  Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
-                    (end[1] - start[1]) / 2 + safe_distance};
-  Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
-  Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
-                         {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
-  assert(AABB_w[0] > 0 && AABB_w[1] > 0);
-  Real intersectionLabFrame[2][2] = {
-      {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
-       std::min(objBoxLabFr[0][1], AABB_box[0][1])},
-      {std::max(objBoxLabFr[1][0], AABB_box[1][0]),
-       std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
-  if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
-      intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
-    return false;
-  Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
-  Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
-  Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
-                        AABB_c[0] + widthXbox[0] + widthYbox[0]},
-                       {AABB_c[1] - widthXbox[1] - widthYbox[1],
-                        AABB_c[1] + widthXbox[1] + widthYbox[1]}};
-  Real intersectionFishFrame[2][2] = {
-      {std::max(boxBox[0][0], objBoxObjFr[0][0]),
-       std::min(boxBox[0][1], objBoxObjFr[0][1])},
-      {std::max(boxBox[1][0], objBoxObjFr[1][0]),
-       std::min(boxBox[1][1], objBoxObjFr[1][1])}};
-  if (intersectionFishFrame[0][1] - intersectionFishFrame[0][0] < 0 ||
-      intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
-    return false;
-  return true;
-}
 struct FactoryFileLineParser : public CommandlineParser {
   std::string &ltrim(std::string &s) {
     s.erase(s.begin(),
