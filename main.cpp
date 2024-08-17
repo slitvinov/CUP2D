@@ -3169,8 +3169,7 @@ template <typename TGrid> struct BlockLab {
             1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
-      m_cacheBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
-      std::allocator<Matrix3D<ElementType>>().construct(m_cacheBlock);
+      m_cacheBlock = new Matrix3D<ElementType>;
       m_cacheBlock->_Setup(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
                            _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1,
                            1 + m_stencilEnd[2] - m_stencilStart[2] - 1);
