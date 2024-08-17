@@ -5882,11 +5882,6 @@ struct Shape {
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {
     amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
-    if (dSref <= 0) {
-      std::cout << "[CUP2D] dSref <= 0. Aborting..." << std::endl;
-      fflush(0);
-      abort();
-    }
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   Real center[2];
@@ -8147,6 +8142,7 @@ int main(int argc, char **argv) {
       Real center[2] = {p("-xpos").asDouble(.5 * sim.extents[0]),
                         p("-ypos").asDouble(.5 * sim.extents[1])};
       Shape *shape = new Shape(p, center);
+      shape->amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
       shape->rS[0] = 0;
       int k = 0;
       for (int i = 0; i < shape->Nend; ++i, k++)
