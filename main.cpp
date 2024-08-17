@@ -361,12 +361,12 @@ struct BlockInfo {
   static void inverse(long long Z, int l, int &i, int &j) {
     (*SFC()).inverse(Z, l, i, j);
   }
-  template <typename T> void pos(T p[2], int ix, int iy) const {
+  void pos(Real p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
     p[1] = origin[1] + h * (iy + 0.5);
   }
-  template <typename T> std::array<T, 2> pos(int ix, int iy) const {
-    std::array<T, 2> result;
+  std::array<Real, 2> pos(int ix, int iy) const {
+    std::array<Real, 2> result;
     pos(result.data(), ix, iy);
     return result;
   }
@@ -7060,7 +7060,7 @@ struct KernelComputeForces {
       assert(O->filled);
       for (size_t k = 0; k < O->n_surfPoints; ++k) {
         const int ix = O->surface[k]->ix, iy = O->surface[k]->iy;
-        const std::array<Real, 2> p = info.pos<Real>(ix, iy);
+        const std::array<Real, 2> p = info.pos(ix, iy);
         const Real normX = O->surface[k]->dchidx;
         const Real normY = O->surface[k]->dchidy;
         const Real norm = 1.0 / std::sqrt(normX * normX + normY * normY);
@@ -8494,7 +8494,7 @@ int main(int argc, char **argv) {
               for (int ix = 0; ix < _BS_; ++ix) {
                 if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                   continue;
-                const auto pos = infos[k].pos<Real>(ix, iy);
+                const auto pos = infos[k].pos(ix, iy);
                 const Real iUr0 = -iomega2 * (pos[1] - iCy);
                 const Real iUr1 = iomega2 * (pos[0] - iCx);
                 coll.iM += iChi[iy][ix];
