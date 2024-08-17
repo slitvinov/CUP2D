@@ -8171,10 +8171,10 @@ int main(int argc, char **argv) {
       line_stream >> objectName;
       if (objectName.empty() or objectName[0] == '#')
         continue;
-      FactoryFileLineParser ffparser(line_stream);
-      Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
-                        ffparser("-ypos").asDouble(.5 * sim.extents[1])};
-      Shape *shape = new Shape(ffparser, center);
+      FactoryFileLineParser p(line_stream);
+      Real center[2] = {p("-xpos").asDouble(.5 * sim.extents[0]),
+                        p("-ypos").asDouble(.5 * sim.extents[1])};
+      Shape *shape = new Shape(p, center);
       sim.shapes.push_back(shape);
     }
   }
