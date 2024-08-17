@@ -24,7 +24,7 @@ enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static Real dist(const Real a[2], const Real b[2]) {
+static Real dist(Real a[2], Real b[2]) {
   return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
 }
 static void rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) {
@@ -6490,9 +6490,9 @@ static void ongrid(Real dt) {
                       continue;
                     putfish.changeFromComputationalFrame(p);
 #ifndef NDEBUG
-                    const Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
-                                        rY[ss] + width[ss] * signp * norY[ss]};
-                    const Real distC = dist(p, p0);
+                    Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
+                                  rY[ss] + width[ss] * signp * norY[ss]};
+                    Real distC = dist(p, p0);
                     assert(std::fabs(distC - dist0) < EPS);
 #endif
                     int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
@@ -6503,37 +6503,34 @@ static void ongrid(Real dt) {
                       close_s = secnd_s;
                       secnd_s = ss;
                     }
-                    const Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
+                    Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
                                       std::pow(rY[close_s] - rY[secnd_s], 2);
                     assert(dSsq > 2.2e-16);
-                    const Real cnt2ML = std::pow(width[close_s], 2);
-                    const Real nxt2ML = std::pow(width[secnd_s], 2);
-                    const Real safeW =
-                        std::max(width[close_s], width[secnd_s]) + 2 * h;
-                    const Real xMidl[2] = {rX[close_s], rY[close_s]};
-                    const Real grd2ML = dist(p, xMidl);
-                    const Real diffH =
-                        std::fabs(width[close_s] - width[secnd_s]);
+                    Real cnt2ML = std::pow(width[close_s], 2);
+                    Real nxt2ML = std::pow(width[secnd_s], 2);
+                    Real safeW = std::max(width[close_s], width[secnd_s]) + 2 * h;
+                    Real xMidl[2] = {rX[close_s], rY[close_s]};
+                    Real grd2ML = dist(p, xMidl);
+                    Real diffH = std::fabs(width[close_s] - width[secnd_s]);
                     Real sign2d = 0;
                     if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
                       sign2d = grd2ML > cnt2ML ? -1 : 1;
                     } else {
-                      const Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
-                      const Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
-                                       (cnt2ML + nxt2ML + corr + dSsq) / 4 /
-                                       dSsq;
-                      const Real maxAx = std::max(cnt2ML, nxt2ML);
-                      const int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
-                      const int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-                      const Real d = std::sqrt((Rsq - maxAx) / dSsq);
-                      const Real xCentr[2] = {
-                          rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
-                          rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
-                      const Real grd2Core = dist(p, xCentr);
+                      Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
+                      Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
+                                 (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
+                      Real maxAx = std::max(cnt2ML, nxt2ML);
+                      int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
+                      int idAx2 = idAx1 == close_s ? secnd_s : close_s;
+                      Real d = std::sqrt((Rsq - maxAx) / dSsq);
+                      Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
+                                        rY[idAx1] +
+                                            (rY[idAx1] - rY[idAx2]) * d};
+                      Real grd2Core = dist(p, xCentr);
                       sign2d = grd2Core > Rsq ? -1 : 1;
                     }
                     if (std::fabs(o->dist[sy][sx]) > dist1) {
-                      const Real W =
+                      Real W =
                           1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
                       assert(W >= 0);
                       o->udef[sy][sx][0] = W * udef[0];
