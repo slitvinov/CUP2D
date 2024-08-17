@@ -7228,6 +7228,18 @@ struct KernelComputeForces {
 };
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
+double getA_local(int I1, int I2) {
+  int j1 = I1 / BSX_;
+  int i1 = I1 % BSX_;
+  int j2 = I2 / BSX_;
+  int i2 = I2 % BSX_;
+  if (i1 == i2 && j1 == j2)
+    return 4.0;
+  else if (abs(i1 - i2) + abs(j1 - j2) == 1)
+    return -1.0;
+  else
+    return 0.0;
+}
   PoissonSolver();
   void solve(const ScalarGrid *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
@@ -7277,7 +7289,6 @@ struct PoissonSolver {
   static constexpr int BSX_ = _BS_;
   static constexpr int BSY_ = _BS_;
   static constexpr int BLEN_ = BSX_ * BSY_;
-  double getA_local(int I1, int I2);
   struct EdgeCellIndexer;
   void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
                 const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
@@ -7526,18 +7537,6 @@ struct PoissonSolver {
                    const double signI, const double signT,
                    const EdgeCellIndexer &indexer, SpRowInfo &row) const;
 };
-double PoissonSolver::getA_local(int I1, int I2) {
-  int j1 = I1 / BSX_;
-  int i1 = I1 % BSX_;
-  int j2 = I2 / BSX_;
-  int i2 = I2 % BSX_;
-  if (i1 == i2 && j1 == j2)
-    return 4.0;
-  else if (abs(i1 - i2) + abs(j1 - j2) == 1)
-    return -1.0;
-  else
-    return 0.0;
-}
 PoissonSolver::PoissonSolver()
     : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
       YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
