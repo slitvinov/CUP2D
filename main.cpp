@@ -8195,15 +8195,14 @@ int main(int argc, char **argv) {
     adapt();
   }
   ongrid(0.0);
-  size_t Nblocks = velInfo.size();
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
+  for (size_t i = 0; i < velInfo.size(); i++) {
     ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->clear();
   }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
-    for (size_t i = 0; i < Nblocks; i++) {
+    for (size_t i = 0; i < velInfo.size(); i++) {
       if (OBLOCK[sim.tmpV->m_vInfo[i].blockID] == nullptr)
         continue;
       UDEFMAT &__restrict__ udef = OBLOCK[sim.tmpV->m_vInfo[i].blockID]->udef;
@@ -8223,7 +8222,7 @@ int main(int argc, char **argv) {
     }
   }
 #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < Nblocks; i++) {
+  for (size_t i = 0; i < velInfo.size(); i++) {
     VectorBlock &UF = *(VectorBlock *)velInfo[i].ptrBlock;
     VectorBlock &US = *(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock;
     ScalarBlock &X = *(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock;
@@ -8285,7 +8284,7 @@ int main(int argc, char **argv) {
       size_t Nblocks = velInfo.size();
       KernelAdvectDiffuse Step1;
 #pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
+      for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
             *(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock;
         const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -8297,7 +8296,7 @@ int main(int argc, char **argv) {
       }
       cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
+      for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
             *(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock;
@@ -8314,7 +8313,7 @@ int main(int argc, char **argv) {
       }
       cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
+      for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
             *(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock;
@@ -8327,15 +8326,13 @@ int main(int argc, char **argv) {
             V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
           }
       }
-      Nblocks = velInfo.size();
       for (const auto &shape : sim.shapes) {
-        const size_t Nblocks = velInfo.size();
         const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
         const Real Cx = shape->centerOfMass[0];
         const Real Cy = shape->centerOfMass[1];
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-        for (size_t i = 0; i < Nblocks; i++) {
+        for (size_t i = 0; i < velInfo.size(); i++) {
           const VectorBlock &__restrict__ VEL =
               *(VectorBlock *)velInfo[i].ptrBlock;
           const Real hsq = velInfo[i].h * velInfo[i].h;
