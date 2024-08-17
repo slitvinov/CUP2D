@@ -7240,7 +7240,58 @@ struct PoissonSolver {
     else
       return 0.0;
   }
-  PoissonSolver();
+  PoissonSolver()
+      : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
+        YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                      &YmaxCell} {
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
+    Nblocks_xcumsum_.resize(comm_size_ + 1);
+    Nrows_xcumsum_.resize(comm_size_ + 1);
+    std::vector<std::vector<double>> L;
+    std::vector<std::vector<double>> L_inv;
+    L.resize(BLEN_);
+    L_inv.resize(BLEN_);
+    for (int i(0); i < BLEN_; i++) {
+      L[i].resize(i + 1);
+      L_inv[i].resize(i + 1);
+      for (int j(0); j <= i; j++) {
+        L_inv[i][j] = (i == j) ? 1. : 0.;
+      }
+    }
+    for (int i(0); i < BLEN_; i++) {
+      double s1 = 0;
+      for (int k(0); k <= i - 1; k++)
+        s1 += L[i][k] * L[i][k];
+      L[i][i] = sqrt(getA_local(i, i) - s1);
+      for (int j(i + 1); j < BLEN_; j++) {
+        double s2 = 0;
+        for (int k(0); k <= i - 1; k++)
+          s2 += L[i][k] * L[j][k];
+        L[j][i] = (getA_local(j, i) - s2) / L[i][i];
+      }
+    }
+    for (int br(0); br < BLEN_; br++) {
+      const double bsf = 1. / L[br][br];
+      for (int c(0); c <= br; c++)
+        L_inv[br][c] *= bsf;
+      for (int wr(br + 1); wr < BLEN_; wr++) {
+        const double wsf = L[wr][br];
+        for (int c(0); c <= br; c++)
+          L_inv[wr][c] -= (wsf * L_inv[br][c]);
+      }
+    }
+    std::vector<double> P_inv(BLEN_ * BLEN_);
+    for (int i(0); i < BLEN_; i++)
+      for (int j(0); j < BLEN_; j++) {
+        double aux = 0.;
+        for (int k(0); k < BLEN_; k++)
+          aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
+        P_inv[i * BLEN_ + j] = -aux;
+      }
+    LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, BSX_ * BSY_,
+                                                 sim.bMeanConstraint, P_inv);
+  }
   void solve(const ScalarGrid *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
@@ -7537,58 +7588,6 @@ struct PoissonSolver {
                    const double signI, const double signT,
                    const EdgeCellIndexer &indexer, SpRowInfo &row) const;
 };
-PoissonSolver::PoissonSolver()
-    : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
-      YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
-                                    &YmaxCell} {
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
-  MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
-  Nblocks_xcumsum_.resize(comm_size_ + 1);
-  Nrows_xcumsum_.resize(comm_size_ + 1);
-  std::vector<std::vector<double>> L;
-  std::vector<std::vector<double>> L_inv;
-  L.resize(BLEN_);
-  L_inv.resize(BLEN_);
-  for (int i(0); i < BLEN_; i++) {
-    L[i].resize(i + 1);
-    L_inv[i].resize(i + 1);
-    for (int j(0); j <= i; j++) {
-      L_inv[i][j] = (i == j) ? 1. : 0.;
-    }
-  }
-  for (int i(0); i < BLEN_; i++) {
-    double s1 = 0;
-    for (int k(0); k <= i - 1; k++)
-      s1 += L[i][k] * L[i][k];
-    L[i][i] = sqrt(getA_local(i, i) - s1);
-    for (int j(i + 1); j < BLEN_; j++) {
-      double s2 = 0;
-      for (int k(0); k <= i - 1; k++)
-        s2 += L[i][k] * L[j][k];
-      L[j][i] = (getA_local(j, i) - s2) / L[i][i];
-    }
-  }
-  for (int br(0); br < BLEN_; br++) {
-    const double bsf = 1. / L[br][br];
-    for (int c(0); c <= br; c++)
-      L_inv[br][c] *= bsf;
-    for (int wr(br + 1); wr < BLEN_; wr++) {
-      const double wsf = L[wr][br];
-      for (int c(0); c <= br; c++)
-        L_inv[wr][c] -= (wsf * L_inv[br][c]);
-    }
-  }
-  std::vector<double> P_inv(BLEN_ * BLEN_);
-  for (int i(0); i < BLEN_; i++)
-    for (int j(0); j < BLEN_; j++) {
-      double aux = 0.;
-      for (int k(0); k < BLEN_; k++)
-        aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
-      P_inv[i * BLEN_ + j] = -aux;
-    }
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, BSX_ * BSY_,
-                                               sim.bMeanConstraint, P_inv);
-}
 void PoissonSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
                                 const int iy_c, const cubism::BlockInfo &info_f,
                                 const long long fine_close_idx,
