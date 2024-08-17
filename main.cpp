@@ -5015,7 +5015,6 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
 struct ScalarElement {
   Real s = 0;
   void clear() { s = 0; }
-  void set(const Real v) { s = v; }
   ScalarElement &operator*=(const Real a) {
     this->s *= a;
     return *this;
@@ -6349,7 +6348,7 @@ static void ongrid(Real dt) {
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
         ((ScalarBlock *)chiInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)tmpInfo[i].ptrBlock)->data[x][y].set(-1);
+        ((ScalarBlock *)tmpInfo[i].ptrBlock)->data[x][y].s = -1;
       }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
