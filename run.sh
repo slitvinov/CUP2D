@@ -2,10 +2,4 @@
 stefanfish L=0.2 T=1 xpos=0.60 ypos=1.00 bFixed=1 pidpos=0 pid=0
 		 stefanfish L=0.2 T=1 xpos=0.90 ypos=0.90 bFixed=1 pidpos=0 pid=0
 		 stefanfish L=0.2 T=1 xpos=0.90 ypos=1.10 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.20 ypos=0.80 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.20 ypos=1.00 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.20 ypos=1.20 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.50 ypos=0.90 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.50 ypos=1.10 bFixed=1 pidpos=0 pid=0
-		 stefanfish L=0.2 T=1 xpos=1.80 ypos=1.00 bFixed=1 pidpos=0 pid=0
 '
