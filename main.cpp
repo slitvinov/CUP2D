@@ -8935,30 +8935,23 @@ int main(int argc, char **argv) {
     Real CFL = sim.CFL;
     Real h = getH(sim.vel);
     size_t Nblocks = velInfo.size();
-    Real UINF = sim.uinfx, VINF = sim.uinfy;
-    Real U = 0, V = 0, u = 0, v = 0;
-#pragma omp parallel for schedule(static) reduction(max : U, V, u, v)
+    Real umax = 0;
+#pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < Nblocks; i++) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-          U = std::max(U, std::fabs(VEL(ix, iy).u[0] + UINF));
-          V = std::max(V, std::fabs(VEL(ix, iy).u[1] + VINF));
-          u = std::max(u, std::fabs(VEL(ix, iy).u[0]));
-          v = std::max(v, std::fabs(VEL(ix, iy).u[1]));
+          umax = std::max(umax, std::fabs(VEL(ix, iy).u[0] + sim.uinfx));
+          umax = std::max(umax, std::fabs(VEL(ix, iy).u[1] + sim.uinfy));
+          umax = std::max(umax, std::fabs(VEL(ix, iy).u[0]));
+          umax = std::max(umax, std::fabs(VEL(ix, iy).u[1]));
         }
     }
-    Real quantities[4] = {U, V, u, v};
-    MPI_Allreduce(MPI_IN_PLACE, quantities, 4, MPI_Real, MPI_MAX,
+    MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX,
                   MPI_COMM_WORLD);
-    U = quantities[0];
-    V = quantities[1];
-    u = quantities[2];
-    v = quantities[3];
-    Real uMax_measured = std::max({U, V, u, v});
     if (CFL > 0) {
-      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * uMax_measured);
-      Real dtAdvection = h / (uMax_measured + 1e-8);
+      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
+      Real dtAdvection = h / (umax + 1e-8);
       sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     }
     if (sim.dt <= 0) {
