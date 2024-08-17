@@ -7227,7 +7227,6 @@ struct KernelComputeForces {
 };
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
-  int rank_;
   int comm_size_;
   static constexpr int BSX_ = _BS_;
   static constexpr int BSY_ = _BS_;
@@ -7252,7 +7251,6 @@ struct PoissonSolver {
       : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
         YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                       &YmaxCell} {
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
     Nblocks_xcumsum_.resize(comm_size_ + 1);
     Nrows_xcumsum_.resize(comm_size_ + 1);
@@ -7721,7 +7719,7 @@ struct PoissonSolver {
     std::vector<double> &x = LocalLS_->get_x();
     std::vector<double> &b = LocalLS_->get_b();
     std::vector<double> &h2 = LocalLS_->get_h2();
-    const long long shift = -Nrows_xcumsum_[rank_];
+    const long long shift = -Nrows_xcumsum_[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       const cubism::BlockInfo &rhs_info = RhsInfo[i];
