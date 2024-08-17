@@ -5417,9 +5417,8 @@ static struct {
 } sim;
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
-  auto &infos = vel->m_vInfo;
-  for (size_t i = 0; i < infos.size(); i++) {
-    minHGrid = std::min((Real)infos[i].h, minHGrid);
+  for (size_t i = 0; i < vel->m_vInfo.size(); i++) {
+    minHGrid = std::min((Real)vel->m_vInfo[i].h, minHGrid);
   }
   MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
   return minHGrid;
