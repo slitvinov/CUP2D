@@ -8139,7 +8139,6 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
 };
 int main(int argc, char **argv) {
   int threadSafety;
-  std::vector<Operator *> pipeline;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
   cubism::CommandlineParser parser(argc, argv);
   MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
@@ -8261,8 +8260,6 @@ int main(int argc, char **argv) {
   }
   PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid;
   AdaptTheMesh *adaptTheMesh = new AdaptTheMesh;
-  pipeline.push_back(adaptTheMesh);
-  pipeline.push_back(putObjectsOnGrid);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
@@ -8349,47 +8346,52 @@ int main(int argc, char **argv) {
         snprintf(path, sizeof path, "vort.%08d", sim.step);
         dump(sim.time, sim.tmp, path);
       }
-      for (size_t c = 0; c < pipeline.size(); c++)
-        (*pipeline[c])(sim.dt);
-
-  size_t Nblocks = velInfo.size();
-  KernelAdvectDiffuse Step1;
+      (*adaptTheMesh)(sim.dt);
+      (*putObjectsOnGrid)(sim.dt);
+      size_t Nblocks = velInfo.size();
+      KernelAdvectDiffuse Step1;
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        Vold(ix, iy).u[0] = V(ix, iy).u[0];
-        Vold(ix, iy).u[1] = V(ix, iy).u[1];
+      for (size_t i = 0; i < Nblocks; i++) {
+        VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
+        const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            Vold(ix, iy).u[0] = V(ix, iy).u[0];
+            Vold(ix, iy).u[1] = V(ix, iy).u[1];
+          }
       }
-  }
-  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+      cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        V(ix, iy).u[0] = Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
-        V(ix, iy).u[1] = Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
+      for (size_t i = 0; i < Nblocks; i++) {
+        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+        const VectorBlock &__restrict__ Vold =
+            *(VectorBlock *)vOldInfo[i].ptrBlock;
+        const VectorBlock &__restrict__ tmpV =
+            *(VectorBlock *)tmpVInfo[i].ptrBlock;
+        const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            V(ix, iy).u[0] =
+                Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
+            V(ix, iy).u[1] =
+                Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
+          }
       }
-  }
-  cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+      cubism::compute<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ Vold = *(VectorBlock *)vOldInfo[i].ptrBlock;
-    const VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-        V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+      for (size_t i = 0; i < Nblocks; i++) {
+        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+        const VectorBlock &__restrict__ Vold =
+            *(VectorBlock *)vOldInfo[i].ptrBlock;
+        const VectorBlock &__restrict__ tmpV =
+            *(VectorBlock *)tmpVInfo[i].ptrBlock;
+        const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
+            V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+          }
       }
-  }
 
       Nblocks = velInfo.size();
       for (const auto &shape : sim.shapes) {
