@@ -6098,7 +6098,7 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   }
 }
 struct PutFishOnBlocks {
-  const Shape &shape;
+  const Shape *shape;
   Real position[2];
   Real angle;
   Real Rmatrix2D[2][2];
@@ -6119,7 +6119,7 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const Shape &shape, const Real pos[2], const Real angle)
+  PutFishOnBlocks(const Shape *shape, const Real pos[2], const Real angle)
     : shape(shape), position{(Real)pos[0], (Real)pos[1]}, angle(angle) {
     Rmatrix2D[0][0] = std::cos(angle);
     Rmatrix2D[0][1] = -std::sin(angle);
@@ -6132,17 +6132,17 @@ struct PutFishOnBlocks {
     Real org[2];
     info.pos(org, 0, 0);
     const Real h = info.h, invh = 1.0 / info.h;
-    const Real *const rX = shape.rX, *const norX = shape.norX;
-    const Real *const rY = shape.rY, *const norY = shape.norY;
-    const Real *const vX = shape.vX, *const vNorX = shape.vNorX;
-    const Real *const vY = shape.vY, *const vNorY = shape.vNorY;
-    const Real *const width = shape.width;
+    const Real *const rX = shape->rX, *const norX = shape->norX;
+    const Real *const rY = shape->rY, *const norY = shape->norY;
+    const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
+    const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
+    const Real *const width = shape->width;
     static constexpr int BS[2] = {_BS_, _BS_};
     std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
     std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
     for (int i = 0; i < (int)v.size(); ++i) {
       const int firstSegm = std::max(v[i]->s_range.first, 1);
-      const int lastSegm = std::min(v[i]->s_range.second, shape.Nm - 2);
+      const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
       for (int ss = firstSegm; ss <= lastSegm; ++ss) {
         assert(width[ss] > 0);
         for (int signp = -1; signp <= 1; signp += 2) {
@@ -6233,15 +6233,15 @@ struct PutFishOnBlocks {
     info.pos(org, 0, 0);
     for (int i = 0; i < (int)v.size(); ++i) {
       const int firstSegm = std::max(v[i]->s_range.first, 1);
-      const int lastSegm = std::min(v[i]->s_range.second, shape.Nm - 2);
+      const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
       for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-        const Real myWidth = shape.width[ss];
+        const Real myWidth = shape->width[ss];
         assert(myWidth > 0);
         const int Nw = std::floor(myWidth / h);
         for (int iw = -Nw + 1; iw < Nw; ++iw) {
           const Real offsetW = iw * h;
-          Real xp[2] = {shape.rX[ss] + offsetW * shape.norX[ss],
-                        shape.rY[ss] + offsetW * shape.norY[ss]};
+          Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
+                        shape->rY[ss] + offsetW * shape->norY[ss]};
           changeToComputationalFrame(xp);
           xp[0] = (xp[0] - org[0]) * invh;
           xp[1] = (xp[1] - org[1]) * invh;
@@ -6251,8 +6251,8 @@ struct PutFishOnBlocks {
             continue;
           if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
             continue;
-          Real udef[2] = {shape.vX[ss] + offsetW * shape.vNorX[ss],
-                          shape.vY[ss] + offsetW * shape.vNorY[ss]};
+          Real udef[2] = {shape->vX[ss] + offsetW * shape->vNorX[ss],
+                          shape->vY[ss] + offsetW * shape->vNorY[ss]};
           changeVelocityToComputationalFrame(udef);
           Real wghts[2][2];
           for (int c = 0; c < 2; ++c) {
@@ -6588,7 +6588,7 @@ static void ongrid(Real dt) {
     assert(not segmentsPerBlock.empty());
 #pragma omp parallel
     {
-      const PutFishOnBlocks putfish(*shape, shape->center, shape->orientation);
+      const PutFishOnBlocks putfish(shape, shape->center, shape->orientation);
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
         const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
@@ -6596,7 +6596,11 @@ static void ongrid(Real dt) {
           ObstacleBlock *const block =
               shape->obstacleBlocks[tmpInfo[i].blockID];
           assert(block not_eq nullptr);
-          putfish(tmpInfo[i], *(ScalarBlock *)tmpInfo[i].ptrBlock, block, *pos);
+	  const cubism::BlockInfo &info = tmpInfo[i];
+	  ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].ptrBlock;
+	  ObstacleBlock *const o = block;
+	  const std::vector<AreaSegment *> &v = *pos;
+          putfish(info, b, o, v);
         }
       }
     }
