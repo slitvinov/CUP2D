@@ -6504,11 +6504,12 @@ static void ongrid(Real dt) {
                       secnd_s = ss;
                     }
                     Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
-                                      std::pow(rY[close_s] - rY[secnd_s], 2);
+                                std::pow(rY[close_s] - rY[secnd_s], 2);
                     assert(dSsq > 2.2e-16);
                     Real cnt2ML = std::pow(width[close_s], 2);
                     Real nxt2ML = std::pow(width[secnd_s], 2);
-                    Real safeW = std::max(width[close_s], width[secnd_s]) + 2 * h;
+                    Real safeW =
+                        std::max(width[close_s], width[secnd_s]) + 2 * h;
                     Real xMidl[2] = {rX[close_s], rY[close_s]};
                     Real grd2ML = dist(p, xMidl);
                     Real diffH = std::fabs(width[close_s] - width[secnd_s]);
@@ -8517,18 +8518,18 @@ int main(int argc, char **argv) {
         for (size_t j = i + 1; j < N; ++j) {
           if (i == j)
             continue;
-          const Real m1 = shapes[i]->M;
-          const Real m2 = shapes[j]->M;
-          const Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
-          const Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
-          const Real o1[3] = {0, 0, shapes[i]->omega};
-          const Real o2[3] = {0, 0, shapes[j]->omega};
-          const Real C1[3] = {shapes[i]->centerOfMass[0],
-                              shapes[i]->centerOfMass[1], 0};
-          const Real C2[3] = {shapes[j]->centerOfMass[0],
-                              shapes[j]->centerOfMass[1], 0};
-          const Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
-          const Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
+          Real m1 = shapes[i]->M;
+          Real m2 = shapes[j]->M;
+          Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
+          Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
+          Real o1[3] = {0, 0, shapes[i]->omega};
+          Real o2[3] = {0, 0, shapes[j]->omega};
+          Real C1[3] = {shapes[i]->centerOfMass[0], shapes[i]->centerOfMass[1],
+                        0};
+          Real C2[3] = {shapes[j]->centerOfMass[0], shapes[j]->centerOfMass[1],
+                        0};
+          Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
+          Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
           auto &coll = collisions[i];
           auto &coll_other = collisions[j];
           if (coll.iM < 2.0 || coll.jM < 2.0)
