@@ -5296,14 +5296,14 @@ struct BlockLabNeumann : public BlockLab<TGrid> {
     }
   }
 };
-using ScalarBlock = GridBlock<ScalarElement>;
-using VectorBlock = GridBlock<VectorElement>;
-using ScalarGrid = GridMPI<Grid<ScalarBlock>>;
-using VectorGrid = GridMPI<Grid<VectorBlock>>;
-using VectorLab = BlockLabMPI<BlockLabDirichlet<VectorGrid>>;
-using ScalarLab = BlockLabMPI<BlockLabNeumann<ScalarGrid>>;
-using ScalarAMR = MeshAdaptation<ScalarLab>;
-using VectorAMR = MeshAdaptation<VectorLab>;
+typedef GridBlock<ScalarElement> ScalarBlock;
+typedef GridBlock<VectorElement> VectorBlock;
+typedef GridMPI<Grid<ScalarBlock>> ScalarGrid;
+typedef GridMPI<Grid<VectorBlock>> VectorGrid;
+typedef BlockLabMPI<BlockLabDirichlet<VectorGrid>> VectorLab;
+typedef BlockLabMPI<BlockLabNeumann<ScalarGrid>> ScalarLab;
+typedef MeshAdaptation<ScalarLab> ScalarAMR;
+typedef MeshAdaptation<VectorLab> VectorAMR;
 struct FishSkin {
   size_t Npoints;
   Real *xSurf;
