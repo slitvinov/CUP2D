@@ -5106,12 +5106,6 @@ template <typename T> struct GridBlock {
     for (int i = 0; i < _BS_ * _BS_; ++i)
       entry[i].set(v);
   }
-  void copy(const GridBlock<T> &c) {
-    T *const entry = &data[0][0][0];
-    const T *const source = &c.data[0][0][0];
-    for (int i = 0; i < _BS_ * _BS_; ++i)
-      entry[i].copy(source[i]);
-  }
   const T &operator()(int ix, int iy = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
