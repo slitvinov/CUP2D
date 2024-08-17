@@ -5998,15 +5998,15 @@ struct AreaSegment {
 };
 struct PutChiOnGrid {
   PutChiOnGrid(){};
-  const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<BlockInfo> &chiInfo = sim.chi->m_vInfo;
+  StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
+  std::vector<BlockInfo> &chiInfo = sim.chi->m_vInfo;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
-    for (const auto &shape : sim.shapes) {
-      const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+    for (auto &shape : sim.shapes) {
+      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[info.blockID] == nullptr)
         continue;
-      const Real h = info.h;
-      const Real h2 = h * h;
+      Real h = info.h;
+      Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.blockID];
       CHI_MAT &__restrict__ X = o.chi;
       const CHI_MAT &__restrict__ sdf = o.dist;
@@ -6019,19 +6019,19 @@ struct PutChiOnGrid {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
-            const Real distPx = lab(ix + 1, iy).s;
-            const Real distMx = lab(ix - 1, iy).s;
-            const Real distPy = lab(ix, iy + 1).s;
-            const Real distMy = lab(ix, iy - 1).s;
-            const Real IplusX = std::max((Real)0.0, distPx);
-            const Real IminuX = std::max((Real)0.0, distMx);
-            const Real IplusY = std::max((Real)0.0, distPy);
-            const Real IminuY = std::max((Real)0.0, distMy);
-            const Real gradIX = IplusX - IminuX;
-            const Real gradIY = IplusY - IminuY;
-            const Real gradUX = distPx - distMx;
-            const Real gradUY = distPy - distMy;
-            const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+            Real distPx = lab(ix + 1, iy).s;
+            Real distMx = lab(ix - 1, iy).s;
+            Real distPy = lab(ix, iy + 1).s;
+            Real distMy = lab(ix, iy - 1).s;
+            Real IplusX = std::max((Real)0.0, distPx);
+            Real IminuX = std::max((Real)0.0, distMx);
+            Real IplusY = std::max((Real)0.0, distPy);
+            Real IminuY = std::max((Real)0.0, distMy);
+            Real gradIX = IplusX - IminuX;
+            Real gradIY = IplusY - IminuY;
+            Real gradUX = distPx - distMx;
+            Real gradUY = distPy - distMy;
+            Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
           CHI(ix, iy).s = std::max(CHI(ix, iy).s, X[iy][ix]);
