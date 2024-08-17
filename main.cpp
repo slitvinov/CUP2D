@@ -2573,7 +2573,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
 };
 template <typename TGrid> struct GridMPI : public TGrid {
   typedef typename TGrid::BlockType Block;
-  typedef typename TGrid::BlockType BlockType;
   typedef SynchronizerMPI_AMR<GridMPI<TGrid>> SynchronizerMPIType;
   size_t timestamp;
   int myrank;
