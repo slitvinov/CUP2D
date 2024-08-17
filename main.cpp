@@ -6630,7 +6630,6 @@ static void ongrid(Real dt) {
                  shape->lowerSkin.ySurf[i]);
       }
     }
-
     const int Nsegments = (shape->Nm - 1) / 8;
     const int Nm = shape->Nm;
     assert((Nm - 1) % Nsegments == 0);
@@ -7341,11 +7340,6 @@ struct PoissonSolver {
   static constexpr int BSY_ = _BS_;
   static constexpr int BLEN_ = BSX_ * BSY_;
   struct EdgeCellIndexer;
-  void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
-                const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
-                SpRowInfo &row) const;
-  void getMat();
-  void getVec();
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
@@ -7585,177 +7579,169 @@ struct PoissonSolver {
   void interpolate(const cubism::BlockInfo &info_c, const int ix_c,
                    const int iy_c, const cubism::BlockInfo &info_f,
                    const long long fine_close_idx, const long long fine_far_idx,
-                   const double signI, const double signT,
-                   const EdgeCellIndexer &indexer, SpRowInfo &row) const;
-};
-void PoissonSolver::interpolate(const cubism::BlockInfo &info_c, const int ix_c,
-                                const int iy_c, const cubism::BlockInfo &info_f,
-                                const long long fine_close_idx,
-                                const long long fine_far_idx,
-                                const double signInt, const double signTaylor,
-                                const EdgeCellIndexer &indexer,
-                                SpRowInfo &row) const {
-  const int rank_c = sim.tmp->Tree(info_c).rank();
-  const int rank_f = sim.tmp->Tree(info_f).rank();
-  row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
-  row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
-  const double tf = signInt * 8. / 15.;
-  row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
-  std::array<std::pair<long long, double>, 3> D;
-  D = D1(info_c, indexer, ix_c, iy_c);
-  for (int i(0); i < 3; i++)
-    row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
-  D = D2(info_c, indexer, ix_c, iy_c);
-  for (int i(0); i < 3; i++)
-    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
-}
-void PoissonSolver::makeFlux(const cubism::BlockInfo &rhs_info, const int ix,
-                             const int iy, const cubism::BlockInfo &rhsNei,
-                             const EdgeCellIndexer &indexer,
-                             SpRowInfo &row) const {
-  const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-  if (sim.tmp->Tree(rhsNei).Exists()) {
-    const int nei_rank = sim.tmp->Tree(rhsNei).rank();
-    const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
-    row.mapColVal(nei_rank, nei_idx, 1.);
-    row.mapColVal(sfc_idx, -1.);
-  } else if (sim.tmp->Tree(rhsNei).CheckCoarser()) {
-    const cubism::BlockInfo &rhsNei_c =
-        sim.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
-    const int ix_c = indexer.ix_c(rhs_info, ix);
-    const int iy_c = indexer.iy_c(rhs_info, iy);
-    const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
-    const double signTaylor = indexer.taylorSign(ix, iy);
-    interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
-                signTaylor, indexer, row);
-    row.mapColVal(sfc_idx, -1.);
-  } else if (sim.tmp->Tree(rhsNei).CheckFiner()) {
-    const cubism::BlockInfo &rhsNei_f = sim.tmp->getBlockInfoAll(
-        rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-    const int nei_rank = sim.tmp->Tree(rhsNei_f).rank();
-    long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
-    long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
-    row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                -1., indexer, row);
-    fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
-    fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
-    row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                1., indexer, row);
-  } else {
-    throw std::runtime_error(
-        "Neighbour doesn't exist, isn't coarser, nor finer...");
+                   const double signInt, const double signTaylor,
+                   const EdgeCellIndexer &indexer, SpRowInfo &row) const {
+    const int rank_c = sim.tmp->Tree(info_c).rank();
+    const int rank_f = sim.tmp->Tree(info_f).rank();
+    row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
+    row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
+    const double tf = signInt * 8. / 15.;
+    row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
+    std::array<std::pair<long long, double>, 3> D;
+    D = D1(info_c, indexer, ix_c, iy_c);
+    for (int i(0); i < 3; i++)
+      row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
+    D = D2(info_c, indexer, ix_c, iy_c);
+    for (int i(0); i < 3; i++)
+      row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
-}
-void PoissonSolver::getMat() {
-  std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
-  sim.tmp->UpdateBlockInfoAll_States(true);
-  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
-  const int Nblocks = RhsInfo.size();
-  const int N = BSX_ * BSY_ * Nblocks;
-  LocalLS_->reserve(N);
-  const long long Nblocks_long = Nblocks;
-  MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
-                MPI_LONG_LONG, MPI_COMM_WORLD);
-  for (int i(Nblocks_xcumsum_.size() - 1); i > 0; i--) {
-    Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i - 1];
+  void makeFlux(const cubism::BlockInfo &rhs_info, const int ix, const int iy,
+                const cubism::BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
+                SpRowInfo &row) const {
+    const long long sfc_idx = indexer.This(rhs_info, ix, iy);
+    if (sim.tmp->Tree(rhsNei).Exists()) {
+      const int nei_rank = sim.tmp->Tree(rhsNei).rank();
+      const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
+      row.mapColVal(nei_rank, nei_idx, 1.);
+      row.mapColVal(sfc_idx, -1.);
+    } else if (sim.tmp->Tree(rhsNei).CheckCoarser()) {
+      const cubism::BlockInfo &rhsNei_c =
+          sim.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
+      const int ix_c = indexer.ix_c(rhs_info, ix);
+      const int iy_c = indexer.iy_c(rhs_info, iy);
+      const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
+      const double signTaylor = indexer.taylorSign(ix, iy);
+      interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
+                  signTaylor, indexer, row);
+      row.mapColVal(sfc_idx, -1.);
+    } else if (sim.tmp->Tree(rhsNei).CheckFiner()) {
+      const cubism::BlockInfo &rhsNei_f = sim.tmp->getBlockInfoAll(
+          rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
+      const int nei_rank = sim.tmp->Tree(rhsNei_f).rank();
+      long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
+      long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
+      row.mapColVal(nei_rank, fine_close_idx, 1.);
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+                  -1., indexer, row);
+      fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
+      fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
+      row.mapColVal(nei_rank, fine_close_idx, 1.);
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+                  1., indexer, row);
+    } else {
+      throw std::runtime_error(
+          "Neighbour doesn't exist, isn't coarser, nor finer...");
+    }
   }
-  Nblocks_xcumsum_[0] = 0;
-  Nrows_xcumsum_[0] = 0;
-  for (size_t i(1); i < Nblocks_xcumsum_.size(); i++) {
-    Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i - 1];
-    Nrows_xcumsum_[i] = BLEN_ * Nblocks_xcumsum_[i];
-  }
-  for (int i = 0; i < Nblocks; i++) {
-    const cubism::BlockInfo &rhs_info = RhsInfo[i];
-    const int aux = 1 << rhs_info.level;
-    const int MAX_X_BLOCKS = blocksPerDim[0] * aux - 1;
-    const int MAX_Y_BLOCKS = blocksPerDim[1] * aux - 1;
-    std::array<bool, 4> isBoundary;
-    isBoundary[0] = (rhs_info.index[0] == 0);
-    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
-    isBoundary[2] = (rhs_info.index[1] == 0);
-    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
-    std::array<bool, 2> isPeriodic;
-    isPeriodic[0] = (cubismBCX == periodic);
-    isPeriodic[1] = (cubismBCY == periodic);
-    std::array<long long, 4> Z;
-    Z[0] = rhs_info.Znei[1 - 1][1][1];
-    Z[1] = rhs_info.Znei[1 + 1][1][1];
-    Z[2] = rhs_info.Znei[1][1 - 1][1];
-    Z[3] = rhs_info.Znei[1][1 + 1][1];
-    std::array<const cubism::BlockInfo *, 4> rhsNei;
-    rhsNei[0] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
-    rhsNei[1] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
-    rhsNei[2] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
-    rhsNei[3] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
-    for (int iy = 0; iy < BSY_; iy++)
-      for (int ix = 0; ix < BSX_; ix++) {
-        const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
-        if ((ix > 0 && ix < BSX_ - 1) && (iy > 0 && iy < BSY_ - 1)) {
-          LocalLS_->cooPushBackVal(1, sfc_idx,
-                                   GenericCell.This(rhs_info, ix, iy - 1));
-          LocalLS_->cooPushBackVal(1, sfc_idx,
-                                   GenericCell.This(rhs_info, ix - 1, iy));
-          LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
-          LocalLS_->cooPushBackVal(1, sfc_idx,
-                                   GenericCell.This(rhs_info, ix + 1, iy));
-          LocalLS_->cooPushBackVal(1, sfc_idx,
-                                   GenericCell.This(rhs_info, ix, iy + 1));
-        } else {
-          std::array<bool, 4> validNei;
-          validNei[0] = GenericCell.validXm(ix, iy);
-          validNei[1] = GenericCell.validXp(ix, iy);
-          validNei[2] = GenericCell.validYm(ix, iy);
-          validNei[3] = GenericCell.validYp(ix, iy);
-          std::array<long long, 4> idxNei;
-          idxNei[0] = GenericCell.This(rhs_info, ix - 1, iy);
-          idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
-          idxNei[2] = GenericCell.This(rhs_info, ix, iy - 1);
-          idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
-          SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8);
-          for (int j(0); j < 4; j++) {
-            if (validNei[j]) {
-              row.mapColVal(idxNei[j], 1);
-              row.mapColVal(sfc_idx, -1);
-            } else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j / 2]))
-              this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j],
-                             row);
+  void getMat() {
+    std::array<int, 3> blocksPerDim = sim.pres->getMaxBlocks();
+    sim.tmp->UpdateBlockInfoAll_States(true);
+    std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
+    const int Nblocks = RhsInfo.size();
+    const int N = BSX_ * BSY_ * Nblocks;
+    LocalLS_->reserve(N);
+    const long long Nblocks_long = Nblocks;
+    MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
+                  MPI_LONG_LONG, MPI_COMM_WORLD);
+    for (int i(Nblocks_xcumsum_.size() - 1); i > 0; i--) {
+      Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i - 1];
+    }
+    Nblocks_xcumsum_[0] = 0;
+    Nrows_xcumsum_[0] = 0;
+    for (size_t i(1); i < Nblocks_xcumsum_.size(); i++) {
+      Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i - 1];
+      Nrows_xcumsum_[i] = BLEN_ * Nblocks_xcumsum_[i];
+    }
+    for (int i = 0; i < Nblocks; i++) {
+      const cubism::BlockInfo &rhs_info = RhsInfo[i];
+      const int aux = 1 << rhs_info.level;
+      const int MAX_X_BLOCKS = blocksPerDim[0] * aux - 1;
+      const int MAX_Y_BLOCKS = blocksPerDim[1] * aux - 1;
+      std::array<bool, 4> isBoundary;
+      isBoundary[0] = (rhs_info.index[0] == 0);
+      isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
+      isBoundary[2] = (rhs_info.index[1] == 0);
+      isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
+      std::array<bool, 2> isPeriodic;
+      isPeriodic[0] = (cubismBCX == periodic);
+      isPeriodic[1] = (cubismBCY == periodic);
+      std::array<long long, 4> Z;
+      Z[0] = rhs_info.Znei[1 - 1][1][1];
+      Z[1] = rhs_info.Znei[1 + 1][1][1];
+      Z[2] = rhs_info.Znei[1][1 - 1][1];
+      Z[3] = rhs_info.Znei[1][1 + 1][1];
+      std::array<const cubism::BlockInfo *, 4> rhsNei;
+      rhsNei[0] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
+      rhsNei[1] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
+      rhsNei[2] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
+      rhsNei[3] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
+      for (int iy = 0; iy < BSY_; iy++)
+        for (int ix = 0; ix < BSX_; ix++) {
+          const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
+          if ((ix > 0 && ix < BSX_ - 1) && (iy > 0 && iy < BSY_ - 1)) {
+            LocalLS_->cooPushBackVal(1, sfc_idx,
+                                     GenericCell.This(rhs_info, ix, iy - 1));
+            LocalLS_->cooPushBackVal(1, sfc_idx,
+                                     GenericCell.This(rhs_info, ix - 1, iy));
+            LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
+            LocalLS_->cooPushBackVal(1, sfc_idx,
+                                     GenericCell.This(rhs_info, ix + 1, iy));
+            LocalLS_->cooPushBackVal(1, sfc_idx,
+                                     GenericCell.This(rhs_info, ix, iy + 1));
+          } else {
+            std::array<bool, 4> validNei;
+            validNei[0] = GenericCell.validXm(ix, iy);
+            validNei[1] = GenericCell.validXp(ix, iy);
+            validNei[2] = GenericCell.validYm(ix, iy);
+            validNei[3] = GenericCell.validYp(ix, iy);
+            std::array<long long, 4> idxNei;
+            idxNei[0] = GenericCell.This(rhs_info, ix - 1, iy);
+            idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
+            idxNei[2] = GenericCell.This(rhs_info, ix, iy - 1);
+            idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
+            SpRowInfo row(sim.tmp->Tree(rhs_info).rank(), sfc_idx, 8);
+            for (int j(0); j < 4; j++) {
+              if (validNei[j]) {
+                row.mapColVal(idxNei[j], 1);
+                row.mapColVal(sfc_idx, -1);
+              } else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j / 2]))
+                this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j],
+                               row);
+            }
+            LocalLS_->cooPushBackRow(row);
           }
-          LocalLS_->cooPushBackRow(row);
         }
-      }
+    }
+    LocalLS_->make(Nrows_xcumsum_);
   }
-  LocalLS_->make(Nrows_xcumsum_);
-}
-void PoissonSolver::getVec() {
-  std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
-  std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
-  const int Nblocks = RhsInfo.size();
-  std::vector<double> &x = LocalLS_->get_x();
-  std::vector<double> &b = LocalLS_->get_b();
-  std::vector<double> &h2 = LocalLS_->get_h2();
-  const long long shift = -Nrows_xcumsum_[rank_];
+  void getVec() {
+    std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
+    std::vector<cubism::BlockInfo> &zInfo = sim.pres->m_vInfo;
+    const int Nblocks = RhsInfo.size();
+    std::vector<double> &x = LocalLS_->get_x();
+    std::vector<double> &b = LocalLS_->get_b();
+    std::vector<double> &h2 = LocalLS_->get_h2();
+    const long long shift = -Nrows_xcumsum_[rank_];
 #pragma omp parallel for
-  for (int i = 0; i < Nblocks; i++) {
-    const cubism::BlockInfo &rhs_info = RhsInfo[i];
-    const ScalarBlock &__restrict__ rhs = *(ScalarBlock *)RhsInfo[i].ptrBlock;
-    const ScalarBlock &__restrict__ p = *(ScalarBlock *)zInfo[i].ptrBlock;
-    h2[i] = RhsInfo[i].h * RhsInfo[i].h;
-    for (int iy = 0; iy < BSY_; iy++)
-      for (int ix = 0; ix < BSX_; ix++) {
-        const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
-        if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
-            rhs_info.index[1] == 0 && rhs_info.index[2] == 0 && ix == 0 &&
-            iy == 0)
-          b[sfc_loc] = 0.;
-        else
-          b[sfc_loc] = rhs(ix, iy).s;
-        x[sfc_loc] = p(ix, iy).s;
-      }
+    for (int i = 0; i < Nblocks; i++) {
+      const cubism::BlockInfo &rhs_info = RhsInfo[i];
+      const ScalarBlock &__restrict__ rhs = *(ScalarBlock *)RhsInfo[i].ptrBlock;
+      const ScalarBlock &__restrict__ p = *(ScalarBlock *)zInfo[i].ptrBlock;
+      h2[i] = RhsInfo[i].h * RhsInfo[i].h;
+      for (int iy = 0; iy < BSY_; iy++)
+        for (int ix = 0; ix < BSX_; ix++) {
+          const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
+          if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
+              rhs_info.index[1] == 0 && rhs_info.index[2] == 0 && ix == 0 &&
+              iy == 0)
+            b[sfc_loc] = 0.;
+          else
+            b[sfc_loc] = rhs(ix, iy).s;
+          x[sfc_loc] = p(ix, iy).s;
+        }
+    }
   }
-}
+};
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 namespace {
