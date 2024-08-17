@@ -4031,7 +4031,6 @@ template <typename TGrid> struct BlockLab {
     }
     t = NULL;
   }
-
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
@@ -5584,7 +5583,6 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
                         8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
-
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr,
@@ -6492,7 +6490,6 @@ static void ongrid(Real dt) {
     shape->vCoM_internal[0] = shape->linMom[0] / shape->area;
     shape->vCoM_internal[1] = shape->linMom[1] / shape->area;
     shape->area_internal = shape->area;
-
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       shape->rX[i] -= shape->CoM_internal[0];
@@ -6500,7 +6497,6 @@ static void ongrid(Real dt) {
       shape->vX[i] -= shape->vCoM_internal[0];
       shape->vY[i] -= shape->vCoM_internal[1];
     }
-
     Real _J = 0, _am = 0;
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
@@ -6563,7 +6559,6 @@ static void ongrid(Real dt) {
     shape->norY[shape->Nm - 1] = shape->norY[shape->Nm - 2];
     shape->vNorX[shape->Nm - 1] = shape->vNorX[shape->Nm - 2];
     shape->vNorY[shape->Nm - 1] = shape->vNorY[shape->Nm - 2];
-
     {
       const Real Rmatrix2D[2][2] = {
           {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
@@ -6588,7 +6583,6 @@ static void ongrid(Real dt) {
     for (size_t i = 0; i < sim.vel->m_vInfo.size(); i++)
       h = std::min(sim.vel->m_vInfo[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
-
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nsegments; ++i) {
       const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
@@ -8093,7 +8087,6 @@ int main(int argc, char **argv) {
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
-
   ScalarLab dummy;
   bool xperiodic = dummy.is_xperiodic();
   bool yperiodic = dummy.is_yperiodic();
@@ -8179,7 +8172,6 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-
   PoissonSolver pressureSolver;
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
@@ -8243,7 +8235,6 @@ int main(int argc, char **argv) {
             UF(ix, iy).u[1] * (1 - X(ix, iy).s) + US(ix, iy).u[1] * X(ix, iy).s;
       }
   }
-
   while (1) {
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
@@ -8336,7 +8327,6 @@ int main(int argc, char **argv) {
             V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
           }
       }
-
       Nblocks = velInfo.size();
       for (const auto &shape : sim.shapes) {
         const size_t Nblocks = velInfo.size();
