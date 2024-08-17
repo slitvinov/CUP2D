@@ -7989,8 +7989,7 @@ struct FactoryFileLineParser : public cubism::CommandlineParser {
   }
 };
 int main(int argc, char **argv) {
-  int threadSafety;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &threadSafety);
+  MPI_Init(&argc, &argv);
   cubism::CommandlineParser parser(argc, argv);
   MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
