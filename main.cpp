@@ -7684,7 +7684,6 @@ struct PoissonSolver {
 };
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
-namespace {
 void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
               Real *J) {
   const Real m00 = 1.0;
@@ -7773,7 +7772,6 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-} // namespace
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
