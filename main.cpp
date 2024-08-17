@@ -7138,12 +7138,6 @@ void advDiff::operator()(const Real dt) {
       }
   }
 }
-struct ComputeForces : public Operator {
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-  void operator()(const Real dt) override;
-  ComputeForces();
-};
-using UDEFMAT = Real[_BS_][_BS_][2];
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
@@ -7301,10 +7295,11 @@ struct KernelComputeForces {
     }
   }
 };
-void ComputeForces::operator()(const Real dt) {
-  KernelComputeForces K;
+struct ComputeForces : public Operator {
+  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+void operator()(const Real dt) {
   cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
-                  ScalarLab>(K, *sim.vel, *sim.chi);
+                  ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
   for (const auto &shape : sim.shapes) {
     shape->perimeter = 0;
     shape->forcex = 0;
@@ -7403,7 +7398,9 @@ void ComputeForces::operator()(const Real dt) {
     MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 }
-ComputeForces::ComputeForces(){};
+  ComputeForces();
+};
+using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
   PoissonSolver();
   void solve(const ScalarGrid *input) {
