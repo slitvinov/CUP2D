@@ -5415,14 +5415,6 @@ static struct {
   VectorAMR *tmpV_amr = nullptr;
   ScalarAMR *Cs_amr = nullptr;
 } sim;
-static Real getH(VectorGrid *vel) {
-  Real minHGrid = std::numeric_limits<Real>::infinity();
-  for (size_t i = 0; i < vel->m_vInfo.size(); i++) {
-    minHGrid = std::min((Real)vel->m_vInfo[i].h, minHGrid);
-  }
-  MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
-  return minHGrid;
-}
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct surface_data {
@@ -6633,7 +6625,11 @@ static void ongrid(Real dt) {
     const int Nm = shape->Nm;
     assert((Nm - 1) % Nsegments == 0);
     std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-    const Real h = getH(sim.vel);
+    Real h = std::numeric_limits<Real>::infinity();
+    for (size_t i = 0; i < sim.vel->m_vInfo.size(); i++)
+      h = std::min(sim.vel->m_vInfo[i].h, h);
+    MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
+
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nsegments; ++i) {
       const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
@@ -8254,7 +8250,10 @@ int main(int argc, char **argv) {
 
   while (1) {
     Real CFL = sim.CFL;
-    Real h = getH(sim.vel);
+    Real h = std::numeric_limits<Real>::infinity();
+    for (size_t i = 0; i < sim.vel->m_vInfo.size(); i++)
+      h = std::min(sim.vel->m_vInfo[i].h, h);
+    MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     size_t Nblocks = velInfo.size();
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
