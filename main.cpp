@@ -5424,10 +5424,6 @@ static Real getH(VectorGrid *vel) {
   MPI_Allreduce(MPI_IN_PLACE, &minHGrid, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
   return minHGrid;
 }
-struct Operator {
-  Operator(){};
-  virtual void operator()(const Real dt) = 0;
-};
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct surface_data {
@@ -5884,13 +5880,6 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
   }
 };
 } // namespace Schedulers
-struct PutObjectsOnGrid : public Operator {
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
-  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
-  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
-  using Operator::Operator;
-  void operator()(Real dt) override;
-};
 struct Shape {
   Shape(cubism::CommandlineParser &p, Real C[2])
       : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
@@ -6400,7 +6389,10 @@ struct PutFishOnBlocks {
     std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
   }
 };
-void PutObjectsOnGrid::operator()(const Real dt) {
+static void ongrid(Real dt) {
+  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
+  const std::vector<cubism::BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
+  const std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   if (nSum[0] > 0) {
@@ -8244,7 +8236,6 @@ int main(int argc, char **argv) {
     VectorBlock &VOLD = *(VectorBlock *)vOldInfo[i].ptrBlock;
     VOLD.clear();
   }
-  PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid;
   sim.tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
   sim.chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
   sim.pres_amr = new ScalarAMR(*sim.pres, sim.Rtol, sim.Ctol);
@@ -8253,10 +8244,10 @@ int main(int argc, char **argv) {
   sim.vOld_amr = new VectorAMR(*sim.vOld, sim.Rtol, sim.Ctol);
   sim.tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
   for (int i = 0; i < sim.levelMax; i++) {
-    (*putObjectsOnGrid)(0.0);
+    ongrid(0.0);
     adapt();
   }
-  (*putObjectsOnGrid)(0.0);
+  ongrid(0.0);
   size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
@@ -8340,7 +8331,7 @@ int main(int argc, char **argv) {
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
         adapt();
-      (*putObjectsOnGrid)(sim.dt);
+      ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
       KernelAdvectDiffuse Step1;
 #pragma omp parallel for
