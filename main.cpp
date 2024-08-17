@@ -6357,7 +6357,7 @@ static void ongrid(Real dt) {
   for (size_t i = 0; i < Nblocks; i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        ((ScalarBlock *)chiInfo[i].ptrBlock)->data[x][y].set(0);
+        ((ScalarBlock *)chiInfo[i].ptrBlock)->data[x][y].clear();
         ((ScalarBlock *)tmpInfo[i].ptrBlock)->data[x][y].set(-1);
       }
   for (const auto &shape : sim.shapes) {
@@ -8155,15 +8155,17 @@ int main(int argc, char **argv) {
   }
   PoissonSolver pressureSolver;
 #pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++) {
-    ((VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)->clear();
-    ((ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)->clear();
-    ((ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)->clear();
-    ((ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)->clear();
-    ((ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)->clear();
-    ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->clear();
-    ((VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)->clear();
-  }
+  for (size_t i = 0; i < velInfo.size(); i++)
+    for (int x = 0; x < _BS_; x++)
+      for (int y = 0; y < _BS_; y++) {
+        ((VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        ((VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)->data[x][y].clear();
+      }
   sim.tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
   sim.chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
   sim.pres_amr = new ScalarAMR(*sim.pres, sim.Rtol, sim.Ctol);
