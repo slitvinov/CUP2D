@@ -5881,7 +5881,6 @@ struct Shape {
         rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {
-    amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
   }
   std::vector<ObstacleBlock *> obstacleBlocks;
   Real center[2];
