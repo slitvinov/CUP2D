@@ -31,3 +31,7 @@ make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
 -Wno-cast-function-type\
 -Wno-sign-compare\
 ```
+
+```
+xterm -e gdb -ex run -args ./main
+```
