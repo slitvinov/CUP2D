@@ -5406,6 +5406,14 @@ static struct {
   Real nextDumpTime = 0;
   std::vector<int> bCollisionID;
   Real minH;
+  ScalarAMR *tmp_amr = nullptr;
+  ScalarAMR *chi_amr = nullptr;
+  ScalarAMR *pres_amr = nullptr;
+  ScalarAMR *pold_amr = nullptr;
+  VectorAMR *vel_amr = nullptr;
+  VectorAMR *vOld_amr = nullptr;
+  VectorAMR *tmpV_amr = nullptr;
+  ScalarAMR *Cs_amr = nullptr;
 } sim;
 static Real getH(VectorGrid *vel) {
   Real minHGrid = std::numeric_limits<Real>::infinity();
@@ -6867,26 +6875,6 @@ void PutObjectsOnGrid::operator()(const Real dt) {
     }
   }
 }
-struct AdaptTheMesh : public Operator {
-  ScalarAMR *tmp_amr = nullptr;
-  ScalarAMR *chi_amr = nullptr;
-  ScalarAMR *pres_amr = nullptr;
-  ScalarAMR *pold_amr = nullptr;
-  VectorAMR *vel_amr = nullptr;
-  VectorAMR *vOld_amr = nullptr;
-  VectorAMR *tmpV_amr = nullptr;
-  ScalarAMR *Cs_amr = nullptr;
-  AdaptTheMesh() : Operator() {
-    tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
-    chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
-    pres_amr = new ScalarAMR(*sim.pres, sim.Rtol, sim.Ctol);
-    pold_amr = new ScalarAMR(*sim.pold, sim.Rtol, sim.Ctol);
-    vel_amr = new VectorAMR(*sim.vel, sim.Rtol, sim.Ctol);
-    vOld_amr = new VectorAMR(*sim.vOld, sim.Rtol, sim.Ctol);
-    tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
-  }
-  void operator()(const Real dt) override;
-};
 struct GradChiOnTmp {
   GradChiOnTmp() {}
   const cubism::StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
@@ -6909,25 +6897,23 @@ struct GradChiOnTmp {
       }
   }
 };
-void AdaptTheMesh::operator()(const Real) {
-  if (sim.step > 10 && sim.step % sim.AdaptSteps != 0)
-    return;
+static void adapt() {
   cubism::compute<VectorLab>(KernelVorticity(), sim.vel);
   cubism::compute<ScalarLab>(GradChiOnTmp(), sim.chi);
-  tmp_amr->Tag();
-  chi_amr->TagLike(sim.tmp->m_vInfo);
-  pres_amr->TagLike(sim.tmp->m_vInfo);
-  pold_amr->TagLike(sim.tmp->m_vInfo);
-  vel_amr->TagLike(sim.tmp->m_vInfo);
-  vOld_amr->TagLike(sim.tmp->m_vInfo);
-  tmpV_amr->TagLike(sim.tmp->m_vInfo);
-  tmp_amr->Adapt(sim.time, false, false);
-  chi_amr->Adapt(sim.time, false, false);
-  vel_amr->Adapt(sim.time, false, false);
-  vOld_amr->Adapt(sim.time, false, false);
-  pres_amr->Adapt(sim.time, false, false);
-  pold_amr->Adapt(sim.time, false, false);
-  tmpV_amr->Adapt(sim.time, false, true);
+  sim.tmp_amr->Tag();
+  sim.chi_amr->TagLike(sim.tmp->m_vInfo);
+  sim.pres_amr->TagLike(sim.tmp->m_vInfo);
+  sim.pold_amr->TagLike(sim.tmp->m_vInfo);
+  sim.vel_amr->TagLike(sim.tmp->m_vInfo);
+  sim.vOld_amr->TagLike(sim.tmp->m_vInfo);
+  sim.tmpV_amr->TagLike(sim.tmp->m_vInfo);
+  sim.tmp_amr->Adapt(sim.time, false, false);
+  sim.chi_amr->Adapt(sim.time, false, false);
+  sim.vel_amr->Adapt(sim.time, false, false);
+  sim.vOld_amr->Adapt(sim.time, false, false);
+  sim.pres_amr->Adapt(sim.time, false, false);
+  sim.pold_amr->Adapt(sim.time, false, false);
+  sim.tmpV_amr->Adapt(sim.time, false, true);
 }
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
@@ -8259,10 +8245,16 @@ int main(int argc, char **argv) {
     VOLD.clear();
   }
   PutObjectsOnGrid *putObjectsOnGrid = new PutObjectsOnGrid;
-  AdaptTheMesh *adaptTheMesh = new AdaptTheMesh;
+  sim.tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
+  sim.chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
+  sim.pres_amr = new ScalarAMR(*sim.pres, sim.Rtol, sim.Ctol);
+  sim.pold_amr = new ScalarAMR(*sim.pold, sim.Rtol, sim.Ctol);
+  sim.vel_amr = new VectorAMR(*sim.vel, sim.Rtol, sim.Ctol);
+  sim.vOld_amr = new VectorAMR(*sim.vOld, sim.Rtol, sim.Ctol);
+  sim.tmpV_amr = new VectorAMR(*sim.tmpV, sim.Rtol, sim.Ctol);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
-    (*adaptTheMesh)(0.0);
+    adapt();
   }
   (*putObjectsOnGrid)(0.0);
   size_t Nblocks = velInfo.size();
@@ -8346,7 +8338,8 @@ int main(int argc, char **argv) {
         snprintf(path, sizeof path, "vort.%08d", sim.step);
         dump(sim.time, sim.tmp, path);
       }
-      (*adaptTheMesh)(sim.dt);
+      if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
+        adapt();
       (*putObjectsOnGrid)(sim.dt);
       size_t Nblocks = velInfo.size();
       KernelAdvectDiffuse Step1;
