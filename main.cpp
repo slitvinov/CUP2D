@@ -112,21 +112,18 @@ struct CommandlineParser {
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
 };
-static void _normalizeKey(std::string &key) {
-  if (key[0] == '-')
-    key.erase(0, 1);
-  if (key[0] == '+')
-    key.erase(0, 1);
-}
 static bool _existKey(const std::string &key,
                       const std::map<std::string, Value> &container) {
   return container.find(key) != container.end();
 }
 Value &CommandlineParser::operator()(std::string key) {
-  _normalizeKey(key);
+  if (key[0] == '-')
+    key.erase(0, 1);
+  if (key[0] == '+')
+    key.erase(0, 1);
   if (bStrictMode) {
-    if (!_existKey(key, mapArguments)) {
-      printf("Runtime option NOT SPECIFIED! ABORTING! name: %s\n", key.data());
+    if (mapArguments.find(key) == mapArguments.end()) {
+      printf("runtime %s is not set\n", key.data());
       abort();
     }
   }
