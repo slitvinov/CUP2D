@@ -5,7 +5,7 @@
 MPICXX = mpic++
 NVCC = nvcc -ccbin='$(MPICXX)'
 LINK = $(NVCC)
-LIBS = -lcublas -lcusparse -lhdf5 -lgsl -lgslcblas
+LIBS = -lcublas -lcusparse -lgsl -lgslcblas
 OPENMPFLAGS = -fopenmp
 
 FLAGS =\
