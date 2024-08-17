@@ -5875,7 +5875,7 @@ struct Shape {
         forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
         Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
-        rB(new Real[Nm]), vB(new Real[Nm]), h(sim.minH), rS(new Real[Nm]),
+        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]),
         rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {}
@@ -5917,8 +5917,8 @@ struct Shape {
   Real theta_internal = 0, angvel_internal = 0;
   Real length, h;
   Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  Real dSmid_tgt = h / std::sqrt(2);
-  Real dSrefine_tgt = 0.125 * h;
+  Real dSmid_tgt = sim.minH / std::sqrt(2);
+  Real dSrefine_tgt = 0.125 * sim.minH;
   int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
   Real dSmid = length * fracMid / Nmid;
   int Nend =
