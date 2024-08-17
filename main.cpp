@@ -3405,8 +3405,7 @@ template <typename TGrid> struct BlockLab {
             my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc0 =
-            &b(s[0] - code[0] * nX, iy - code[1] * nY);
+        const ElementType *ptrSrc0 = &b(s[0] - code[0] * nX, iy - code[1] * nY);
         const ElementType *ptrSrc1 =
             &b(s[0] - code[0] * nX, iy + 1 - code[1] * nY);
         const ElementType *ptrSrc2 =
@@ -3422,8 +3421,7 @@ template <typename TGrid> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc =
-            &b(s[0] - code[0] * nX, iy - code[1] * nY);
+        const ElementType *ptrSrc = &b(s[0] - code[0] * nX, iy - code[1] * nY);
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3674,14 +3672,10 @@ template <typename TGrid> struct BlockLab {
             my_izx + (iy + 2 - offset[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->LinAccess(
             my_izx + (iy + 3 - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc0 =
-            &b(s[0] + start[0], iy + 0 + start[1]);
-        const ElementType *ptrSrc1 =
-            &b(s[0] + start[0], iy + 1 + start[1]);
-        const ElementType *ptrSrc2 =
-            &b(s[0] + start[0], iy + 2 + start[1]);
-        const ElementType *ptrSrc3 =
-            &b(s[0] + start[0], iy + 3 + start[1]);
+        const ElementType *ptrSrc0 = &b(s[0] + start[0], iy + 0 + start[1]);
+        const ElementType *ptrSrc1 = &b(s[0] + start[0], iy + 1 + start[1]);
+        const ElementType *ptrSrc2 = &b(s[0] + start[0], iy + 2 + start[1]);
+        const ElementType *ptrSrc3 = &b(s[0] + start[0], iy + 3 + start[1]);
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3691,8 +3685,7 @@ template <typename TGrid> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc =
-            &b(s[0] + start[0], iy + start[1]);
+        const ElementType *ptrSrc = &b(s[0] + start[0], iy + start[1]);
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -5098,11 +5091,6 @@ template <typename T> struct GridBlock {
     for (int j = 0; j < _BS_ * _BS_; ++j)
       entry[j].clear();
   }
-  void set(const Real v) {
-    T *const entry = &data[0][0];
-    for (int j = 0; j < _BS_ * _BS_; ++j)
-      entry[j].set(v);
-  }
   const T &operator()(int ix, int iy = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
            iz < sizeZ);
@@ -5866,8 +5854,8 @@ struct Shape {
         forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
         Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
-        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]),
-        rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
+        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
+        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
         vNorY(new Real[Nm]), width(new Real[Nm]) {}
   std::vector<ObstacleBlock *> obstacleBlocks;
@@ -6366,10 +6354,12 @@ static void ongrid(Real dt) {
   }
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    ((ScalarBlock *)chiInfo[i].ptrBlock)->clear();
-    ((ScalarBlock *)tmpInfo[i].ptrBlock)->set(-1);
-  }
+  for (size_t i = 0; i < Nblocks; i++)
+    for (int x = 0; x < _BS_; x++)
+      for (int y = 0; y < _BS_; y++) {
+        ((ScalarBlock *)chiInfo[i].ptrBlock)->data[x][y].set(0);
+        ((ScalarBlock *)tmpInfo[i].ptrBlock)->data[x][y].set(-1);
+      }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
