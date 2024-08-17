@@ -5880,8 +5880,7 @@ struct Shape {
         rB(new Real[Nm]), vB(new Real[Nm]), h(sim.minH), rS(new Real[Nm]),
         rX(new Real[Nm]), rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
         norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
-        vNorY(new Real[Nm]), width(new Real[Nm]) {
-  }
+        vNorY(new Real[Nm]), width(new Real[Nm]) {}
   std::vector<ObstacleBlock *> obstacleBlocks;
   Real center[2];
   Real centerOfMass[2];
@@ -6156,15 +6155,15 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  template <typename T> void changeToComputationalFrame(T x[2]) const {
+  template void changeToComputationalFrame(Real x[2]) const {
     const T p[2] = {x[0], x[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
     x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
     x[0] += position[0];
     x[1] += position[1];
   }
-  template <typename T> void changeFromComputationalFrame(T x[2]) const {
-    const T p[2] = {x[0] - (T)position[0], x[1] - (T)position[1]};
+  void changeFromComputationalFrame(Real x[2]) const {
+    const T p[2] = {x[0] - position[0], x[1] - position[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
