@@ -57,10 +57,40 @@ struct Value {
     content += " " + rhs.content;
     return *this;
   }
-  double asDouble(double def = 0);
-  int asInt(int def = 0);
-  bool asBool(bool def = false);
-  std::string asString(const std::string &def = std::string());
+  double asDouble(double def = 0) {
+    if (content == "") {
+      std::ostringstream sbuf;
+      sbuf << def;
+      content = sbuf.str();
+    }
+    return (double)atof(content.c_str());
+  }
+  int asInt(int def = 0) {
+    if (content == "") {
+      std::ostringstream sbuf;
+      sbuf << def;
+      content = sbuf.str();
+    }
+    return atoi(content.c_str());
+  }
+  bool asBool(bool def) {
+    if (content == "") {
+      if (def)
+        content = "true";
+      else
+        content = "false";
+    }
+    if (content == "0")
+      return false;
+    if (content == "false")
+      return false;
+    return true;
+  }
+  std::string asString(const std::string &def) {
+    if (content == "")
+      content = def;
+    return content;
+  }
 };
 struct CommandlineParser {
   bool bStrictMode;
@@ -71,40 +101,6 @@ struct CommandlineParser {
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
 };
-double Value::asDouble(double def) {
-  if (content == "") {
-    std::ostringstream sbuf;
-    sbuf << def;
-    content = sbuf.str();
-  }
-  return (double)atof(content.c_str());
-}
-int Value::asInt(int def) {
-  if (content == "") {
-    std::ostringstream sbuf;
-    sbuf << def;
-    content = sbuf.str();
-  }
-  return atoi(content.c_str());
-}
-bool Value::asBool(bool def) {
-  if (content == "") {
-    if (def)
-      content = "true";
-    else
-      content = "false";
-  }
-  if (content == "0")
-    return false;
-  if (content == "false")
-    return false;
-  return true;
-}
-std::string Value::asString(const std::string &def) {
-  if (content == "")
-    content = def;
-  return content;
-}
 static void _normalizeKey(std::string &key) {
   if (key[0] == '-')
     key.erase(0, 1);
