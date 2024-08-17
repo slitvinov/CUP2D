@@ -416,25 +416,20 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-template <typename BlockType,
-          typename ElementType = typename BlockType::ElementType>
+template <typename BlockType>
 struct BlockCase {
-  std::vector<std::vector<ElementType>> m_pData;
-  unsigned int m_vSize[3];
+  std::vector<typename BlockType::ElementType> m_pData[6];
+  static constexpr unsigned int m_vSize[] = {_BS_, _BS_, 1};
   bool storedFace[6];
   int level;
   long long Z;
   BlockCase(bool _storedFace[6], int _level, long long _Z) {
-    m_vSize[0] = _BS_;
-    m_vSize[1] = _BS_;
-    m_vSize[2] = 1;
     storedFace[0] = _storedFace[0];
     storedFace[1] = _storedFace[1];
     storedFace[2] = _storedFace[2];
     storedFace[3] = _storedFace[3];
     storedFace[4] = _storedFace[4];
     storedFace[5] = _storedFace[5];
-    m_pData.resize(6);
     for (int d = 0; d < 3; d++) {
       int d1 = (d + 1) % 3;
       int d2 = (d + 2) % 3;
