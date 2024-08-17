@@ -5041,26 +5041,24 @@ struct ScalarElement {
   static constexpr int DIM = 1;
 };
 struct VectorElement {
-  Real u[DIMENSION];
-  VectorElement() { clear(); }
-  void clear() {
-    for (int i = 0; i < DIMENSION; ++i)
-      u[i] = 0;
-  }
+  static constexpr int DIM = 2;
+  Real u[2];
+  VectorElement() { u[0] = u[1] = 0; }
+  void clear() { u[0] = u[1] = 0; }
   VectorElement &operator=(const VectorElement &c) = default;
   VectorElement &operator*=(const Real a) {
-    for (int i = 0; i < DIMENSION; ++i)
-      this->u[i] *= a;
+    u[0] *= a;
+    u[1] *= a;
     return *this;
   }
   VectorElement &operator+=(const VectorElement &rhs) {
-    for (int i = 0; i < DIMENSION; ++i)
-      this->u[i] += rhs.u[i];
+    u[0] += rhs.u[0];
+    u[1] += rhs.u[1];
     return *this;
   }
   VectorElement &operator-=(const VectorElement &rhs) {
-    for (int i = 0; i < DIMENSION; ++i)
-      this->u[i] -= rhs.u[i];
+    u[0] -= rhs.u[0];
+    u[1] -= rhs.u[1];
     return *this;
   }
   friend VectorElement operator*(const Real a, VectorElement el) {
@@ -5072,15 +5070,8 @@ struct VectorElement {
   friend VectorElement operator-(VectorElement lhs, const VectorElement &rhs) {
     return (lhs -= rhs);
   }
-  Real magnitude() {
-    Real s1 = 0.0;
-    for (int i = 0; i < DIMENSION; ++i) {
-      s1 += u[i] * u[i];
-    }
-    return sqrt(s1);
-  }
+  Real magnitude() { return sqrt(u[0] * u[0] + u[1] * u[1]); }
   Real &member(int i) { return u[i]; }
-  static constexpr int DIM = 2;
 };
 template <typename T> struct GridBlock {
   using ElementType = T;
@@ -5090,12 +5081,8 @@ template <typename T> struct GridBlock {
     for (int j = 0; j < _BS_ * _BS_; ++j)
       entry[j].clear();
   }
-  const T &operator()(int ix, int iy = 0) const {
-    return data[iy][ix];
-  }
-  T &operator()(int ix, int iy = 0, int iz = 0) {
-    return data[iy][ix];
-  }
+  const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
+  T &operator()(int ix, int iy = 0, int iz = 0) { return data[iy][ix]; }
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
