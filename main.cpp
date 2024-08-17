@@ -4189,8 +4189,7 @@ template <typename TGrid> struct LoadBalancer {
         std::memcpy(a1, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
-  void Balance_Diffusion(const bool verbose,
-                         std::vector<long long> &block_distribution) {
+  void Balance_Diffusion(std::vector<long long> &block_distribution) {
     const int size = grid->get_world_size();
     const int rank = grid->rank();
     movedBlocks = false;
@@ -4463,7 +4462,7 @@ template <typename TLab> struct MeshAdaptation {
     if (CallValidStates)
       ValidStates();
   }
-  void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
+  void Adapt(double t, bool basic) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<TGrid> *Synch = nullptr;
     if (basic == false) {
@@ -4525,7 +4524,7 @@ template <typename TLab> struct MeshAdaptation {
     }
     grid->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    Balancer->Balance_Diffusion(verbosity, block_distribution);
+    Balancer->Balance_Diffusion(block_distribution);
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateGroups = true;
@@ -6807,13 +6806,13 @@ static void adapt() {
   sim.vel_amr->TagLike(sim.tmp->m_vInfo);
   sim.vOld_amr->TagLike(sim.tmp->m_vInfo);
   sim.tmpV_amr->TagLike(sim.tmp->m_vInfo);
-  sim.tmp_amr->Adapt(sim.time, false, false);
-  sim.chi_amr->Adapt(sim.time, false, false);
-  sim.vel_amr->Adapt(sim.time, false, false);
-  sim.vOld_amr->Adapt(sim.time, false, false);
-  sim.pres_amr->Adapt(sim.time, false, false);
-  sim.pold_amr->Adapt(sim.time, false, false);
-  sim.tmpV_amr->Adapt(sim.time, false, true);
+  sim.tmp_amr->Adapt(sim.time, false);
+  sim.chi_amr->Adapt(sim.time, false);
+  sim.vel_amr->Adapt(sim.time, false);
+  sim.vOld_amr->Adapt(sim.time, false);
+  sim.pres_amr->Adapt(sim.time, false);
+  sim.pold_amr->Adapt(sim.time, false);
+  sim.tmpV_amr->Adapt(sim.time, true);
 }
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
