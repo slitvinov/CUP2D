@@ -8174,7 +8174,8 @@ int main(int argc, char **argv) {
       FactoryFileLineParser ffparser(line_stream);
       Real center[2] = {ffparser("-xpos").asDouble(.5 * sim.extents[0]),
                         ffparser("-ypos").asDouble(.5 * sim.extents[1])};
-      sim.shapes.push_back(new Shape(ffparser, center));
+      Shape *shape = new Shape(ffparser, center)
+      sim.shapes.push_back(shape);
     }
   }
 
