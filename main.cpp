@@ -3189,8 +3189,7 @@ template <typename TGrid> struct BlockLab {
             CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
-      m_CoarsenedBlock = std::allocator<Matrix3D<ElementType>>().allocate(1);
-      std::allocator<Matrix3D<ElementType>>().construct(m_CoarsenedBlock);
+      m_CoarsenedBlock = new Matrix3D<ElementType>;
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
                                CoarseBlockSize[1] + e[1] - offset[1] - 1,
                                CoarseBlockSize[2] + e[2] - offset[2] - 1);
