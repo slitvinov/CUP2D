@@ -5103,8 +5103,8 @@ template <typename T> struct GridBlock {
   }
   void set(const Real v) {
     T *const entry = &data[0][0];
-    for (int i = 0; i < _BS_ * _BS_; ++i)
-      entry[i].set(v);
+    for (int j = 0; j < _BS_ * _BS_; ++j)
+      entry[j].set(v);
   }
   const T &operator()(int ix, int iy = 0) const {
     assert(ix >= 0 && iy >= 0 && iz >= 0 && ix < sizeX && iy < sizeY &&
