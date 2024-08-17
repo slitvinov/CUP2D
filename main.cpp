@@ -7295,111 +7295,6 @@ struct KernelComputeForces {
     }
   }
 };
-struct ComputeForces : public Operator {
-  const std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-void operator()(const Real dt) {
-  cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
-                  ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
-  for (const auto &shape : sim.shapes) {
-    shape->perimeter = 0;
-    shape->forcex = 0;
-    shape->forcey = 0;
-    shape->forcex_P = 0;
-    shape->forcey_P = 0;
-    shape->forcex_V = 0;
-    shape->forcey_V = 0;
-    shape->torque = 0;
-    shape->torque_P = 0;
-    shape->torque_V = 0;
-    shape->drag = 0;
-    shape->thrust = 0;
-    shape->lift = 0;
-    shape->Pout = 0;
-    shape->PoutNew = 0;
-    shape->PoutBnd = 0;
-    shape->defPower = 0;
-    shape->defPowerBnd = 0;
-    shape->circulation = 0;
-    for (auto &block : shape->obstacleBlocks)
-      if (block not_eq nullptr) {
-        shape->circulation += block->circulation;
-        shape->perimeter += block->perimeter;
-        shape->torque += block->torque;
-        shape->forcex += block->forcex;
-        shape->forcey += block->forcey;
-        shape->forcex_P += block->forcex_P;
-        shape->forcey_P += block->forcey_P;
-        shape->forcex_V += block->forcex_V;
-        shape->forcey_V += block->forcey_V;
-        shape->torque_P += block->torque_P;
-        shape->torque_V += block->torque_V;
-        shape->drag += block->drag;
-        shape->thrust += block->thrust;
-        shape->lift += block->lift;
-        shape->Pout += block->Pout;
-        shape->PoutNew += block->PoutNew;
-        shape->defPowerBnd += block->defPowerBnd;
-        shape->PoutBnd += block->PoutBnd;
-        shape->defPower += block->defPower;
-      }
-    Real quantities[19];
-    quantities[0] = shape->circulation;
-    quantities[1] = shape->perimeter;
-    quantities[2] = shape->forcex;
-    quantities[3] = shape->forcex_P;
-    quantities[4] = shape->forcex_V;
-    quantities[5] = shape->torque_P;
-    quantities[6] = shape->drag;
-    quantities[7] = shape->lift;
-    quantities[8] = shape->Pout;
-    quantities[9] = shape->PoutNew;
-    quantities[10] = shape->PoutBnd;
-    quantities[11] = shape->torque;
-    quantities[12] = shape->forcey;
-    quantities[13] = shape->forcey_P;
-    quantities[14] = shape->forcey_V;
-    quantities[15] = shape->torque_V;
-    quantities[16] = shape->thrust;
-    quantities[17] = shape->defPowerBnd;
-    quantities[18] = shape->defPower;
-    MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
-    shape->circulation = quantities[0];
-    shape->perimeter = quantities[1];
-    shape->forcex = quantities[2];
-    shape->forcex_P = quantities[3];
-    shape->forcex_V = quantities[4];
-    shape->torque_P = quantities[5];
-    shape->drag = quantities[6];
-    shape->lift = quantities[7];
-    shape->Pout = quantities[8];
-    shape->PoutNew = quantities[9];
-    shape->PoutBnd = quantities[10];
-    shape->torque = quantities[11];
-    shape->forcey = quantities[12];
-    shape->forcey_P = quantities[13];
-    shape->forcey_V = quantities[14];
-    shape->torque_V = quantities[15];
-    shape->thrust = quantities[16];
-    shape->defPowerBnd = quantities[17];
-    shape->defPower = quantities[18];
-    shape->Pthrust =
-        shape->thrust * std::sqrt(shape->u * shape->u + shape->v * shape->v);
-    shape->Pdrag =
-        shape->drag * std::sqrt(shape->u * shape->u + shape->v * shape->v);
-    const Real denUnb = shape->Pthrust - std::min(shape->defPower, (Real)0);
-    const Real demBnd = shape->Pthrust - shape->defPowerBnd;
-    shape->EffPDef = shape->Pthrust / std::max(denUnb, EPS);
-    shape->EffPDefBnd = shape->Pthrust / std::max(demBnd, EPS);
-    if (sim.dt <= 0)
-      return;
-    int tot_blocks = 0;
-    int nb = (int)sim.chi->m_vInfo.size();
-    MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
-}
-  ComputeForces();
-};
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
   PoissonSolver();
@@ -7932,13 +7827,6 @@ void PoissonSolver::getVec() {
       }
   }
 }
-struct PressureSingle : public Operator {
-  const std::vector<cubism::BlockInfo> &velInfo = sim.vel->m_vInfo;
-  PoissonSolver *pressureSolver;
-  void operator()(const Real dt) override;
-  PressureSingle()
-    : Operator(), pressureSolver{new PoissonSolver()} {}
-};
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 namespace {
@@ -8205,465 +8093,6 @@ struct updatePressureRHS1 {
     }
   }
 };
-void PressureSingle::operator()(const Real dt) {
-  const size_t Nblocks = velInfo.size();
-  for (const auto &shape : sim.shapes) {
-    const size_t Nblocks = velInfo.size();
-    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-    const Real Cx = shape->centerOfMass[0];
-    const Real Cy = shape->centerOfMass[1];
-    Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
-#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-    for (size_t i = 0; i < Nblocks; i++) {
-      const VectorBlock &__restrict__ VEL = *(VectorBlock *)velInfo[i].ptrBlock;
-      const Real hsq = velInfo[i].h * velInfo[i].h;
-      if (OBLOCK[velInfo[i].blockID] == nullptr)
-        continue;
-      const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
-      const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
-      const Real lambdt = sim.lambda * sim.dt;
-      for (int iy = 0; iy < _BS_; ++iy)
-        for (int ix = 0; ix < _BS_; ++ix) {
-          if (chi[iy][ix] <= 0)
-            continue;
-          const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
-                                 VEL(ix, iy).u[1] - udef[iy][ix][1]};
-          const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
-          const Real F = hsq * Xlamdt / (1 + Xlamdt);
-          Real p[2];
-          velInfo[i].pos(p, ix, iy);
-          p[0] -= Cx;
-          p[1] -= Cy;
-          PM += F;
-          PJ += F * (p[0] * p[0] + p[1] * p[1]);
-          PX += F * p[0];
-          PY += F * p[1];
-          UM += F * udiff[0];
-          VM += F * udiff[1];
-          AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
-        }
-    }
-    Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-    MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
-    PM = quantities[0];
-    PJ = quantities[1];
-    PX = quantities[2];
-    PY = quantities[3];
-    UM = quantities[4];
-    VM = quantities[5];
-    AM = quantities[6];
-    shape->fluidAngMom = AM;
-    shape->fluidMomX = UM;
-    shape->fluidMomY = VM;
-    shape->penalDX = PX;
-    shape->penalDY = PY;
-    shape->penalM = PM;
-    shape->penalJ = PJ;
-    double A[3][3] = {
-        {(double)shape->penalM, (double)0, (double)-shape->penalDY},
-        {(double)0, (double)shape->penalM, (double)shape->penalDX},
-        {(double)-shape->penalDY, (double)shape->penalDX,
-         (double)shape->penalJ}};
-    double b[3] = {(double)(shape->fluidMomX + dt * shape->appliedForceX),
-                   (double)(shape->fluidMomY + dt * shape->appliedForceY),
-                   (double)(shape->fluidAngMom + dt * shape->appliedTorque)};
-    if (shape->bForcedx) {
-      A[0][1] = 0;
-      A[0][2] = 0;
-      b[0] = shape->penalM * shape->forcedu;
-    }
-    if (shape->bForcedy) {
-      A[1][0] = 0;
-      A[1][2] = 0;
-      b[1] = shape->penalM * shape->forcedv;
-    }
-    if (shape->bBlockang) {
-      A[2][0] = 0;
-      A[2][1] = 0;
-      b[2] = shape->penalJ * shape->forcedomega;
-    }
-    gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
-    gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
-    gsl_vector *xgsl = gsl_vector_alloc(3);
-    int sgsl;
-    gsl_permutation *permgsl = gsl_permutation_alloc(3);
-    gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
-    gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-    if (not shape->bForcedx)
-      shape->u = gsl_vector_get(xgsl, 0);
-    if (not shape->bForcedy)
-      shape->v = gsl_vector_get(xgsl, 1);
-    if (not shape->bBlockang)
-      shape->omega = gsl_vector_get(xgsl, 2);
-    gsl_permutation_free(permgsl);
-    gsl_vector_free(xgsl);
-  }
-  const auto &shapes = sim.shapes;
-  const auto &infos = sim.chi->m_vInfo;
-  const size_t N = shapes.size();
-  sim.bCollisionID.clear();
-  struct CollisionInfo {
-    Real iM = 0;
-    Real iPosX = 0;
-    Real iPosY = 0;
-    Real iPosZ = 0;
-    Real iMomX = 0;
-    Real iMomY = 0;
-    Real iMomZ = 0;
-    Real ivecX = 0;
-    Real ivecY = 0;
-    Real ivecZ = 0;
-    Real jM = 0;
-    Real jPosX = 0;
-    Real jPosY = 0;
-    Real jPosZ = 0;
-    Real jMomX = 0;
-    Real jMomY = 0;
-    Real jMomZ = 0;
-    Real jvecX = 0;
-    Real jvecY = 0;
-    Real jvecZ = 0;
-  };
-  std::vector<CollisionInfo> collisions(N);
-  std::vector<Real> n_vec(3 * N, 0.0);
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < N; ++i)
-    for (size_t j = 0; j < N; ++j) {
-      if (i == j)
-        continue;
-      auto &coll = collisions[i];
-      const auto &iBlocks = shapes[i]->obstacleBlocks;
-      const Real iU0 = shapes[i]->u;
-      const Real iU1 = shapes[i]->v;
-      const Real iomega2 = shapes[i]->omega;
-      const Real iCx = shapes[i]->centerOfMass[0];
-      const Real iCy = shapes[i]->centerOfMass[1];
-      const auto &jBlocks = shapes[j]->obstacleBlocks;
-      const Real jU0 = shapes[j]->u;
-      const Real jU1 = shapes[j]->v;
-      const Real jomega2 = shapes[j]->omega;
-      const Real jCx = shapes[j]->centerOfMass[0];
-      const Real jCy = shapes[j]->centerOfMass[1];
-      assert(iBlocks.size() == jBlocks.size());
-      const size_t nBlocks = iBlocks.size();
-      for (size_t k = 0; k < nBlocks; ++k) {
-        if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
-          continue;
-        const auto &iSDF = iBlocks[k]->dist;
-        const auto &jSDF = jBlocks[k]->dist;
-        const CHI_MAT &iChi = iBlocks[k]->chi;
-        const CHI_MAT &jChi = jBlocks[k]->chi;
-        const UDEFMAT &iUDEF = iBlocks[k]->udef;
-        const UDEFMAT &jUDEF = jBlocks[k]->udef;
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
-              continue;
-            const auto pos = infos[k].pos<Real>(ix, iy);
-            const Real iUr0 = -iomega2 * (pos[1] - iCy);
-            const Real iUr1 = iomega2 * (pos[0] - iCx);
-            coll.iM += iChi[iy][ix];
-            coll.iPosX += iChi[iy][ix] * pos[0];
-            coll.iPosY += iChi[iy][ix] * pos[1];
-            coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
-            coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
-            const Real jUr0 = -jomega2 * (pos[1] - jCy);
-            const Real jUr1 = jomega2 * (pos[0] - jCx);
-            coll.jM += jChi[iy][ix];
-            coll.jPosX += jChi[iy][ix] * pos[0];
-            coll.jPosY += jChi[iy][ix] * pos[1];
-            coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
-            coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
-            Real dSDFdx_i;
-            Real dSDFdx_j;
-            if (ix == 0) {
-              dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
-              dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
-            } else if (ix == _BS_ - 1) {
-              dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
-              dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
-            } else {
-              dSDFdx_i = 0.5 * (iSDF[iy][ix + 1] - iSDF[iy][ix - 1]);
-              dSDFdx_j = 0.5 * (jSDF[iy][ix + 1] - jSDF[iy][ix - 1]);
-            }
-            Real dSDFdy_i;
-            Real dSDFdy_j;
-            if (iy == 0) {
-              dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
-              dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
-            } else if (iy == _BS_ - 1) {
-              dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
-              dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
-            } else {
-              dSDFdy_i = 0.5 * (iSDF[iy + 1][ix] - iSDF[iy - 1][ix]);
-              dSDFdy_j = 0.5 * (jSDF[iy + 1][ix] - jSDF[iy - 1][ix]);
-            }
-            coll.ivecX += iChi[iy][ix] * dSDFdx_i;
-            coll.ivecY += iChi[iy][ix] * dSDFdy_i;
-            coll.jvecX += jChi[iy][ix] * dSDFdx_j;
-            coll.jvecY += jChi[iy][ix] * dSDFdy_j;
-          }
-      }
-    }
-  std::vector<Real> buffer(20 * N);
-  for (size_t i = 0; i < N; i++) {
-    auto &coll = collisions[i];
-    buffer[20 * i] = coll.iM;
-    buffer[20 * i + 1] = coll.iPosX;
-    buffer[20 * i + 2] = coll.iPosY;
-    buffer[20 * i + 3] = coll.iPosZ;
-    buffer[20 * i + 4] = coll.iMomX;
-    buffer[20 * i + 5] = coll.iMomY;
-    buffer[20 * i + 6] = coll.iMomZ;
-    buffer[20 * i + 7] = coll.ivecX;
-    buffer[20 * i + 8] = coll.ivecY;
-    buffer[20 * i + 9] = coll.ivecZ;
-    buffer[20 * i + 10] = coll.jM;
-    buffer[20 * i + 11] = coll.jPosX;
-    buffer[20 * i + 12] = coll.jPosY;
-    buffer[20 * i + 13] = coll.jPosZ;
-    buffer[20 * i + 14] = coll.jMomX;
-    buffer[20 * i + 15] = coll.jMomY;
-    buffer[20 * i + 16] = coll.jMomZ;
-    buffer[20 * i + 17] = coll.jvecX;
-    buffer[20 * i + 18] = coll.jvecY;
-    buffer[20 * i + 19] = coll.jvecZ;
-  }
-  MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM,
-                MPI_COMM_WORLD);
-  for (size_t i = 0; i < N; i++) {
-    auto &coll = collisions[i];
-    coll.iM = buffer[20 * i];
-    coll.iPosX = buffer[20 * i + 1];
-    coll.iPosY = buffer[20 * i + 2];
-    coll.iPosZ = buffer[20 * i + 3];
-    coll.iMomX = buffer[20 * i + 4];
-    coll.iMomY = buffer[20 * i + 5];
-    coll.iMomZ = buffer[20 * i + 6];
-    coll.ivecX = buffer[20 * i + 7];
-    coll.ivecY = buffer[20 * i + 8];
-    coll.ivecZ = buffer[20 * i + 9];
-    coll.jM = buffer[20 * i + 10];
-    coll.jPosX = buffer[20 * i + 11];
-    coll.jPosY = buffer[20 * i + 12];
-    coll.jPosZ = buffer[20 * i + 13];
-    coll.jMomX = buffer[20 * i + 14];
-    coll.jMomY = buffer[20 * i + 15];
-    coll.jMomZ = buffer[20 * i + 16];
-    coll.jvecX = buffer[20 * i + 17];
-    coll.jvecY = buffer[20 * i + 18];
-    coll.jvecZ = buffer[20 * i + 19];
-  }
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < N; ++i)
-    for (size_t j = i + 1; j < N; ++j) {
-      if (i == j)
-        continue;
-      const Real m1 = shapes[i]->M;
-      const Real m2 = shapes[j]->M;
-      const Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
-      const Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
-      const Real o1[3] = {0, 0, shapes[i]->omega};
-      const Real o2[3] = {0, 0, shapes[j]->omega};
-      const Real C1[3] = {shapes[i]->centerOfMass[0],
-                          shapes[i]->centerOfMass[1], 0};
-      const Real C2[3] = {shapes[j]->centerOfMass[0],
-                          shapes[j]->centerOfMass[1], 0};
-      const Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
-      const Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
-      auto &coll = collisions[i];
-      auto &coll_other = collisions[j];
-      if (coll.iM < 2.0 || coll.jM < 2.0)
-        continue;
-      if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
-        continue;
-      if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
-              shapes[i]->length ||
-          std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
-              shapes[i]->length) {
-        continue;
-      }
-#pragma omp critical
-      {
-        sim.bCollisionID.push_back(i);
-        sim.bCollisionID.push_back(j);
-      }
-      const bool iForced = shapes[i]->bForced;
-      const bool jForced = shapes[j]->bForced;
-      if (iForced || jForced) {
-        std::cout
-            << "[CUP2D] WARNING: Forced objects not supported for collision."
-            << std::endl;
-      }
-      Real ho1[3];
-      Real ho2[3];
-      Real hv1[3];
-      Real hv2[3];
-      Real norm_i =
-          std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
-                    coll.ivecZ * coll.ivecZ);
-      Real norm_j =
-          std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
-                    coll.jvecZ * coll.jvecZ);
-      Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
-      Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
-      Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
-      Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
-      Real NX = mX * inorm;
-      Real NY = mY * inorm;
-      Real NZ = mZ * inorm;
-      Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
-      Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
-      Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
-      Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
-      Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
-                     coll.iMomZ / coll.iM};
-      Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
-                     coll.jMomZ / coll.jM};
-      if (projVel <= 0)
-        continue;
-      Real inv_iM = 1.0 / coll.iM;
-      Real inv_jM = 1.0 / coll.jM;
-      Real iPX = coll.iPosX * inv_iM;
-      Real iPY = coll.iPosY * inv_iM;
-      Real iPZ = coll.iPosZ * inv_iM;
-      Real jPX = coll.jPosX * inv_jM;
-      Real jPY = coll.jPosY * inv_jM;
-      Real jPZ = coll.jPosZ * inv_jM;
-      Real CX = 0.5 * (iPX + jPX);
-      Real CY = 0.5 * (iPY + jPY);
-      Real CZ = 0.5 * (iPZ + jPZ);
-      ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1,
-                       C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
-      shapes[i]->u = hv1[0];
-      shapes[i]->v = hv1[1];
-      shapes[j]->u = hv2[0];
-      shapes[j]->v = hv2[1];
-      shapes[i]->omega = ho1[2];
-      shapes[j]->omega = ho2[2];
-    }
-  std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++)
-    for (auto &shape : sim.shapes) {
-      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-      ObstacleBlock *o = OBLOCK[velInfo[i].blockID];
-      if (o == nullptr)
-        continue;
-      Real u_s = shape->u;
-      Real v_s = shape->v;
-      Real omega_s = shape->omega;
-      Real Cx = shape->centerOfMass[0];
-      Real Cy = shape->centerOfMass[1];
-      CHI_MAT &__restrict__ X = o->chi;
-      UDEFMAT &__restrict__ UDEF = o->udef;
-      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-      for (int iy = 0; iy < _BS_; ++iy)
-        for (int ix = 0; ix < _BS_; ++ix) {
-          if (CHI(ix, iy).s > X[iy][ix])
-            continue;
-          if (X[iy][ix] <= 0)
-            continue;
-          Real p[2];
-          velInfo[i].pos(p, ix, iy);
-          p[0] -= Cx;
-          p[1] -= Cy;
-          Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * dt) : 1;
-          Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
-          Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
-          V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
-          V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
-        }
-    }
-  std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
-  }
-  for (auto &shape : sim.shapes) {
-    std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-#pragma omp parallel for
-    for (size_t i = 0; i < Nblocks; i++) {
-      if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
-        continue;
-      UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
-      CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[iy][ix] < CHI(ix, iy).s)
-            continue;
-          Real p[2];
-          tmpVInfo[i].pos(p, ix, iy);
-          UDEF(ix, iy).u[0] += udef[iy][ix][0];
-          UDEF(ix, iy).u[1] += udef[iy][ix][1];
-        }
-    }
-  }
-  updatePressureRHS K;
-  cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
-                  VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true, sim.tmp);
-  std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
-  std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
-    ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        POLD(ix, iy).s = PRES(ix, iy).s;
-        PRES(ix, iy).s = 0;
-      }
-  }
-  updatePressureRHS1 K1;
-  cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
-  pressureSolver->solve(sim.tmp);
-  Real avg = 0;
-  Real avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-  for (size_t i = 0; i < Nblocks; i++) {
-    ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
-    const Real vv = presInfo[i].h * presInfo[i].h;
-    for (int iy = 0; iy < _BS_; iy++)
-      for (int ix = 0; ix < _BS_; ix++) {
-        avg += P(ix, iy).s * vv;
-        avg1 += vv;
-      }
-  }
-  Real quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
-                MPI_COMM_WORLD);
-  avg = quantities[0];
-  avg1 = quantities[1];
-  avg = avg / avg1;
-#pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
-    ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
-    const ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
-    for (int iy = 0; iy < _BS_; iy++)
-      for (int ix = 0; ix < _BS_; ix++)
-        P(ix, iy).s += POLD(ix, iy).s - avg;
-  }
-  {
-    const pressureCorrectionKernel K;
-    cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
-  }
-#pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++) {
-    const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-    VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
-    VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
-        V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
-      }
-  }
-}
-
 void AreaSegment::changeToComputationalFrame(const Real pos[2],
                                              const Real angle) {
   Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
@@ -8853,6 +8282,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  PoissonSolver pressureSolver;
   std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
   std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
   std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
@@ -8881,8 +8311,6 @@ int main(int argc, char **argv) {
   pipeline.push_back(adaptTheMesh);
   pipeline.push_back(putObjectsOnGrid);
   pipeline.push_back(new advDiff);
-  pipeline.push_back(new PressureSingle);
-  pipeline.push_back(new ComputeForces);
   for (int i = 0; i < sim.levelMax; i++) {
     (*putObjectsOnGrid)(0.0);
     (*adaptTheMesh)(0.0);
@@ -8944,8 +8372,7 @@ int main(int argc, char **argv) {
           umax = std::max(umax, std::fabs(VEL(ix, iy).u[1]));
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX,
-                  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
     if (CFL > 0) {
       Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
       Real dtAdvection = h / (umax + 1e-8);
@@ -8972,6 +8399,564 @@ int main(int argc, char **argv) {
       }
       for (size_t c = 0; c < pipeline.size(); c++)
         (*pipeline[c])(sim.dt);
+
+      const size_t Nblocks = velInfo.size();
+      for (const auto &shape : sim.shapes) {
+        const size_t Nblocks = velInfo.size();
+        const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+        const Real Cx = shape->centerOfMass[0];
+        const Real Cy = shape->centerOfMass[1];
+        Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
+        for (size_t i = 0; i < Nblocks; i++) {
+          const VectorBlock &__restrict__ VEL =
+              *(VectorBlock *)velInfo[i].ptrBlock;
+          const Real hsq = velInfo[i].h * velInfo[i].h;
+          if (OBLOCK[velInfo[i].blockID] == nullptr)
+            continue;
+          const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
+          const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
+          const Real lambdt = sim.lambda * sim.dt;
+          for (int iy = 0; iy < _BS_; ++iy)
+            for (int ix = 0; ix < _BS_; ++ix) {
+              if (chi[iy][ix] <= 0)
+                continue;
+              const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
+                                     VEL(ix, iy).u[1] - udef[iy][ix][1]};
+              const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
+              const Real F = hsq * Xlamdt / (1 + Xlamdt);
+              Real p[2];
+              velInfo[i].pos(p, ix, iy);
+              p[0] -= Cx;
+              p[1] -= Cy;
+              PM += F;
+              PJ += F * (p[0] * p[0] + p[1] * p[1]);
+              PX += F * p[0];
+              PY += F * p[1];
+              UM += F * udiff[0];
+              VM += F * udiff[1];
+              AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
+            }
+        }
+        Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
+        MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+                      MPI_COMM_WORLD);
+        PM = quantities[0];
+        PJ = quantities[1];
+        PX = quantities[2];
+        PY = quantities[3];
+        UM = quantities[4];
+        VM = quantities[5];
+        AM = quantities[6];
+        shape->fluidAngMom = AM;
+        shape->fluidMomX = UM;
+        shape->fluidMomY = VM;
+        shape->penalDX = PX;
+        shape->penalDY = PY;
+        shape->penalM = PM;
+        shape->penalJ = PJ;
+        double A[3][3] = {
+            {(double)shape->penalM, (double)0, (double)-shape->penalDY},
+            {(double)0, (double)shape->penalM, (double)shape->penalDX},
+            {(double)-shape->penalDY, (double)shape->penalDX,
+             (double)shape->penalJ}};
+        double b[3] = {
+            (double)(shape->fluidMomX + sim.dt * shape->appliedForceX),
+            (double)(shape->fluidMomY + sim.dt * shape->appliedForceY),
+            (double)(shape->fluidAngMom + sim.dt * shape->appliedTorque)};
+        if (shape->bForcedx) {
+          A[0][1] = 0;
+          A[0][2] = 0;
+          b[0] = shape->penalM * shape->forcedu;
+        }
+        if (shape->bForcedy) {
+          A[1][0] = 0;
+          A[1][2] = 0;
+          b[1] = shape->penalM * shape->forcedv;
+        }
+        if (shape->bBlockang) {
+          A[2][0] = 0;
+          A[2][1] = 0;
+          b[2] = shape->penalJ * shape->forcedomega;
+        }
+        gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
+        gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
+        gsl_vector *xgsl = gsl_vector_alloc(3);
+        int sgsl;
+        gsl_permutation *permgsl = gsl_permutation_alloc(3);
+        gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
+        gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
+        if (not shape->bForcedx)
+          shape->u = gsl_vector_get(xgsl, 0);
+        if (not shape->bForcedy)
+          shape->v = gsl_vector_get(xgsl, 1);
+        if (not shape->bBlockang)
+          shape->omega = gsl_vector_get(xgsl, 2);
+        gsl_permutation_free(permgsl);
+        gsl_vector_free(xgsl);
+      }
+      const auto &shapes = sim.shapes;
+      const auto &infos = sim.chi->m_vInfo;
+      const size_t N = shapes.size();
+      sim.bCollisionID.clear();
+      struct CollisionInfo {
+        Real iM = 0;
+        Real iPosX = 0;
+        Real iPosY = 0;
+        Real iPosZ = 0;
+        Real iMomX = 0;
+        Real iMomY = 0;
+        Real iMomZ = 0;
+        Real ivecX = 0;
+        Real ivecY = 0;
+        Real ivecZ = 0;
+        Real jM = 0;
+        Real jPosX = 0;
+        Real jPosY = 0;
+        Real jPosZ = 0;
+        Real jMomX = 0;
+        Real jMomY = 0;
+        Real jMomZ = 0;
+        Real jvecX = 0;
+        Real jvecY = 0;
+        Real jvecZ = 0;
+      };
+      std::vector<CollisionInfo> collisions(N);
+      std::vector<Real> n_vec(3 * N, 0.0);
+#pragma omp parallel for schedule(static)
+      for (size_t i = 0; i < N; ++i)
+        for (size_t j = 0; j < N; ++j) {
+          if (i == j)
+            continue;
+          auto &coll = collisions[i];
+          const auto &iBlocks = shapes[i]->obstacleBlocks;
+          const Real iU0 = shapes[i]->u;
+          const Real iU1 = shapes[i]->v;
+          const Real iomega2 = shapes[i]->omega;
+          const Real iCx = shapes[i]->centerOfMass[0];
+          const Real iCy = shapes[i]->centerOfMass[1];
+          const auto &jBlocks = shapes[j]->obstacleBlocks;
+          const Real jU0 = shapes[j]->u;
+          const Real jU1 = shapes[j]->v;
+          const Real jomega2 = shapes[j]->omega;
+          const Real jCx = shapes[j]->centerOfMass[0];
+          const Real jCy = shapes[j]->centerOfMass[1];
+          assert(iBlocks.size() == jBlocks.size());
+          const size_t nBlocks = iBlocks.size();
+          for (size_t k = 0; k < nBlocks; ++k) {
+            if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
+              continue;
+            const auto &iSDF = iBlocks[k]->dist;
+            const auto &jSDF = jBlocks[k]->dist;
+            const CHI_MAT &iChi = iBlocks[k]->chi;
+            const CHI_MAT &jChi = jBlocks[k]->chi;
+            const UDEFMAT &iUDEF = iBlocks[k]->udef;
+            const UDEFMAT &jUDEF = jBlocks[k]->udef;
+            for (int iy = 0; iy < _BS_; ++iy)
+              for (int ix = 0; ix < _BS_; ++ix) {
+                if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
+                  continue;
+                const auto pos = infos[k].pos<Real>(ix, iy);
+                const Real iUr0 = -iomega2 * (pos[1] - iCy);
+                const Real iUr1 = iomega2 * (pos[0] - iCx);
+                coll.iM += iChi[iy][ix];
+                coll.iPosX += iChi[iy][ix] * pos[0];
+                coll.iPosY += iChi[iy][ix] * pos[1];
+                coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
+                coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
+                const Real jUr0 = -jomega2 * (pos[1] - jCy);
+                const Real jUr1 = jomega2 * (pos[0] - jCx);
+                coll.jM += jChi[iy][ix];
+                coll.jPosX += jChi[iy][ix] * pos[0];
+                coll.jPosY += jChi[iy][ix] * pos[1];
+                coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
+                coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
+                Real dSDFdx_i;
+                Real dSDFdx_j;
+                if (ix == 0) {
+                  dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
+                  dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
+                } else if (ix == _BS_ - 1) {
+                  dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
+                  dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
+                } else {
+                  dSDFdx_i = 0.5 * (iSDF[iy][ix + 1] - iSDF[iy][ix - 1]);
+                  dSDFdx_j = 0.5 * (jSDF[iy][ix + 1] - jSDF[iy][ix - 1]);
+                }
+                Real dSDFdy_i;
+                Real dSDFdy_j;
+                if (iy == 0) {
+                  dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
+                  dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
+                } else if (iy == _BS_ - 1) {
+                  dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
+                  dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
+                } else {
+                  dSDFdy_i = 0.5 * (iSDF[iy + 1][ix] - iSDF[iy - 1][ix]);
+                  dSDFdy_j = 0.5 * (jSDF[iy + 1][ix] - jSDF[iy - 1][ix]);
+                }
+                coll.ivecX += iChi[iy][ix] * dSDFdx_i;
+                coll.ivecY += iChi[iy][ix] * dSDFdy_i;
+                coll.jvecX += jChi[iy][ix] * dSDFdx_j;
+                coll.jvecY += jChi[iy][ix] * dSDFdy_j;
+              }
+          }
+        }
+      std::vector<Real> buffer(20 * N);
+      for (size_t i = 0; i < N; i++) {
+        auto &coll = collisions[i];
+        buffer[20 * i] = coll.iM;
+        buffer[20 * i + 1] = coll.iPosX;
+        buffer[20 * i + 2] = coll.iPosY;
+        buffer[20 * i + 3] = coll.iPosZ;
+        buffer[20 * i + 4] = coll.iMomX;
+        buffer[20 * i + 5] = coll.iMomY;
+        buffer[20 * i + 6] = coll.iMomZ;
+        buffer[20 * i + 7] = coll.ivecX;
+        buffer[20 * i + 8] = coll.ivecY;
+        buffer[20 * i + 9] = coll.ivecZ;
+        buffer[20 * i + 10] = coll.jM;
+        buffer[20 * i + 11] = coll.jPosX;
+        buffer[20 * i + 12] = coll.jPosY;
+        buffer[20 * i + 13] = coll.jPosZ;
+        buffer[20 * i + 14] = coll.jMomX;
+        buffer[20 * i + 15] = coll.jMomY;
+        buffer[20 * i + 16] = coll.jMomZ;
+        buffer[20 * i + 17] = coll.jvecX;
+        buffer[20 * i + 18] = coll.jvecY;
+        buffer[20 * i + 19] = coll.jvecZ;
+      }
+      MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real,
+                    MPI_SUM, MPI_COMM_WORLD);
+      for (size_t i = 0; i < N; i++) {
+        auto &coll = collisions[i];
+        coll.iM = buffer[20 * i];
+        coll.iPosX = buffer[20 * i + 1];
+        coll.iPosY = buffer[20 * i + 2];
+        coll.iPosZ = buffer[20 * i + 3];
+        coll.iMomX = buffer[20 * i + 4];
+        coll.iMomY = buffer[20 * i + 5];
+        coll.iMomZ = buffer[20 * i + 6];
+        coll.ivecX = buffer[20 * i + 7];
+        coll.ivecY = buffer[20 * i + 8];
+        coll.ivecZ = buffer[20 * i + 9];
+        coll.jM = buffer[20 * i + 10];
+        coll.jPosX = buffer[20 * i + 11];
+        coll.jPosY = buffer[20 * i + 12];
+        coll.jPosZ = buffer[20 * i + 13];
+        coll.jMomX = buffer[20 * i + 14];
+        coll.jMomY = buffer[20 * i + 15];
+        coll.jMomZ = buffer[20 * i + 16];
+        coll.jvecX = buffer[20 * i + 17];
+        coll.jvecY = buffer[20 * i + 18];
+        coll.jvecZ = buffer[20 * i + 19];
+      }
+#pragma omp parallel for schedule(static)
+      for (size_t i = 0; i < N; ++i)
+        for (size_t j = i + 1; j < N; ++j) {
+          if (i == j)
+            continue;
+          const Real m1 = shapes[i]->M;
+          const Real m2 = shapes[j]->M;
+          const Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
+          const Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
+          const Real o1[3] = {0, 0, shapes[i]->omega};
+          const Real o2[3] = {0, 0, shapes[j]->omega};
+          const Real C1[3] = {shapes[i]->centerOfMass[0],
+                              shapes[i]->centerOfMass[1], 0};
+          const Real C2[3] = {shapes[j]->centerOfMass[0],
+                              shapes[j]->centerOfMass[1], 0};
+          const Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
+          const Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
+          auto &coll = collisions[i];
+          auto &coll_other = collisions[j];
+          if (coll.iM < 2.0 || coll.jM < 2.0)
+            continue;
+          if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
+            continue;
+          if (std::fabs(coll.iPosX / coll.iM -
+                        coll_other.iPosX / coll_other.iM) > shapes[i]->length ||
+              std::fabs(coll.iPosY / coll.iM -
+                        coll_other.iPosY / coll_other.iM) > shapes[i]->length) {
+            continue;
+          }
+#pragma omp critical
+          {
+            sim.bCollisionID.push_back(i);
+            sim.bCollisionID.push_back(j);
+          }
+          const bool iForced = shapes[i]->bForced;
+          const bool jForced = shapes[j]->bForced;
+          if (iForced || jForced) {
+            std::cout << "[CUP2D] WARNING: Forced objects not supported for "
+                         "collision."
+                      << std::endl;
+          }
+          Real ho1[3];
+          Real ho2[3];
+          Real hv1[3];
+          Real hv2[3];
+          Real norm_i =
+              std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
+                        coll.ivecZ * coll.ivecZ);
+          Real norm_j =
+              std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
+                        coll.jvecZ * coll.jvecZ);
+          Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
+          Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
+          Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
+          Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
+          Real NX = mX * inorm;
+          Real NY = mY * inorm;
+          Real NZ = mZ * inorm;
+          Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
+          Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
+          Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
+          Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
+          Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
+                         coll.iMomZ / coll.iM};
+          Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
+                         coll.jMomZ / coll.jM};
+          if (projVel <= 0)
+            continue;
+          Real inv_iM = 1.0 / coll.iM;
+          Real inv_jM = 1.0 / coll.jM;
+          Real iPX = coll.iPosX * inv_iM;
+          Real iPY = coll.iPosY * inv_iM;
+          Real iPZ = coll.iPosZ * inv_iM;
+          Real jPX = coll.jPosX * inv_jM;
+          Real jPY = coll.jPosY * inv_jM;
+          Real jPZ = coll.jPosZ * inv_jM;
+          Real CX = 0.5 * (iPX + jPX);
+          Real CY = 0.5 * (iPY + jPY);
+          Real CZ = 0.5 * (iPZ + jPZ);
+          ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2,
+                           C1, C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
+          shapes[i]->u = hv1[0];
+          shapes[i]->v = hv1[1];
+          shapes[j]->u = hv2[0];
+          shapes[j]->v = hv2[1];
+          shapes[i]->omega = ho1[2];
+          shapes[j]->omega = ho2[2];
+        }
+      std::vector<cubism::BlockInfo> &chiInfo = sim.chi->m_vInfo;
+#pragma omp parallel for
+      for (size_t i = 0; i < Nblocks; i++)
+        for (auto &shape : sim.shapes) {
+          std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+          ObstacleBlock *o = OBLOCK[velInfo[i].blockID];
+          if (o == nullptr)
+            continue;
+          Real u_s = shape->u;
+          Real v_s = shape->v;
+          Real omega_s = shape->omega;
+          Real Cx = shape->centerOfMass[0];
+          Real Cy = shape->centerOfMass[1];
+          CHI_MAT &__restrict__ X = o->chi;
+          UDEFMAT &__restrict__ UDEF = o->udef;
+          ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+          VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+          for (int iy = 0; iy < _BS_; ++iy)
+            for (int ix = 0; ix < _BS_; ++ix) {
+              if (CHI(ix, iy).s > X[iy][ix])
+                continue;
+              if (X[iy][ix] <= 0)
+                continue;
+              Real p[2];
+              velInfo[i].pos(p, ix, iy);
+              p[0] -= Cx;
+              p[1] -= Cy;
+              Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
+              Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
+              Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
+              V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
+              V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
+            }
+        }
+      std::vector<cubism::BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
+#pragma omp parallel for
+      for (size_t i = 0; i < Nblocks; i++) {
+        ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
+      }
+      for (auto &shape : sim.shapes) {
+        std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+#pragma omp parallel for
+        for (size_t i = 0; i < Nblocks; i++) {
+          if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
+            continue;
+          UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
+          CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
+          auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+          ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
+          for (int iy = 0; iy < _BS_; iy++)
+            for (int ix = 0; ix < _BS_; ix++) {
+              if (chi[iy][ix] < CHI(ix, iy).s)
+                continue;
+              Real p[2];
+              tmpVInfo[i].pos(p, ix, iy);
+              UDEF(ix, iy).u[0] += udef[iy][ix][0];
+              UDEF(ix, iy).u[1] += udef[iy][ix][1];
+            }
+        }
+      }
+      updatePressureRHS K;
+      cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
+                      VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true,
+                                             sim.tmp);
+      std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
+      std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
+#pragma omp parallel for
+      for (size_t i = 0; i < Nblocks; i++) {
+        ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
+        ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            POLD(ix, iy).s = PRES(ix, iy).s;
+            PRES(ix, iy).s = 0;
+          }
+      }
+      updatePressureRHS1 K1;
+      cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
+      pressureSolver.solve(sim.tmp);
+      Real avg = 0;
+      Real avg1 = 0;
+#pragma omp parallel for reduction(+ : avg, avg1)
+      for (size_t i = 0; i < Nblocks; i++) {
+        ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
+        const Real vv = presInfo[i].h * presInfo[i].h;
+        for (int iy = 0; iy < _BS_; iy++)
+          for (int ix = 0; ix < _BS_; ix++) {
+            avg += P(ix, iy).s * vv;
+            avg1 += vv;
+          }
+      }
+      Real quantities[2] = {avg, avg1};
+      MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
+                    MPI_COMM_WORLD);
+      avg = quantities[0];
+      avg1 = quantities[1];
+      avg = avg / avg1;
+#pragma omp parallel for
+      for (size_t i = 0; i < Nblocks; i++) {
+        ScalarBlock &P = *(ScalarBlock *)presInfo[i].ptrBlock;
+        const ScalarBlock &__restrict__ POLD =
+            *(ScalarBlock *)poldInfo[i].ptrBlock;
+        for (int iy = 0; iy < _BS_; iy++)
+          for (int ix = 0; ix < _BS_; ix++)
+            P(ix, iy).s += POLD(ix, iy).s - avg;
+      }
+      {
+        const pressureCorrectionKernel K;
+        cubism::compute<ScalarLab>(K, sim.pres, sim.tmpV);
+      }
+#pragma omp parallel for
+      for (size_t i = 0; i < velInfo.size(); i++) {
+        const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
+        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
+        VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
+            V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
+          }
+      }
+      cubism::compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
+                      ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
+      for (const auto &shape : sim.shapes) {
+        shape->perimeter = 0;
+        shape->forcex = 0;
+        shape->forcey = 0;
+        shape->forcex_P = 0;
+        shape->forcey_P = 0;
+        shape->forcex_V = 0;
+        shape->forcey_V = 0;
+        shape->torque = 0;
+        shape->torque_P = 0;
+        shape->torque_V = 0;
+        shape->drag = 0;
+        shape->thrust = 0;
+        shape->lift = 0;
+        shape->Pout = 0;
+        shape->PoutNew = 0;
+        shape->PoutBnd = 0;
+        shape->defPower = 0;
+        shape->defPowerBnd = 0;
+        shape->circulation = 0;
+        for (auto &block : shape->obstacleBlocks)
+          if (block not_eq nullptr) {
+            shape->circulation += block->circulation;
+            shape->perimeter += block->perimeter;
+            shape->torque += block->torque;
+            shape->forcex += block->forcex;
+            shape->forcey += block->forcey;
+            shape->forcex_P += block->forcex_P;
+            shape->forcey_P += block->forcey_P;
+            shape->forcex_V += block->forcex_V;
+            shape->forcey_V += block->forcey_V;
+            shape->torque_P += block->torque_P;
+            shape->torque_V += block->torque_V;
+            shape->drag += block->drag;
+            shape->thrust += block->thrust;
+            shape->lift += block->lift;
+            shape->Pout += block->Pout;
+            shape->PoutNew += block->PoutNew;
+            shape->defPowerBnd += block->defPowerBnd;
+            shape->PoutBnd += block->PoutBnd;
+            shape->defPower += block->defPower;
+          }
+        Real quantities[19];
+        quantities[0] = shape->circulation;
+        quantities[1] = shape->perimeter;
+        quantities[2] = shape->forcex;
+        quantities[3] = shape->forcex_P;
+        quantities[4] = shape->forcex_V;
+        quantities[5] = shape->torque_P;
+        quantities[6] = shape->drag;
+        quantities[7] = shape->lift;
+        quantities[8] = shape->Pout;
+        quantities[9] = shape->PoutNew;
+        quantities[10] = shape->PoutBnd;
+        quantities[11] = shape->torque;
+        quantities[12] = shape->forcey;
+        quantities[13] = shape->forcey_P;
+        quantities[14] = shape->forcey_V;
+        quantities[15] = shape->torque_V;
+        quantities[16] = shape->thrust;
+        quantities[17] = shape->defPowerBnd;
+        quantities[18] = shape->defPower;
+        MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
+                      MPI_COMM_WORLD);
+        shape->circulation = quantities[0];
+        shape->perimeter = quantities[1];
+        shape->forcex = quantities[2];
+        shape->forcex_P = quantities[3];
+        shape->forcex_V = quantities[4];
+        shape->torque_P = quantities[5];
+        shape->drag = quantities[6];
+        shape->lift = quantities[7];
+        shape->Pout = quantities[8];
+        shape->PoutNew = quantities[9];
+        shape->PoutBnd = quantities[10];
+        shape->torque = quantities[11];
+        shape->forcey = quantities[12];
+        shape->forcey_P = quantities[13];
+        shape->forcey_V = quantities[14];
+        shape->torque_V = quantities[15];
+        shape->thrust = quantities[16];
+        shape->defPowerBnd = quantities[17];
+        shape->defPower = quantities[18];
+        shape->Pthrust = shape->thrust *
+                         std::sqrt(shape->u * shape->u + shape->v * shape->v);
+        shape->Pdrag =
+            shape->drag * std::sqrt(shape->u * shape->u + shape->v * shape->v);
+        const Real denUnb = shape->Pthrust - std::min(shape->defPower, (Real)0);
+        const Real demBnd = shape->Pthrust - shape->defPowerBnd;
+        shape->EffPDef = shape->Pthrust / std::max(denUnb, EPS);
+        shape->EffPDefBnd = shape->Pthrust / std::max(demBnd, EPS);
+        int tot_blocks = 0;
+        int nb = (int)sim.chi->m_vInfo.size();
+        MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      }
       sim.time += sim.dt;
       sim.step++;
     }
