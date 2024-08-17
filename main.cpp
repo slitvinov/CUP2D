@@ -5105,8 +5105,7 @@ BCflag string2BCflag(const std::string &strFlag) {
 }
 static BCflag cubismBCX;
 static BCflag cubismBCY;
-template <typename TGrid>
-struct BlockLabDirichlet : public BlockLab<TGrid> {
+template <typename TGrid> struct BlockLabDirichlet : public BlockLab<TGrid> {
   using ElementType = typename TGrid::BlockType::ElementType;
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
@@ -5229,8 +5228,7 @@ struct BlockLabDirichlet : public BlockLab<TGrid> {
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename TGrid>
-struct BlockLabNeumann : public BlockLab<TGrid> {
+template <typename TGrid> struct BlockLabNeumann : public BlockLab<TGrid> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5935,8 +5933,7 @@ struct ComputeSurfaceNormals {
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
-                  const BlockInfo &infoChi,
-                  const BlockInfo &infoSDF) const {
+                  const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.blockID] == nullptr)
@@ -6124,15 +6121,8 @@ struct PutFishOnBlocks {
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
-  PutFishOnBlocks(const Shape *shape, const Real pos[2], const Real angle)
-      : shape(shape), position{(Real)pos[0], (Real)pos[1]}, angle(angle) {
-    Rmatrix2D[0][0] = std::cos(angle);
-    Rmatrix2D[0][1] = -std::sin(angle);
-    Rmatrix2D[1][0] = std::sin(angle);
-    Rmatrix2D[1][1] = std::cos(angle);
-  }
-  void operator()(const BlockInfo &info, ScalarBlock &b,
-                  ObstacleBlock *const o,
+  PutFishOnBlocks() {}
+  void operator()(const BlockInfo &info, ScalarBlock &b, ObstacleBlock *const o,
                   const std::vector<AreaSegment *> &v) const {
     Real org[2];
     info.pos(org, 0, 0);
@@ -6593,7 +6583,17 @@ static void ongrid(Real dt) {
     assert(not segmentsPerBlock.empty());
 #pragma omp parallel
     {
-      const PutFishOnBlocks putfish(shape, shape->center, shape->orientation);
+      PutFishOnBlocks putfish;
+      putfish.shape = shape;
+      putfish.angle = shape->orientation;
+      putfish.position[0] = shape->center[0];
+      putfish.position[1] = shape->center[1];
+
+      putfish.Rmatrix2D[0][0] = std::cos(shape->orientation);
+      putfish.Rmatrix2D[0][1] = -std::sin(shape->orientation);
+      putfish.Rmatrix2D[1][0] = std::sin(shape->orientation);
+      putfish.Rmatrix2D[1][1] = std::cos(shape->orientation);
+
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
         const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
@@ -6615,8 +6615,8 @@ static void ongrid(Real dt) {
       delete E;
   }
   compute<ScalarLab>(PutChiOnGrid(), sim.tmp);
-  compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid,
-                  ScalarLab>(ComputeSurfaceNormals(), *sim.chi, *sim.tmp);
+  compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid, ScalarLab>(
+      ComputeSurfaceNormals(), *sim.chi, *sim.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -7232,8 +7232,7 @@ struct PoissonSolver {
   struct CellIndexer {
     CellIndexer(const PoissonSolver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
-    long long This(const BlockInfo &info, const int ix,
-                   const int iy) const {
+    long long This(const BlockInfo &info, const int ix, const int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
     static bool validXm(const int ix, const int iy) { return ix > 0; }
@@ -7283,8 +7282,8 @@ struct PoissonSolver {
                                const int iy, const int offset = 0) const = 0;
     virtual bool isBD(const int ix, const int iy) const = 0;
     virtual bool isFD(const int ix, const int iy) const = 0;
-    virtual long long Nei(const BlockInfo &info, const int ix,
-                          const int iy, const int dist) const = 0;
+    virtual long long Nei(const BlockInfo &info, const int ix, const int iy,
+                          const int dist) const = 0;
     virtual long long Zchild(const BlockInfo &nei_info, const int ix,
                              const int iy) const = 0;
   };
@@ -7317,12 +7316,12 @@ struct PoissonSolver {
     int ix_c(const BlockInfo &info, const int ix) const override {
       return _BS_ - 1;
     }
-    long long neiFine1(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine1(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine2(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
@@ -7340,15 +7339,13 @@ struct PoissonSolver {
                         const int iy) const override {
       return This(info, ix - 1, iy);
     }
-    int ix_c(const BlockInfo &info, const int ix) const override {
-      return 0;
-    }
-    long long neiFine1(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    int ix_c(const BlockInfo &info, const int ix) const override { return 0; }
+    long long neiFine1(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine2(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
@@ -7385,12 +7382,12 @@ struct PoissonSolver {
     int iy_c(const BlockInfo &info, const int iy) const override {
       return _BS_ - 1;
     }
-    long long neiFine1(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine1(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine2(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
@@ -7408,15 +7405,13 @@ struct PoissonSolver {
                         const int iy) const override {
       return This(info, ix, iy - 1);
     }
-    int iy_c(const BlockInfo &info, const int iy) const override {
-      return 0;
-    }
-    long long neiFine1(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    int iy_c(const BlockInfo &info, const int iy) const override { return 0; }
+    long long neiFine1(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const BlockInfo &nei_info, const int ix,
-                       const int iy, const int offset = 0) const override {
+    long long neiFine2(const BlockInfo &nei_info, const int ix, const int iy,
+                       const int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
@@ -7462,11 +7457,11 @@ struct PoissonSolver {
              {indexer.Nei(info, ix, iy, 1), 1. / 32.},
              {indexer.This(info, ix, iy), -1. / 16.}}};
   }
-  void interpolate(const BlockInfo &info_c, const int ix_c,
-                   const int iy_c, const BlockInfo &info_f,
-                   const long long fine_close_idx, const long long fine_far_idx,
-                   const double signInt, const double signTaylor,
-                   const EdgeCellIndexer &indexer, SpRowInfo &row) const {
+  void interpolate(const BlockInfo &info_c, const int ix_c, const int iy_c,
+                   const BlockInfo &info_f, const long long fine_close_idx,
+                   const long long fine_far_idx, const double signInt,
+                   const double signTaylor, const EdgeCellIndexer &indexer,
+                   SpRowInfo &row) const {
     const int rank_c = sim.tmp->Tree(info_c).rank();
     const int rank_f = sim.tmp->Tree(info_f).rank();
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
@@ -7781,8 +7776,7 @@ struct updatePressureRHS {
   StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
   const std::vector<BlockInfo> &chiInfo = sim.chi->m_vInfo;
-  void operator()(VectorLab &velLab, VectorLab &uDefLab,
-                  const BlockInfo &info,
+  void operator()(VectorLab &velLab, VectorLab &uDefLab, const BlockInfo &info,
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
@@ -7860,8 +7854,7 @@ struct updatePressureRHS1 {
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarBlock> *tempCase =
-        (BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID]
-                                               .auxiliary);
+        (BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -8668,9 +8661,9 @@ int main(int argc, char **argv) {
             }
         }
       }
-      compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
-                      VectorLab, ScalarGrid>(updatePressureRHS(), *sim.vel,
-                                             *sim.tmpV, true, sim.tmp);
+      compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
+              ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
+                          sim.tmp);
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
@@ -8728,7 +8721,7 @@ int main(int argc, char **argv) {
           }
       }
       compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
-                      ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
+              ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
