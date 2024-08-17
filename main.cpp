@@ -7227,7 +7227,6 @@ struct KernelComputeForces {
 };
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
-  int comm_size_;
   static constexpr int BSX_ = _BS_;
   static constexpr int BSY_ = _BS_;
   static constexpr int BLEN_ = BSX_ * BSY_;
@@ -7251,9 +7250,8 @@ struct PoissonSolver {
       : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
         YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                       &YmaxCell} {
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size_);
-    Nblocks_xcumsum_.resize(comm_size_ + 1);
-    Nrows_xcumsum_.resize(comm_size_ + 1);
+    Nblocks_xcumsum_.resize(sim.size + 1);
+    Nrows_xcumsum_.resize(sim.size + 1);
     std::vector<std::vector<double>> L;
     std::vector<std::vector<double>> L_inv;
     L.resize(BLEN_);
