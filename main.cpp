@@ -8742,10 +8742,9 @@ int main(int argc, char **argv) {
             }
         }
       }
-      updatePressureRHS K;
       cubism::compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid,
-                      VectorLab, ScalarGrid>(K, *sim.vel, *sim.tmpV, true,
-                                             sim.tmp);
+                      VectorLab, ScalarGrid>(updatePressureRHS(), *sim.vel,
+                                             *sim.tmpV, true, sim.tmp);
       std::vector<cubism::BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<cubism::BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
@@ -8758,8 +8757,7 @@ int main(int argc, char **argv) {
             PRES(ix, iy).s = 0;
           }
       }
-      updatePressureRHS1 K1;
-      cubism::compute<ScalarLab>(K1, sim.pold, sim.tmp);
+      cubism::compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
