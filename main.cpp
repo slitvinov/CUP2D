@@ -4024,8 +4024,7 @@ template <typename TGrid> struct BlockLab {
                          bool coarse = false) {}
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
-      std::allocator<T>().destroy(t);
-      std::allocator<T>().deallocate(t, 1);
+      delete t;
     }
     t = NULL;
   }
