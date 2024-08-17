@@ -449,7 +449,7 @@ template <typename BlockType> struct BlockCase {
   }
 };
 template <typename TGrid> struct FluxCorrection {
-  using GridType = TGrid;
+  typedef TGrid GridType;
   typedef typename GridType::BlockType BlockType;
   typedef typename BlockType::ElementType ElementType;
   typedef BlockCase<BlockType> Case;
