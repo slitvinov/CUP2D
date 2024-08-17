@@ -5098,8 +5098,8 @@ template <typename T> struct GridBlock {
   T data[_BS_][_BS_];
   void clear() {
     T *const entry = &data[0][0];
-    for (int i = 0; i < _BS_ * _BS_; ++i)
-      entry[i].clear();
+    for (int j = 0; j < _BS_ * _BS_; ++j)
+      entry[j].clear();
   }
   void set(const Real v) {
     T *const entry = &data[0][0];
