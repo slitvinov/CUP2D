@@ -7227,18 +7227,15 @@ struct KernelComputeForces {
 };
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
-  static constexpr int BSX_ = _BS_;
-  static constexpr int BSY_ = _BS_;
-  static constexpr int BLEN_ = BSX_ * BSY_;
   struct EdgeCellIndexer;
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
   double getA_local(int I1, int I2) {
-    int j1 = I1 / BSX_;
-    int i1 = I1 % BSX_;
-    int j2 = I2 / BSX_;
-    int i2 = I2 % BSX_;
+    int j1 = I1 / _BS_;
+    int i1 = I1 % _BS_;
+    int j2 = I2 / _BS_;
+    int i2 = I2 % _BS_;
     if (i1 == i2 && j1 == j2)
       return 4.0;
     else if (abs(i1 - i2) + abs(j1 - j2) == 1)
@@ -7254,46 +7251,46 @@ struct PoissonSolver {
     Nrows_xcumsum_.resize(sim.size + 1);
     std::vector<std::vector<double>> L;
     std::vector<std::vector<double>> L_inv;
-    L.resize(BLEN_);
-    L_inv.resize(BLEN_);
-    for (int i(0); i < BLEN_; i++) {
+    L.resize((_BS_ * _BS_));
+    L_inv.resize((_BS_ * _BS_));
+    for (int i(0); i < (_BS_ * _BS_); i++) {
       L[i].resize(i + 1);
       L_inv[i].resize(i + 1);
       for (int j(0); j <= i; j++) {
         L_inv[i][j] = (i == j) ? 1. : 0.;
       }
     }
-    for (int i(0); i < BLEN_; i++) {
+    for (int i(0); i < (_BS_ * _BS_); i++) {
       double s1 = 0;
       for (int k(0); k <= i - 1; k++)
         s1 += L[i][k] * L[i][k];
       L[i][i] = sqrt(getA_local(i, i) - s1);
-      for (int j(i + 1); j < BLEN_; j++) {
+      for (int j(i + 1); j < (_BS_ * _BS_); j++) {
         double s2 = 0;
         for (int k(0); k <= i - 1; k++)
           s2 += L[i][k] * L[j][k];
         L[j][i] = (getA_local(j, i) - s2) / L[i][i];
       }
     }
-    for (int br(0); br < BLEN_; br++) {
+    for (int br(0); br < (_BS_ * _BS_); br++) {
       const double bsf = 1. / L[br][br];
       for (int c(0); c <= br; c++)
         L_inv[br][c] *= bsf;
-      for (int wr(br + 1); wr < BLEN_; wr++) {
+      for (int wr(br + 1); wr < (_BS_ * _BS_); wr++) {
         const double wsf = L[wr][br];
         for (int c(0); c <= br; c++)
           L_inv[wr][c] -= (wsf * L_inv[br][c]);
       }
     }
-    std::vector<double> P_inv(BLEN_ * BLEN_);
-    for (int i(0); i < BLEN_; i++)
-      for (int j(0); j < BLEN_; j++) {
+    std::vector<double> P_inv((_BS_ * _BS_) * (_BS_ * _BS_));
+    for (int i(0); i < (_BS_ * _BS_); i++)
+      for (int j(0); j < (_BS_ * _BS_); j++) {
         double aux = 0.;
-        for (int k(0); k < BLEN_; k++)
+        for (int k(0); k < (_BS_ * _BS_); k++)
           aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
-        P_inv[i * BLEN_ + j] = -aux;
+        P_inv[i * (_BS_ * _BS_) + j] = -aux;
       }
-    LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, BSX_ * BSY_,
+    LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
   }
   void solve(const ScalarGrid *input) {
@@ -7318,9 +7315,9 @@ struct PoissonSolver {
     for (int i = 0; i < Nblocks; i++) {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
       const double vv = zInfo[i].h * zInfo[i].h;
-      for (int iy = 0; iy < BSY_; iy++)
-        for (int ix = 0; ix < BSX_; ix++) {
-          P(ix, iy).s = x[i * BSX_ * BSY_ + iy * BSX_ + ix];
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
+          P(ix, iy).s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
           avg += P(ix, iy).s * vv;
           avg1 += vv;
         }
@@ -7334,8 +7331,8 @@ struct PoissonSolver {
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
-      for (int iy = 0; iy < BSY_; iy++)
-        for (int ix = 0; ix < BSX_; ix++)
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++)
           P(ix, iy).s += -avg;
     }
   }
@@ -7344,34 +7341,34 @@ struct PoissonSolver {
     ~CellIndexer() = default;
     long long This(const cubism::BlockInfo &info, const int ix,
                    const int iy) const {
-      return blockOffset(info) + (long long)(iy * BSX_ + ix);
+      return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
     static bool validXm(const int ix, const int iy) { return ix > 0; }
-    static bool validXp(const int ix, const int iy) { return ix < BSX_ - 1; }
+    static bool validXp(const int ix, const int iy) { return ix < _BS_ - 1; }
     static bool validYm(const int ix, const int iy) { return iy > 0; }
-    static bool validYp(const int ix, const int iy) { return iy < BSY_ - 1; }
+    static bool validYp(const int ix, const int iy) { return iy < _BS_ - 1; }
     long long Xmin(const cubism::BlockInfo &info, const int ix, const int iy,
                    const int offset = 0) const {
-      return blockOffset(info) + (long long)(iy * BSX_ + offset);
+      return blockOffset(info) + (long long)(iy * _BS_ + offset);
     }
     long long Xmax(const cubism::BlockInfo &info, const int ix, const int iy,
                    const int offset = 0) const {
-      return blockOffset(info) + (long long)(iy * BSX_ + (BSX_ - 1 - offset));
+      return blockOffset(info) + (long long)(iy * _BS_ + (_BS_ - 1 - offset));
     }
     long long Ymin(const cubism::BlockInfo &info, const int ix, const int iy,
                    const int offset = 0) const {
-      return blockOffset(info) + (long long)(offset * BSX_ + ix);
+      return blockOffset(info) + (long long)(offset * _BS_ + ix);
     }
     long long Ymax(const cubism::BlockInfo &info, const int ix, const int iy,
                    const int offset = 0) const {
-      return blockOffset(info) + (long long)((BSY_ - 1 - offset) * BSX_ + ix);
+      return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const cubism::BlockInfo &info) const {
       return (info.blockID + ps.Nblocks_xcumsum_[sim.tmp->Tree(info).rank()]) *
-             BLEN_;
+             (_BS_ * _BS_);
     }
-    static int ix_f(const int ix) { return (ix % (BSX_ / 2)) * 2; }
-    static int iy_f(const int iy) { return (iy % (BSY_ / 2)) * 2; }
+    static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
+    static int iy_f(const int iy) { return (iy % (_BS_ / 2)) * 2; }
     const PoissonSolver &ps;
   };
   struct EdgeCellIndexer : public CellIndexer {
@@ -7382,10 +7379,10 @@ struct PoissonSolver {
                                 const int iy) const = 0;
     virtual double taylorSign(const int ix, const int iy) const = 0;
     virtual int ix_c(const cubism::BlockInfo &info, const int ix) const {
-      return info.index[0] % 2 == 0 ? ix / 2 : ix / 2 + BSX_ / 2;
+      return info.index[0] % 2 == 0 ? ix / 2 : ix / 2 + _BS_ / 2;
     }
     virtual int iy_c(const cubism::BlockInfo &info, const int iy) const {
-      return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + BSY_ / 2;
+      return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + _BS_ / 2;
     }
     virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int ix,
                                const int iy, const int offset = 0) const = 0;
@@ -7404,10 +7401,10 @@ struct PoissonSolver {
       return iy % 2 == 0 ? -1. : 1.;
     }
     bool isBD(const int ix, const int iy) const override {
-      return iy == BSY_ - 1 || iy == BSY_ / 2 - 1;
+      return iy == _BS_ - 1 || iy == _BS_ / 2 - 1;
     }
     bool isFD(const int ix, const int iy) const override {
-      return iy == 0 || iy == BSY_ / 2;
+      return iy == 0 || iy == _BS_ / 2;
     }
     long long Nei(const cubism::BlockInfo &info, const int ix, const int iy,
                   const int dist) const override {
@@ -7425,7 +7422,7 @@ struct PoissonSolver {
       return This(info, ix + 1, iy);
     }
     int ix_c(const cubism::BlockInfo &info, const int ix) const override {
-      return BSX_ - 1;
+      return _BS_ - 1;
     }
     long long neiFine1(const cubism::BlockInfo &nei_info, const int ix,
                        const int iy, const int offset = 0) const override {
@@ -7437,7 +7434,7 @@ struct PoissonSolver {
     }
     long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[1][int(iy >= BSY_ / 2)][0];
+      return nei_info.Zchild[1][int(iy >= _BS_ / 2)][0];
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
@@ -7463,7 +7460,7 @@ struct PoissonSolver {
     }
     long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[0][int(iy >= BSY_ / 2)][0];
+      return nei_info.Zchild[0][int(iy >= _BS_ / 2)][0];
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
@@ -7472,10 +7469,10 @@ struct PoissonSolver {
       return ix % 2 == 0 ? -1. : 1.;
     }
     bool isBD(const int ix, const int iy) const override {
-      return ix == BSX_ - 1 || ix == BSX_ / 2 - 1;
+      return ix == _BS_ - 1 || ix == _BS_ / 2 - 1;
     }
     bool isFD(const int ix, const int iy) const override {
-      return ix == 0 || ix == BSX_ / 2;
+      return ix == 0 || ix == _BS_ / 2;
     }
     long long Nei(const cubism::BlockInfo &info, const int ix, const int iy,
                   const int dist) const override {
@@ -7493,7 +7490,7 @@ struct PoissonSolver {
       return This(info, ix, iy + 1);
     }
     int iy_c(const cubism::BlockInfo &info, const int iy) const override {
-      return BSY_ - 1;
+      return _BS_ - 1;
     }
     long long neiFine1(const cubism::BlockInfo &nei_info, const int ix,
                        const int iy, const int offset = 0) const override {
@@ -7505,7 +7502,7 @@ struct PoissonSolver {
     }
     long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= BSX_ / 2)][1][0];
+      return nei_info.Zchild[int(ix >= _BS_ / 2)][1][0];
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
@@ -7531,7 +7528,7 @@ struct PoissonSolver {
     }
     long long Zchild(const cubism::BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= BSX_ / 2)][0][0];
+      return nei_info.Zchild[int(ix >= _BS_ / 2)][0][0];
     }
   };
   CellIndexer GenericCell;
@@ -7634,7 +7631,7 @@ struct PoissonSolver {
     sim.tmp->UpdateBlockInfoAll_States(true);
     std::vector<cubism::BlockInfo> &RhsInfo = sim.tmp->m_vInfo;
     const int Nblocks = RhsInfo.size();
-    const int N = BSX_ * BSY_ * Nblocks;
+    const int N = _BS_ * _BS_ * Nblocks;
     LocalLS_->reserve(N);
     const long long Nblocks_long = Nblocks;
     MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
@@ -7646,7 +7643,7 @@ struct PoissonSolver {
     Nrows_xcumsum_[0] = 0;
     for (size_t i(1); i < Nblocks_xcumsum_.size(); i++) {
       Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i - 1];
-      Nrows_xcumsum_[i] = BLEN_ * Nblocks_xcumsum_[i];
+      Nrows_xcumsum_[i] = (_BS_ * _BS_) * Nblocks_xcumsum_[i];
     }
     for (int i = 0; i < Nblocks; i++) {
       const cubism::BlockInfo &rhs_info = RhsInfo[i];
@@ -7671,10 +7668,10 @@ struct PoissonSolver {
       rhsNei[1] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
       rhsNei[2] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
       rhsNei[3] = &(sim.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
-      for (int iy = 0; iy < BSY_; iy++)
-        for (int ix = 0; ix < BSX_; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
-          if ((ix > 0 && ix < BSX_ - 1) && (iy > 0 && iy < BSY_ - 1)) {
+          if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
             LocalLS_->cooPushBackVal(1, sfc_idx,
                                      GenericCell.This(rhs_info, ix, iy - 1));
             LocalLS_->cooPushBackVal(1, sfc_idx,
@@ -7724,8 +7721,8 @@ struct PoissonSolver {
       const ScalarBlock &__restrict__ rhs = *(ScalarBlock *)RhsInfo[i].ptrBlock;
       const ScalarBlock &__restrict__ p = *(ScalarBlock *)zInfo[i].ptrBlock;
       h2[i] = RhsInfo[i].h * RhsInfo[i].h;
-      for (int iy = 0; iy < BSY_; iy++)
-        for (int ix = 0; ix < BSX_; ix++) {
+      for (int iy = 0; iy < _BS_; iy++)
+        for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
           if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
               rhs_info.index[1] == 0 && rhs_info.index[2] == 0 && ix == 0 &&
