@@ -1266,7 +1266,7 @@ struct HaloBlockGroup {
   std::set<int> myranks;
   bool ready = false;
 };
-template <typename Real, typename TGrid> struct SynchronizerMPI_AMR {
+template <typename TGrid> struct SynchronizerMPI_AMR {
   int rank;
   int size;
   StencilInfo stencil;
@@ -2569,7 +2569,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
 template <typename TGrid> struct GridMPI : public TGrid {
   typedef typename TGrid::BlockType Block;
   typedef typename TGrid::BlockType BlockType;
-  typedef SynchronizerMPI_AMR<Real, GridMPI<TGrid>> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<GridMPI<TGrid>> SynchronizerMPIType;
   size_t timestamp;
   int myrank;
   int world_size;
@@ -4038,7 +4038,7 @@ template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
   using ElementType = typename BlockType::ElementType;
-  typedef SynchronizerMPI_AMR<Real, GridType> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
                        const int[3] = default_start,
@@ -4414,7 +4414,7 @@ template <typename TLab> struct MeshAdaptation {
   typedef typename TLab::GridType TGrid;
   typedef typename TGrid::Block BlockType;
   typedef typename TGrid::BlockType::ElementType ElementType;
-  typedef SynchronizerMPI_AMR<Real, TGrid> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
@@ -4447,7 +4447,7 @@ template <typename TLab> struct MeshAdaptation {
   void Tag(double t = 0) {
     time = t;
     boundary_needed = true;
-    SynchronizerMPI_AMR<Real, TGrid> *Synch = grid->sync(stencil);
+    SynchronizerMPI_AMR<TGrid> *Synch = grid->sync(stencil);
     CallValidStates = false;
     bool Reduction = false;
     MPI_Request Reduction_req;
@@ -4470,7 +4470,7 @@ template <typename TLab> struct MeshAdaptation {
   }
   void Adapt(double t = 0, bool verbosity = false, bool basic = false) {
     basic_refinement = basic;
-    SynchronizerMPI_AMR<Real, TGrid> *Synch = nullptr;
+    SynchronizerMPI_AMR<TGrid> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
       grid->boundary = Synch->avail_halo();
@@ -4927,7 +4927,7 @@ template <typename Lab, typename Kernel, typename TGrid,
 void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
-  cubism::SynchronizerMPI_AMR<Real, TGrid> &Synch = *(g->sync(kernel.stencil));
+  cubism::SynchronizerMPI_AMR<TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<cubism::BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<cubism::BlockInfo *> *halo_next;
   bool done = false;
@@ -4967,7 +4967,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
-  SynchronizerMPI_AMR<Real, TGrid> &Synch = *grid.sync(kernel.stencil);
+  SynchronizerMPI_AMR<TGrid> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4978,7 +4978,7 @@ static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<Real, TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
+  SynchronizerMPI_AMR<TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<cubism::BlockInfo> &blk = grid.m_vInfo;
