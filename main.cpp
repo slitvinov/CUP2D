@@ -4462,7 +4462,7 @@ template <typename TLab> struct MeshAdaptation {
     if (CallValidStates)
       ValidStates();
   }
-  void Adapt(double t, bool basic) {
+  void Adapt(bool basic) {
     basic_refinement = basic;
     SynchronizerMPI_AMR<TGrid> *Synch = nullptr;
     if (basic == false) {
@@ -6806,13 +6806,13 @@ static void adapt() {
   sim.vel_amr->TagLike(sim.tmp->m_vInfo);
   sim.vOld_amr->TagLike(sim.tmp->m_vInfo);
   sim.tmpV_amr->TagLike(sim.tmp->m_vInfo);
-  sim.tmp_amr->Adapt(sim.time, false);
-  sim.chi_amr->Adapt(sim.time, false);
-  sim.vel_amr->Adapt(sim.time, false);
-  sim.vOld_amr->Adapt(sim.time, false);
-  sim.pres_amr->Adapt(sim.time, false);
-  sim.pold_amr->Adapt(sim.time, false);
-  sim.tmpV_amr->Adapt(sim.time, true);
+  sim.tmp_amr->Adapt(false);
+  sim.chi_amr->Adapt(false);
+  sim.vel_amr->Adapt(false);
+  sim.vOld_amr->Adapt(false);
+  sim.pres_amr->Adapt(false);
+  sim.pold_amr->Adapt(false);
+  sim.tmpV_amr->Adapt(true);
 }
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
