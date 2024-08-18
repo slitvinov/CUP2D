@@ -3473,30 +3473,30 @@ template <typename ElementType> struct BlockLab {
                (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - m_stencilStart[1] +
                                      aux * (e[1] - s[1]) / 2)) *
                   m_vSize0);
-          const int YY0 = (abs(code[1]) == 1)
+          int YY0 = (abs(code[1]) == 1)
                               ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
                                     std::min(0, code[1]) * _BS_
                               : iy + 0 * yStep;
-          const int YY1 = (abs(code[1]) == 1)
+          int YY1 = (abs(code[1]) == 1)
                               ? 2 * (iy + 1 * yStep - code[1] * _BS_) +
                                     std::min(0, code[1]) * _BS_
                               : iy + 1 * yStep;
-          const int YY2 = (abs(code[1]) == 1)
+          int YY2 = (abs(code[1]) == 1)
                               ? 2 * (iy + 2 * yStep - code[1] * _BS_) +
                                     std::min(0, code[1]) * _BS_
                               : iy + 2 * yStep;
-          const int YY3 = (abs(code[1]) == 1)
+          int YY3 = (abs(code[1]) == 1)
                               ? 2 * (iy + 3 * yStep - code[1] * _BS_) +
                                     std::min(0, code[1]) * _BS_
                               : iy + 3 * yStep;
-          const ElementType *ptrSrc_00 = &b[YY0][XX];
-          const ElementType *ptrSrc_10 = &b[YY0 + 1][XX];
-          const ElementType *ptrSrc_01 = &b[YY1][XX];
-          const ElementType *ptrSrc_11 = &b[YY1 + 1][XX];
-          const ElementType *ptrSrc_02 = &b[YY2][XX];
-          const ElementType *ptrSrc_12 = &b[YY2 + 1][XX];
-          const ElementType *ptrSrc_03 = &b[YY3][XX];
-          const ElementType *ptrSrc_13 = &b[YY3 + 1][XX];
+          ElementType *ptrSrc_00 = &b[YY0][XX];
+          ElementType *ptrSrc_10 = &b[YY0 + 1][XX];
+          ElementType *ptrSrc_01 = &b[YY1][XX];
+          ElementType *ptrSrc_11 = &b[YY1 + 1][XX];
+          ElementType *ptrSrc_02 = &b[YY2][XX];
+          ElementType *ptrSrc_12 = &b[YY2 + 1][XX];
+          ElementType *ptrSrc_03 = &b[YY3][XX];
+          ElementType *ptrSrc_13 = &b[YY3 + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
