@@ -1285,8 +1285,6 @@ struct HaloBlockGroup {
   bool ready = false;
 };
 template <typename TGrid> struct SynchronizerMPI_AMR {
-  int rank;
-  int size;
   StencilInfo stencil;
   StencilInfo Cstencil;
   TGrid *grid;
@@ -1399,10 +1397,10 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     std::vector<int> positions;
     std::vector<size_t> sizes;
     DuplicatesManager(SynchronizerMPI_AMR &Synch) {
-      positions.resize(Synch.size);
-      sizes.resize(Synch.size);
-      offsets.resize(Synch.size, 0);
-      offsets_recv.resize(Synch.size, 0);
+      positions.resize(sim.size);
+      sizes.resize(sim.size);
+      offsets.resize(sim.size, 0);
+      offsets_recv.resize(sim.size, 0);
       Synch_ptr = &Synch;
     }
     void Add(const int r, const int index) {
@@ -1672,7 +1670,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     std::string retval;
     for (auto r : ranks) {
       std::stringstream ss;
-      ss << std::setw(size) << std::setfill('0') << r;
+      ss << std::setw(sim.size) << std::setfill('0') << r;
       std::string s = ss.str();
       retval += s;
     }
@@ -1682,7 +1680,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     Neighbors.clear();
     inner_blocks.clear();
     halo_blocks.clear();
-    for (int r = 0; r < size; r++) {
+    for (int r = 0; r < sim.size; r++) {
       send_interfaces[r].clear();
       recv_interfaces[r].clear();
       send_buffer_size[r] = 0;
@@ -1723,7 +1721,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
           continue;
         const TreePosition &infoNeiTree =
             grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
-        if (infoNeiTree.Exists() && infoNeiTree.rank() != rank) {
+        if (infoNeiTree.Exists() && infoNeiTree.rank() != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree.rank());
           BlockInfo &infoNei = grid->getBlockInfoAll(
@@ -1747,7 +1745,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
               info.level, info.Znei_(code[0], code[1], code[2]));
           const int infoNeiCoarserrank =
               grid->Tree(info.level - 1, infoNei.Zparent).rank();
-          if (infoNeiCoarserrank != rank) {
+          if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
@@ -1827,7 +1825,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             const int infoNeiFinerrank =
                 grid->Tree(info.level + 1, nFine).rank();
-            if (infoNeiFinerrank != rank) {
+            if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
               BlockInfo &infoNeiFiner =
@@ -1901,7 +1899,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
             recv_interfaces[r][recv].CoarseStencil = tmp;
           }
         }
-        for (int r = 0; r < size; r++)
+        for (int r = 0; r < sim.size; r++)
           if (DM.sizes[r] > 0) {
             DM.RemoveDuplicates(r, send_interfaces[r], send_buffer_size[r]);
             DM.sizes[r] = 0;
@@ -1911,7 +1909,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
           info.halo_block_id;
     }
     myunpacks.resize(halo_blocks.size());
-    for (int r = 0; r < size; r++) {
+    for (int r = 0; r < sim.size; r++) {
       recv_buffer_size[r] = 0;
       std::sort(recv_interfaces[r].begin(), recv_interfaces[r].end());
       size_t counter = 0;
@@ -1986,19 +1984,17 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || stencil.sz < -2 ||
                     stencil.ex > 3 || stencil.ey > 3 || stencil.ez > 3);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
     nX = _BS_;
     nY = _BS_;
     nZ = 1;
-    send_interfaces.resize(size);
-    recv_interfaces.resize(size);
-    send_packinfos.resize(size);
-    send_buffer_size.resize(size);
-    recv_buffer_size.resize(size);
-    send_buffer.resize(size);
-    recv_buffer.resize(size);
-    ToBeAveragedDown.resize(size);
+    send_interfaces.resize(sim.size);
+    recv_interfaces.resize(sim.size);
+    send_packinfos.resize(sim.size);
+    send_buffer_size.resize(sim.size);
+    recv_buffer_size.resize(sim.size);
+    send_buffer.resize(sim.size);
+    recv_buffer.resize(sim.size);
+    ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
     if (sizeof(Real) == sizeof(double)) {
       MPIREAL = MPI_DOUBLE;
@@ -2052,7 +2048,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     const int timestamp = grid->timestamp;
     mapofrequests.clear();
     requests.clear();
-    requests.reserve(2 * size);
+    requests.reserve(2 * sim.size);
     for (auto r : Neighbors)
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
@@ -2060,7 +2056,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
         MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPIREAL, r,
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (send_buffer_size[r] != 0) {
 #pragma omp parallel
         {
@@ -2626,10 +2622,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   }
   virtual void UpdateBoundary(bool clean = false) override {
     const auto blocksPerDim = TGrid::getMaxBlocks();
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    std::vector<std::vector<long long>> send_buffer(size);
+    std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;
     std::set<int> Neighbors;
     for (size_t jjj = 0; jjj < bbb.size(); jjj++) {
@@ -2661,7 +2654,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
         BlockInfo &infoNei = TGrid::getBlockInfoAll(
             info.level, info.Znei_(code[0], code[1], code[2]));
         const TreePosition &infoNeiTree = TGrid::Tree(infoNei.level, infoNei.Z);
-        if (infoNeiTree.Exists() && infoNeiTree.rank() != rank) {
+        if (infoNeiTree.Exists() && infoNeiTree.rank() != sim.rank) {
           if (infoNei.state != Refine || clean)
             infoNei.state = Leave;
           receivers.insert(infoNeiTree.rank());
@@ -2672,7 +2665,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
               TGrid::getBlockInfoAll(infoNei.level - 1, nCoarse);
           const int infoNeiCoarserrank =
               TGrid::Tree(infoNei.level - 1, nCoarse).rank();
-          if (infoNeiCoarserrank != rank) {
+          if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
             if (infoNeiCoarser.state != Refine || clean)
               infoNeiCoarser.state = Leave;
@@ -2698,7 +2691,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                 TGrid::getBlockInfoAll(infoNei.level + 1, nFine);
             const int infoNeiFinerrank =
                 TGrid::Tree(infoNei.level + 1, nFine).rank();
-            if (infoNeiFinerrank != rank) {
+            if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner.state != Refine || clean)
                 infoNeiFiner.state = Leave;
               receivers.insert(infoNeiFinerrank);
@@ -2723,7 +2716,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     std::vector<MPI_Request> requests;
     long long dummy = 0;
     for (int r : Neighbors)
-      if (r != rank) {
+      if (r != sim.rank) {
         requests.resize(requests.size() + 1);
         if (send_buffer[r].size() != 0)
           MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
@@ -2733,9 +2726,9 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                     &requests[requests.size() - 1]);
         }
       }
-    std::vector<std::vector<long long>> recv_buffer(size);
+    std::vector<std::vector<long long>> recv_buffer(sim.size);
     for (int r : Neighbors)
-      if (r != rank) {
+      if (r != sim.rank) {
         int recv_size;
         MPI_Status status;
         MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
@@ -2748,7 +2741,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
         }
       }
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (recv_buffer[r].size() > 1)
         for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
           int level = recv_buffer[r][index];
