@@ -977,30 +977,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3594,30 +3591,27 @@ template <typename ElementType> struct BlockLab {
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -5231,8 +5225,7 @@ typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarElement>, ScalarElement>
-    ScalarLab;
+typedef BlockLabMPI<BlockLabNeumann<ScalarElement>, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct FishSkin {
@@ -5267,11 +5260,8 @@ static struct {
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
 struct surface_data {
-  const int ix, iy;
-  const Real dchidx, dchidy, delta;
-  surface_data(const int _ix, const int _iy, const Real Xdx, const Real Xdy,
-               const Real D)
-      : ix(_ix), iy(_iy), dchidx(Xdx), dchidy(Xdy), delta(D) {}
+  int ix, iy;
+  Real dchidx, dchidy, delta;
 };
 struct ObstacleBlock {
   Real chi[_BS_][_BS_];
@@ -5279,7 +5269,7 @@ struct ObstacleBlock {
   Real udef[_BS_][_BS_][2];
   size_t n_surfPoints = 0;
   bool filled = false;
-  std::vector<surface_data *> surface;
+  std::vector<surface_data> surface;
   Real *x_s = nullptr;
   Real *y_s = nullptr;
   Real *p_s = nullptr;
@@ -5316,12 +5306,6 @@ struct ObstacleBlock {
     forcex_V = forcey_V = torque = torque_P = torque_V = drag = thrust = lift =
         0;
     Pout = PoutBnd = defPower = defPowerBnd = circulation = 0;
-    for (auto &trash : surface) {
-      if (trash == nullptr)
-        continue;
-      delete trash;
-      trash = nullptr;
-    }
     surface.clear();
     free(x_s);
     free(y_s);
@@ -5853,7 +5837,10 @@ struct ComputeSurfaceNormals {
           if (std::fabs(D) > EPS) {
             o.n_surfPoints++;
             const Real dchidx = -D * gradUX, dchidy = -D * gradUY;
-            o.surface.push_back(new surface_data(ix, iy, dchidx, dchidy, D));
+            struct surface_data s {
+              ix, iy, dchidx, dchidy, D
+            };
+            o.surface.push_back(s);
           }
         }
       o.filled = true;
@@ -6073,15 +6060,15 @@ struct PutFishOnBlocks {
     x[1] += position[1];
   }
   void changeFromComputationalFrame(Real x[2]) const {
-    const Real p[2] = {x[0] - position[0], x[1] - position[1]};
+    Real p[2] = {x[0] - position[0], x[1] - position[1]};
     x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
     x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
   }
 };
 static void ongrid(Real dt) {
-  const std::vector<BlockInfo> &velInfo = var.vel->m_vInfo;
-  const std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
-  const std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
+  std::vector<BlockInfo> &velInfo = var.vel->m_vInfo;
+  std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
+  std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   if (nSum[0] > 0) {
@@ -6809,9 +6796,8 @@ static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
-static Real derivative(const Real U, const Real um3, const Real um2,
-                       const Real um1, const Real u, const Real up1,
-                       const Real up2, const Real up3) {
+static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
+                       Real up2, Real up3) {
   Real fp = 0.0;
   Real fm = 0.0;
   if (U > 0) {
@@ -6823,49 +6809,49 @@ static Real derivative(const Real U, const Real um3, const Real um2,
   }
   return (fp - fm);
 }
-static Real dU_adv_dif(const VectorLab &V, const Real uinf[2], const Real advF,
-                       const Real difF, const int ix, const int iy) {
-  const Real u = V(ix, iy).u[0];
-  const Real v = V(ix, iy).u[1];
-  const Real UU = u + uinf[0];
-  const Real VV = v + uinf[1];
-  const Real up1x = V(ix + 1, iy).u[0];
-  const Real up2x = V(ix + 2, iy).u[0];
-  const Real up3x = V(ix + 3, iy).u[0];
-  const Real um1x = V(ix - 1, iy).u[0];
-  const Real um2x = V(ix - 2, iy).u[0];
-  const Real um3x = V(ix - 3, iy).u[0];
-  const Real up1y = V(ix, iy + 1).u[0];
-  const Real up2y = V(ix, iy + 2).u[0];
-  const Real up3y = V(ix, iy + 3).u[0];
-  const Real um1y = V(ix, iy - 1).u[0];
-  const Real um2y = V(ix, iy - 2).u[0];
-  const Real um3y = V(ix, iy - 3).u[0];
-  const Real dudx = derivative(UU, um3x, um2x, um1x, u, up1x, up2x, up3x);
-  const Real dudy = derivative(VV, um3y, um2y, um1y, u, up1y, up2y, up3y);
+static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
+                       int iy) {
+  Real u = V(ix, iy).u[0];
+  Real v = V(ix, iy).u[1];
+  Real UU = u + uinf[0];
+  Real VV = v + uinf[1];
+  Real up1x = V(ix + 1, iy).u[0];
+  Real up2x = V(ix + 2, iy).u[0];
+  Real up3x = V(ix + 3, iy).u[0];
+  Real um1x = V(ix - 1, iy).u[0];
+  Real um2x = V(ix - 2, iy).u[0];
+  Real um3x = V(ix - 3, iy).u[0];
+  Real up1y = V(ix, iy + 1).u[0];
+  Real up2y = V(ix, iy + 2).u[0];
+  Real up3y = V(ix, iy + 3).u[0];
+  Real um1y = V(ix, iy - 1).u[0];
+  Real um2y = V(ix, iy - 2).u[0];
+  Real um3y = V(ix, iy - 3).u[0];
+  Real dudx = derivative(UU, um3x, um2x, um1x, u, up1x, up2x, up3x);
+  Real dudy = derivative(VV, um3y, um2y, um1y, u, up1y, up2y, up3y);
   return advF * (UU * dudx + VV * dudy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
 }
-static Real dV_adv_dif(const VectorLab &V, const Real uinf[2], const Real advF,
-                       const Real difF, const int ix, const int iy) {
-  const Real u = V(ix, iy).u[0];
-  const Real v = V(ix, iy).u[1];
-  const Real UU = u + uinf[0];
-  const Real VV = v + uinf[1];
-  const Real vp1x = V(ix + 1, iy).u[1];
-  const Real vp2x = V(ix + 2, iy).u[1];
-  const Real vp3x = V(ix + 3, iy).u[1];
-  const Real vm1x = V(ix - 1, iy).u[1];
-  const Real vm2x = V(ix - 2, iy).u[1];
-  const Real vm3x = V(ix - 3, iy).u[1];
-  const Real vp1y = V(ix, iy + 1).u[1];
-  const Real vp2y = V(ix, iy + 2).u[1];
-  const Real vp3y = V(ix, iy + 3).u[1];
-  const Real vm1y = V(ix, iy - 1).u[1];
-  const Real vm2y = V(ix, iy - 2).u[1];
-  const Real vm3y = V(ix, iy - 3).u[1];
-  const Real dvdx = derivative(UU, vm3x, vm2x, vm1x, v, vp1x, vp2x, vp3x);
-  const Real dvdy = derivative(VV, vm3y, vm2y, vm1y, v, vp1y, vp2y, vp3y);
+static Real dV_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
+                       int iy) {
+  Real u = V(ix, iy).u[0];
+  Real v = V(ix, iy).u[1];
+  Real UU = u + uinf[0];
+  Real VV = v + uinf[1];
+  Real vp1x = V(ix + 1, iy).u[1];
+  Real vp2x = V(ix + 2, iy).u[1];
+  Real vp3x = V(ix + 3, iy).u[1];
+  Real vm1x = V(ix - 1, iy).u[1];
+  Real vm2x = V(ix - 2, iy).u[1];
+  Real vm3x = V(ix - 3, iy).u[1];
+  Real vp1y = V(ix, iy + 1).u[1];
+  Real vp2y = V(ix, iy + 2).u[1];
+  Real vp3y = V(ix, iy + 3).u[1];
+  Real vm1y = V(ix, iy - 1).u[1];
+  Real vm2y = V(ix, iy - 2).u[1];
+  Real vm3y = V(ix, iy - 3).u[1];
+  Real dvdx = derivative(UU, vm3x, vm2x, vm1x, v, vp1x, vp2x, vp3x);
+  Real dvdy = derivative(VV, vm3y, vm2y, vm1y, v, vp1y, vp2y, vp3y);
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
@@ -6875,12 +6861,12 @@ template <typename ElementType> struct KernelAdvectDiffuse {
     uinf[1] = sim.uinfy;
   }
   Real uinf[2];
-  const StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
-  const std::vector<BlockInfo> &tmpVInfo = var.tmpV->m_vInfo;
-  void operator()(VectorLab &lab, const BlockInfo &info) const {
-    const Real h = info.h;
-    const Real dfac = sim.nu * sim.dt;
-    const Real afac = -sim.dt * h;
+  StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
+  std::vector<BlockInfo> &tmpVInfo = var.tmpV->m_vInfo;
+  void operator()(VectorLab &lab, BlockInfo &info) {
+    Real h = info.h;
+    Real dfac = sim.nu * sim.dt;
+    Real afac = -sim.dt * h;
     VectorBlock &__restrict__ TMP =
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
@@ -6967,10 +6953,10 @@ struct KernelComputeForces {
         continue;
       assert(O->filled);
       for (size_t k = 0; k < O->n_surfPoints; ++k) {
-        const int ix = O->surface[k]->ix, iy = O->surface[k]->iy;
+        const int ix = O->surface[k].ix, iy = O->surface[k].iy;
         const std::array<Real, 2> p = info.pos(ix, iy);
-        const Real normX = O->surface[k]->dchidx;
-        const Real normY = O->surface[k]->dchidy;
+        const Real normX = O->surface[k].dchidx;
+        const Real normY = O->surface[k].dchidy;
         const Real norm = 1.0 / std::sqrt(normX * normX + normY * normY);
         const Real dx = normX * norm;
         const Real dy = normY * norm;
@@ -7583,21 +7569,20 @@ struct PoissonSolver {
 };
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
-void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
-              Real *J) {
-  const Real m00 = 1.0;
-  const Real m01 = 0.0;
-  const Real m02 = 0.0;
-  const Real m11 = 1.0;
-  const Real m12 = 0.0;
-  const Real m22 = I[5];
+void ComputeJ(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
+  Real m00 = 1.0;
+  Real m01 = 0.0;
+  Real m02 = 0.0;
+  Real m11 = 1.0;
+  Real m12 = 0.0;
+  Real m22 = I[5];
   Real a00 = m22 * m11 - m12 * m12;
   Real a01 = m02 * m12 - m22 * m01;
   Real a02 = m01 * m12 - m02 * m11;
   Real a11 = m22 * m00 - m02 * m02;
   Real a12 = m01 * m02 - m00 * m12;
   Real a22 = m00 * m11 - m01 * m01;
-  const Real determinant = 1.0 / ((m00 * a00) + (m01 * a01) + (m02 * a02));
+  Real determinant = 1.0 / ((m00 * a00) + (m01 * a01) + (m02 * a02));
   a00 *= determinant;
   a01 *= determinant;
   a02 *= determinant;
@@ -7611,18 +7596,15 @@ void ComputeJ(const Real *Rc, const Real *R, const Real *N, const Real *I,
   J[1] = a01 * aux_0 + a11 * aux_1 + a12 * aux_2;
   J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
 }
-void ElasticCollision(const Real m1, const Real m2, const Real *I1,
-                      const Real *I2, const Real *v1, const Real *v2,
-                      const Real *o1, const Real *o2, Real *hv1, Real *hv2,
-                      Real *ho1, Real *ho2, const Real *C1, const Real *C2,
-                      const Real NX, const Real NY, const Real NZ,
-                      const Real CX, const Real CY, const Real CZ, Real *vc1,
-                      Real *vc2) {
-  const Real e = 1.0;
-  const Real N[3] = {NX, NY, NZ};
-  const Real C[3] = {CX, CY, CZ};
-  const Real k1[3] = {N[0] / m1, N[1] / m1, N[2] / m1};
-  const Real k2[3] = {-N[0] / m2, -N[1] / m2, -N[2] / m2};
+void ElasticCollision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
+                      Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
+                      Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
+                      Real CX, Real CY, Real CZ, Real *vc1, Real *vc2) {
+  Real e = 1.0;
+  Real N[3] = {NX, NY, NZ};
+  Real C[3] = {CX, CY, CZ};
+  Real k1[3] = {N[0] / m1, N[1] / m1, N[2] / m1};
+  Real k2[3] = {-N[0] / m2, -N[1] / m2, -N[2] / m2};
   Real J1[3];
   Real J2[3];
   ComputeJ(C, C1, N, I1, J1);
@@ -7638,26 +7620,25 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   u2DEF[0] = vc2[0] - v2[0] - (o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1]));
   u2DEF[1] = vc2[1] - v2[1] - (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2]));
   u2DEF[2] = vc2[2] - v2[2] - (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0]));
-  const Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
-                        (vc1[2] - vc2[2]) * N[2]) +
-                   ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
-                    (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
-                    (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
-                   ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
-                    (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
-                    (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
-                   ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
-                    (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
-                    (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
-  const Real denom =
-      -(1.0 / m1 + 1.0 / m2) +
-      +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
-        (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
-        (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
-      ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
-       (J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
-       (J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
-  const Real impulse = nom / (denom + 1e-21);
+  Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
+                  (vc1[2] - vc2[2]) * N[2]) +
+             ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
+              (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
+              (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
+             ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
+              (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
+              (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
+             ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
+              (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
+              (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
+  Real denom = -(1.0 / m1 + 1.0 / m2) +
+               +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
+                 (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
+                 (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
+               ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
+                (J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
+                (J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
+  Real impulse = nom / (denom + 1e-21);
   hv1[0] = v1[0] + k1[0] * impulse;
   hv1[1] = v1[1] + k1[1] * impulse;
   hv1[2] = v1[2] + k1[2] * impulse;
