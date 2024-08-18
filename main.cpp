@@ -4934,12 +4934,8 @@ void computeA(Kernel &&kernel, TGrid *g) {
   Synch.avail_halo();
 }
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
-          typename LabMPI2, typename TGrid_corr = TGrid>
-static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
-                     const bool applyFluxCorrection = false,
-                     TGrid_corr *corrected_grid = nullptr) {
-  if (applyFluxCorrection)
-    corrected_grid->Corrector.prepare(*corrected_grid);
+          typename LabMPI2>
+static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2) {
   SynchronizerMPI_AMR<TGrid> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -4992,8 +4988,6 @@ static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
       kernel(lab, lab2, I, I2);
     }
   }
-  if (applyFluxCorrection)
-    corrected_grid->Corrector.FillBlockCases();
 }
 struct ScalarElement {
   Real s = 0;
@@ -7799,8 +7793,8 @@ struct pressureCorrectionKernel {
     }
   }
 };
-struct updatePressureRHS {
-  updatePressureRHS(){};
+struct pressure_rhs {
+  pressure_rhs(){};
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   const std::vector<BlockInfo> &tmpInfo = sim.tmp->m_vInfo;
@@ -7871,8 +7865,8 @@ struct updatePressureRHS {
     }
   }
 };
-struct updatePressureRHS1 {
-  updatePressureRHS1() {}
+struct pressure_rhs1 {
+  pressure_rhs1() {}
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
@@ -8632,9 +8626,10 @@ int main(int argc, char **argv) {
             }
         }
       }
-      computeB<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
-               ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
-                           sim.tmp);
+      sim.tmp->Corrector.prepare(*sim.tmp);
+      computeB<pressure_rhs, VectorGrid, VectorLab, VectorGrid, VectorLab>(
+          pressure_rhs(), *sim.vel, *sim.tmpV);
+      sim.tmp->Corrector.FillBlockCases();
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
@@ -8648,7 +8643,7 @@ int main(int argc, char **argv) {
           }
       }
       sim.tmp->Corrector.prepare(*sim.tmp);
-      computeA<ScalarLab>(updatePressureRHS1(), sim.pold);
+      computeA<ScalarLab>(pressure_rhs1(), sim.pold);
       sim.tmp->Corrector.FillBlockCases();
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
