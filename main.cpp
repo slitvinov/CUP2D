@@ -4875,10 +4875,9 @@ template <typename TLab> struct MeshAdaptation {
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
                         (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-            b(i, j) =
-                (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
-                 (-0.25 * dudx - 0.25 * dudy)) +
-                ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
+            b(i, j) = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+                       (-0.25 * dudx - 0.25 * dudy)) +
+                      ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
             b(i + 1, j) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx - 0.25 * dudy)) +
@@ -7782,7 +7781,7 @@ struct pressureCorrectionKernel {
       }
     BlockCase<VectorBlock, VectorElement> *tempCase =
         (BlockCase<VectorBlock, VectorElement> *)(tmpVInfo[info.blockID]
-                                                    .auxiliary);
+                                                      .auxiliary);
     VectorElement *faceXm = nullptr;
     VectorElement *faceXp = nullptr;
     VectorElement *faceYm = nullptr;
@@ -7796,28 +7795,28 @@ struct pressureCorrectionKernel {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy].clear();
         faceXm[iy].u[0] = pFac * (P(ix - 1, iy).s + P(ix, iy).s);
+        faceXm[iy].u[1] = 0;
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy].clear();
         faceXp[iy].u[0] = -pFac * (P(ix + 1, iy).s + P(ix, iy).s);
+        faceXp[iy].u[1] = 0;
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[ix].clear();
+        faceYm[ix].u[0] = 0;
         faceYm[ix].u[1] = pFac * (P(ix, iy - 1).s + P(ix, iy).s);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix].clear();
+        faceYp[ix].u[0] = 0;
         faceYp[ix].u[1] = -pFac * (P(ix, iy + 1).s + P(ix, iy).s);
       }
     }
@@ -8699,10 +8698,7 @@ int main(int argc, char **argv) {
           for (int ix = 0; ix < _BS_; ix++)
             P(ix, iy).s += POLD(ix, iy).s - avg;
       }
-      {
-        compute<ScalarLab>(pressureCorrectionKernel(), sim.pres,
-                           sim.tmpV);
-      }
+      { compute<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
