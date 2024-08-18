@@ -42,6 +42,7 @@ public:
   std::vector<double> &get_b() { return b_; }
   std::vector<double> &get_h2() { return h2_; }
   friend class BiCGSTABSolver;
+
 private:
   int rank_;
   MPI_Comm m_comm_;

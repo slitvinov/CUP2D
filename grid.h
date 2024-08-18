@@ -3,15 +3,15 @@ template <typename ElementType> struct Grid {
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> m_vInfo;
-  const int NX;
-  const int NY;
-  const int NZ;
-  const double maxextent;
-  const int levelMax;
-  const int levelStart;
-  const bool xperiodic;
-  const bool yperiodic;
-  const bool zperiodic;
+  int NX;
+  int NY;
+  int NZ;
+  double maxextent;
+  int levelMax;
+  int levelStart;
+  bool xperiodic;
+  bool yperiodic;
+  bool zperiodic;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
@@ -101,26 +101,6 @@ template <typename ElementType> struct Grid {
         m_vInfo[j].state = correct_info.state;
         assert(Tree(m, n).Exists());
       }
-  }
-  Grid(unsigned int _NX, unsigned int _NY, unsigned int _NZ, double _maxextent,
-       unsigned int _levelStart, unsigned int _levelMax, bool a_xperiodic,
-       bool a_yperiodic, bool a_zperiodic)
-      : NX(_NX), NY(_NY), NZ(_NZ), maxextent(_maxextent), levelMax(_levelMax),
-        levelStart(_levelStart), xperiodic(a_xperiodic), yperiodic(a_yperiodic),
-        zperiodic(a_zperiodic) {
-    BlockInfo dummy;
-    const int nx = dummy.blocks_per_dim(0, NX, NY);
-    const int ny = dummy.blocks_per_dim(1, NX, NY);
-    const int nz = 1;
-    const int lvlMax = dummy.levelMax(levelMax);
-    for (int m = 0; m < lvlMax; m++) {
-      const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, (Real)DIMENSION);
-      if (m == 0)
-        level_base.push_back(Ntot);
-      if (m > 0)
-        level_base.push_back(level_base[m - 1] + Ntot);
-    }
   }
   virtual Block *avail(const int m, const long long n) {
     return (Block *)getBlockInfoAll(m, n).ptrBlock;

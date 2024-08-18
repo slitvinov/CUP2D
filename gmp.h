@@ -1,6 +1,19 @@
 template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   typedef ElementType Block[_BS_][_BS_];
   typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
+  const int NX;
+  const int NY;
+  const int NZ;
+  const double maxextent;
+  const int levelMax;
+  const int levelStart;
+  const bool xperiodic;
+  const bool yperiodic;
+  const bool zperiodic;
+  std::vector<long long> level_base;
+  bool UpdateFluxCorrection{true};
+  bool UpdateGroups{true};
+  bool FiniteDifferences{true};
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>,
@@ -9,9 +22,23 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   std::vector<BlockInfo *> boundary;
   GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
           int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
-      : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, a_xperiodic,
-              a_yperiodic, a_zperiodic),
-        timestamp(0) {
+      : NX(nX), NY(nY), NZ(nZ), maxextent(a_maxextent), levelMax(a_levelMax),
+        levelStart(a_levelStart), xperiodic(a_xperiodic),
+        yperiodic(a_yperiodic), zperiodic(a_zperiodic), timestamp(0) {
+    BlockInfo dummy;
+    const int nx = dummy.blocks_per_dim(0, NX, NY);
+    const int ny = dummy.blocks_per_dim(1, NX, NY);
+    const int nz = 1;
+    const int lvlMax = dummy.levelMax(levelMax);
+    for (int m = 0; m < lvlMax; m++) {
+      const int TwoPower = 1 << m;
+      const long long Ntot = nx * ny * nz * pow(TwoPower, (Real)DIMENSION);
+      if (m == 0)
+        level_base.push_back(Ntot);
+      if (m > 0)
+        level_base.push_back(level_base[m - 1] + Ntot);
+    }
+
     const long long total_blocks =
         nX * nY * nZ * pow(pow(2, a_levelStart), DIMENSION);
     long long my_blocks = total_blocks / sim.size;
