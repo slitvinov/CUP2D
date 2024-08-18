@@ -651,9 +651,8 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-template <typename Block> struct Grid {
+template <typename Block, typename ElementType> struct Grid {
   typedef Block BlockType;
-  using ElementType = typename Block::ElementType;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> m_vInfo;
@@ -3059,10 +3058,9 @@ template <class DataType> struct Matrix3D {
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-template <typename TGrid> struct BlockLab {
+template <typename TGrid, typename ElementType> struct BlockLab {
   using GridType = TGrid;
   using BlockType = typename GridType::BlockType;
-  using ElementType = typename BlockType::ElementType;
   Matrix3D<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
@@ -5101,8 +5099,7 @@ BCflag string2BCflag(const std::string &strFlag) {
 }
 static BCflag cubismBCX;
 static BCflag cubismBCY;
-template <typename TGrid> struct BlockLabDirichlet : public BlockLab<TGrid> {
-  using ElementType = typename TGrid::BlockType::ElementType;
+template <typename TGrid, typename ElementType> struct BlockLabDirichlet : public BlockLab<TGrid, ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5220,11 +5217,11 @@ template <typename TGrid> struct BlockLabDirichlet : public BlockLab<TGrid> {
       }
     }
   }
-  BlockLabDirichlet() : BlockLab<TGrid>() {}
+  BlockLabDirichlet() : BlockLab<TGrid, ElementType>() {}
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename TGrid> struct BlockLabNeumann : public BlockLab<TGrid> {
+template <typename TGrid, typename ElementType> struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5267,7 +5264,6 @@ template <typename TGrid> struct BlockLabNeumann : public BlockLab<TGrid> {
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
   }
   typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
-  typedef typename TGrid::BlockType::ElementType ElementType;
   bool is_xperiodic() override { return cubismBCX == periodic; }
   bool is_yperiodic() override { return cubismBCY == periodic; }
   bool is_zperiodic() override { return false; }
@@ -5292,10 +5288,10 @@ template <typename TGrid> struct BlockLabNeumann : public BlockLab<TGrid> {
 };
 typedef GridBlock<ScalarElement> ScalarBlock;
 typedef GridBlock<VectorElement> VectorBlock;
-typedef GridMPI<Grid<ScalarBlock>, ScalarElement> ScalarGrid;
-typedef GridMPI<Grid<VectorBlock>, VectorElement> VectorGrid;
-typedef BlockLabMPI<BlockLabDirichlet<VectorGrid>> VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarGrid>> ScalarLab;
+typedef GridMPI<Grid<ScalarBlock, ScalarElement>, ScalarElement> ScalarGrid;
+typedef GridMPI<Grid<VectorBlock, VectorElement>, VectorElement> VectorGrid;
+typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>> VectorLab;
+typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>> ScalarLab;
 typedef MeshAdaptation<ScalarLab> ScalarAMR;
 typedef MeshAdaptation<VectorLab> VectorAMR;
 struct FishSkin {
