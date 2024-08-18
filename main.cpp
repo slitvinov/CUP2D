@@ -3522,11 +3522,11 @@ template <typename ElementType> struct BlockLab {
                         (1 - abs(code[1])) * (iy / 2 - m_stencilStart[1] +
                                               aux * (e[1] - s[1]) / 2)) *
                            m_vSize0);
-          const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+          int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
                                                    std::min(0, code[1]) * _BS_
                                              : iy;
-          const ElementType *ptrSrc_0 = &b[YY][XX];
-          const ElementType *ptrSrc_1 = &b[YY + 1][XX];
+          ElementType *ptrSrc_0 = &b[YY][XX];
+          ElementType *ptrSrc_1 = &b[YY + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
