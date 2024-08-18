@@ -4024,7 +4024,6 @@ template <typename TGrid, typename ElementType> struct BlockLab {
 template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
   using GridType = typename MyBlockLab::GridType;
   using BlockType = typename GridType::BlockType;
-  using ElementType = typename BlockType::ElementType;
   typedef SynchronizerMPI_AMR<GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
