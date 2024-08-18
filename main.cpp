@@ -676,7 +676,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
     }
   }
 };
-#include "grid.h"
 struct StencilInfo {
   int sx;
   int sy;
