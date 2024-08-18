@@ -23,6 +23,7 @@
 enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
+static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static Real dist(Real a[2], Real b[2]) {
   return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
@@ -422,7 +423,6 @@ struct BlockInfo {
 };
 template <typename ElementType> struct BlockCase {
   std::vector<ElementType> m_pData[6];
-  static constexpr unsigned int m_vSize[] = {_BS_, _BS_, 1};
   bool storedFace[6];
   int level;
   long long Z;
@@ -437,9 +437,9 @@ template <typename ElementType> struct BlockCase {
       int d1 = (d + 1) % 3;
       int d2 = (d + 2) % 3;
       if (storedFace[2 * d])
-        m_pData[2 * d].resize(m_vSize[d1] * m_vSize[d2]);
+        m_pData[2 * d].resize(sizes[d1] * sizes[d2]);
       if (storedFace[2 * d + 1])
-        m_pData[2 * d + 1].resize(m_vSize[d1] * m_vSize[d2]);
+        m_pData[2 * d + 1].resize(sizes[d1] * sizes[d2]);
     }
     level = _level;
     Z = _Z;
@@ -485,8 +485,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       const int d = myFace / 2;
       const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
       const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-      const int N1F = FineCase.m_vSize[d1];
-      const int N2F = FineCase.m_vSize[d2];
+      const int N1F = sizes[d1];
+      const int N2F = sizes[d2];
       const int N1 = N1F;
       const int N2 = N2F;
       int base = 0;
@@ -497,8 +497,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
       assert(search1 != MapOfCases.end());
-      assert(N1F == (int)CoarseCase.m_vSize[d1]);
-      assert(N2F == (int)CoarseCase.m_vSize[d2]);
+      assert(N1F == (int)sizes[d1]);
+      assert(N2F == (int)sizes[d2]);
       assert(FineFace.size() == CoarseFace.size());
       for (int i2 = 0; i2 < N2; i2 += 2) {
         CoarseFace[base + i2 / 2] += FineFace[i2] + FineFace[i2 + 1];
@@ -618,7 +618,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
           const int d = myFace / 2;
           const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-          const int N2 = CoarseCase.m_vSize[d2];
+          const int N2 = sizes[d2];
           BlockType &block = *(BlockType *)info.ptrBlock;
           assert(d != 2);
           if (d == 0) {
@@ -2248,8 +2248,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       const int d = myFace / 2;
       const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
       const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-      const int N1 = CoarseCase.m_vSize[d1];
-      const int N2 = CoarseCase.m_vSize[d2];
+      const int N1 = sizes[d1];
+      const int N2 = sizes[d2];
       int base = 0;
       if (B == 1)
         base = (N2 / 2) + (0) * N2;
@@ -2290,7 +2290,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-    const int N2 = CoarseCase.m_vSize[d2];
+    const int N2 = sizes[d2];
     BlockType &block = *(BlockType *)info.ptrBlock;
     assert(d != 2);
     if (d == 0) {
@@ -2498,7 +2498,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         std::vector<ElementType> &FineFace = FineCase.m_pData[myFace];
         int d = myFace / 2;
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-        int N2 = FineCase.m_vSize[d2];
+        int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
           for (int j = 0; j < ElementType::DIM; j++)
