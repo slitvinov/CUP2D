@@ -1731,7 +1731,7 @@ template <typename TGrid> struct Synchronizer {
     }
     return dummy_vector;
   }
-  void sync() {
+  void sync0() {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
@@ -2747,7 +2747,7 @@ template <typename ElementType> struct Grid {
     } else {
       queryresult = itSynchronizerMPI->second;
     }
-    queryresult->sync();
+    queryresult->sync0();
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
