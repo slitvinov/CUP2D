@@ -150,10 +150,6 @@ struct CommandlineParser {
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
 };
-static bool _existKey(const std::string &key,
-                      const std::map<std::string, Value> &container) {
-  return container.find(key) != container.end();
-}
 Value &CommandlineParser::operator()(std::string key) {
   if (key[0] == '-')
     key.erase(0, 1);
