@@ -977,27 +977,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -2365,12 +2368,11 @@ template <typename ElementType> struct Grid {
   typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>,
-                    ElementType>
+  FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
   Grid(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
-          int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
+       int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
       : NX(nX), NY(nY), NZ(nZ), maxextent(a_maxextent), levelMax(a_levelMax),
         levelStart(a_levelStart), xperiodic(a_xperiodic),
         yperiodic(a_yperiodic), zperiodic(a_zperiodic), timestamp(0) {
@@ -3593,27 +3595,30 @@ template <typename TGrid, typename ElementType> struct BlockLab {
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
