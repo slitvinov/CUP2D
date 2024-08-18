@@ -4441,8 +4441,170 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
     MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
     CallValidStates = (tmp > 0);
     grid->boundary = halo;
-    if (CallValidStates)
-      ValidStates();
+    if (CallValidStates) {
+      const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
+      const int levelMin = 0;
+      const int levelMax = grid->getlevelMax();
+      const bool xperiodic = grid->xperiodic;
+      const bool yperiodic = grid->yperiodic;
+      const bool zperiodic = grid->zperiodic;
+      std::vector<BlockInfo> &I = grid->m_vInfo;
+#pragma omp parallel for
+      for (size_t j = 0; j < I.size(); j++) {
+        BlockInfo &info = I[j];
+        if ((info.state == Refine && info.level == levelMax - 1) ||
+            (info.state == Compress && info.level == levelMin)) {
+          info.state = Leave;
+          (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+        }
+        if (info.state != Leave) {
+          info.changed2 = true;
+          (grid->getBlockInfoAll(info.level, info.Z)).changed2 = info.changed2;
+        }
+      }
+      bool clean_boundary = true;
+      for (int m = levelMax - 1; m >= levelMin; m--) {
+        for (size_t j = 0; j < I.size(); j++) {
+          BlockInfo &info = I[j];
+          if (info.level == m && info.state != Refine &&
+              info.level != levelMax - 1) {
+            const int TwoPower = 1 << info.level;
+            const bool xskin = info.index[0] == 0 ||
+                               info.index[0] == blocksPerDim[0] * TwoPower - 1;
+            const bool yskin = info.index[1] == 0 ||
+                               info.index[1] == blocksPerDim[1] * TwoPower - 1;
+            const bool zskin = info.index[2] == 0 ||
+                               info.index[2] == blocksPerDim[2] * TwoPower - 1;
+            const int xskip = info.index[0] == 0 ? -1 : 1;
+            const int yskip = info.index[1] == 0 ? -1 : 1;
+            const int zskip = info.index[2] == 0 ? -1 : 1;
+            for (int icode = 0; icode < 27; icode++) {
+              if (info.state == Refine)
+                break;
+              if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+                continue;
+              const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                                   (icode / 9) % 3 - 1};
+              if (!xperiodic && code[0] == xskip && xskin)
+                continue;
+              if (!yperiodic && code[1] == yskip && yskin)
+                continue;
+              if (!zperiodic && code[2] == zskip && zskin)
+                continue;
+              if (code[2] != 0)
+                continue;
+              if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+                      .CheckFiner()) {
+                if (info.state == Compress) {
+                  info.state = Leave;
+                  (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+                }
+                const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
+                int Bstep = 1;
+                if (tmp == 2)
+                  Bstep = 3;
+                else if (tmp == 3)
+                  Bstep = 4;
+                for (int B = 0; B <= 1; B += Bstep) {
+                  const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+                  const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
+                                   code[0] +
+                                   (B % 2) * std::max(0, 1 - abs(code[0]));
+                  const int jNei = 2 * info.index[1] + std::max(code[1], 0) +
+                                   code[1] +
+                                   aux * std::max(0, 1 - abs(code[1]));
+                  const long long zzz = grid->getZforward(m + 1, iNei, jNei);
+                  BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
+                  State NeiState = FinerNei.state;
+                  if (NeiState == Refine) {
+                    info.state = Refine;
+                    (grid->getBlockInfoAll(info.level, info.Z)).state = Refine;
+                    info.changed2 = true;
+                    (grid->getBlockInfoAll(info.level, info.Z)).changed2 = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+        grid->UpdateBoundary(clean_boundary);
+        clean_boundary = false;
+        if (m == levelMin)
+          break;
+        for (size_t j = 0; j < I.size(); j++) {
+          BlockInfo &info = I[j];
+          if (info.level == m && info.state == Compress) {
+            const int aux = 1 << info.level;
+            const bool xskin = info.index[0] == 0 ||
+                               info.index[0] == blocksPerDim[0] * aux - 1;
+            const bool yskin = info.index[1] == 0 ||
+                               info.index[1] == blocksPerDim[1] * aux - 1;
+            const bool zskin = info.index[2] == 0 ||
+                               info.index[2] == blocksPerDim[2] * aux - 1;
+            const int xskip = info.index[0] == 0 ? -1 : 1;
+            const int yskip = info.index[1] == 0 ? -1 : 1;
+            const int zskip = info.index[2] == 0 ? -1 : 1;
+            for (int icode = 0; icode < 27; icode++) {
+              if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+                continue;
+              const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                                   (icode / 9) % 3 - 1};
+              if (!xperiodic && code[0] == xskip && xskin)
+                continue;
+              if (!yperiodic && code[1] == yskip && yskin)
+                continue;
+              if (!zperiodic && code[2] == zskip && zskin)
+                continue;
+              if (code[2] != 0)
+                continue;
+              BlockInfo &infoNei = grid->getBlockInfoAll(
+                  info.level, info.Znei_(code[0], code[1], code[2]));
+              if (grid->Tree(infoNei).Exists() && infoNei.state == Refine) {
+                info.state = Leave;
+                (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+                break;
+              }
+            }
+          }
+        }
+      }
+      for (size_t jjj = 0; jjj < I.size(); jjj++) {
+        BlockInfo &info = I[jjj];
+        const int m = info.level;
+        bool found = false;
+        for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+             i++)
+          for (int j = 2 * (info.index[1] / 2);
+               j <= 2 * (info.index[1] / 2) + 1; j++)
+            for (int k = 2 * (info.index[2] / 2);
+                 k <= 2 * (info.index[2] / 2) + 1; k++) {
+              const long long n = grid->getZforward(m, i, j);
+              BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
+              if (grid->Tree(infoNei).Exists() == false ||
+                  infoNei.state != Compress) {
+                found = true;
+                if (info.state == Compress) {
+                  info.state = Leave;
+                  (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+                }
+                break;
+              }
+            }
+        if (found)
+          for (int i = 2 * (info.index[0] / 2);
+               i <= 2 * (info.index[0] / 2) + 1; i++)
+            for (int j = 2 * (info.index[1] / 2);
+                 j <= 2 * (info.index[1] / 2) + 1; j++)
+              for (int k = 2 * (info.index[2] / 2);
+                   k <= 2 * (info.index[2] / 2) + 1; k++) {
+                const long long n = grid->getZforward(m, i, j);
+                BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
+                if (grid->Tree(infoNei).Exists() && infoNei.state == Compress)
+                  infoNei.state = Leave;
+              }
+      }
+    }
   }
   void Adapt(bool basic) {
     basic_refinement = basic;
@@ -4544,53 +4706,55 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
       const long long Z = n_com[i];
-    assert(level > 0);
-    BlockInfo &info = grid->getBlockInfoAll(level, Z);
-    assert(info.state == Compress);
-    BlockType *Blocks[4];
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        const int blk = J * 2 + I;
-        const long long n =
-            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
-        Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
-      }
-    const int nx = _BS_;
-    const int ny = _BS_;
-    const int offsetX[2] = {0, nx / 2};
-    const int offsetY[2] = {0, ny / 2};
-    if (basic_refinement == false)
+      assert(level > 0);
+      BlockInfo &info = grid->getBlockInfoAll(level, Z);
+      assert(info.state == Compress);
+      BlockType *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          BlockType &b = *Blocks[J * 2 + I];
-          for (int j = 0; j < ny; j += 2)
-            for (int i = 0; i < nx; i += 2) {
-              ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
-                                            (b[j][i + 1] + b[j + 1][i]));
-              (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
-            }
+          const int blk = J * 2 + I;
+          const long long n =
+              grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+          Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
         }
-    const long long np =
-        grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
-    BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-    grid->Tree(parent.level, parent.Z).setrank(grid->rank());
-    parent.ptrBlock = info.ptrBlock;
-    parent.state = Leave;
-    if (level - 2 >= 0)
-      grid->Tree(level - 2, parent.Zparent).setCheckFiner();
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        const long long n =
-            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
-        if (I + J == 0) {
-          grid->FindBlockInfo(level, n, level - 1, np);
-        } else {
+      const int nx = _BS_;
+      const int ny = _BS_;
+      const int offsetX[2] = {0, nx / 2};
+      const int offsetY[2] = {0, ny / 2};
+      if (basic_refinement == false)
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            BlockType &b = *Blocks[J * 2 + I];
+            for (int j = 0; j < ny; j += 2)
+              for (int i = 0; i < nx; i += 2) {
+                ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
+                                              (b[j][i + 1] + b[j + 1][i]));
+                (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
+              }
+          }
+      const long long np =
+          grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
+      BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
+      grid->Tree(parent.level, parent.Z).setrank(grid->rank());
+      parent.ptrBlock = info.ptrBlock;
+      parent.state = Leave;
+      if (level - 2 >= 0)
+        grid->Tree(level - 2, parent.Zparent).setCheckFiner();
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          const long long n =
+              grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+          if (I + J == 0) {
+            grid->FindBlockInfo(level, n, level - 1, np);
+          } else {
 #pragma omp critical
-          { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2); }
+            {
+              dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2);
+            }
+          }
+          grid->Tree(level, n).setCheckCoarser();
+          grid->getBlockInfoAll(level, n).state = Leave;
         }
-        grid->Tree(level, n).setCheckCoarser();
-        grid->getBlockInfoAll(level, n).state = Leave;
-      }
     }
     grid->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
@@ -4677,169 +4841,6 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
           }
         }
       }
-    }
-  }
-  void ValidStates() {
-    const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
-    const int levelMin = 0;
-    const int levelMax = grid->getlevelMax();
-    const bool xperiodic = grid->xperiodic;
-    const bool yperiodic = grid->yperiodic;
-    const bool zperiodic = grid->zperiodic;
-    std::vector<BlockInfo> &I = grid->m_vInfo;
-#pragma omp parallel for
-    for (size_t j = 0; j < I.size(); j++) {
-      BlockInfo &info = I[j];
-      if ((info.state == Refine && info.level == levelMax - 1) ||
-          (info.state == Compress && info.level == levelMin)) {
-        info.state = Leave;
-        (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-      }
-      if (info.state != Leave) {
-        info.changed2 = true;
-        (grid->getBlockInfoAll(info.level, info.Z)).changed2 = info.changed2;
-      }
-    }
-    bool clean_boundary = true;
-    for (int m = levelMax - 1; m >= levelMin; m--) {
-      for (size_t j = 0; j < I.size(); j++) {
-        BlockInfo &info = I[j];
-        if (info.level == m && info.state != Refine &&
-            info.level != levelMax - 1) {
-          const int TwoPower = 1 << info.level;
-          const bool xskin = info.index[0] == 0 ||
-                             info.index[0] == blocksPerDim[0] * TwoPower - 1;
-          const bool yskin = info.index[1] == 0 ||
-                             info.index[1] == blocksPerDim[1] * TwoPower - 1;
-          const bool zskin = info.index[2] == 0 ||
-                             info.index[2] == blocksPerDim[2] * TwoPower - 1;
-          const int xskip = info.index[0] == 0 ? -1 : 1;
-          const int yskip = info.index[1] == 0 ? -1 : 1;
-          const int zskip = info.index[2] == 0 ? -1 : 1;
-          for (int icode = 0; icode < 27; icode++) {
-            if (info.state == Refine)
-              break;
-            if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-              continue;
-            const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                                 (icode / 9) % 3 - 1};
-            if (!xperiodic && code[0] == xskip && xskin)
-              continue;
-            if (!yperiodic && code[1] == yskip && yskin)
-              continue;
-            if (!zperiodic && code[2] == zskip && zskin)
-              continue;
-            if (code[2] != 0)
-              continue;
-            if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
-                    .CheckFiner()) {
-              if (info.state == Compress) {
-                info.state = Leave;
-                (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-              }
-              const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
-              int Bstep = 1;
-              if (tmp == 2)
-                Bstep = 3;
-              else if (tmp == 3)
-                Bstep = 4;
-              for (int B = 0; B <= 1; B += Bstep) {
-                const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-                const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
-                                 code[0] +
-                                 (B % 2) * std::max(0, 1 - abs(code[0]));
-                const int jNei = 2 * info.index[1] + std::max(code[1], 0) +
-                                 code[1] + aux * std::max(0, 1 - abs(code[1]));
-                const long long zzz = grid->getZforward(m + 1, iNei, jNei);
-                BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
-                State NeiState = FinerNei.state;
-                if (NeiState == Refine) {
-                  info.state = Refine;
-                  (grid->getBlockInfoAll(info.level, info.Z)).state = Refine;
-                  info.changed2 = true;
-                  (grid->getBlockInfoAll(info.level, info.Z)).changed2 = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-      grid->UpdateBoundary(clean_boundary);
-      clean_boundary = false;
-      if (m == levelMin)
-        break;
-      for (size_t j = 0; j < I.size(); j++) {
-        BlockInfo &info = I[j];
-        if (info.level == m && info.state == Compress) {
-          const int aux = 1 << info.level;
-          const bool xskin =
-              info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
-          const bool yskin =
-              info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
-          const bool zskin =
-              info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
-          const int xskip = info.index[0] == 0 ? -1 : 1;
-          const int yskip = info.index[1] == 0 ? -1 : 1;
-          const int zskip = info.index[2] == 0 ? -1 : 1;
-          for (int icode = 0; icode < 27; icode++) {
-            if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-              continue;
-            const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                                 (icode / 9) % 3 - 1};
-            if (!xperiodic && code[0] == xskip && xskin)
-              continue;
-            if (!yperiodic && code[1] == yskip && yskin)
-              continue;
-            if (!zperiodic && code[2] == zskip && zskin)
-              continue;
-            if (code[2] != 0)
-              continue;
-            BlockInfo &infoNei = grid->getBlockInfoAll(
-                info.level, info.Znei_(code[0], code[1], code[2]));
-            if (grid->Tree(infoNei).Exists() && infoNei.state == Refine) {
-              info.state = Leave;
-              (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-              break;
-            }
-          }
-        }
-      }
-    }
-    for (size_t jjj = 0; jjj < I.size(); jjj++) {
-      BlockInfo &info = I[jjj];
-      const int m = info.level;
-      bool found = false;
-      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
-           i++)
-        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
-             j++)
-          for (int k = 2 * (info.index[2] / 2);
-               k <= 2 * (info.index[2] / 2) + 1; k++) {
-            const long long n = grid->getZforward(m, i, j);
-            BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-            if (grid->Tree(infoNei).Exists() == false ||
-                infoNei.state != Compress) {
-              found = true;
-              if (info.state == Compress) {
-                info.state = Leave;
-                (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-              }
-              break;
-            }
-          }
-      if (found)
-        for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
-             i++)
-          for (int j = 2 * (info.index[1] / 2);
-               j <= 2 * (info.index[1] / 2) + 1; j++)
-            for (int k = 2 * (info.index[2] / 2);
-                 k <= 2 * (info.index[2] / 2) + 1; k++) {
-              const long long n = grid->getZforward(m, i, j);
-              BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if (grid->Tree(infoNei).Exists() && infoNei.state == Compress)
-                infoNei.state = Leave;
-            }
     }
   }
   virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
