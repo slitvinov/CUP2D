@@ -2343,7 +2343,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-template <typename ElementType> struct GridMPI {
+template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
@@ -2361,15 +2361,15 @@ template <typename ElementType> struct GridMPI {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  FluxCorrection<GridMPI, ElementType> CorrectorGrid;
-  typedef SynchronizerMPI_AMR<GridMPI<ElementType>> SynchronizerMPIType;
+  FluxCorrection<Grid, ElementType> CorrectorGrid;
+  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<GridMPI<ElementType>, ElementType>,
+  FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>,
                     ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
+  Grid(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
           int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
       : NX(nX), NY(nY), NZ(nZ), maxextent(a_maxextent), levelMax(a_levelMax),
         levelStart(a_levelStart), xperiodic(a_xperiodic),
@@ -5225,8 +5225,8 @@ struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
 };
 typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
-typedef GridMPI<ScalarElement> ScalarGrid;
-typedef GridMPI<VectorElement> VectorGrid;
+typedef Grid<ScalarElement> ScalarGrid;
+typedef Grid<VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement>
