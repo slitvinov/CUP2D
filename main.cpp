@@ -3442,7 +3442,6 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       return;
     const int nX = _BS_;
     const int nY = _BS_;
-    const int nZ = 1;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int yStep = (code[1] == 0) ? 2 : 1;
@@ -3470,9 +3469,6 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       const int XX = s[0] - code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]);
 #pragma GCC ivdep
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
-        const int ZZ = (abs(code[2]) == 1)
-                           ? 2 * (iz - code[2] * nZ) + std::min(0, code[2]) * nZ
-                           : iz;
         const int my_izx =
             (abs(code[2]) * (iz - m_stencilStart[2]) +
              (1 - abs(code[2])) *
@@ -3708,7 +3704,6 @@ template <typename TGrid, typename ElementType> struct BlockLab {
     const int XX = start[0];
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
-      const int ZZ = 2 * (iz - s[2]) + start[2];
       const int my_izx = (iz - offset[2]) * m_nElemsPerSlice + my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1]; iy++) {
@@ -5002,7 +4997,6 @@ struct VectorElement {
   Real u[2];
   VectorElement() { u[0] = u[1] = 0; }
   void clear() { u[0] = u[1] = 0; }
-  VectorElement &operator=(const VectorElement &c) = default;
   VectorElement &operator*=(const Real a) {
     u[0] *= a;
     u[1] *= a;
