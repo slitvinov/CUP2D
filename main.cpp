@@ -3414,11 +3414,11 @@ template <typename ElementType> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    const int m_vSize0 = m_cacheBlock->getSize(0);
-    const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
-    const int yStep = (code[1] == 0) ? 2 : 1;
-    const int zStep = (code[2] == 0) ? 2 : 1;
-    const int mod = ((e[1] - s[1]) / yStep) % 4;
+    int m_vSize0 = m_cacheBlock->getSize(0);
+    int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
+    int yStep = (code[1] == 0) ? 2 : 1;
+    int zStep = (code[2] == 0) ? 2 : 1;
+    int mod = ((e[1] - s[1]) / yStep) % 4;
     int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
       Bstep = 3;
