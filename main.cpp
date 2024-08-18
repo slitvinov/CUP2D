@@ -3170,7 +3170,6 @@ template <typename ElementType> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    const int nY = _BS_;
     const int nZ = 1;
     const bool xperiodic = is_xperiodic();
     const bool yperiodic = is_yperiodic();
@@ -3188,7 +3187,7 @@ template <typename ElementType> struct BlockLab {
       const int _iz0 = -m_stencilStart[2];
       const int _iz1 = _iz0 + nZ;
       const int _iy0 = -m_stencilStart[1];
-      const int _iy1 = _iy0 + nY;
+      const int _iy1 = _iy0 + _BS_;
       const int m_vSize0 = m_cacheBlock->getSize(0);
       const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
       const int my_ix = -m_stencilStart[0];
@@ -3249,11 +3248,11 @@ template <typename ElementType> struct BlockLab {
           continue;
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
-            code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
+            code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : _BS_,
             code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : nZ};
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + m_stencilEnd[1] - 1,
+            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
         if (TreeNei.Exists())
           SameLevelExchange(info, code, s, e);
