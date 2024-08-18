@@ -4386,12 +4386,12 @@ template <typename TLab, typename ElementType> struct Adaptation {
     CallValidStates = (tmp > 0);
     grid->boundary = halo;
     if (CallValidStates) {
-      const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
-      const int levelMin = 0;
-      const int levelMax = grid->getlevelMax();
-      const bool xperiodic = grid->xperiodic;
-      const bool yperiodic = grid->yperiodic;
-      const bool zperiodic = grid->zperiodic;
+      std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
+      int levelMin = 0;
+      int levelMax = grid->getlevelMax();
+      bool xperiodic = grid->xperiodic;
+      bool yperiodic = grid->yperiodic;
+      bool zperiodic = grid->zperiodic;
       std::vector<BlockInfo> &I = grid->m_vInfo;
 #pragma omp parallel for
       for (size_t j = 0; j < I.size(); j++) {
@@ -4412,23 +4412,23 @@ template <typename TLab, typename ElementType> struct Adaptation {
           BlockInfo &info = I[j];
           if (info.level == m && info.state != Refine &&
               info.level != levelMax - 1) {
-            const int TwoPower = 1 << info.level;
-            const bool xskin = info.index[0] == 0 ||
-                               info.index[0] == blocksPerDim[0] * TwoPower - 1;
-            const bool yskin = info.index[1] == 0 ||
-                               info.index[1] == blocksPerDim[1] * TwoPower - 1;
-            const bool zskin = info.index[2] == 0 ||
-                               info.index[2] == blocksPerDim[2] * TwoPower - 1;
-            const int xskip = info.index[0] == 0 ? -1 : 1;
-            const int yskip = info.index[1] == 0 ? -1 : 1;
-            const int zskip = info.index[2] == 0 ? -1 : 1;
+            int TwoPower = 1 << info.level;
+            bool xskin = info.index[0] == 0 ||
+                         info.index[0] == blocksPerDim[0] * TwoPower - 1;
+            bool yskin = info.index[1] == 0 ||
+                         info.index[1] == blocksPerDim[1] * TwoPower - 1;
+            bool zskin = info.index[2] == 0 ||
+                         info.index[2] == blocksPerDim[2] * TwoPower - 1;
+            int xskip = info.index[0] == 0 ? -1 : 1;
+            int yskip = info.index[1] == 0 ? -1 : 1;
+            int zskip = info.index[2] == 0 ? -1 : 1;
             for (int icode = 0; icode < 27; icode++) {
               if (info.state == Refine)
                 break;
               if (icode == 1 * 1 + 3 * 1 + 9 * 1)
                 continue;
-              const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                                   (icode / 9) % 3 - 1};
+              int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                             (icode / 9) % 3 - 1};
               if (!xperiodic && code[0] == xskip && xskin)
                 continue;
               if (!yperiodic && code[1] == yskip && yskin)
@@ -4443,21 +4443,19 @@ template <typename TLab, typename ElementType> struct Adaptation {
                   info.state = Leave;
                   (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
                 }
-                const int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
+                int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
                 int Bstep = 1;
                 if (tmp == 2)
                   Bstep = 3;
                 else if (tmp == 3)
                   Bstep = 4;
                 for (int B = 0; B <= 1; B += Bstep) {
-                  const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-                  const int iNei = 2 * info.index[0] + std::max(code[0], 0) +
-                                   code[0] +
-                                   (B % 2) * std::max(0, 1 - abs(code[0]));
-                  const int jNei = 2 * info.index[1] + std::max(code[1], 0) +
-                                   code[1] +
-                                   aux * std::max(0, 1 - abs(code[1]));
-                  const long long zzz = grid->getZforward(m + 1, iNei, jNei);
+                  int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+                  int iNei = 2 * info.index[0] + std::max(code[0], 0) +
+                             code[0] + (B % 2) * std::max(0, 1 - abs(code[0]));
+                  int jNei = 2 * info.index[1] + std::max(code[1], 0) +
+                             code[1] + aux * std::max(0, 1 - abs(code[1]));
+                  long long zzz = grid->getZforward(m + 1, iNei, jNei);
                   BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
                   State NeiState = FinerNei.state;
                   if (NeiState == Refine) {
@@ -4479,21 +4477,21 @@ template <typename TLab, typename ElementType> struct Adaptation {
         for (size_t j = 0; j < I.size(); j++) {
           BlockInfo &info = I[j];
           if (info.level == m && info.state == Compress) {
-            const int aux = 1 << info.level;
-            const bool xskin = info.index[0] == 0 ||
-                               info.index[0] == blocksPerDim[0] * aux - 1;
-            const bool yskin = info.index[1] == 0 ||
-                               info.index[1] == blocksPerDim[1] * aux - 1;
-            const bool zskin = info.index[2] == 0 ||
-                               info.index[2] == blocksPerDim[2] * aux - 1;
-            const int xskip = info.index[0] == 0 ? -1 : 1;
-            const int yskip = info.index[1] == 0 ? -1 : 1;
-            const int zskip = info.index[2] == 0 ? -1 : 1;
+            int aux = 1 << info.level;
+            bool xskin = info.index[0] == 0 ||
+                         info.index[0] == blocksPerDim[0] * aux - 1;
+            bool yskin = info.index[1] == 0 ||
+                         info.index[1] == blocksPerDim[1] * aux - 1;
+            bool zskin = info.index[2] == 0 ||
+                         info.index[2] == blocksPerDim[2] * aux - 1;
+            int xskip = info.index[0] == 0 ? -1 : 1;
+            int yskip = info.index[1] == 0 ? -1 : 1;
+            int zskip = info.index[2] == 0 ? -1 : 1;
             for (int icode = 0; icode < 27; icode++) {
               if (icode == 1 * 1 + 3 * 1 + 9 * 1)
                 continue;
-              const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                                   (icode / 9) % 3 - 1};
+              int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                             (icode / 9) % 3 - 1};
               if (!xperiodic && code[0] == xskip && xskin)
                 continue;
               if (!yperiodic && code[1] == yskip && yskin)
@@ -4515,7 +4513,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       }
       for (size_t jjj = 0; jjj < I.size(); jjj++) {
         BlockInfo &info = I[jjj];
-        const int m = info.level;
+        int m = info.level;
         bool found = false;
         for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
              i++)
@@ -4523,7 +4521,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                j <= 2 * (info.index[1] / 2) + 1; j++)
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
-              const long long n = grid->getZforward(m, i, j);
+              long long n = grid->getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
               if (grid->Tree(infoNei).Exists() == false ||
                   infoNei.state != Compress) {
@@ -4542,7 +4540,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  j <= 2 * (info.index[1] / 2) + 1; j++)
               for (int k = 2 * (info.index[2] / 2);
                    k <= 2 * (info.index[2] / 2) + 1; k++) {
-                const long long n = grid->getZforward(m, i, j);
+                long long n = grid->getZforward(m, i, j);
                 BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
                 if (grid->Tree(infoNei).Exists() && infoNei.state == Compress)
                   infoNei.state = Leave;
