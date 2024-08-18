@@ -624,13 +624,13 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           if (d == 0) {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
-              block(j, i2) += CoarseFace[i2];
+              block.data[i2][j] += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
           } else {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
-              block(i2, j) += CoarseFace[i2];
+              block.data[j][i2] += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
           }
@@ -3403,13 +3403,13 @@ template <typename TGrid, typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b(s[0] - code[0] * nX, iy - code[1] * nY);
+        const ElementType *ptrSrc0 = &b.data[iy - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc1 =
-            &b(s[0] - code[0] * nX, iy + 1 - code[1] * nY);
+            &b.data[iy + 1 - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc2 =
-            &b(s[0] - code[0] * nX, iy + 2 - code[1] * nY);
+            &b.data[iy + 2 - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc3 =
-            &b(s[0] - code[0] * nX, iy + 3 - code[1] * nY);
+            &b.data[iy + 3 - code[1] * nY][s[0] - code[0] * nX];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3419,7 +3419,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b(s[0] - code[0] * nX, iy - code[1] * nY);
+        const ElementType *ptrSrc = &b.data[iy - code[1] * nY][s[0] - code[0] * nX];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3683,7 +3683,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b(s[0] + start[0], iy + start[1]);
+        const ElementType *ptrSrc = &b.data[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3738,8 +3738,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
         const int YY = 2 * (iy - s[1]) + start[1];
-        const ElementType *ptrSrc_0 = (const ElementType *)&b(XX, YY);
-        const ElementType *ptrSrc_1 = (const ElementType *)&b(XX, YY + 1);
+        const ElementType *ptrSrc_0 = (const ElementType *)&b.data[YY][XX];
+        const ElementType *ptrSrc_1 = (const ElementType *)&b.data[YY + 1][XX];
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -4569,7 +4569,7 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
           for (int i = 0; i < _BS_; i++) {
-            Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
+            Linf = std::max(Linf, std::fabs(b.data[j][i].magnitude()));
           }
         if (Linf > tolerance_for_refinement)
           I[i]->state = Refine;
@@ -4663,7 +4663,7 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
             for (int i = 0; i < nx; i += 2) {
               ElementType average = 0.25 * ((b(i, j) + b(i + 1, j + 1)) +
                                             (b(i + 1, j) + b(i, j + 1)));
-              (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J]) = average;
+              (*Blocks[0]).data[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
             }
         }
     const long long np =
@@ -4883,18 +4883,18 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
                         (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-            b(i, j) = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+            b.data[j][i] = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                        (-0.25 * dudx - 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
-            b(i + 1, j) =
+            b.data[j][i + 1] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx - 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b(i, j + 1) =
+            b.data[j + 1][i] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b(i + 1, j + 1) =
+            b.data[j + 1][i + 1] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
@@ -5065,7 +5065,6 @@ struct VectorElement {
 };
 template <typename T> struct GridBlock {
   T data[_BS_][_BS_];
-  const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
   T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
