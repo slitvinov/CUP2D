@@ -3670,10 +3670,10 @@ template <typename TGrid, typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - offset[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->LinAccess(
             my_izx + (iy + 3 - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b(s[0] + start[0], iy + 0 + start[1]);
-        const ElementType *ptrSrc1 = &b(s[0] + start[0], iy + 1 + start[1]);
-        const ElementType *ptrSrc2 = &b(s[0] + start[0], iy + 2 + start[1]);
-        const ElementType *ptrSrc3 = &b(s[0] + start[0], iy + 3 + start[1]);
+        const ElementType *ptrSrc0 = &b.data[iy + 0 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc1 = &b.data[iy + 1 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc2 = &b.data[iy + 2 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc3 = &b.data[iy + 3 + start[1]][s[0] + start[0]];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -6827,10 +6827,10 @@ struct GradChiOnTmp {
         lab(x, y).s = std::min(lab(x, y).s, (Real)1.0);
         lab(x, y).s = std::max(lab(x, y).s, (Real)0.0);
         if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
-          TMP(_BS_ / 2 - 1, _BS_ / 2).s = 2 * sim.Rtol;
-          TMP(_BS_ / 2 - 1, _BS_ / 2 - 1).s = 2 * sim.Rtol;
-          TMP(_BS_ / 2, _BS_ / 2).s = 2 * sim.Rtol;
-          TMP(_BS_ / 2, _BS_ / 2 - 1).s = 2 * sim.Rtol;
+          TMP.data[_BS_ / 2][_BS_ / 2 - 1].s = 2 * sim.Rtol;
+          TMP.data[_BS_ / 2 - 1][_BS_ / 2 - 1].s = 2 * sim.Rtol;
+          TMP.data[_BS_ / 2][_BS_ / 2].s = 2 * sim.Rtol;
+          TMP.data[_BS_ / 2 - 1][_BS_ / 2].s = 2 * sim.Rtol;
           break;
         }
       }
