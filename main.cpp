@@ -2734,8 +2734,7 @@ template <typename ElementType> struct Grid {
   }
   SynchronizerMPIType *sync(const StencilInfo &stencil) {
     assert(stencil.isvalid());
-    StencilInfo Cstencil(-1, -1, DIMENSION == 3 ? -1 : 0, 2, 2,
-                         DIMENSION == 3 ? 2 : 1, true, stencil.selcomponents);
+    StencilInfo Cstencil(-1, -1, 0, 2, 2, 1, true, stencil.selcomponents);
     SynchronizerMPIType *queryresult = nullptr;
     typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
