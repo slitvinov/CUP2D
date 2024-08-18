@@ -1370,41 +1370,6 @@ template <typename TGrid> struct Synchronizer {
         }
     return retval;
   }
-  void AverageDownAndFill(Real *__restrict__ dst, const BlockInfo *const info,
-                          const int code[3]) {
-    const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
-                      code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
-                      code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
-    const int e[3] = {
-        code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
-        code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
-        code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
-    Real *src = (Real *)(*info).ptrBlock;
-    const int xStep = (code[0] == 0) ? 2 : 1;
-    const int yStep = (code[1] == 0) ? 2 : 1;
-    int pos = 0;
-    for (int iy = s[1]; iy < e[1]; iy += yStep) {
-      const int YY = (abs(code[1]) == 1)
-                         ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY
-                         : iy;
-      for (int ix = s[0]; ix < e[0]; ix += xStep) {
-        const int XX = (abs(code[0]) == 1)
-                           ? 2 * (ix - code[0] * nX) + std::min(0, code[0]) * nX
-                           : ix;
-        for (int c = 0; c < NC; c++) {
-          int comp = stencil.selcomponents[c];
-          dst[pos] =
-              0.25 * (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
-                       (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) + comp))) +
-                      ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
-                       (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
-          pos++;
-        }
-      }
-    }
-  }
-  //  void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
-  //                           const int code[3]) {
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {
@@ -1848,8 +1813,45 @@ template <typename TGrid> struct Synchronizer {
                   }
                 }
               }
-            } else
-              AverageDownAndFill(send_buffer[r].data() + d, f.infos[0], code);
+            } else {
+              Real *__restrict__ dst = send_buffer[r].data() + d;
+              const BlockInfo *const info = f.infos[0];
+              const int s[3] = {
+                  code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
+                  code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
+                  code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
+              const int e[3] = {
+                  code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
+                  code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
+              Real *src = (Real *)(*info).ptrBlock;
+              const int xStep = (code[0] == 0) ? 2 : 1;
+              const int yStep = (code[1] == 0) ? 2 : 1;
+              int pos = 0;
+              for (int iy = s[1]; iy < e[1]; iy += yStep) {
+                const int YY =
+                    (abs(code[1]) == 1)
+                        ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY
+                        : iy;
+                for (int ix = s[0]; ix < e[0]; ix += xStep) {
+                  const int XX =
+                      (abs(code[0]) == 1)
+                          ? 2 * (ix - code[0] * nX) + std::min(0, code[0]) * nX
+                          : ix;
+                  for (int c = 0; c < NC; c++) {
+                    int comp = stencil.selcomponents[c];
+                    dst[pos] =
+                        0.25 *
+                        (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) +
+                             comp))) +
+                         ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
+                    pos++;
+                  }
+                }
+              }
+            }
           }
 #pragma omp for
           for (size_t i = 0; i < send_packinfos[r].size(); i++) {
