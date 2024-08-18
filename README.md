@@ -33,5 +33,5 @@ make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
 ```
 
 ```
-xterm -e gdb -ex run -args ./main
+main="xterm -e gdb -ex run -args ./main" sh run.sh
 ```
