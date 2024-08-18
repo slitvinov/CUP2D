@@ -5074,11 +5074,6 @@ struct VectorElement {
 template <typename T> struct GridBlock {
   using ElementType = T;
   T data[_BS_][_BS_];
-  void clear0() {
-    T *const entry = &data[0][0];
-    for (int j = 0; j < _BS_ * _BS_; ++j)
-      entry[j].clear();
-  }
   const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
   T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
   GridBlock(const GridBlock &) = delete;
