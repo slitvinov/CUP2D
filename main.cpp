@@ -4902,7 +4902,7 @@ struct MeshAdaptation {
 };
 template <typename Lab, typename Kernel, typename TGrid,
           typename TGrid_corr = TGrid>
-void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
+void computeA(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
   if (g_corr != nullptr)
     g_corr->Corrector.prepare(*g_corr);
   SynchronizerMPI_AMR<TGrid> &Synch = *(g->sync(kernel.stencil));
@@ -4940,7 +4940,7 @@ void compute(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
 }
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2, typename TGrid_corr = TGrid>
-static void compute(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
+static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
                     const bool applyFluxCorrection = false,
                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
@@ -6648,8 +6648,8 @@ static void ongrid(Real dt) {
     for (auto &E : segmentsPerBlock)
       delete E;
   }
-  compute<ScalarLab>(PutChiOnGrid(), sim.tmp);
-  compute<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid, ScalarLab>(
+  computeA<ScalarLab>(PutChiOnGrid(), sim.tmp);
+  computeB<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid, ScalarLab>(
       ComputeSurfaceNormals(), *sim.chi, *sim.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -6828,8 +6828,8 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
-  compute<VectorLab>(KernelVorticity(), sim.vel);
-  compute<ScalarLab>(GradChiOnTmp(), sim.chi);
+  computeA<VectorLab>(KernelVorticity(), sim.vel);
+  computeA<ScalarLab>(GradChiOnTmp(), sim.chi);
   sim.tmp_amr->Tag();
   sim.chi_amr->TagLike(sim.tmp->m_vInfo);
   sim.pres_amr->TagLike(sim.tmp->m_vInfo);
@@ -8179,7 +8179,7 @@ int main(int argc, char **argv) {
       bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-        compute<VectorLab>(KernelVorticity(), sim.vel);
+        computeA<VectorLab>(KernelVorticity(), sim.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
         dump(sim.time, sim.tmp, path);
@@ -8200,7 +8200,7 @@ int main(int argc, char **argv) {
             Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
-      compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+      computeA<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -8217,7 +8217,7 @@ int main(int argc, char **argv) {
                 Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
-      compute<VectorLab>(Step1, sim.vel, sim.tmpV);
+      computeA<VectorLab>(Step1, sim.vel, sim.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -8631,7 +8631,7 @@ int main(int argc, char **argv) {
             }
         }
       }
-      compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
+      computeB<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
               ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
                           sim.tmp);
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
@@ -8646,7 +8646,7 @@ int main(int argc, char **argv) {
             PRES[iy][ix].s = 0;
           }
       }
-      compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
+      computeA<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -8675,7 +8675,7 @@ int main(int argc, char **argv) {
           for (int ix = 0; ix < _BS_; ix++)
             P[iy][ix].s += POLD[iy][ix].s - avg;
       }
-      { compute<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
+      { computeA<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
@@ -8687,7 +8687,7 @@ int main(int argc, char **argv) {
             V[iy][ix].u[1] += tmpV[iy][ix].u[1] * ih2;
           }
       }
-      compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
+      computeB<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
               ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
