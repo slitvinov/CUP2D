@@ -1984,7 +1984,7 @@ template <typename TGrid> struct Synchronizer {
 template <typename TFluxCorrection, typename ElementType>
 struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
-  typedef typename TFluxCorrection::BlockType BlockType;
+  typedef ElementType BlockType[_BS_][_BS_];
   typedef BlockCase<ElementType> Case;
   struct face {
     BlockInfo *infos[2];
