@@ -3540,22 +3540,22 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineExchange(const BlockInfo &info, const int *const code) {
-    const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
+    int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                   (info.index[1] + code[1] + NY) % NY,
                                   (info.index[2] + code[2] + NZ) % NZ};
-    const int infoNei_index_true[3] = {(info.index[0] + code[0]),
+    int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                        (info.index[1] + code[1]),
                                        (info.index[2] + code[2])};
     BlockType *b_ptr = m_refGrid->avail1(
         (infoNei_index[0]) / 2, (infoNei_index[1]) / 2, info.level - 1);
     if (b_ptr == nullptr)
       return;
-    const BlockType &b = *b_ptr;
-    const int s[3] = {
+    BlockType &b = *b_ptr;
+    int s[3] = {
         code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : CoarseBlockSize[2]};
-    const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
+    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
                                   : CoarseBlockSize[0] + (m_stencilEnd[0]) / 2 +
                                         m_InterpStencilEnd[0] - 1,
                       code[1] < 1 ? (code[1] < 0 ? 0 : CoarseBlockSize[1])
@@ -3564,10 +3564,10 @@ template <typename ElementType> struct BlockLab {
                       code[2] < 1 ? (code[2] < 0 ? 0 : CoarseBlockSize[2])
                                   : CoarseBlockSize[2] + (m_stencilEnd[2]) / 2 +
                                         m_InterpStencilEnd[2] - 1};
-    const int bytes = (e[0] - s[0]) * sizeof(ElementType);
+    int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-    const int base[3] = {(info.index[0] + code[0]) % 2,
+    int base[3] = {(info.index[0] + code[0]) % 2,
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
