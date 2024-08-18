@@ -4895,7 +4895,7 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
   }
 };
 template <typename Lab, typename Kernel, typename TGrid>
-void computeA(Kernel &&kernel, TGrid *g) {
+static void computeA(Kernel &&kernel, TGrid *g) {
   SynchronizerMPI_AMR<TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<BlockInfo *> *halo_next;
