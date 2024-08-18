@@ -5433,7 +5433,7 @@ struct KernelVorticity {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
-        TMP(x, y).s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
+        TMP.data[y][x].s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
@@ -6077,7 +6077,7 @@ struct PutChiOnGrid {
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI(ix, iy).s = std::max(CHI(ix, iy).s, X[iy][ix]);
+          CHI.data[iy][ix].s = std::max(CHI(ix, iy).s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
             info.pos(p, ix, iy);
@@ -6645,7 +6645,7 @@ static void ongrid(Real dt) {
               o->dist[iy][ix] = o->dist[iy][ix] >= 0
                                     ? std::sqrt(o->dist[iy][ix])
                                     : -std::sqrt(-o->dist[iy][ix]);
-              b(ix, iy).s = std::max(b(ix, iy).s, o->dist[iy][ix]);
+              b.data[iy][ix].s = std::max(b(ix, iy).s, o->dist[iy][ix]);
               ;
             }
           std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
