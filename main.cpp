@@ -3539,14 +3539,14 @@ template <typename TGrid, typename ElementType> struct BlockLab {
                               ? 2 * (iy + 3 * yStep - code[1] * nY) +
                                     std::min(0, code[1]) * nY
                               : iy + 3 * yStep;
-          const ElementType *ptrSrc_00 = &b(XX, YY0, ZZ);
-          const ElementType *ptrSrc_10 = &b(XX, YY0 + 1, ZZ);
-          const ElementType *ptrSrc_01 = &b(XX, YY1, ZZ);
-          const ElementType *ptrSrc_11 = &b(XX, YY1 + 1, ZZ);
-          const ElementType *ptrSrc_02 = &b(XX, YY2, ZZ);
-          const ElementType *ptrSrc_12 = &b(XX, YY2 + 1, ZZ);
-          const ElementType *ptrSrc_03 = &b(XX, YY3, ZZ);
-          const ElementType *ptrSrc_13 = &b(XX, YY3 + 1, ZZ);
+          const ElementType *ptrSrc_00 = &b(XX, YY0);
+          const ElementType *ptrSrc_10 = &b(XX, YY0 + 1);
+          const ElementType *ptrSrc_01 = &b(XX, YY1);
+          const ElementType *ptrSrc_11 = &b(XX, YY1 + 1);
+          const ElementType *ptrSrc_02 = &b(XX, YY2);
+          const ElementType *ptrSrc_12 = &b(XX, YY2 + 1);
+          const ElementType *ptrSrc_03 = &b(XX, YY3);
+          const ElementType *ptrSrc_13 = &b(XX, YY3 + 1);
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -3575,8 +3575,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
           const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
                                                    std::min(0, code[1]) * nY
                                              : iy;
-          const ElementType *ptrSrc_0 = &b(XX, YY, ZZ);
-          const ElementType *ptrSrc_1 = &b(XX, YY + 1, ZZ);
+          const ElementType *ptrSrc_0 = &b(XX, YY);
+          const ElementType *ptrSrc_1 = &b(XX, YY + 1);
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -4653,9 +4653,9 @@ template <typename TLab> struct MeshAdaptation {
           BlockType &b = *Blocks[J * 2 + I];
           for (int j = 0; j < ny; j += 2)
             for (int i = 0; i < nx; i += 2) {
-              ElementType average = 0.25 * ((b(i, j, 0) + b(i + 1, j + 1, 0)) +
-                                            (b(i + 1, j, 0) + b(i, j + 1, 0)));
-              (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J], 0) = average;
+              ElementType average = 0.25 * ((b(i, j) + b(i + 1, j + 1)) +
+                                            (b(i + 1, j) + b(i, j + 1)));
+              (*Blocks[0])(i / 2 + offsetX[I], j / 2 + offsetY[J]) = average;
             }
         }
     const long long np =
@@ -4875,19 +4875,19 @@ template <typename TLab> struct MeshAdaptation {
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
                         (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-            b(i, j, 0) =
+            b(i, j) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx - 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
-            b(i + 1, j, 0) =
+            b(i + 1, j) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx - 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b(i, j + 1, 0) =
+            b(i, j + 1) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b(i + 1, j + 1, 0) =
+            b(i + 1, j + 1) =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
@@ -5080,7 +5080,7 @@ template <typename T> struct GridBlock {
       entry[j].clear();
   }
   const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
-  T &operator()(int ix, int iy = 0, int iz = 0) { return data[iy][ix]; }
+  T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
