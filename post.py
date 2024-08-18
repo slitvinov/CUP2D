@@ -6,14 +6,6 @@ import xml.etree.ElementTree
 import matplotlib.pyplot as plt
 import matplotlib.patches
 
-
-def normalize(path):
-    path = re.sub("^[ \t\n]*", "", path)
-    path = re.sub("[ \t\n]*$", "", path)
-    path = re.sub("^.*:", "", path)
-    return re.sub(":[^:]*$", "", path)
-
-
 def plot(path):
     dtype = np.dtype("float32")
     path = re.sub("\.xdmf2$", "", path)
