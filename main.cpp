@@ -4391,8 +4391,9 @@ template <typename TGrid> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename BlockType, typename ElementType>
+template <typename TLab, typename ElementType>
 struct MeshAdaptation {
+  typedef ElementType BlockType[_BS_][_BS_];
   typedef typename TLab::GridType TGrid;
   typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
   StencilInfo stencil;
@@ -5271,8 +5272,8 @@ typedef GridMPI<Grid<ScalarElement>, ScalarElement> ScalarGrid;
 typedef GridMPI<Grid<VectorElement>, VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement> VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement> ScalarLab;
-typedef MeshAdaptation<ScalarLab, ScalarBlock, ScalarElement> ScalarAMR;
-typedef MeshAdaptation<VectorLab, VectorBlock, VectorElement> VectorAMR;
+typedef MeshAdaptation<ScalarLab, ScalarElement> ScalarAMR;
+typedef MeshAdaptation<VectorLab, VectorElement> VectorAMR;
 struct FishSkin {
   size_t Npoints;
   Real *xSurf;
