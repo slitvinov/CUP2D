@@ -1053,7 +1053,7 @@ struct HaloBlockGroup {
   std::set<int> myranks;
   bool ready = false;
 };
-template <typename TGrid> struct SynchronizerMPI_AMR {
+template <typename TGrid> struct Synchronizer {
   StencilInfo stencil;
   StencilInfo Cstencil;
   TGrid *grid;
@@ -1162,10 +1162,10 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     cube C;
     std::vector<int> offsets;
     std::vector<int> offsets_recv;
-    SynchronizerMPI_AMR *Synch_ptr;
+    Synchronizer *Synch_ptr;
     std::vector<int> positions;
     std::vector<size_t> sizes;
-    DuplicatesManager(SynchronizerMPI_AMR &Synch) {
+    DuplicatesManager(Synchronizer &Synch) {
       positions.resize(sim.size);
       sizes.resize(sim.size);
       offsets.resize(sim.size, 0);
@@ -1744,7 +1744,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
       }
     }
   }
-  SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
+  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid, int gptfloats)
       : stencil(a_stencil), Cstencil(a_Cstencil),
         SM(a_stencil, a_Cstencil, _BS_, _BS_, 1), gptfloats(gptfloats),
@@ -2362,7 +2362,7 @@ template <typename ElementType> struct Grid {
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
   FluxCorrection<Grid, ElementType> CorrectorGrid;
-  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
+  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
@@ -3994,7 +3994,7 @@ template <typename ElementType> struct BlockLab {
 template <typename MyBlockLab, typename ElementType>
 struct BlockLabMPI : public MyBlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
-  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
+  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil,
                        const int[3] = default_start,
@@ -4366,7 +4366,7 @@ template <typename ElementType> struct LoadBalancer {
 };
 template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
-  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
+  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
@@ -4394,7 +4394,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
   }
   void Tag() {
     boundary_needed = true;
-    SynchronizerMPI_AMR<Grid<ElementType>> *Synch = grid->sync(stencil);
+    Synchronizer<Grid<ElementType>> *Synch = grid->sync(stencil);
     CallValidStates = false;
     bool Reduction = false;
     MPI_Request Reduction_req;
@@ -4579,7 +4579,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
   }
   void Adapt(bool basic) {
     basic_refinement = basic;
-    SynchronizerMPI_AMR<Grid<ElementType>> *Synch = nullptr;
+    Synchronizer<Grid<ElementType>> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
       grid->boundary = Synch->avail_halo();
@@ -4867,7 +4867,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 };
 template <typename Lab, typename Kernel, typename TGrid>
 static void computeA(Kernel &&kernel, TGrid *g) {
-  SynchronizerMPI_AMR<TGrid> &Synch = *(g->sync(kernel.stencil));
+  Synchronizer<TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
@@ -4901,7 +4901,7 @@ static void computeA(Kernel &&kernel, TGrid *g) {
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2>
 static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2) {
-  SynchronizerMPI_AMR<TGrid> &Synch = *grid.sync(kernel.stencil);
+  Synchronizer<TGrid> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4912,7 +4912,7 @@ static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2) {
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  SynchronizerMPI_AMR<TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
+  Synchronizer<TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.m_vInfo;
