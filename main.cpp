@@ -4624,8 +4624,8 @@ struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
 };
 typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
-typedef GridMPI<Grid<ScalarElement>, ScalarElement> ScalarGrid;
-typedef GridMPI<Grid<VectorElement>, VectorElement> VectorGrid;
+typedef GridMPI<ScalarElement> ScalarGrid;
+typedef GridMPI<VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement>

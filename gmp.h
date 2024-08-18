@@ -1,22 +1,26 @@
-template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
+template <typename ElementType> struct GridMPI {
   typedef ElementType Block[_BS_][_BS_];
-  typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
-  const int NX;
-  const int NY;
-  const int NZ;
-  const double maxextent;
-  const int levelMax;
-  const int levelStart;
-  const bool xperiodic;
-  const bool yperiodic;
-  const bool zperiodic;
+  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
+  std::unordered_map<long long, TreePosition> Octree;
+  std::vector<BlockInfo> m_vInfo;
+  int NX;
+  int NY;
+  int NZ;
+  double maxextent;
+  int levelMax;
+  int levelStart;
+  bool xperiodic;
+  bool yperiodic;
+  bool zperiodic;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
+  FluxCorrection<GridMPI, ElementType> CorrectorGrid;
+  typedef SynchronizerMPI_AMR<GridMPI<ElementType>> SynchronizerMPIType;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>,
+  FluxCorrectionMPI<FluxCorrection<GridMPI<ElementType>, ElementType>,
                     ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
@@ -58,13 +62,13 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     initialize_blocks(Zs, levels);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  virtual Block *avail(const int m, const long long n) override {
-    return (TGrid::Tree(m, n).rank() == sim.rank)
-               ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
+  Block *avail(const int m, const long long n) {
+    return (Tree(m, n).rank() == sim.rank)
+               ? (Block *)getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
   virtual void UpdateBoundary(bool clean = false) {
-    const auto blocksPerDim = TGrid::getMaxBlocks();
+    const auto blocksPerDim = getMaxBlocks();
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;
     std::set<int> Neighbors;
@@ -86,17 +90,17 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-        if (!TGrid::xperiodic && code[0] == xskip && xskin)
+        if (!xperiodic && code[0] == xskip && xskin)
           continue;
-        if (!TGrid::yperiodic && code[1] == yskip && yskin)
+        if (!yperiodic && code[1] == yskip && yskin)
           continue;
-        if (!TGrid::zperiodic && code[2] == zskip && zskin)
+        if (!zperiodic && code[2] == zskip && zskin)
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei = TGrid::getBlockInfoAll(
-            info.level, info.Znei_(code[0], code[1], code[2]));
-        const TreePosition &infoNeiTree = TGrid::Tree(infoNei.level, infoNei.Z);
+        BlockInfo &infoNei =
+            getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
+        const TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.rank() != sim.rank) {
           if (infoNei.state != Refine || clean)
             infoNei.state = Leave;
@@ -105,9 +109,9 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
         } else if (infoNeiTree.CheckCoarser()) {
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
-              TGrid::getBlockInfoAll(infoNei.level - 1, nCoarse);
+              getBlockInfoAll(infoNei.level - 1, nCoarse);
           const int infoNeiCoarserrank =
-              TGrid::Tree(infoNei.level - 1, nCoarse).rank();
+              Tree(infoNei.level - 1, nCoarse).rank();
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
             if (infoNeiCoarser.state != Refine || clean)
@@ -130,10 +134,8 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            BlockInfo &infoNeiFiner =
-                TGrid::getBlockInfoAll(infoNei.level + 1, nFine);
-            const int infoNeiFinerrank =
-                TGrid::Tree(infoNei.level + 1, nFine).rank();
+            BlockInfo &infoNeiFiner = getBlockInfoAll(infoNei.level + 1, nFine);
+            const int infoNeiFinerrank = Tree(infoNei.level + 1, nFine).rank();
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner.state != Refine || clean)
                 infoNeiFiner.state = Leave;
@@ -189,15 +191,15 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
         for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
           int level = recv_buffer[r][index];
           long long Z = recv_buffer[r][index + 1];
-          TGrid::getBlockInfoAll(level, Z).state =
+          getBlockInfoAll(level, Z).state =
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
   void UpdateBlockInfoAll_States(bool UpdateIDs = false) {
     std::vector<int> myNeighbors = FindMyNeighbors();
-    const auto blocksPerDim = TGrid::getMaxBlocks();
+    const auto blocksPerDim = getMaxBlocks();
     std::vector<long long> myData;
-    for (auto &info : TGrid::m_vInfo) {
+    for (auto &info : m_vInfo) {
       bool myflag = false;
       const int aux = 1 << info.level;
       const bool xskin =
@@ -214,24 +216,24 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-        if (!TGrid::xperiodic && code[0] == xskip && xskin)
+        if (!xperiodic && code[0] == xskip && xskin)
           continue;
-        if (!TGrid::yperiodic && code[1] == yskip && yskin)
+        if (!yperiodic && code[1] == yskip && yskin)
           continue;
-        if (!TGrid::zperiodic && code[2] == zskip && zskin)
+        if (!zperiodic && code[2] == zskip && zskin)
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei = TGrid::getBlockInfoAll(
-            info.level, info.Znei_(code[0], code[1], code[2]));
-        const TreePosition &infoNeiTree = TGrid::Tree(infoNei.level, infoNei.Z);
+        BlockInfo &infoNei =
+            getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
+        const TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.rank() != sim.rank) {
           myflag = true;
           break;
         } else if (infoNeiTree.CheckCoarser()) {
           long long nCoarse = infoNei.Zparent;
           const int infoNeiCoarserrank =
-              TGrid::Tree(infoNei.level - 1, nCoarse).rank();
+              Tree(infoNei.level - 1, nCoarse).rank();
           if (infoNeiCoarserrank != sim.rank) {
             myflag = true;
             break;
@@ -251,8 +253,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            const int infoNeiFinerrank =
-                TGrid::Tree(infoNei.level + 1, nFine).rank();
+            const int infoNeiFinerrank = Tree(infoNei.level + 1, nFine).rank();
             if (infoNeiFinerrank != sim.rank) {
               myflag = true;
               break;
@@ -311,23 +312,21 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
            index__ += increment) {
         const int level = (int)recv_buffer[kk][index__];
         const long long Z = recv_buffer[kk][index__ + 1];
-        TGrid::Tree(level, Z).setrank(r);
+        Tree(level, Z).setrank(r);
         if (UpdateIDs)
-          TGrid::getBlockInfoAll(level, Z).blockID =
-              recv_buffer[kk][index__ + 2];
+          getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
         int p[2];
         BlockInfo::inverse(Z, level, p[0], p[1]);
-        if (level < TGrid::levelMax - 1)
+        if (level < levelMax - 1)
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
               const long long nc =
-                  TGrid::getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              TGrid::Tree(level + 1, nc).setCheckCoarser();
+                  getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+              Tree(level + 1, nc).setCheckCoarser();
             }
         if (level > 0) {
-          const long long nf =
-              TGrid::getZforward(level - 1, p[0] / 2, p[1] / 2);
-          TGrid::Tree(level - 1, nf).setCheckFiner();
+          const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+          Tree(level - 1, nf).setCheckFiner();
         }
       }
     }
@@ -338,7 +337,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     double high[3] = {-1e20, -1e20, -1e20};
     double p_low[3];
     double p_high[3];
-    for (auto &info : TGrid::m_vInfo) {
+    for (auto &info : m_vInfo) {
       const double h = 2 * info.h;
       info.pos(p_low, 0, 0);
       info.pos(p_high, _BS_ - 1, _BS_ - 1);
@@ -369,10 +368,8 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   }
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
-        (TGrid::maxextent /
-         std::max(TGrid::NX * _BS_, std::max(TGrid::NY * _BS_, TGrid::NZ * 1)));
-    const double extent[3] = {TGrid::NX * _BS_ * h0, TGrid::NY * _BS_ * h0,
-                              TGrid::NZ * 1 * h0};
+        (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
+    const double extent[3] = {NX * _BS_ * h0, NY * _BS_ * h0, NZ * 1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
         {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
@@ -382,8 +379,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
     intersection[2] =
         DIMENSION == 3 ? (intersect[2][1] - intersect[2][0] > 0.0) : true;
-    const bool isperiodic[3] = {TGrid::xperiodic, TGrid::yperiodic,
-                                TGrid::zperiodic};
+    const bool isperiodic[3] = {xperiodic, yperiodic, zperiodic};
     for (int d = 0; d < DIMENSION; d++) {
       if (isperiodic[d]) {
         if (h2[d] > extent[d])
@@ -417,14 +413,200 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
-  virtual void
-  initialize_blocks(const std::vector<long long> &blocksZ,
-                    const std::vector<short int> &blockslevel) override {
-    TGrid::initialize_blocks(blocksZ, blockslevel);
+  void initialize_blocks0(const std::vector<long long> &blocksZ,
+                          const std::vector<short int> &blockslevel) {
+    for (size_t i = 0; i < m_vInfo.size(); i++) {
+      const int m = m_vInfo[i].level;
+      const long long n = m_vInfo[i].Z;
+      delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
+    }
+    std::vector<long long> aux;
+    for (auto &m : BlockInfoAll)
+      aux.push_back(m.first);
+    for (size_t i = 0; i < aux.size(); i++) {
+      const auto retval = BlockInfoAll.find(aux[i]);
+      if (retval != BlockInfoAll.end()) {
+        delete retval->second;
+      }
+    }
+    m_vInfo.clear();
+    BlockInfoAll.clear();
+    Octree.clear();
+    for (size_t i = 0; i < blocksZ.size(); i++) {
+      const int level = blockslevel[i];
+      const long long Z = blocksZ[i];
+      _alloc(level, Z);
+      Tree(level, Z).setrank(rank());
+      int p[2];
+      BlockInfo::inverse(Z, level, p[0], p[1]);
+      if (level < levelMax - 1)
+        for (int j1 = 0; j1 < 2; j1++)
+          for (int i1 = 0; i1 < 2; i1++) {
+            const long long nc =
+                getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            Tree(level + 1, nc).setCheckCoarser();
+          }
+      if (level > 0) {
+        const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+        Tree(level - 1, nf).setCheckFiner();
+      }
+    }
+    FillPos();
+    UpdateFluxCorrection = true;
+    UpdateGroups = true;
+  }
+  virtual void initialize_blocks(const std::vector<long long> &blocksZ,
+                                 const std::vector<short int> &blockslevel) {
+    initialize_blocks0(blocksZ, blockslevel);
     UpdateBlockInfoAll_States(false);
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
   }
-  virtual int rank() const override { return sim.rank; }
+  int rank() const { return sim.rank; }
   int get_world_size() const { return sim.size; }
+  TreePosition &Tree(const int m, const long long n) {
+    const long long aux = level_base[m] + n;
+    const auto retval = Octree.find(aux);
+    if (retval == Octree.end()) {
+#pragma omp critical
+      {
+        const auto retval1 = Octree.find(aux);
+        if (retval1 == Octree.end()) {
+          TreePosition dum;
+          Octree[aux] = dum;
+        }
+      }
+      return Tree(m, n);
+    } else {
+      return retval->second;
+    }
+  }
+  TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
+  TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
+  void _alloc(const int m, const long long n) {
+    BlockInfo &new_info = getBlockInfoAll(m, n);
+    new_info.ptrBlock = new Block;
+#pragma omp critical
+    { m_vInfo.push_back(new_info); }
+    Tree(m, n).setrank(rank());
+  }
+  void _dealloc(const int m, const long long n) {
+    delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
+    for (size_t j = 0; j < m_vInfo.size(); j++) {
+      if (m_vInfo[j].level == m && m_vInfo[j].Z == n) {
+        m_vInfo.erase(m_vInfo.begin() + j);
+        return;
+      }
+    }
+  }
+  void dealloc_many(const std::vector<long long> &dealloc_IDs) {
+    for (size_t j = 0; j < m_vInfo.size(); j++)
+      m_vInfo[j].changed2 = false;
+    for (size_t i = 0; i < dealloc_IDs.size(); i++)
+      for (size_t j = 0; j < m_vInfo.size(); j++) {
+        if (m_vInfo[j].blockID_2 == dealloc_IDs[i]) {
+          const int m = m_vInfo[j].level;
+          const long long n = m_vInfo[j].Z;
+          m_vInfo[j].changed2 = true;
+          delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
+          break;
+        }
+      }
+    m_vInfo.erase(std::remove_if(m_vInfo.begin(), m_vInfo.end(),
+                                 [](const BlockInfo &x) { return x.changed2; }),
+                  m_vInfo.end());
+  }
+  void FindBlockInfo(const int m, const long long n, const int m_new,
+                     const long long n_new) {
+    for (size_t j = 0; j < m_vInfo.size(); j++)
+      if (m == m_vInfo[j].level && n == m_vInfo[j].Z) {
+        BlockInfo &correct_info = getBlockInfoAll(m_new, n_new);
+        correct_info.state = Leave;
+        m_vInfo[j] = correct_info;
+        return;
+      }
+  }
+  void FillPos(bool CopyInfos = true) {
+    std::sort(m_vInfo.begin(), m_vInfo.end());
+    Octree.reserve(Octree.size() + m_vInfo.size() / 8);
+    if (CopyInfos)
+      for (size_t j = 0; j < m_vInfo.size(); j++) {
+        const int m = m_vInfo[j].level;
+        const long long n = m_vInfo[j].Z;
+        BlockInfo &correct_info = getBlockInfoAll(m, n);
+        correct_info.blockID = j;
+        m_vInfo[j] = correct_info;
+        assert(Tree(m, n).Exists());
+      }
+    else
+      for (size_t j = 0; j < m_vInfo.size(); j++) {
+        const int m = m_vInfo[j].level;
+        const long long n = m_vInfo[j].Z;
+        BlockInfo &correct_info = getBlockInfoAll(m, n);
+        correct_info.blockID = j;
+        m_vInfo[j].blockID = j;
+        m_vInfo[j].state = correct_info.state;
+        assert(Tree(m, n).Exists());
+      }
+  }
+  long long getZforward(const int level, const int i, const int j) const {
+    const int TwoPower = 1 << level;
+    const int ix = (i + TwoPower * NX) % (NX * TwoPower);
+    const int iy = (j + TwoPower * NY) % (NY * TwoPower);
+    return BlockInfo::forward(level, ix, iy);
+  }
+  Block *avail1(const int ix, const int iy, const int m) {
+    const long long n = getZforward(m, ix, iy);
+    return avail(m, n);
+  }
+  Block &operator()(const long long ID) {
+    return *(Block *)m_vInfo[ID].ptrBlock;
+  }
+  std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
+  std::array<int, 3> getMaxMostRefinedBlocks() const {
+    return {
+        NX << (levelMax - 1),
+        NY << (levelMax - 1),
+        1,
+    };
+  }
+  std::array<int, 3> getMaxMostRefinedCells() const {
+    const auto b = getMaxMostRefinedBlocks();
+    return {b[0] * _BS_, b[1] * _BS_, b[2] * 1};
+  }
+  int getlevelMax() const { return levelMax; }
+  BlockInfo &getBlockInfoAll(const int m, const long long n) {
+    const long long aux = level_base[m] + n;
+    const auto retval = BlockInfoAll.find(aux);
+    if (retval != BlockInfoAll.end()) {
+      return *retval->second;
+    } else {
+#pragma omp critical
+      {
+        const auto retval1 = BlockInfoAll.find(aux);
+        if (retval1 == BlockInfoAll.end()) {
+          BlockInfo *dumm = new BlockInfo();
+          const int TwoPower = 1 << m;
+          const double h0 =
+              (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
+          const double h = h0 / TwoPower;
+          double origin[3];
+          int i, j, k;
+          BlockInfo::inverse(n, m, i, j);
+          k = 0;
+          origin[0] = i * _BS_ * h;
+          origin[1] = j * _BS_ * h;
+          origin[2] = k * 1 * h;
+          dumm->setup(m, h, origin, n);
+          BlockInfoAll[aux] = dumm;
+        }
+      }
+      return getBlockInfoAll(m, n);
+    }
+  }
+  /*
+  virtual Block *avail(const int m, const long long n) {
+    return (Block *)getBlockInfoAll(m, n).ptrBlock;
+    } */
+  /* virtual int rank() const { return 0; } */
 };
