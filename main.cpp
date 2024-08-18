@@ -686,10 +686,6 @@ struct StencilInfo {
       : sx(_sx), sy(_sy), sz(_sz), ex(_ex), ey(_ey), ez(_ez),
         selcomponents(components), tensorial(_tensorial) {
     assert(selcomponents.size() > 0);
-    if (!isvalid()) {
-      std::cout << "Stencilinfo instance not valid. Aborting\n";
-      abort();
-    }
   }
   StencilInfo(const StencilInfo &c)
       : sx(c.sx), sy(c.sy), sz(c.sz), ex(c.ex), ey(c.ey), ez(c.ez),
@@ -709,13 +705,6 @@ struct StencilInfo {
       else if (me[i] > you[i])
         return false;
     return me.size() < you.size();
-  }
-  bool isvalid() const {
-    const bool not0 = selcomponents.size() == 0;
-    const bool not1 = sx > 0 || ex <= 0 || sx > ex;
-    const bool not2 = sy > 0 || ey <= 0 || sy > ey;
-    const bool not3 = sz > 0 || ez <= 0 || sz > ez;
-    return !(not0 || not1 || not2 || not3);
   }
 };
 void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
@@ -2731,7 +2720,6 @@ template <typename ElementType> struct Grid {
     return true;
   }
   SynchronizerMPIType *sync1(const StencilInfo &stencil) {
-    assert(stencil.isvalid());
     StencilInfo Cstencil(-1, -1, 0, 2, 2, 1, true, stencil.selcomponents);
     SynchronizerMPIType *queryresult = nullptr;
     typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
