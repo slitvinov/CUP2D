@@ -189,12 +189,12 @@ CommandlineParser::CommandlineParser(const int argc, char **argv)
       key.erase(0, 1);
       if (key[0] == '+') {
         key.erase(0, 1);
-        if (!_existKey(key, mapArguments))
+        if (mapArguments.find(key) == mapArguments.end())
           mapArguments[key] = Value(values);
         else
           mapArguments[key] += Value(values);
       } else {
-        if (!_existKey(key, mapArguments))
+        if (mapArguments.find(key) == mapArguments.end())
           mapArguments[key] = Value(values);
       }
       i += itemCount;
