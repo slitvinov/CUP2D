@@ -6160,7 +6160,7 @@ static void ongrid(Real dt) {
   for (size_t i = 0; i < Nblocks; i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)chiInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)chiInfo[i].ptrBlock)[x][y].s = 0;
         (*(ScalarBlock *)tmpInfo[i].ptrBlock)[x][y].s = -1;
       }
   for (const auto &shape : sim.shapes) {
@@ -8044,13 +8044,18 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        (*(VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[x][y].clear();
-        (*(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)[x][y].s = 0;
+
+        (*(VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
+
+        (*(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
       }
   sim.tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
   sim.chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
@@ -8067,8 +8072,10 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
     for (size_t y = 0; y < _BS_; y++)
-      for (size_t x = 0; x < _BS_; x++)
-        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[y][x].clear();
+      for (size_t x = 0; x < _BS_; x++) {
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[y][x].u[0] = 0;
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[y][x].u[1] = 0;
+      }
   }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8576,8 +8583,10 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
         for (size_t y = 0; y < _BS_; y++)
-          for (size_t x = 0; x < _BS_; x++)
-            (*(VectorBlock *)tmpVInfo[i].ptrBlock)[y][x].clear();
+          for (size_t x = 0; x < _BS_; x++) {
+            (*(VectorBlock *)tmpVInfo[i].ptrBlock)[y][x].u[0] = 0;
+            (*(VectorBlock *)tmpVInfo[i].ptrBlock)[y][x].u[1] = 0;
+          }
       }
       for (auto &shape : sim.shapes) {
         std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
