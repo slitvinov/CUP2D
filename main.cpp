@@ -2759,7 +2759,7 @@ template <typename ElementType> struct Grid {
       const int level = blockslevel[i];
       const long long Z = blocksZ[i];
       _alloc(level, Z);
-      Tree(level, Z).setrank(rank());
+      Tree(level, Z).setrank(sim.rank);
       int p[2];
       BlockInfo::inverse(Z, level, p[0], p[1]);
       if (level < levelMax - 1)
@@ -2781,7 +2781,6 @@ template <typename ElementType> struct Grid {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
   }
-  int rank() const { return sim.rank; }
   int get_world_size() const { return sim.size; }
   TreePosition &Tree(const int m, const long long n) {
     const long long aux = level_base[m] + n;
@@ -2807,7 +2806,7 @@ template <typename ElementType> struct Grid {
     new_info.ptrBlock = new Block;
 #pragma omp critical
     { m_vInfo.push_back(new_info); }
-    Tree(m, n).setrank(rank());
+    Tree(m, n).setrank(sim.rank);
   }
   void _dealloc(const int m, const long long n) {
     delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
@@ -4030,7 +4029,6 @@ template <typename ElementType> struct LoadBalancer {
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
   void PrepareCompression() {
     const int size = grid->get_world_size();
-    const int rank = grid->rank();
     std::vector<BlockInfo> &I = grid->m_vInfo;
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
@@ -4044,7 +4042,7 @@ template <typename ElementType> struct LoadBalancer {
       const int baserank = grid->Tree(b.level, nBlock).rank();
       const int brank = grid->Tree(b.level, b.Z).rank();
       if (b.Z != nBlock) {
-        if (baserank != rank && brank == rank) {
+        if (baserank != sim.rank && brank == sim.rank) {
           send_blocks[baserank].push_back({bCopy});
           grid->Tree(b.level, b.Z).setrank(baserank);
         }
@@ -4057,7 +4055,7 @@ template <typename ElementType> struct LoadBalancer {
               continue;
             BlockInfo &temp = grid->getBlockInfoAll(b.level, n);
             const int temprank = grid->Tree(b.level, n).rank();
-            if (temprank != rank) {
+            if (temprank != sim.rank) {
               recv_blocks[temprank].push_back({temp, false});
               grid->Tree(b.level, n).setrank(baserank);
             }
@@ -4066,7 +4064,7 @@ template <typename ElementType> struct LoadBalancer {
     }
     std::vector<MPI_Request> requests;
     for (int r = 0; r < size; r++)
-      if (r != rank) {
+      if (r != sim.rank) {
         if (recv_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
@@ -4104,7 +4102,6 @@ template <typename ElementType> struct LoadBalancer {
   }
   void Balance_Diffusion(std::vector<long long> &block_distribution) {
     const int size = grid->get_world_size();
-    const int rank = grid->rank();
     movedBlocks = false;
     {
       long long max_b = block_distribution[0];
@@ -4119,8 +4116,8 @@ template <typename ElementType> struct LoadBalancer {
         return;
       }
     }
-    const int right = (rank == size - 1) ? MPI_PROC_NULL : rank + 1;
-    const int left = (rank == 0) ? MPI_PROC_NULL : rank - 1;
+    const int right = (sim.rank == size - 1) ? MPI_PROC_NULL : sim.rank + 1;
+    const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
     const int my_blocks = grid->m_vInfo.size();
     int right_blocks, left_blocks;
     MPI_Request reqs[4];
@@ -4130,9 +4127,9 @@ template <typename ElementType> struct LoadBalancer {
     MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
     MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
     const int nu = 4;
-    const int flux_left = (rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
+    const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
-        (rank == size - 1) ? 0 : (my_blocks - right_blocks) / nu;
+        (sim.rank == size - 1) ? 0 : (my_blocks - right_blocks) / nu;
     std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     if (flux_right != 0 || flux_left != 0)
       std::sort(SortedInfos.begin(), SortedInfos.end());
@@ -4201,25 +4198,24 @@ template <typename ElementType> struct LoadBalancer {
   }
   void Balance_Global(std::vector<long long> &all_b) {
     const int size = grid->get_world_size();
-    const int rank = grid->rank();
     std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
     for (int r = 0; r < size; r++)
       total_load += all_b[r];
     long long my_load = total_load / size;
-    if (rank < (total_load % size))
+    if (sim.rank < (total_load % size))
       my_load += 1;
     std::vector<long long> index_start(size);
     index_start[0] = 0;
     for (int r = 1; r < size; r++)
       index_start[r] = index_start[r - 1] + all_b[r - 1];
-    long long ideal_index = (total_load / size) * rank;
-    ideal_index += (rank < (total_load % size)) ? rank : (total_load % size);
+    long long ideal_index = (total_load / size) * sim.rank;
+    ideal_index += (sim.rank < (total_load % size)) ? sim.rank : (total_load % size);
     std::vector<std::vector<MPI_Block>> send_blocks(size);
     std::vector<std::vector<MPI_Block>> recv_blocks(size);
     for (int r = 0; r < size; r++)
-      if (rank != r) {
+      if (sim.rank != r) {
         {
           long long a1 = ideal_index;
           long long a2 = ideal_index + my_load - 1;
@@ -4239,8 +4235,8 @@ template <typename ElementType> struct LoadBalancer {
             other_load += 1;
           long long a1 = other_ideal_index;
           long long a2 = other_ideal_index + other_load - 1;
-          long long b1 = index_start[rank];
-          long long b2 = index_start[rank] + all_b[rank] - 1;
+          long long b1 = index_start[sim.rank];
+          long long b2 = index_start[sim.rank] + all_b[sim.rank] - 1;
           long long c1 = std::max(a1, b1);
           long long c2 = std::min(a2, b2);
           if (c2 - c1 + 1 > 0)
@@ -4258,7 +4254,7 @@ template <typename ElementType> struct LoadBalancer {
       }
     long long counter_S = 0;
     long long counter_E = 0;
-    for (int r = 0; r < rank; r++)
+    for (int r = 0; r < sim.rank; r++)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
           send_blocks[r][i].prepare(SortedInfos[counter_S + i]);
@@ -4268,7 +4264,7 @@ template <typename ElementType> struct LoadBalancer {
         MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
                   tag, MPI_COMM_WORLD, &requests.back());
       }
-    for (int r = size - 1; r > rank; r--)
+    for (int r = size - 1; r > sim.rank; r--)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
           send_blocks[r][i].prepare(
@@ -4285,7 +4281,7 @@ template <typename ElementType> struct LoadBalancer {
     counter_E = 0;
     for (int r = 0; r < size; r++)
       if (send_blocks[r].size() != 0) {
-        if (r < rank) {
+        if (r < sim.rank) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             BlockInfo &info = SortedInfos[counter_S + i];
             deallocIDs.push_back(info.blockID_2);
@@ -4663,7 +4659,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             const long long nc =
                 grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-            grid->Tree(Child).setrank(grid->rank());
+            grid->Tree(Child).setrank(sim.rank);
             if (level + 2 < grid->getlevelMax())
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
@@ -4707,7 +4703,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       const long long np =
           grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
       BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-      grid->Tree(parent.level, parent.Z).setrank(grid->rank());
+      grid->Tree(parent.level, parent.Z).setrank(sim.rank);
       parent.ptrBlock = info.ptrBlock;
       parent.state = Leave;
       if (level - 2 >= 0)
