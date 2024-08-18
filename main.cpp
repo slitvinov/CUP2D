@@ -977,27 +977,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -1400,41 +1403,8 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   }
-  void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
-                           const int code[3]) {
-    const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
-                       (stencil.ey) / 2 + Cstencil.ey,
-                       (stencil.ez) / 2 + Cstencil.ez};
-    const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
-                       (stencil.sy - 1) / 2 + Cstencil.sy,
-                       (stencil.sz - 1) / 2 + Cstencil.sz};
-    const int s[3] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : nX / 2,
-                      code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : nY / 2,
-                      code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : nZ / 2};
-    const int e[3] = {
-        code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2) : nX / 2 + eC[0] - 1,
-        code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2) : nY / 2 + eC[1] - 1,
-        code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2) : nZ / 2 + eC[2] - 1};
-    Real *src = (Real *)(*info).ptrBlock;
-    int pos = 0;
-    for (int iy = s[1]; iy < e[1]; iy++) {
-      const int YY = 2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * nY / 2 -
-                     code[1] * nY + std::min(0, code[1]) * (e[1] - s[1]);
-      for (int ix = s[0]; ix < e[0]; ix++) {
-        const int XX = 2 * (ix - s[0]) + s[0] + std::max(code[0], 0) * nX / 2 -
-                       code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]);
-        for (int c = 0; c < NC; c++) {
-          int comp = stencil.selcomponents[c];
-          dst[pos] =
-              0.25 * (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
-                       (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) + comp))) +
-                      ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
-                       (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
-          pos++;
-        }
-      }
-    }
-  }
+  //  void AverageDownAndFill2(Real *dst, const BlockInfo *const info,
+  //                           const int code[3]) {
   std::string EncodeSet(const std::set<int> &ranks) {
     std::string retval;
     for (auto r : ranks) {
@@ -1744,8 +1714,8 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   }
-  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil,
-                      TGrid *_grid, int gptfloats)
+  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
+               int gptfloats)
       : stencil(a_stencil), Cstencil(a_Cstencil),
         SM(a_stencil, a_Cstencil, _BS_, _BS_, 1), gptfloats(gptfloats),
         NC(a_stencil.selcomponents.size()) {
@@ -1837,9 +1807,48 @@ template <typename TGrid> struct Synchronizer {
             const int code[3] = {-(f.icode[0] % 3 - 1),
                                  -((f.icode[0] / 3) % 3 - 1),
                                  -((f.icode[0] / 9) % 3 - 1)};
-            if (f.CoarseStencil)
-              AverageDownAndFill2(send_buffer[r].data() + d, f.infos[0], code);
-            else
+            if (f.CoarseStencil) {
+              Real *dst = send_buffer[r].data() + d;
+              const BlockInfo *const info = f.infos[0];
+              const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
+                                 (stencil.ey) / 2 + Cstencil.ey,
+                                 (stencil.ez) / 2 + Cstencil.ez};
+              const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
+                                 (stencil.sy - 1) / 2 + Cstencil.sy,
+                                 (stencil.sz - 1) / 2 + Cstencil.sz};
+              const int s[3] = {
+                  code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : nX / 2,
+                  code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : nY / 2,
+                  code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : nZ / 2};
+              const int e[3] = {
+                  code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2) : nX / 2 + eC[0] - 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2) : nY / 2 + eC[1] - 1,
+                  code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2)
+                              : nZ / 2 + eC[2] - 1};
+              Real *src = (Real *)(*info).ptrBlock;
+              int pos = 0;
+              for (int iy = s[1]; iy < e[1]; iy++) {
+                const int YY = 2 * (iy - s[1]) + s[1] +
+                               std::max(code[1], 0) * nY / 2 - code[1] * nY +
+                               std::min(0, code[1]) * (e[1] - s[1]);
+                for (int ix = s[0]; ix < e[0]; ix++) {
+                  const int XX = 2 * (ix - s[0]) + s[0] +
+                                 std::max(code[0], 0) * nX / 2 - code[0] * nX +
+                                 std::min(0, code[0]) * (e[0] - s[0]);
+                  for (int c = 0; c < NC; c++) {
+                    int comp = stencil.selcomponents[c];
+                    dst[pos] =
+                        0.25 *
+                        (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) +
+                             comp))) +
+                         ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
+                    pos++;
+                  }
+                }
+              }
+            } else
               AverageDownAndFill(send_buffer[r].data() + d, f.infos[0], code);
           }
 #pragma omp for
@@ -3591,27 +3600,30 @@ template <typename ElementType> struct BlockLab {
                          (info.index[1] + code[1]) % 2,
                          (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4898,8 +4910,10 @@ static void computeA(Kernel &&kernel, TGrid *g) {
   }
   Synch.avail_halo();
 }
-template <typename Kernel, typename ElementType1, typename LabMPI, typename ElementType2, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid<ElementType1> &grid, Grid<ElementType2> &grid2) {
+template <typename Kernel, typename ElementType1, typename LabMPI,
+          typename ElementType2, typename LabMPI2>
+static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
+                     Grid<ElementType2> &grid2) {
   Synchronizer<Grid<ElementType1>> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -6559,8 +6573,8 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp);
-  computeB<ComputeSurfaceNormals, ScalarElement, ScalarLab, ScalarElement, ScalarLab>(
-      ComputeSurfaceNormals(), *var.chi, *var.tmp);
+  computeB<ComputeSurfaceNormals, ScalarElement, ScalarLab, ScalarElement,
+           ScalarLab>(ComputeSurfaceNormals(), *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8549,8 +8563,8 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->Corrector.prepare(*var.tmp);
-      computeB<pressure_rhs, VectorElement, VectorLab, VectorElement, VectorLab>(
-          pressure_rhs(), *var.vel, *var.tmpV);
+      computeB<pressure_rhs, VectorElement, VectorLab, VectorElement,
+               VectorLab>(pressure_rhs(), *var.vel, *var.tmpV);
       var.tmp->Corrector.FillBlockCases();
       std::vector<BlockInfo> &presInfo = var.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = var.pold->m_vInfo;
