@@ -4392,7 +4392,7 @@ template <typename TGrid> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename ElementType> struct MeshAdaptation {
+template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef typename TLab::GridType TGrid;
   typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
@@ -4405,7 +4405,7 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
   double tolerance_for_refinement;
   double tolerance_for_compression;
   std::vector<long long> dealloc_IDs;
-  MeshAdaptation(TGrid &g, double Rtol, double Ctol) {
+  Adaptation(TGrid &g, double Rtol, double Ctol) {
     grid = &g;
     tolerance_for_refinement = Rtol;
     tolerance_for_compression = Ctol;
@@ -5257,8 +5257,8 @@ typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement>
     ScalarLab;
-typedef MeshAdaptation<ScalarLab, ScalarElement> ScalarAMR;
-typedef MeshAdaptation<VectorLab, VectorElement> VectorAMR;
+typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
+typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct FishSkin {
   size_t Npoints;
   Real *xSurf;
