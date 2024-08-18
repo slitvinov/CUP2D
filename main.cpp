@@ -3038,15 +3038,14 @@ template <class DataType> struct Matrix3D {
 };
 constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
-template <typename TGrid, typename ElementType> struct BlockLab {
-  using GridType = TGrid;
+template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
   Matrix3D<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
   bool istensorial;
   bool use_averages;
-  GridType *m_refGrid;
+  Grid<ElementType> *m_refGrid;
   int NX;
   int NY;
   int NZ;
@@ -3107,7 +3106,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-  virtual void prepare(GridType &grid, const StencilInfo &stencil,
+  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil,
                        const int Istencil_start[3] = default_start,
                        const int Istencil_end[3] = default_end) {
     istensorial = stencil.tensorial;
@@ -4000,11 +3999,10 @@ template <typename TGrid, typename ElementType> struct BlockLab {
 };
 template <typename MyBlockLab, typename ElementType>
 struct BlockLabMPI : public MyBlockLab {
-  using GridType = typename MyBlockLab::GridType;
   typedef ElementType BlockType[_BS_][_BS_];
-  typedef SynchronizerMPI_AMR<GridType> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
-  virtual void prepare(GridType &grid, const StencilInfo &stencil,
+  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil,
                        const int[3] = default_start,
                        const int[3] = default_end) override {
     auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
@@ -4374,18 +4372,17 @@ template <typename TGrid> struct LoadBalancer {
 };
 template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
-  typedef typename TLab::GridType TGrid;
-  typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<Grid<ElementType>> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
-  LoadBalancer<TGrid> *Balancer;
-  TGrid *grid;
+  LoadBalancer<Grid<ElementType>> *Balancer;
+  Grid<ElementType> *grid;
   bool basic_refinement;
   double tolerance_for_refinement;
   double tolerance_for_compression;
   std::vector<long long> dealloc_IDs;
-  Adaptation(TGrid &g, double Rtol, double Ctol) {
+  Adaptation(Grid<ElementType> &g, double Rtol, double Ctol) {
     grid = &g;
     tolerance_for_refinement = Rtol;
     tolerance_for_compression = Ctol;
@@ -4399,11 +4396,11 @@ template <typename TLab, typename ElementType> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < ElementType::DIM; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<TGrid>(*grid);
+    Balancer = new LoadBalancer<Grid<ElementType>>(*grid);
   }
   void Tag() {
     boundary_needed = true;
-    SynchronizerMPI_AMR<TGrid> *Synch = grid->sync(stencil);
+    SynchronizerMPI_AMR<Grid<ElementType>> *Synch = grid->sync(stencil);
     CallValidStates = false;
     bool Reduction = false;
     MPI_Request Reduction_req;
@@ -4588,7 +4585,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
   }
   void Adapt(bool basic) {
     basic_refinement = basic;
-    SynchronizerMPI_AMR<TGrid> *Synch = nullptr;
+    SynchronizerMPI_AMR<Grid<ElementType>> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync(stencil);
       grid->boundary = Synch->avail_halo();
@@ -5041,7 +5038,7 @@ BCflag string2BCflag(const std::string &strFlag) {
 static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid, typename ElementType>
-struct BlockLabDirichlet : public BlockLab<TGrid, ElementType> {
+struct BlockLabDirichlet : public BlockLab<ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5159,12 +5156,12 @@ struct BlockLabDirichlet : public BlockLab<TGrid, ElementType> {
       }
     }
   }
-  BlockLabDirichlet() : BlockLab<TGrid, ElementType>() {}
+  BlockLabDirichlet() : BlockLab<ElementType>() {}
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename TGrid, typename ElementType>
-struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
+template <typename ElementType>
+struct BlockLabNeumann : public BlockLab<ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5234,7 +5231,7 @@ typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement>
+typedef BlockLabMPI<BlockLabNeumann<ScalarElement>, ScalarElement>
     ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
