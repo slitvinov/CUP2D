@@ -604,9 +604,4 @@ template <typename ElementType> struct GridMPI {
       return getBlockInfoAll(m, n);
     }
   }
-  /*
-  virtual Block *avail(const int m, const long long n) {
-    return (Block *)getBlockInfoAll(m, n).ptrBlock;
-    } */
-  /* virtual int rank() const { return 0; } */
 };
