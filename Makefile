@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SUFFIXES: .cpp .cu .o
 
-MPICXX = mpic++
+MPICXX = mpicxx
 NVCC = nvcc -ccbin='$(MPICXX)'
 LINK = $(NVCC)
 LIBS = -lcublas -lcusparse -lgsl -lgslcblas
