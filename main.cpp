@@ -420,8 +420,8 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-template <typename BlockType> struct BlockCase {
-  std::vector<typename BlockType::ElementType> m_pData[6];
+template <typename BlockType, typename ElementType> struct BlockCase {
+  std::vector<ElementType> m_pData[6];
   static constexpr unsigned int m_vSize[] = {_BS_, _BS_, 1};
   bool storedFace[6];
   int level;
@@ -445,11 +445,10 @@ template <typename BlockType> struct BlockCase {
     Z = _Z;
   }
 };
-template <typename TGrid> struct FluxCorrection {
+template <typename TGrid, typename ElementType> struct FluxCorrection {
   typedef TGrid GridType;
   typedef typename GridType::BlockType BlockType;
-  typedef typename BlockType::ElementType ElementType;
-  typedef BlockCase<BlockType> Case;
+  typedef BlockCase<BlockType, ElementType> Case;
   int rank{0};
   std::map<std::array<long long, 2>, Case *> MapOfCases;
   TGrid *grid;
@@ -672,7 +671,7 @@ template <typename Block> struct Grid {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  FluxCorrection<Grid> CorrectorGrid;
+  FluxCorrection<Grid, ElementType> CorrectorGrid;
   TreePosition &Tree(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = Octree.find(aux);
@@ -2200,12 +2199,11 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     }
   }
 };
-template <typename TFluxCorrection>
+template <typename TFluxCorrection, typename ElementType>
 struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
-  typedef typename TFluxCorrection::ElementType ElementType;
   typedef typename TFluxCorrection::BlockType BlockType;
-  typedef BlockCase<BlockType> Case;
+  typedef BlockCase<BlockType, ElementType> Case;
   int size;
   struct face {
     BlockInfo *infos[2];
@@ -2567,14 +2565,15 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-template <typename TGrid> struct GridMPI : public TGrid {
+template <typename TGrid, typename ElementType>
+struct GridMPI : public TGrid {
   typedef typename TGrid::BlockType Block;
-  typedef SynchronizerMPI_AMR<GridMPI<TGrid>> SynchronizerMPIType;
+  typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
   size_t timestamp;
   int myrank;
   int world_size;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid>>> Corrector;
+  FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>, ElementType> Corrector;
   std::vector<BlockInfo *> boundary;
   GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
           int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
@@ -5293,8 +5292,8 @@ template <typename TGrid> struct BlockLabNeumann : public BlockLab<TGrid> {
 };
 typedef GridBlock<ScalarElement> ScalarBlock;
 typedef GridBlock<VectorElement> VectorBlock;
-typedef GridMPI<Grid<ScalarBlock>> ScalarGrid;
-typedef GridMPI<Grid<VectorBlock>> VectorGrid;
+typedef GridMPI<Grid<ScalarBlock>, ScalarElement> ScalarGrid;
+typedef GridMPI<Grid<VectorBlock>, VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid>> VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid>> ScalarLab;
 typedef MeshAdaptation<ScalarLab> ScalarAMR;
@@ -6970,6 +6969,7 @@ static Real dV_adv_dif(const VectorLab &V, const Real uinf[2], const Real advF,
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
+template <typename ElementType>
 struct KernelAdvectDiffuse {
   KernelAdvectDiffuse() {
     uinf[0] = sim.uinfx;
@@ -6989,12 +6989,12 @@ struct KernelAdvectDiffuse {
         TMP(ix, iy).u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP(ix, iy).u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase<VectorBlock> *tempCase =
-        (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
-    VectorBlock::ElementType *faceXm = nullptr;
-    VectorBlock::ElementType *faceXp = nullptr;
-    VectorBlock::ElementType *faceYm = nullptr;
-    VectorBlock::ElementType *faceYp = nullptr;
+    BlockCase<VectorBlock, ElementType> *tempCase =
+      (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID].auxiliary);
+    ElementType *faceXm = nullptr;
+    ElementType *faceXp = nullptr;
+    ElementType *faceYm = nullptr;
+    ElementType *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
@@ -7772,6 +7772,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
+template <typename ElementType>
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
@@ -7785,12 +7786,12 @@ struct pressureCorrectionKernel {
         tmpV(ix, iy).u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
         tmpV(ix, iy).u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
-    BlockCase<VectorBlock> *tempCase =
-        (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
-    VectorBlock::ElementType *faceXm = nullptr;
-    VectorBlock::ElementType *faceXp = nullptr;
-    VectorBlock::ElementType *faceYm = nullptr;
-    VectorBlock::ElementType *faceYp = nullptr;
+    BlockCase<VectorBlock, ElementType> *tempCase =
+      (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID].auxiliary);
+    ElementType *faceXm = nullptr;
+    ElementType *faceXp = nullptr;
+    ElementType *faceYm = nullptr;
+    ElementType *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7827,6 +7828,7 @@ struct pressureCorrectionKernel {
     }
   }
 };
+template <typename ElementType>
 struct updatePressureRHS {
   updatePressureRHS(){};
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
@@ -7851,8 +7853,8 @@ struct updatePressureRHS {
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<ScalarBlock> *tempCase =
-        (BlockCase<ScalarBlock> *)(tmpInfo[info.blockID].auxiliary);
+    BlockCase<ScalarBlock, ElementType> *tempCase =
+      (BlockCase<ScalarBlock, ElementType> *)(tmpInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7899,6 +7901,7 @@ struct updatePressureRHS {
     }
   }
 };
+template <typename ElementType>
 struct updatePressureRHS1 {
   updatePressureRHS1() {}
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
@@ -7910,8 +7913,8 @@ struct updatePressureRHS1 {
         TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
-    BlockCase<ScalarBlock> *tempCase =
-        (BlockCase<ScalarBlock> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
+    BlockCase<ScalarBlock, ElementType> *tempCase =
+      (BlockCase<ScalarBlock, ElementType> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -8211,7 +8214,7 @@ int main(int argc, char **argv) {
         adapt();
       ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
-      KernelAdvectDiffuse Step1;
+      KernelAdvectDiffuse <VectorElement> Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
@@ -8652,8 +8655,8 @@ int main(int argc, char **argv) {
             }
         }
       }
-      compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
-              ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
+      compute<updatePressureRHS<ScalarElement>, VectorGrid, VectorLab, VectorGrid, VectorLab,
+              ScalarGrid>(updatePressureRHS<ScalarElement>(), *sim.vel, *sim.tmpV, true,
                           sim.tmp);
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = sim.pold->m_vInfo;
@@ -8667,7 +8670,7 @@ int main(int argc, char **argv) {
             PRES(ix, iy).s = 0;
           }
       }
-      compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
+      compute<ScalarLab>(updatePressureRHS1<ScalarElement>(), sim.pold, sim.tmp);
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -8697,8 +8700,7 @@ int main(int argc, char **argv) {
             P(ix, iy).s += POLD(ix, iy).s - avg;
       }
       {
-        const pressureCorrectionKernel K;
-        compute<ScalarLab>(K, sim.pres, sim.tmpV);
+        compute<ScalarLab>(pressureCorrectionKernel<VectorElement>(), sim.pres, sim.tmpV);
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
