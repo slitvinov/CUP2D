@@ -448,11 +448,10 @@ template <typename ElementType> struct BlockCase {
 template <typename TGrid, typename ElementType> struct FluxCorrection {
   typedef TGrid GridType;
   typedef ElementType BlockType[_BS_][_BS_];
-  typedef BlockCase<ElementType> Case;
   int rank{0};
-  std::map<std::array<long long, 2>, Case *> MapOfCases;
+  std::map<std::array<long long, 2>, BlockCase<ElementType> *> MapOfCases;
   TGrid *grid;
-  std::vector<Case> Cases;
+  std::vector<BlockCase<ElementType>> Cases;
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -462,7 +461,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
                           abs(-code[2]) * (std::max(0, -code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
-    Case &CoarseCase = (*search->second);
+    BlockCase<ElementType> &CoarseCase = (*search->second);
     std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
     assert(myFace / 2 == otherFace / 2);
     assert(search != MapOfCases.end());
@@ -480,7 +479,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       if (other_rank != rank)
         continue;
       auto search1 = MapOfCases.find({info.level + 1, Z});
-      Case &FineCase = (*search1->second);
+      BlockCase<ElementType> &FineCase = (*search1->second);
       std::vector<ElementType> &FineFace = FineCase.m_pData[otherFace];
       const int d = myFace / 2;
       const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
@@ -553,7 +552,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(Case(storeFace, info.level, info.Z));
+        Cases.push_back(BlockCase<ElementType>(storeFace, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -563,7 +562,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           break;
         if (Cases[Cases_index].level == info.level &&
             Cases[Cases_index].Z == info.Z) {
-          MapOfCases.insert(std::pair<std::array<long long, 2>, Case *>(
+          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase<ElementType> *>(
               {Cases[Cases_index].level, Cases[Cases_index].Z},
               &Cases[Cases_index]));
           grid->getBlockInfoAll(Cases[Cases_index].level, Cases[Cases_index].Z)
@@ -614,7 +613,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           std::array<long long, 2> temp = {(long long)info.level, info.Z};
           auto search = MapOfCases.find(temp);
           assert(search != MapOfCases.end());
-          Case &CoarseCase = (*search->second);
+          BlockCase<ElementType> &CoarseCase = (*search->second);
           std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
           const int d = myFace / 2;
           const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
