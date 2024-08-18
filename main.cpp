@@ -2730,7 +2730,7 @@ template <typename ElementType> struct Grid {
     }
     return true;
   }
-  SynchronizerMPIType *sync(const StencilInfo &stencil) {
+  SynchronizerMPIType *sync1(const StencilInfo &stencil) {
     assert(stencil.isvalid());
     StencilInfo Cstencil(-1, -1, 0, 2, 2, 1, true, stencil.selcomponents);
     SynchronizerMPIType *queryresult = nullptr;
@@ -4363,7 +4363,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
   }
   void Tag() {
     boundary_needed = true;
-    Synchronizer<Grid<ElementType>> *Synch = grid->sync(stencil);
+    Synchronizer<Grid<ElementType>> *Synch = grid->sync1(stencil);
     CallValidStates = false;
     bool Reduction = false;
     MPI_Request Reduction_req;
@@ -4548,7 +4548,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     basic_refinement = basic;
     Synchronizer<Grid<ElementType>> *Synch = nullptr;
     if (basic == false) {
-      Synch = grid->sync(stencil);
+      Synch = grid->sync1(stencil);
       grid->boundary = Synch->avail_halo();
       if (boundary_needed)
         grid->UpdateBoundary();
@@ -4834,7 +4834,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 };
 template <typename Lab, typename Kernel, typename TGrid>
 static void computeA(Kernel &&kernel, TGrid *g) {
-  Synchronizer<TGrid> &Synch = *(g->sync(kernel.stencil));
+  Synchronizer<TGrid> &Synch = *(g->sync1(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
@@ -4869,7 +4869,7 @@ template <typename Kernel, typename ElementType1, typename LabMPI,
           typename ElementType2, typename LabMPI2>
 static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
                      Grid<ElementType2> &grid2) {
-  Synchronizer<Grid<ElementType1>> &Synch = *grid.sync(kernel.stencil);
+  Synchronizer<Grid<ElementType1>> &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4880,7 +4880,7 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  Synchronizer<Grid<ElementType2>> &Synch2 = *grid2.sync(kernel2.stencil);
+  Synchronizer<Grid<ElementType2>> &Synch2 = *grid2.sync1(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.m_vInfo;
