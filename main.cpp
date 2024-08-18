@@ -5064,7 +5064,6 @@ struct VectorElement {
   Real &member(int i) { return u[i]; }
 };
 template <typename T> struct GridBlock {
-  //  using ElementType = T;
   T data[_BS_][_BS_];
   const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
   T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
