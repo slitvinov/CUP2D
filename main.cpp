@@ -1063,7 +1063,6 @@ template <typename TGrid> struct Synchronizer {
   int nX;
   int nY;
   int nZ;
-  MPI_Datatype MPIREAL;
   std::vector<BlockInfo *> inner_blocks;
   std::vector<BlockInfo *> halo_blocks;
   std::vector<std::vector<Real>> send_buffer;
@@ -1700,14 +1699,6 @@ template <typename TGrid> struct Synchronizer {
     recv_buffer.resize(sim.size);
     ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
-    if (sizeof(Real) == sizeof(double)) {
-      MPIREAL = MPI_DOUBLE;
-    } else if (sizeof(Real) == sizeof(long double)) {
-      MPIREAL = MPI_LONG_DOUBLE;
-    } else {
-      MPIREAL = MPI_FLOAT;
-      assert(sizeof(Real) == sizeof(float));
-    }
   }
   std::vector<BlockInfo *> &avail_inner() { return inner_blocks; }
   std::vector<BlockInfo *> &avail_halo() {
@@ -1757,7 +1748,7 @@ template <typename TGrid> struct Synchronizer {
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
         mapofrequests[r] = &requests.back();
-        MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPIREAL, r,
+        MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPI_Real, r,
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = 0; r < sim.size; r++)
@@ -1865,7 +1856,7 @@ template <typename TGrid> struct Synchronizer {
     for (auto r : Neighbors)
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
-        MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * NC, MPIREAL, r,
+        MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * NC, MPI_Real, r,
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
   }
