@@ -1959,10 +1959,10 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
     }
   }
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
-                      TGrid *_grid)
+                      TGrid *_grid, int gptfloats)
       : stencil(a_stencil), Cstencil(a_Cstencil),
         SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
-        gptfloats(sizeof(typename TGrid::Block::ElementType) / sizeof(Real)),
+        gptfloats(gptfloats),
         NC(a_stencil.selcomponents.size()) {
     grid = _grid;
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
@@ -2952,7 +2952,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
     if (itSynchronizerMPI == SynchronizerMPIs.end()) {
-      queryresult = new SynchronizerMPIType(stencil, Cstencil, this);
+      queryresult = new SynchronizerMPIType(stencil, Cstencil, this, sizeof(ElementType) / sizeof(Real));
       queryresult->_Setup();
       SynchronizerMPIs[stencil] = queryresult;
     } else {
@@ -4048,7 +4048,6 @@ template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
 };
 template <typename TGrid> struct LoadBalancer {
   typedef typename TGrid::Block BlockType;
-  typedef typename TGrid::Block::ElementType ElementType;
   bool movedBlocks;
   TGrid *grid;
   MPI_Datatype MPI_BLOCK;
@@ -5065,7 +5064,7 @@ struct VectorElement {
   Real &member(int i) { return u[i]; }
 };
 template <typename T> struct GridBlock {
-  using ElementType = T;
+  //  using ElementType = T;
   T data[_BS_][_BS_];
   const T &operator()(int ix, int iy = 0) const { return data[iy][ix]; }
   T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
