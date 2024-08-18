@@ -2781,7 +2781,6 @@ template <typename ElementType> struct Grid {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
   }
-  int get_world_size() const { return sim.size; }
   TreePosition &Tree(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = Octree.find(aux);
@@ -3235,7 +3234,7 @@ template <typename ElementType> struct BlockLab {
             coarsened = true;
           }
         }
-      if (m_refGrid->get_world_size() == 1) {
+      if (sim.size == 1) {
         post_load(info, t, applybc);
       }
     }
@@ -3963,7 +3962,7 @@ struct BlockLabMPI : public MyBlockLab {
     refSynchronizerMPI->fetch(info, MyBlockLab::m_cacheBlock->getSize(),
                               MyBlockLab::m_CoarsenedBlock->getSize(), dst,
                               dst1);
-    if (MyBlockLab::m_refGrid->get_world_size() > 1)
+    if (sim.size > 1)
       MyBlockLab::post_load(info, t, applybc);
   }
 };
@@ -4028,10 +4027,9 @@ template <typename ElementType> struct LoadBalancer {
   }
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
   void PrepareCompression() {
-    const int size = grid->get_world_size();
     std::vector<BlockInfo> &I = grid->m_vInfo;
-    std::vector<std::vector<MPI_Block>> send_blocks(size);
-    std::vector<std::vector<MPI_Block>> recv_blocks(size);
+    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
@@ -4063,7 +4061,7 @@ template <typename ElementType> struct LoadBalancer {
       }
     }
     std::vector<MPI_Request> requests;
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (r != sim.rank) {
         if (recv_blocks[r].size() != 0) {
           MPI_Request req{};
@@ -4078,7 +4076,7 @@ template <typename ElementType> struct LoadBalancer {
                     2468, MPI_COMM_WORLD, &requests.back());
         }
       }
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
         grid->Tree(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1])
@@ -4088,7 +4086,7 @@ template <typename ElementType> struct LoadBalancer {
       movedBlocks = true;
       MPI_Waitall(requests.size(), &requests[0], MPI_STATUSES_IGNORE);
     }
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
@@ -4101,7 +4099,6 @@ template <typename ElementType> struct LoadBalancer {
       }
   }
   void Balance_Diffusion(std::vector<long long> &block_distribution) {
-    const int size = grid->get_world_size();
     movedBlocks = false;
     {
       long long max_b = block_distribution[0];
@@ -4116,7 +4113,7 @@ template <typename ElementType> struct LoadBalancer {
         return;
       }
     }
-    const int right = (sim.rank == size - 1) ? MPI_PROC_NULL : sim.rank + 1;
+    const int right = (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
     const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
     const int my_blocks = grid->m_vInfo.size();
     int right_blocks, left_blocks;
@@ -4129,7 +4126,7 @@ template <typename ElementType> struct LoadBalancer {
     const int nu = 4;
     const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
-        (sim.rank == size - 1) ? 0 : (my_blocks - right_blocks) / nu;
+        (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
     std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     if (flux_right != 0 || flux_left != 0)
       std::sort(SortedInfos.begin(), SortedInfos.end());
@@ -4197,24 +4194,23 @@ template <typename ElementType> struct LoadBalancer {
     grid->FillPos();
   }
   void Balance_Global(std::vector<long long> &all_b) {
-    const int size = grid->get_world_size();
     std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       total_load += all_b[r];
-    long long my_load = total_load / size;
-    if (sim.rank < (total_load % size))
+    long long my_load = total_load / sim.size;
+    if (sim.rank < (total_load % sim.size))
       my_load += 1;
-    std::vector<long long> index_start(size);
+    std::vector<long long> index_start(sim.size);
     index_start[0] = 0;
-    for (int r = 1; r < size; r++)
+    for (int r = 1; r < sim.size; r++)
       index_start[r] = index_start[r - 1] + all_b[r - 1];
-    long long ideal_index = (total_load / size) * sim.rank;
-    ideal_index += (sim.rank < (total_load % size)) ? sim.rank : (total_load % size);
-    std::vector<std::vector<MPI_Block>> send_blocks(size);
-    std::vector<std::vector<MPI_Block>> recv_blocks(size);
-    for (int r = 0; r < size; r++)
+    long long ideal_index = (total_load / sim.size) * sim.rank;
+    ideal_index += (sim.rank < (total_load % sim.size)) ? sim.rank : (total_load % sim.size);
+    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
+    for (int r = 0; r < sim.size; r++)
       if (sim.rank != r) {
         {
           long long a1 = ideal_index;
@@ -4227,11 +4223,11 @@ template <typename ElementType> struct LoadBalancer {
             recv_blocks[r].resize(c2 - c1 + 1);
         }
         {
-          long long other_ideal_index = (total_load / size) * r;
+          long long other_ideal_index = (total_load / sim.size) * r;
           other_ideal_index +=
-              (r < (total_load % size)) ? r : (total_load % size);
-          long long other_load = total_load / size;
-          if (r < (total_load % size))
+              (r < (total_load % sim.size)) ? r : (total_load % sim.size);
+          long long other_load = total_load / sim.size;
+          if (r < (total_load % sim.size))
             other_load += 1;
           long long a1 = other_ideal_index;
           long long a2 = other_ideal_index + other_load - 1;
@@ -4245,7 +4241,7 @@ template <typename ElementType> struct LoadBalancer {
       }
     int tag = 12345;
     std::vector<MPI_Request> requests;
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (recv_blocks[r].size() != 0) {
         MPI_Request req{};
         requests.push_back(req);
@@ -4264,7 +4260,7 @@ template <typename ElementType> struct LoadBalancer {
         MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
                   tag, MPI_COMM_WORLD, &requests.back());
       }
-    for (int r = size - 1; r > sim.rank; r--)
+    for (int r = sim.size - 1; r > sim.rank; r--)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
           send_blocks[r][i].prepare(
@@ -4279,7 +4275,7 @@ template <typename ElementType> struct LoadBalancer {
     std::vector<long long> deallocIDs;
     counter_S = 0;
     counter_E = 0;
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (send_blocks[r].size() != 0) {
         if (r < sim.rank) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
@@ -4302,7 +4298,7 @@ template <typename ElementType> struct LoadBalancer {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 #pragma omp parallel
     {
-      for (int r = 0; r < size; r++)
+      for (int r = 0; r < sim.size; r++)
         if (recv_blocks[r].size() != 0) {
 #pragma omp for
           for (size_t i = 0; i < recv_blocks[r].size(); i++)
