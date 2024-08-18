@@ -223,5 +223,4 @@ template <typename ElementType> struct Grid {
       return getBlockInfoAll(m, n);
     }
   }
-  virtual int get_world_size() const { return 1; }
 };

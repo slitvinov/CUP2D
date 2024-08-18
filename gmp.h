@@ -399,5 +399,5 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
       (*it->second)._Setup();
   }
   virtual int rank() const override { return sim.rank; }
-  virtual int get_world_size() const override { return sim.size; }
+  int get_world_size() const { return sim.size; }
 };
