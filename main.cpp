@@ -4567,18 +4567,18 @@ template <typename TLab, typename BlockType> struct MeshAdaptation {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I.size(); i++) {
         BlockInfo &info = grid->getBlockInfoAll(I[i]->level, I[i]->Z);
-	BlockType &b = *(BlockType *)info.ptrBlock;
-	double Linf = 0.0;
-	for (int j = 0; j < _BS_; j++)
-	  for (int i = 0; i < _BS_; i++) {
-	    Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
-	  }
-	if (Linf > tolerance_for_refinement)
-	  I[i]->state = Refine;
-	else if (Linf < tolerance_for_compression)
-	  I[i]->state = Compress;
-	else
-	  I[i]->state = Leave;
+        BlockType &b = *(BlockType *)info.ptrBlock;
+        double Linf = 0.0;
+        for (int j = 0; j < _BS_; j++)
+          for (int i = 0; i < _BS_; i++) {
+            Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
+          }
+        if (Linf > tolerance_for_refinement)
+          I[i]->state = Refine;
+        else if (Linf < tolerance_for_compression)
+          I[i]->state = Compress;
+        else
+          I[i]->state = Leave;
         const bool maxLevel =
             (I[i]->state == Refine) && (I[i]->level == levelMax - 1);
         const bool minLevel = (I[i]->state == Compress) && (I[i]->level == 0);
@@ -7903,7 +7903,7 @@ struct updatePressureRHS1 {
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarBlock, ScalarElement> *tempCase =
         (BlockCase<ScalarBlock, ScalarElement> *)(sim.tmp->m_vInfo[info.blockID]
-                                                    .auxiliary);
+                                                      .auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
