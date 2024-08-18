@@ -7767,7 +7767,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-template <typename ElementType> struct pressureCorrectionKernel {
+struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
@@ -7780,13 +7780,13 @@ template <typename ElementType> struct pressureCorrectionKernel {
         tmpV(ix, iy).u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
         tmpV(ix, iy).u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
-    BlockCase<VectorBlock, ElementType> *tempCase =
-        (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
+    BlockCase<VectorBlock, VectorElement> *tempCase =
+        (BlockCase<VectorBlock, VectorElement> *)(tmpVInfo[info.blockID]
                                                     .auxiliary);
-    ElementType *faceXm = nullptr;
-    ElementType *faceXp = nullptr;
-    ElementType *faceYm = nullptr;
-    ElementType *faceYp = nullptr;
+    VectorElement *faceXm = nullptr;
+    VectorElement *faceXp = nullptr;
+    VectorElement *faceYm = nullptr;
+    VectorElement *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -8700,7 +8700,7 @@ int main(int argc, char **argv) {
             P(ix, iy).s += POLD(ix, iy).s - avg;
       }
       {
-        compute<ScalarLab>(pressureCorrectionKernel<VectorElement>(), sim.pres,
+        compute<ScalarLab>(pressureCorrectionKernel(), sim.pres,
                            sim.tmpV);
       }
 #pragma omp parallel for
