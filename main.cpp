@@ -55,6 +55,43 @@ static double getA_local(int I1, int I2) {
   else
     return 0.0;
 }
+struct Shape;
+static struct {
+  int rank;
+  int size;
+  int bpdx;
+  int bpdy;
+  int levelMax;
+  int levelStart;
+  Real Rtol;
+  Real Ctol;
+  int AdaptSteps{20};
+  bool bAdaptChiGradient;
+  Real extent;
+  Real extents[2];
+  Real dt;
+  Real CFL;
+  int nsteps;
+  Real endTime;
+  Real lambda;
+  Real dlm;
+  Real nu;
+  Real PoissonTol;
+  Real PoissonTolRel;
+  int maxPoissonRestarts;
+  int maxPoissonIterations;
+  int bMeanConstraint;
+  int dumpFreq;
+  Real dumpTime;
+  std::vector<Shape *> shapes;
+  Real time = 0;
+  int step = 0;
+  Real uinfx = 0;
+  Real uinfy = 0;
+  Real nextDumpTime = 0;
+  std::vector<int> bCollisionID;
+  Real minH;
+} sim;
 struct Value {
   std::string content;
   Value() = default;
@@ -5251,43 +5288,6 @@ struct FishSkin {
         normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
         midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
 };
-struct Shape;
-static struct {
-  int rank;
-  int size;
-  int bpdx;
-  int bpdy;
-  int levelMax;
-  int levelStart;
-  Real Rtol;
-  Real Ctol;
-  int AdaptSteps{20};
-  bool bAdaptChiGradient;
-  Real extent;
-  Real extents[2];
-  Real dt;
-  Real CFL;
-  int nsteps;
-  Real endTime;
-  Real lambda;
-  Real dlm;
-  Real nu;
-  Real PoissonTol;
-  Real PoissonTolRel;
-  int maxPoissonRestarts;
-  int maxPoissonIterations;
-  int bMeanConstraint;
-  int dumpFreq;
-  Real dumpTime;
-  std::vector<Shape *> shapes;
-  Real time = 0;
-  int step = 0;
-  Real uinfx = 0;
-  Real uinfy = 0;
-  Real nextDumpTime = 0;
-  std::vector<int> bCollisionID;
-  Real minH;
-} sim;
 static struct {
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
