@@ -2385,8 +2385,7 @@ template <typename ElementType> struct Grid {
         level_base.push_back(level_base[m - 1] + Ntot);
     }
 
-    const long long total_blocks =
-        nX * nY * nZ * pow(pow(2, a_levelStart), 2);
+    const long long total_blocks = nX * nY * nZ * pow(pow(2, a_levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
     if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
@@ -2959,7 +2958,7 @@ template <class DataType> struct Matrix3D {
     m_vSize[2] = nSizeZ;
     m_nElementsPerSlice = nSizeX * nSizeY;
     m_nElements = nSizeX * nSizeY * nSizeZ;
-    posix_memalign((void **)&m_pData, std::max(8, CUBISM_ALIGNMENT),
+    posix_memalign((void **)&m_pData, std::max(8, 32),
                    sizeof(DataType) * m_nElements);
     assert(m_pData != nullptr);
   }
@@ -3205,7 +3204,7 @@ template <typename ElementType> struct BlockLab {
       int icodes[8];
       int k = 0;
       coarsened_nei_codes_size = 0;
-      for (int icode = 9; icode < 18 ; icode++) {
+      for (int icode = 9; icode < 18; icode++) {
         myblocks[icode] = nullptr;
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
