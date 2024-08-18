@@ -2564,15 +2564,16 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-template <typename TGrid, typename ElementType>
-struct GridMPI : public TGrid {
+template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   typedef typename TGrid::BlockType Block;
   typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
   size_t timestamp;
   int myrank;
   int world_size;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>, ElementType> Corrector;
+  FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>,
+                    ElementType>
+      Corrector;
   std::vector<BlockInfo *> boundary;
   GridMPI(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
           int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
@@ -4850,7 +4851,9 @@ template <typename TLab> struct MeshAdaptation {
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         BlockType &b = *B[J * 2 + I];
-        b.clear();
+        for (size_t y = 0; y < _BS_; y++)
+          for (size_t x = 0; x < _BS_; x++)
+            b.data[y][x].clear();
         for (int j = 0; j < ny; j += 2)
           for (int i = 0; i < nx; i += 2) {
             ElementType dudx =
@@ -5071,7 +5074,7 @@ struct VectorElement {
 template <typename T> struct GridBlock {
   using ElementType = T;
   T data[_BS_][_BS_];
-  void clear() {
+  void clear0() {
     T *const entry = &data[0][0];
     for (int j = 0; j < _BS_ * _BS_; ++j)
       entry[j].clear();
@@ -5098,7 +5101,8 @@ BCflag string2BCflag(const std::string &strFlag) {
 }
 static BCflag cubismBCX;
 static BCflag cubismBCY;
-template <typename TGrid, typename ElementType> struct BlockLabDirichlet : public BlockLab<TGrid, ElementType> {
+template <typename TGrid, typename ElementType>
+struct BlockLabDirichlet : public BlockLab<TGrid, ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -5220,7 +5224,8 @@ template <typename TGrid, typename ElementType> struct BlockLabDirichlet : publi
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename TGrid, typename ElementType> struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
+template <typename TGrid, typename ElementType>
+struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
   static constexpr int sizeX = _BS_;
   static constexpr int sizeY = _BS_;
   static constexpr int sizeZ = 1;
@@ -6964,8 +6969,7 @@ static Real dV_adv_dif(const VectorLab &V, const Real uinf[2], const Real advF,
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
-template <typename ElementType>
-struct KernelAdvectDiffuse {
+template <typename ElementType> struct KernelAdvectDiffuse {
   KernelAdvectDiffuse() {
     uinf[0] = sim.uinfx;
     uinf[1] = sim.uinfy;
@@ -6985,7 +6989,8 @@ struct KernelAdvectDiffuse {
         TMP(ix, iy).u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
     BlockCase<VectorBlock, ElementType> *tempCase =
-      (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID].auxiliary);
+        (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
+                                                    .auxiliary);
     ElementType *faceXm = nullptr;
     ElementType *faceXp = nullptr;
     ElementType *faceYm = nullptr;
@@ -7767,8 +7772,7 @@ void ElasticCollision(const Real m1, const Real m2, const Real *I1,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-template <typename ElementType>
-struct pressureCorrectionKernel {
+template <typename ElementType> struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   const std::vector<BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
@@ -7782,7 +7786,8 @@ struct pressureCorrectionKernel {
         tmpV(ix, iy).u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
     BlockCase<VectorBlock, ElementType> *tempCase =
-      (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID].auxiliary);
+        (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
+                                                    .auxiliary);
     ElementType *faceXm = nullptr;
     ElementType *faceXp = nullptr;
     ElementType *faceYm = nullptr;
@@ -7848,7 +7853,8 @@ struct updatePressureRHS {
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
     BlockCase<ScalarBlock, ScalarElement> *tempCase =
-      (BlockCase<ScalarBlock, ScalarElement> *)(tmpInfo[info.blockID].auxiliary);
+        (BlockCase<ScalarBlock, ScalarElement> *)(tmpInfo[info.blockID]
+                                                      .auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7895,8 +7901,7 @@ struct updatePressureRHS {
     }
   }
 };
-template <typename ElementType>
-struct updatePressureRHS1 {
+template <typename ElementType> struct updatePressureRHS1 {
   updatePressureRHS1() {}
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
@@ -7908,7 +7913,8 @@ struct updatePressureRHS1 {
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarBlock, ElementType> *tempCase =
-      (BlockCase<ScalarBlock, ElementType> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
+        (BlockCase<ScalarBlock, ElementType> *)(sim.tmp->m_vInfo[info.blockID]
+                                                    .auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -8123,7 +8129,9 @@ int main(int argc, char **argv) {
   ongrid(0.0);
 #pragma omp parallel for
   for (size_t i = 0; i < velInfo.size(); i++) {
-    ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->clear();
+    for (size_t y = 0; y < _BS_; y++)
+      for (size_t x = 0; x < _BS_; x++)
+        ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->data[y][x].clear();
   }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8208,7 +8216,7 @@ int main(int argc, char **argv) {
         adapt();
       ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
-      KernelAdvectDiffuse <VectorElement> Step1;
+      KernelAdvectDiffuse<VectorElement> Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
@@ -8626,7 +8634,9 @@ int main(int argc, char **argv) {
       std::vector<BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        ((VectorBlock *)tmpVInfo[i].ptrBlock)->clear();
+        for (size_t y = 0; y < _BS_; y++)
+          for (size_t x = 0; x < _BS_; x++)
+            ((VectorBlock *)tmpVInfo[i].ptrBlock)->data[y][x].clear();
       }
       for (auto &shape : sim.shapes) {
         std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8664,7 +8674,8 @@ int main(int argc, char **argv) {
             PRES(ix, iy).s = 0;
           }
       }
-      compute<ScalarLab>(updatePressureRHS1<ScalarElement>(), sim.pold, sim.tmp);
+      compute<ScalarLab>(updatePressureRHS1<ScalarElement>(), sim.pold,
+                         sim.tmp);
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -8694,7 +8705,8 @@ int main(int argc, char **argv) {
             P(ix, iy).s += POLD(ix, iy).s - avg;
       }
       {
-        compute<ScalarLab>(pressureCorrectionKernel<VectorElement>(), sim.pres, sim.tmpV);
+        compute<ScalarLab>(pressureCorrectionKernel<VectorElement>(), sim.pres,
+                           sim.tmpV);
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
