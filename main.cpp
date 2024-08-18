@@ -4843,51 +4843,51 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
       }
     }
   }
-  virtual void RefineBlocks(BlockType *B[8], TLab &Lab) {
+  virtual void RefineBlocks(BlockType *Blocks[8], TLab &lab) {
     const int nx = _BS_;
     const int ny = _BS_;
     int offsetX[2] = {0, nx / 2};
     int offsetY[2] = {0, ny / 2};
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
-        BlockType &b = *B[J * 2 + I];
+        BlockType &b = *Blocks[J * 2 + I];
         for (size_t y = 0; y < _BS_; y++)
           for (size_t x = 0; x < _BS_; x++)
             b[y][x].clear();
         for (int j = 0; j < ny; j += 2)
           for (int i = 0; i < nx; i += 2) {
             ElementType dudx =
-                0.5 * (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) -
-                       Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J]));
+                0.5 * (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) -
+                       lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J]));
             ElementType dudy =
-                0.5 * (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) -
-                       Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1));
+                0.5 * (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) -
+                       lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1));
             ElementType dudx2 =
-                (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) +
-                 Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J])) -
-                2.0 * Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
+                (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) +
+                 lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J])) -
+                2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
             ElementType dudy2 =
-                (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) +
-                 Lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1)) -
-                2.0 * Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
+                (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) +
+                 lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1)) -
+                2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
             ElementType dudxdy =
-                0.25 * ((Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] + 1) +
-                         Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
-                        (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
-                         Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-            b[j][i] = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+                0.25 * ((lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] + 1) +
+                         lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
+                        (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
+                         lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
+            b[j][i] = (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                        (-0.25 * dudx - 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
             b[j][i + 1] =
-                (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+                (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx - 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
             b[j + 1][i] =
-                (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+                (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
             b[j + 1][i + 1] =
-                (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+                (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
           }
