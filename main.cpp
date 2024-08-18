@@ -4516,7 +4516,26 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
           RefineBlocks(Blocks, lab);
       }
       for (size_t i = 0; i < m_ref.size(); i++) {
-        refine_2(m_ref[i], n_ref[i]);
+        const int level = m_ref[i];
+        const long long Z = n_ref[i];
+#pragma omp critical
+        { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
+        BlockInfo &parent = grid->getBlockInfoAll(level, Z);
+        grid->Tree(parent).setCheckFiner();
+        parent.state = Leave;
+        int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            const long long nc =
+                grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+            BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
+            grid->Tree(Child).setrank(grid->rank());
+            if (level + 2 < grid->getlevelMax())
+              for (int i0 = 0; i0 < 2; i0++)
+                for (int i1 = 0; i1 < 2; i1++)
+                  grid->Tree(level + 2, Child.Zchild[i0][i1][1])
+                      .setCheckCoarser();
+          }
       }
     }
     grid->dealloc_many(dealloc_IDs);
@@ -4611,25 +4630,6 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
         }
       }
     }
-  }
-  void refine_2(const int level, const long long Z) {
-#pragma omp critical
-    { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
-    BlockInfo &parent = grid->getBlockInfoAll(level, Z);
-    grid->Tree(parent).setCheckFiner();
-    parent.state = Leave;
-    int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-    for (int j = 0; j < 2; j++)
-      for (int i = 0; i < 2; i++) {
-        const long long nc =
-            grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-        BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-        grid->Tree(Child).setrank(grid->rank());
-        if (level + 2 < grid->getlevelMax())
-          for (int i0 = 0; i0 < 2; i0++)
-            for (int i1 = 0; i1 < 2; i1++)
-              grid->Tree(level + 2, Child.Zchild[i0][i1][1]).setCheckCoarser();
-      }
   }
   void compress(const int level, const long long Z) {
     assert(level > 0);
