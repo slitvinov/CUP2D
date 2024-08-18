@@ -4898,10 +4898,9 @@ static void computeA(Kernel &&kernel, TGrid *g) {
   }
   Synch.avail_halo();
 }
-template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
-          typename LabMPI2>
-static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2) {
-  Synchronizer<TGrid> &Synch = *grid.sync(kernel.stencil);
+template <typename Kernel, typename ElementType1, typename LabMPI, typename ElementType2, typename LabMPI2>
+static void computeB(const Kernel &kernel, Grid<ElementType1> &grid, Grid<ElementType2> &grid2) {
+  Synchronizer<Grid<ElementType1>> &Synch = *grid.sync(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4912,7 +4911,7 @@ static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2) {
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  Synchronizer<TGrid2> &Synch2 = *grid2.sync(kernel2.stencil);
+  Synchronizer<Grid<ElementType2>> &Synch2 = *grid2.sync(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.m_vInfo;
@@ -6560,7 +6559,7 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp);
-  computeB<ComputeSurfaceNormals, ScalarGrid, ScalarLab, ScalarGrid, ScalarLab>(
+  computeB<ComputeSurfaceNormals, ScalarElement, ScalarLab, ScalarElement, ScalarLab>(
       ComputeSurfaceNormals(), *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -8550,7 +8549,7 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->Corrector.prepare(*var.tmp);
-      computeB<pressure_rhs, VectorGrid, VectorLab, VectorGrid, VectorLab>(
+      computeB<pressure_rhs, VectorElement, VectorLab, VectorElement, VectorLab>(
           pressure_rhs(), *var.vel, *var.tmpV);
       var.tmp->Corrector.FillBlockCases();
       std::vector<BlockInfo> &presInfo = var.pres->m_vInfo;
@@ -8612,7 +8611,7 @@ int main(int argc, char **argv) {
             V[iy][ix].u[1] += tmpV[iy][ix].u[1] * ih2;
           }
       }
-      computeB<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
+      computeB<KernelComputeForces, VectorElement, VectorLab, ScalarElement,
                ScalarLab>(KernelComputeForces(), *var.vel, *var.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
