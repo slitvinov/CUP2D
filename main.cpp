@@ -447,7 +447,7 @@ template <typename ElementType> struct BlockCase {
 };
 template <typename TGrid, typename ElementType> struct FluxCorrection {
   typedef TGrid GridType;
-  typedef typename GridType::BlockType BlockType;
+  typedef ElementType BlockType[_BS_][_BS_];
   typedef BlockCase<ElementType> Case;
   int rank{0};
   std::map<std::array<long long, 2>, Case *> MapOfCases;
@@ -651,8 +651,8 @@ struct BlockGroup {
   int NYY;
   int NZZ;
 };
-template <typename Block, typename ElementType> struct Grid {
-  typedef Block BlockType;
+template <typename ElementType> struct Grid {
+  typedef ElementType Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> m_vInfo;
@@ -2560,7 +2560,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   }
 };
 template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
-  typedef typename TGrid::BlockType Block;
+  typedef ElementType Block[_BS_][_BS_];
   typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
   size_t timestamp;
   int myrank;
@@ -3057,7 +3057,7 @@ constexpr int default_start[3] = {-1, -1, 0};
 constexpr int default_end[3] = {2, 2, 1};
 template <typename TGrid, typename ElementType> struct BlockLab {
   using GridType = TGrid;
-  using BlockType = typename GridType::BlockType;
+  typedef ElementType BlockType[_BS_][_BS_];
   Matrix3D<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
@@ -4018,9 +4018,9 @@ template <typename TGrid, typename ElementType> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename MyBlockLab> struct BlockLabMPI : public MyBlockLab {
+template <typename MyBlockLab, typename ElementType> struct BlockLabMPI : public MyBlockLab {
   using GridType = typename MyBlockLab::GridType;
-  using BlockType = typename GridType::BlockType;
+  typedef ElementType BlockType[_BS_][_BS_];
   typedef SynchronizerMPI_AMR<GridType> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(GridType &grid, const StencilInfo &stencil,
@@ -5267,10 +5267,10 @@ struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
 };
 typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
-typedef GridMPI<Grid<ScalarBlock, ScalarElement>, ScalarElement> ScalarGrid;
-typedef GridMPI<Grid<VectorBlock, VectorElement>, VectorElement> VectorGrid;
-typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>> VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>> ScalarLab;
+typedef GridMPI<Grid<ScalarElement>, ScalarElement> ScalarGrid;
+typedef GridMPI<Grid<VectorElement>, VectorElement> VectorGrid;
+typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement> VectorLab;
+typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement> ScalarLab;
 typedef MeshAdaptation<ScalarLab, ScalarBlock, ScalarElement> ScalarAMR;
 typedef MeshAdaptation<VectorLab, VectorBlock, VectorElement> VectorAMR;
 struct FishSkin {
