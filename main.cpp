@@ -5255,7 +5255,6 @@ struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
   }
-  typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
   bool is_xperiodic() override { return cubismBCX == periodic; }
   bool is_yperiodic() override { return cubismBCY == periodic; }
   bool is_zperiodic() override { return false; }
