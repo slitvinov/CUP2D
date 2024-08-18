@@ -36,7 +36,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
-  virtual void UpdateBoundary(bool clean = false) override {
+  virtual void UpdateBoundary(bool clean = false) {
     const auto blocksPerDim = TGrid::getMaxBlocks();
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;

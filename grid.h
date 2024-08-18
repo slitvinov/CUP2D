@@ -224,5 +224,4 @@ template <typename ElementType> struct Grid {
     }
   }
   virtual int get_world_size() const { return 1; }
-  virtual void UpdateBoundary(bool) {}
 };
