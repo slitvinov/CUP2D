@@ -3368,7 +3368,6 @@ template <typename TGrid, typename ElementType> struct BlockLab {
     const BlockType &b = *myblocks[icode];
     const int nX = _BS_;
     const int nY = _BS_;
-    const int nZ = 1;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - m_stencilStart[0];
