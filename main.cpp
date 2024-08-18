@@ -7895,7 +7895,7 @@ struct updatePressureRHS {
     }
   }
 };
-template <typename ElementType> struct updatePressureRHS1 {
+struct updatePressureRHS1 {
   updatePressureRHS1() {}
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
@@ -7906,8 +7906,8 @@ template <typename ElementType> struct updatePressureRHS1 {
         TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
-    BlockCase<ScalarBlock, ElementType> *tempCase =
-        (BlockCase<ScalarBlock, ElementType> *)(sim.tmp->m_vInfo[info.blockID]
+    BlockCase<ScalarBlock, ScalarElement> *tempCase =
+        (BlockCase<ScalarBlock, ScalarElement> *)(sim.tmp->m_vInfo[info.blockID]
                                                     .auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
@@ -8668,8 +8668,7 @@ int main(int argc, char **argv) {
             PRES(ix, iy).s = 0;
           }
       }
-      compute<ScalarLab>(updatePressureRHS1<ScalarElement>(), sim.pold,
-                         sim.tmp);
+      compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
