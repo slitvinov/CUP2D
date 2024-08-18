@@ -624,13 +624,13 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           if (d == 0) {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
-              block.data[i2][j] += CoarseFace[i2];
+              block[i2][j] += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
           } else {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
-              block.data[j][i2] += CoarseFace[i2];
+              block[j][i2] += CoarseFace[i2];
               CoarseFace[i2].clear();
             }
           }
@@ -2301,13 +2301,13 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block.data[i2][j] += CoarseFace[i2];
+        block[i2][j] += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block.data[j][i2] += CoarseFace[i2];
+        block[j][i2] += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
     }
@@ -3212,7 +3212,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
     assert(m_cacheBlock != NULL);
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
-      ElementType *ptrSource = &block.data[0][0];
+      ElementType *ptrSource = &block[0][0];
       const int nbytes = sizeof(ElementType) * nX;
       const int _iz0 = -m_stencilStart[2];
       const int _iz1 = _iz0 + nZ;
@@ -3403,13 +3403,13 @@ template <typename TGrid, typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b.data[iy - code[1] * nY][s[0] - code[0] * nX];
+        const ElementType *ptrSrc0 = &b[iy - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc1 =
-            &b.data[iy + 1 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 1 - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc2 =
-            &b.data[iy + 2 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 2 - code[1] * nY][s[0] - code[0] * nX];
         const ElementType *ptrSrc3 =
-            &b.data[iy + 3 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 3 - code[1] * nY][s[0] - code[0] * nX];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3419,7 +3419,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b.data[iy - code[1] * nY][s[0] - code[0] * nX];
+        const ElementType *ptrSrc = &b[iy - code[1] * nY][s[0] - code[0] * nX];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3539,14 +3539,14 @@ template <typename TGrid, typename ElementType> struct BlockLab {
                               ? 2 * (iy + 3 * yStep - code[1] * nY) +
                                     std::min(0, code[1]) * nY
                               : iy + 3 * yStep;
-          const ElementType *ptrSrc_00 = &b.data[YY0][XX];
-          const ElementType *ptrSrc_10 = &b.data[YY0 + 1][XX];
-          const ElementType *ptrSrc_01 = &b.data[YY1][XX];
-          const ElementType *ptrSrc_11 = &b.data[YY1 + 1][XX];
-          const ElementType *ptrSrc_02 = &b.data[YY2][XX];
-          const ElementType *ptrSrc_12 = &b.data[YY2 + 1][XX];
-          const ElementType *ptrSrc_03 = &b.data[YY3][XX];
-          const ElementType *ptrSrc_13 = &b.data[YY3 + 1][XX];
+          const ElementType *ptrSrc_00 = &b[YY0][XX];
+          const ElementType *ptrSrc_10 = &b[YY0 + 1][XX];
+          const ElementType *ptrSrc_01 = &b[YY1][XX];
+          const ElementType *ptrSrc_11 = &b[YY1 + 1][XX];
+          const ElementType *ptrSrc_02 = &b[YY2][XX];
+          const ElementType *ptrSrc_12 = &b[YY2 + 1][XX];
+          const ElementType *ptrSrc_03 = &b[YY3][XX];
+          const ElementType *ptrSrc_13 = &b[YY3 + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -3575,8 +3575,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
           const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
                                                    std::min(0, code[1]) * nY
                                              : iy;
-          const ElementType *ptrSrc_0 = &b.data[YY][XX];
-          const ElementType *ptrSrc_1 = &b.data[YY + 1][XX];
+          const ElementType *ptrSrc_0 = &b[YY][XX];
+          const ElementType *ptrSrc_1 = &b[YY + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -3670,10 +3670,10 @@ template <typename TGrid, typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - offset[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->LinAccess(
             my_izx + (iy + 3 - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b.data[iy + 0 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc1 = &b.data[iy + 1 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc2 = &b.data[iy + 2 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc3 = &b.data[iy + 3 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc3 = &b[iy + 3 + start[1]][s[0] + start[0]];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3683,7 +3683,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b.data[iy + start[1]][s[0] + start[0]];
+        const ElementType *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3738,8 +3738,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
         const int YY = 2 * (iy - s[1]) + start[1];
-        const ElementType *ptrSrc_0 = (const ElementType *)&b.data[YY][XX];
-        const ElementType *ptrSrc_1 = (const ElementType *)&b.data[YY + 1][XX];
+        const ElementType *ptrSrc_0 = (const ElementType *)&b[YY][XX];
+        const ElementType *ptrSrc_1 = (const ElementType *)&b[YY + 1][XX];
 #pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
@@ -4061,7 +4061,7 @@ template <typename TGrid> struct LoadBalancer {
       mn[0] = info.level;
       mn[1] = info.Z;
       if (Fillptr) {
-        Real *aux = &((BlockType *)info.ptrBlock)->data[0][0].member(0);
+        Real *aux = &(*(BlockType *)info.ptrBlock)[0][0].member(0);
         std::memcpy(&data[0], aux, sizeof(BlockType));
       }
     }
@@ -4072,7 +4072,7 @@ template <typename TGrid> struct LoadBalancer {
     BlockInfo &info = grid->getBlockInfoAll(level, Z);
     BlockType *b1 = (BlockType *)info.ptrBlock;
     assert(b1 != NULL);
-    Real *a1 = &b1->data[0][0].member(0);
+    Real *a1 = &(*b1[0][0]).member(0);
     std::memcpy(a1, data, sizeof(BlockType));
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
@@ -4176,7 +4176,7 @@ template <typename TGrid> struct LoadBalancer {
         BlockInfo &info = grid->getBlockInfoAll(level, Z);
         BlockType *b1 = (BlockType *)info.ptrBlock;
         assert(b1 != NULL);
-        Real *a1 = &b1->data[0][0].member(0);
+        Real *a1 = &(*b1)[0][0].member(0);
         std::memcpy(a1, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
@@ -4569,7 +4569,7 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
           for (int i = 0; i < _BS_; i++) {
-            Linf = std::max(Linf, std::fabs(b.data[j][i].magnitude()));
+            Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
           }
         if (Linf > tolerance_for_refinement)
           I[i]->state = Refine;
@@ -4661,9 +4661,9 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
           BlockType &b = *Blocks[J * 2 + I];
           for (int j = 0; j < ny; j += 2)
             for (int i = 0; i < nx; i += 2) {
-              ElementType average = 0.25 * ((b.data[j][i] + b.data[j + 1][i + 1]) +
-                                            (b.data[j][i + 1] + b.data[j + 1][i]));
-              (*Blocks[0]).data[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
+              ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
+                                            (b[j][i + 1] + b[j + 1][i]));
+              (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
             }
         }
     const long long np =
@@ -4861,7 +4861,7 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
         BlockType &b = *B[J * 2 + I];
         for (size_t y = 0; y < _BS_; y++)
           for (size_t x = 0; x < _BS_; x++)
-            b.data[y][x].clear();
+            b[y][x].clear();
         for (int j = 0; j < ny; j += 2)
           for (int i = 0; i < nx; i += 2) {
             ElementType dudx =
@@ -4883,18 +4883,18 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
                         (Lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
                          Lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
-            b.data[j][i] = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
+            b[j][i] = (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                        (-0.25 * dudx - 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
-            b.data[j][i + 1] =
+            b[j][i + 1] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx - 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b.data[j + 1][i] =
+            b[j + 1][i] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (-0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-            b.data[j + 1][i + 1] =
+            b[j + 1][i + 1] =
                 (Lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
                  (+0.25 * dudx + 0.25 * dudy)) +
                 ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
@@ -5062,11 +5062,6 @@ struct VectorElement {
   }
   Real magnitude() { return sqrt(u[0] * u[0] + u[1] * u[1]); }
   Real &member(int i) { return u[i]; }
-};
-template <typename T> struct GridBlock {
-  T data[_BS_][_BS_];
-  GridBlock(const GridBlock &) = delete;
-  GridBlock &operator=(const GridBlock &) = delete;
 };
 enum BCflag { freespace, periodic, wall };
 BCflag string2BCflag(const std::string &strFlag) {
@@ -5273,8 +5268,8 @@ struct BlockLabNeumann : public BlockLab<TGrid, ElementType> {
     }
   }
 };
-typedef GridBlock<ScalarElement> ScalarBlock;
-typedef GridBlock<VectorElement> VectorBlock;
+typedef ScalarElement ScalarBlock[_BS_][_BS_];
+typedef VectorElement VectorBlock[_BS_][_BS_];
 typedef GridMPI<Grid<ScalarBlock, ScalarElement>, ScalarElement> ScalarGrid;
 typedef GridMPI<Grid<VectorBlock, VectorElement>, VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>> VectorLab;
@@ -5431,7 +5426,7 @@ struct KernelVorticity {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
-        TMP.data[y][x].s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
+        TMP[y][x].s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
@@ -5513,7 +5508,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
         xyz[k++] = v + info.h;
         xyz[k++] = u + info.h;
         xyz[k++] = v;
-        attr[l++] = b.data[y][x].s;
+        attr[l++] = b[y][x].s;
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -6075,7 +6070,7 @@ struct PutChiOnGrid {
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI.data[iy][ix].s = std::max(CHI.data[iy][ix].s, X[iy][ix]);
+          CHI[iy][ix].s = std::max(CHI[iy][ix].s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
             info.pos(p, ix, iy);
@@ -6202,8 +6197,8 @@ static void ongrid(Real dt) {
   for (size_t i = 0; i < Nblocks; i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        ((ScalarBlock *)chiInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)tmpInfo[i].ptrBlock)->data[x][y].s = -1;
+        (*(ScalarBlock *)chiInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)tmpInfo[i].ptrBlock)[x][y].s = -1;
       }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -6643,7 +6638,7 @@ static void ongrid(Real dt) {
               o->dist[iy][ix] = o->dist[iy][ix] >= 0
                                     ? std::sqrt(o->dist[iy][ix])
                                     : -std::sqrt(-o->dist[iy][ix]);
-              b.data[iy][ix].s = std::max(b.data[iy][ix].s, o->dist[iy][ix]);
+              b[iy][ix].s = std::max(b[iy][ix].s, o->dist[iy][ix]);
               ;
             }
           std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
@@ -6825,10 +6820,10 @@ struct GradChiOnTmp {
         lab(x, y).s = std::min(lab(x, y).s, (Real)1.0);
         lab(x, y).s = std::max(lab(x, y).s, (Real)0.0);
         if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
-          TMP.data[_BS_ / 2][_BS_ / 2 - 1].s = 2 * sim.Rtol;
-          TMP.data[_BS_ / 2 - 1][_BS_ / 2 - 1].s = 2 * sim.Rtol;
-          TMP.data[_BS_ / 2][_BS_ / 2].s = 2 * sim.Rtol;
-          TMP.data[_BS_ / 2 - 1][_BS_ / 2].s = 2 * sim.Rtol;
+          TMP[_BS_ / 2][_BS_ / 2 - 1].s = 2 * sim.Rtol;
+          TMP[_BS_ / 2 - 1][_BS_ / 2 - 1].s = 2 * sim.Rtol;
+          TMP[_BS_ / 2][_BS_ / 2].s = 2 * sim.Rtol;
+          TMP[_BS_ / 2 - 1][_BS_ / 2].s = 2 * sim.Rtol;
           break;
         }
       }
@@ -6968,8 +6963,8 @@ template <typename ElementType> struct KernelAdvectDiffuse {
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP.data[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
-        TMP.data[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
     BlockCase<VectorBlock, ElementType> *tempCase =
         (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
@@ -7127,13 +7122,13 @@ struct KernelComputeForces {
               dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
         }
         const Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
-                   fXP = -P.data[iy][ix].s * normX;
+                   fXP = -P[iy][ix].s * normX;
         const Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
-                   fYP = -P.data[iy][ix].s * normY;
+                   fYP = -P[iy][ix].s * normY;
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
-        O->p_s[k] = P.data[iy][ix].s;
+        O->p_s[k] = P[iy][ix].s;
         O->u_s[k] = V(ix, iy).u[0];
         O->v_s[k] = V(ix, iy).u[1];
         O->nx_s[k] = dx;
@@ -7141,8 +7136,8 @@ struct KernelComputeForces {
         O->omega_s[k] = (DvDx - DuDy) / info.h;
         O->uDef_s[k] = O->udef[iy][ix][0];
         O->vDef_s[k] = O->udef[iy][ix][1];
-        O->fX_s[k] = -P.data[iy][ix].s * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
-        O->fY_s[k] = -P.data[iy][ix].s * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
+        O->fX_s[k] = -P[iy][ix].s * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
+        O->fY_s[k] = -P[iy][ix].s * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
         O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->perimeter += std::sqrt(normX * normX + normY * normY);
@@ -7252,8 +7247,8 @@ struct PoissonSolver {
       const double vv = zInfo[i].h * zInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          P.data[iy][ix].s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
-          avg += P.data[iy][ix].s * vv;
+          P[iy][ix].s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
+          avg += P[iy][ix].s * vv;
           avg1 += vv;
         }
     }
@@ -7268,7 +7263,7 @@ struct PoissonSolver {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++)
-          P.data[iy][ix].s += -avg;
+          P[iy][ix].s += -avg;
     }
   }
   struct CellIndexer {
@@ -7659,8 +7654,8 @@ struct PoissonSolver {
               iy == 0)
             b[sfc_loc] = 0.;
           else
-            b[sfc_loc] = rhs.data[iy][ix].s;
-          x[sfc_loc] = p.data[iy][ix].s;
+            b[sfc_loc] = rhs[iy][ix].s;
+          x[sfc_loc] = p[iy][ix].s;
         }
     }
   }
@@ -7765,8 +7760,8 @@ struct pressureCorrectionKernel {
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        tmpV.data[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
-        tmpV.data[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
+        tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
+        tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
     BlockCase<VectorBlock, VectorElement> *tempCase =
         (BlockCase<VectorBlock, VectorElement> *)(tmpVInfo[info.blockID]
@@ -7827,11 +7822,11 @@ struct updatePressureRHS {
         *(ScalarBlock *)chiInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP.data[iy][ix].s =
+        TMP[iy][ix].s =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP.data[iy][ix].s +=
-            -facDiv * CHI.data[iy][ix].s *
+        TMP[iy][ix].s +=
+            -facDiv * CHI[iy][ix].s *
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
@@ -7852,7 +7847,7 @@ struct updatePressureRHS {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy].s = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXm[iy].s += -(facDiv * CHI.data[iy][ix].s) *
+        faceXm[iy].s += -(facDiv * CHI[iy][ix].s) *
                         (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -7861,7 +7856,7 @@ struct updatePressureRHS {
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy].s =
             -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXp[iy].s -= -(facDiv * CHI.data[iy][ix].s) *
+        faceXp[iy].s -= -(facDiv * CHI[iy][ix].s) *
                         (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -7869,7 +7864,7 @@ struct updatePressureRHS {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].s = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
-        faceYm[ix].s += -(facDiv * CHI.data[iy][ix].s) *
+        faceYm[ix].s += -(facDiv * CHI[iy][ix].s) *
                         (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -7878,7 +7873,7 @@ struct updatePressureRHS {
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].s =
             -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
-        faceYp[ix].s -= -(facDiv * CHI.data[iy][ix].s) *
+        faceYp[ix].s -= -(facDiv * CHI[iy][ix].s) *
                         (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -7892,7 +7887,7 @@ struct updatePressureRHS1 {
         *(ScalarBlock *)sim.tmp->m_vInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
-        TMP.data[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
+        TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarBlock, ScalarElement> *tempCase =
@@ -8090,13 +8085,13 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        ((VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->data[x][y].clear();
-        ((VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)->data[x][y].clear();
+        (*(VectorBlock *)sim.vel->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)sim.pres->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)sim.pold->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(ScalarBlock *)sim.tmp->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[x][y].clear();
+        (*(VectorBlock *)sim.vOld->m_vInfo[i].ptrBlock)[x][y].clear();
       }
   sim.tmp_amr = new ScalarAMR(*sim.tmp, sim.Rtol, sim.Ctol);
   sim.chi_amr = new ScalarAMR(*sim.chi, sim.Rtol, sim.Ctol);
@@ -8114,7 +8109,7 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++) {
     for (size_t y = 0; y < _BS_; y++)
       for (size_t x = 0; x < _BS_; x++)
-        ((VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)->data[y][x].clear();
+        (*(VectorBlock *)sim.tmpV->m_vInfo[i].ptrBlock)[y][x].clear();
   }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8129,12 +8124,12 @@ int main(int argc, char **argv) {
           *(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[iy][ix] < CHI.data[iy][ix].s)
+          if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
           Real p[2];
           sim.tmpV->m_vInfo[i].pos(p, ix, iy);
-          UDEF.data[iy][ix].u[0] += udef[iy][ix][0];
-          UDEF.data[iy][ix].u[1] += udef[iy][ix][1];
+          UDEF[iy][ix].u[0] += udef[iy][ix][0];
+          UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
     }
   }
@@ -8145,10 +8140,10 @@ int main(int argc, char **argv) {
     ScalarBlock &X = *(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        UF.data[iy][ix].u[0] =
-            UF.data[iy][ix].u[0] * (1 - X.data[iy][ix].s) + US.data[iy][ix].u[0] * X.data[iy][ix].s;
-        UF.data[iy][ix].u[1] =
-            UF.data[iy][ix].u[1] * (1 - X.data[iy][ix].s) + US.data[iy][ix].u[1] * X.data[iy][ix].s;
+        UF[iy][ix].u[0] =
+            UF[iy][ix].u[0] * (1 - X[iy][ix].s) + US[iy][ix].u[0] * X[iy][ix].s;
+        UF[iy][ix].u[1] =
+            UF[iy][ix].u[1] * (1 - X[iy][ix].s) + US[iy][ix].u[1] * X[iy][ix].s;
       }
   }
   while (1) {
@@ -8164,10 +8159,10 @@ int main(int argc, char **argv) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[0] + sim.uinfx));
-          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[1] + sim.uinfy));
-          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[0]));
-          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[1]));
+          umax = std::max(umax, std::fabs(VEL[iy][ix].u[0] + sim.uinfx));
+          umax = std::max(umax, std::fabs(VEL[iy][ix].u[1] + sim.uinfy));
+          umax = std::max(umax, std::fabs(VEL[iy][ix].u[0]));
+          umax = std::max(umax, std::fabs(VEL[iy][ix].u[1]));
         }
     }
     MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
@@ -8207,8 +8202,8 @@ int main(int argc, char **argv) {
         const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            Vold.data[iy][ix].u[0] = V.data[iy][ix].u[0];
-            Vold.data[iy][ix].u[1] = V.data[iy][ix].u[1];
+            Vold[iy][ix].u[0] = V[iy][ix].u[0];
+            Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
       compute<VectorLab>(Step1, sim.vel, sim.tmpV);
@@ -8222,10 +8217,10 @@ int main(int argc, char **argv) {
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V.data[iy][ix].u[0] =
-                Vold.data[iy][ix].u[0] + (0.5 * tmpV.data[iy][ix].u[0]) * ih2;
-            V.data[iy][ix].u[1] =
-                Vold.data[iy][ix].u[1] + (0.5 * tmpV.data[iy][ix].u[1]) * ih2;
+            V[iy][ix].u[0] =
+                Vold[iy][ix].u[0] + (0.5 * tmpV[iy][ix].u[0]) * ih2;
+            V[iy][ix].u[1] =
+                Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
       compute<VectorLab>(Step1, sim.vel, sim.tmpV);
@@ -8239,8 +8234,8 @@ int main(int argc, char **argv) {
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V.data[iy][ix].u[0] = Vold.data[iy][ix].u[0] + tmpV.data[iy][ix].u[0] * ih2;
-            V.data[iy][ix].u[1] = Vold.data[iy][ix].u[1] + tmpV.data[iy][ix].u[1] * ih2;
+            V[iy][ix].u[0] = Vold[iy][ix].u[0] + tmpV[iy][ix].u[0] * ih2;
+            V[iy][ix].u[1] = Vold[iy][ix].u[1] + tmpV[iy][ix].u[1] * ih2;
           }
       }
       for (const auto &shape : sim.shapes) {
@@ -8262,8 +8257,8 @@ int main(int argc, char **argv) {
             for (int ix = 0; ix < _BS_; ++ix) {
               if (chi[iy][ix] <= 0)
                 continue;
-              const Real udiff[2] = {VEL.data[iy][ix].u[0] - udef[iy][ix][0],
-                                     VEL.data[iy][ix].u[1] - udef[iy][ix][1]};
+              const Real udiff[2] = {VEL[iy][ix].u[0] - udef[iy][ix][0],
+                                     VEL[iy][ix].u[1] - udef[iy][ix][1]};
               const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
               const Real F = hsq * Xlamdt / (1 + Xlamdt);
               Real p[2];
@@ -8599,7 +8594,7 @@ int main(int argc, char **argv) {
           VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              if (CHI.data[iy][ix].s > X[iy][ix])
+              if (CHI[iy][ix].s > X[iy][ix])
                 continue;
               if (X[iy][ix] <= 0)
                 continue;
@@ -8610,8 +8605,8 @@ int main(int argc, char **argv) {
               Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
               Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
               Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
-              V.data[iy][ix].u[0] = alpha * V.data[iy][ix].u[0] + (1 - alpha) * US;
-              V.data[iy][ix].u[1] = alpha * V.data[iy][ix].u[1] + (1 - alpha) * VS;
+              V[iy][ix].u[0] = alpha * V[iy][ix].u[0] + (1 - alpha) * US;
+              V[iy][ix].u[1] = alpha * V[iy][ix].u[1] + (1 - alpha) * VS;
             }
         }
       std::vector<BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
@@ -8619,7 +8614,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < Nblocks; i++) {
         for (size_t y = 0; y < _BS_; y++)
           for (size_t x = 0; x < _BS_; x++)
-            ((VectorBlock *)tmpVInfo[i].ptrBlock)->data[y][x].clear();
+            (*(VectorBlock *)tmpVInfo[i].ptrBlock)[y][x].clear();
       }
       for (auto &shape : sim.shapes) {
         std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -8633,12 +8628,12 @@ int main(int argc, char **argv) {
           ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
-              if (chi[iy][ix] < CHI.data[iy][ix].s)
+              if (chi[iy][ix] < CHI[iy][ix].s)
                 continue;
               Real p[2];
               tmpVInfo[i].pos(p, ix, iy);
-              UDEF.data[iy][ix].u[0] += udef[iy][ix][0];
-              UDEF.data[iy][ix].u[1] += udef[iy][ix][1];
+              UDEF[iy][ix].u[0] += udef[iy][ix][0];
+              UDEF[iy][ix].u[1] += udef[iy][ix][1];
             }
         }
       }
@@ -8653,8 +8648,8 @@ int main(int argc, char **argv) {
         ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            POLD.data[iy][ix].s = PRES.data[iy][ix].s;
-            PRES.data[iy][ix].s = 0;
+            POLD[iy][ix].s = PRES[iy][ix].s;
+            PRES[iy][ix].s = 0;
           }
       }
       compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
@@ -8667,7 +8662,7 @@ int main(int argc, char **argv) {
         const Real vv = presInfo[i].h * presInfo[i].h;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
-            avg += P.data[iy][ix].s * vv;
+            avg += P[iy][ix].s * vv;
             avg1 += vv;
           }
       }
@@ -8684,7 +8679,7 @@ int main(int argc, char **argv) {
             *(ScalarBlock *)poldInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++)
-            P.data[iy][ix].s += POLD.data[iy][ix].s - avg;
+            P[iy][ix].s += POLD[iy][ix].s - avg;
       }
       { compute<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
 #pragma omp parallel for
@@ -8694,8 +8689,8 @@ int main(int argc, char **argv) {
         VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V.data[iy][ix].u[0] += tmpV.data[iy][ix].u[0] * ih2;
-            V.data[iy][ix].u[1] += tmpV.data[iy][ix].u[1] * ih2;
+            V[iy][ix].u[0] += tmpV[iy][ix].u[0] * ih2;
+            V[iy][ix].u[1] += tmpV[iy][ix].u[1] * ih2;
           }
       }
       compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
