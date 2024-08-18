@@ -698,7 +698,7 @@ template <typename ElementType> struct Grid {
     Tree(m, n).setrank(rank());
   }
   void _dealloc(const int m, const long long n) {
-    delete [](Block *)getBlockInfoAll(m, n).ptrBlock;
+    delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
     for (size_t j = 0; j < m_vInfo.size(); j++) {
       if (m_vInfo[j].level == m && m_vInfo[j].Z == n) {
         m_vInfo.erase(m_vInfo.begin() + j);
@@ -715,7 +715,7 @@ template <typename ElementType> struct Grid {
           const int m = m_vInfo[j].level;
           const long long n = m_vInfo[j].Z;
           m_vInfo[j].changed2 = true;
-	  delete [](Block *)getBlockInfoAll(m, n).ptrBlock;
+          delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
           break;
         }
       }
@@ -785,7 +785,7 @@ template <typename ElementType> struct Grid {
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
       const long long n = m_vInfo[i].Z;
-      delete [] (Block *)getBlockInfoAll(m, n).ptrBlock;
+      delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
     }
     std::vector<long long> aux;
     for (auto &m : BlockInfoAll)
@@ -4018,7 +4018,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename MyBlockLab, typename ElementType> struct BlockLabMPI : public MyBlockLab {
+template <typename MyBlockLab, typename ElementType>
+struct BlockLabMPI : public MyBlockLab {
   using GridType = typename MyBlockLab::GridType;
   typedef ElementType BlockType[_BS_][_BS_];
   typedef SynchronizerMPI_AMR<GridType> SynchronizerMPIType;
@@ -4391,8 +4392,7 @@ template <typename TGrid> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename ElementType>
-struct MeshAdaptation {
+template <typename TLab, typename ElementType> struct MeshAdaptation {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef typename TLab::GridType TGrid;
   typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
@@ -4900,11 +4900,8 @@ struct MeshAdaptation {
       }
   }
 };
-template <typename Lab, typename Kernel, typename TGrid,
-          typename TGrid_corr = TGrid>
-void computeA(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
-  if (g_corr != nullptr)
-    g_corr->Corrector.prepare(*g_corr);
+template <typename Lab, typename Kernel, typename TGrid>
+void computeA(Kernel &&kernel, TGrid *g) {
   SynchronizerMPI_AMR<TGrid> &Synch = *(g->sync(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.avail_inner();
   std::vector<BlockInfo *> *halo_next;
@@ -4935,14 +4932,12 @@ void computeA(Kernel &&kernel, TGrid *g, TGrid_corr *g_corr = nullptr) {
     }
   }
   Synch.avail_halo();
-  if (g_corr != nullptr)
-    g_corr->Corrector.FillBlockCases();
 }
 template <typename Kernel, typename TGrid, typename LabMPI, typename TGrid2,
           typename LabMPI2, typename TGrid_corr = TGrid>
 static void computeB(const Kernel &kernel, TGrid &grid, TGrid2 &grid2,
-                    const bool applyFluxCorrection = false,
-                    TGrid_corr *corrected_grid = nullptr) {
+                     const bool applyFluxCorrection = false,
+                     TGrid_corr *corrected_grid = nullptr) {
   if (applyFluxCorrection)
     corrected_grid->Corrector.prepare(*corrected_grid);
   SynchronizerMPI_AMR<TGrid> &Synch = *grid.sync(kernel.stencil);
@@ -5270,8 +5265,10 @@ typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
 typedef GridMPI<Grid<ScalarElement>, ScalarElement> ScalarGrid;
 typedef GridMPI<Grid<VectorElement>, VectorElement> VectorGrid;
-typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement> VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement> ScalarLab;
+typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
+    VectorLab;
+typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>, ScalarElement>
+    ScalarLab;
 typedef MeshAdaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef MeshAdaptation<VectorLab, VectorElement> VectorAMR;
 struct FishSkin {
@@ -8200,7 +8197,9 @@ int main(int argc, char **argv) {
             Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
-      computeA<VectorLab>(Step1, sim.vel, sim.tmpV);
+      sim.tmpV->Corrector.prepare(*sim.tmpV);
+      computeA<VectorLab>(Step1, sim.vel);
+      sim.tmpV->Corrector.FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -8217,7 +8216,9 @@ int main(int argc, char **argv) {
                 Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
-      computeA<VectorLab>(Step1, sim.vel, sim.tmpV);
+      sim.tmpV->Corrector.prepare(*sim.tmpV);
+      computeA<VectorLab>(Step1, sim.vel);
+      sim.tmpV->Corrector.FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
@@ -8632,8 +8633,8 @@ int main(int argc, char **argv) {
         }
       }
       computeB<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
-              ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
-                          sim.tmp);
+               ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
+                           sim.tmp);
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = sim.pold->m_vInfo;
 #pragma omp parallel for
@@ -8646,7 +8647,9 @@ int main(int argc, char **argv) {
             PRES[iy][ix].s = 0;
           }
       }
-      computeA<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
+      sim.tmp->Corrector.prepare(*sim.tmp);
+      computeA<ScalarLab>(updatePressureRHS1(), sim.pold);
+      sim.tmp->Corrector.FillBlockCases();
       pressureSolver.solve(sim.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -8675,7 +8678,11 @@ int main(int argc, char **argv) {
           for (int ix = 0; ix < _BS_; ix++)
             P[iy][ix].s += POLD[iy][ix].s - avg;
       }
-      { computeA<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
+      {
+        sim.tmpV->Corrector.prepare(*sim.tmpV);
+        computeA<ScalarLab>(pressureCorrectionKernel(), sim.pres);
+        sim.tmpV->Corrector.FillBlockCases();
+      }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
@@ -8688,7 +8695,7 @@ int main(int argc, char **argv) {
           }
       }
       computeB<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
-              ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
+               ScalarLab>(KernelComputeForces(), *sim.vel, *sim.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
