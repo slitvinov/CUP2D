@@ -599,9 +599,10 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           break;
         if (Cases[Cases_index].level == info.level &&
             Cases[Cases_index].Z == info.Z) {
-          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase<ElementType> *>(
-              {Cases[Cases_index].level, Cases[Cases_index].Z},
-              &Cases[Cases_index]));
+          MapOfCases.insert(
+              std::pair<std::array<long long, 2>, BlockCase<ElementType> *>(
+                  {Cases[Cases_index].level, Cases[Cases_index].Z},
+                  &Cases[Cases_index]));
           grid->getBlockInfoAll(Cases[Cases_index].level, Cases[Cases_index].Z)
               .auxiliary = &Cases[Cases_index];
           info.auxiliary = &Cases[Cases_index];
@@ -2217,7 +2218,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
   typedef typename TFluxCorrection::BlockType BlockType;
   typedef BlockCase<ElementType> Case;
-  int size;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -2330,20 +2330,17 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     if (_grid.UpdateFluxCorrection == false)
       return;
     _grid.UpdateFluxCorrection = false;
-    int temprank;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &temprank);
-    TFluxCorrection::rank = temprank;
-    send_buffer.resize(size);
-    recv_buffer.resize(size);
-    send_faces.resize(size);
-    recv_faces.resize(size);
-    for (int r = 0; r < size; r++) {
+    TFluxCorrection::rank = sim.rank;
+    send_buffer.resize(sim.size);
+    recv_buffer.resize(sim.size);
+    send_faces.resize(sim.size);
+    recv_faces.resize(sim.size);
+    for (int r = 0; r < sim.size; r++) {
       send_faces[r].clear();
       recv_faces[r].clear();
     }
-    std::vector<int> send_buffer_size(size, 0);
-    std::vector<int> recv_buffer_size(size, 0);
+    std::vector<int> send_buffer_size(sim.size, 0);
+    std::vector<int> recv_buffer_size(sim.size, 0);
     const int NC = ElementType::DIM;
     int blocksize[3];
     blocksize[0] = _BS_;
@@ -2473,11 +2470,11 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           Cases_index++;
         }
       }
-    for (int r = 0; r < size; r++) {
+    for (int r = 0; r < sim.size; r++) {
       std::sort(send_faces[r].begin(), send_faces[r].end());
       std::sort(recv_faces[r].begin(), recv_faces[r].end());
     }
-    for (int r = 0; r < size; r++) {
+    for (int r = 0; r < sim.size; r++) {
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
       int offset = 0;
@@ -2500,7 +2497,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         (sizeof(Real) == sizeof(float))
             ? MPI_FLOAT
             : ((sizeof(Real) == sizeof(double)) ? MPI_DOUBLE : MPI_LONG_DOUBLE);
-    for (int r = 0; r < size; r++) {
+    for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
         face &f = send_faces[r][k];
@@ -2531,7 +2528,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<MPI_Request> send_requests;
     std::vector<MPI_Request> recv_requests;
     int me = TFluxCorrection::rank;
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (r != me) {
         if (recv_buffer[r].size() != 0) {
           MPI_Request req{};
@@ -2564,14 +2561,14 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       FillCase(recv_faces[me][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       if (r != me)
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
           FillCase(recv_faces[r][index]);
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0, 0);
-    for (int r = 0; r < size; r++)
+    for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 0, 1, 0);
     if (send_requests.size() > 0)
@@ -2582,8 +2579,6 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
   typedef ElementType Block[_BS_][_BS_];
   typedef SynchronizerMPI_AMR<GridMPI<TGrid, ElementType>> SynchronizerMPIType;
   size_t timestamp;
-  int myrank;
-  int world_size;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<GridMPI<TGrid, ElementType>, ElementType>,
                     ElementType>
@@ -2594,19 +2589,17 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
       : TGrid(nX, nY, nZ, a_maxextent, a_levelStart, a_levelMax, a_xperiodic,
               a_yperiodic, a_zperiodic),
         timestamp(0) {
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
     const long long total_blocks =
         nX * nY * nZ * pow(pow(2, a_levelStart), DIMENSION);
-    long long my_blocks = total_blocks / world_size;
-    if ((long long)myrank < total_blocks % world_size)
+    long long my_blocks = total_blocks / sim.size;
+    if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
-    long long n_start = myrank * (total_blocks / world_size);
-    if (total_blocks % world_size > 0) {
-      if ((long long)myrank < total_blocks % world_size)
-        n_start += myrank;
+    long long n_start = sim.rank * (total_blocks / sim.size);
+    if (total_blocks % sim.size > 0) {
+      if ((long long)sim.rank < total_blocks % sim.size)
+        n_start += sim.rank;
       else
-        n_start += total_blocks % world_size;
+        n_start += total_blocks % sim.size;
     }
     std::vector<short int> levels(my_blocks, a_levelStart);
     std::vector<long long> Zs(my_blocks);
@@ -2616,7 +2609,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     MPI_Barrier(MPI_COMM_WORLD);
   }
   virtual Block *avail(const int m, const long long n) override {
-    return (TGrid::Tree(m, n).rank() == myrank)
+    return (TGrid::Tree(m, n).rank() == sim.rank)
                ? (Block *)TGrid::getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
@@ -2782,14 +2775,14 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
         BlockInfo &infoNei = TGrid::getBlockInfoAll(
             info.level, info.Znei_(code[0], code[1], code[2]));
         const TreePosition &infoNeiTree = TGrid::Tree(infoNei.level, infoNei.Z);
-        if (infoNeiTree.Exists() && infoNeiTree.rank() != myrank) {
+        if (infoNeiTree.Exists() && infoNeiTree.rank() != sim.rank) {
           myflag = true;
           break;
         } else if (infoNeiTree.CheckCoarser()) {
           long long nCoarse = infoNei.Zparent;
           const int infoNeiCoarserrank =
               TGrid::Tree(infoNei.level - 1, nCoarse).rank();
-          if (infoNeiCoarserrank != myrank) {
+          if (infoNeiCoarserrank != sim.rank) {
             myflag = true;
             break;
           }
@@ -2810,7 +2803,7 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             const int infoNeiFinerrank =
                 TGrid::Tree(infoNei.level + 1, nFine).rank();
-            if (infoNeiFinerrank != myrank) {
+            if (infoNeiFinerrank != sim.rank) {
               myflag = true;
               break;
             }
@@ -2912,12 +2905,12 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
       high[1] = std::max(high[1], p_high[1]);
       high[2] = 0;
     }
-    std::vector<double> all_boxes(world_size * 6);
+    std::vector<double> all_boxes(sim.size * 6);
     double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
     MPI_Allgather(my_box, 6, MPI_DOUBLE, all_boxes.data(), 6, MPI_DOUBLE,
                   MPI_COMM_WORLD);
-    for (int i = 0; i < world_size; i++) {
-      if (i == myrank)
+    for (int i = 0; i < sim.size; i++) {
+      if (i == sim.rank)
         continue;
       if (Intersect(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
         myNeighbors.push_back(i);
@@ -2982,8 +2975,8 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
   }
-  virtual int rank() const override { return myrank; }
-  virtual int get_world_size() const override { return world_size; }
+  virtual int rank() const override { return sim.rank; }
+  virtual int get_world_size() const override { return sim.size; }
 };
 template <class DataType> struct Matrix3D {
   DataType *m_pData{nullptr};
