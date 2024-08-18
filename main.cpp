@@ -20,7 +20,6 @@
 #endif
 #include "cuda.h"
 #define OMPI_SKIP_MPICXX 1
-enum { DIMENSION = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -2379,7 +2378,7 @@ template <typename ElementType> struct Grid {
     const int lvlMax = dummy.levelMax(levelMax);
     for (int m = 0; m < lvlMax; m++) {
       const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, (Real)DIMENSION);
+      const long long Ntot = nx * ny * nz * pow(TwoPower, 2);
       if (m == 0)
         level_base.push_back(Ntot);
       if (m > 0)
@@ -2387,7 +2386,7 @@ template <typename ElementType> struct Grid {
     }
 
     const long long total_blocks =
-        nX * nY * nZ * pow(pow(2, a_levelStart), DIMENSION);
+        nX * nY * nZ * pow(pow(2, a_levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
     if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
@@ -2718,7 +2717,7 @@ template <typename ElementType> struct Grid {
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
     intersection[2] = true;
     const bool isperiodic[3] = {xperiodic, yperiodic, zperiodic};
-    for (int d = 0; d < DIMENSION; d++) {
+    for (int d = 0; d < 2; d++) {
       if (isperiodic[d]) {
         if (h2[d] > extent[d])
           intersection[d] = std::min(h1[d], h2[d] - extent[d]) -
@@ -3206,8 +3205,7 @@ template <typename ElementType> struct BlockLab {
       int icodes[8];
       int k = 0;
       coarsened_nei_codes_size = 0;
-      for (int icode = (DIMENSION == 2 ? 9 : 0);
-           icode < (DIMENSION == 2 ? 18 : 27); icode++) {
+      for (int icode = 9; icode < 18 ; icode++) {
         myblocks[icode] = nullptr;
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
@@ -4568,7 +4566,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       if (info.state == Refine) {
         m_ref.push_back(info.level);
         n_ref.push_back(info.Z);
-        blocks_after += (1 << DIMENSION) - 1;
+        blocks_after += (1 << 2) - 1;
         r++;
       } else if (info.state == Compress && info.index[0] % 2 == 0 &&
                  info.index[1] % 2 == 0 && info.index[2] % 2 == 0) {
