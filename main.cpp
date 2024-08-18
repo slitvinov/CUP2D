@@ -3414,8 +3414,6 @@ template <typename ElementType> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    const int nX = _BS_;
-    const int nY = _BS_;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int yStep = (code[1] == 0) ? 2 : 1;
@@ -3440,7 +3438,7 @@ template <typename ElementType> struct BlockLab {
       const int my_ix = abs(code[0]) * (s[0] - m_stencilStart[0]) +
                         (1 - abs(code[0])) * (s[0] - m_stencilStart[0] +
                                               (B % 2) * (e[0] - s[0]) / 2);
-      const int XX = s[0] - code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]);
+      const int XX = s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
 #pragma GCC ivdep
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
         const int my_izx =
@@ -3476,20 +3474,20 @@ template <typename ElementType> struct BlockLab {
                                      aux * (e[1] - s[1]) / 2)) *
                   m_vSize0);
           const int YY0 = (abs(code[1]) == 1)
-                              ? 2 * (iy + 0 * yStep - code[1] * nY) +
-                                    std::min(0, code[1]) * nY
+                              ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
+                                    std::min(0, code[1]) * _BS_
                               : iy + 0 * yStep;
           const int YY1 = (abs(code[1]) == 1)
-                              ? 2 * (iy + 1 * yStep - code[1] * nY) +
-                                    std::min(0, code[1]) * nY
+                              ? 2 * (iy + 1 * yStep - code[1] * _BS_) +
+                                    std::min(0, code[1]) * _BS_
                               : iy + 1 * yStep;
           const int YY2 = (abs(code[1]) == 1)
-                              ? 2 * (iy + 2 * yStep - code[1] * nY) +
-                                    std::min(0, code[1]) * nY
+                              ? 2 * (iy + 2 * yStep - code[1] * _BS_) +
+                                    std::min(0, code[1]) * _BS_
                               : iy + 2 * yStep;
           const int YY3 = (abs(code[1]) == 1)
-                              ? 2 * (iy + 3 * yStep - code[1] * nY) +
-                                    std::min(0, code[1]) * nY
+                              ? 2 * (iy + 3 * yStep - code[1] * _BS_) +
+                                    std::min(0, code[1]) * _BS_
                               : iy + 3 * yStep;
           const ElementType *ptrSrc_00 = &b[YY0][XX];
           const ElementType *ptrSrc_10 = &b[YY0 + 1][XX];
@@ -3524,8 +3522,8 @@ template <typename ElementType> struct BlockLab {
                         (1 - abs(code[1])) * (iy / 2 - m_stencilStart[1] +
                                               aux * (e[1] - s[1]) / 2)) *
                            m_vSize0);
-          const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
-                                                   std::min(0, code[1]) * nY
+          const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                                   std::min(0, code[1]) * _BS_
                                              : iy;
           const ElementType *ptrSrc_0 = &b[YY][XX];
           const ElementType *ptrSrc_1 = &b[YY + 1][XX];
