@@ -3170,7 +3170,6 @@ template <typename ElementType> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    const int nX = _BS_;
     const int nY = _BS_;
     const int nZ = 1;
     const bool xperiodic = is_xperiodic();
@@ -3185,7 +3184,7 @@ template <typename ElementType> struct BlockLab {
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
       ElementType *ptrSource = &block[0][0];
-      const int nbytes = sizeof(ElementType) * nX;
+      const int nbytes = sizeof(ElementType) * _BS_;
       const int _iz0 = -m_stencilStart[2];
       const int _iz1 = _iz0 + nZ;
       const int _iy0 = -m_stencilStart[1];
@@ -3207,10 +3206,10 @@ template <typename ElementType> struct BlockLab {
           ElementType *__restrict__ ptrDestination3 =
               &m_cacheBlock->LinAccess(my_izx + (iy + 3) * m_vSize0);
           memcpy(ptrDestination0, (ptrSource), nbytes);
-          memcpy(ptrDestination1, (ptrSource + nX), nbytes);
-          memcpy(ptrDestination2, (ptrSource + 2 * nX), nbytes);
-          memcpy(ptrDestination3, (ptrSource + 3 * nX), nbytes);
-          ptrSource += 4 * nX;
+          memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
+          memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
+          memcpy(ptrDestination3, (ptrSource + 3 * _BS_), nbytes);
+          ptrSource += 4 * _BS_;
         }
       }
     }
@@ -3249,11 +3248,11 @@ template <typename ElementType> struct BlockLab {
             abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
           continue;
         const int s[3] = {
-            code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
+            code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
             code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
             code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : nZ};
         const int e[3] = {
-            code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + m_stencilEnd[0] - 1,
+            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + m_stencilEnd[1] - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
         if (TreeNei.Exists())
