@@ -4492,7 +4492,28 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
       if (Synch != nullptr)
         lab.prepare(*grid, Synch->stencil);
       for (size_t i = 0; i < m_ref.size(); i++) {
-        refine_1(m_ref[i], n_ref[i], lab);
+        const int level = m_ref[i];
+        const long long Z = n_ref[i];
+        BlockInfo &parent = grid->getBlockInfoAll(level, Z);
+        parent.state = Leave;
+        if (basic_refinement == false)
+          lab.load(parent, 0.0, true);
+        const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+        assert(parent.ptrBlock != NULL);
+        assert(level <= grid->getlevelMax() - 1);
+        BlockType *Blocks[4];
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            const long long nc =
+                grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+            BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
+            Child.state = Leave;
+            grid->_alloc(level + 1, nc);
+            grid->Tree(level + 1, nc).setCheckCoarser();
+            Blocks[j * 2 + i] = (BlockType *)Child.ptrBlock;
+          }
+        if (basic_refinement == false)
+          RefineBlocks(Blocks, lab);
       }
       for (size_t i = 0; i < m_ref.size(); i++) {
         refine_2(m_ref[i], n_ref[i]);
@@ -4590,28 +4611,6 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
         }
       }
     }
-  }
-  void refine_1(const int level, const long long Z, TLab &lab) {
-    BlockInfo &parent = grid->getBlockInfoAll(level, Z);
-    parent.state = Leave;
-    if (basic_refinement == false)
-      lab.load(parent, 0.0, true);
-    const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-    assert(parent.ptrBlock != NULL);
-    assert(level <= grid->getlevelMax() - 1);
-    BlockType *Blocks[4];
-    for (int j = 0; j < 2; j++)
-      for (int i = 0; i < 2; i++) {
-        const long long nc =
-            grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-        BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-        Child.state = Leave;
-        grid->_alloc(level + 1, nc);
-        grid->Tree(level + 1, nc).setCheckCoarser();
-        Blocks[j * 2 + i] = (BlockType *)Child.ptrBlock;
-      }
-    if (basic_refinement == false)
-      RefineBlocks(Blocks, lab);
   }
   void refine_2(const int level, const long long Z) {
 #pragma omp critical
