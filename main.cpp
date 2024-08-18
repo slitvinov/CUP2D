@@ -2422,7 +2422,7 @@ template <typename ElementType> struct Grid {
                ? (Block *)getBlockInfoAll(m, n).ptrBlock
                : nullptr;
   }
-  virtual void UpdateBoundary(bool clean = false) {
+  void UpdateBoundary(bool clean = false) {
     const auto blocksPerDim = getMaxBlocks();
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;
@@ -2551,7 +2551,38 @@ template <typename ElementType> struct Grid {
         }
   };
   void UpdateBlockInfoAll_States(bool UpdateIDs = false) {
-    std::vector<int> myNeighbors = FindMyNeighbors();
+    std::vector<int> myNeighbors;
+    double low[3] = {+1e20, +1e20, +1e20};
+    double high[3] = {-1e20, -1e20, -1e20};
+    double p_low[3];
+    double p_high[3];
+    for (auto &info : m_vInfo) {
+      const double h = 2 * info.h;
+      info.pos(p_low, 0, 0);
+      info.pos(p_high, _BS_ - 1, _BS_ - 1);
+      p_low[0] -= h;
+      p_low[1] -= h;
+      p_low[2] = 0;
+      p_high[0] += h;
+      p_high[1] += h;
+      p_high[2] = 0;
+      low[0] = std::min(low[0], p_low[0]);
+      low[1] = std::min(low[1], p_low[1]);
+      low[2] = 0;
+      high[0] = std::max(high[0], p_high[0]);
+      high[1] = std::max(high[1], p_high[1]);
+      high[2] = 0;
+    }
+    std::vector<double> all_boxes(sim.size * 6);
+    double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
+    MPI_Allgather(my_box, 6, MPI_DOUBLE, all_boxes.data(), 6, MPI_DOUBLE,
+                  MPI_COMM_WORLD);
+    for (int i = 0; i < sim.size; i++) {
+      if (i == sim.rank)
+        continue;
+      if (Intersect(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
+        myNeighbors.push_back(i);
+    }
     const auto blocksPerDim = getMaxBlocks();
     std::vector<long long> myData;
     for (auto &info : m_vInfo) {
@@ -2685,41 +2716,6 @@ template <typename ElementType> struct Grid {
         }
       }
     }
-  }
-  std::vector<int> FindMyNeighbors() {
-    std::vector<int> myNeighbors;
-    double low[3] = {+1e20, +1e20, +1e20};
-    double high[3] = {-1e20, -1e20, -1e20};
-    double p_low[3];
-    double p_high[3];
-    for (auto &info : m_vInfo) {
-      const double h = 2 * info.h;
-      info.pos(p_low, 0, 0);
-      info.pos(p_high, _BS_ - 1, _BS_ - 1);
-      p_low[0] -= h;
-      p_low[1] -= h;
-      p_low[2] = 0;
-      p_high[0] += h;
-      p_high[1] += h;
-      p_high[2] = 0;
-      low[0] = std::min(low[0], p_low[0]);
-      low[1] = std::min(low[1], p_low[1]);
-      low[2] = 0;
-      high[0] = std::max(high[0], p_high[0]);
-      high[1] = std::max(high[1], p_high[1]);
-      high[2] = 0;
-    }
-    std::vector<double> all_boxes(sim.size * 6);
-    double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
-    MPI_Allgather(my_box, 6, MPI_DOUBLE, all_boxes.data(), 6, MPI_DOUBLE,
-                  MPI_COMM_WORLD);
-    for (int i = 0; i < sim.size; i++) {
-      if (i == sim.rank)
-        continue;
-      if (Intersect(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
-        myNeighbors.push_back(i);
-    }
-    return myNeighbors;
   }
   bool Intersect(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
