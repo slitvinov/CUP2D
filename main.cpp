@@ -4015,10 +4015,10 @@ struct BlockLabMPI : public MyBlockLab {
       MyBlockLab::post_load(info, t, applybc);
   }
 };
-template <typename TGrid> struct LoadBalancer {
-  typedef typename TGrid::Block BlockType;
+template <typename ElementType> struct LoadBalancer {
+  typedef ElementType BlockType[_BS_][_BS_];
   bool movedBlocks;
-  TGrid *grid;
+  Grid<ElementType> *grid;
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
     long long mn[2];
@@ -4057,7 +4057,7 @@ template <typename TGrid> struct LoadBalancer {
       grid->Tree(level - 1, nf).setCheckFiner();
     }
   }
-  LoadBalancer(TGrid &a_grid) {
+  LoadBalancer(Grid<ElementType> &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
@@ -4370,7 +4370,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
-  LoadBalancer<Grid<ElementType>> *Balancer;
+  LoadBalancer<ElementType> *Balancer;
   Grid<ElementType> *grid;
   bool basic_refinement;
   double tolerance_for_refinement;
@@ -4390,7 +4390,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < ElementType::DIM; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<Grid<ElementType>>(*grid);
+    Balancer = new LoadBalancer<ElementType>(*grid);
   }
   void Tag() {
     boundary_needed = true;
