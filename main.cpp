@@ -3303,7 +3303,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
       }
     }
   }
-  void post_load(const BlockInfo &info, const Real t = 0, bool applybc = true) {
+  void post_load(const BlockInfo &info, const Real t, bool applybc) {
     const int nX = _BS_;
     const int nY = _BS_;
     if (coarsened) {
@@ -4401,7 +4401,6 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
   bool boundary_needed;
   LoadBalancer<TGrid> *Balancer;
   TGrid *grid;
-  double time;
   bool basic_refinement;
   double tolerance_for_refinement;
   double tolerance_for_compression;
@@ -4422,8 +4421,7 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<TGrid>(*grid);
   }
-  void Tag(double t = 0) {
-    time = t;
+  void Tag() {
     boundary_needed = true;
     SynchronizerMPI_AMR<TGrid> *Synch = grid->sync(stencil);
     CallValidStates = false;
@@ -4597,7 +4595,7 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
     BlockInfo &parent = grid->getBlockInfoAll(level, Z);
     parent.state = Leave;
     if (basic_refinement == false)
-      lab.load(parent, time, true);
+      lab.load(parent, 0.0, true);
     const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
     assert(parent.ptrBlock != NULL);
     assert(level <= grid->getlevelMax() - 1);
