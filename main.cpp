@@ -514,13 +514,13 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       auto search1 = MapOfCases.find({info.level + 1, Z});
       BlockCase<ElementType> &FineCase = (*search1->second);
       std::vector<ElementType> &FineFace = FineCase.m_pData[otherFace];
-      const int d = myFace / 2;
-      const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-      const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-      const int N1F = sizes[d1];
-      const int N2F = sizes[d2];
-      const int N1 = N1F;
-      const int N2 = N2F;
+      int d = myFace / 2;
+      int d1 = std::max((d + 1) % 3, (d + 2) % 3);
+      int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+      int N1F = sizes[d1];
+      int N2F = sizes[d2];
+      int N1 = N1F;
+      int N2 = N2F;
       int base = 0;
       if (B == 1)
         base = (N2 / 2) + (0) * N2;
