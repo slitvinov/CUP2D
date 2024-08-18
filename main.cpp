@@ -4396,9 +4396,8 @@ template <typename TGrid> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab> struct MeshAdaptation {
+template <typename TLab, typename BlockType> struct MeshAdaptation {
   typedef typename TLab::GridType TGrid;
-  typedef typename TGrid::Block BlockType;
   typedef typename TGrid::BlockType::ElementType ElementType;
   typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
   StencilInfo stencil;
@@ -4894,12 +4893,10 @@ template <typename TLab> struct MeshAdaptation {
       }
   }
   virtual State TagLoadedBlock(BlockInfo &info) {
-    const int nx = _BS_;
-    const int ny = _BS_;
     BlockType &b = *(BlockType *)info.ptrBlock;
     double Linf = 0.0;
-    for (int j = 0; j < ny; j++)
-      for (int i = 0; i < nx; i++) {
+    for (int j = 0; j < _BS_; j++)
+      for (int i = 0; i < _BS_; i++) {
         Linf = std::max(Linf, std::fabs(b(i, j).magnitude()));
       }
     if (Linf > tolerance_for_refinement)
@@ -5290,8 +5287,8 @@ typedef GridMPI<Grid<ScalarBlock, ScalarElement>, ScalarElement> ScalarGrid;
 typedef GridMPI<Grid<VectorBlock, VectorElement>, VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>> VectorLab;
 typedef BlockLabMPI<BlockLabNeumann<ScalarGrid, ScalarElement>> ScalarLab;
-typedef MeshAdaptation<ScalarLab> ScalarAMR;
-typedef MeshAdaptation<VectorLab> VectorAMR;
+typedef MeshAdaptation<ScalarLab, ScalarBlock> ScalarAMR;
+typedef MeshAdaptation<VectorLab, VectorBlock> VectorAMR;
 struct FishSkin {
   size_t Npoints;
   Real *xSurf;
