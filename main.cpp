@@ -25,18 +25,6 @@ typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-struct BlockGroup {
-  int i_min[3];
-  int i_max[3];
-  int level;
-  std::vector<long long> Z;
-  size_t ID;
-  double origin[3];
-  double h;
-  int NXX;
-  int NYY;
-  int NZZ;
-};
 static Real dist(Real a[2], Real b[2]) {
   return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
 }
@@ -665,7 +653,6 @@ template <typename ElementType> struct Grid {
   const bool xperiodic;
   const bool yperiodic;
   const bool zperiodic;
-  std::vector<BlockGroup> MyGroups;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
