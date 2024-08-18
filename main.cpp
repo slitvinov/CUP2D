@@ -2805,7 +2805,7 @@ template <typename ElementType> struct Grid {
     UpdateFluxCorrection = true;
     UpdateGroups = true;
   }
-  virtual void initialize_blocks(const std::vector<long long> &blocksZ,
+  void initialize_blocks(const std::vector<long long> &blocksZ,
                                  const std::vector<short int> &blockslevel) {
     initialize_blocks0(blocksZ, blockslevel);
     UpdateBlockInfoAll_States(false);
