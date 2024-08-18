@@ -2580,7 +2580,7 @@ template <typename ElementType> struct Grid {
     for (int i = 0; i < sim.size; i++) {
       if (i == sim.rank)
         continue;
-      if (Intersect(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
+      if (Intersect0(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
         myNeighbors.push_back(i);
     }
     const auto blocksPerDim = getMaxBlocks();
@@ -2717,7 +2717,7 @@ template <typename ElementType> struct Grid {
       }
     }
   }
-  bool Intersect(double *l1, double *h1, double *l2, double *h2) {
+  bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
         (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, NZ * 1)));
     const double extent[3] = {NX * _BS_ * h0, NY * _BS_ * h0, NZ * 1 * h0};
@@ -2728,8 +2728,7 @@ template <typename ElementType> struct Grid {
     bool intersection[3];
     intersection[0] = intersect[0][1] - intersect[0][0] > 0.0;
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
-    intersection[2] =
-        DIMENSION == 3 ? (intersect[2][1] - intersect[2][0] > 0.0) : true;
+    intersection[2] = true;
     const bool isperiodic[3] = {xperiodic, yperiodic, zperiodic};
     for (int d = 0; d < DIMENSION; d++) {
       if (isperiodic[d]) {
