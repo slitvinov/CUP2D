@@ -420,7 +420,7 @@ struct BlockInfo {
     return Znei[1 + i][1 + j][1 + k];
   }
 };
-template <typename BlockType, typename ElementType> struct BlockCase {
+template <typename ElementType> struct BlockCase {
   std::vector<ElementType> m_pData[6];
   static constexpr unsigned int m_vSize[] = {_BS_, _BS_, 1};
   bool storedFace[6];
@@ -448,7 +448,7 @@ template <typename BlockType, typename ElementType> struct BlockCase {
 template <typename TGrid, typename ElementType> struct FluxCorrection {
   typedef TGrid GridType;
   typedef typename GridType::BlockType BlockType;
-  typedef BlockCase<BlockType, ElementType> Case;
+  typedef BlockCase<ElementType> Case;
   int rank{0};
   std::map<std::array<long long, 2>, Case *> MapOfCases;
   TGrid *grid;
@@ -1961,8 +1961,7 @@ template <typename TGrid> struct SynchronizerMPI_AMR {
   SynchronizerMPI_AMR(StencilInfo a_stencil, StencilInfo a_Cstencil,
                       TGrid *_grid, int gptfloats)
       : stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
-        gptfloats(gptfloats),
+        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1), gptfloats(gptfloats),
         NC(a_stencil.selcomponents.size()) {
     grid = _grid;
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
@@ -2202,7 +2201,7 @@ template <typename TFluxCorrection, typename ElementType>
 struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
   typedef typename TFluxCorrection::BlockType BlockType;
-  typedef BlockCase<BlockType, ElementType> Case;
+  typedef BlockCase<ElementType> Case;
   int size;
   struct face {
     BlockInfo *infos[2];
@@ -2952,7 +2951,8 @@ template <typename TGrid, typename ElementType> struct GridMPI : public TGrid {
     typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
     if (itSynchronizerMPI == SynchronizerMPIs.end()) {
-      queryresult = new SynchronizerMPIType(stencil, Cstencil, this, sizeof(ElementType) / sizeof(Real));
+      queryresult = new SynchronizerMPIType(stencil, Cstencil, this,
+                                            sizeof(ElementType) / sizeof(Real));
       queryresult->_Setup();
       SynchronizerMPIs[stencil] = queryresult;
     } else {
@@ -4395,7 +4395,8 @@ template <typename TGrid> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename BlockType, typename ElementType> struct MeshAdaptation {
+template <typename TLab, typename BlockType, typename ElementType>
+struct MeshAdaptation {
   typedef typename TLab::GridType TGrid;
   typedef SynchronizerMPI_AMR<TGrid> SynchronizerMPIType;
   StencilInfo stencil;
@@ -6966,9 +6967,8 @@ template <typename ElementType> struct KernelAdvectDiffuse {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase<VectorBlock, ElementType> *tempCase =
-        (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
-                                                    .auxiliary);
+    BlockCase<ElementType> *tempCase =
+        (BlockCase<ElementType> *)(tmpVInfo[info.blockID].auxiliary);
     ElementType *faceXm = nullptr;
     ElementType *faceXp = nullptr;
     ElementType *faceYm = nullptr;
@@ -7763,9 +7763,8 @@ struct pressureCorrectionKernel {
         tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
         tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
-    BlockCase<VectorBlock, VectorElement> *tempCase =
-        (BlockCase<VectorBlock, VectorElement> *)(tmpVInfo[info.blockID]
-                                                      .auxiliary);
+    BlockCase<VectorElement> *tempCase =
+        (BlockCase<VectorElement> *)(tmpVInfo[info.blockID].auxiliary);
     VectorElement *faceXm = nullptr;
     VectorElement *faceXp = nullptr;
     VectorElement *faceYm = nullptr;
@@ -7830,9 +7829,8 @@ struct updatePressureRHS {
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<ScalarBlock, ScalarElement> *tempCase =
-        (BlockCase<ScalarBlock, ScalarElement> *)(tmpInfo[info.blockID]
-                                                      .auxiliary);
+    BlockCase<ScalarElement> *tempCase =
+        (BlockCase<ScalarElement> *)(tmpInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7890,9 +7888,8 @@ struct updatePressureRHS1 {
         TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
-    BlockCase<ScalarBlock, ScalarElement> *tempCase =
-        (BlockCase<ScalarBlock, ScalarElement> *)(sim.tmp->m_vInfo[info.blockID]
-                                                      .auxiliary);
+    BlockCase<ScalarElement> *tempCase =
+        (BlockCase<ScalarElement> *)(sim.tmp->m_vInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
