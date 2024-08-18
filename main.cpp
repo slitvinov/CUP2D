@@ -691,9 +691,8 @@ template <typename Block, typename ElementType> struct Grid {
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
   void _alloc(const int m, const long long n) {
-    std::allocator<Block> alloc;
     BlockInfo &new_info = getBlockInfoAll(m, n);
-    new_info.ptrBlock = alloc.allocate(1);
+    new_info.ptrBlock = new Block;
 #pragma omp critical
     { m_vInfo.push_back(new_info); }
     Tree(m, n).setrank(rank());
