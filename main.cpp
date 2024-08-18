@@ -782,11 +782,10 @@ template <typename Block, typename ElementType> struct Grid {
   virtual int rank() const { return 0; }
   virtual void initialize_blocks(const std::vector<long long> &blocksZ,
                                  const std::vector<short int> &blockslevel) {
-    std::allocator<Block> alloc;
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
       const long long n = m_vInfo[i].Z;
-      alloc.deallocate((Block *)getBlockInfoAll(m, n).ptrBlock, 1);
+      delete [] (Block *)getBlockInfoAll(m, n).ptrBlock;
     }
     std::vector<long long> aux;
     for (auto &m : BlockInfoAll)
