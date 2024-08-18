@@ -3212,7 +3212,7 @@ template <typename TGrid, typename ElementType> struct BlockLab {
     assert(m_cacheBlock != NULL);
     {
       BlockType &block = *(BlockType *)info.ptrBlock;
-      ElementType *ptrSource = &block(0);
+      ElementType *ptrSource = &block.data[0][0];
       const int nbytes = sizeof(ElementType) * nX;
       const int _iz0 = -m_stencilStart[2];
       const int _iz1 = _iz0 + nZ;
@@ -3539,14 +3539,14 @@ template <typename TGrid, typename ElementType> struct BlockLab {
                               ? 2 * (iy + 3 * yStep - code[1] * nY) +
                                     std::min(0, code[1]) * nY
                               : iy + 3 * yStep;
-          const ElementType *ptrSrc_00 = &b(XX, YY0);
-          const ElementType *ptrSrc_10 = &b(XX, YY0 + 1);
-          const ElementType *ptrSrc_01 = &b(XX, YY1);
-          const ElementType *ptrSrc_11 = &b(XX, YY1 + 1);
-          const ElementType *ptrSrc_02 = &b(XX, YY2);
-          const ElementType *ptrSrc_12 = &b(XX, YY2 + 1);
-          const ElementType *ptrSrc_03 = &b(XX, YY3);
-          const ElementType *ptrSrc_13 = &b(XX, YY3 + 1);
+          const ElementType *ptrSrc_00 = &b.data[YY0][XX];
+          const ElementType *ptrSrc_10 = &b.data[YY0 + 1][XX];
+          const ElementType *ptrSrc_01 = &b.data[YY1][XX];
+          const ElementType *ptrSrc_11 = &b.data[YY1 + 1][XX];
+          const ElementType *ptrSrc_02 = &b.data[YY2][XX];
+          const ElementType *ptrSrc_12 = &b.data[YY2 + 1][XX];
+          const ElementType *ptrSrc_03 = &b.data[YY3][XX];
+          const ElementType *ptrSrc_13 = &b.data[YY3 + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -3575,8 +3575,8 @@ template <typename TGrid, typename ElementType> struct BlockLab {
           const int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * nY) +
                                                    std::min(0, code[1]) * nY
                                              : iy;
-          const ElementType *ptrSrc_0 = &b(XX, YY);
-          const ElementType *ptrSrc_1 = &b(XX, YY + 1);
+          const ElementType *ptrSrc_0 = &b.data[YY][XX];
+          const ElementType *ptrSrc_1 = &b.data[YY + 1][XX];
 #pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
@@ -4661,8 +4661,8 @@ template <typename TLab, typename BlockType, typename ElementType> struct MeshAd
           BlockType &b = *Blocks[J * 2 + I];
           for (int j = 0; j < ny; j += 2)
             for (int i = 0; i < nx; i += 2) {
-              ElementType average = 0.25 * ((b(i, j) + b(i + 1, j + 1)) +
-                                            (b(i + 1, j) + b(i, j + 1)));
+              ElementType average = 0.25 * ((b.data[j][i] + b.data[j + 1][i + 1]) +
+                                            (b.data[j][i + 1] + b.data[j + 1][i]));
               (*Blocks[0]).data[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
             }
         }
@@ -5065,7 +5065,6 @@ struct VectorElement {
 };
 template <typename T> struct GridBlock {
   T data[_BS_][_BS_];
-  T &operator()(int ix, int iy = 0) { return data[iy][ix]; }
   GridBlock(const GridBlock &) = delete;
   GridBlock &operator=(const GridBlock &) = delete;
 };
