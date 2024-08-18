@@ -757,7 +757,7 @@ template <typename ElementType> struct Grid {
         return;
       }
   }
-  virtual void FillPos(bool CopyInfos = true) {
+  void FillPos(bool CopyInfos = true) {
     std::sort(m_vInfo.begin(), m_vInfo.end());
     Octree.reserve(Octree.size() + m_vInfo.size() / 8);
     if (CopyInfos)
