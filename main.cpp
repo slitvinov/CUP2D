@@ -4411,15 +4411,12 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
     tolerance_for_refinement = Rtol;
     tolerance_for_compression = Ctol;
     boundary_needed = false;
-    constexpr int Gx = 1;
-    constexpr int Gy = 1;
-    constexpr int Gz = DIMENSION == 3 ? 1 : 0;
-    stencil.sx = -Gx;
-    stencil.sy = -Gy;
-    stencil.sz = -Gz;
-    stencil.ex = Gx + 1;
-    stencil.ey = Gy + 1;
-    stencil.ez = Gz + 1;
+    stencil.sx = -1;
+    stencil.sy = -1;
+    stencil.sz = 0;
+    stencil.ex = 2;
+    stencil.ey = 2;
+    stencil.ez = 1;
     stencil.tensorial = true;
     for (int i = 0; i < ElementType::DIM; i++)
       stencil.selcomponents.push_back(i);
