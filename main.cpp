@@ -361,7 +361,6 @@ struct TreePosition {
   bool CheckFiner() const { return position == -1; }
   bool Exists() const { return position >= 0; }
   int rank() const { return position; }
-  void setrank(const int r) { position = r; }
   void setCheckCoarser() { position = -2; }
   void setCheckFiner() { position = -1; }
 };
@@ -2673,7 +2672,7 @@ template <typename ElementType> struct Grid {
            index__ += increment) {
         const int level = (int)recv_buffer[kk][index__];
         const long long Z = recv_buffer[kk][index__ + 1];
-        Tree(level, Z).setrank(r);
+        Tree(level, Z).position = r;
         if (UpdateIDs)
           getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
         int p[2];
@@ -2759,7 +2758,7 @@ template <typename ElementType> struct Grid {
       const int level = blockslevel[i];
       const long long Z = blocksZ[i];
       _alloc(level, Z);
-      Tree(level, Z).setrank(sim.rank);
+      Tree(level, Z).position = sim.rank;
       int p[2];
       BlockInfo::inverse(Z, level, p[0], p[1]);
       if (level < levelMax - 1)
@@ -2805,7 +2804,7 @@ template <typename ElementType> struct Grid {
     new_info.ptrBlock = new Block;
 #pragma omp critical
     { m_vInfo.push_back(new_info); }
-    Tree(m, n).setrank(sim.rank);
+    Tree(m, n).position = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
     delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
@@ -4042,7 +4041,7 @@ template <typename ElementType> struct LoadBalancer {
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           send_blocks[baserank].push_back({bCopy});
-          grid->Tree(b.level, b.Z).setrank(baserank);
+          grid->Tree(b.level, b.Z).position = baserank;
         }
       } else {
         for (int j = 0; j < 2; j++)
@@ -4055,7 +4054,7 @@ template <typename ElementType> struct LoadBalancer {
             const int temprank = grid->Tree(b.level, n).rank();
             if (temprank != sim.rank) {
               recv_blocks[temprank].push_back({temp, false});
-              grid->Tree(b.level, n).setrank(baserank);
+              grid->Tree(b.level, n).position = baserank;
             }
           }
       }
@@ -4170,12 +4169,12 @@ template <typename ElementType> struct LoadBalancer {
     for (int i = 0; i < flux_right; i++) {
       BlockInfo &info = SortedInfos[my_blocks - i - 1];
       grid->_dealloc(info.level, info.Z);
-      grid->Tree(info.level, info.Z).setrank(right);
+      grid->Tree(info.level, info.Z).position = right;
     }
     for (int i = 0; i < flux_left; i++) {
       BlockInfo &info = SortedInfos[i];
       grid->_dealloc(info.level, info.Z);
-      grid->Tree(info.level, info.Z).setrank(left);
+      grid->Tree(info.level, info.Z).position = left;
     }
     if (request.size() != 0) {
       movedBlocks = true;
@@ -4281,7 +4280,7 @@ template <typename ElementType> struct LoadBalancer {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             BlockInfo &info = SortedInfos[counter_S + i];
             deallocIDs.push_back(info.blockID_2);
-            grid->Tree(info.level, info.Z).setrank(r);
+            grid->Tree(info.level, info.Z).position = r;
           }
           counter_S += send_blocks[r].size();
         } else {
@@ -4289,7 +4288,7 @@ template <typename ElementType> struct LoadBalancer {
             BlockInfo &info =
                 SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
             deallocIDs.push_back(info.blockID_2);
-            grid->Tree(info.level, info.Z).setrank(r);
+            grid->Tree(info.level, info.Z).position = r;
           }
           counter_E += send_blocks[r].size();
         }
@@ -4655,7 +4654,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             const long long nc =
                 grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-            grid->Tree(Child).setrank(sim.rank);
+            grid->Tree(Child).position = sim.rank;
             if (level + 2 < grid->getlevelMax())
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
@@ -4699,7 +4698,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       const long long np =
           grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
       BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-      grid->Tree(parent.level, parent.Z).setrank(sim.rank);
+      grid->Tree(parent.level, parent.Z).position = sim.rank;
       parent.ptrBlock = info.ptrBlock;
       parent.state = Leave;
       if (level - 2 >= 0)
