@@ -5253,20 +5253,18 @@ struct FishSkin {
 static struct {
   ScalarGrid *chi = nullptr;
   VectorGrid *vel = nullptr;
-  VectorGrid *vOld = nullptr;
+  VectorGrid *vold = nullptr;
   ScalarGrid *pres = nullptr;
   VectorGrid *tmpV = nullptr;
   ScalarGrid *tmp = nullptr;
   ScalarGrid *pold = nullptr;
-  ScalarGrid *Cs = nullptr;
   ScalarAMR *tmp_amr = nullptr;
   ScalarAMR *chi_amr = nullptr;
   ScalarAMR *pres_amr = nullptr;
   ScalarAMR *pold_amr = nullptr;
   VectorAMR *vel_amr = nullptr;
-  VectorAMR *vOld_amr = nullptr;
+  VectorAMR *vold_amr = nullptr;
   VectorAMR *tmpV_amr = nullptr;
-  ScalarAMR *Cs_amr = nullptr;
 } var;
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
@@ -6763,12 +6761,12 @@ static void adapt() {
   var.pres_amr->TagLike(var.tmp->m_vInfo);
   var.pold_amr->TagLike(var.tmp->m_vInfo);
   var.vel_amr->TagLike(var.tmp->m_vInfo);
-  var.vOld_amr->TagLike(var.tmp->m_vInfo);
+  var.vold_amr->TagLike(var.tmp->m_vInfo);
   var.tmpV_amr->TagLike(var.tmp->m_vInfo);
   var.tmp_amr->Adapt(false);
   var.chi_amr->Adapt(false);
   var.vel_amr->Adapt(false);
-  var.vOld_amr->Adapt(false);
+  var.vold_amr->Adapt(false);
   var.pres_amr->Adapt(false);
   var.pold_amr->Adapt(false);
   var.tmpV_amr->Adapt(true);
@@ -7926,7 +7924,7 @@ int main(int argc, char **argv) {
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   var.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
-  var.vOld = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
+  var.vold = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                             sim.levelMax, xperiodic, yperiodic, zperiodic);
   var.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                             sim.levelMax, xperiodic, yperiodic, zperiodic);
@@ -8017,15 +8015,15 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
         (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
 
-        (*(VectorBlock *)var.vOld->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.vOld->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
+        (*(VectorBlock *)var.vold->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)var.vold->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
       }
   var.tmp_amr = new ScalarAMR(*var.tmp, sim.Rtol, sim.Ctol);
   var.chi_amr = new ScalarAMR(*var.chi, sim.Rtol, sim.Ctol);
   var.pres_amr = new ScalarAMR(*var.pres, sim.Rtol, sim.Ctol);
   var.pold_amr = new ScalarAMR(*var.pold, sim.Rtol, sim.Ctol);
   var.vel_amr = new VectorAMR(*var.vel, sim.Rtol, sim.Ctol);
-  var.vOld_amr = new VectorAMR(*var.vOld, sim.Rtol, sim.Ctol);
+  var.vold_amr = new VectorAMR(*var.vold, sim.Rtol, sim.Ctol);
   var.tmpV_amr = new VectorAMR(*var.tmpV, sim.Rtol, sim.Ctol);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
@@ -8127,7 +8125,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vOld->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
         const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
@@ -8142,7 +8140,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vOld->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
         const VectorBlock &__restrict__ tmpV =
             *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
@@ -8161,7 +8159,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vOld->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
         const VectorBlock &__restrict__ tmpV =
             *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
