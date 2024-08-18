@@ -2301,13 +2301,13 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block(j, i2) += CoarseFace[i2];
+        block.data[i2][j] += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block(i2, j) += CoarseFace[i2];
+        block.data[j][i2] += CoarseFace[i2];
         CoarseFace[i2].clear();
       }
     }
@@ -6077,7 +6077,7 @@ struct PutChiOnGrid {
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI.data[iy][ix].s = std::max(CHI(ix, iy).s, X[iy][ix]);
+          CHI.data[iy][ix].s = std::max(CHI.data[iy][ix].s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
             info.pos(p, ix, iy);
@@ -6645,7 +6645,7 @@ static void ongrid(Real dt) {
               o->dist[iy][ix] = o->dist[iy][ix] >= 0
                                     ? std::sqrt(o->dist[iy][ix])
                                     : -std::sqrt(-o->dist[iy][ix]);
-              b.data[iy][ix].s = std::max(b(ix, iy).s, o->dist[iy][ix]);
+              b.data[iy][ix].s = std::max(b.data[iy][ix].s, o->dist[iy][ix]);
               ;
             }
           std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
@@ -6970,8 +6970,8 @@ template <typename ElementType> struct KernelAdvectDiffuse {
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP(ix, iy).u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
-        TMP(ix, iy).u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP.data[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP.data[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
     BlockCase<VectorBlock, ElementType> *tempCase =
         (BlockCase<VectorBlock, ElementType> *)(tmpVInfo[info.blockID]
@@ -7129,13 +7129,13 @@ struct KernelComputeForces {
               dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
         }
         const Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
-                   fXP = -P(ix, iy).s * normX;
+                   fXP = -P.data[iy][ix].s * normX;
         const Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
-                   fYP = -P(ix, iy).s * normY;
+                   fYP = -P.data[iy][ix].s * normY;
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
-        O->p_s[k] = P(ix, iy).s;
+        O->p_s[k] = P.data[iy][ix].s;
         O->u_s[k] = V(ix, iy).u[0];
         O->v_s[k] = V(ix, iy).u[1];
         O->nx_s[k] = dx;
@@ -7143,8 +7143,8 @@ struct KernelComputeForces {
         O->omega_s[k] = (DvDx - DuDy) / info.h;
         O->uDef_s[k] = O->udef[iy][ix][0];
         O->vDef_s[k] = O->udef[iy][ix][1];
-        O->fX_s[k] = -P(ix, iy).s * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
-        O->fY_s[k] = -P(ix, iy).s * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
+        O->fX_s[k] = -P.data[iy][ix].s * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
+        O->fY_s[k] = -P.data[iy][ix].s * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
         O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->perimeter += std::sqrt(normX * normX + normY * normY);
@@ -7254,8 +7254,8 @@ struct PoissonSolver {
       const double vv = zInfo[i].h * zInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          P(ix, iy).s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
-          avg += P(ix, iy).s * vv;
+          P.data[iy][ix].s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
+          avg += P.data[iy][ix].s * vv;
           avg1 += vv;
         }
     }
@@ -7270,7 +7270,7 @@ struct PoissonSolver {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++)
-          P(ix, iy).s += -avg;
+          P.data[iy][ix].s += -avg;
     }
   }
   struct CellIndexer {
@@ -7661,8 +7661,8 @@ struct PoissonSolver {
               iy == 0)
             b[sfc_loc] = 0.;
           else
-            b[sfc_loc] = rhs(ix, iy).s;
-          x[sfc_loc] = p(ix, iy).s;
+            b[sfc_loc] = rhs.data[iy][ix].s;
+          x[sfc_loc] = p.data[iy][ix].s;
         }
     }
   }
@@ -7767,8 +7767,8 @@ struct pressureCorrectionKernel {
         *(VectorBlock *)tmpVInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        tmpV(ix, iy).u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
-        tmpV(ix, iy).u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
+        tmpV.data[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
+        tmpV.data[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
     BlockCase<VectorBlock, VectorElement> *tempCase =
         (BlockCase<VectorBlock, VectorElement> *)(tmpVInfo[info.blockID]
@@ -7829,11 +7829,11 @@ struct updatePressureRHS {
         *(ScalarBlock *)chiInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP(ix, iy).s =
+        TMP.data[iy][ix].s =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP(ix, iy).s +=
-            -facDiv * CHI(ix, iy).s *
+        TMP.data[iy][ix].s +=
+            -facDiv * CHI.data[iy][ix].s *
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
@@ -7854,7 +7854,7 @@ struct updatePressureRHS {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy].s = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXm[iy].s += -(facDiv * CHI(ix, iy).s) *
+        faceXm[iy].s += -(facDiv * CHI.data[iy][ix].s) *
                         (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -7863,7 +7863,7 @@ struct updatePressureRHS {
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy].s =
             -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXp[iy].s -= -(facDiv * CHI(ix, iy).s) *
+        faceXp[iy].s -= -(facDiv * CHI.data[iy][ix].s) *
                         (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -7871,7 +7871,7 @@ struct updatePressureRHS {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].s = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
-        faceYm[ix].s += -(facDiv * CHI(ix, iy).s) *
+        faceYm[ix].s += -(facDiv * CHI.data[iy][ix].s) *
                         (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -7880,7 +7880,7 @@ struct updatePressureRHS {
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].s =
             -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
-        faceYp[ix].s -= -(facDiv * CHI(ix, iy).s) *
+        faceYp[ix].s -= -(facDiv * CHI.data[iy][ix].s) *
                         (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -7894,7 +7894,7 @@ struct updatePressureRHS1 {
         *(ScalarBlock *)sim.tmp->m_vInfo[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
-        TMP(ix, iy).s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
+        TMP.data[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarBlock, ScalarElement> *tempCase =
@@ -8131,12 +8131,12 @@ int main(int argc, char **argv) {
           *(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[iy][ix] < CHI(ix, iy).s)
+          if (chi[iy][ix] < CHI.data[iy][ix].s)
             continue;
           Real p[2];
           sim.tmpV->m_vInfo[i].pos(p, ix, iy);
-          UDEF(ix, iy).u[0] += udef[iy][ix][0];
-          UDEF(ix, iy).u[1] += udef[iy][ix][1];
+          UDEF.data[iy][ix].u[0] += udef[iy][ix][0];
+          UDEF.data[iy][ix].u[1] += udef[iy][ix][1];
         }
     }
   }
@@ -8147,10 +8147,10 @@ int main(int argc, char **argv) {
     ScalarBlock &X = *(ScalarBlock *)sim.chi->m_vInfo[i].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        UF(ix, iy).u[0] =
-            UF(ix, iy).u[0] * (1 - X(ix, iy).s) + US(ix, iy).u[0] * X(ix, iy).s;
-        UF(ix, iy).u[1] =
-            UF(ix, iy).u[1] * (1 - X(ix, iy).s) + US(ix, iy).u[1] * X(ix, iy).s;
+        UF.data[iy][ix].u[0] =
+            UF.data[iy][ix].u[0] * (1 - X.data[iy][ix].s) + US.data[iy][ix].u[0] * X.data[iy][ix].s;
+        UF.data[iy][ix].u[1] =
+            UF.data[iy][ix].u[1] * (1 - X.data[iy][ix].s) + US.data[iy][ix].u[1] * X.data[iy][ix].s;
       }
   }
   while (1) {
@@ -8166,10 +8166,10 @@ int main(int argc, char **argv) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].ptrBlock;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-          umax = std::max(umax, std::fabs(VEL(ix, iy).u[0] + sim.uinfx));
-          umax = std::max(umax, std::fabs(VEL(ix, iy).u[1] + sim.uinfy));
-          umax = std::max(umax, std::fabs(VEL(ix, iy).u[0]));
-          umax = std::max(umax, std::fabs(VEL(ix, iy).u[1]));
+          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[0] + sim.uinfx));
+          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[1] + sim.uinfy));
+          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[0]));
+          umax = std::max(umax, std::fabs(VEL.data[iy][ix].u[1]));
         }
     }
     MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
@@ -8209,8 +8209,8 @@ int main(int argc, char **argv) {
         const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            Vold(ix, iy).u[0] = V(ix, iy).u[0];
-            Vold(ix, iy).u[1] = V(ix, iy).u[1];
+            Vold.data[iy][ix].u[0] = V.data[iy][ix].u[0];
+            Vold.data[iy][ix].u[1] = V.data[iy][ix].u[1];
           }
       }
       compute<VectorLab>(Step1, sim.vel, sim.tmpV);
@@ -8224,10 +8224,10 @@ int main(int argc, char **argv) {
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V(ix, iy).u[0] =
-                Vold(ix, iy).u[0] + (0.5 * tmpV(ix, iy).u[0]) * ih2;
-            V(ix, iy).u[1] =
-                Vold(ix, iy).u[1] + (0.5 * tmpV(ix, iy).u[1]) * ih2;
+            V.data[iy][ix].u[0] =
+                Vold.data[iy][ix].u[0] + (0.5 * tmpV.data[iy][ix].u[0]) * ih2;
+            V.data[iy][ix].u[1] =
+                Vold.data[iy][ix].u[1] + (0.5 * tmpV.data[iy][ix].u[1]) * ih2;
           }
       }
       compute<VectorLab>(Step1, sim.vel, sim.tmpV);
@@ -8241,8 +8241,8 @@ int main(int argc, char **argv) {
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V(ix, iy).u[0] = Vold(ix, iy).u[0] + tmpV(ix, iy).u[0] * ih2;
-            V(ix, iy).u[1] = Vold(ix, iy).u[1] + tmpV(ix, iy).u[1] * ih2;
+            V.data[iy][ix].u[0] = Vold.data[iy][ix].u[0] + tmpV.data[iy][ix].u[0] * ih2;
+            V.data[iy][ix].u[1] = Vold.data[iy][ix].u[1] + tmpV.data[iy][ix].u[1] * ih2;
           }
       }
       for (const auto &shape : sim.shapes) {
@@ -8264,8 +8264,8 @@ int main(int argc, char **argv) {
             for (int ix = 0; ix < _BS_; ++ix) {
               if (chi[iy][ix] <= 0)
                 continue;
-              const Real udiff[2] = {VEL(ix, iy).u[0] - udef[iy][ix][0],
-                                     VEL(ix, iy).u[1] - udef[iy][ix][1]};
+              const Real udiff[2] = {VEL.data[iy][ix].u[0] - udef[iy][ix][0],
+                                     VEL.data[iy][ix].u[1] - udef[iy][ix][1]};
               const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
               const Real F = hsq * Xlamdt / (1 + Xlamdt);
               Real p[2];
@@ -8601,7 +8601,7 @@ int main(int argc, char **argv) {
           VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              if (CHI(ix, iy).s > X[iy][ix])
+              if (CHI.data[iy][ix].s > X[iy][ix])
                 continue;
               if (X[iy][ix] <= 0)
                 continue;
@@ -8612,8 +8612,8 @@ int main(int argc, char **argv) {
               Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
               Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
               Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
-              V(ix, iy).u[0] = alpha * V(ix, iy).u[0] + (1 - alpha) * US;
-              V(ix, iy).u[1] = alpha * V(ix, iy).u[1] + (1 - alpha) * VS;
+              V.data[iy][ix].u[0] = alpha * V.data[iy][ix].u[0] + (1 - alpha) * US;
+              V.data[iy][ix].u[1] = alpha * V.data[iy][ix].u[1] + (1 - alpha) * VS;
             }
         }
       std::vector<BlockInfo> &tmpVInfo = sim.tmpV->m_vInfo;
@@ -8635,12 +8635,12 @@ int main(int argc, char **argv) {
           ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].ptrBlock;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
-              if (chi[iy][ix] < CHI(ix, iy).s)
+              if (chi[iy][ix] < CHI.data[iy][ix].s)
                 continue;
               Real p[2];
               tmpVInfo[i].pos(p, ix, iy);
-              UDEF(ix, iy).u[0] += udef[iy][ix][0];
-              UDEF(ix, iy).u[1] += udef[iy][ix][1];
+              UDEF.data[iy][ix].u[0] += udef[iy][ix][0];
+              UDEF.data[iy][ix].u[1] += udef[iy][ix][1];
             }
         }
       }
@@ -8655,8 +8655,8 @@ int main(int argc, char **argv) {
         ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            POLD(ix, iy).s = PRES(ix, iy).s;
-            PRES(ix, iy).s = 0;
+            POLD.data[iy][ix].s = PRES.data[iy][ix].s;
+            PRES.data[iy][ix].s = 0;
           }
       }
       compute<ScalarLab>(updatePressureRHS1(), sim.pold, sim.tmp);
@@ -8669,7 +8669,7 @@ int main(int argc, char **argv) {
         const Real vv = presInfo[i].h * presInfo[i].h;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
-            avg += P(ix, iy).s * vv;
+            avg += P.data[iy][ix].s * vv;
             avg1 += vv;
           }
       }
@@ -8686,7 +8686,7 @@ int main(int argc, char **argv) {
             *(ScalarBlock *)poldInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++)
-            P(ix, iy).s += POLD(ix, iy).s - avg;
+            P.data[iy][ix].s += POLD.data[iy][ix].s - avg;
       }
       { compute<ScalarLab>(pressureCorrectionKernel(), sim.pres, sim.tmpV); }
 #pragma omp parallel for
@@ -8696,8 +8696,8 @@ int main(int argc, char **argv) {
         VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            V(ix, iy).u[0] += tmpV(ix, iy).u[0] * ih2;
-            V(ix, iy).u[1] += tmpV(ix, iy).u[1] * ih2;
+            V.data[iy][ix].u[0] += tmpV.data[iy][ix].u[0] * ih2;
+            V.data[iy][ix].u[1] += tmpV.data[iy][ix].u[1] * ih2;
           }
       }
       compute<KernelComputeForces, VectorGrid, VectorLab, ScalarGrid,
