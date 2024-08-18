@@ -2736,8 +2736,8 @@ template <typename ElementType> struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
-  void initialize_blocks0(const std::vector<long long> &blocksZ,
-                          const std::vector<short int> &blockslevel) {
+  void initialize_blocks(const std::vector<long long> &blocksZ,
+                         const std::vector<short int> &blockslevel) {
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
       const long long n = m_vInfo[i].Z;
@@ -2777,10 +2777,6 @@ template <typename ElementType> struct Grid {
     FillPos();
     UpdateFluxCorrection = true;
     UpdateGroups = true;
-  }
-  void initialize_blocks(const std::vector<long long> &blocksZ,
-                         const std::vector<short int> &blockslevel) {
-    initialize_blocks0(blocksZ, blockslevel);
     UpdateBlockInfoAll_States(false);
     for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
       (*it->second)._Setup();
