@@ -7823,7 +7823,6 @@ struct pressureCorrectionKernel {
     }
   }
 };
-template <typename ElementType>
 struct updatePressureRHS {
   updatePressureRHS(){};
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
@@ -7848,8 +7847,8 @@ struct updatePressureRHS {
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<ScalarBlock, ElementType> *tempCase =
-      (BlockCase<ScalarBlock, ElementType> *)(tmpInfo[info.blockID].auxiliary);
+    BlockCase<ScalarBlock, ScalarElement> *tempCase =
+      (BlockCase<ScalarBlock, ScalarElement> *)(tmpInfo[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -8650,8 +8649,8 @@ int main(int argc, char **argv) {
             }
         }
       }
-      compute<updatePressureRHS<ScalarElement>, VectorGrid, VectorLab, VectorGrid, VectorLab,
-              ScalarGrid>(updatePressureRHS<ScalarElement>(), *sim.vel, *sim.tmpV, true,
+      compute<updatePressureRHS, VectorGrid, VectorLab, VectorGrid, VectorLab,
+              ScalarGrid>(updatePressureRHS(), *sim.vel, *sim.tmpV, true,
                           sim.tmp);
       std::vector<BlockInfo> &presInfo = sim.pres->m_vInfo;
       std::vector<BlockInfo> &poldInfo = sim.pold->m_vInfo;
