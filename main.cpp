@@ -4542,7 +4542,55 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
     Balancer->PrepareCompression();
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
-      compress(m_com[i], n_com[i]);
+      const int level = m_com[i];
+      const long long Z = n_com[i];
+    assert(level > 0);
+    BlockInfo &info = grid->getBlockInfoAll(level, Z);
+    assert(info.state == Compress);
+    BlockType *Blocks[4];
+    for (int J = 0; J < 2; J++)
+      for (int I = 0; I < 2; I++) {
+        const int blk = J * 2 + I;
+        const long long n =
+            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+        Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
+      }
+    const int nx = _BS_;
+    const int ny = _BS_;
+    const int offsetX[2] = {0, nx / 2};
+    const int offsetY[2] = {0, ny / 2};
+    if (basic_refinement == false)
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          BlockType &b = *Blocks[J * 2 + I];
+          for (int j = 0; j < ny; j += 2)
+            for (int i = 0; i < nx; i += 2) {
+              ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
+                                            (b[j][i + 1] + b[j + 1][i]));
+              (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
+            }
+        }
+    const long long np =
+        grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
+    BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
+    grid->Tree(parent.level, parent.Z).setrank(grid->rank());
+    parent.ptrBlock = info.ptrBlock;
+    parent.state = Leave;
+    if (level - 2 >= 0)
+      grid->Tree(level - 2, parent.Zparent).setCheckFiner();
+    for (int J = 0; J < 2; J++)
+      for (int I = 0; I < 2; I++) {
+        const long long n =
+            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+        if (I + J == 0) {
+          grid->FindBlockInfo(level, n, level - 1, np);
+        } else {
+#pragma omp critical
+          { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2); }
+        }
+        grid->Tree(level, n).setCheckCoarser();
+        grid->getBlockInfoAll(level, n).state = Leave;
+      }
     }
     grid->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
@@ -4630,55 +4678,6 @@ template <typename TLab, typename ElementType> struct MeshAdaptation {
         }
       }
     }
-  }
-  void compress(const int level, const long long Z) {
-    assert(level > 0);
-    BlockInfo &info = grid->getBlockInfoAll(level, Z);
-    assert(info.state == Compress);
-    BlockType *Blocks[4];
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        const int blk = J * 2 + I;
-        const long long n =
-            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
-        Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
-      }
-    const int nx = _BS_;
-    const int ny = _BS_;
-    const int offsetX[2] = {0, nx / 2};
-    const int offsetY[2] = {0, ny / 2};
-    if (basic_refinement == false)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          BlockType &b = *Blocks[J * 2 + I];
-          for (int j = 0; j < ny; j += 2)
-            for (int i = 0; i < nx; i += 2) {
-              ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
-                                            (b[j][i + 1] + b[j + 1][i]));
-              (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
-            }
-        }
-    const long long np =
-        grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
-    BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-    grid->Tree(parent.level, parent.Z).setrank(grid->rank());
-    parent.ptrBlock = info.ptrBlock;
-    parent.state = Leave;
-    if (level - 2 >= 0)
-      grid->Tree(level - 2, parent.Zparent).setCheckFiner();
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        const long long n =
-            grid->getZforward(level, info.index[0] + I, info.index[1] + J);
-        if (I + J == 0) {
-          grid->FindBlockInfo(level, n, level - 1, np);
-        } else {
-#pragma omp critical
-          { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2); }
-        }
-        grid->Tree(level, n).setCheckCoarser();
-        grid->getBlockInfoAll(level, n).state = Leave;
-      }
   }
   void ValidStates() {
     const std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
