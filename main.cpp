@@ -431,7 +431,7 @@ struct SpaceCurve {
         Zsave[0][j * BX + i] = index;
       }
   }
-  long long forward(const int l, const int i, const int j) {
+  long long forward(const int l, const int i, const int j) const {
     const int aux = 1 << l;
     if (l >= sim.levelMax)
       return 0;
@@ -448,7 +448,7 @@ struct SpaceCurve {
     }
     return retval;
   }
-  void inverse(long long Z, int l, int &i, int &j) {
+  void inverse(long long Z, int l, int &i, int &j) const {
     if (isRegular) {
       int X[2] = {0, 0};
       TransposetoAxes(Z, X, l + base_level);
@@ -467,11 +467,11 @@ struct SpaceCurve {
     }
     return;
   }
-  long long IJ_to_index(int I, int J) {
+  long long IJ_to_index(int I, int J) const {
     long long index = Zsave[0][J * BX + I];
     return index;
   }
-  void index_to_IJ(long long index, int &I, int &J) {
+  void index_to_IJ(long long index, int &I, int &J) const {
     I = i_inverse[0][index];
     J = j_inverse[0][index];
     return;
@@ -628,19 +628,6 @@ struct BlockInfo {
   State state;
   void *auxiliary;
   void *block{nullptr};
-  static SpaceCurve *SFC() {
-    static SpaceCurve Zcurve(sim.bpdx, sim.bpdy);
-    return &Zcurve;
-  }
-  static long long forward(int level, int ix, int iy) {
-    return (*SFC()).forward(level, ix, iy);
-  }
-  static long long Encode(int level, int index[2]) {
-    return (*SFC()).Encode(level, index);
-  }
-  static void inverse0(long long Z, int l, int &i, int &j) {
-    (*SFC()).inverse(Z, l, i, j);
-  }
   void pos(Real p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
     p[1] = origin[1] + h * (iy + 0.5);
@@ -667,25 +654,25 @@ struct BlockInfo {
     changed2 = true;
     auxiliary = nullptr;
     const int TwoPower = 1 << level;
-    inverse0(Z, level, index[0], index[1]);
+    sim.space_curve->inverse(Z, level, index[0], index[1]);
     index[2] = 0;
     const int Bmax[3] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower, 1};
     for (int i = -1; i < 2; i++)
       for (int j = -1; j < 2; j++)
         for (int k = -1; k < 2; k++)
           Znei[i + 1][j + 1][k + 1] =
-              forward(level, (index[0] + i + Bmax[0]) % Bmax[0],
+              sim.space_curve->forward(level, (index[0] + i + Bmax[0]) % Bmax[0],
                       (index[1] + j + Bmax[1]) % Bmax[1]);
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 2; j++)
         for (int k = 0; k < 2; k++)
           Zchild[i][j][k] =
-              forward(level + 1, 2 * index[0] + i, 2 * index[1] + j);
+              sim.space_curve->forward(level + 1, 2 * index[0] + i, 2 * index[1] + j);
     Zparent = (level == 0)
                   ? 0
-                  : forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
+                  : sim.space_curve->forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
                             (index[1] / 2 + Bmax[1]) % Bmax[1]);
-    blockID_2 = Encode(level, index);
+    blockID_2 = sim.space_curve->Encode(level, index);
     blockID = blockID_2;
   }
   long long Znei_(const int i, const int j, const int k) const {
@@ -2581,7 +2568,7 @@ template <typename ElementType> struct Grid {
       _alloc(level, Z);
       Tree(level, Z).position = sim.rank;
       int p[2];
-      BlockInfo::inverse0(Z, level, p[0], p[1]);
+      sim.space_curve->inverse(Z, level, p[0], p[1]);
       if (level < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
@@ -2886,7 +2873,7 @@ template <typename ElementType> struct Grid {
         if (UpdateIDs)
           getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
         int p[2];
-        BlockInfo::inverse0(Z, level, p[0], p[1]);
+        sim.space_curve->inverse(Z, level, p[0], p[1]);
         if (level < sim.levelMax - 1)
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
@@ -3025,7 +3012,7 @@ template <typename ElementType> struct Grid {
     const int TwoPower = 1 << level;
     const int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
     const int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
-    return BlockInfo::forward(level, ix, iy);
+    return sim.space_curve->forward(level, ix, iy);
   }
   Block *avail1(const int ix, const int iy, const int m) {
     const long long n = getZforward(m, ix, iy);
@@ -3060,7 +3047,7 @@ template <typename ElementType> struct Grid {
           double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
-          BlockInfo::inverse0(n, m, i, j);
+          sim.space_curve->inverse(n, m, i, j);
           k = 0;
           origin[0] = i * _BS_ * h;
           origin[1] = j * _BS_ * h;
@@ -4140,7 +4127,7 @@ template <typename ElementType> struct LoadBalancer {
     Real *a1 = &(*b1[0][0]).member(0);
     std::memcpy(a1, data, sizeof(BlockType));
     int p[2];
-    BlockInfo::inverse0(Z, level, p[0], p[1]);
+    sim.space_curve->inverse(Z, level, p[0], p[1]);
     if (level < sim.levelMax - 1)
       for (int j1 = 0; j1 < 2; j1++)
         for (int i1 = 0; i1 < 2; i1++) {
