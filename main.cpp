@@ -819,9 +819,9 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
-        if (!grid->xperiodic && code[0] == xskip && xskin)
+        if (!sim.bcx == periodic && code[0] == xskip && xskin)
           continue;
-        if (!grid->yperiodic && code[1] == yskip && yskin)
+        if (!sim.bcy == periodic && code[1] == yskip && yskin)
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
@@ -1450,7 +1450,7 @@ template <typename TGrid> struct Synchronizer {
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
-    const bool periodic[3] = {grid->xperiodic, grid->yperiodic,
+    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic,
                               grid->zperiodic};
     const int blocks[3] = {grid->getMaxBlocks()[0] * aux - 1,
                            grid->getMaxBlocks()[1] * aux - 1,
@@ -1458,7 +1458,7 @@ template <typename TGrid> struct Synchronizer {
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b.index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b.index[d]) ? 0 : +1;
-      if (periodic[d]) {
+      if (periodic0[d]) {
         if (a.index[d] == 0 && b.index[d] == blocks[d])
           imin[d] = -1;
         if (b.index[d] == 0 && a.index[d] == blocks[d])
@@ -1529,9 +1529,9 @@ template <typename TGrid> struct Synchronizer {
                              (icode / 9) % 3 - 1};
         if (code[2] != 0)
           continue;
-        if (!grid->xperiodic && code[0] == xskip && xskin)
+        if (!sim.bcx == periodic && code[0] == xskip && xskin)
           continue;
-        if (!grid->yperiodic && code[1] == yskip && yskin)
+        if (!sim.bcy == periodic && code[1] == yskip && yskin)
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
@@ -4484,8 +4484,8 @@ template <typename TLab, typename ElementType> struct Adaptation {
     if (CallValidStates) {
       std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
       int levelMin = 0;
-      bool xperiodic = grid->xperiodic;
-      bool yperiodic = grid->yperiodic;
+      bool xperiodic = sim.bcx == periodic;
+      bool yperiodic = sim.bcy == periodic;
       bool zperiodic = grid->zperiodic;
       std::vector<BlockInfo> &I = grid->infos;
 #pragma omp parallel for
