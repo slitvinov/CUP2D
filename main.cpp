@@ -639,15 +639,15 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
   BlockInfo(){};
-  void setup0(const int m, const double h0, const double n[3],
-             const long long a_Z) {
+  void setup0(const int m, const double h0, const double origin0[3],
+             const long long n) {
     level = m;
-    Z = a_Z;
+    Z = n;
     state = Leave;
     h = h0;
-    origin[0] = n[0];
-    origin[1] = n[1];
-    origin[2] = n[2];
+    origin[0] = origin0[0];
+    origin[1] = origin0[1];
+    origin[2] = origin0[2];
     changed2 = true;
     auxiliary = nullptr;
     const int TwoPower = 1 << level;
