@@ -501,7 +501,6 @@ struct SpaceCurve {
     return retval;
   }
 };
-
 struct Value {
   std::string content;
   Value() = default;
@@ -607,7 +606,6 @@ struct CommandlineParser {
     return mapArguments[key];
   }
 };
-
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 struct TreePosition {
   int position{-3};
@@ -660,18 +658,18 @@ struct BlockInfo {
     for (int i = -1; i < 2; i++)
       for (int j = -1; j < 2; j++)
         for (int k = -1; k < 2; k++)
-          Znei[i + 1][j + 1][k + 1] =
-              sim.space_curve->forward(level, (index[0] + i + Bmax[0]) % Bmax[0],
-                      (index[1] + j + Bmax[1]) % Bmax[1]);
+          Znei[i + 1][j + 1][k + 1] = sim.space_curve->forward(
+              level, (index[0] + i + Bmax[0]) % Bmax[0],
+              (index[1] + j + Bmax[1]) % Bmax[1]);
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 2; j++)
         for (int k = 0; k < 2; k++)
-          Zchild[i][j][k] =
-              sim.space_curve->forward(level + 1, 2 * index[0] + i, 2 * index[1] + j);
-    Zparent = (level == 0)
-                  ? 0
-                  : sim.space_curve->forward(level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
-                            (index[1] / 2 + Bmax[1]) % Bmax[1]);
+          Zchild[i][j][k] = sim.space_curve->forward(
+              level + 1, 2 * index[0] + i, 2 * index[1] + j);
+    Zparent = (level == 0) ? 0
+                           : sim.space_curve->forward(
+                                 level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
+                                 (index[1] / 2 + Bmax[1]) % Bmax[1]);
     blockID_2 = sim.space_curve->Encode(level, index);
     blockID = blockID_2;
   }
