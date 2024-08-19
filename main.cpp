@@ -2824,16 +2824,6 @@ template <typename ElementType> struct Grid {
                                  [](const BlockInfo &x) { return x.changed2; }),
                   m_vInfo.end());
   }
-  void FindBlockInfo(int level, const long long n, const int m_new,
-                     const long long np) {
-    for (size_t j = 0; j < m_vInfo.size(); j++)
-      if (level == m_vInfo[j].level && n == m_vInfo[j].Z) {
-        BlockInfo &correct_info = getBlockInfoAll(m_new, np);
-        correct_info.state = Leave;
-        m_vInfo[j] = correct_info;
-        return;
-      }
-  }
   void FillPos(bool CopyInfos = true) {
     std::sort(m_vInfo.begin(), m_vInfo.end());
     Octree.reserve(Octree.size() + m_vInfo.size() / 8);
@@ -4691,7 +4681,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
           const long long n =
               grid->getZforward(level, info.index[0] + I, info.index[1] + J);
           if (I + J == 0) {
-            grid->FindBlockInfo(level, n, level - 1, np);
+            for (size_t j = 0; j < grid->m_vInfo.size(); j++)
+              if (level == grid->m_vInfo[j].level && n == grid->m_vInfo[j].Z) {
+                BlockInfo &correct_info = grid->getBlockInfoAll(level - 1, np);
+                correct_info.state = Leave;
+                grid->m_vInfo[j] = correct_info;
+                break;
+              }
           } else {
 #pragma omp critical
             {
