@@ -2529,13 +2529,9 @@ template <typename ElementType> struct Grid {
       : maxextent(a_maxextent), levelStart(a_levelStart),
         xperiodic(a_xperiodic), yperiodic(a_yperiodic), zperiodic(a_zperiodic),
         timestamp(0) {
-    BlockInfo dummy;
-    const int nx = sim.bpdx;
-    const int ny = sim.bpdy;
-    const int nz = 1;
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
-      const long long Ntot = nx * ny * nz * pow(TwoPower, 2);
+      const long long Ntot = sim.bpdx * sim.bpdy * pow(TwoPower, 2);
       if (m == 0)
         level_base.push_back(Ntot);
       if (m > 0)
