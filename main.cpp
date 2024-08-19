@@ -2484,10 +2484,9 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(double a_maxextent, int a_levelStart, bool a_xperiodic, bool a_yperiodic,
-       bool a_zperiodic)
+  Grid(double a_maxextent, int a_levelStart)
       : maxextent(a_maxextent), levelStart(a_levelStart),
-        xperiodic(a_xperiodic), yperiodic(a_yperiodic), zperiodic(a_zperiodic),
+        xperiodic(sim.bcx == periodic), yperiodic(sim.bcy == periodic), zperiodic(false),
         timestamp(0) {
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
@@ -3186,7 +3185,6 @@ template <typename ElementType> struct BlockLab {
   }
   virtual bool is_xperiodic() { return true; }
   virtual bool is_yperiodic() { return true; }
-  virtual bool is_zperiodic() { return true; }
   ~BlockLab() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
@@ -3271,7 +3269,7 @@ template <typename ElementType> struct BlockLab {
                     const bool applybc = true) {
     const bool xperiodic = is_xperiodic();
     const bool yperiodic = is_yperiodic();
-    const bool zperiodic = is_zperiodic();
+    const bool zperiodic = false;
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
     const int aux = 1 << info.level;
     NX = blocksPerDim[0] * aux;
@@ -3409,7 +3407,7 @@ template <typename ElementType> struct BlockLab {
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
-    const bool periodic[3] = {is_xperiodic(), is_yperiodic(), is_zperiodic()};
+    const bool periodic[3] = {is_xperiodic(), is_yperiodic(), false};
     const int blocks[3] = {blocksPerDim[0] * aux - 1, blocksPerDim[1] * aux - 1,
                            blocksPerDim[2] * aux - 1};
     for (int d = 0; d < 3; d++) {
@@ -3806,7 +3804,7 @@ template <typename ElementType> struct BlockLab {
   void CoarseFineInterpolation(const BlockInfo &info) {
     bool xperiodic = is_xperiodic();
     bool yperiodic = is_yperiodic();
-    bool zperiodic = is_zperiodic();
+    bool zperiodic = false;
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
     int aux = 1 << info.level;
     bool xskin =
@@ -5094,7 +5092,6 @@ template <typename TGrid, typename ElementType>
 struct BlockLabDirichlet : public BlockLab<ElementType> {
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
-  virtual bool is_zperiodic() override { return false; }
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -5255,7 +5252,6 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
   }
   bool is_xperiodic() override { return cubismBCX == periodic; }
   bool is_yperiodic() override { return cubismBCY == periodic; }
-  bool is_zperiodic() override { return false; }
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
@@ -7753,24 +7749,14 @@ int main(int argc, char **argv) {
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
   ScalarLab dummy;
-  bool xperiodic = dummy.is_xperiodic();
-  bool yperiodic = dummy.is_yperiodic();
-  bool zperiodic = dummy.is_zperiodic();
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                           zperiodic);
-  var.vel = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                           zperiodic);
-  var.vold = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                            zperiodic);
-  var.pres = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                            zperiodic);
-  var.tmpV = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                            zperiodic);
-  var.tmp = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                           zperiodic);
-  var.pold = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
-                            zperiodic);
+  var.chi = new ScalarGrid(sim.extent, sim.levelStart);
+  var.vel = new VectorGrid(sim.extent, sim.levelStart);
+  var.vold = new VectorGrid(sim.extent, sim.levelStart);
+  var.pres = new ScalarGrid(sim.extent, sim.levelStart);
+  var.tmpV = new VectorGrid(sim.extent, sim.levelStart);
+  var.tmp = new ScalarGrid(sim.extent, sim.levelStart);
+  var.pold = new ScalarGrid(sim.extent, sim.levelStart);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
