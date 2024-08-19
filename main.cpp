@@ -623,9 +623,6 @@ struct CommandlineParser {
   }
 };
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
-struct TreePosition {
-  int position{-3};
-};
 struct BlockInfo {
   bool changed2;
   double h, origin[3];
@@ -689,7 +686,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
               (B % 2) * std::max(0, 1 - abs(code[0])),
           2 * info.index[1] + std::max(code[1], 0) + code[1] +
               aux * std::max(0, 1 - abs(code[1])));
-      const int other_rank = grid->Tree0(info.level + 1, Z).position;
+      const int other_rank = grid->Tree0(info.level + 1, Z);
       if (other_rank != rank)
         continue;
       auto search1 = MapOfCases.find({info.level + 1, Z});
@@ -757,7 +754,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           continue;
         if (!grid->Tree0(info.level,
                          info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                 .position >= 0) {
+                  >= 0) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -817,7 +814,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         bool checkFiner =
             grid->Tree0(info.level,
                         info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                .position == -1;
+                 == -1;
         if (checkFiner) {
           FillCase(info, code);
           const int myFace = abs(code[0]) * std::max(0, code[0]) +
@@ -1457,7 +1454,7 @@ template <typename TGrid> struct Synchronizer {
     for (int i2 = imin[2]; i2 <= imax[2]; i2++)
       for (int i1 = imin[1]; i1 <= imax[1]; i1++)
         for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-          if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1][1 + i2])).position ==
+          if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1][1 + i2])) ==
               -2) {
             retval = true;
             break;
@@ -1506,32 +1503,32 @@ template <typename TGrid> struct Synchronizer {
           continue;
         if (!sim.bcy == periodic && code[1] == yskip && yskin)
           continue;
-        const TreePosition &infoNeiTree = grid->Tree0(
+        const int &infoNeiTree = grid->Tree0(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
+        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
-          Neighbors.insert(infoNeiTree.position);
+          Neighbors.insert(infoNeiTree);
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const int icode2 =
               (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          send_interfaces[infoNeiTree.position].push_back(
+          send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
-          recv_interfaces[infoNeiTree.position].push_back(
+          recv_interfaces[infoNeiTree].push_back(
               {infoNei, info, icode2, icode});
-          ToBeChecked.push_back(infoNeiTree.position);
+          ToBeChecked.push_back(infoNeiTree);
           ToBeChecked.push_back(
-              (int)send_interfaces[infoNeiTree.position].size() - 1);
+              (int)send_interfaces[infoNeiTree].size() - 1);
           ToBeChecked.push_back(
-              (int)recv_interfaces[infoNeiTree.position].size() - 1);
-          DM.Add(infoNeiTree.position,
-                 (int)send_interfaces[infoNeiTree.position].size() - 1);
-        } else if (infoNeiTree.position == -2) {
+              (int)recv_interfaces[infoNeiTree].size() - 1);
+          DM.Add(infoNeiTree,
+                 (int)send_interfaces[infoNeiTree].size() - 1);
+        } else if (infoNeiTree == -2) {
           Coarsened = true;
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const int infoNeiCoarserrank =
-              grid->Tree0(info.level - 1, infoNei.Zparent).position;
+              grid->Tree0(info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1589,7 +1586,7 @@ template <typename TGrid> struct Synchronizer {
               }
             }
           }
-        } else if (infoNeiTree.position == -1) {
+        } else if (infoNeiTree == -1) {
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           int Bstep = 1;
@@ -1611,7 +1608,7 @@ template <typename TGrid> struct Synchronizer {
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             const int infoNeiFinerrank =
-                grid->Tree0(info.level + 1, nFine).position;
+                grid->Tree0(info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
@@ -2137,7 +2134,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         base = (N2 / 2) + (N1 / 2) * N2;
       int r = (*TFluxCorrection::grid)
                   .Tree0(F.infos[0]->level, F.infos[0]->Z)
-                  .position;
+                  ;
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         for (int j = 0; j < ElementType::DIM; j++)
@@ -2241,7 +2238,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (!(*TFluxCorrection::grid)
                  .Tree0(info.level,
                         info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                 .position >= 0) {
+                  >= 0) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -2255,7 +2252,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if ((*TFluxCorrection::grid)
                 .Tree0(info.level,
                        info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                .position == -2) {
+                 == -2) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(
@@ -2265,7 +2262,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           BlockInfo &infoNeiCoarser =
               (*TFluxCorrection::grid).getBlockInfoAll(info.level - 1, nCoarse);
           const int infoNeiCoarserrank =
-              (*TFluxCorrection::grid).Tree0(info.level - 1, nCoarse).position;
+              (*TFluxCorrection::grid).Tree0(info.level - 1, nCoarse);
           {
             int code2[3] = {-code[0], -code[1], -code[2]};
             int icode2 =
@@ -2277,7 +2274,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         } else if ((*TFluxCorrection::grid)
                        .Tree0(info.level,
                               info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                       .position == -1) {
+                        == -1) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(
@@ -2295,7 +2292,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             const int infoNeiFinerrank = (*TFluxCorrection::grid)
                                              .Tree0(infoNei.level + 1, nFine)
-                                             .position;
+                                             ;
             {
               BlockInfo &infoNeiFiner =
                   (*TFluxCorrection::grid)
@@ -2441,7 +2438,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
 template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-  std::unordered_map<long long, TreePosition> Octree;
+  std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
@@ -2478,7 +2475,7 @@ template <typename ElementType> struct Grid {
       BlockInfo &new_info = getBlockInfoAll(sim.levelStart, Zs[i]);
       new_info.block = new Block;
       infos.push_back(new_info);
-      Tree0(sim.levelStart, Zs[i]).position = sim.rank;
+      Octree[level_base[sim.levelStart] + Zs[i]] = sim.rank;
       int p[2];
       sim.space_curve->inverse(Zs[i], sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
@@ -2486,12 +2483,12 @@ template <typename ElementType> struct Grid {
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
                 getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Tree0(sim.levelStart + 1, nc).position = -2;
+            Octree[level_base[sim.levelStart + 1] +  nc) = -2;
           }
       if (sim.levelStart > 0) {
         const long long nf =
             getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        Tree0(sim.levelStart - 1, nf).position = -1;
+        Octree[level_base[sim.levelStart - 1] + nf] = -1;
       }
     }
     FillPos();
@@ -2503,7 +2500,7 @@ template <typename ElementType> struct Grid {
     MPI_Barrier(MPI_COMM_WORLD);
   }
   Block *avail(const int m, const long long n) {
-    return (Tree0(m, n).position == sim.rank)
+    return (Tree0(m, n) == sim.rank)
                ? (Block *)getBlockInfoAll(m, n).block
                : nullptr;
   }
@@ -2538,18 +2535,18 @@ template <typename ElementType> struct Grid {
           continue;
         BlockInfo &infoNei = getBlockInfoAll(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        const TreePosition &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
-        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
+        const int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
+        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei.state != Refine || clean)
             infoNei.state = Leave;
-          receivers.insert(infoNeiTree.position);
-          Neighbors.insert(infoNeiTree.position);
-        } else if (infoNeiTree.position == -2) {
+          receivers.insert(infoNeiTree);
+          Neighbors.insert(infoNeiTree);
+        } else if (infoNeiTree == -2) {
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
               getBlockInfoAll(infoNei.level - 1, nCoarse);
           const int infoNeiCoarserrank =
-              Tree0(infoNei.level - 1, nCoarse).position;
+              Tree0(infoNei.level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
             if (infoNeiCoarser.state != Refine || clean)
@@ -2557,7 +2554,7 @@ template <typename ElementType> struct Grid {
             receivers.insert(infoNeiCoarserrank);
             Neighbors.insert(infoNeiCoarserrank);
           }
-        } else if (infoNeiTree.position == -1) {
+        } else if (infoNeiTree == -1) {
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -2574,7 +2571,7 @@ template <typename ElementType> struct Grid {
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             BlockInfo &infoNeiFiner = getBlockInfoAll(infoNei.level + 1, nFine);
             const int infoNeiFinerrank =
-                Tree0(infoNei.level + 1, nFine).position;
+                Tree0(infoNei.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner.state != Refine || clean)
                 infoNeiFiner.state = Leave;
@@ -2695,18 +2692,18 @@ template <typename ElementType> struct Grid {
           continue;
         BlockInfo &infoNei = getBlockInfoAll(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        TreePosition &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
-        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
+        int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
+        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           myflag = true;
           break;
-        } else if (infoNeiTree.position == -2) {
+        } else if (infoNeiTree == -2) {
           long long nCoarse = infoNei.Zparent;
-          int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse).position;
+          int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             myflag = true;
             break;
           }
-        } else if (infoNeiTree.position == -1) {
+        } else if (infoNeiTree == -1) {
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -2721,13 +2718,13 @@ template <typename ElementType> struct Grid {
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine).position;
+            int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               myflag = true;
               break;
             }
           }
-        } else if (infoNeiTree.position < 0) {
+        } else if (infoNeiTree < 0) {
           myflag = true;
           break;
         }
@@ -2780,7 +2777,7 @@ template <typename ElementType> struct Grid {
            index__ += increment) {
         const int level = (int)recv_buffer[kk][index__];
         const long long Z = recv_buffer[kk][index__ + 1];
-        Tree0(level, Z).position = r;
+        Tree0(level, Z) = r;
         if (UpdateIDs)
           getBlockInfoAll(level, Z).id = recv_buffer[kk][index__ + 2];
         int p[2];
@@ -2790,11 +2787,11 @@ template <typename ElementType> struct Grid {
             for (int i = 0; i < 2; i++) {
               const long long nc =
                   getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              Tree0(level + 1, nc).position = -2;
+              Tree0(level + 1, nc) = -2;
             }
         if (level > 0) {
           const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
-          Tree0(level - 1, nf).position = -1;
+          Tree0(level - 1, nf) = -1;
         }
       }
     }
@@ -2844,7 +2841,7 @@ template <typename ElementType> struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
-  TreePosition &Tree0(const int m, const long long n) {
+  int &Tree0(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = Octree.find(aux);
     if (retval == Octree.end()) {
@@ -2852,8 +2849,7 @@ template <typename ElementType> struct Grid {
       {
         const auto retval1 = Octree.find(aux);
         if (retval1 == Octree.end()) {
-          TreePosition dum;
-          Octree[aux] = dum;
+          Octree[aux] = -3;
         }
       }
       return Tree0(m, n);
@@ -2861,7 +2857,7 @@ template <typename ElementType> struct Grid {
       return retval->second;
     }
   }
-  TreePosition &Tree1(const BlockInfo &info) {
+  int &Tree1(const BlockInfo &info) {
     return Tree0(info.level, info.Z);
   }
   void _alloc(const int m, const long long n) {
@@ -2869,7 +2865,7 @@ template <typename ElementType> struct Grid {
     new_info.block = new Block;
 #pragma omp critical
     { infos.push_back(new_info); }
-    Tree0(m, n).position = sim.rank;
+    Tree0(m, n) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
     delete[](Block *) getBlockInfoAll(m, n).block;
@@ -2906,7 +2902,7 @@ template <typename ElementType> struct Grid {
       BlockInfo &correct_info = getBlockInfoAll(m, n);
       correct_info.id = j;
       infos[j] = correct_info;
-      assert(Tree0(m, n).position >= 0);
+      assert(Tree0(m, n) >= 0);
     }
   }
   long long getZforward(int level, int i, int j) const {
@@ -3256,9 +3252,9 @@ template <typename ElementType> struct BlockLab {
           continue;
         const auto &TreeNei = m_refGrid->Tree0(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        if (TreeNei.position >= 0) {
+        if (TreeNei >= 0) {
           icodes[k++] = icode;
-        } else if (TreeNei.position == -2) {
+        } else if (TreeNei == -2) {
           coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
           CoarseFineExchange(info, code);
         }
@@ -3273,9 +3269,9 @@ template <typename ElementType> struct BlockLab {
             code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
-        if (TreeNei.position >= 0)
+        if (TreeNei >= 0)
           SameLevelExchange(info, code, s, e);
-        else if (TreeNei.position == -1)
+        else if (TreeNei == -1)
           FineToCoarseExchange(info, code, s, e);
       }
       if (coarsened_nei_codes_size > 0)
@@ -4044,11 +4040,11 @@ template <typename ElementType> struct LoadBalancer {
         for (int i1 = 0; i1 < 2; i1++) {
           const long long nc =
               grid->getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-          grid->Tree0(level + 1, nc).position = -2;
+          grid->Tree0(level + 1, nc) = -2;
         }
     if (level > 0) {
       const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
-      grid->Tree0(level - 1, nf).position = -1;
+      grid->Tree0(level - 1, nf) = -1;
     }
   }
   LoadBalancer(Grid<ElementType> &a_grid) {
@@ -4077,15 +4073,15 @@ template <typename ElementType> struct LoadBalancer {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
-      if (!(grid->Tree1(base).position >= 0) || base.state != Compress)
+      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
         continue;
       const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
-      const int baserank = grid->Tree0(b.level, nBlock).position;
-      const int brank = grid->Tree0(b.level, b.Z).position;
+      const int baserank = grid->Tree0(b.level, nBlock);
+      const int brank = grid->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           send_blocks[baserank].push_back({bCopy});
-          grid->Tree0(b.level, b.Z).position = baserank;
+          grid->Tree0(b.level, b.Z) = baserank;
         }
       } else {
         for (int j = 0; j < 2; j++)
@@ -4095,10 +4091,10 @@ template <typename ElementType> struct LoadBalancer {
             if (n == nBlock)
               continue;
             BlockInfo &temp = grid->getBlockInfoAll(b.level, n);
-            const int temprank = grid->Tree0(b.level, n).position;
+            const int temprank = grid->Tree0(b.level, n);
             if (temprank != sim.rank) {
               recv_blocks[temprank].push_back({temp, false});
-              grid->Tree0(b.level, n).position = baserank;
+              grid->Tree0(b.level, n) = baserank;
             }
           }
       }
@@ -4122,7 +4118,7 @@ template <typename ElementType> struct LoadBalancer {
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
-        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]).position =
+        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) =
             -2;
       }
     if (requests.size() != 0) {
@@ -4213,12 +4209,12 @@ template <typename ElementType> struct LoadBalancer {
     for (int i = 0; i < flux_right; i++) {
       BlockInfo &info = SortedInfos[my_blocks - i - 1];
       grid->_dealloc(info.level, info.Z);
-      grid->Tree0(info.level, info.Z).position = right;
+      grid->Tree0(info.level, info.Z) = right;
     }
     for (int i = 0; i < flux_left; i++) {
       BlockInfo &info = SortedInfos[i];
       grid->_dealloc(info.level, info.Z);
-      grid->Tree0(info.level, info.Z).position = left;
+      grid->Tree0(info.level, info.Z) = left;
     }
     if (request.size() != 0) {
       movedBlocks = true;
@@ -4326,7 +4322,7 @@ template <typename ElementType> struct LoadBalancer {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             BlockInfo &info = SortedInfos[counter_S + i];
             deallocIDs.push_back(info.id2);
-            grid->Tree0(info.level, info.Z).position = r;
+            grid->Tree0(info.level, info.Z) = r;
           }
           counter_S += send_blocks[r].size();
         } else {
@@ -4334,7 +4330,7 @@ template <typename ElementType> struct LoadBalancer {
             BlockInfo &info =
                 SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
             deallocIDs.push_back(info.id2);
-            grid->Tree0(info.level, info.Z).position = r;
+            grid->Tree0(info.level, info.Z) = r;
           }
           counter_E += send_blocks[r].size();
         }
@@ -4452,7 +4448,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               if (grid->Tree0(info.level,
                               info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                      .position == -1) {
+                       == -1) {
                 if (info.state == Compress) {
                   info.state = Leave;
                   (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
@@ -4514,7 +4510,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               BlockInfo &infoNei = grid->getBlockInfoAll(
                   info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-              if (grid->Tree1(infoNei).position >= 0 &&
+              if (grid->Tree1(infoNei) >= 0 &&
                   infoNei.state == Refine) {
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
@@ -4536,7 +4532,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = grid->getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if (grid->Tree1(infoNei).position >= 0 == false ||
+              if (grid->Tree1(infoNei) >= 0 == false ||
                   infoNei.state != Compress) {
                 found = true;
                 if (info.state == Compress) {
@@ -4555,7 +4551,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                    k <= 2 * (info.index[2] / 2) + 1; k++) {
                 long long n = grid->getZforward(m, i, j);
                 BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-                if (grid->Tree1(infoNei).position >= 0 &&
+                if (grid->Tree1(infoNei) >= 0 &&
                     infoNei.state == Compress)
                   infoNei.state = Leave;
               }
@@ -4627,7 +4623,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
             Child.state = Leave;
             grid->_alloc(level + 1, nc);
-            grid->Tree0(level + 1, nc).position = -2;
+            grid->Tree0(level + 1, nc) = -2;
             Blocks[j * 2 + i] = (BlockType *)Child.block;
           }
         if (basic_refinement == false) {
@@ -4687,7 +4683,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp critical
         { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).id2); }
         BlockInfo &parent = grid->getBlockInfoAll(level, Z);
-        grid->Tree1(parent).position = -1;
+        grid->Tree1(parent) = -1;
         parent.state = Leave;
         int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         for (int j = 0; j < 2; j++)
@@ -4695,11 +4691,11 @@ template <typename TLab, typename ElementType> struct Adaptation {
             const long long nc =
                 grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-            grid->Tree1(Child).position = sim.rank;
+            grid->Tree1(Child) = sim.rank;
             if (level + 2 < sim.levelMax)
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
-                  grid->Tree0(level + 2, Child.Zchild[i0][i1][1]).position = -2;
+                  grid->Tree0(level + 2, Child.Zchild[i0][i1][1]) = -2;
           }
       }
     }
@@ -4736,11 +4732,11 @@ template <typename TLab, typename ElementType> struct Adaptation {
       const long long np =
           grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
       BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
-      grid->Tree0(parent.level, parent.Z).position = sim.rank;
+      grid->Tree0(parent.level, parent.Z) = sim.rank;
       parent.block = info.block;
       parent.state = Leave;
       if (level - 2 >= 0)
-        grid->Tree0(level - 2, parent.Zparent).position = -1;
+        grid->Tree0(level - 2, parent.Zparent) = -1;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
@@ -4757,7 +4753,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp critical
             { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).id2); }
           }
-          grid->Tree0(level, n).position = -2;
+          grid->Tree0(level, n) = -2;
           grid->getBlockInfoAll(level, n).state = Leave;
         }
     }
@@ -7049,7 +7045,7 @@ struct PoissonSolver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const BlockInfo &info) const {
-      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree1(info).position]) *
+      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree1(info)]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
@@ -7255,8 +7251,8 @@ struct PoissonSolver {
                    const long long fine_far_idx, const double signInt,
                    const double signTaylor, const EdgeCellIndexer &indexer,
                    SpRowInfo &row) const {
-    const int rank_c = var.tmp->Tree1(info_c).position;
-    const int rank_f = var.tmp->Tree1(info_f).position;
+    const int rank_c = var.tmp->Tree1(info_c);
+    const int rank_f = var.tmp->Tree1(info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
@@ -7273,12 +7269,12 @@ struct PoissonSolver {
                 const BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
     const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-    if (var.tmp->Tree1(rhsNei).position >= 0) {
-      const int nei_rank = var.tmp->Tree1(rhsNei).position;
+    if (var.tmp->Tree1(rhsNei) >= 0) {
+      const int nei_rank = var.tmp->Tree1(rhsNei);
       const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei).position == -2) {
+    } else if (var.tmp->Tree1(rhsNei) == -2) {
       const BlockInfo &rhsNei_c =
           var.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
       const int ix_c = indexer.ix_c(rhs_info, ix);
@@ -7288,10 +7284,10 @@ struct PoissonSolver {
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei).position == -1) {
+    } else if (var.tmp->Tree1(rhsNei) == -1) {
       const BlockInfo &rhsNei_f = var.tmp->getBlockInfoAll(
           rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-      const int nei_rank = var.tmp->Tree1(rhsNei_f).position;
+      const int nei_rank = var.tmp->Tree1(rhsNei_f);
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -7373,7 +7369,7 @@ struct PoissonSolver {
             idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
             idxNei[2] = GenericCell.This(rhs_info, ix, iy - 1);
             idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
-            SpRowInfo row(var.tmp->Tree1(rhs_info).position, sfc_idx, 8);
+            SpRowInfo row(var.tmp->Tree1(rhs_info), sfc_idx, 8);
             for (int j(0); j < 4; j++) {
               if (validNei[j]) {
                 row.mapColVal(idxNei[j], 1);
