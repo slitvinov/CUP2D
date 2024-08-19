@@ -758,11 +758,9 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
-        if (!_grid.xperiodic && code[0] == xskip && xskin)
+        if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
-        if (!_grid.yperiodic && code[1] == yskip && yskin)
-          continue;
-        if (!_grid.zperiodic && code[2] == zskip && zskin)
+        if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
         if (code[2] != 0)
           continue;
@@ -822,8 +820,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         if (!sim.bcx == periodic && code[0] == xskip && xskin)
           continue;
         if (!sim.bcy == periodic && code[1] == yskip && yskin)
-          continue;
-        if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
         if (code[2] != 0)
           continue;
@@ -1451,7 +1447,7 @@ template <typename TGrid> struct Synchronizer {
     int imax[3];
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic,
-                              grid->zperiodic};
+                              false};
     const int blocks[3] = {grid->getMaxBlocks()[0] * aux - 1,
                            grid->getMaxBlocks()[1] * aux - 1,
                            grid->getMaxBlocks()[2] * aux - 1};
@@ -1532,8 +1528,6 @@ template <typename TGrid> struct Synchronizer {
         if (!sim.bcx == periodic && code[0] == xskip && xskin)
           continue;
         if (!sim.bcy == periodic && code[1] == yskip && yskin)
-          continue;
-        if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
         const TreePosition &infoNeiTree = grid->Tree(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
@@ -2255,11 +2249,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
-        if (!_grid.xperiodic && code[0] == xskip && xskin)
+        if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
-        if (!_grid.yperiodic && code[1] == yskip && yskin)
-          continue;
-        if (!_grid.zperiodic && code[2] == zskip && zskin)
+        if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
         if (code[2] != 0)
           continue;
@@ -2470,9 +2462,6 @@ template <typename ElementType> struct Grid {
   std::vector<BlockInfo> infos;
   double maxextent;
   int levelStart;
-  bool xperiodic;
-  bool yperiodic;
-  bool zperiodic;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
@@ -2486,7 +2475,6 @@ template <typename ElementType> struct Grid {
   std::vector<BlockInfo *> boundary;
   Grid(double a_maxextent, int a_levelStart)
       : maxextent(a_maxextent), levelStart(a_levelStart),
-        xperiodic(sim.bcx == periodic), yperiodic(sim.bcy == periodic), zperiodic(false),
         timestamp(0) {
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
@@ -2588,8 +2576,6 @@ template <typename ElementType> struct Grid {
         if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
         if (sim.bcy != periodic && code[1] == yskip && yskin)
-          continue;
-        if (!zperiodic && code[2] == zskip && zskin)
           continue;
         if (code[2] != 0)
           continue;
@@ -2748,8 +2734,6 @@ template <typename ElementType> struct Grid {
           continue;
         if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
-        if (!zperiodic && code[2] == zskip && zskin)
-          continue;
         if (code[2] != 0)
           continue;
         BlockInfo &infoNei = getBlockInfoAll(
@@ -2871,7 +2855,7 @@ template <typename ElementType> struct Grid {
     intersection[0] = intersect[0][1] - intersect[0][0] > 0.0;
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
     intersection[2] = true;
-    const bool isperiodic[3] = {xperiodic, yperiodic, zperiodic};
+    const bool isperiodic[2] = {sim.bcx == periodic, sim.bcy == periodic};
     for (int d = 0; d < 2; d++) {
       if (isperiodic[d]) {
         if (h2[d] > extent[d])
@@ -4486,7 +4470,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
       int levelMin = 0;
       bool xperiodic = sim.bcx == periodic;
       bool yperiodic = sim.bcy == periodic;
-      bool zperiodic = grid->zperiodic;
       std::vector<BlockInfo> &I = grid->infos;
 #pragma omp parallel for
       for (size_t j = 0; j < I.size(); j++) {
@@ -4527,8 +4510,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
               if (sim.bcx != periodic && code[0] == xskip && xskin)
                 continue;
               if (sim.bcy != periodic && code[1] == yskip && yskin)
-                continue;
-              if (!zperiodic && code[2] == zskip && zskin)
                 continue;
               if (code[2] != 0)
                 continue;
@@ -4591,8 +4572,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
               if (sim.bcx != periodic && code[0] == xskip && xskin)
                 continue;
               if (sim.bcy != periodic && code[1] == yskip && yskin)
-                continue;
-              if (!zperiodic && code[2] == zskip && zskin)
                 continue;
               if (code[2] != 0)
                 continue;
