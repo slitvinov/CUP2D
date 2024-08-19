@@ -2493,7 +2493,9 @@ template <typename ElementType> struct Grid {
     for (size_t i = 0; i < my_blocks; i++) {
       const int level = levels[i];
       const long long Z = Zs[i];
-      _alloc0(level, Z);
+      BlockInfo &new_info = getBlockInfoAll(level, Z);
+      new_info.block = new Block;
+      infos.push_back(new_info);
       Tree(level, Z).position = sim.rank;
       int p[2];
       sim.space_curve->inverse(Z, level, p[0], p[1]);
@@ -2878,12 +2880,6 @@ template <typename ElementType> struct Grid {
   }
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
-  void _alloc0(const int level, const long long Z) {
-    BlockInfo &new_info = getBlockInfoAll(level, Z);
-    new_info.block = new Block;
-    infos.push_back(new_info);
-    Tree(level, Z).position = sim.rank;
-  }
   void _alloc(const int m, const long long n) {
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.block = new Block;
