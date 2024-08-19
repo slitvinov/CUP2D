@@ -627,7 +627,6 @@ struct TreePosition {
   int position{-3};
   bool CheckCoarser() const { return position == -2; }
   bool CheckFiner() const { return position == -1; }
-  bool Exists() const { return position >= 0; }
   void setCheckFiner() { position = -1; }
 };
 struct BlockInfo {
@@ -765,7 +764,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           continue;
         if (!grid->Tree0(info.level,
                         info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                 .Exists()) {
+                 .position >= 0) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -1529,7 +1528,7 @@ template <typename TGrid> struct Synchronizer {
           continue;
         const TreePosition &infoNeiTree = grid->Tree0(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
+        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree.position);
           BlockInfo &infoNei = grid->getBlockInfoAll(
@@ -2256,7 +2255,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (!(*TFluxCorrection::grid)
                  .Tree0(info.level,
                        info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                 .Exists()) {
+                 .position >= 0) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -2553,7 +2552,7 @@ template <typename ElementType> struct Grid {
         BlockInfo &infoNei = getBlockInfoAll(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         const TreePosition &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
-        if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
+        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
           if (infoNei.state != Refine || clean)
             infoNei.state = Leave;
           receivers.insert(infoNeiTree.position);
@@ -2710,7 +2709,7 @@ template <typename ElementType> struct Grid {
         BlockInfo &infoNei = getBlockInfoAll(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         TreePosition &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
-        if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
+        if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
           myflag = true;
           break;
         } else if (infoNeiTree.CheckCoarser()) {
@@ -2918,7 +2917,7 @@ template <typename ElementType> struct Grid {
       BlockInfo &correct_info = getBlockInfoAll(m, n);
       correct_info.id = j;
       infos[j] = correct_info;
-        assert(Tree0(m, n).Exists());
+        assert(Tree0(m, n).position >= 0);
     }
   }
   long long getZforward(int level, int i, int j) const {
@@ -3268,7 +3267,7 @@ template <typename ElementType> struct BlockLab {
           continue;
         const auto &TreeNei = m_refGrid->Tree0(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-        if (TreeNei.Exists()) {
+        if (TreeNei.position >= 0) {
           icodes[k++] = icode;
         } else if (TreeNei.CheckCoarser()) {
           coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
@@ -3285,7 +3284,7 @@ template <typename ElementType> struct BlockLab {
             code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
-        if (TreeNei.Exists())
+        if (TreeNei.position >= 0)
           SameLevelExchange(info, code, s, e);
         else if (TreeNei.CheckFiner())
           FineToCoarseExchange(info, code, s, e);
@@ -4092,7 +4091,7 @@ template <typename ElementType> struct LoadBalancer {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
-      if (!grid->Tree1(base).Exists() || base.state != Compress)
+      if (!grid->Tree1(base).position >= 0 || base.state != Compress)
         continue;
       const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
       const int baserank = grid->Tree0(b.level, nBlock).position;
@@ -4529,7 +4528,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               BlockInfo &infoNei = grid->getBlockInfoAll(
                   info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-              if (grid->Tree1(infoNei).Exists() && infoNei.state == Refine) {
+              if (grid->Tree1(infoNei).position >= 0 && infoNei.state == Refine) {
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
                 break;
@@ -4550,7 +4549,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = grid->getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if (grid->Tree1(infoNei).Exists() == false ||
+              if (grid->Tree1(infoNei).position >= 0 == false ||
                   infoNei.state != Compress) {
                 found = true;
                 if (info.state == Compress) {
@@ -4569,7 +4568,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                    k <= 2 * (info.index[2] / 2) + 1; k++) {
                 long long n = grid->getZforward(m, i, j);
                 BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-                if (grid->Tree1(infoNei).Exists() && infoNei.state == Compress)
+                if (grid->Tree1(infoNei).position >= 0 && infoNei.state == Compress)
                   infoNei.state = Leave;
               }
       }
@@ -7287,7 +7286,7 @@ struct PoissonSolver {
                 const BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
     const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-    if (var.tmp->Tree1(rhsNei).Exists()) {
+    if (var.tmp->Tree1(rhsNei).position >= 0) {
       const int nei_rank = var.tmp->Tree1(rhsNei).position;
       const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
