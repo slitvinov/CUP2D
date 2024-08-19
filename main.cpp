@@ -2731,7 +2731,7 @@ template <typename ElementType> struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
-  void initialize_blocks(const std::vector<long long> &blocksZ,
+  void initialize_blocks(const std::vector<long long> &Zs,
                          const std::vector<short int> &blockslevel) {
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
@@ -2750,9 +2750,9 @@ template <typename ElementType> struct Grid {
     m_vInfo.clear();
     BlockInfoAll.clear();
     Octree.clear();
-    for (size_t i = 0; i < blocksZ.size(); i++) {
+    for (size_t i = 0; i < Zs.size(); i++) {
       const int level = blockslevel[i];
-      const long long Z = blocksZ[i];
+      const long long Z = Zs[i];
       _alloc(level, Z);
       Tree(level, Z).position = sim.rank;
       int p[2];
