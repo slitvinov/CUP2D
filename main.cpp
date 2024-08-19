@@ -623,7 +623,7 @@ struct BlockInfo {
   int level;
   long long blockID, blockID_2, halo_block_id, Z, Zchild[2][2][2],
       Znei[3][3][3], Zparent;
-  State state;
+  enum State state;
   void *auxiliary;
   void *block{nullptr};
   void pos(Real p[2], int ix, int iy) const {
