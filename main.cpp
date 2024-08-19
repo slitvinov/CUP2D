@@ -640,9 +640,6 @@ struct BlockInfo {
   }
   BlockInfo(){};
   long long Znei_(const int i, const int j, const int k) const {
-    assert(abs(i) <= 1);
-    assert(abs(j) <= 1);
-    assert(abs(k) <= 1);
     return Znei[1 + i][1 + j][1 + k];
   }
 };
