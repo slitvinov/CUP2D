@@ -3011,8 +3011,8 @@ template <typename ElementType> struct Grid {
         }
       }
     infos.erase(std::remove_if(infos.begin(), infos.end(),
-                                 [](const BlockInfo &x) { return x.changed2; }),
-                  infos.end());
+                               [](const BlockInfo &x) { return x.changed2; }),
+                infos.end());
   }
   void FillPos(bool CopyInfos = true) {
     std::sort(infos.begin(), infos.end());
@@ -3047,9 +3047,7 @@ template <typename ElementType> struct Grid {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
-  Block &operator()(const long long ID) {
-    return *(Block *)infos[ID].block;
-  }
+  Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
   std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
@@ -5339,17 +5337,11 @@ typedef BlockLabMPI<BlockLabNeumann<ScalarElement>, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct Skin {
-  size_t Npoints;
-  Real *xSurf;
-  Real *ySurf;
-  Real *normXSurf;
-  Real *normYSurf;
-  Real *midX;
-  Real *midY;
-  Skin(const size_t N)
-      : Npoints(N), xSurf(new Real[Npoints]), ySurf(new Real[Npoints]),
-        normXSurf(new Real[Npoints - 1]), normYSurf(new Real[Npoints - 1]),
-        midX(new Real[Npoints - 1]), midY(new Real[Npoints - 1]) {}
+  size_t n;
+  std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
+  Skin(size_t n)
+      : n(n), xSurf(n), ySurf(n), normXSurf(n), normYSurf(n), midX(n), midY(n) {
+  }
 };
 static struct {
   ScalarGrid *chi = nullptr;
@@ -6224,7 +6216,7 @@ static void ongrid(Real dt) {
                shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
                shape->vNorY);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < shape->lowerSkin.Npoints; ++i) {
+    for (size_t i = 0; i < shape->lowerSkin.n; ++i) {
       Real norm[2] = {shape->norX[i], shape->norY[i]};
       Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
       norm[0] /= norm_mod1;
@@ -6338,7 +6330,7 @@ static void ongrid(Real dt) {
           {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
           {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
 #pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < shape->upperSkin.Npoints; ++i) {
+      for (size_t i = 0; i < shape->upperSkin.n; ++i) {
         shape->upperSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->upperSkin.ySurf[i] -= shape->CoM_internal[1];
         rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i],
@@ -6700,7 +6692,7 @@ static void ongrid(Real dt) {
         {std::cos(shape->orientation), -std::sin(shape->orientation)},
         {std::sin(shape->orientation), std::cos(shape->orientation)}};
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < shape->upperSkin.Npoints; ++i) {
+    for (size_t i = 0; i < shape->upperSkin.n; ++i) {
       rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i], shape->upperSkin.ySurf[i]);
       shape->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->upperSkin.ySurf[i] += shape->centerOfMass[1];
@@ -6719,7 +6711,7 @@ static void ongrid(Real dt) {
         shape->rY[i] += shape->centerOfMass[1];
       }
 #pragma omp parallel for
-      for (size_t i = 0; i < shape->lowerSkin.Npoints - 1; ++i) {
+      for (size_t i = 0; i < shape->lowerSkin.n - 1; ++i) {
         shape->lowerSkin.midX[i] =
             (shape->lowerSkin.xSurf[i] + shape->lowerSkin.xSurf[i + 1]) / 2;
         shape->upperSkin.midX[i] =
@@ -6744,10 +6736,10 @@ static void ongrid(Real dt) {
         shape->upperSkin.normXSurf[i] /= normU;
         shape->lowerSkin.normYSurf[i] /= normL;
         shape->upperSkin.normYSurf[i] /= normU;
-        const int ii = (i < 8) ? 8
-                               : ((i > shape->lowerSkin.Npoints - 9)
-                                      ? shape->lowerSkin.Npoints - 9
-                                      : i);
+        const int ii =
+            (i < 8)
+                ? 8
+                : ((i > shape->lowerSkin.n - 9) ? shape->lowerSkin.n - 9 : i);
         const Real dirL = shape->lowerSkin.normXSurf[i] *
                               (shape->lowerSkin.midX[i] - shape->rX[ii]) +
                           shape->lowerSkin.normYSurf[i] *
@@ -6936,8 +6928,7 @@ struct KernelComputeForces {
   void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
     VectorLab &V = lab;
-    ScalarBlock &__restrict__ P =
-        *(ScalarBlock *)presInfo[info.blockID].block;
+    ScalarBlock &__restrict__ P = *(ScalarBlock *)presInfo[info.blockID].block;
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
@@ -7631,10 +7622,8 @@ struct pressure_rhs {
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
-    ScalarBlock &__restrict__ TMP =
-        *(ScalarBlock *)tmpInfo[info.blockID].block;
-    ScalarBlock &__restrict__ CHI =
-        *(ScalarBlock *)chiInfo[info.blockID].block;
+    ScalarBlock &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].block;
+    ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.blockID].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         TMP[iy][ix].s =
@@ -7940,8 +7929,7 @@ int main(int argc, char **argv) {
       UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->infos[i].blockID]->udef;
       CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->infos[i].blockID]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
-      ScalarBlock &__restrict__ CHI =
-          *(ScalarBlock *)var.chi->infos[i].block;
+      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI[iy][ix].s)
