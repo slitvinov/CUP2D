@@ -1468,7 +1468,7 @@ template <typename TGrid> struct Synchronizer {
       for (int i1 = imin[1]; i1 <= imax[1]; i1++)
         for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
           if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1][1 + i2]))
-                  .CheckCoarser()) {
+                  .position == -2) {
             retval = true;
             break;
           }
@@ -1546,7 +1546,7 @@ template <typename TGrid> struct Synchronizer {
               (int)recv_interfaces[infoNeiTree.position].size() - 1);
           DM.Add(infoNeiTree.position,
                  (int)send_interfaces[infoNeiTree.position].size() - 1);
-        } else if (infoNeiTree.CheckCoarser()) {
+        } else if (infoNeiTree.position == -2) {
           Coarsened = true;
           BlockInfo &infoNei = grid->getBlockInfoAll(
               info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
@@ -2269,7 +2269,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if ((*TFluxCorrection::grid)
                 .Tree0(info.level,
                       info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
-                .CheckCoarser()) {
+                .position == -2) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(
@@ -2557,7 +2557,7 @@ template <typename ElementType> struct Grid {
             infoNei.state = Leave;
           receivers.insert(infoNeiTree.position);
           Neighbors.insert(infoNeiTree.position);
-        } else if (infoNeiTree.CheckCoarser()) {
+        } else if (infoNeiTree.position == -2) {
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
               getBlockInfoAll(infoNei.level - 1, nCoarse);
@@ -2712,7 +2712,7 @@ template <typename ElementType> struct Grid {
         if (infoNeiTree.position >= 0 && infoNeiTree.position != sim.rank) {
           myflag = true;
           break;
-        } else if (infoNeiTree.CheckCoarser()) {
+        } else if (infoNeiTree.position == -2) {
           long long nCoarse = infoNei.Zparent;
           int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse).position;
           if (infoNeiCoarserrank != sim.rank) {
@@ -3269,7 +3269,7 @@ template <typename ElementType> struct BlockLab {
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         if (TreeNei.position >= 0) {
           icodes[k++] = icode;
-        } else if (TreeNei.CheckCoarser()) {
+        } else if (TreeNei.position == -2) {
           coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
           CoarseFineExchange(info, code);
         }
@@ -7291,7 +7291,7 @@ struct PoissonSolver {
       const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei).CheckCoarser()) {
+    } else if (var.tmp->Tree1(rhsNei).position == -2) {
       const BlockInfo &rhsNei_c =
           var.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
       const int ix_c = indexer.ix_c(rhs_info, ix);
