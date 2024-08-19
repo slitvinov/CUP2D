@@ -3008,21 +3008,16 @@ template <typename ElementType> struct Grid {
         const auto retval1 = BlockInfoAll.find(aux);
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
-          const double h0 =
+          dumm->h =
               maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) / (1 << m);
-          double origin0[3];
           int i, j;
           sim.space_curve->inverse(n, m, i, j);
-          origin0[0] = i * _BS_ * h0;
-          origin0[1] = j * _BS_ * h0;
-          origin0[2] = h0;
+          dumm->origin[0] = i * _BS_ * dumm->h;
+          dumm->origin[1] = j * _BS_ * dumm->h;
+          dumm->origin[2] = dumm->h;
           dumm->level = m;
           dumm->Z = n;
           dumm->state = Leave;
-          dumm->h = h0;
-          dumm->origin[0] = origin0[0];
-          dumm->origin[1] = origin0[1];
-          dumm->origin[2] = origin0[2];
           dumm->changed2 = true;
           dumm->auxiliary = nullptr;
           const int TwoPower = 1 << dumm->level;
