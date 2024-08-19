@@ -498,8 +498,7 @@ struct SpaceFillingCurve2D {
       *y = t;
     }
   }
-  SpaceFillingCurve2D(int a_BX, int a_BY)
-      : BX(a_BX), BY(a_BY) {
+  SpaceFillingCurve2D(int a_BX, int a_BY) : BX(a_BX), BY(a_BY) {
     const int n_max = std::max(BX, BY);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
@@ -2530,11 +2529,11 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(double a_maxextent, int a_levelStart,
-       bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
-      : maxextent(a_maxextent),
-        levelStart(a_levelStart), xperiodic(a_xperiodic),
-        yperiodic(a_yperiodic), zperiodic(a_zperiodic), timestamp(0) {
+  Grid(double a_maxextent, int a_levelStart, bool a_xperiodic, bool a_yperiodic,
+       bool a_zperiodic)
+      : maxextent(a_maxextent), levelStart(a_levelStart),
+        xperiodic(a_xperiodic), yperiodic(a_yperiodic), zperiodic(a_zperiodic),
+        timestamp(0) {
     BlockInfo dummy;
     const int nx = dummy.blocks_per_dim(0, sim.bpdx, sim.bpdy);
     const int ny = dummy.blocks_per_dim(1, sim.bpdx, sim.bpdy);
@@ -2548,7 +2547,8 @@ template <typename ElementType> struct Grid {
         level_base.push_back(level_base[m - 1] + Ntot);
     }
 
-    const long long total_blocks = sim.bpdx * sim.bpdy * pow(pow(2, a_levelStart), 2);
+    const long long total_blocks =
+        sim.bpdx * sim.bpdy * pow(pow(2, a_levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
     if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
@@ -2909,7 +2909,8 @@ template <typename ElementType> struct Grid {
   bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
         (maxextent / std::max(sim.bpdx * _BS_, std::max(sim.bpdy * _BS_, 1)));
-    const double extent[3] = {sim.bpdx * _BS_ * h0, sim.bpdy * _BS_ * h0, 1 * h0};
+    const double extent[3] = {sim.bpdx * _BS_ * h0, sim.bpdy * _BS_ * h0,
+                              1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
         {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
@@ -7786,20 +7787,20 @@ int main(int argc, char **argv) {
   bool xperiodic = dummy.is_xperiodic();
   bool yperiodic = dummy.is_yperiodic();
   bool zperiodic = dummy.is_zperiodic();
-  var.chi = new ScalarGrid(sim.extent, sim.levelStart,
-                           xperiodic, yperiodic, zperiodic);
-  var.vel = new VectorGrid(sim.extent, sim.levelStart,
-                           xperiodic, yperiodic, zperiodic);
-  var.vold = new VectorGrid(sim.extent, sim.levelStart,
-			    xperiodic, yperiodic, zperiodic);
-  var.pres = new ScalarGrid(sim.extent, sim.levelStart,
-                            xperiodic, yperiodic, zperiodic);
-  var.tmpV = new VectorGrid(sim.extent, sim.levelStart,
-                            xperiodic, yperiodic, zperiodic);
-  var.tmp = new ScalarGrid(sim.extent, sim.levelStart,
-                           xperiodic, yperiodic, zperiodic);
-  var.pold = new ScalarGrid(sim.extent, sim.levelStart,
-                            xperiodic, yperiodic, zperiodic);
+  var.chi = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                           zperiodic);
+  var.vel = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                           zperiodic);
+  var.vold = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                            zperiodic);
+  var.pres = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                            zperiodic);
+  var.tmpV = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                            zperiodic);
+  var.tmp = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                           zperiodic);
+  var.pold = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
+                            zperiodic);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
