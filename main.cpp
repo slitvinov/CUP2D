@@ -5361,8 +5361,8 @@ static struct {
   VectorAMR *vold_amr = nullptr;
   VectorAMR *tmpV_amr = nullptr;
 } var;
-using CHI_MAT = Real[_BS_][_BS_];
-using UDEFMAT = Real[_BS_][_BS_][2];
+typedef Real CHI_MAT[_BS_][_BS_];
+typedef Real UDEFMAT[_BS_][_BS_][2];
 struct surface_data {
   int ix, iy;
   Real dchidx, dchidy, delta;
@@ -7070,7 +7070,6 @@ struct KernelComputeForces {
     }
   }
 };
-using UDEFMAT = Real[_BS_][_BS_][2];
 struct PoissonSolver {
   struct EdgeCellIndexer;
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
@@ -7564,8 +7563,6 @@ struct PoissonSolver {
     }
   }
 };
-using CHI_MAT = Real[_BS_][_BS_];
-using UDEFMAT = Real[_BS_][_BS_][2];
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
