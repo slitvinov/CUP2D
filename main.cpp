@@ -5446,7 +5446,7 @@ struct KernelVorticity {
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
-static void dump(Real time, ScalarGrid *grid, char *path) {
+static void dump(Real time, std::vector<BlockInfo> &infos, char *path) {
   long i, j, k, l, x, y, ncell, ncell_total, offset;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
@@ -5464,7 +5464,7 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  ncell = grid->m_vInfo.size() * _BS_ * _BS_;
+  ncell = infos.size() * _BS_ * _BS_;
   MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
@@ -5508,8 +5508,8 @@ static void dump(Real time, ScalarGrid *grid, char *path) {
   attr = (float *)malloc(ncell * sizeof *xyz);
   k = 0;
   l = 0;
-  for (i = 0; i < grid->m_vInfo.size(); i++) {
-    const BlockInfo &info = grid->m_vInfo[i];
+  for (i = 0; i < infos.size(); i++) {
+    const BlockInfo &info = infos[i];
     ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
@@ -8008,7 +8008,7 @@ int main(int argc, char **argv) {
         computeA<VectorLab>(KernelVorticity(), var.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
-        dump(sim.time, var.tmp, path);
+        dump(sim.time, var.tmp->m_vInfo, path);
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
         adapt();
