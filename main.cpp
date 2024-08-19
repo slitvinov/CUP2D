@@ -3667,8 +3667,6 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    int nX = _BS_;
-    int nY = _BS_;
     int nZ = 1;
     bool xperiodic = is_xperiodic();
     bool yperiodic = is_yperiodic();
@@ -3700,12 +3698,12 @@ template <typename ElementType> struct BlockLab {
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
         continue;
-      int s[3] = {code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : nX,
-                  code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : nY,
+      int s[3] = {code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : _BS_,
                   code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : nZ};
       int e[3] = {
-          code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + m_stencilEnd[0] - 1,
-          code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + m_stencilEnd[1] - 1,
+          code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
+          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
       int sC[3] = {
           code[0] < 1 ? (code[0] < 0 ? ((m_stencilStart[0] - 1) / 2) : 0)
@@ -3762,7 +3760,7 @@ template <typename ElementType> struct BlockLab {
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
             double dx = 0.25 * (2 * x - 1);
-            if (ix < -2 || iy < -2 || ix > nX + 1 || iy > nY + 1)
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
             if (code[0] != 0) {
               ElementType dudy, dudy2;
@@ -3856,7 +3854,7 @@ template <typename ElementType> struct BlockLab {
         for (int iy = s[1]; iy < e[1]; iy += 1) {
 #pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 1) {
-            if (ix < -2 || iy < -2 || ix > nX + 1 || iy > nY + 1)
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
             int x =
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
