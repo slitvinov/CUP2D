@@ -2876,8 +2876,7 @@ template <typename ElementType> struct Grid {
       return retval->second;
     }
   }
-  TreePosition &Tree(BlockInfo &info) { return Tree0(info.level, info.Z); }
-  TreePosition &Tree(const BlockInfo &info) { return Tree0(info.level, info.Z); }
+  TreePosition &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
   void _alloc(const int m, const long long n) {
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.block = new Block;
@@ -4094,7 +4093,7 @@ template <typename ElementType> struct LoadBalancer {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
-      if (!grid->Tree(base).Exists() || base.state != Compress)
+      if (!grid->Tree1(base).Exists() || base.state != Compress)
         continue;
       const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
       const int baserank = grid->Tree0(b.level, nBlock).position;
@@ -4531,7 +4530,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               BlockInfo &infoNei = grid->getBlockInfoAll(
                   info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
-              if (grid->Tree(infoNei).Exists() && infoNei.state == Refine) {
+              if (grid->Tree1(infoNei).Exists() && infoNei.state == Refine) {
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
                 break;
@@ -4552,7 +4551,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = grid->getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if (grid->Tree(infoNei).Exists() == false ||
+              if (grid->Tree1(infoNei).Exists() == false ||
                   infoNei.state != Compress) {
                 found = true;
                 if (info.state == Compress) {
@@ -4571,7 +4570,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                    k <= 2 * (info.index[2] / 2) + 1; k++) {
                 long long n = grid->getZforward(m, i, j);
                 BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-                if (grid->Tree(infoNei).Exists() && infoNei.state == Compress)
+                if (grid->Tree1(infoNei).Exists() && infoNei.state == Compress)
                   infoNei.state = Leave;
               }
       }
@@ -4702,7 +4701,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp critical
         { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).id2); }
         BlockInfo &parent = grid->getBlockInfoAll(level, Z);
-        grid->Tree(parent).setCheckFiner();
+        grid->Tree1(parent).setCheckFiner();
         parent.state = Leave;
         int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         for (int j = 0; j < 2; j++)
@@ -4710,7 +4709,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             const long long nc =
                 grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
-            grid->Tree(Child).position = sim.rank;
+            grid->Tree1(Child).position = sim.rank;
             if (level + 2 < sim.levelMax)
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
@@ -7065,7 +7064,7 @@ struct PoissonSolver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const BlockInfo &info) const {
-      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree(info).position]) *
+      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree1(info).position]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
@@ -7271,8 +7270,8 @@ struct PoissonSolver {
                    const long long fine_far_idx, const double signInt,
                    const double signTaylor, const EdgeCellIndexer &indexer,
                    SpRowInfo &row) const {
-    const int rank_c = var.tmp->Tree(info_c).position;
-    const int rank_f = var.tmp->Tree(info_f).position;
+    const int rank_c = var.tmp->Tree1(info_c).position;
+    const int rank_f = var.tmp->Tree1(info_f).position;
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
@@ -7289,12 +7288,12 @@ struct PoissonSolver {
                 const BlockInfo &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
     const long long sfc_idx = indexer.This(rhs_info, ix, iy);
-    if (var.tmp->Tree(rhsNei).Exists()) {
-      const int nei_rank = var.tmp->Tree(rhsNei).position;
+    if (var.tmp->Tree1(rhsNei).Exists()) {
+      const int nei_rank = var.tmp->Tree1(rhsNei).position;
       const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree(rhsNei).CheckCoarser()) {
+    } else if (var.tmp->Tree1(rhsNei).CheckCoarser()) {
       const BlockInfo &rhsNei_c =
           var.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
       const int ix_c = indexer.ix_c(rhs_info, ix);
@@ -7304,10 +7303,10 @@ struct PoissonSolver {
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree(rhsNei).CheckFiner()) {
+    } else if (var.tmp->Tree1(rhsNei).CheckFiner()) {
       const BlockInfo &rhsNei_f = var.tmp->getBlockInfoAll(
           rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-      const int nei_rank = var.tmp->Tree(rhsNei_f).position;
+      const int nei_rank = var.tmp->Tree1(rhsNei_f).position;
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -7389,7 +7388,7 @@ struct PoissonSolver {
             idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
             idxNei[2] = GenericCell.This(rhs_info, ix, iy - 1);
             idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
-            SpRowInfo row(var.tmp->Tree(rhs_info).position, sfc_idx, 8);
+            SpRowInfo row(var.tmp->Tree1(rhs_info).position, sfc_idx, 8);
             for (int j(0); j < 4; j++) {
               if (validNei[j]) {
                 row.mapColVal(idxNei[j], 1);
