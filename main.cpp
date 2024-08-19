@@ -2732,7 +2732,7 @@ template <typename ElementType> struct Grid {
     return queryresult;
   }
   void initialize_blocks(const std::vector<long long> &Zs,
-                         const std::vector<short int> &blockslevel) {
+                         const std::vector<short int> &levels) {
     for (size_t i = 0; i < m_vInfo.size(); i++) {
       const int m = m_vInfo[i].level;
       const long long n = m_vInfo[i].Z;
@@ -2751,7 +2751,7 @@ template <typename ElementType> struct Grid {
     BlockInfoAll.clear();
     Octree.clear();
     for (size_t i = 0; i < Zs.size(); i++) {
-      const int level = blockslevel[i];
+      const int level = levels[i];
       const long long Z = Zs[i];
       _alloc(level, Z);
       Tree(level, Z).position = sim.rank;
