@@ -4579,18 +4579,16 @@ template <typename TLab, typename ElementType> struct Adaptation {
             Blocks[j * 2 + i] = (BlockType *)Child.ptrBlock;
           }
         if (basic_refinement == false) {
-          const int nx = _BS_;
-          const int ny = _BS_;
-          int offsetX[2] = {0, nx / 2};
-          int offsetY[2] = {0, ny / 2};
+          int offsetX[2] = {0, _BS_ / 2};
+          int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
               BlockType &b = *Blocks[J * 2 + I];
               for (size_t y = 0; y < _BS_; y++)
                 for (size_t x = 0; x < _BS_; x++)
                   b[y][x].clear();
-              for (int j = 0; j < ny; j += 2)
-                for (int i = 0; i < nx; i += 2) {
+              for (int j = 0; j < _BS_; j += 2)
+                for (int i = 0; i < _BS_; i += 2) {
                   ElementType dudx =
                       0.5 * (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) -
                              lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J]));
