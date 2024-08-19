@@ -1446,8 +1446,7 @@ template <typename TGrid> struct Synchronizer {
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
-    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic,
-                              false};
+    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {grid->getMaxBlocks()[0] * aux - 1,
                            grid->getMaxBlocks()[1] * aux - 1,
                            grid->getMaxBlocks()[2] * aux - 1};
@@ -2460,8 +2459,6 @@ template <typename ElementType> struct Grid {
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> infos;
-  double maxextent;
-  int levelStart;
   std::vector<long long> level_base;
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
@@ -2473,9 +2470,7 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(double a_maxextent, int a_levelStart)
-      : maxextent(a_maxextent), levelStart(a_levelStart),
-        timestamp(0) {
+  Grid() : timestamp(0) {
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
       const long long Ntot = sim.bpdx * sim.bpdy * pow(TwoPower, 2);
@@ -2484,9 +2479,8 @@ template <typename ElementType> struct Grid {
       if (m > 0)
         level_base.push_back(level_base[m - 1] + Ntot);
     }
-
     const long long total_blocks =
-        sim.bpdx * sim.bpdy * pow(pow(2, a_levelStart), 2);
+        sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
     if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
@@ -2497,7 +2491,7 @@ template <typename ElementType> struct Grid {
       else
         n_start += total_blocks % sim.size;
     }
-    std::vector<short int> levels(my_blocks, a_levelStart);
+    std::vector<short int> levels(my_blocks, sim.levelStart);
     std::vector<long long> Zs(my_blocks);
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
@@ -2844,7 +2838,7 @@ template <typename ElementType> struct Grid {
   }
   bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
-        (maxextent / std::max(sim.bpdx * _BS_, std::max(sim.bpdy * _BS_, 1)));
+        (sim.extent / std::max(sim.bpdx * _BS_, std::max(sim.bpdy * _BS_, 1)));
     const double extent[3] = {sim.bpdx * _BS_ * h0, sim.bpdy * _BS_ * h0,
                               1 * h0};
     const Real intersect[3][2] = {
@@ -2996,8 +2990,8 @@ template <typename ElementType> struct Grid {
         const auto retval1 = BlockInfoAll.find(aux);
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
-          dumm->h =
-              maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) / (1 << m);
+          dumm->h = sim.extent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) /
+                    (1 << m);
           int i, j;
           sim.space_curve->inverse(n, m, i, j);
           dumm->origin[0] = i * _BS_ * dumm->h;
@@ -3167,8 +3161,6 @@ template <typename ElementType> struct BlockLab {
     if (CoarseBlockSize[2] == 0)
       CoarseBlockSize[2] = 1;
   }
-  virtual bool is_xperiodic() { return true; }
-  virtual bool is_yperiodic() { return true; }
   ~BlockLab() {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
@@ -3251,9 +3243,6 @@ template <typename ElementType> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    const bool xperiodic = is_xperiodic();
-    const bool yperiodic = is_yperiodic();
-    const bool zperiodic = false;
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
     const int aux = 1 << info.level;
     NX = blocksPerDim[0] * aux;
@@ -3311,8 +3300,6 @@ template <typename ElementType> struct BlockLab {
         if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
         if (sim.bcy != periodic && code[1] == yskip && yskin)
-          continue;
-        if (!zperiodic && code[2] == zskip && zskin)
           continue;
         const auto &TreeNei = m_refGrid->Tree(
             info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
@@ -3391,13 +3378,13 @@ template <typename ElementType> struct BlockLab {
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
-    const bool periodic[3] = {is_xperiodic(), is_yperiodic(), false};
+    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {blocksPerDim[0] * aux - 1, blocksPerDim[1] * aux - 1,
                            blocksPerDim[2] * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b_index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b_index[d]) ? 0 : +1;
-      if (periodic[d]) {
+      if (periodic0[d]) {
         if (a.index[d] == 0 && b_index[d] == blocks[d])
           imin[d] = -1;
         if (b_index[d] == 0 && a.index[d] == blocks[d])
@@ -5064,8 +5051,6 @@ static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid, typename ElementType>
 struct BlockLabDirichlet : public BlockLab<ElementType> {
-  virtual bool is_xperiodic() override { return cubismBCX == periodic; }
-  virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -5150,26 +5135,26 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
     const BCflag BCX = cubismBCX;
     const BCflag BCY = cubismBCY;
     if (!coarse) {
-      if (is_xperiodic() == false) {
+      if (sim.bcx != periodic) {
         if (info.index[0] == 0)
           this->template applyBCface<0, 0>(BCX == wall);
         if (info.index[0] == this->NX - 1)
           this->template applyBCface<0, 1>(BCX == wall);
       }
-      if (is_yperiodic() == false) {
+      if (sim.bcy != periodic) {
         if (info.index[1] == 0)
           this->template applyBCface<1, 0>(BCY == wall);
         if (info.index[1] == this->NY - 1)
           this->template applyBCface<1, 1>(BCY == wall);
       }
     } else {
-      if (is_xperiodic() == false) {
+      if (sim.bcx != periodic) {
         if (info.index[0] == 0)
           this->template applyBCface<0, 0>(BCX == wall, coarse);
         if (info.index[0] == this->NX - 1)
           this->template applyBCface<0, 1>(BCX == wall, coarse);
       }
-      if (is_yperiodic() == false) {
+      if (sim.bcy != periodic) {
         if (info.index[1] == 0)
           this->template applyBCface<1, 0>(BCY == wall, coarse);
         if (info.index[1] == this->NY - 1)
@@ -5224,20 +5209,18 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
   }
-  bool is_xperiodic() override { return cubismBCX == periodic; }
-  bool is_yperiodic() override { return cubismBCY == periodic; }
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
   virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
                          const bool coarse = false) override {
-    if (is_xperiodic() == false) {
+    if (sim.bcx != periodic) {
       if (info.index[0] == 0)
         Neumann2D<0, 0>(coarse);
       if (info.index[0] == this->NX - 1)
         Neumann2D<0, 1>(coarse);
     }
-    if (is_yperiodic() == false) {
+    if (sim.bcy != periodic) {
       if (info.index[1] == 0)
         Neumann2D<1, 0>(coarse);
       if (info.index[1] == this->NY - 1)
@@ -7701,8 +7684,6 @@ int main(int argc, char **argv) {
   sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
   sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
   sim.levelStart = parser("-levelStart").asInt(-1);
-  if (sim.levelStart == -1)
-    sim.levelStart = sim.levelMax - 1;
   sim.extent = parser("-extent").asDouble(1);
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
@@ -7724,13 +7705,13 @@ int main(int argc, char **argv) {
   sim.dumpTime = parser("-tdump").asDouble(0);
   ScalarLab dummy;
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new ScalarGrid(sim.extent, sim.levelStart);
-  var.vel = new VectorGrid(sim.extent, sim.levelStart);
-  var.vold = new VectorGrid(sim.extent, sim.levelStart);
-  var.pres = new ScalarGrid(sim.extent, sim.levelStart);
-  var.tmpV = new VectorGrid(sim.extent, sim.levelStart);
-  var.tmp = new ScalarGrid(sim.extent, sim.levelStart);
-  var.pold = new ScalarGrid(sim.extent, sim.levelStart);
+  var.chi = new ScalarGrid;
+  var.vel = new VectorGrid;
+  var.vold = new VectorGrid;
+  var.pres = new ScalarGrid;
+  var.tmpV = new VectorGrid;
+  var.tmp = new ScalarGrid;
+  var.pold = new ScalarGrid;
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
