@@ -2385,7 +2385,48 @@ template <typename ElementType> struct Grid {
     std::vector<long long> Zs(my_blocks);
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
-    initialize_blocks(Zs, levels);
+    for (size_t i = 0; i < m_vInfo.size(); i++) {
+      const int m = m_vInfo[i].level;
+      const long long n = m_vInfo[i].Z;
+      delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
+    }
+    std::vector<long long> aux;
+    for (auto &m : BlockInfoAll)
+      aux.push_back(m.first);
+    for (size_t i = 0; i < aux.size(); i++) {
+      const auto retval = BlockInfoAll.find(aux[i]);
+      if (retval != BlockInfoAll.end()) {
+        delete retval->second;
+      }
+    }
+    m_vInfo.clear();
+    BlockInfoAll.clear();
+    Octree.clear();
+    for (size_t i = 0; i < Zs.size(); i++) {
+      const int level = levels[i];
+      const long long Z = Zs[i];
+      _alloc(level, Z);
+      Tree(level, Z).position = sim.rank;
+      int p[2];
+      BlockInfo::inverse(Z, level, p[0], p[1]);
+      if (level < levelMax - 1)
+        for (int j1 = 0; j1 < 2; j1++)
+          for (int i1 = 0; i1 < 2; i1++) {
+            const long long nc =
+                getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            Tree(level + 1, nc).setCheckCoarser();
+          }
+      if (level > 0) {
+        const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+        Tree(level - 1, nf).setCheckFiner();
+      }
+    }
+    FillPos();
+    UpdateFluxCorrection = true;
+    UpdateGroups = true;
+    UpdateBlockInfoAll_States(false);
+    for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
+      (*it->second)._Setup();
     MPI_Barrier(MPI_COMM_WORLD);
   }
   Block *avail(const int m, const long long n) {
@@ -2730,51 +2771,6 @@ template <typename ElementType> struct Grid {
     queryresult->sync0();
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
-  }
-  void initialize_blocks(const std::vector<long long> &Zs,
-                         const std::vector<short int> &levels) {
-    for (size_t i = 0; i < m_vInfo.size(); i++) {
-      const int m = m_vInfo[i].level;
-      const long long n = m_vInfo[i].Z;
-      delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
-    }
-    std::vector<long long> aux;
-    for (auto &m : BlockInfoAll)
-      aux.push_back(m.first);
-    for (size_t i = 0; i < aux.size(); i++) {
-      const auto retval = BlockInfoAll.find(aux[i]);
-      if (retval != BlockInfoAll.end()) {
-        delete retval->second;
-      }
-    }
-    m_vInfo.clear();
-    BlockInfoAll.clear();
-    Octree.clear();
-    for (size_t i = 0; i < Zs.size(); i++) {
-      const int level = levels[i];
-      const long long Z = Zs[i];
-      _alloc(level, Z);
-      Tree(level, Z).position = sim.rank;
-      int p[2];
-      BlockInfo::inverse(Z, level, p[0], p[1]);
-      if (level < levelMax - 1)
-        for (int j1 = 0; j1 < 2; j1++)
-          for (int i1 = 0; i1 < 2; i1++) {
-            const long long nc =
-                getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Tree(level + 1, nc).setCheckCoarser();
-          }
-      if (level > 0) {
-        const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
-        Tree(level - 1, nf).setCheckFiner();
-      }
-    }
-    FillPos();
-    UpdateFluxCorrection = true;
-    UpdateGroups = true;
-    UpdateBlockInfoAll_States(false);
-    for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
-      (*it->second)._Setup();
   }
   TreePosition &Tree(const int m, const long long n) {
     const long long aux = level_base[m] + n;
