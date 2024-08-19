@@ -9,7 +9,7 @@ rm -r "${d?not set}" &&
    cd "$d"
    module load gcc openmpi cuda python &&
    make -j "CXXFLAGS = -Wno-deprecated-declarations -coverage -Og -g3" "LDFLAGS = -Xcompiler -coverage" -j &&
-   OMP_NUM_THREADS=4 srun --mpi=pmix -l -p seas_gpu -c 4 -n 2 -N 1 --gpus 1 --mem 1Gb -t 15 sh -x run.sh &&
+   OMP_NUM_THREADS=4 srun --mpi=pmix -l -p seas_gpu -c 2 -n 2 -N 1 --gpus 1 --mem 1Gb -t 15 sh -x run.sh &&
    python -m gcovr --html-details cover.html
 ' &&
 rsync -avz "rc:$d"/vort* "rc:$d"/cover* .
