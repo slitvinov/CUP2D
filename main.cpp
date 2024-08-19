@@ -227,6 +227,89 @@ static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
   }
   return (fp - fm);
 }
+static void compute_j(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
+  Real m00 = 1.0;
+  Real m01 = 0.0;
+  Real m02 = 0.0;
+  Real m11 = 1.0;
+  Real m12 = 0.0;
+  Real m22 = I[5];
+  Real a00 = m22 * m11 - m12 * m12;
+  Real a01 = m02 * m12 - m22 * m01;
+  Real a02 = m01 * m12 - m02 * m11;
+  Real a11 = m22 * m00 - m02 * m02;
+  Real a12 = m01 * m02 - m00 * m12;
+  Real a22 = m00 * m11 - m01 * m01;
+  Real determinant = 1.0 / ((m00 * a00) + (m01 * a01) + (m02 * a02));
+  a00 *= determinant;
+  a01 *= determinant;
+  a02 *= determinant;
+  a11 *= determinant;
+  a12 *= determinant;
+  a22 *= determinant;
+  const Real aux_0 = (Rc[1] - R[1]) * N[2] - (Rc[2] - R[2]) * N[1];
+  const Real aux_1 = (Rc[2] - R[2]) * N[0] - (Rc[0] - R[0]) * N[2];
+  const Real aux_2 = (Rc[0] - R[0]) * N[1] - (Rc[1] - R[1]) * N[0];
+  J[0] = a00 * aux_0 + a01 * aux_1 + a02 * aux_2;
+  J[1] = a01 * aux_0 + a11 * aux_1 + a12 * aux_2;
+  J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
+}
+static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
+                      Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
+                      Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
+                      Real CX, Real CY, Real CZ, Real *vc1, Real *vc2) {
+  Real e = 1.0;
+  Real N[3] = {NX, NY, NZ};
+  Real C[3] = {CX, CY, CZ};
+  Real k1[3] = {N[0] / m1, N[1] / m1, N[2] / m1};
+  Real k2[3] = {-N[0] / m2, -N[1] / m2, -N[2] / m2};
+  Real J1[3];
+  Real J2[3];
+  compute_j(C, C1, N, I1, J1);
+  compute_j(C, C2, N, I2, J2);
+  J2[0] = -J2[0];
+  J2[1] = -J2[1];
+  J2[2] = -J2[2];
+  Real u1DEF[3];
+  u1DEF[0] = vc1[0] - v1[0] - (o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1]));
+  u1DEF[1] = vc1[1] - v1[1] - (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2]));
+  u1DEF[2] = vc1[2] - v1[2] - (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0]));
+  Real u2DEF[3];
+  u2DEF[0] = vc2[0] - v2[0] - (o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1]));
+  u2DEF[1] = vc2[1] - v2[1] - (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2]));
+  u2DEF[2] = vc2[2] - v2[2] - (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0]));
+  Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
+                  (vc1[2] - vc2[2]) * N[2]) +
+             ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
+              (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
+              (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
+             ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
+              (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
+              (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
+             ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
+              (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
+              (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
+  Real denom = -(1.0 / m1 + 1.0 / m2) +
+               +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
+                 (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
+                 (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
+               ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
+                (J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
+                (J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
+  Real impulse = nom / (denom + 1e-21);
+  hv1[0] = v1[0] + k1[0] * impulse;
+  hv1[1] = v1[1] + k1[1] * impulse;
+  hv1[2] = v1[2] + k1[2] * impulse;
+  hv2[0] = v2[0] + k2[0] * impulse;
+  hv2[1] = v2[1] + k2[1] * impulse;
+  hv2[2] = v2[2] + k2[2] * impulse;
+  ho1[0] = o1[0] + J1[0] * impulse;
+  ho1[1] = o1[1] + J1[1] * impulse;
+  ho1[2] = o1[2] + J1[2] * impulse;
+  ho2[0] = o2[0] + J2[0] * impulse;
+  ho2[1] = o2[1] + J2[1] * impulse;
+  ho2[2] = o2[2] + J2[2] * impulse;
+}
 struct Shape;
 static struct {
   int rank;
@@ -7485,89 +7568,6 @@ struct PoissonSolver {
 };
 using CHI_MAT = Real[_BS_][_BS_];
 using UDEFMAT = Real[_BS_][_BS_][2];
-void ComputeJ(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
-  Real m00 = 1.0;
-  Real m01 = 0.0;
-  Real m02 = 0.0;
-  Real m11 = 1.0;
-  Real m12 = 0.0;
-  Real m22 = I[5];
-  Real a00 = m22 * m11 - m12 * m12;
-  Real a01 = m02 * m12 - m22 * m01;
-  Real a02 = m01 * m12 - m02 * m11;
-  Real a11 = m22 * m00 - m02 * m02;
-  Real a12 = m01 * m02 - m00 * m12;
-  Real a22 = m00 * m11 - m01 * m01;
-  Real determinant = 1.0 / ((m00 * a00) + (m01 * a01) + (m02 * a02));
-  a00 *= determinant;
-  a01 *= determinant;
-  a02 *= determinant;
-  a11 *= determinant;
-  a12 *= determinant;
-  a22 *= determinant;
-  const Real aux_0 = (Rc[1] - R[1]) * N[2] - (Rc[2] - R[2]) * N[1];
-  const Real aux_1 = (Rc[2] - R[2]) * N[0] - (Rc[0] - R[0]) * N[2];
-  const Real aux_2 = (Rc[0] - R[0]) * N[1] - (Rc[1] - R[1]) * N[0];
-  J[0] = a00 * aux_0 + a01 * aux_1 + a02 * aux_2;
-  J[1] = a01 * aux_0 + a11 * aux_1 + a12 * aux_2;
-  J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
-}
-void ElasticCollision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
-                      Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
-                      Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
-                      Real CX, Real CY, Real CZ, Real *vc1, Real *vc2) {
-  Real e = 1.0;
-  Real N[3] = {NX, NY, NZ};
-  Real C[3] = {CX, CY, CZ};
-  Real k1[3] = {N[0] / m1, N[1] / m1, N[2] / m1};
-  Real k2[3] = {-N[0] / m2, -N[1] / m2, -N[2] / m2};
-  Real J1[3];
-  Real J2[3];
-  ComputeJ(C, C1, N, I1, J1);
-  ComputeJ(C, C2, N, I2, J2);
-  J2[0] = -J2[0];
-  J2[1] = -J2[1];
-  J2[2] = -J2[2];
-  Real u1DEF[3];
-  u1DEF[0] = vc1[0] - v1[0] - (o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1]));
-  u1DEF[1] = vc1[1] - v1[1] - (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2]));
-  u1DEF[2] = vc1[2] - v1[2] - (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0]));
-  Real u2DEF[3];
-  u2DEF[0] = vc2[0] - v2[0] - (o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1]));
-  u2DEF[1] = vc2[1] - v2[1] - (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2]));
-  u2DEF[2] = vc2[2] - v2[2] - (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0]));
-  Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
-                  (vc1[2] - vc2[2]) * N[2]) +
-             ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
-              (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
-              (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
-             ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
-              (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
-              (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
-             ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
-              (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
-              (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
-  Real denom = -(1.0 / m1 + 1.0 / m2) +
-               +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
-                 (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
-                 (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
-               ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
-                (J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
-                (J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
-  Real impulse = nom / (denom + 1e-21);
-  hv1[0] = v1[0] + k1[0] * impulse;
-  hv1[1] = v1[1] + k1[1] * impulse;
-  hv1[2] = v1[2] + k1[2] * impulse;
-  hv2[0] = v2[0] + k2[0] * impulse;
-  hv2[1] = v2[1] + k2[1] * impulse;
-  hv2[2] = v2[2] + k2[2] * impulse;
-  ho1[0] = o1[0] + J1[0] * impulse;
-  ho1[1] = o1[1] + J1[1] * impulse;
-  ho1[2] = o1[2] + J1[2] * impulse;
-  ho2[0] = o2[0] + J2[0] * impulse;
-  ho2[1] = o2[1] + J2[1] * impulse;
-  ho2[2] = o2[2] + J2[2] * impulse;
-}
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
@@ -8392,7 +8392,7 @@ int main(int argc, char **argv) {
           Real CX = 0.5 * (iPX + jPX);
           Real CY = 0.5 * (iPY + jPY);
           Real CZ = 0.5 * (iPZ + jPZ);
-          ElasticCollision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2,
+          collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2,
                            C1, C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
           shapes[i]->u = hv1[0];
           shapes[i]->v = hv1[1];
