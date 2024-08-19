@@ -2585,9 +2585,9 @@ template <typename ElementType> struct Grid {
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-        if (!xperiodic && code[0] == xskip && xskin)
+        if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
-        if (!yperiodic && code[1] == yskip && yskin)
+        if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
@@ -2744,9 +2744,9 @@ template <typename ElementType> struct Grid {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-        if (!xperiodic && code[0] == xskip && xskin)
+        if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
-        if (!yperiodic && code[1] == yskip && yskin)
+        if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
@@ -3324,9 +3324,9 @@ template <typename ElementType> struct BlockLab {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
         const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-        if (!xperiodic && code[0] == xskip && xskin)
+        if (sim.bcx != periodic && code[0] == xskip && xskin)
           continue;
-        if (!yperiodic && code[1] == yskip && yskin)
+        if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
@@ -3802,9 +3802,6 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    bool xperiodic = is_xperiodic();
-    bool yperiodic = is_yperiodic();
-    bool zperiodic = false;
     std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
     int aux = 1 << info.level;
     bool xskin =
@@ -3823,11 +3820,9 @@ template <typename ElementType> struct BlockLab {
       int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
       if (code[2] != 0)
         continue;
-      if (!xperiodic && code[0] == xskip && xskin)
+      if (sim.bcx != periodic && code[0] == xskip && xskin)
         continue;
-      if (!yperiodic && code[1] == yskip && yskin)
-        continue;
-      if (!zperiodic && code[2] == zskip && zskin)
+      if (sim.bcy != periodic && code[1] == yskip && yskin)
         continue;
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
@@ -4529,9 +4524,9 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-              if (!xperiodic && code[0] == xskip && xskin)
+              if (sim.bcx != periodic && code[0] == xskip && xskin)
                 continue;
-              if (!yperiodic && code[1] == yskip && yskin)
+              if (sim.bcy != periodic && code[1] == yskip && yskin)
                 continue;
               if (!zperiodic && code[2] == zskip && zskin)
                 continue;
@@ -4593,9 +4588,9 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
-              if (!xperiodic && code[0] == xskip && xskin)
+              if (sim.bcx != periodic && code[0] == xskip && xskin)
                 continue;
-              if (!yperiodic && code[1] == yskip && yskin)
+              if (sim.bcy != periodic && code[1] == yskip && yskin)
                 continue;
               if (!zperiodic && code[2] == zskip && zskin)
                 continue;
