@@ -317,61 +317,58 @@ struct CommandlineParser {
   bool bStrictMode;
   bool _isnumber(const std::string &s) const;
   std::map<std::string, Value> mapArguments;
-  CommandlineParser(int argc, char **argv);
-  Value &operator()(std::string key);
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
-};
-Value &CommandlineParser::operator()(std::string key) {
-  if (key[0] == '-')
-    key.erase(0, 1);
-  if (key[0] == '+')
-    key.erase(0, 1);
-  if (bStrictMode) {
-    if (mapArguments.find(key) == mapArguments.end()) {
-      printf("runtime %s is not set\n", key.data());
-      abort();
-    }
-  }
-  return mapArguments[key];
-}
-CommandlineParser::CommandlineParser(const int argc, char **argv)
-    : bStrictMode(false) {
-  for (int i = 1; i < argc; i++)
-    if (argv[i][0] == '-') {
-      std::string values = "";
-      int itemCount = 0;
-      for (int j = i + 1; j < argc; j++) {
-        const bool leadingDash = (argv[j][0] == '-');
-        char *end = NULL;
-        strtod(argv[j], &end);
-        const bool isNumeric = end != argv[j];
-        if (leadingDash && !isNumeric)
-          break;
-        else {
-          if (std::strcmp(values.c_str(), ""))
-            values += ' ';
-          values += argv[j];
-          itemCount++;
+  CommandlineParser(const int argc, char **argv) : bStrictMode(false) {
+    for (int i = 1; i < argc; i++)
+      if (argv[i][0] == '-') {
+        std::string values = "";
+        int itemCount = 0;
+        for (int j = i + 1; j < argc; j++) {
+          const bool leadingDash = (argv[j][0] == '-');
+          char *end = NULL;
+          strtod(argv[j], &end);
+          const bool isNumeric = end != argv[j];
+          if (leadingDash && !isNumeric)
+            break;
+          else {
+            if (std::strcmp(values.c_str(), ""))
+              values += ' ';
+            values += argv[j];
+            itemCount++;
+          }
         }
-      }
-      if (itemCount == 0)
-        values = "true";
-      std::string key(argv[i]);
-      key.erase(0, 1);
-      if (key[0] == '+') {
+        if (itemCount == 0)
+          values = "true";
+        std::string key(argv[i]);
         key.erase(0, 1);
-        if (mapArguments.find(key) == mapArguments.end())
-          mapArguments[key] = Value(values);
-        else
-          mapArguments[key] += Value(values);
-      } else {
-        if (mapArguments.find(key) == mapArguments.end())
-          mapArguments[key] = Value(values);
+        if (key[0] == '+') {
+          key.erase(0, 1);
+          if (mapArguments.find(key) == mapArguments.end())
+            mapArguments[key] = Value(values);
+          else
+            mapArguments[key] += Value(values);
+        } else {
+          if (mapArguments.find(key) == mapArguments.end())
+            mapArguments[key] = Value(values);
+        }
+        i += itemCount;
       }
-      i += itemCount;
+  }
+  Value &operator()(std::string key) {
+    if (key[0] == '-')
+      key.erase(0, 1);
+    if (key[0] == '+')
+      key.erase(0, 1);
+    if (bStrictMode) {
+      if (mapArguments.find(key) == mapArguments.end()) {
+        printf("runtime %s is not set\n", key.data());
+        abort();
+      }
     }
-}
+    return mapArguments[key];
+  }
+};
 struct SpaceFillingCurve2D {
   int BX;
   int BY;
