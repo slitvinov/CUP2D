@@ -2522,7 +2522,7 @@ template <typename ElementType> struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  void UpdateBlockInfoAll_States(bool UpdateIDs = false) {
+  void UpdateBlockInfoAll_States(bool UpdateIDs) {
     std::vector<int> myNeighbors;
     double low[3] = {+1e20, +1e20, +1e20};
     double high[3] = {-1e20, -1e20, -1e20};
@@ -2559,21 +2559,20 @@ template <typename ElementType> struct Grid {
     std::vector<long long> myData;
     for (auto &info : m_vInfo) {
       bool myflag = false;
-      const int aux = 1 << info.level;
-      const bool xskin =
+      int aux = 1 << info.level;
+      bool xskin =
           info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
-      const bool yskin =
+      bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
-      const bool zskin =
+      bool zskin =
           info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
-      const int xskip = info.index[0] == 0 ? -1 : 1;
-      const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      int xskip = info.index[0] == 0 ? -1 : 1;
+      int yskip = info.index[1] == 0 ? -1 : 1;
+      int zskip = info.index[2] == 0 ? -1 : 1;
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
         if (!xperiodic && code[0] == xskip && xskin)
           continue;
         if (!yperiodic && code[1] == yskip && yskin)
@@ -2584,14 +2583,13 @@ template <typename ElementType> struct Grid {
           continue;
         BlockInfo &infoNei =
             getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
-        const TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
+        TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           myflag = true;
           break;
         } else if (infoNeiTree.CheckCoarser()) {
           long long nCoarse = infoNei.Zparent;
-          const int infoNeiCoarserrank =
-              Tree(infoNei.level - 1, nCoarse).position;
+          int infoNeiCoarserrank = Tree(infoNei.level - 1, nCoarse).position;
           if (infoNeiCoarserrank != sim.rank) {
             myflag = true;
             break;
@@ -2603,16 +2601,15 @@ template <typename ElementType> struct Grid {
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
             Bstep = 4;
           for (int B = 0; B <= 3; B += Bstep) {
-            const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            const long long nFine =
+            int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+            long long nFine =
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            const int infoNeiFinerrank =
-                Tree(infoNei.level + 1, nFine).position;
+            int infoNeiFinerrank = Tree(infoNei.level + 1, nFine).position;
             if (infoNeiFinerrank != sim.rank) {
               myflag = true;
               break;
@@ -3328,7 +3325,8 @@ template <typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        const ElementType *ptrSrc0 =
+            &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc1 =
             &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc2 =
@@ -3344,7 +3342,8 @@ template <typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        const ElementType *ptrSrc =
+            &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3645,8 +3644,7 @@ template <typename ElementType> struct BlockLab {
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
             iy < _BS_ / 2 - m_InterpStencilEnd[1] &&
-            iz > -m_InterpStencilStart[2] &&
-            iz < 1 / 2 - m_InterpStencilEnd[2])
+            iz > -m_InterpStencilStart[2] && iz < 1 / 2 - m_InterpStencilEnd[2])
           continue;
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
