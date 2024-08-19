@@ -2824,11 +2824,11 @@ template <typename ElementType> struct Grid {
                                  [](const BlockInfo &x) { return x.changed2; }),
                   m_vInfo.end());
   }
-  void FindBlockInfo(const int m, const long long n, const int m_new,
-                     const long long n_new) {
+  void FindBlockInfo(int level, const long long n, const int m_new,
+                     const long long np) {
     for (size_t j = 0; j < m_vInfo.size(); j++)
-      if (m == m_vInfo[j].level && n == m_vInfo[j].Z) {
-        BlockInfo &correct_info = getBlockInfoAll(m_new, n_new);
+      if (level == m_vInfo[j].level && n == m_vInfo[j].Z) {
+        BlockInfo &correct_info = getBlockInfoAll(m_new, np);
         correct_info.state = Leave;
         m_vInfo[j] = correct_info;
         return;
