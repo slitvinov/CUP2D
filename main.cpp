@@ -1043,9 +1043,6 @@ template <typename TGrid> struct Synchronizer {
   StencilInfo stencil;
   StencilInfo Cstencil;
   TGrid *grid;
-  int nX;
-  int nY;
-  int nZ;
   std::vector<BlockInfo *> inner_blocks;
   std::vector<BlockInfo *> halo_blocks;
   std::vector<std::vector<Real>> send_buffer;
@@ -1670,9 +1667,6 @@ template <typename TGrid> struct Synchronizer {
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || stencil.sz < -2 ||
                     stencil.ex > 3 || stencil.ey > 3 || stencil.ez > 3);
-    nX = _BS_;
-    nY = _BS_;
-    nZ = 1;
     send_interfaces.resize(sim.size);
     recv_interfaces.resize(sim.size);
     send_packinfos.resize(sim.size);
@@ -1756,33 +1750,34 @@ template <typename TGrid> struct Synchronizer {
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
                                  (stencil.sz - 1) / 2 + Cstencil.sz};
               const int s[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : nX / 2,
-                  code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : nY / 2,
-                  code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : nZ / 2};
-              const int e[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2) : nX / 2 + eC[0] - 1,
-                  code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2) : nY / 2 + eC[1] - 1,
-                  code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2)
-                              : nZ / 2 + eC[2] - 1};
+                  code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                  code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2,
+                  code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : 1 / 2};
+              const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                            : _BS_ / 2 + eC[0] - 1,
+                                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                            : _BS_ / 2 + eC[1] - 1,
+                                code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2)
+                                            : 1 / 2 + eC[2] - 1};
               Real *src = (Real *)(*info).ptrBlock;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy++) {
-                const int YY = 2 * (iy - s[1]) + s[1] +
-                               std::max(code[1], 0) * nY / 2 - code[1] * nY +
-                               std::min(0, code[1]) * (e[1] - s[1]);
+                const int YY =
+                    2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * _BS_ / 2 -
+                    code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]);
                 for (int ix = s[0]; ix < e[0]; ix++) {
-                  const int XX = 2 * (ix - s[0]) + s[0] +
-                                 std::max(code[0], 0) * nX / 2 - code[0] * nX +
-                                 std::min(0, code[0]) * (e[0] - s[0]);
+                  const int XX =
+                      2 * (ix - s[0]) + s[0] + std::max(code[0], 0) * _BS_ / 2 -
+                      code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
                   for (int c = 0; c < NC; c++) {
                     int comp = stencil.selcomponents[c];
                     dst[pos] =
                         0.25 *
-                        (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) +
+                        (((*(src + gptfloats * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY + 1) * _BS_) +
                              comp))) +
-                         ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
+                         ((*(src + gptfloats * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
                   }
                 }
@@ -1791,36 +1786,38 @@ template <typename TGrid> struct Synchronizer {
               Real *__restrict__ dst = send_buffer[r].data() + d;
               const BlockInfo *const info = f.infos[0];
               const int s[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
-                  code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
-                  code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
-              const int e[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
-                  code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
-                  code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
+                  code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
+                  code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : 1};
+              const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
+                                            : _BS_ + stencil.ex - 1,
+                                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
+                                            : _BS_ + stencil.ey - 1,
+                                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
+                                            : 1 + stencil.ez - 1};
               Real *src = (Real *)(*info).ptrBlock;
               const int xStep = (code[0] == 0) ? 2 : 1;
               const int yStep = (code[1] == 0) ? 2 : 1;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy += yStep) {
-                const int YY =
-                    (abs(code[1]) == 1)
-                        ? 2 * (iy - code[1] * nY) + std::min(0, code[1]) * nY
-                        : iy;
+                const int YY = (abs(code[1]) == 1)
+                                   ? 2 * (iy - code[1] * _BS_) +
+                                         std::min(0, code[1]) * _BS_
+                                   : iy;
                 for (int ix = s[0]; ix < e[0]; ix += xStep) {
-                  const int XX =
-                      (abs(code[0]) == 1)
-                          ? 2 * (ix - code[0] * nX) + std::min(0, code[0]) * nX
-                          : ix;
+                  const int XX = (abs(code[0]) == 1)
+                                     ? 2 * (ix - code[0] * _BS_) +
+                                           std::min(0, code[0]) * _BS_
+                                     : ix;
                   for (int c = 0; c < NC; c++) {
                     int comp = stencil.selcomponents[c];
                     dst[pos] =
                         0.25 *
-                        (((*(src + gptfloats * (XX + (YY)*nX) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY + 1) * nX) +
+                        (((*(src + gptfloats * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY + 1) * _BS_) +
                              comp))) +
-                         ((*(src + gptfloats * (XX + (YY + 1) * nX) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY)*nX) + comp))));
+                         ((*(src + gptfloats * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + gptfloats * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
                   }
                 }
@@ -1832,7 +1829,7 @@ template <typename TGrid> struct Synchronizer {
             const PackInfo &info = send_packinfos[r][i];
             pack(info.block, info.pack, gptfloats,
                  &stencil.selcomponents.front(), NC, info.sx, info.sy, info.sz,
-                 info.ex, info.ey, info.ez, nX, nY);
+                 info.ex, info.ey, info.ez, _BS_, _BS_);
           }
         }
       }
@@ -1855,13 +1852,13 @@ template <typename TGrid> struct Synchronizer {
       const int code[3] = {unpack.icode % 3 - 1, (unpack.icode / 3) % 3 - 1,
                            (unpack.icode / 9) % 3 - 1};
       const int otherrank = unpack.rank;
-      const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : nX,
-                        code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : nY,
-                        code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : nZ};
+      const int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                        code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
+                        code[2] < 1 ? (code[2] < 0 ? stencil.sz : 0) : 1};
       const int e[3] = {
-          code[0] < 1 ? (code[0] < 0 ? 0 : nX) : nX + stencil.ex - 1,
-          code[1] < 1 ? (code[1] < 0 ? 0 : nY) : nY + stencil.ey - 1,
-          code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + stencil.ez - 1};
+          code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
+          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + stencil.ez - 1};
       if (unpack.level == info.level) {
         Real *dst =
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
@@ -1878,9 +1875,9 @@ template <typename TGrid> struct Synchronizer {
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
                                  (stencil.sz - 1) / 2 + Cstencil.sz};
           const int sC[3] = {
-              code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : nX / 2,
-              code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : nY / 2,
-              code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : nZ / 2};
+              code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+              code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+              code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
           Real *dst1 = coarseBlock +
                        ((sC[2] - offset[2]) * CLength[0] * CLength[1] +
                         (sC[1] - offset[1]) * CLength[0] + sC[0] - offset[0]) *
@@ -1901,10 +1898,10 @@ template <typename TGrid> struct Synchronizer {
         const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                (stencil.sy - 1) / 2 + Cstencil.sy,
                                (stencil.sz - 1) / 2 + Cstencil.sz};
-        const int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : nX / 2,
-                           code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : nY / 2,
-                           code[2] < 1 ? (code[2] < 0 ? offset[2] : 0)
-                                       : nZ / 2};
+        const int sC[3] = {
+            code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+            code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+            code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
         Real *dst = coarseBlock +
                     ((sC[2] - offset[2]) * CLength[0] * CLength[1] + sC[0] -
                      offset[0] + (sC[1] - offset[1]) * CLength[0]) *
@@ -2184,8 +2181,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            const int infoNeiFinerrank =
-                (*TFluxCorrection::grid).Tree(infoNei.level + 1, nFine).position;
+            const int infoNeiFinerrank = (*TFluxCorrection::grid)
+                                             .Tree(infoNei.level + 1, nFine)
+                                             .position;
             {
               BlockInfo &infoNeiFiner =
                   (*TFluxCorrection::grid)
@@ -2463,7 +2461,8 @@ template <typename ElementType> struct Grid {
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
             BlockInfo &infoNeiFiner = getBlockInfoAll(infoNei.level + 1, nFine);
-            const int infoNeiFinerrank = Tree(infoNei.level + 1, nFine).position;
+            const int infoNeiFinerrank =
+                Tree(infoNei.level + 1, nFine).position;
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner.state != Refine || clean)
                 infoNeiFiner.state = Leave;
@@ -2612,7 +2611,8 @@ template <typename ElementType> struct Grid {
                                temp * std::max(0, 1 - abs(code[1]))]
                               [std::max(-code[2], 0) +
                                (B / 2) * std::max(0, 1 - abs(code[2]))];
-            const int infoNeiFinerrank = Tree(infoNei.level + 1, nFine).position;
+            const int infoNeiFinerrank =
+                Tree(infoNei.level + 1, nFine).position;
             if (infoNeiFinerrank != sim.rank) {
               myflag = true;
               break;
@@ -4205,7 +4205,9 @@ template <typename ElementType> struct LoadBalancer {
     for (int r = 1; r < sim.size; r++)
       index_start[r] = index_start[r - 1] + all_b[r - 1];
     long long ideal_index = (total_load / sim.size) * sim.rank;
-    ideal_index += (sim.rank < (total_load % sim.size)) ? sim.rank : (total_load % sim.size);
+    ideal_index += (sim.rank < (total_load % sim.size))
+                       ? sim.rank
+                       : (total_load % sim.size);
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (int r = 0; r < sim.size; r++)
@@ -7142,7 +7144,8 @@ struct PoissonSolver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const BlockInfo &info) const {
-      return (info.blockID + ps.Nblocks_xcumsum_[var.tmp->Tree(info).position]) *
+      return (info.blockID +
+              ps.Nblocks_xcumsum_[var.tmp->Tree(info).position]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
