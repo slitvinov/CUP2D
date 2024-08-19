@@ -639,9 +639,6 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
   BlockInfo(){};
-  long long Znei_(const int i, const int j, const int k) const {
-    return Znei[1 + i][1 + j][1 + k];
-  }
 };
 template <typename ElementType> struct BlockCase {
   std::vector<ElementType> m_pData[6];
@@ -765,7 +762,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           continue;
         if (code[2] != 0)
           continue;
-        if (!grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+        if (!grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                  .Exists()) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -826,7 +823,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         if (code[2] != 0)
           continue;
         bool checkFiner =
-            grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+            grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                 .CheckFiner();
         if (checkFiner) {
           FillCase(info, code);
@@ -1468,7 +1465,7 @@ template <typename TGrid> struct Synchronizer {
     for (int i2 = imin[2]; i2 <= imax[2]; i2++)
       for (int i1 = imin[1]; i1 <= imax[1]; i1++)
         for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-          if ((grid->Tree(a.level, a.Znei_(i0, i1, i2))).CheckCoarser()) {
+          if ((grid->Tree(a.level, a.Znei[1 + i0][1 + i1][1 + i2])).CheckCoarser()) {
             retval = true;
             break;
           }
@@ -1529,12 +1526,12 @@ template <typename TGrid> struct Synchronizer {
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
         const TreePosition &infoNeiTree =
-            grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
+            grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree.position);
           BlockInfo &infoNei = grid->getBlockInfoAll(
-              info.level, info.Znei_(code[0], code[1], code[2]));
+              info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const int icode2 =
               (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree.position].push_back(
@@ -1551,7 +1548,7 @@ template <typename TGrid> struct Synchronizer {
         } else if (infoNeiTree.CheckCoarser()) {
           Coarsened = true;
           BlockInfo &infoNei = grid->getBlockInfoAll(
-              info.level, info.Znei_(code[0], code[1], code[2]));
+              info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const int infoNeiCoarserrank =
               grid->Tree(info.level - 1, infoNei.Zparent).position;
           if (infoNeiCoarserrank != sim.rank) {
@@ -1613,7 +1610,7 @@ template <typename TGrid> struct Synchronizer {
           }
         } else if (infoNeiTree.CheckFiner()) {
           BlockInfo &infoNei = grid->getBlockInfoAll(
-              info.level, info.Znei_(code[0], code[1], code[2]));
+              info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -2258,7 +2255,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (code[2] != 0)
           continue;
         if (!(*TFluxCorrection::grid)
-                 .Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+                 .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                  .Exists()) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -2271,12 +2268,12 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
         if ((*TFluxCorrection::grid)
-                .Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+                .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                 .CheckCoarser()) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(info.level,
-                                   info.Znei_(code[0], code[1], code[2]));
+                                   info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
               (*TFluxCorrection::grid).getBlockInfoAll(info.level - 1, nCoarse);
@@ -2291,12 +2288,12 @@ struct FluxCorrectionMPI : public TFluxCorrection {
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if ((*TFluxCorrection::grid)
-                       .Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+                       .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                        .CheckFiner()) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
                   .getBlockInfoAll(info.level,
-                                   info.Znei_(code[0], code[1], code[2]));
+                                   info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -2584,7 +2581,7 @@ template <typename ElementType> struct Grid {
         if (code[2] != 0)
           continue;
         BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
+            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         const TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           if (infoNei.state != Refine || clean)
@@ -2741,7 +2738,7 @@ template <typename ElementType> struct Grid {
         if (code[2] != 0)
           continue;
         BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei_(code[0], code[1], code[2]));
+            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           myflag = true;
@@ -3320,7 +3317,7 @@ template <typename ElementType> struct BlockLab {
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
         const auto &TreeNei =
-            m_refGrid->Tree(info.level, info.Znei_(code[0], code[1], code[2]));
+            m_refGrid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         if (TreeNei.Exists()) {
           icodes[k++] = icode;
         } else if (TreeNei.CheckCoarser()) {
@@ -3431,7 +3428,7 @@ template <typename ElementType> struct BlockLab {
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     myblocks[icode] =
-        m_refGrid->avail(info.level, info.Znei_(code[0], code[1], code[2]));
+        m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
@@ -4523,7 +4520,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               if (code[2] != 0)
                 continue;
-              if (grid->Tree(info.level, info.Znei_(code[0], code[1], code[2]))
+              if (grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                       .CheckFiner()) {
                 if (info.state == Compress) {
                   info.state = Leave;
@@ -4587,7 +4584,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
               if (code[2] != 0)
                 continue;
               BlockInfo &infoNei = grid->getBlockInfoAll(
-                  info.level, info.Znei_(code[0], code[1], code[2]));
+                  info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
               if (grid->Tree(infoNei).Exists() && infoNei.state == Refine) {
                 info.state = Leave;
                 (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
