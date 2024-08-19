@@ -2491,6 +2491,7 @@ template <typename ElementType> struct Grid {
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
     for (size_t i = 0; i < infos.size(); i++) {
+      assert(0);
       const int m = infos[i].level;
       const long long n = infos[i].Z;
       delete[](Block *) getBlockInfoAll(m, n).block;
