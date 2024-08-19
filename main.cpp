@@ -639,12 +639,12 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
   BlockInfo(){};
-  void setup0(const int m, const double a_h, const double a_origin[3],
+  void setup0(const int m, const double h0, const double a_origin[3],
              const long long a_Z) {
     level = m;
     Z = a_Z;
     state = Leave;
-    h = a_h;
+    h = h0;
     origin[0] = a_origin[0];
     origin[1] = a_origin[1];
     origin[2] = a_origin[2];
@@ -3039,17 +3039,14 @@ template <typename ElementType> struct Grid {
         const auto retval1 = BlockInfoAll.find(aux);
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
-          int TwoPower = 1 << m;
-          double h0 = maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_);
-          double h = h0 / TwoPower;
+          const double h0 = maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) / (1 << m);
           double origin[3];
-          int i, j, k;
+          int i, j;
           sim.space_curve->inverse(n, m, i, j);
-          k = 0;
-          origin[0] = i * _BS_ * h;
-          origin[1] = j * _BS_ * h;
-          origin[2] = k * 1 * h;
-          dumm->setup0(m, h, origin, n);
+          origin[0] = i * _BS_ * h0;
+          origin[1] = j * _BS_ * h0;
+          origin[2] = h0;
+          dumm->setup0(m, h0, origin, n);
           BlockInfoAll[aux] = dumm;
         }
       }
