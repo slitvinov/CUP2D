@@ -455,7 +455,6 @@ struct CommandlineParser {
 struct SpaceFillingCurve2D {
   int BX;
   int BY;
-  int levelMax;
   bool isRegular;
   int base_level;
   std::vector<std::vector<long long>> Zsave;
@@ -499,15 +498,15 @@ struct SpaceFillingCurve2D {
       *y = t;
     }
   }
-  SpaceFillingCurve2D(int a_BX, int a_BY, int lmax)
-      : BX(a_BX), BY(a_BY), levelMax(lmax) {
+  SpaceFillingCurve2D(int a_BX, int a_BY)
+      : BX(a_BX), BY(a_BY) {
     const int n_max = std::max(BX, BY);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
       base_level++;
-    i_inverse.resize(lmax);
-    j_inverse.resize(lmax);
-    Zsave.resize(lmax);
+    i_inverse.resize(sim.levelMax);
+    j_inverse.resize(sim.levelMax);
+    Zsave.resize(sim.levelMax);
     {
       const int l = 0;
       const int aux = pow(pow(2, l), 2);
@@ -538,7 +537,7 @@ struct SpaceFillingCurve2D {
   }
   long long forward(const int l, const int i, const int j) {
     const int aux = 1 << l;
-    if (l >= levelMax)
+    if (l >= sim.levelMax)
       return 0;
     long long retval;
     if (!isRegular) {
@@ -582,7 +581,6 @@ struct SpaceFillingCurve2D {
     return;
   }
   long long Encode(int level, int index[2]) {
-    int lmax = levelMax;
     long long retval = 0;
     int ix = index[0];
     int iy = index[1];
@@ -594,7 +592,7 @@ struct SpaceFillingCurve2D {
     }
     ix = 2 * index[0];
     iy = 2 * index[1];
-    for (int l = level + 1; l < lmax; l++) {
+    for (int l = level + 1; l < sim.levelMax; l++) {
       long long Zc = forward(l, ix, iy);
       Zc -= Zc % 4;
       retval += Zc;
@@ -627,17 +625,12 @@ struct BlockInfo {
   State state;
   void *auxiliary;
   void *block{nullptr};
-  static int levelMax(int l) {
-    static int lmax = l;
-    return lmax;
-  }
   static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
     static int a[2] = {nx, ny};
     return a[i];
   }
   static SpaceFillingCurve2D *SFC() {
-    static SpaceFillingCurve2D Zcurve(blocks_per_dim(0), blocks_per_dim(1),
-                                      levelMax(0));
+    static SpaceFillingCurve2D Zcurve(blocks_per_dim(0), blocks_per_dim(1));
     return &Zcurve;
   }
   static long long forward(int level, int ix, int iy) {
@@ -2525,7 +2518,6 @@ template <typename ElementType> struct Grid {
   int NY;
   int NZ;
   double maxextent;
-  int levelMax;
   int levelStart;
   bool xperiodic;
   bool yperiodic;
@@ -2542,16 +2534,15 @@ template <typename ElementType> struct Grid {
       Corrector;
   std::vector<BlockInfo *> boundary;
   Grid(int nX, int nY, int nZ, double a_maxextent, int a_levelStart,
-       int a_levelMax, bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
-      : NX(nX), NY(nY), NZ(nZ), maxextent(a_maxextent), levelMax(a_levelMax),
+       bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
+      : NX(nX), NY(nY), NZ(nZ), maxextent(a_maxextent),
         levelStart(a_levelStart), xperiodic(a_xperiodic),
         yperiodic(a_yperiodic), zperiodic(a_zperiodic), timestamp(0) {
     BlockInfo dummy;
     const int nx = dummy.blocks_per_dim(0, NX, NY);
     const int ny = dummy.blocks_per_dim(1, NX, NY);
     const int nz = 1;
-    const int lvlMax = dummy.levelMax(levelMax);
-    for (int m = 0; m < lvlMax; m++) {
+    for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
       const long long Ntot = nx * ny * nz * pow(TwoPower, 2);
       if (m == 0)
@@ -2599,7 +2590,7 @@ template <typename ElementType> struct Grid {
       Tree(level, Z).position = sim.rank;
       int p[2];
       BlockInfo::inverse(Z, level, p[0], p[1]);
-      if (level < levelMax - 1)
+      if (level < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
@@ -2904,7 +2895,7 @@ template <typename ElementType> struct Grid {
           getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
         int p[2];
         BlockInfo::inverse(Z, level, p[0], p[1]);
-        if (level < levelMax - 1)
+        if (level < sim.levelMax - 1)
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
               const long long nc =
@@ -3051,8 +3042,8 @@ template <typename ElementType> struct Grid {
   std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
-        NX << (levelMax - 1),
-        NY << (levelMax - 1),
+        NX << (sim.levelMax - 1),
+        NY << (sim.levelMax - 1),
         1,
     };
   }
@@ -3060,7 +3051,6 @@ template <typename ElementType> struct Grid {
     const auto b = getMaxMostRefinedBlocks();
     return {b[0] * _BS_, b[1] * _BS_, b[2] * 1};
   }
-  int getlevelMax() const { return levelMax; }
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
@@ -4159,7 +4149,7 @@ template <typename ElementType> struct LoadBalancer {
     std::memcpy(a1, data, sizeof(BlockType));
     int p[2];
     BlockInfo::inverse(Z, level, p[0], p[1]);
-    if (level < grid->getlevelMax() - 1)
+    if (level < sim.levelMax - 1)
       for (int j1 = 0; j1 < 2; j1++)
         for (int i1 = 0; i1 < 2; i1++) {
           const long long nc =
@@ -4525,7 +4515,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
     if (CallValidStates) {
       std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
       int levelMin = 0;
-      int levelMax = grid->getlevelMax();
       bool xperiodic = grid->xperiodic;
       bool yperiodic = grid->yperiodic;
       bool zperiodic = grid->zperiodic;
@@ -4533,7 +4522,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp parallel for
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
-        if ((info.state == Refine && info.level == levelMax - 1) ||
+        if ((info.state == Refine && info.level == sim.levelMax - 1) ||
             (info.state == Compress && info.level == levelMin)) {
           info.state = Leave;
           (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
@@ -4544,11 +4533,11 @@ template <typename TLab, typename ElementType> struct Adaptation {
         }
       }
       bool clean_boundary = true;
-      for (int m = levelMax - 1; m >= levelMin; m--) {
+      for (int m = sim.levelMax - 1; m >= levelMin; m--) {
         for (size_t j = 0; j < I.size(); j++) {
           BlockInfo &info = I[j];
           if (info.level == m && info.state != Refine &&
-              info.level != levelMax - 1) {
+              info.level != sim.levelMax - 1) {
             int TwoPower = 1 << info.level;
             bool xskin = info.index[0] == 0 ||
                          info.index[0] == blocksPerDim[0] * TwoPower - 1;
@@ -4741,7 +4730,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           lab.load(parent, 0.0, true);
         const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         assert(parent.block != NULL);
-        assert(level <= grid->getlevelMax() - 1);
+        assert(level <= sim.levelMax - 1);
         BlockType *Blocks[4];
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
@@ -4819,7 +4808,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
             grid->Tree(Child).position = sim.rank;
-            if (level + 2 < grid->getlevelMax())
+            if (level + 2 < sim.levelMax)
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
                   grid->Tree(level + 2, Child.Zchild[i0][i1][1])
@@ -4935,7 +4924,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
   }
   void TagBlocksVector(std::vector<BlockInfo *> &I, bool &Reduction,
                        MPI_Request &Reduction_req, int &tmp) {
-    const int levelMax = grid->getlevelMax();
 #pragma omp parallel
     {
 #pragma omp for schedule(dynamic, 1)
@@ -4954,7 +4942,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         else
           I[i]->state = Leave;
         const bool maxLevel =
-            (I[i]->state == Refine) && (I[i]->level == levelMax - 1);
+            (I[i]->state == Refine) && (I[i]->level == sim.levelMax - 1);
         const bool minLevel = (I[i]->state == Compress) && (I[i]->level == 0);
         if (maxLevel || minLevel)
           I[i]->state = Leave;
@@ -6766,7 +6754,7 @@ struct GradChiOnTmp {
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].block;
-    const int offset = (info.level == var.tmp->getlevelMax() - 1) ? 4 : 2;
+    const int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
@@ -7803,19 +7791,19 @@ int main(int argc, char **argv) {
   bool yperiodic = dummy.is_yperiodic();
   bool zperiodic = dummy.is_zperiodic();
   var.chi = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic, zperiodic);
+                           xperiodic, yperiodic, zperiodic);
   var.vel = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic, zperiodic);
+                           xperiodic, yperiodic, zperiodic);
   var.vold = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic, zperiodic);
+			    xperiodic, yperiodic, zperiodic);
   var.pres = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic, zperiodic);
+                            xperiodic, yperiodic, zperiodic);
   var.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic, zperiodic);
+                            xperiodic, yperiodic, zperiodic);
   var.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                           sim.levelMax, xperiodic, yperiodic, zperiodic);
+                           xperiodic, yperiodic, zperiodic);
   var.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
-                            sim.levelMax, xperiodic, yperiodic, zperiodic);
+                            xperiodic, yperiodic, zperiodic);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
