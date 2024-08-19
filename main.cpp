@@ -2483,7 +2483,7 @@ template <typename ElementType> struct Grid {
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
                 getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Octree[level_base[sim.levelStart + 1] +  nc) = -2;
+            Octree[level_base[sim.levelStart + 1] +  nc] = -2;
           }
       if (sim.levelStart > 0) {
         const long long nf =
