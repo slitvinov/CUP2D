@@ -621,7 +621,7 @@ struct BlockInfo {
   double origin[3];
   int index[3];
   int level;
-  long long id, id2, halo_block_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
+  long long id, id2, halo_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
   enum State state;
   void *auxiliary;
   void *block{nullptr};
@@ -1388,7 +1388,7 @@ template <typename TGrid> struct Synchronizer {
           info.CoarseVersionLY = Lc[1];
         }
         offsets_recv[otherrank] += V * nc;
-        Synch_ptr->myunpacks[f[k].infos[1]->halo_block_id].push_back(info);
+        Synch_ptr->myunpacks[f[k].infos[1]->halo_id].push_back(info);
         for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
           const int remEl1 = i->removedIndices[kk];
           Synch_ptr->SM.DetermineStencilLength(f[remEl1].infos[0]->level,
@@ -1404,7 +1404,7 @@ template <typename TGrid> struct Synchronizer {
           if (f[k].CoarseStencil)
             Synch_ptr->SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy,
                                            Csrcz);
-          Synch_ptr->myunpacks[f[remEl1].infos[1]->halo_block_id].push_back(
+          Synch_ptr->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
               {info.offset,
                L[0],
                L[1],
@@ -1496,7 +1496,7 @@ template <typename TGrid> struct Synchronizer {
     myunpacks.clear();
     DuplicatesManager DM(*(this));
     for (BlockInfo &info : grid->infos) {
-      info.halo_block_id = -1;
+      info.halo_id = -1;
       const bool xskin =
           info.index[0] == 0 ||
           info.index[0] == ((grid->getMaxBlocks()[0] << info.level) - 1);
@@ -1690,10 +1690,10 @@ template <typename TGrid> struct Synchronizer {
         }
       }
       if (isInner) {
-        info.halo_block_id = -1;
+        info.halo_id = -1;
         inner_blocks.push_back(&info);
       } else {
-        info.halo_block_id = halo_blocks.size();
+        info.halo_id = halo_blocks.size();
         halo_blocks.push_back(&info);
         if (Coarsened) {
           for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
@@ -1711,8 +1711,8 @@ template <typename TGrid> struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      grid->getBlockInfoAll(info.level, info.Z).halo_block_id =
-          info.halo_block_id;
+      grid->getBlockInfoAll(info.level, info.Z).halo_id =
+          info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
@@ -1762,7 +1762,7 @@ template <typename TGrid> struct Synchronizer {
     }
     mapofHaloBlockGroups.clear();
     for (auto &info : halo_blocks) {
-      const int id = info->halo_block_id;
+      const int id = info->halo_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
       for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
@@ -1966,7 +1966,7 @@ template <typename TGrid> struct Synchronizer {
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *cacheBlock,
              Real *coarseBlock) {
-    const int id = info.halo_block_id;
+    const int id = info.halo_id;
     if (id < 0)
       return;
     UnPackInfo *unpacks = myunpacks[id].data();
