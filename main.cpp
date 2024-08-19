@@ -2471,14 +2471,9 @@ template <typename ElementType> struct Grid {
       Corrector;
   std::vector<BlockInfo *> boundary;
   Grid() : timestamp(0) {
-    for (int m = 0; m < sim.levelMax; m++) {
-      const int TwoPower = 1 << m;
-      const long long Ntot = sim.bpdx * sim.bpdy * pow(TwoPower, 2);
-      if (m == 0)
-        level_base.push_back(Ntot);
-      if (m > 0)
-        level_base.push_back(level_base[m - 1] + Ntot);
-    }
+    level_base.push_back(sim.bpdx * sim.bpdy * 2);
+    for (int m = 1; m < sim.levelMax; m++)
+        level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1 << (m + 1));
     const long long total_blocks =
         sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
