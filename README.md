@@ -32,6 +32,15 @@ make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
 -Wno-sign-compare\
 ```
 
+debug:
+
 ```
 main="xterm -e gdb -ex run -args ./main" sh run.sh
+```
+
+FAS RC:
+```
+module load gcc openmpi cuda
+salloc -p seas_gpu --gpus 1 --mem 1Gb
+main='srun -l ./main' sh -x run.sh
 ```
