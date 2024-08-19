@@ -628,7 +628,6 @@ struct TreePosition {
   bool CheckCoarser() const { return position == -2; }
   bool CheckFiner() const { return position == -1; }
   bool Exists() const { return position >= 0; }
-  void setCheckCoarser() { position = -2; }
   void setCheckFiner() { position = -1; }
 };
 struct BlockInfo {
@@ -2502,7 +2501,7 @@ template <typename ElementType> struct Grid {
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
                 getZforward(levels[i] + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Tree0(levels[i] + 1, nc).setCheckCoarser();
+            Tree0(levels[i] + 1, nc).position = -2;
           }
       if (levels[i] > 0) {
         const long long nf = getZforward(levels[i] - 1, p[0] / 2, p[1] / 2);
@@ -2805,7 +2804,7 @@ template <typename ElementType> struct Grid {
             for (int i = 0; i < 2; i++) {
               const long long nc =
                   getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              Tree0(level + 1, nc).setCheckCoarser();
+              Tree0(level + 1, nc).position = -2;
             }
         if (level > 0) {
           const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
@@ -4060,7 +4059,7 @@ template <typename ElementType> struct LoadBalancer {
         for (int i1 = 0; i1 < 2; i1++) {
           const long long nc =
               grid->getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-          grid->Tree0(level + 1, nc).setCheckCoarser();
+          grid->Tree0(level + 1, nc).position = -2;
         }
     if (level > 0) {
       const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
@@ -4139,7 +4138,7 @@ template <typename ElementType> struct LoadBalancer {
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
         grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1])
-            .setCheckCoarser();
+            .position = -2;
       }
     if (requests.size() != 0) {
       movedBlocks = true;
@@ -4641,7 +4640,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
             Child.state = Leave;
             grid->_alloc(level + 1, nc);
-            grid->Tree0(level + 1, nc).setCheckCoarser();
+            grid->Tree0(level + 1, nc).position = -2;
             Blocks[j * 2 + i] = (BlockType *)Child.block;
           }
         if (basic_refinement == false) {
@@ -4714,7 +4713,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
                   grid->Tree0(level + 2, Child.Zchild[i0][i1][1])
-                      .setCheckCoarser();
+                      .position = -2;
           }
       }
     }
@@ -4772,7 +4771,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp critical
             { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).id2); }
           }
-          grid->Tree0(level, n).setCheckCoarser();
+          grid->Tree0(level, n).position = -2;
           grid->getBlockInfoAll(level, n).state = Leave;
         }
     }
