@@ -5614,7 +5614,6 @@ struct IF2D_Interpolation1D {
     dy = (y1 - y0) / (x1 - x0);
   }
 };
-namespace Schedulers {
 template <int Npoints> struct ParameterScheduler {
   static constexpr int npoints = Npoints;
   std::array<Real, Npoints> parameters_t0;
@@ -5806,7 +5805,6 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
     this->parameters_t0[0] = 0;
   }
 };
-} // namespace Schedulers
 struct Shape {
   Shape(CommandlineParser &p, Real C[2])
       : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
@@ -5898,9 +5896,9 @@ struct Shape {
   Real timeshift = 0;
   Real lastTime = 0;
   Real lastAvel = 0;
-  Schedulers::ParameterSchedulerVector<6> curvatureScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  Schedulers::ParameterSchedulerScalar periodScheduler;
+  ParameterSchedulerVector<6> curvatureScheduler;
+  ParameterSchedulerLearnWave<7> rlBendingScheduler;
+  ParameterSchedulerScalar periodScheduler;
   Real current_period = Tperiod;
   Real next_period = Tperiod;
   Real transition_start = 0.0;
