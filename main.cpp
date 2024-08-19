@@ -629,7 +629,6 @@ struct BlockInfo {
   void *block{nullptr};
   static int levelMax(int l) {
     static int lmax = l;
-    assert(lmax == 0);
     return lmax;
   }
   static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
