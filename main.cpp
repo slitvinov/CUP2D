@@ -2490,24 +2490,7 @@ template <typename ElementType> struct Grid {
     std::vector<long long> Zs(my_blocks);
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
-    for (size_t i = 0; i < infos.size(); i++) {
-      assert(0);
-      const int m = infos[i].level;
-      const long long n = infos[i].Z;
-      delete[](Block *) getBlockInfoAll(m, n).block;
-    }
     std::vector<long long> aux;
-    for (auto &m : BlockInfoAll)
-      aux.push_back(m.first);
-    for (size_t i = 0; i < aux.size(); i++) {
-      const auto retval = BlockInfoAll.find(aux[i]);
-      if (retval != BlockInfoAll.end()) {
-        delete retval->second;
-      }
-    }
-    infos.clear();
-    BlockInfoAll.clear();
-    Octree.clear();
     for (size_t i = 0; i < Zs.size(); i++) {
       const int level = levels[i];
       const long long Z = Zs[i];
