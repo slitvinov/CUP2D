@@ -625,10 +625,6 @@ struct BlockInfo {
   enum State state;
   void *auxiliary;
   void *block{nullptr};
-  void pos0(Real p[2], int ix, int iy) const {
-    p[0] = origin[0] + h * (ix + 0.5);
-    p[1] = origin[1] + h * (iy + 0.5);
-  }
   std::array<Real, 2> pos(int ix, int iy) const {
     std::array<Real, 2> p;
     p[0] = origin[0] + h * (ix + 0.5);
@@ -2691,8 +2687,10 @@ template <typename ElementType> struct Grid {
     double p_high[3];
     for (auto &info : infos) {
       const double h = 2 * info.h;
-      info.pos0(p_low, 0, 0);
-      info.pos0(p_high, _BS_ - 1, _BS_ - 1);
+      p_low[0] = info.origin[0] + info.h * 0.5;
+      p_low[1] = info.origin[1] + info.h * 0.5;
+      p_high[0] = info.origin[0] + info.h * (_BS_ - 0.5);
+      p_high[1] = info.origin[1] + info.h * (_BS_ - 0.5);
       p_low[0] -= h;
       p_low[1] -= h;
       p_low[2] = 0;
@@ -6028,7 +6026,8 @@ struct PutChiOnGrid {
           CHI[iy][ix].s = std::max(CHI[iy][ix].s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
-            info.pos0(p, ix, iy);
+            p[0] = info.origin[0] + info.h * (ix + 0.5);
+            p[1] = info.origin[1] + info.h * (iy + 0.5);
             o.COM_x += X[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
             o.COM_y += X[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
             o.Mass += X[iy][ix] * h2;
@@ -6332,8 +6331,10 @@ static void ongrid(Real dt) {
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
       const BlockInfo &info = tmpInfo[i];
       Real pStart[2], pEnd[2];
-      info.pos0(pStart, 0, 0);
-      info.pos0(pEnd, _BS_ - 1, _BS_ - 1);
+      pStart[0] = info.origin[0] + info.h * 0.5;
+      pStart[1] = info.origin[1] + info.h * 0.5;
+      pEnd[0] = info.origin[0] + info.h * (_BS_ - 0.5);
+      pEnd[1] = info.origin[1] + info.h * (_BS_ - 0.5);
       for (size_t s = 0; s < vSegments.size(); ++s)
         if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
           if (segmentsPerBlock[info.id] == nullptr)
@@ -6375,7 +6376,8 @@ static void ongrid(Real dt) {
 
           // putfish(info, b, o, v);
           Real org[2];
-          info.pos0(org, 0, 0);
+          org[0] = info.origin[0] + info.h * 0.5;
+          org[1] = info.origin[1] + info.h * 0.5;
           const Real h = info.h, invh = 1.0 / info.h;
           const Real *const rX = shape->rX, *const norX = shape->norX;
           const Real *const rY = shape->rY, *const norY = shape->norY;
@@ -6418,7 +6420,8 @@ static void ongrid(Real dt) {
                   for (int sx = std::max(0, iap[0] - 2);
                        sx < std::min(iap[0] + 4, BS[0]); ++sx) {
                     Real p[2];
-                    info.pos0(p, sx, sy);
+                    p[0] = info.origin[0] + info.h * (sx + 0.5);
+                    p[1] = info.origin[1] + info.h * (sy + 0.5);
                     const Real dist0 = dist(p, myP);
                     const Real distP = dist(p, pP);
                     const Real distM = dist(p, pM);
@@ -6480,7 +6483,8 @@ static void ongrid(Real dt) {
               }
             }
           }
-          info.pos0(org, 0, 0);
+          org[0] = info.origin[0] + info.h * 0.5;
+          org[1] = info.origin[1] + info.h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
@@ -6586,7 +6590,8 @@ static void ongrid(Real dt) {
           if (CHI[iy][ix] <= 0)
             continue;
           Real p[2];
-          chiInfo[i].pos0(p, ix, iy);
+          p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
+          p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
           const Real chi = CHI[iy][ix] * hsq;
           p[0] -= shape->centerOfMass[0];
           p[1] -= shape->centerOfMass[1];
@@ -6629,7 +6634,8 @@ static void ongrid(Real dt) {
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
           Real p[2];
-          chiInfo[i].pos0(p, ix, iy);
+          p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
+          p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
           p[0] -= shape->centerOfMass[0];
           p[1] -= shape->centerOfMass[1];
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
@@ -7881,7 +7887,8 @@ int main(int argc, char **argv) {
           if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
           Real p[2];
-          var.tmpV->infos[i].pos0(p, ix, iy);
+          p[0] = var.tmpV->infos[i].origin[0] + var.tmpV->infos[i].h * (ix + 0.5);
+          p[1] = var.tmpV->infos[i].origin[1] + var.tmpV->infos[i].h * (iy + 0.5);
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
@@ -8020,7 +8027,8 @@ int main(int argc, char **argv) {
               const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
               const Real F = hsq * Xlamdt / (1 + Xlamdt);
               Real p[2];
-              velInfo[i].pos0(p, ix, iy);
+              p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
+              p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
               p[0] -= Cx;
               p[1] -= Cy;
               PM += F;
@@ -8357,7 +8365,8 @@ int main(int argc, char **argv) {
               if (X[iy][ix] <= 0)
                 continue;
               Real p[2];
-              velInfo[i].pos0(p, ix, iy);
+              p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
+              p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
               p[0] -= Cx;
               p[1] -= Cy;
               Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
@@ -8391,7 +8400,8 @@ int main(int argc, char **argv) {
               if (chi[iy][ix] < CHI[iy][ix].s)
                 continue;
               Real p[2];
-              tmpVInfo[i].pos0(p, ix, iy);
+              p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
+              p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5);
               UDEF[iy][ix].u[0] += udef[iy][ix][0];
               UDEF[iy][ix].u[1] += udef[iy][ix][1];
             }
