@@ -310,6 +310,21 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
+enum BCflag { freespace, periodic, wall };
+static const struct {
+  enum BCflag val;
+  const char *key;
+} bc_table[] = {
+    {freespace, "freespace"}, {wall, "wall"}, {periodic, "periodic"}};
+static BCflag bc_flag(const char *key) {
+  size_t i;
+  for (i = 0; i < sizeof bc_table / sizeof *bc_table; i++)
+    if (strcmp(bc_table[i].key, key) == 0)
+      return bc_table[i].val;
+  fprintf(stderr, "main: error: unknown boundary '%s'\n", key);
+  MPI_Abort(MPI_COMM_WORLD, 1);
+  return periodic;
+}
 struct Shape;
 struct SpaceCurve;
 static struct {
@@ -348,6 +363,7 @@ static struct {
   struct SpaceCurve *space_curve;
   std::vector<Shape *> shapes;
   std::vector<int> bCollisionID;
+  enum BCflag bcx, bcy;
 } sim;
 struct SpaceCurve {
   int BX;
@@ -1076,27 +1092,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3660,27 +3679,30 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -5066,21 +5088,6 @@ struct VectorElement {
   Real magnitude() { return sqrt(u[0] * u[0] + u[1] * u[1]); }
   Real &member(int i) { return u[i]; }
 };
-enum BCflag { freespace, periodic, wall };
-BCflag string2BCflag(const std::string &strFlag) {
-  if (strFlag == "periodic") {
-    return periodic;
-  } else if (strFlag == "freespace") {
-    return freespace;
-  } else if (strFlag == "wall") {
-    return wall;
-  } else {
-    fprintf(stderr, "BC not recognized %s\n", strFlag.c_str());
-    fflush(0);
-    abort();
-    return periodic;
-  }
-}
 static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid, typename ElementType>
@@ -6891,9 +6898,9 @@ struct KernelComputeForces {
       assert(O->filled);
       for (size_t k = 0; k < O->n_surfPoints; ++k) {
         const int ix = O->surface[k].ix, iy = O->surface[k].iy;
-	Real p[2];
-	p[0] = info.origin[0] + info.h * (ix + 0.5);
-	p[1] = info.origin[1] + info.h * (iy + 0.5);
+        Real p[2];
+        p[0] = info.origin[0] + info.h * (ix + 0.5);
+        p[1] = info.origin[1] + info.h * (iy + 0.5);
         const Real normX = O->surface[k].dchidx;
         const Real normY = O->surface[k].dchidy;
         const Real norm = 1.0 / std::sqrt(normX * normX + normY * normY);
@@ -7736,8 +7743,8 @@ int main(int argc, char **argv) {
   sim.nu = parser("-nu").asDouble(1e-2);
   std::string BC_x = parser("-BC_x").asString("freespace");
   std::string BC_y = parser("-BC_y").asString("freespace");
-  cubismBCX = string2BCflag(BC_x);
-  cubismBCY = string2BCflag(BC_y);
+  sim.bcx = bc_flag(BC_x.c_str());
+  sim.bcy = bc_flag(BC_x.c_str());
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
@@ -7883,8 +7890,10 @@ int main(int argc, char **argv) {
           if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
           Real p[2];
-          p[0] = var.tmpV->infos[i].origin[0] + var.tmpV->infos[i].h * (ix + 0.5);
-          p[1] = var.tmpV->infos[i].origin[1] + var.tmpV->infos[i].h * (iy + 0.5);
+          p[0] =
+              var.tmpV->infos[i].origin[0] + var.tmpV->infos[i].h * (ix + 0.5);
+          p[1] =
+              var.tmpV->infos[i].origin[1] + var.tmpV->infos[i].h * (iy + 0.5);
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
@@ -8154,7 +8163,7 @@ int main(int argc, char **argv) {
               for (int ix = 0; ix < _BS_; ++ix) {
                 if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                   continue;
-		Real pos[2];
+                Real pos[2];
                 pos[0] = infos[k].origin[0] + infos[k].h * (ix + 0.5);
                 pos[1] = infos[k].origin[1] + infos[k].h * (iy + 0.5);
                 const Real iUr0 = -iomega2 * (pos[1] - iCy);
