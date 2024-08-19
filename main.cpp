@@ -4091,7 +4091,7 @@ template <typename ElementType> struct LoadBalancer {
       const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
-      if (!grid->Tree1(base).position >= 0 || base.state != Compress)
+      if (!(grid->Tree1(base).position >= 0) || base.state != Compress)
         continue;
       const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
       const int baserank = grid->Tree0(b.level, nBlock).position;
