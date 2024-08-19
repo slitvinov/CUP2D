@@ -639,8 +639,6 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
   BlockInfo(){};
-  void setup0(const int m, const double h0, const double origin0[3],
-              const long long n) {}
   long long Znei_(const int i, const int j, const int k) const {
     assert(abs(i) <= 1);
     assert(abs(j) <= 1);
@@ -1094,30 +1092,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -3674,30 +3669,27 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
