@@ -630,9 +630,10 @@ struct BlockInfo {
     p[1] = origin[1] + h * (iy + 0.5);
   }
   std::array<Real, 2> pos(int ix, int iy) const {
-    std::array<Real, 2> result;
-    pos0(result.data(), ix, iy);
-    return result;
+    std::array<Real, 2> p;
+    p[0] = origin[0] + h * (ix + 0.5);
+    p[1] = origin[1] + h * (iy + 0.5);
+    return p;
   }
   bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
   BlockInfo(){};
