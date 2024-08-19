@@ -2514,7 +2514,6 @@ template <typename ElementType> struct Grid {
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
   std::vector<BlockInfo> infos;
-  int NX;
   int NY;
   double maxextent;
   int levelStart;
@@ -2532,14 +2531,14 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(int nX, int nY, double a_maxextent, int a_levelStart,
+  Grid(int nY, double a_maxextent, int a_levelStart,
        bool a_xperiodic, bool a_yperiodic, bool a_zperiodic)
-      : NX(nX), NY(nY), maxextent(a_maxextent),
+      : NY(nY), maxextent(a_maxextent),
         levelStart(a_levelStart), xperiodic(a_xperiodic),
         yperiodic(a_yperiodic), zperiodic(a_zperiodic), timestamp(0) {
     BlockInfo dummy;
-    const int nx = dummy.blocks_per_dim(0, NX, NY);
-    const int ny = dummy.blocks_per_dim(1, NX, NY);
+    const int nx = dummy.blocks_per_dim(0, sim.bpdx, NY);
+    const int ny = dummy.blocks_per_dim(1, sim.bpdx, NY);
     const int nz = 1;
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
@@ -2550,7 +2549,7 @@ template <typename ElementType> struct Grid {
         level_base.push_back(level_base[m - 1] + Ntot);
     }
 
-    const long long total_blocks = nX * nY * pow(pow(2, a_levelStart), 2);
+    const long long total_blocks = sim.bpdx * nY * pow(pow(2, a_levelStart), 2);
     long long my_blocks = total_blocks / sim.size;
     if ((long long)sim.rank < total_blocks % sim.size)
       my_blocks++;
@@ -2910,8 +2909,8 @@ template <typename ElementType> struct Grid {
   }
   bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
     const double h0 =
-        (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, 1)));
-    const double extent[3] = {NX * _BS_ * h0, NY * _BS_ * h0, 1 * h0};
+        (maxextent / std::max(sim.bpdx * _BS_, std::max(NY * _BS_, 1)));
+    const double extent[3] = {sim.bpdx * _BS_ * h0, NY * _BS_ * h0, 1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
         {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
@@ -3029,7 +3028,7 @@ template <typename ElementType> struct Grid {
   }
   long long getZforward(const int level, const int i, const int j) const {
     const int TwoPower = 1 << level;
-    const int ix = (i + TwoPower * NX) % (NX * TwoPower);
+    const int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
     const int iy = (j + TwoPower * NY) % (NY * TwoPower);
     return BlockInfo::forward(level, ix, iy);
   }
@@ -3038,10 +3037,10 @@ template <typename ElementType> struct Grid {
     return avail(m, n);
   }
   Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
-  std::array<int, 3> getMaxBlocks() const { return {NX, NY, 1}; }
+  std::array<int, 3> getMaxBlocks() const { return {sim.bpdx, NY, 1}; }
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
-        NX << (sim.levelMax - 1),
+        sim.bpdx << (sim.levelMax - 1),
         NY << (sim.levelMax - 1),
         1,
     };
@@ -3063,7 +3062,7 @@ template <typename ElementType> struct Grid {
           BlockInfo *dumm = new BlockInfo();
           const int TwoPower = 1 << m;
           const double h0 =
-              (maxextent / std::max(NX * _BS_, std::max(NY * _BS_, 1)));
+              (maxextent / std::max(sim.bpdx * _BS_, std::max(NY * _BS_, 1)));
           const double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
@@ -7789,19 +7788,19 @@ int main(int argc, char **argv) {
   bool xperiodic = dummy.is_xperiodic();
   bool yperiodic = dummy.is_yperiodic();
   bool zperiodic = dummy.is_zperiodic();
-  var.chi = new ScalarGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.chi = new ScalarGrid(sim.bpdy, sim.extent, sim.levelStart,
                            xperiodic, yperiodic, zperiodic);
-  var.vel = new VectorGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.vel = new VectorGrid(sim.bpdy, sim.extent, sim.levelStart,
                            xperiodic, yperiodic, zperiodic);
-  var.vold = new VectorGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.vold = new VectorGrid(sim.bpdy, sim.extent, sim.levelStart,
 			    xperiodic, yperiodic, zperiodic);
-  var.pres = new ScalarGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.pres = new ScalarGrid(sim.bpdy, sim.extent, sim.levelStart,
                             xperiodic, yperiodic, zperiodic);
-  var.tmpV = new VectorGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.tmpV = new VectorGrid(sim.bpdy, sim.extent, sim.levelStart,
                             xperiodic, yperiodic, zperiodic);
-  var.tmp = new ScalarGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.tmp = new ScalarGrid(sim.bpdy, sim.extent, sim.levelStart,
                            xperiodic, yperiodic, zperiodic);
-  var.pold = new ScalarGrid(sim.bpdx, sim.bpdy, sim.extent, sim.levelStart,
+  var.pold = new ScalarGrid(sim.bpdy, sim.extent, sim.levelStart,
                             xperiodic, yperiodic, zperiodic);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
