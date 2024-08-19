@@ -2490,8 +2490,7 @@ template <typename ElementType> struct Grid {
     std::vector<long long> Zs(my_blocks);
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
-    std::vector<long long> aux;
-    for (size_t i = 0; i < Zs.size(); i++) {
+    for (size_t i = 0; i < my_blocks; i++) {
       const int level = levels[i];
       const long long Z = Zs[i];
       _alloc(level, Z);
