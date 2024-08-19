@@ -624,12 +624,8 @@ struct BlockInfo {
   State state;
   void *auxiliary;
   void *block{nullptr};
-  static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
-    static int a[2] = {nx, ny};
-    return a[i];
-  }
   static SpaceFillingCurve2D *SFC() {
-    static SpaceFillingCurve2D Zcurve(blocks_per_dim(0), blocks_per_dim(1));
+    static SpaceFillingCurve2D Zcurve(sim.bpdx, sim.bpdy);
     return &Zcurve;
   }
   static long long forward(int level, int ix, int iy) {
@@ -669,8 +665,7 @@ struct BlockInfo {
     const int TwoPower = 1 << level;
     inverse(Z, level, index[0], index[1]);
     index[2] = 0;
-    const int Bmax[3] = {blocks_per_dim(0) * TwoPower,
-                         blocks_per_dim(1) * TwoPower, 1};
+    const int Bmax[3] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower, 1};
     for (int i = -1; i < 2; i++)
       for (int j = -1; j < 2; j++)
         for (int k = -1; k < 2; k++)
@@ -2535,8 +2530,8 @@ template <typename ElementType> struct Grid {
         xperiodic(a_xperiodic), yperiodic(a_yperiodic), zperiodic(a_zperiodic),
         timestamp(0) {
     BlockInfo dummy;
-    const int nx = dummy.blocks_per_dim(0, sim.bpdx, sim.bpdy);
-    const int ny = dummy.blocks_per_dim(1, sim.bpdx, sim.bpdy);
+    const int nx = sim.bpdx;
+    const int ny = sim.bpdy;
     const int nz = 1;
     for (int m = 0; m < sim.levelMax; m++) {
       const int TwoPower = 1 << m;
