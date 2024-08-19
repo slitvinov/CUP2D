@@ -5614,13 +5614,13 @@ struct IF2D_Interpolation1D {
     dy = (y1 - y0) / (x1 - x0);
   }
 };
-template <int Npoints> struct ParameterScheduler {
+template <int Npoints> struct Scheduler {
   static constexpr int npoints = Npoints;
   std::array<Real, Npoints> parameters_t0;
   std::array<Real, Npoints> parameters_t1;
   std::array<Real, Npoints> dparameters_t0;
   Real t0, t1;
-  ParameterScheduler() {
+  Scheduler() {
     t0 = -1;
     t1 = 0;
     parameters_t0 = std::array<Real, Npoints>();
@@ -5689,34 +5689,34 @@ template <int Npoints> struct ParameterScheduler {
     return gimmeValues(t, parameters, dparameters_whocares);
   }
 };
-struct ParameterSchedulerScalar : ParameterScheduler<1> {
+struct SchedulerScalar : Scheduler<1> {
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tend, const bool keepSlope = false) {
     const std::array<Real, 1> myParameter = {parameter_tend};
-    return ParameterScheduler<1>::transition(t, tstart, tend, myParameter,
+    return Scheduler<1>::transition(t, tstart, tend, myParameter,
                                              keepSlope);
   }
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tstart, const Real parameter_tend) {
     const std::array<Real, 1> myParameterStart = {parameter_tstart};
     const std::array<Real, 1> myParameterEnd = {parameter_tend};
-    return ParameterScheduler<1>::transition(t, tstart, tend, myParameterStart,
+    return Scheduler<1>::transition(t, tstart, tend, myParameterStart,
                                              myParameterEnd);
   }
   void gimmeValues(const Real t, Real &parameter, Real &dparameter) {
     std::array<Real, 1> myParameter, mydParameter;
-    ParameterScheduler<1>::gimmeValues(t, myParameter, mydParameter);
+    Scheduler<1>::gimmeValues(t, myParameter, mydParameter);
     parameter = myParameter[0];
     dparameter = mydParameter[0];
   }
   void gimmeValues(const Real t, Real &parameter) {
     std::array<Real, 1> myParameter;
-    ParameterScheduler<1>::gimmeValues(t, myParameter);
+    Scheduler<1>::gimmeValues(t, myParameter);
     parameter = myParameter[0];
   }
 };
 template <int Npoints>
-struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
+struct SchedulerVector : Scheduler<Npoints> {
   void gimmeValues(const Real t, const std::array<Real, Npoints> &positions,
                    const int Nfine, const Real *const positions_fine,
                    Real *const parameters_fine, Real *const dparameters_fine) {
@@ -5749,15 +5749,15 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints> {
     delete[] dparameters_t0_fine;
   }
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters) {
-    ParameterScheduler<Npoints>::gimmeValues(t, parameters);
+    Scheduler<Npoints>::gimmeValues(t, parameters);
   }
   void gimmeValues(const Real t, std::array<Real, Npoints> &parameters,
                    std::array<Real, Npoints> &dparameters) {
-    ParameterScheduler<Npoints>::gimmeValues(t, parameters, dparameters);
+    Scheduler<Npoints>::gimmeValues(t, parameters, dparameters);
   }
 };
 template <int Npoints>
-struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints> {
+struct SchedulerLearnWave : Scheduler<Npoints> {
   template <typename T>
   void gimmeValues(const Real t, const Real Twave, const Real Length,
                    const std::array<Real, Npoints> &positions, const int Nfine,
@@ -5896,9 +5896,9 @@ struct Shape {
   Real timeshift = 0;
   Real lastTime = 0;
   Real lastAvel = 0;
-  ParameterSchedulerVector<6> curvatureScheduler;
-  ParameterSchedulerLearnWave<7> rlBendingScheduler;
-  ParameterSchedulerScalar periodScheduler;
+  SchedulerVector<6> curvatureScheduler;
+  SchedulerLearnWave<7> rlBendingScheduler;
+  SchedulerScalar periodScheduler;
   Real current_period = Tperiod;
   Real next_period = Tperiod;
   Real transition_start = 0.0;
