@@ -3311,8 +3311,6 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int nX = _BS_;
-    const int nY = _BS_;
     const int m_vSize0 = m_cacheBlock->getSize(0);
     const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - m_stencilStart[0];
@@ -3330,13 +3328,13 @@ template <typename ElementType> struct BlockLab {
             my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
         ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
             my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc0 = &b[iy - code[1] * nY][s[0] - code[0] * nX];
+        const ElementType *ptrSrc0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc1 =
-            &b[iy + 1 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc2 =
-            &b[iy + 2 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 2 - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc3 =
-            &b[iy + 3 - code[1] * nY][s[0] - code[0] * nX];
+            &b[iy + 3 - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
@@ -3346,7 +3344,7 @@ template <typename ElementType> struct BlockLab {
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
             my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        const ElementType *ptrSrc = &b[iy - code[1] * nY][s[0] - code[0] * nX];
+        const ElementType *ptrSrc = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
