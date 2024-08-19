@@ -1150,27 +1150,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -1226,6 +1229,16 @@ struct HaloBlockGroup {
   std::set<int> myranks;
   bool ready = false;
 };
+struct PackInfo {
+  Real *block;
+  Real *pack;
+  int sx;
+  int sy;
+  int sz;
+  int ex;
+  int ey;
+  int ez;
+};
 template <typename TGrid> struct Synchronizer {
   StencilInfo stencil;
   StencilInfo Cstencil;
@@ -1242,16 +1255,6 @@ template <typename TGrid> struct Synchronizer {
   StencilManager SM;
   const unsigned int gptfloats;
   const int NC;
-  struct PackInfo {
-    Real *block;
-    Real *pack;
-    int sx;
-    int sy;
-    int sz;
-    int ex;
-    int ey;
-    int ez;
-  };
   std::vector<std::vector<PackInfo>> send_packinfos;
   std::vector<std::vector<Interface>> send_interfaces;
   std::vector<std::vector<Interface>> recv_interfaces;
@@ -3712,27 +3715,30 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -5693,15 +5699,14 @@ struct SchedulerScalar : Scheduler<1> {
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tend, const bool keepSlope = false) {
     const std::array<Real, 1> myParameter = {parameter_tend};
-    return Scheduler<1>::transition(t, tstart, tend, myParameter,
-                                             keepSlope);
+    return Scheduler<1>::transition(t, tstart, tend, myParameter, keepSlope);
   }
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tstart, const Real parameter_tend) {
     const std::array<Real, 1> myParameterStart = {parameter_tstart};
     const std::array<Real, 1> myParameterEnd = {parameter_tend};
     return Scheduler<1>::transition(t, tstart, tend, myParameterStart,
-                                             myParameterEnd);
+                                    myParameterEnd);
   }
   void gimmeValues(const Real t, Real &parameter, Real &dparameter) {
     std::array<Real, 1> myParameter, mydParameter;
@@ -5715,8 +5720,7 @@ struct SchedulerScalar : Scheduler<1> {
     parameter = myParameter[0];
   }
 };
-template <int Npoints>
-struct SchedulerVector : Scheduler<Npoints> {
+template <int Npoints> struct SchedulerVector : Scheduler<Npoints> {
   void gimmeValues(const Real t, const std::array<Real, Npoints> &positions,
                    const int Nfine, const Real *const positions_fine,
                    Real *const parameters_fine, Real *const dparameters_fine) {
@@ -5756,8 +5760,7 @@ struct SchedulerVector : Scheduler<Npoints> {
     Scheduler<Npoints>::gimmeValues(t, parameters, dparameters);
   }
 };
-template <int Npoints>
-struct SchedulerLearnWave : Scheduler<Npoints> {
+template <int Npoints> struct SchedulerLearnWave : Scheduler<Npoints> {
   template <typename T>
   void gimmeValues(const Real t, const Real Twave, const Real Length,
                    const std::array<Real, Npoints> &positions, const int Nfine,
@@ -8387,8 +8390,8 @@ int main(int argc, char **argv) {
           Real CX = 0.5 * (iPX + jPX);
           Real CY = 0.5 * (iPY + jPY);
           Real CZ = 0.5 * (iPZ + jPZ);
-          collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2,
-                           C1, C2, NX, NY, NZ, CX, CY, CZ, vc1, vc2);
+          collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1, C2,
+                    NX, NY, NZ, CX, CY, CZ, vc1, vc2);
           shapes[i]->u = hv1[0];
           shapes[i]->v = hv1[1];
           shapes[j]->u = hv2[0];
