@@ -1711,8 +1711,7 @@ template <typename TGrid> struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      grid->getBlockInfoAll(info.level, info.Z).halo_id =
-          info.halo_id;
+      grid->getBlockInfoAll(info.level, info.Z).halo_id = info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
