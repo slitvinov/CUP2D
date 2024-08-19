@@ -3616,9 +3616,6 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     BlockType &b = *myblocks[icode];
-    int nX = _BS_;
-    int nY = _BS_;
-    int nZ = 1;
     int eC[3] = {(m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0],
                  (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
                  (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
@@ -3636,11 +3633,11 @@ template <typename ElementType> struct BlockLab {
     if (!bytes)
       return;
     int start[3] = {s[0] + std::max(code[0], 0) * CoarseBlockSize[0] -
-                        code[0] * nX + std::min(0, code[0]) * (e[0] - s[0]),
+                        code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]),
                     s[1] + std::max(code[1], 0) * CoarseBlockSize[1] -
-                        code[1] * nY + std::min(0, code[1]) * (e[1] - s[1]),
+                        code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]),
                     s[2] + std::max(code[2], 0) * CoarseBlockSize[2] -
-                        code[2] * nZ + std::min(0, code[2]) * (e[2] - s[2])};
+                        code[2] * 1 + std::min(0, code[2]) * (e[2] - s[2])};
     int m_vSize0 = m_CoarsenedBlock->getSize(0);
     int m_nElemsPerSlice = m_CoarsenedBlock->getNumberOfElementsPerSlice();
     int my_ix = s[0] - offset[0];
@@ -3651,9 +3648,9 @@ template <typename ElementType> struct BlockLab {
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
-            iy < nY / 2 - m_InterpStencilEnd[1] &&
+            iy < _BS_ / 2 - m_InterpStencilEnd[1] &&
             iz > -m_InterpStencilStart[2] &&
-            iz < nZ / 2 - m_InterpStencilEnd[2])
+            iz < 1 / 2 - m_InterpStencilEnd[2])
           continue;
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
