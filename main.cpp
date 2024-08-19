@@ -1,3 +1,4 @@
+#define OMPI_SKIP_MPICXX 1
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -19,7 +20,6 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-#define OMPI_SKIP_MPICXX 1
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
