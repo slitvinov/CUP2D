@@ -625,7 +625,6 @@ struct CommandlineParser {
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 struct TreePosition {
   int position{-3};
-  bool CheckCoarser() const { return position == -2; }
 };
 struct BlockInfo {
   bool changed2;
