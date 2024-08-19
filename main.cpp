@@ -639,12 +639,11 @@ struct BlockInfo {
     return (blockID_2 < other.blockID_2);
   }
   BlockInfo(){};
-  void setup(const int a_level, const double a_h, const double a_origin[3],
+  void setup0(const int m, const double a_h, const double a_origin[3],
              const long long a_Z) {
-    level = a_level;
+    level = m;
     Z = a_Z;
     state = Leave;
-    level = a_level;
     h = a_h;
     origin[0] = a_origin[0];
     origin[1] = a_origin[1];
@@ -3050,7 +3049,7 @@ template <typename ElementType> struct Grid {
           origin[0] = i * _BS_ * h;
           origin[1] = j * _BS_ * h;
           origin[2] = k * 1 * h;
-          dumm->setup(m, h, origin, n);
+          dumm->setup0(m, h, origin, n);
           BlockInfoAll[aux] = dumm;
         }
       }
