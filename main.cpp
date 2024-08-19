@@ -796,7 +796,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
     Cases.clear();
     MapOfCases.clear();
     grid = &_grid;
-    std::vector<BlockInfo> &B = (*grid).m_vInfo;
+    std::vector<BlockInfo> &B = (*grid).infos;
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -857,7 +857,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       }
   }
   virtual void FillBlockCases() {
-    std::vector<BlockInfo> &B = (*grid).m_vInfo;
+    std::vector<BlockInfo> &B = (*grid).infos;
     std::array<int, 3> blocksPerDim = (*grid).getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -1562,7 +1562,7 @@ template <typename TGrid> struct Synchronizer {
       myunpacks[i].clear();
     myunpacks.clear();
     DuplicatesManager DM(*(this));
-    for (BlockInfo &info : grid->m_vInfo) {
+    for (BlockInfo &info : grid->infos) {
       info.halo_block_id = -1;
       const bool xskin =
           info.index[0] == 0 ||
@@ -2289,7 +2289,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
-    std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).m_vInfo;
+    std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).infos;
     std::array<int, 3> blocksPerDim = _grid.getMaxBlocks();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
@@ -2520,7 +2520,7 @@ template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, TreePosition> Octree;
-  std::vector<BlockInfo> m_vInfo;
+  std::vector<BlockInfo> infos;
   int NX;
   int NY;
   int NZ;
@@ -2575,9 +2575,9 @@ template <typename ElementType> struct Grid {
     std::vector<long long> Zs(my_blocks);
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
-    for (size_t i = 0; i < m_vInfo.size(); i++) {
-      const int m = m_vInfo[i].level;
-      const long long n = m_vInfo[i].Z;
+    for (size_t i = 0; i < infos.size(); i++) {
+      const int m = infos[i].level;
+      const long long n = infos[i].Z;
       delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
     }
     std::vector<long long> aux;
@@ -2589,7 +2589,7 @@ template <typename ElementType> struct Grid {
         delete retval->second;
       }
     }
-    m_vInfo.clear();
+    infos.clear();
     BlockInfoAll.clear();
     Octree.clear();
     for (size_t i = 0; i < Zs.size(); i++) {
@@ -2759,7 +2759,7 @@ template <typename ElementType> struct Grid {
     double high[3] = {-1e20, -1e20, -1e20};
     double p_low[3];
     double p_high[3];
-    for (auto &info : m_vInfo) {
+    for (auto &info : infos) {
       const double h = 2 * info.h;
       info.pos(p_low, 0, 0);
       info.pos(p_high, _BS_ - 1, _BS_ - 1);
@@ -2788,7 +2788,7 @@ template <typename ElementType> struct Grid {
     }
     const auto blocksPerDim = getMaxBlocks();
     std::vector<long long> myData;
-    for (auto &info : m_vInfo) {
+    for (auto &info : infos) {
       bool myflag = false;
       int aux = 1 << info.level;
       bool xskin =
@@ -2985,55 +2985,55 @@ template <typename ElementType> struct Grid {
     BlockInfo &new_info = getBlockInfoAll(m, n);
     new_info.ptrBlock = new Block;
 #pragma omp critical
-    { m_vInfo.push_back(new_info); }
+    { infos.push_back(new_info); }
     Tree(m, n).position = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
     delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
-    for (size_t j = 0; j < m_vInfo.size(); j++) {
-      if (m_vInfo[j].level == m && m_vInfo[j].Z == n) {
-        m_vInfo.erase(m_vInfo.begin() + j);
+    for (size_t j = 0; j < infos.size(); j++) {
+      if (infos[j].level == m && infos[j].Z == n) {
+        infos.erase(infos.begin() + j);
         return;
       }
     }
   }
   void dealloc_many(const std::vector<long long> &dealloc_IDs) {
-    for (size_t j = 0; j < m_vInfo.size(); j++)
-      m_vInfo[j].changed2 = false;
+    for (size_t j = 0; j < infos.size(); j++)
+      infos[j].changed2 = false;
     for (size_t i = 0; i < dealloc_IDs.size(); i++)
-      for (size_t j = 0; j < m_vInfo.size(); j++) {
-        if (m_vInfo[j].blockID_2 == dealloc_IDs[i]) {
-          const int m = m_vInfo[j].level;
-          const long long n = m_vInfo[j].Z;
-          m_vInfo[j].changed2 = true;
+      for (size_t j = 0; j < infos.size(); j++) {
+        if (infos[j].blockID_2 == dealloc_IDs[i]) {
+          const int m = infos[j].level;
+          const long long n = infos[j].Z;
+          infos[j].changed2 = true;
           delete[](Block *) getBlockInfoAll(m, n).ptrBlock;
           break;
         }
       }
-    m_vInfo.erase(std::remove_if(m_vInfo.begin(), m_vInfo.end(),
+    infos.erase(std::remove_if(infos.begin(), infos.end(),
                                  [](const BlockInfo &x) { return x.changed2; }),
-                  m_vInfo.end());
+                  infos.end());
   }
   void FillPos(bool CopyInfos = true) {
-    std::sort(m_vInfo.begin(), m_vInfo.end());
-    Octree.reserve(Octree.size() + m_vInfo.size() / 8);
+    std::sort(infos.begin(), infos.end());
+    Octree.reserve(Octree.size() + infos.size() / 8);
     if (CopyInfos)
-      for (size_t j = 0; j < m_vInfo.size(); j++) {
-        const int m = m_vInfo[j].level;
-        const long long n = m_vInfo[j].Z;
+      for (size_t j = 0; j < infos.size(); j++) {
+        const int m = infos[j].level;
+        const long long n = infos[j].Z;
         BlockInfo &correct_info = getBlockInfoAll(m, n);
         correct_info.blockID = j;
-        m_vInfo[j] = correct_info;
+        infos[j] = correct_info;
         assert(Tree(m, n).Exists());
       }
     else
-      for (size_t j = 0; j < m_vInfo.size(); j++) {
-        const int m = m_vInfo[j].level;
-        const long long n = m_vInfo[j].Z;
+      for (size_t j = 0; j < infos.size(); j++) {
+        const int m = infos[j].level;
+        const long long n = infos[j].Z;
         BlockInfo &correct_info = getBlockInfoAll(m, n);
         correct_info.blockID = j;
-        m_vInfo[j].blockID = j;
-        m_vInfo[j].state = correct_info.state;
+        infos[j].blockID = j;
+        infos[j].state = correct_info.state;
         assert(Tree(m, n).Exists());
       }
   }
@@ -3048,7 +3048,7 @@ template <typename ElementType> struct Grid {
     return avail(m, n);
   }
   Block &operator()(const long long ID) {
-    return *(Block *)m_vInfo[ID].ptrBlock;
+    return *(Block *)infos[ID].ptrBlock;
   }
   std::array<int, 3> getMaxBlocks() const { return {NX, NY, NZ}; }
   std::array<int, 3> getMaxMostRefinedBlocks() const {
@@ -4192,7 +4192,7 @@ template <typename ElementType> struct LoadBalancer {
   }
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
   void PrepareCompression() {
-    std::vector<BlockInfo> &I = grid->m_vInfo;
+    std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
@@ -4280,7 +4280,7 @@ template <typename ElementType> struct LoadBalancer {
     }
     const int right = (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
     const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
-    const int my_blocks = grid->m_vInfo.size();
+    const int my_blocks = grid->infos.size();
     int right_blocks, left_blocks;
     MPI_Request reqs[4];
     MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
@@ -4292,7 +4292,7 @@ template <typename ElementType> struct LoadBalancer {
     const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
         (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-    std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
+    std::vector<BlockInfo> SortedInfos = grid->infos;
     if (flux_right != 0 || flux_left != 0)
       std::sort(SortedInfos.begin(), SortedInfos.end());
     std::vector<MPI_Block> send_left;
@@ -4359,7 +4359,7 @@ template <typename ElementType> struct LoadBalancer {
     grid->FillPos();
   }
   void Balance_Global(std::vector<long long> &all_b) {
-    std::vector<BlockInfo> SortedInfos = grid->m_vInfo;
+    std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
     for (int r = 0; r < sim.size; r++)
@@ -4531,7 +4531,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       bool xperiodic = grid->xperiodic;
       bool yperiodic = grid->yperiodic;
       bool zperiodic = grid->zperiodic;
-      std::vector<BlockInfo> &I = grid->m_vInfo;
+      std::vector<BlockInfo> &I = grid->infos;
 #pragma omp parallel for
       for (size_t j = 0; j < I.size(); j++) {
         BlockInfo &info = I[j];
@@ -4702,7 +4702,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     std::vector<int> m_ref;
     std::vector<long long> n_com;
     std::vector<long long> n_ref;
-    std::vector<BlockInfo> &I = grid->m_vInfo;
+    std::vector<BlockInfo> &I = grid->infos;
     long long blocks_after = I.size();
     for (auto &info : I) {
       if (info.state == Refine) {
@@ -4872,11 +4872,11 @@ template <typename TLab, typename ElementType> struct Adaptation {
           const long long n =
               grid->getZforward(level, info.index[0] + I, info.index[1] + J);
           if (I + J == 0) {
-            for (size_t j = 0; j < grid->m_vInfo.size(); j++)
-              if (level == grid->m_vInfo[j].level && n == grid->m_vInfo[j].Z) {
+            for (size_t j = 0; j < grid->infos.size(); j++)
+              if (level == grid->infos[j].level && n == grid->infos[j].Z) {
                 BlockInfo &correct_info = grid->getBlockInfoAll(level - 1, np);
                 correct_info.state = Leave;
-                grid->m_vInfo[j] = correct_info;
+                grid->infos[j] = correct_info;
                 break;
               }
           } else {
@@ -4904,7 +4904,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     }
   }
   void TagLike(const std::vector<BlockInfo> &I1) {
-    std::vector<BlockInfo> &I2 = grid->m_vInfo;
+    std::vector<BlockInfo> &I2 = grid->infos;
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
       BlockInfo &ary0 = I2[i1];
       BlockInfo &info = grid->getBlockInfoAll(ary0.level, ary0.Z);
@@ -5028,7 +5028,7 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
   Synchronizer<Grid<ElementType2>> &Synch2 = *grid2.sync1(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
-  std::vector<BlockInfo> &blk = grid.m_vInfo;
+  std::vector<BlockInfo> &blk = grid.infos;
   std::vector<bool> ready(blk.size(), false);
   std::vector<BlockInfo *> &avail0 = Synch.avail_inner();
   std::vector<BlockInfo *> &avail02 = Synch2.avail_inner();
@@ -5435,7 +5435,7 @@ struct ObstacleBlock {
 };
 struct KernelVorticity {
   KernelVorticity() {}
-  const std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
+  const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
@@ -6049,7 +6049,7 @@ struct AreaSegment {
 struct PutChiOnGrid {
   PutChiOnGrid(){};
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
+  std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -6118,9 +6118,9 @@ struct PutFishOnBlocks {
   }
 };
 static void ongrid(Real dt) {
-  std::vector<BlockInfo> &velInfo = var.vel->m_vInfo;
-  std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
-  std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
+  std::vector<BlockInfo> &velInfo = var.vel->infos;
+  std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
+  std::vector<BlockInfo> &chiInfo = var.chi->infos;
   int nSum[2] = {0, 0};
   Real uSum[2] = {0, 0};
   if (nSum[0] > 0) {
@@ -6354,8 +6354,8 @@ static void ongrid(Real dt) {
     assert((Nm - 1) % Nsegments == 0);
     std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
     Real h = std::numeric_limits<Real>::infinity();
-    for (size_t i = 0; i < var.vel->m_vInfo.size(); i++)
-      h = std::min(var.vel->m_vInfo[i].h, h);
+    for (size_t i = 0; i < var.vel->infos.size(); i++)
+      h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nsegments; ++i) {
@@ -6771,7 +6771,7 @@ static void ongrid(Real dt) {
 struct GradChiOnTmp {
   GradChiOnTmp() {}
   const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
-  const std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
+  const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].ptrBlock;
     const int offset = (info.level == var.tmp->getlevelMax() - 1) ? 4 : 2;
@@ -6794,12 +6794,12 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->Tag();
-  var.chi_amr->TagLike(var.tmp->m_vInfo);
-  var.pres_amr->TagLike(var.tmp->m_vInfo);
-  var.pold_amr->TagLike(var.tmp->m_vInfo);
-  var.vel_amr->TagLike(var.tmp->m_vInfo);
-  var.vold_amr->TagLike(var.tmp->m_vInfo);
-  var.tmpV_amr->TagLike(var.tmp->m_vInfo);
+  var.chi_amr->TagLike(var.tmp->infos);
+  var.pres_amr->TagLike(var.tmp->infos);
+  var.pold_amr->TagLike(var.tmp->infos);
+  var.vel_amr->TagLike(var.tmp->infos);
+  var.vold_amr->TagLike(var.tmp->infos);
+  var.tmpV_amr->TagLike(var.tmp->infos);
   var.tmp_amr->Adapt(false);
   var.chi_amr->Adapt(false);
   var.vel_amr->Adapt(false);
@@ -6861,7 +6861,7 @@ template <typename ElementType> struct KernelAdvectDiffuse {
   }
   Real uinf[2];
   StencilInfo stencil{-3, -3, 0, 4, 4, 1, true, {0, 1}};
-  std::vector<BlockInfo> &tmpVInfo = var.tmpV->m_vInfo;
+  std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(VectorLab &lab, BlockInfo &info) {
     Real h = info.h;
     Real dfac = sim.nu * sim.dt;
@@ -6932,7 +6932,7 @@ struct KernelComputeForces {
   const Real c4 = -5. / 4.;
   const Real c5 = 1. / 5.;
   bool inrange(const int i) const { return (i >= small && i < bigg); }
-  const std::vector<BlockInfo> &presInfo = var.pres->m_vInfo;
+  const std::vector<BlockInfo> &presInfo = var.pres->infos;
   void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
     VectorLab &V = lab;
@@ -7141,7 +7141,7 @@ struct PoissonSolver {
       this->getVec();
       LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
-    std::vector<BlockInfo> &zInfo = var.pres->m_vInfo;
+    std::vector<BlockInfo> &zInfo = var.pres->infos;
     const int Nblocks = zInfo.size();
     const std::vector<double> &x = LocalLS_->get_x();
     double avg = 0;
@@ -7460,7 +7460,7 @@ struct PoissonSolver {
   void getMat() {
     std::array<int, 3> blocksPerDim = var.pres->getMaxBlocks();
     var.tmp->UpdateBlockInfoAll_States(true);
-    std::vector<BlockInfo> &RhsInfo = var.tmp->m_vInfo;
+    std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
     LocalLS_->reserve(N);
@@ -7539,8 +7539,8 @@ struct PoissonSolver {
     LocalLS_->make(Nrows_xcumsum_);
   }
   void getVec() {
-    std::vector<BlockInfo> &RhsInfo = var.tmp->m_vInfo;
-    std::vector<BlockInfo> &zInfo = var.pres->m_vInfo;
+    std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
+    std::vector<BlockInfo> &zInfo = var.pres->infos;
     const int Nblocks = RhsInfo.size();
     std::vector<double> &x = LocalLS_->get_x();
     std::vector<double> &b = LocalLS_->get_b();
@@ -7569,7 +7569,7 @@ struct PoissonSolver {
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
-  const std::vector<BlockInfo> &tmpVInfo = var.tmpV->m_vInfo;
+  const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
     VectorBlock &__restrict__ tmpV =
@@ -7625,8 +7625,8 @@ struct pressure_rhs {
   pressure_rhs(){};
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   StencilInfo stencil2{-1, -1, 0, 2, 2, 1, false, {0, 1}};
-  const std::vector<BlockInfo> &tmpInfo = var.tmp->m_vInfo;
-  const std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
+  const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
+  const std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const BlockInfo &info,
                   const BlockInfo &) const {
     const Real h = info.h;
@@ -7698,14 +7698,14 @@ struct pressure_rhs1 {
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
-        *(ScalarBlock *)var.tmp->m_vInfo[info.blockID].ptrBlock;
+        *(ScalarBlock *)var.tmp->infos[info.blockID].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
         TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarElement> *tempCase =
-        (BlockCase<ScalarElement> *)(var.tmp->m_vInfo[info.blockID].auxiliary);
+        (BlockCase<ScalarElement> *)(var.tmp->infos[info.blockID].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7827,7 +7827,7 @@ int main(int argc, char **argv) {
                            sim.levelMax, xperiodic, yperiodic, zperiodic);
   var.pold = new ScalarGrid(sim.bpdx, sim.bpdy, 1, sim.extent, sim.levelStart,
                             sim.levelMax, xperiodic, yperiodic, zperiodic);
-  std::vector<BlockInfo> &velInfo = var.vel->m_vInfo;
+  std::vector<BlockInfo> &velInfo = var.vel->infos;
   if (velInfo.size() == 0) {
     std::cout << "You are using too many MPI ranks for the given initial "
                  "number of blocks.";
@@ -7898,18 +7898,18 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)var.chi->m_vInfo[i].ptrBlock)[x][y].s = 0;
-        (*(ScalarBlock *)var.pres->m_vInfo[i].ptrBlock)[x][y].s = 0;
-        (*(ScalarBlock *)var.pold->m_vInfo[i].ptrBlock)[x][y].s = 0;
-        (*(ScalarBlock *)var.tmp->m_vInfo[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)var.chi->infos[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)var.pres->infos[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)var.pold->infos[i].ptrBlock)[x][y].s = 0;
+        (*(ScalarBlock *)var.tmp->infos[i].ptrBlock)[x][y].s = 0;
 
-        (*(VectorBlock *)var.vel->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.vel->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
-        (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
+        (*(VectorBlock *)var.vel->infos[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)var.vel->infos[i].ptrBlock)[x][y].u[1] = 0;
+        (*(VectorBlock *)var.tmpV->infos[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)var.tmpV->infos[i].ptrBlock)[x][y].u[1] = 0;
 
-        (*(VectorBlock *)var.vold->m_vInfo[i].ptrBlock)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.vold->m_vInfo[i].ptrBlock)[x][y].u[1] = 0;
+        (*(VectorBlock *)var.vold->infos[i].ptrBlock)[x][y].u[0] = 0;
+        (*(VectorBlock *)var.vold->infos[i].ptrBlock)[x][y].u[1] = 0;
       }
   var.tmp_amr = new ScalarAMR(*var.tmp, sim.Rtol, sim.Ctol);
   var.chi_amr = new ScalarAMR(*var.chi, sim.Rtol, sim.Ctol);
@@ -7927,27 +7927,27 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++) {
     for (size_t y = 0; y < _BS_; y++)
       for (size_t x = 0; x < _BS_; x++) {
-        (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[y][x].u[0] = 0;
-        (*(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock)[y][x].u[1] = 0;
+        (*(VectorBlock *)var.tmpV->infos[i].ptrBlock)[y][x].u[0] = 0;
+        (*(VectorBlock *)var.tmpV->infos[i].ptrBlock)[y][x].u[1] = 0;
       }
   }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      if (OBLOCK[var.tmpV->m_vInfo[i].blockID] == nullptr)
+      if (OBLOCK[var.tmpV->infos[i].blockID] == nullptr)
         continue;
-      UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->m_vInfo[i].blockID]->udef;
-      CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->m_vInfo[i].blockID]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
+      UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->infos[i].blockID]->udef;
+      CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->infos[i].blockID]->chi;
+      auto &__restrict__ UDEF = *(VectorBlock *)var.tmpV->infos[i].ptrBlock;
       ScalarBlock &__restrict__ CHI =
-          *(ScalarBlock *)var.chi->m_vInfo[i].ptrBlock;
+          *(ScalarBlock *)var.chi->infos[i].ptrBlock;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
           Real p[2];
-          var.tmpV->m_vInfo[i].pos(p, ix, iy);
+          var.tmpV->infos[i].pos(p, ix, iy);
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
@@ -7956,8 +7956,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < velInfo.size(); i++) {
     VectorBlock &UF = *(VectorBlock *)velInfo[i].ptrBlock;
-    VectorBlock &US = *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
-    ScalarBlock &X = *(ScalarBlock *)var.chi->m_vInfo[i].ptrBlock;
+    VectorBlock &US = *(VectorBlock *)var.tmpV->infos[i].ptrBlock;
+    ScalarBlock &X = *(ScalarBlock *)var.chi->infos[i].ptrBlock;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         UF[iy][ix].u[0] =
@@ -7969,8 +7969,8 @@ int main(int argc, char **argv) {
   while (1) {
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
-    for (size_t i = 0; i < var.vel->m_vInfo.size(); i++)
-      h = std::min(var.vel->m_vInfo[i].h, h);
+    for (size_t i = 0; i < var.vel->infos.size(); i++)
+      h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     size_t Nblocks = velInfo.size();
     Real umax = 0;
@@ -8008,7 +8008,7 @@ int main(int argc, char **argv) {
         computeA<VectorLab>(KernelVorticity(), var.vel);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
-        dump(sim.time, var.tmp->m_vInfo.size(), var.tmp->m_vInfo.data(), path);
+        dump(sim.time, var.tmp->infos.size(), var.tmp->infos.data(), path);
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
         adapt();
@@ -8018,7 +8018,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->infos[i].ptrBlock;
         const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
@@ -8033,9 +8033,9 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->infos[i].ptrBlock;
         const VectorBlock &__restrict__ tmpV =
-            *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.tmpV->infos[i].ptrBlock;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
@@ -8052,9 +8052,9 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].ptrBlock;
         const VectorBlock &__restrict__ Vold =
-            *(VectorBlock *)var.vold->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.vold->infos[i].ptrBlock;
         const VectorBlock &__restrict__ tmpV =
-            *(VectorBlock *)var.tmpV->m_vInfo[i].ptrBlock;
+            *(VectorBlock *)var.tmpV->infos[i].ptrBlock;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
@@ -8156,7 +8156,7 @@ int main(int argc, char **argv) {
         gsl_vector_free(xgsl);
       }
       const auto &shapes = sim.shapes;
-      const auto &infos = var.chi->m_vInfo;
+      const auto &infos = var.chi->infos;
       const size_t N = shapes.size();
       sim.bCollisionID.clear();
       struct CollisionInfo {
@@ -8399,7 +8399,7 @@ int main(int argc, char **argv) {
           shapes[i]->omega = ho1[2];
           shapes[j]->omega = ho2[2];
         }
-      std::vector<BlockInfo> &chiInfo = var.chi->m_vInfo;
+      std::vector<BlockInfo> &chiInfo = var.chi->infos;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++)
         for (auto &shape : sim.shapes) {
@@ -8433,7 +8433,7 @@ int main(int argc, char **argv) {
               V[iy][ix].u[1] = alpha * V[iy][ix].u[1] + (1 - alpha) * VS;
             }
         }
-      std::vector<BlockInfo> &tmpVInfo = var.tmpV->m_vInfo;
+      std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
         for (size_t y = 0; y < _BS_; y++)
@@ -8467,8 +8467,8 @@ int main(int argc, char **argv) {
       computeB<pressure_rhs, VectorElement, VectorLab, VectorElement,
                VectorLab>(pressure_rhs(), *var.vel, *var.tmpV);
       var.tmp->Corrector.FillBlockCases();
-      std::vector<BlockInfo> &presInfo = var.pres->m_vInfo;
-      std::vector<BlockInfo> &poldInfo = var.pold->m_vInfo;
+      std::vector<BlockInfo> &presInfo = var.pres->infos;
+      std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
         ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].ptrBlock;
@@ -8620,7 +8620,7 @@ int main(int argc, char **argv) {
         shape->EffPDef = shape->Pthrust / std::max(denUnb, EPS);
         shape->EffPDefBnd = shape->Pthrust / std::max(demBnd, EPS);
         int tot_blocks = 0;
-        int nb = (int)var.chi->m_vInfo.size();
+        int nb = (int)var.chi->infos.size();
         MPI_Reduce(&nb, &tot_blocks, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
       }
       sim.time += sim.dt;
