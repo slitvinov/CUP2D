@@ -2878,11 +2878,11 @@ template <typename ElementType> struct Grid {
   }
   TreePosition &Tree(BlockInfo &info) { return Tree(info.level, info.Z); }
   TreePosition &Tree(const BlockInfo &info) { return Tree(info.level, info.Z); }
-  void _alloc0(const int m, const long long n) {
-    BlockInfo &new_info = getBlockInfoAll(m, n);
+  void _alloc0(const int level, const long long Z) {
+    BlockInfo &new_info = getBlockInfoAll(level, Z);
     new_info.block = new Block;
     infos.push_back(new_info);
-    Tree(m, n).position = sim.rank;
+    Tree(level, Z).position = sim.rank;
   }
   void _alloc(const int m, const long long n) {
     BlockInfo &new_info = getBlockInfoAll(m, n);
