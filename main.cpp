@@ -3238,17 +3238,15 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void post_load(const BlockInfo &info, const Real t, bool applybc) {
-    const int nX = _BS_;
-    const int nY = _BS_;
     if (coarsened) {
 #pragma GCC ivdep
-      for (int j = 0; j < nY / 2; j++) {
+      for (int j = 0; j < _BS_ / 2; j++) {
 #pragma GCC ivdep
-        for (int i = 0; i < nX / 2; i++) {
+        for (int i = 0; i < _BS_ / 2; i++) {
           if (i > -m_InterpStencilStart[0] &&
-              i < nX / 2 - m_InterpStencilEnd[0] &&
+              i < _BS_ / 2 - m_InterpStencilEnd[0] &&
               j > -m_InterpStencilStart[1] &&
-              j < nY / 2 - m_InterpStencilEnd[1])
+              j < _BS_ / 2 - m_InterpStencilEnd[1])
             continue;
           const int ix = 2 * i - m_stencilStart[0];
           const int iy = 2 * j - m_stencilStart[1];
