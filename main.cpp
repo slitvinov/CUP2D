@@ -4971,9 +4971,6 @@ static BCflag cubismBCX;
 static BCflag cubismBCY;
 template <typename TGrid, typename ElementType>
 struct BlockLabDirichlet : public BlockLab<ElementType> {
-  static constexpr int sizeX = _BS_;
-  static constexpr int sizeY = _BS_;
-  static constexpr int sizeZ = 1;
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
   virtual bool is_zperiodic() override { return false; }
@@ -4985,19 +4982,19 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
       const int *const stenBeg = this->m_stencilStart;
       const int *const stenEnd = this->m_stencilEnd;
-      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : sizeX) : stenBeg[0];
-      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : sizeY) : stenBeg[1];
-      e[0] = dir == 0 ? (side == 0 ? 0 : sizeX + stenEnd[0] - 1)
-                      : sizeX + stenEnd[0] - 1;
-      e[1] = dir == 1 ? (side == 0 ? 0 : sizeY + stenEnd[1] - 1)
-                      : sizeY + stenEnd[1] - 1;
+      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
+      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
+      e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ + stenEnd[0] - 1)
+                      : _BS_ + stenEnd[0] - 1;
+      e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
+                      : _BS_ + stenEnd[1] - 1;
       if (!wall)
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
             const int x =
-                (dir == 0 ? (side == 0 ? 0 : sizeX - 1) : ix) - stenBeg[0];
+                (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
-                (dir == 1 ? (side == 0 ? 0 : sizeY - 1) : iy) - stenBeg[1];
+                (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(1 - A) =
                 (-1.0) * cb->Access(x, y, 0).member(1 - A);
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(A) =
@@ -5007,9 +5004,9 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
             const int x =
-                (dir == 0 ? (side == 0 ? 0 : sizeX - 1) : ix) - stenBeg[0];
+                (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
-                (dir == 1 ? (side == 0 ? 0 : sizeY - 1) : iy) - stenBeg[1];
+                (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) =
                 (-1.0) * cb->Access(x, y, 0);
           }
@@ -5026,19 +5023,19 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
       const int *const stenBeg = sI;
       const int *const stenEnd = eI;
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : sizeX / 2) : stenBeg[0];
-      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : sizeY / 2) : stenBeg[1];
-      e[0] = dir == 0 ? (side == 0 ? 0 : sizeX / 2 + stenEnd[0] - 1)
-                      : sizeX / 2 + stenEnd[0] - 1;
-      e[1] = dir == 1 ? (side == 0 ? 0 : sizeY / 2 + stenEnd[1] - 1)
-                      : sizeY / 2 + stenEnd[1] - 1;
+      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_ / 2) : stenBeg[0];
+      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_ / 2) : stenBeg[1];
+      e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[0] - 1)
+                      : _BS_ / 2 + stenEnd[0] - 1;
+      e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
+                      : _BS_ / 2 + stenEnd[1] - 1;
       if (!wall)
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
             const int x =
-                (dir == 0 ? (side == 0 ? 0 : sizeX / 2 - 1) : ix) - stenBeg[0];
+                (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
-                (dir == 1 ? (side == 0 ? 0 : sizeY / 2 - 1) : iy) - stenBeg[1];
+                (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(1 - A) =
                 (-1.0) * cb->Access(x, y, 0).member(1 - A);
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(A) =
@@ -5048,9 +5045,9 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
         for (int iy = s[1]; iy < e[1]; iy++)
           for (int ix = s[0]; ix < e[0]; ix++) {
             const int x =
-                (dir == 0 ? (side == 0 ? 0 : sizeX / 2 - 1) : ix) - stenBeg[0];
+                (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
-                (dir == 1 ? (side == 0 ? 0 : sizeY / 2 - 1) : iy) - stenBeg[1];
+                (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
             cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) =
                 (-1.0) * cb->Access(x, y, 0);
           }
