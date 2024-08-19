@@ -2911,28 +2911,17 @@ template <typename ElementType> struct Grid {
                                [](const BlockInfo &x) { return x.changed2; }),
                 infos.end());
   }
-  void FillPos(bool CopyInfos = true) {
+  void FillPos() {
     std::sort(infos.begin(), infos.end());
     Octree.reserve(Octree.size() + infos.size() / 8);
-    if (CopyInfos)
-      for (size_t j = 0; j < infos.size(); j++) {
-        const int m = infos[j].level;
-        const long long n = infos[j].Z;
-        BlockInfo &correct_info = getBlockInfoAll(m, n);
-        correct_info.id = j;
-        infos[j] = correct_info;
+    for (size_t j = 0; j < infos.size(); j++) {
+      const int m = infos[j].level;
+      const long long n = infos[j].Z;
+      BlockInfo &correct_info = getBlockInfoAll(m, n);
+      correct_info.id = j;
+      infos[j] = correct_info;
         assert(Tree(m, n).Exists());
-      }
-    else
-      for (size_t j = 0; j < infos.size(); j++) {
-        const int m = infos[j].level;
-        const long long n = infos[j].Z;
-        BlockInfo &correct_info = getBlockInfoAll(m, n);
-        correct_info.id = j;
-        infos[j].id = j;
-        infos[j].state = correct_info.state;
-        assert(Tree(m, n).Exists());
-      }
+    }
   }
   long long getZforward(int level, int i, int j) const {
     int TwoPower = 1 << level;
