@@ -637,7 +637,6 @@ struct BlockInfo {
   void *auxiliary;
   void *block{nullptr};
   bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
-  BlockInfo(){};
 };
 template <typename ElementType> struct BlockCase {
   std::vector<ElementType> m_pData[6];
