@@ -3667,7 +3667,6 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    int nZ = 1;
     bool xperiodic = is_xperiodic();
     bool yperiodic = is_yperiodic();
     bool zperiodic = is_zperiodic();
@@ -3700,11 +3699,11 @@ template <typename ElementType> struct BlockLab {
         continue;
       int s[3] = {code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
                   code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : _BS_,
-                  code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : nZ};
+                  code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : 1};
       int e[3] = {
           code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
-          code[2] < 1 ? (code[2] < 0 ? 0 : nZ) : nZ + m_stencilEnd[2] - 1};
+          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
       int sC[3] = {
           code[0] < 1 ? (code[0] < 0 ? ((m_stencilStart[0] - 1) / 2) : 0)
                       : CoarseBlockSize[0],
