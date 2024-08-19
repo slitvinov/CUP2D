@@ -621,23 +621,20 @@ struct BlockInfo {
   double origin[3];
   int index[3];
   int level;
-  long long blockID, blockID_2, halo_block_id, Z, Zchild[2][2][2],
-      Znei[3][3][3], Zparent;
+  long long id, id2, halo_block_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
   enum State state;
   void *auxiliary;
   void *block{nullptr};
-  void pos(Real p[2], int ix, int iy) const {
+  void pos0(Real p[2], int ix, int iy) const {
     p[0] = origin[0] + h * (ix + 0.5);
     p[1] = origin[1] + h * (iy + 0.5);
   }
   std::array<Real, 2> pos(int ix, int iy) const {
     std::array<Real, 2> result;
-    pos(result.data(), ix, iy);
+    pos0(result.data(), ix, iy);
     return result;
   }
-  bool operator<(const BlockInfo &other) const {
-    return (blockID_2 < other.blockID_2);
-  }
+  bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
   BlockInfo(){};
 };
 template <typename ElementType> struct BlockCase {
@@ -762,7 +759,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           continue;
         if (code[2] != 0)
           continue;
-        if (!grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+        if (!grid->Tree(info.level,
+                        info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                  .Exists()) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -823,7 +821,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         if (code[2] != 0)
           continue;
         bool checkFiner =
-            grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+            grid->Tree(info.level,
+                       info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                 .CheckFiner();
         if (checkFiner) {
           FillCase(info, code);
@@ -911,16 +910,16 @@ struct Interface {
     dis = 0;
   }
   bool operator<(const Interface &other) const {
-    if (infos[0]->blockID_2 == other.infos[0]->blockID_2) {
+    if (infos[0]->id2 == other.infos[0]->id2) {
       if (icode[0] == other.icode[0]) {
-        if (infos[1]->blockID_2 == other.infos[1]->blockID_2) {
+        if (infos[1]->id2 == other.infos[1]->id2) {
           return (icode[1] < other.icode[1]);
         }
-        return (infos[1]->blockID_2 < other.infos[1]->blockID_2);
+        return (infos[1]->id2 < other.infos[1]->id2);
       }
       return (icode[0] < other.icode[0]);
     }
-    return (infos[0]->blockID_2 < other.infos[0]->blockID_2);
+    return (infos[0]->id2 < other.infos[0]->id2);
   }
 };
 struct MyRange {
@@ -1378,7 +1377,7 @@ template <typename TGrid> struct Synchronizer {
                            f[k].infos[0]->index[0],
                            f[k].infos[0]->index[1],
                            f[k].infos[0]->index[2],
-                           f[k].infos[1]->blockID_2};
+                           f[k].infos[1]->id2};
         if (f[k].CoarseStencil) {
           Synch_ptr->SM.CoarseStencilLength(f[k].icode[1], Lc);
           Vc = Lc[0] * Lc[1] * Lc[2];
@@ -1427,7 +1426,7 @@ template <typename TGrid> struct Synchronizer {
                f[remEl1].infos[0]->index[0],
                f[remEl1].infos[0]->index[1],
                f[remEl1].infos[0]->index[2],
-               f[remEl1].infos[1]->blockID_2});
+               f[remEl1].infos[1]->id2});
           f[remEl1].dis = info.offset;
         }
       }
@@ -1465,7 +1464,8 @@ template <typename TGrid> struct Synchronizer {
     for (int i2 = imin[2]; i2 <= imax[2]; i2++)
       for (int i1 = imin[1]; i1 <= imax[1]; i1++)
         for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-          if ((grid->Tree(a.level, a.Znei[1 + i0][1 + i1][1 + i2])).CheckCoarser()) {
+          if ((grid->Tree(a.level, a.Znei[1 + i0][1 + i1][1 + i2]))
+                  .CheckCoarser()) {
             retval = true;
             break;
           }
@@ -1525,8 +1525,8 @@ template <typename TGrid> struct Synchronizer {
           continue;
         if (!grid->zperiodic && code[2] == zskip && zskin)
           continue;
-        const TreePosition &infoNeiTree =
-            grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+        const TreePosition &infoNeiTree = grid->Tree(
+            info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree.position);
@@ -1720,13 +1720,13 @@ template <typename TGrid> struct Synchronizer {
       std::sort(recv_interfaces[r].begin(), recv_interfaces[r].end());
       size_t counter = 0;
       while (counter < recv_interfaces[r].size()) {
-        const long long ID = recv_interfaces[r][counter].infos[0]->blockID_2;
+        const long long ID = recv_interfaces[r][counter].infos[0]->id2;
         const size_t start = counter;
         size_t finish = start + 1;
         counter++;
         size_t j;
         for (j = counter; j < recv_interfaces[r].size(); j++) {
-          if (recv_interfaces[r][j].infos[0]->blockID_2 == ID)
+          if (recv_interfaces[r][j].infos[0]->id2 == ID)
             finish++;
           else
             break;
@@ -2102,10 +2102,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       icode[1] = a_icode1;
     }
     bool operator<(const face &other) const {
-      if (infos[0]->blockID_2 == other.infos[0]->blockID_2) {
+      if (infos[0]->id2 == other.infos[0]->id2) {
         return (icode[0] < other.icode[0]);
       } else {
-        return (infos[0]->blockID_2 < other.infos[0]->blockID_2);
+        return (infos[0]->id2 < other.infos[0]->id2);
       }
     }
   };
@@ -2255,7 +2255,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (code[2] != 0)
           continue;
         if (!(*TFluxCorrection::grid)
-                 .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+                 .Tree(info.level,
+                       info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                  .Exists()) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -2268,12 +2269,14 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
         if ((*TFluxCorrection::grid)
-                .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+                .Tree(info.level,
+                      info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                 .CheckCoarser()) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(info.level,
-                                   info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+                  .getBlockInfoAll(
+                      info.level,
+                      info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
               (*TFluxCorrection::grid).getBlockInfoAll(info.level - 1, nCoarse);
@@ -2288,12 +2291,14 @@ struct FluxCorrectionMPI : public TFluxCorrection {
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if ((*TFluxCorrection::grid)
-                       .Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+                       .Tree(info.level,
+                             info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                        .CheckFiner()) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(info.level,
-                                   info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+                  .getBlockInfoAll(
+                      info.level,
+                      info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -2580,8 +2585,8 @@ template <typename ElementType> struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+        BlockInfo &infoNei = getBlockInfoAll(
+            info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         const TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           if (infoNei.state != Refine || clean)
@@ -2686,8 +2691,8 @@ template <typename ElementType> struct Grid {
     double p_high[3];
     for (auto &info : infos) {
       const double h = 2 * info.h;
-      info.pos(p_low, 0, 0);
-      info.pos(p_high, _BS_ - 1, _BS_ - 1);
+      info.pos0(p_low, 0, 0);
+      info.pos0(p_high, _BS_ - 1, _BS_ - 1);
       p_low[0] -= h;
       p_low[1] -= h;
       p_low[2] = 0;
@@ -2737,8 +2742,8 @@ template <typename ElementType> struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+        BlockInfo &infoNei = getBlockInfoAll(
+            info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         TreePosition &infoNeiTree = Tree(infoNei.level, infoNei.Z);
         if (infoNeiTree.Exists() && infoNeiTree.position != sim.rank) {
           myflag = true;
@@ -2780,7 +2785,7 @@ template <typename ElementType> struct Grid {
         myData.push_back(info.level);
         myData.push_back(info.Z);
         if (UpdateIDs)
-          myData.push_back(info.blockID);
+          myData.push_back(info.id);
       }
     }
     std::vector<std::vector<long long>> recv_buffer(myNeighbors.size());
@@ -2826,7 +2831,7 @@ template <typename ElementType> struct Grid {
         const long long Z = recv_buffer[kk][index__ + 1];
         Tree(level, Z).position = r;
         if (UpdateIDs)
-          getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
+          getBlockInfoAll(level, Z).id = recv_buffer[kk][index__ + 2];
         int p[2];
         sim.space_curve->inverse(Z, level, p[0], p[1]);
         if (level < sim.levelMax - 1)
@@ -2928,7 +2933,7 @@ template <typename ElementType> struct Grid {
       infos[j].changed2 = false;
     for (size_t i = 0; i < dealloc_IDs.size(); i++)
       for (size_t j = 0; j < infos.size(); j++) {
-        if (infos[j].blockID_2 == dealloc_IDs[i]) {
+        if (infos[j].id2 == dealloc_IDs[i]) {
           const int m = infos[j].level;
           const long long n = infos[j].Z;
           infos[j].changed2 = true;
@@ -2948,7 +2953,7 @@ template <typename ElementType> struct Grid {
         const int m = infos[j].level;
         const long long n = infos[j].Z;
         BlockInfo &correct_info = getBlockInfoAll(m, n);
-        correct_info.blockID = j;
+        correct_info.id = j;
         infos[j] = correct_info;
         assert(Tree(m, n).Exists());
       }
@@ -2957,8 +2962,8 @@ template <typename ElementType> struct Grid {
         const int m = infos[j].level;
         const long long n = infos[j].Z;
         BlockInfo &correct_info = getBlockInfoAll(m, n);
-        correct_info.blockID = j;
-        infos[j].blockID = j;
+        correct_info.id = j;
+        infos[j].id = j;
         infos[j].state = correct_info.state;
         assert(Tree(m, n).Exists());
       }
@@ -3032,8 +3037,8 @@ template <typename ElementType> struct Grid {
                                     dumm->level - 1,
                                     (dumm->index[0] / 2 + Bmax[0]) % Bmax[0],
                                     (dumm->index[1] / 2 + Bmax[1]) % Bmax[1]);
-          dumm->blockID_2 = sim.space_curve->Encode(dumm->level, dumm->index);
-          dumm->blockID = dumm->blockID_2;
+          dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
+          dumm->id = dumm->id2;
           BlockInfoAll[aux] = dumm;
         }
       }
@@ -3316,8 +3321,8 @@ template <typename ElementType> struct BlockLab {
           continue;
         if (!zperiodic && code[2] == zskip && zskin)
           continue;
-        const auto &TreeNei =
-            m_refGrid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+        const auto &TreeNei = m_refGrid->Tree(
+            info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
         if (TreeNei.Exists()) {
           icodes[k++] = icode;
         } else if (TreeNei.CheckCoarser()) {
@@ -3427,8 +3432,8 @@ template <typename ElementType> struct BlockLab {
     if (!bytes)
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
-    myblocks[icode] =
-        m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
+    myblocks[icode] = m_refGrid->avail(
+        info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]]);
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
@@ -4392,7 +4397,7 @@ template <typename ElementType> struct LoadBalancer {
         if (r < sim.rank) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             BlockInfo &info = SortedInfos[counter_S + i];
-            deallocIDs.push_back(info.blockID_2);
+            deallocIDs.push_back(info.id2);
             grid->Tree(info.level, info.Z).position = r;
           }
           counter_S += send_blocks[r].size();
@@ -4400,7 +4405,7 @@ template <typename ElementType> struct LoadBalancer {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             BlockInfo &info =
                 SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
-            deallocIDs.push_back(info.blockID_2);
+            deallocIDs.push_back(info.id2);
             grid->Tree(info.level, info.Z).position = r;
           }
           counter_E += send_blocks[r].size();
@@ -4520,7 +4525,8 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               if (code[2] != 0)
                 continue;
-              if (grid->Tree(info.level, info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
+              if (grid->Tree(info.level,
+                             info.Znei[1 + code[0]][1 + code[1]][1 + code[2]])
                       .CheckFiner()) {
                 if (info.state == Compress) {
                   info.state = Leave;
@@ -4754,7 +4760,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         const int level = m_ref[i];
         const long long Z = n_ref[i];
 #pragma omp critical
-        { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).blockID_2); }
+        { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).id2); }
         BlockInfo &parent = grid->getBlockInfoAll(level, Z);
         grid->Tree(parent).setCheckFiner();
         parent.state = Leave;
@@ -4825,9 +4831,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).blockID_2);
-            }
+            { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).id2); }
           }
           grid->Tree(level, n).setCheckCoarser();
           grid->getBlockInfoAll(level, n).state = Leave;
@@ -4991,7 +4995,7 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
       lab.load(I, 0);
       lab2.load(I2, 0);
       kernel(lab, lab2, I, I2);
-      ready[I.blockID] = true;
+      ready[I.id] = true;
     }
 #pragma omp master
     {
@@ -5376,7 +5380,7 @@ struct KernelVorticity {
   const StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0, 1}};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
-    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].block;
+    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
         TMP[y][x].s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
@@ -5858,10 +5862,10 @@ struct ComputeSurfaceNormals {
                   const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[infoChi.blockID] == nullptr)
+      if (OBLOCK[infoChi.id] == nullptr)
         continue;
       const Real h = infoChi.h;
-      ObstacleBlock &o = *OBLOCK[infoChi.blockID];
+      ObstacleBlock &o = *OBLOCK[infoChi.id];
       const Real i2h = 0.5 / h;
       const Real fac = 0.5 * h;
       for (int iy = 0; iy < _BS_; iy++)
@@ -5990,17 +5994,17 @@ struct PutChiOnGrid {
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[info.blockID] == nullptr)
+      if (OBLOCK[info.id] == nullptr)
         continue;
       Real h = info.h;
       Real h2 = h * h;
-      ObstacleBlock &o = *OBLOCK[info.blockID];
+      ObstacleBlock &o = *OBLOCK[info.id];
       CHI_MAT &__restrict__ X = o.chi;
       const CHI_MAT &__restrict__ sdf = o.dist;
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      auto &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.blockID].block;
+      auto &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.id].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
@@ -6024,7 +6028,7 @@ struct PutChiOnGrid {
           CHI[iy][ix].s = std::max(CHI[iy][ix].s, X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
-            info.pos(p, ix, iy);
+            info.pos0(p, ix, iy);
             o.COM_x += X[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
             o.COM_y += X[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
             o.Mass += X[iy][ix] * h2;
@@ -6328,18 +6332,18 @@ static void ongrid(Real dt) {
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
       const BlockInfo &info = tmpInfo[i];
       Real pStart[2], pEnd[2];
-      info.pos(pStart, 0, 0);
-      info.pos(pEnd, _BS_ - 1, _BS_ - 1);
+      info.pos0(pStart, 0, 0);
+      info.pos0(pEnd, _BS_ - 1, _BS_ - 1);
       for (size_t s = 0; s < vSegments.size(); ++s)
         if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-          if (segmentsPerBlock[info.blockID] == nullptr)
-            segmentsPerBlock[info.blockID] = new std::vector<AreaSegment *>(0);
-          segmentsPerBlock[info.blockID]->push_back(vSegments[s]);
+          if (segmentsPerBlock[info.id] == nullptr)
+            segmentsPerBlock[info.id] = new std::vector<AreaSegment *>(0);
+          segmentsPerBlock[info.id]->push_back(vSegments[s]);
         }
-      if (segmentsPerBlock[info.blockID] not_eq nullptr) {
+      if (segmentsPerBlock[info.id] not_eq nullptr) {
         ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
-        shape->obstacleBlocks[info.blockID] = block;
+        shape->obstacleBlocks[info.id] = block;
         block->clear_surface();
         std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
         std::fill(block->chi[0], block->chi[0] + _BS_ * _BS_, 0);
@@ -6360,10 +6364,9 @@ static void ongrid(Real dt) {
 
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
-        const auto pos = segmentsPerBlock[tmpInfo[i].blockID];
+        const auto pos = segmentsPerBlock[tmpInfo[i].id];
         if (pos not_eq nullptr) {
-          ObstacleBlock *const block =
-              shape->obstacleBlocks[tmpInfo[i].blockID];
+          ObstacleBlock *const block = shape->obstacleBlocks[tmpInfo[i].id];
           assert(block not_eq nullptr);
           const BlockInfo &info = tmpInfo[i];
           ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
@@ -6372,7 +6375,7 @@ static void ongrid(Real dt) {
 
           // putfish(info, b, o, v);
           Real org[2];
-          info.pos(org, 0, 0);
+          info.pos0(org, 0, 0);
           const Real h = info.h, invh = 1.0 / info.h;
           const Real *const rX = shape->rX, *const norX = shape->norX;
           const Real *const rY = shape->rY, *const norY = shape->norY;
@@ -6415,7 +6418,7 @@ static void ongrid(Real dt) {
                   for (int sx = std::max(0, iap[0] - 2);
                        sx < std::min(iap[0] + 4, BS[0]); ++sx) {
                     Real p[2];
-                    info.pos(p, sx, sy);
+                    info.pos0(p, sx, sy);
                     const Real dist0 = dist(p, myP);
                     const Real distP = dist(p, pP);
                     const Real distM = dist(p, pM);
@@ -6477,7 +6480,7 @@ static void ongrid(Real dt) {
               }
             }
           }
-          info.pos(org, 0, 0);
+          info.pos0(org, 0, 0);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
@@ -6573,7 +6576,7 @@ static void ongrid(Real dt) {
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
     for (size_t i = 0; i < chiInfo.size(); i++) {
       const Real hsq = std::pow(chiInfo[i].h, 2);
-      const auto pos = shape->obstacleBlocks[chiInfo[i].blockID];
+      const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
       const CHI_MAT &__restrict__ CHI = pos->chi;
@@ -6583,7 +6586,7 @@ static void ongrid(Real dt) {
           if (CHI[iy][ix] <= 0)
             continue;
           Real p[2];
-          chiInfo[i].pos(p, ix, iy);
+          chiInfo[i].pos0(p, ix, iy);
           const Real chi = CHI[iy][ix] * hsq;
           p[0] -= shape->centerOfMass[0];
           p[1] -= shape->centerOfMass[1];
@@ -6620,13 +6623,13 @@ static void ongrid(Real dt) {
                      dCy * std::cos(shape->orientation);
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < chiInfo.size(); i++) {
-      const auto pos = shape->obstacleBlocks[chiInfo[i].blockID];
+      const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
           Real p[2];
-          chiInfo[i].pos(p, ix, iy);
+          chiInfo[i].pos0(p, ix, iy);
           p[0] -= shape->centerOfMass[0];
           p[1] -= shape->centerOfMass[1];
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
@@ -6710,7 +6713,7 @@ struct GradChiOnTmp {
   const StencilInfo stencil{-4, -4, 0, 5, 5, 1, true, {0}};
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
-    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].block;
+    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     const int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < _BS_ + offset; ++y)
@@ -6803,15 +6806,14 @@ template <typename ElementType> struct KernelAdvectDiffuse {
     Real h = info.h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    VectorBlock &__restrict__ TMP =
-        *(VectorBlock *)tmpVInfo[info.blockID].block;
+    VectorBlock &__restrict__ TMP = *(VectorBlock *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
     BlockCase<ElementType> *tempCase =
-        (BlockCase<ElementType> *)(tmpVInfo[info.blockID].auxiliary);
+        (BlockCase<ElementType> *)(tmpVInfo[info.id].auxiliary);
     ElementType *faceXm = nullptr;
     ElementType *faceXp = nullptr;
     ElementType *faceYm = nullptr;
@@ -6873,7 +6875,7 @@ struct KernelComputeForces {
   void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
     VectorLab &V = lab;
-    ScalarBlock &__restrict__ P = *(ScalarBlock *)presInfo[info.blockID].block;
+    ScalarBlock &__restrict__ P = *(ScalarBlock *)presInfo[info.id].block;
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
@@ -6883,7 +6885,7 @@ struct KernelComputeForces {
           vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
           vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
       const Real NUoH = sim.nu / info.h;
-      ObstacleBlock *const O = OBLOCK[info.blockID];
+      ObstacleBlock *const O = OBLOCK[info.id];
       if (O == nullptr)
         continue;
       assert(O->filled);
@@ -7134,8 +7136,7 @@ struct PoissonSolver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const BlockInfo &info) const {
-      return (info.blockID +
-              ps.Nblocks_xcumsum_[var.tmp->Tree(info).position]) *
+      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree(info).position]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
@@ -7508,15 +7509,14 @@ struct pressureCorrectionKernel {
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
-    VectorBlock &__restrict__ tmpV =
-        *(VectorBlock *)tmpVInfo[info.blockID].block;
+    VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
         tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
     BlockCase<VectorElement> *tempCase =
-        (BlockCase<VectorElement> *)(tmpVInfo[info.blockID].auxiliary);
+        (BlockCase<VectorElement> *)(tmpVInfo[info.id].auxiliary);
     VectorElement *faceXm = nullptr;
     VectorElement *faceXp = nullptr;
     VectorElement *faceYm = nullptr;
@@ -7567,8 +7567,8 @@ struct pressure_rhs {
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
-    ScalarBlock &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.blockID].block;
-    ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.blockID].block;
+    ScalarBlock &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
+    ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         TMP[iy][ix].s =
@@ -7580,7 +7580,7 @@ struct pressure_rhs {
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
     BlockCase<ScalarElement> *tempCase =
-        (BlockCase<ScalarElement> *)(tmpInfo[info.blockID].auxiliary);
+        (BlockCase<ScalarElement> *)(tmpInfo[info.id].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7632,14 +7632,14 @@ struct pressure_rhs1 {
   StencilInfo stencil{-1, -1, 0, 2, 2, 1, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
-        *(ScalarBlock *)var.tmp->infos[info.blockID].block;
+        *(ScalarBlock *)var.tmp->infos[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
         TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
                            (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
                           4.0 * lab(ix, iy).s);
     BlockCase<ScalarElement> *tempCase =
-        (BlockCase<ScalarElement> *)(var.tmp->infos[info.blockID].auxiliary);
+        (BlockCase<ScalarElement> *)(var.tmp->infos[info.id].auxiliary);
     ScalarElement *faceXm = nullptr;
     ScalarElement *faceXp = nullptr;
     ScalarElement *faceYm = nullptr;
@@ -7870,10 +7870,10 @@ int main(int argc, char **argv) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      if (OBLOCK[var.tmpV->infos[i].blockID] == nullptr)
+      if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
         continue;
-      UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->infos[i].blockID]->udef;
-      CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->infos[i].blockID]->chi;
+      UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->infos[i].id]->udef;
+      CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->infos[i].id]->chi;
       auto &__restrict__ UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
       ScalarBlock &__restrict__ CHI = *(ScalarBlock *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
@@ -7881,7 +7881,7 @@ int main(int argc, char **argv) {
           if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
           Real p[2];
-          var.tmpV->infos[i].pos(p, ix, iy);
+          var.tmpV->infos[i].pos0(p, ix, iy);
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
@@ -8006,10 +8006,10 @@ int main(int argc, char **argv) {
           const VectorBlock &__restrict__ VEL =
               *(VectorBlock *)velInfo[i].block;
           const Real hsq = velInfo[i].h * velInfo[i].h;
-          if (OBLOCK[velInfo[i].blockID] == nullptr)
+          if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
-          const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].blockID]->chi;
-          const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].blockID]->udef;
+          const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].id]->chi;
+          const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
@@ -8020,7 +8020,7 @@ int main(int argc, char **argv) {
               const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
               const Real F = hsq * Xlamdt / (1 + Xlamdt);
               Real p[2];
-              velInfo[i].pos(p, ix, iy);
+              velInfo[i].pos0(p, ix, iy);
               p[0] -= Cx;
               p[1] -= Cy;
               PM += F;
@@ -8338,7 +8338,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < Nblocks; i++)
         for (auto &shape : sim.shapes) {
           std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-          ObstacleBlock *o = OBLOCK[velInfo[i].blockID];
+          ObstacleBlock *o = OBLOCK[velInfo[i].id];
           if (o == nullptr)
             continue;
           Real u_s = shape->u;
@@ -8357,7 +8357,7 @@ int main(int argc, char **argv) {
               if (X[iy][ix] <= 0)
                 continue;
               Real p[2];
-              velInfo[i].pos(p, ix, iy);
+              velInfo[i].pos0(p, ix, iy);
               p[0] -= Cx;
               p[1] -= Cy;
               Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
@@ -8380,10 +8380,10 @@ int main(int argc, char **argv) {
         std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
         for (size_t i = 0; i < Nblocks; i++) {
-          if (OBLOCK[tmpVInfo[i].blockID] == nullptr)
+          if (OBLOCK[tmpVInfo[i].id] == nullptr)
             continue;
-          UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].blockID]->udef;
-          CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].blockID]->chi;
+          UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].id]->udef;
+          CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].id]->chi;
           auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].block;
           ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
@@ -8391,7 +8391,7 @@ int main(int argc, char **argv) {
               if (chi[iy][ix] < CHI[iy][ix].s)
                 continue;
               Real p[2];
-              tmpVInfo[i].pos(p, ix, iy);
+              tmpVInfo[i].pos0(p, ix, iy);
               UDEF[iy][ix].u[0] += udef[iy][ix][0];
               UDEF[iy][ix].u[1] += udef[iy][ix][1];
             }
