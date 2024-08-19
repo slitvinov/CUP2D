@@ -627,7 +627,6 @@ struct TreePosition {
   int position{-3};
   bool CheckCoarser() const { return position == -2; }
   bool CheckFiner() const { return position == -1; }
-  void setCheckFiner() { position = -1; }
 };
 struct BlockInfo {
   bool changed2;
