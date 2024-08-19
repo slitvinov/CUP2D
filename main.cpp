@@ -626,7 +626,6 @@ enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 struct TreePosition {
   int position{-3};
   bool CheckCoarser() const { return position == -2; }
-  bool CheckFiner() const { return position == -1; }
 };
 struct BlockInfo {
   bool changed2;
@@ -2503,7 +2502,7 @@ template <typename ElementType> struct Grid {
           }
       if (levels[i] > 0) {
         const long long nf = getZforward(levels[i] - 1, p[0] / 2, p[1] / 2);
-        Tree0(levels[i] - 1, nf).setCheckFiner();
+        Tree0(levels[i] - 1, nf).position = -1;
       }
     }
     FillPos();
@@ -2806,7 +2805,7 @@ template <typename ElementType> struct Grid {
             }
         if (level > 0) {
           const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
-          Tree0(level - 1, nf).setCheckFiner();
+          Tree0(level - 1, nf).position = -1;
         }
       }
     }
@@ -4061,7 +4060,7 @@ template <typename ElementType> struct LoadBalancer {
         }
     if (level > 0) {
       const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
-      grid->Tree0(level - 1, nf).setCheckFiner();
+      grid->Tree0(level - 1, nf).position = -1;
     }
   }
   LoadBalancer(Grid<ElementType> &a_grid) {
@@ -4698,7 +4697,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 #pragma omp critical
         { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).id2); }
         BlockInfo &parent = grid->getBlockInfoAll(level, Z);
-        grid->Tree1(parent).setCheckFiner();
+        grid->Tree1(parent).position = -1;
         parent.state = Leave;
         int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         for (int j = 0; j < 2; j++)
@@ -4752,7 +4751,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       parent.block = info.block;
       parent.state = Leave;
       if (level - 2 >= 0)
-        grid->Tree0(level - 2, parent.Zparent).setCheckFiner();
+        grid->Tree0(level - 2, parent.Zparent).position = -1;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
