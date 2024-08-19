@@ -311,6 +311,44 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[2] = o2[2] + J2[2] * impulse;
 }
 struct Shape;
+struct SpaceCurve;
+static struct {
+  int rank;
+  int size;
+  int bpdx;
+  int bpdy;
+  int levelMax;
+  int levelStart;
+  Real Rtol;
+  Real Ctol;
+  int AdaptSteps{20};
+  bool bAdaptChiGradient;
+  Real extent;
+  Real extents[2];
+  Real dt;
+  Real CFL;
+  int nsteps;
+  Real endTime;
+  Real lambda;
+  Real dlm;
+  Real nu;
+  Real PoissonTol;
+  Real PoissonTolRel;
+  int maxPoissonRestarts;
+  int maxPoissonIterations;
+  int bMeanConstraint;
+  int dumpFreq;
+  Real dumpTime;
+  Real time = 0;
+  int step = 0;
+  Real uinfx = 0;
+  Real uinfy = 0;
+  Real nextDumpTime = 0;
+  Real minH;
+  struct SpaceCurve *space_curve;
+  std::vector<Shape *> shapes;
+  std::vector<int> bCollisionID;
+} sim;
 struct SpaceCurve {
   int BX;
   int BY;
@@ -463,43 +501,7 @@ struct SpaceCurve {
     return retval;
   }
 };
-static struct {
-  int rank;
-  int size;
-  int bpdx;
-  int bpdy;
-  int levelMax;
-  int levelStart;
-  Real Rtol;
-  Real Ctol;
-  int AdaptSteps{20};
-  bool bAdaptChiGradient;
-  Real extent;
-  Real extents[2];
-  Real dt;
-  Real CFL;
-  int nsteps;
-  Real endTime;
-  Real lambda;
-  Real dlm;
-  Real nu;
-  Real PoissonTol;
-  Real PoissonTolRel;
-  int maxPoissonRestarts;
-  int maxPoissonIterations;
-  int bMeanConstraint;
-  int dumpFreq;
-  Real dumpTime;
-  Real time = 0;
-  int step = 0;
-  Real uinfx = 0;
-  Real uinfy = 0;
-  Real nextDumpTime = 0;
-  Real minH;
-  struct SpaceCurve *space_curve;
-  std::vector<Shape *> shapes;
-  std::vector<int> bCollisionID;
-} sim;
+
 struct Value {
   std::string content;
   Value() = default;
@@ -665,7 +667,7 @@ struct BlockInfo {
     changed2 = true;
     auxiliary = nullptr;
     const int TwoPower = 1 << level;
-    inverse(Z, level, index[0], index[1]);
+    inverse0(Z, level, index[0], index[1]);
     index[2] = 0;
     const int Bmax[3] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower, 1};
     for (int i = -1; i < 2; i++)
@@ -2579,7 +2581,7 @@ template <typename ElementType> struct Grid {
       _alloc(level, Z);
       Tree(level, Z).position = sim.rank;
       int p[2];
-      BlockInfo::inverse(Z, level, p[0], p[1]);
+      BlockInfo::inverse0(Z, level, p[0], p[1]);
       if (level < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
@@ -2884,7 +2886,7 @@ template <typename ElementType> struct Grid {
         if (UpdateIDs)
           getBlockInfoAll(level, Z).blockID = recv_buffer[kk][index__ + 2];
         int p[2];
-        BlockInfo::inverse(Z, level, p[0], p[1]);
+        BlockInfo::inverse0(Z, level, p[0], p[1]);
         if (level < sim.levelMax - 1)
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
@@ -3058,7 +3060,7 @@ template <typename ElementType> struct Grid {
           double h = h0 / TwoPower;
           double origin[3];
           int i, j, k;
-          BlockInfo::inverse(n, m, i, j);
+          BlockInfo::inverse0(n, m, i, j);
           k = 0;
           origin[0] = i * _BS_ * h;
           origin[1] = j * _BS_ * h;
@@ -4138,7 +4140,7 @@ template <typename ElementType> struct LoadBalancer {
     Real *a1 = &(*b1[0][0]).member(0);
     std::memcpy(a1, data, sizeof(BlockType));
     int p[2];
-    BlockInfo::inverse(Z, level, p[0], p[1]);
+    BlockInfo::inverse0(Z, level, p[0], p[1]);
     if (level < sim.levelMax - 1)
       for (int j1 = 0; j1 < 2; j1++)
         for (int i1 = 0; i1 < 2; i1++) {
@@ -7780,6 +7782,7 @@ int main(int argc, char **argv) {
   bool xperiodic = dummy.is_xperiodic();
   bool yperiodic = dummy.is_yperiodic();
   bool zperiodic = dummy.is_zperiodic();
+  sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   var.chi = new ScalarGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
                            zperiodic);
   var.vel = new VectorGrid(sim.extent, sim.levelStart, xperiodic, yperiodic,
