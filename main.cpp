@@ -640,38 +640,7 @@ struct BlockInfo {
   }
   BlockInfo(){};
   void setup0(const int m, const double h0, const double origin0[3],
-             const long long n) {
-    level = m;
-    Z = n;
-    state = Leave;
-    h = h0;
-    origin[0] = origin0[0];
-    origin[1] = origin0[1];
-    origin[2] = origin0[2];
-    changed2 = true;
-    auxiliary = nullptr;
-    const int TwoPower = 1 << level;
-    sim.space_curve->inverse(Z, level, index[0], index[1]);
-    index[2] = 0;
-    const int Bmax[3] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower, 1};
-    for (int i = -1; i < 2; i++)
-      for (int j = -1; j < 2; j++)
-        for (int k = -1; k < 2; k++)
-          Znei[i + 1][j + 1][k + 1] = sim.space_curve->forward(
-              level, (index[0] + i + Bmax[0]) % Bmax[0],
-              (index[1] + j + Bmax[1]) % Bmax[1]);
-    for (int i = 0; i < 2; i++)
-      for (int j = 0; j < 2; j++)
-        for (int k = 0; k < 2; k++)
-          Zchild[i][j][k] = sim.space_curve->forward(
-              level + 1, 2 * index[0] + i, 2 * index[1] + j);
-    Zparent = (level == 0) ? 0
-                           : sim.space_curve->forward(
-                                 level - 1, (index[0] / 2 + Bmax[0]) % Bmax[0],
-                                 (index[1] / 2 + Bmax[1]) % Bmax[1]);
-    blockID_2 = sim.space_curve->Encode(level, index);
-    blockID = blockID_2;
-  }
+              const long long n) {}
   long long Znei_(const int i, const int j, const int k) const {
     assert(abs(i) <= 1);
     assert(abs(j) <= 1);
@@ -3039,14 +3008,48 @@ template <typename ElementType> struct Grid {
         const auto retval1 = BlockInfoAll.find(aux);
         if (retval1 == BlockInfoAll.end()) {
           BlockInfo *dumm = new BlockInfo();
-          const double h0 = maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) / (1 << m);
-          double origin[3];
+          const double h0 =
+              maxextent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) / (1 << m);
+          double origin0[3];
           int i, j;
           sim.space_curve->inverse(n, m, i, j);
-          origin[0] = i * _BS_ * h0;
-          origin[1] = j * _BS_ * h0;
-          origin[2] = h0;
-          dumm->setup0(m, h0, origin, n);
+          origin0[0] = i * _BS_ * h0;
+          origin0[1] = j * _BS_ * h0;
+          origin0[2] = h0;
+          dumm->level = m;
+          dumm->Z = n;
+          dumm->state = Leave;
+          dumm->h = h0;
+          dumm->origin[0] = origin0[0];
+          dumm->origin[1] = origin0[1];
+          dumm->origin[2] = origin0[2];
+          dumm->changed2 = true;
+          dumm->auxiliary = nullptr;
+          const int TwoPower = 1 << dumm->level;
+          sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
+                                   dumm->index[1]);
+          dumm->index[2] = 0;
+          const int Bmax[3] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower, 1};
+          for (int i = -1; i < 2; i++)
+            for (int j = -1; j < 2; j++)
+              for (int k = -1; k < 2; k++)
+                dumm->Znei[i + 1][j + 1][k + 1] = sim.space_curve->forward(
+                    dumm->level, (dumm->index[0] + i + Bmax[0]) % Bmax[0],
+                    (dumm->index[1] + j + Bmax[1]) % Bmax[1]);
+          for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
+              for (int k = 0; k < 2; k++)
+                dumm->Zchild[i][j][k] = sim.space_curve->forward(
+                    dumm->level + 1, 2 * dumm->index[0] + i,
+                    2 * dumm->index[1] + j);
+          dumm->Zparent = (dumm->level == 0)
+                              ? 0
+                              : sim.space_curve->forward(
+                                    dumm->level - 1,
+                                    (dumm->index[0] / 2 + Bmax[0]) % Bmax[0],
+                                    (dumm->index[1] / 2 + Bmax[1]) % Bmax[1]);
+          dumm->blockID_2 = sim.space_curve->Encode(dumm->level, dumm->index);
+          dumm->blockID = dumm->blockID_2;
           BlockInfoAll[aux] = dumm;
         }
       }
