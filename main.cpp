@@ -628,14 +628,11 @@ struct TreePosition {
 };
 struct BlockInfo {
   bool changed2;
-  double h;
-  double origin[3];
-  int index[3];
-  int level;
-  long long id, id2, halo_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
+  double h, origin[3];
   enum State state;
-  void *auxiliary;
-  void *block{nullptr};
+  int index[3], level;
+  long long id, id2, halo_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
+  void *auxiliary, *block{nullptr};
   bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
 };
 template <typename ElementType> struct BlockCase {
