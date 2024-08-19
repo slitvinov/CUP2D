@@ -627,8 +627,9 @@ struct BlockInfo {
   State state;
   void *auxiliary;
   void *block{nullptr};
-  static int levelMax(int l = 0) {
+  static int levelMax(int l) {
     static int lmax = l;
+    assert(lmax == 0);
     return lmax;
   }
   static int blocks_per_dim(int i, int nx = 0, int ny = 0) {
@@ -637,7 +638,7 @@ struct BlockInfo {
   }
   static SpaceFillingCurve2D *SFC() {
     static SpaceFillingCurve2D Zcurve(blocks_per_dim(0), blocks_per_dim(1),
-                                      levelMax());
+                                      levelMax(0));
     return &Zcurve;
   }
   static long long forward(int level, int ix, int iy) {
