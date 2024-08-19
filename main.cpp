@@ -1468,16 +1468,6 @@ template <typename TGrid> struct Synchronizer {
         }
     return retval;
   }
-  std::string EncodeSet(const std::set<int> &ranks) {
-    std::string retval;
-    for (auto r : ranks) {
-      std::stringstream ss;
-      ss << std::setw(sim.size) << std::setfill('0') << r;
-      std::string s = ss.str();
-      retval += s;
-    }
-    return retval;
-  }
   void _Setup() {
     Neighbors.clear();
     inner_blocks.clear();
@@ -1762,7 +1752,13 @@ template <typename TGrid> struct Synchronizer {
         const UnPackInfo &unpack = unpacks[jj];
         ranks.insert(unpack.rank);
       }
-      auto set_ID = EncodeSet(ranks);
+      std::string set_ID;
+      for (auto r : ranks) {
+	std::stringstream ss;
+	ss << std::setw(sim.size) << std::setfill('0') << r;
+	std::string s = ss.str();
+	set_ID += s;
+      }
       const auto retval = mapofHaloBlockGroups.find(set_ID);
       if (retval == mapofHaloBlockGroups.end()) {
         HaloBlockGroup temporary;
