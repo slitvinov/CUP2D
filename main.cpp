@@ -2491,24 +2491,22 @@ template <typename ElementType> struct Grid {
     for (long long n = n_start; n < n_start + my_blocks; n++)
       Zs[n - n_start] = n;
     for (size_t i = 0; i < my_blocks; i++) {
-      const int level = levels[i];
-      const long long Z = Zs[i];
-      BlockInfo &new_info = getBlockInfoAll(level, Z);
+      BlockInfo &new_info = getBlockInfoAll(levels[i], Zs[i]);
       new_info.block = new Block;
       infos.push_back(new_info);
-      Tree(level, Z).position = sim.rank;
+      Tree(levels[i], Zs[i]).position = sim.rank;
       int p[2];
-      sim.space_curve->inverse(Z, level, p[0], p[1]);
-      if (level < sim.levelMax - 1)
+      sim.space_curve->inverse(Zs[i], levels[i], p[0], p[1]);
+      if (levels[i] < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
-                getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Tree(level + 1, nc).setCheckCoarser();
+                getZforward(levels[i] + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            Tree(levels[i] + 1, nc).setCheckCoarser();
           }
-      if (level > 0) {
-        const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
-        Tree(level - 1, nf).setCheckFiner();
+      if (levels[i] > 0) {
+        const long long nf = getZforward(levels[i] - 1, p[0] / 2, p[1] / 2);
+        Tree(levels[i] - 1, nf).setCheckFiner();
       }
     }
     FillPos();
@@ -2936,10 +2934,10 @@ template <typename ElementType> struct Grid {
         assert(Tree(m, n).Exists());
       }
   }
-  long long getZforward(const int level, const int i, const int j) const {
-    const int TwoPower = 1 << level;
-    const int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
-    const int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
+  long long getZforward(int level, int i, int j) const {
+    int TwoPower = 1 << level;
+    int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
+    int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
     return sim.space_curve->forward(level, ix, iy);
   }
   Block *avail1(const int ix, const int iy, const int m) {
