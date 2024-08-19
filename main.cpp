@@ -4653,16 +4653,14 @@ template <typename TLab, typename ElementType> struct Adaptation {
               grid->getZforward(level, info.index[0] + I, info.index[1] + J);
           Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).ptrBlock;
         }
-      const int nx = _BS_;
-      const int ny = _BS_;
-      const int offsetX[2] = {0, nx / 2};
-      const int offsetY[2] = {0, ny / 2};
+      const int offsetX[2] = {0, _BS_ / 2};
+      const int offsetY[2] = {0, _BS_ / 2};
       if (basic_refinement == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             BlockType &b = *Blocks[J * 2 + I];
-            for (int j = 0; j < ny; j += 2)
-              for (int i = 0; i < nx; i += 2) {
+            for (int j = 0; j < _BS_; j += 2)
+              for (int i = 0; i < _BS_; i += 2) {
                 ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
                                               (b[j][i + 1] + b[j + 1][i]));
                 (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
