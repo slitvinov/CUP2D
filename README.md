@@ -41,6 +41,8 @@ main="xterm -e gdb -ex run -args ./main" sh run.sh
 FAS RC:
 ```
 module load gcc openmpi cuda
-salloc -p seas_gpu --gpus 1 --mem 1Gb
-main='srun -l ./main' sh -x run.sh
+make
+salloc -N 1 -n 2 -c 4 -p seas_gpu --gpus 1 --mem 1Gb
+...
+OMP_NUM_THREADS=4 main='srun --mpi=pmix ./main' sh -x run.sh
 ```
