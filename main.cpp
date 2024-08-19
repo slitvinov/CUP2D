@@ -54,6 +54,179 @@ static double getA_local(int I1, int I2) {
   else
     return 0.0;
 }
+static void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
+                 int *selected_components, int ncomponents, int xstart,
+                 int ystart, int zstart, int xend, int yend, int zend, int BSX,
+                 int BSY) {
+  if (gptfloats == 1) {
+    const int mod = (xend - xstart) % 4;
+    for (int idst = 0, iz = zstart; iz < zend; ++iz)
+      for (int iy = ystart; iy < yend; ++iy) {
+        for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
+          dst[idst + 0] = srcbase[ix + 0 + BSX * (iy + BSY * iz)];
+          dst[idst + 1] = srcbase[ix + 1 + BSX * (iy + BSY * iz)];
+          dst[idst + 2] = srcbase[ix + 2 + BSX * (iy + BSY * iz)];
+          dst[idst + 3] = srcbase[ix + 3 + BSX * (iy + BSY * iz)];
+        }
+        for (int ix = xend - mod; ix < xend; ix++, idst++) {
+          dst[idst] = srcbase[ix + BSX * (iy + BSY * iz)];
+        }
+      }
+  } else {
+    for (int idst = 0, iz = zstart; iz < zend; ++iz)
+      for (int iy = ystart; iy < yend; ++iy)
+        for (int ix = xstart; ix < xend; ++ix) {
+          const Real *src = srcbase + gptfloats * (ix + BSX * (iy + BSY * iz));
+          for (int ic = 0; ic < ncomponents; ic++, idst++)
+            dst[idst] = src[selected_components[ic]];
+        }
+  }
+}
+static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
+                             int *selected_components, int ncomponents,
+                             int srcxstart, int srcystart, int srczstart,
+                             int LX, int LY, int dstxstart, int dstystart,
+                             int dstzstart, int dstxend, int dstyend,
+                             int dstzend, int xsize, int ysize) {
+  if (gptfloats == 1) {
+    const int mod = (dstxend - dstxstart) % 4;
+    for (int zd = dstzstart; zd < dstzend; ++zd)
+      for (int yd = dstystart; yd < dstyend; ++yd) {
+        const int offset = -dstxstart + srcxstart +
+                           LX * (yd - dstystart + srcystart +
+                                 LY * (zd - dstzstart + srczstart));
+        const int offset_dst = xsize * (yd + ysize * zd);
+        for (int xd = dstxstart; xd < dstxend - mod; xd += 4) {
+          dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
+          dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
+          dstbase[xd + 2 + offset_dst] = pack[xd + 2 + offset];
+          dstbase[xd + 3 + offset_dst] = pack[xd + 3 + offset];
+        }
+        for (int xd = dstxend - mod; xd < dstxend; ++xd) {
+          dstbase[xd + offset_dst] = pack[xd + offset];
+        }
+      }
+  } else {
+    for (int zd = dstzstart; zd < dstzend; ++zd)
+      for (int yd = dstystart; yd < dstyend; ++yd)
+        for (int xd = dstxstart; xd < dstxend; ++xd) {
+          Real *const dst =
+              dstbase + gptfloats * (xd + xsize * (yd + ysize * zd));
+          const Real *src =
+              pack + ncomponents * (xd - dstxstart + srcxstart +
+                                    LX * (yd - dstystart + srcystart +
+                                          LY * (zd - dstzstart + srczstart)));
+          for (int c = 0; c < ncomponents; ++c)
+            dst[selected_components[c]] = src[c];
+        }
+  }
+}
+static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
+                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
+                       Real *norY, Real *vNorX, Real *vNorY) {
+  rX[0] = 0.0;
+  rY[0] = 0.0;
+  norX[0] = 0.0;
+  norY[0] = 1.0;
+  Real ksiX = 1.0;
+  Real ksiY = 0.0;
+  vX[0] = 0.0;
+  vY[0] = 0.0;
+  vNorX[0] = 0.0;
+  vNorY[0] = 0.0;
+  Real vKsiX = 0.0;
+  Real vKsiY = 0.0;
+  for (unsigned i = 1; i < Nm; i++) {
+    const Real dksiX = curv[i - 1] * norX[i - 1];
+    const Real dksiY = curv[i - 1] * norY[i - 1];
+    const Real dnuX = -curv[i - 1] * ksiX;
+    const Real dnuY = -curv[i - 1] * ksiY;
+    const Real dvKsiX =
+        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
+    const Real dvKsiY =
+        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
+    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
+    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
+    const Real ds = rS[i] - rS[i - 1];
+    rX[i] = rX[i - 1] + ds * ksiX;
+    rY[i] = rY[i - 1] + ds * ksiY;
+    norX[i] = norX[i - 1] + ds * dnuX;
+    norY[i] = norY[i - 1] + ds * dnuY;
+    ksiX += ds * dksiX;
+    ksiY += ds * dksiY;
+    vX[i] = vX[i - 1] + ds * vKsiX;
+    vY[i] = vY[i - 1] + ds * vKsiY;
+    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
+    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
+    vKsiX += ds * dvKsiX;
+    vKsiY += ds * dvKsiY;
+    const Real d1 = ksiX * ksiX + ksiY * ksiY;
+    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
+    if (d1 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d1);
+      ksiX *= normfac;
+      ksiY *= normfac;
+    }
+    if (d2 > std::numeric_limits<Real>::epsilon()) {
+      const Real normfac = 1 / std::sqrt(d2);
+      norX[i] *= normfac;
+      norY[i] *= normfac;
+    }
+  }
+}
+static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
+  Real exponent = 2, e = 1e-6;
+  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
+            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
+  Real b2 =
+      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
+  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
+            0.25 * pow((3 * u + up2) - 4 * up1, 2);
+  Real g1 = 0.1, g2 = 0.6, g3 = 0.3;
+  Real what1 = g1 / pow(b1 + e, exponent);
+  Real what2 = g2 / pow(b2 + e, exponent);
+  Real what3 = g3 / pow(b3 + e, exponent);
+  Real aux = 1.0 / ((what1 + what3) + what2);
+  Real w1 = what1 * aux, w2 = what2 * aux, w3 = what3 * aux;
+  Real f1 = (11.0 / 6.0) * u + ((1.0 / 3.0) * um2 - (7.0 / 6.0) * um1);
+  Real f2 = (5.0 / 6.0) * u + ((-1.0 / 6.0) * um1 + (1.0 / 3.0) * up1);
+  Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
+  return (w1 * f1 + w3 * f3) + w2 * f2;
+}
+static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
+  Real exponent = 2, e = 1e-6;
+  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
+            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
+  Real b2 =
+      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
+  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
+            0.25 * pow((3 * u + up2) - 4 * up1, 2);
+  Real g1 = 0.3, g2 = 0.6, g3 = 0.1;
+  Real what1 = g1 / pow(b1 + e, exponent);
+  Real what2 = g2 / pow(b2 + e, exponent);
+  Real what3 = g3 / pow(b3 + e, exponent);
+  Real aux = 1.0 / ((what1 + what3) + what2);
+  Real w1 = what1 * aux;
+  Real w2 = what2 * aux;
+  Real w3 = what3 * aux;
+  Real f1 = (1.0 / 3.0) * u + ((-1.0 / 6.0) * um2 + (5.0 / 6.0) * um1);
+  Real f2 = (5.0 / 6.0) * u + ((1.0 / 3.0) * um1 - (1.0 / 6.0) * up1);
+  Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
+  return (w1 * f1 + w3 * f3) + w2 * f2;
+}
+static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
+                       Real up2, Real up3) {
+  Real fp = 0.0;
+  Real fm = 0.0;
+  if (U > 0) {
+    fp = weno5_plus(um2, um1, u, up1, up2);
+    fm = weno5_plus(um3, um2, um1, u, up1);
+  } else {
+    fp = weno5_minus(um1, u, up1, up2, up3);
+    fm = weno5_minus(um2, um1, u, up1, up2);
+  }
+  return (fp - fm);
+}
 struct Shape;
 static struct {
   int rank;
@@ -705,72 +878,6 @@ struct StencilInfo {
     return me.size() < you.size();
   }
 };
-void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
-          int *selected_components, int ncomponents, int xstart, int ystart,
-          int zstart, int xend, int yend, int zend, int BSX, int BSY) {
-  if (gptfloats == 1) {
-    const int mod = (xend - xstart) % 4;
-    for (int idst = 0, iz = zstart; iz < zend; ++iz)
-      for (int iy = ystart; iy < yend; ++iy) {
-        for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
-          dst[idst + 0] = srcbase[ix + 0 + BSX * (iy + BSY * iz)];
-          dst[idst + 1] = srcbase[ix + 1 + BSX * (iy + BSY * iz)];
-          dst[idst + 2] = srcbase[ix + 2 + BSX * (iy + BSY * iz)];
-          dst[idst + 3] = srcbase[ix + 3 + BSX * (iy + BSY * iz)];
-        }
-        for (int ix = xend - mod; ix < xend; ix++, idst++) {
-          dst[idst] = srcbase[ix + BSX * (iy + BSY * iz)];
-        }
-      }
-  } else {
-    for (int idst = 0, iz = zstart; iz < zend; ++iz)
-      for (int iy = ystart; iy < yend; ++iy)
-        for (int ix = xstart; ix < xend; ++ix) {
-          const Real *src = srcbase + gptfloats * (ix + BSX * (iy + BSY * iz));
-          for (int ic = 0; ic < ncomponents; ic++, idst++)
-            dst[idst] = src[selected_components[ic]];
-        }
-  }
-}
-static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
-                             int *selected_components, int ncomponents,
-                             int srcxstart, int srcystart, int srczstart,
-                             int LX, int LY, int dstxstart, int dstystart,
-                             int dstzstart, int dstxend, int dstyend,
-                             int dstzend, int xsize, int ysize) {
-  if (gptfloats == 1) {
-    const int mod = (dstxend - dstxstart) % 4;
-    for (int zd = dstzstart; zd < dstzend; ++zd)
-      for (int yd = dstystart; yd < dstyend; ++yd) {
-        const int offset = -dstxstart + srcxstart +
-                           LX * (yd - dstystart + srcystart +
-                                 LY * (zd - dstzstart + srczstart));
-        const int offset_dst = xsize * (yd + ysize * zd);
-        for (int xd = dstxstart; xd < dstxend - mod; xd += 4) {
-          dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
-          dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
-          dstbase[xd + 2 + offset_dst] = pack[xd + 2 + offset];
-          dstbase[xd + 3 + offset_dst] = pack[xd + 3 + offset];
-        }
-        for (int xd = dstxend - mod; xd < dstxend; ++xd) {
-          dstbase[xd + offset_dst] = pack[xd + offset];
-        }
-      }
-  } else {
-    for (int zd = dstzstart; zd < dstzend; ++zd)
-      for (int yd = dstystart; yd < dstyend; ++yd)
-        for (int xd = dstxstart; xd < dstxend; ++xd) {
-          Real *const dst =
-              dstbase + gptfloats * (xd + xsize * (yd + ysize * zd));
-          const Real *src =
-              pack + ncomponents * (xd - dstxstart + srcxstart +
-                                    LX * (yd - dstystart + srcystart +
-                                          LY * (zd - dstzstart + srczstart)));
-          for (int c = 0; c < ncomponents; ++c)
-            dst[selected_components[c]] = src[c];
-        }
-  }
-}
 struct Interface {
   BlockInfo *infos[2];
   int icode[2];
@@ -5908,59 +6015,6 @@ struct PutChiOnGrid {
     }
   }
 };
-static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
-                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
-                       Real *norY, Real *vNorX, Real *vNorY) {
-  rX[0] = 0.0;
-  rY[0] = 0.0;
-  norX[0] = 0.0;
-  norY[0] = 1.0;
-  Real ksiX = 1.0;
-  Real ksiY = 0.0;
-  vX[0] = 0.0;
-  vY[0] = 0.0;
-  vNorX[0] = 0.0;
-  vNorY[0] = 0.0;
-  Real vKsiX = 0.0;
-  Real vKsiY = 0.0;
-  for (unsigned i = 1; i < Nm; i++) {
-    const Real dksiX = curv[i - 1] * norX[i - 1];
-    const Real dksiY = curv[i - 1] * norY[i - 1];
-    const Real dnuX = -curv[i - 1] * ksiX;
-    const Real dnuY = -curv[i - 1] * ksiY;
-    const Real dvKsiX =
-        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-    const Real dvKsiY =
-        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
-    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
-    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-    const Real ds = rS[i] - rS[i - 1];
-    rX[i] = rX[i - 1] + ds * ksiX;
-    rY[i] = rY[i - 1] + ds * ksiY;
-    norX[i] = norX[i - 1] + ds * dnuX;
-    norY[i] = norY[i - 1] + ds * dnuY;
-    ksiX += ds * dksiX;
-    ksiY += ds * dksiY;
-    vX[i] = vX[i - 1] + ds * vKsiX;
-    vY[i] = vY[i - 1] + ds * vKsiY;
-    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
-    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
-    vKsiX += ds * dvKsiX;
-    vKsiY += ds * dvKsiY;
-    const Real d1 = ksiX * ksiX + ksiY * ksiY;
-    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
-    if (d1 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d1);
-      ksiX *= normfac;
-      ksiY *= normfac;
-    }
-    if (d2 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d2);
-      norX[i] *= normfac;
-      norY[i] *= normfac;
-    }
-  }
-}
 struct PutFishOnBlocks {
   Real position[2];
   Real Rmatrix2D[2][2];
@@ -6672,59 +6726,6 @@ static void adapt() {
   var.pres_amr->Adapt(false);
   var.pold_amr->Adapt(false);
   var.tmpV_amr->Adapt(true);
-}
-static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
-  Real exponent = 2, e = 1e-6;
-  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
-  Real b2 =
-      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
-  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
-  Real g1 = 0.1, g2 = 0.6, g3 = 0.3;
-  Real what1 = g1 / pow(b1 + e, exponent);
-  Real what2 = g2 / pow(b2 + e, exponent);
-  Real what3 = g3 / pow(b3 + e, exponent);
-  Real aux = 1.0 / ((what1 + what3) + what2);
-  Real w1 = what1 * aux, w2 = what2 * aux, w3 = what3 * aux;
-  Real f1 = (11.0 / 6.0) * u + ((1.0 / 3.0) * um2 - (7.0 / 6.0) * um1);
-  Real f2 = (5.0 / 6.0) * u + ((-1.0 / 6.0) * um1 + (1.0 / 3.0) * up1);
-  Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
-  return (w1 * f1 + w3 * f3) + w2 * f2;
-}
-static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
-  Real exponent = 2, e = 1e-6;
-  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
-  Real b2 =
-      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
-  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
-  Real g1 = 0.3, g2 = 0.6, g3 = 0.1;
-  Real what1 = g1 / pow(b1 + e, exponent);
-  Real what2 = g2 / pow(b2 + e, exponent);
-  Real what3 = g3 / pow(b3 + e, exponent);
-  Real aux = 1.0 / ((what1 + what3) + what2);
-  Real w1 = what1 * aux;
-  Real w2 = what2 * aux;
-  Real w3 = what3 * aux;
-  Real f1 = (1.0 / 3.0) * u + ((-1.0 / 6.0) * um2 + (5.0 / 6.0) * um1);
-  Real f2 = (5.0 / 6.0) * u + ((1.0 / 3.0) * um1 - (1.0 / 6.0) * up1);
-  Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
-  return (w1 * f1 + w3 * f3) + w2 * f2;
-}
-static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
-                       Real up2, Real up3) {
-  Real fp = 0.0;
-  Real fm = 0.0;
-  if (U > 0) {
-    fp = weno5_plus(um2, um1, u, up1, up2);
-    fm = weno5_plus(um3, um2, um1, u, up1);
-  } else {
-    fp = weno5_minus(um1, u, up1, up2, up3);
-    fm = weno5_minus(um2, um1, u, up1, up2);
-  }
-  return (fp - fm);
 }
 static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
                        int iy) {
