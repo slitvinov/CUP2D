@@ -5612,13 +5612,6 @@ struct Shape {
   Real u = forcedu;
   Real v = forcedv;
   Real omega = forcedomega;
-  Real fluidAngMom = 0;
-  Real fluidMomX = 0;
-  Real fluidMomY = 0;
-  Real penalDX = 0;
-  Real penalDY = 0;
-  Real penalM = 0;
-  Real penalJ = 0;
   Real appliedForceX = 0;
   Real appliedForceY = 0;
   Real appliedTorque = 0;
@@ -7816,61 +7809,6 @@ int main(int argc, char **argv) {
             V[iy][ix].u[0] = Vold[iy][ix].u[0] + tmpV[iy][ix].u[0] * ih2;
             V[iy][ix].u[1] = Vold[iy][ix].u[1] + tmpV[iy][ix].u[1] * ih2;
           }
-      }
-      for (const auto &shape : sim.shapes) {
-        const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-        const Real Cx = shape->centerOfMass[0];
-        const Real Cy = shape->centerOfMass[1];
-        Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
-#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-        for (size_t i = 0; i < velInfo.size(); i++) {
-          const VectorBlock &__restrict__ VEL =
-              *(VectorBlock *)velInfo[i].block;
-          const Real hsq = velInfo[i].h * velInfo[i].h;
-          if (OBLOCK[velInfo[i].id] == nullptr)
-            continue;
-          const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].id]->chi;
-          const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].id]->udef;
-          const Real lambdt = sim.lambda * sim.dt;
-          for (int iy = 0; iy < _BS_; ++iy)
-            for (int ix = 0; ix < _BS_; ++ix) {
-              if (chi[iy][ix] <= 0)
-                continue;
-              const Real udiff[2] = {VEL[iy][ix].u[0] - udef[iy][ix][0],
-                                     VEL[iy][ix].u[1] - udef[iy][ix][1]};
-              const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
-              const Real F = hsq * Xlamdt / (1 + Xlamdt);
-              Real p[2];
-              p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
-              p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-              p[0] -= Cx;
-              p[1] -= Cy;
-              PM += F;
-              PJ += F * (p[0] * p[0] + p[1] * p[1]);
-              PX += F * p[0];
-              PY += F * p[1];
-              UM += F * udiff[0];
-              VM += F * udiff[1];
-              AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
-            }
-        }
-        Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-        MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                      MPI_COMM_WORLD);
-        PM = quantities[0];
-        PJ = quantities[1];
-        PX = quantities[2];
-        PY = quantities[3];
-        UM = quantities[4];
-        VM = quantities[5];
-        AM = quantities[6];
-        shape->fluidAngMom = AM;
-        shape->fluidMomX = UM;
-        shape->fluidMomY = VM;
-        shape->penalDX = PX;
-        shape->penalDY = PY;
-        shape->penalM = PM;
-        shape->penalJ = PJ;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
