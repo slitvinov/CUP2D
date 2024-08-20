@@ -2200,7 +2200,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
     std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).infos;
-    std::array<int, 3> blocksPerDim = _grid.getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -2886,7 +2886,6 @@ template <typename ElementType> struct Grid {
     return avail(m, n);
   }
   Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
-  std::array<int, 3> getMaxBlocks() const { return {sim.bpdx, sim.bpdy, 1}; }
   std::array<int, 3> getMaxMostRefinedBlocks() const {
     return {
         sim.bpdx << (sim.levelMax - 1),
