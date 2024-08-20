@@ -1072,30 +1072,27 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[2] = (code[2] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[2] % 2 == 0) &&
-                                (Cindex_true[2] > f.infos[1]->index[2])) ||
-                               ((f.infos[1]->index[2] % 2 == 1) &&
-                                (Cindex_true[2] < f.infos[1]->index[2])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
+        CoarseEdge[2] = (code[2] == 0) ? 0
+                        : (((f.infos[1]->index[2] % 2 == 0) &&
+                            (Cindex_true[2] > f.infos[1]->index[2])) ||
+                           ((f.infos[1]->index[2] % 2 == 1) &&
+                            (Cindex_true[2] < f.infos[1]->index[2])))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -2895,12 +2892,12 @@ template <typename ElementType> struct Grid {
               dumm->Zchild[i][j] = sim.space_curve->forward(
                   dumm->level + 1, 2 * dumm->index[0] + i,
                   2 * dumm->index[1] + j);
-          dumm->Zparent = (dumm->level == 0)
-                              ? 0
-                              : sim.space_curve->forward(
-                                    dumm->level - 1,
-                                    (dumm->index[0] / 2) % Bmax[0],
-                                    (dumm->index[1] / 2) % Bmax[1]);
+          dumm->Zparent =
+              (dumm->level == 0)
+                  ? 0
+                  : sim.space_curve->forward(dumm->level - 1,
+                                             (dumm->index[0] / 2) % Bmax[0],
+                                             (dumm->index[1] / 2) % Bmax[1]);
           dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
           dumm->id = dumm->id2;
           BlockInfoAll[aux] = dumm;
@@ -3520,30 +3517,27 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4294,176 +4288,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<ElementType>(*grid);
   }
-  void Tag() {
-    boundary_needed = true;
-    Synchronizer<Grid<ElementType>> *Synch = grid->sync1(stencil);
-    CallValidStates = false;
-    bool Reduction = false;
-    MPI_Request Reduction_req;
-    int tmp;
-    std::vector<BlockInfo *> &inner = Synch->avail_inner();
-    TagBlocksVector(inner, Reduction, Reduction_req, tmp);
-    std::vector<BlockInfo *> &halo = Synch->avail_halo();
-    TagBlocksVector(halo, Reduction, Reduction_req, tmp);
-    if (!Reduction) {
-      tmp = CallValidStates ? 1 : 0;
-      Reduction = true;
-      MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                     &Reduction_req);
-    }
-    MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
-    CallValidStates = (tmp > 0);
-    grid->boundary = halo;
-    if (CallValidStates) {
-      int levelMin = 0;
-      std::vector<BlockInfo> &I = grid->infos;
-#pragma omp parallel for
-      for (size_t j = 0; j < I.size(); j++) {
-        BlockInfo &info = I[j];
-        if ((info.state == Refine && info.level == sim.levelMax - 1) ||
-            (info.state == Compress && info.level == levelMin)) {
-          info.state = Leave;
-          (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-        }
-        if (info.state != Leave) {
-          info.changed2 = true;
-          (grid->getBlockInfoAll(info.level, info.Z)).changed2 = info.changed2;
-        }
-      }
-      bool clean_boundary = true;
-      for (int m = sim.levelMax - 1; m >= levelMin; m--) {
-        for (size_t j = 0; j < I.size(); j++) {
-          BlockInfo &info = I[j];
-          if (info.level == m && info.state != Refine &&
-              info.level != sim.levelMax - 1) {
-            int TwoPower = 1 << info.level;
-            bool xskin =
-                info.index[0] == 0 || info.index[0] == sim.bpdx * TwoPower - 1;
-            bool yskin =
-                info.index[1] == 0 || info.index[1] == sim.bpdy * TwoPower - 1;
-            int xskip = info.index[0] == 0 ? -1 : 1;
-            int yskip = info.index[1] == 0 ? -1 : 1;
-
-            for (int icode = 0; icode < 27; icode++) {
-              if (info.state == Refine)
-                break;
-              if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-                continue;
-              int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
-              if (sim.bcx != periodic && code[0] == xskip && xskin)
-                continue;
-              if (sim.bcy != periodic && code[1] == yskip && yskin)
-                continue;
-              if (code[2] != 0)
-                continue;
-              if (grid->Tree0(info.level,
-                              info.Znei[1 + code[0]][1 + code[1]]) == -1) {
-                if (info.state == Compress) {
-                  info.state = Leave;
-                  (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-                }
-                int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
-                int Bstep = 1;
-                if (tmp == 2)
-                  Bstep = 3;
-                else if (tmp == 3)
-                  Bstep = 4;
-                for (int B = 0; B <= 1; B += Bstep) {
-                  int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-                  int iNei = 2 * info.index[0] + std::max(code[0], 0) +
-                             code[0] + (B % 2) * std::max(0, 1 - abs(code[0]));
-                  int jNei = 2 * info.index[1] + std::max(code[1], 0) +
-                             code[1] + aux * std::max(0, 1 - abs(code[1]));
-                  long long zzz = getZforward(m + 1, iNei, jNei);
-                  BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
-                  State NeiState = FinerNei.state;
-                  if (NeiState == Refine) {
-                    info.state = Refine;
-                    (grid->getBlockInfoAll(info.level, info.Z)).state = Refine;
-                    info.changed2 = true;
-                    (grid->getBlockInfoAll(info.level, info.Z)).changed2 = true;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        }
-        grid->UpdateBoundary(clean_boundary);
-        clean_boundary = false;
-        if (m == levelMin)
-          break;
-        for (size_t j = 0; j < I.size(); j++) {
-          BlockInfo &info = I[j];
-          if (info.level == m && info.state == Compress) {
-            int aux = 1 << info.level;
-            bool xskin =
-                info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-            bool yskin =
-                info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-            int xskip = info.index[0] == 0 ? -1 : 1;
-            int yskip = info.index[1] == 0 ? -1 : 1;
-
-            for (int icode = 0; icode < 27; icode++) {
-              if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-                continue;
-              int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
-              if (sim.bcx != periodic && code[0] == xskip && xskin)
-                continue;
-              if (sim.bcy != periodic && code[1] == yskip && yskin)
-                continue;
-              if (code[2] != 0)
-                continue;
-              BlockInfo &infoNei = grid->getBlockInfoAll(
-                  info.level, info.Znei[1 + code[0]][1 + code[1]]);
-              if (grid->Tree1(infoNei) >= 0 && infoNei.state == Refine) {
-                info.state = Leave;
-                (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-                break;
-              }
-            }
-          }
-        }
-      }
-      for (size_t jjj = 0; jjj < I.size(); jjj++) {
-        BlockInfo &info = I[jjj];
-        int m = info.level;
-        bool found = false;
-        for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
-             i++)
-          for (int j = 2 * (info.index[1] / 2);
-               j <= 2 * (info.index[1] / 2) + 1; j++)
-            for (int k = 2 * (info.index[2] / 2);
-                 k <= 2 * (info.index[2] / 2) + 1; k++) {
-              long long n = getZforward(m, i, j);
-              BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if ((grid->Tree1(infoNei) >= 0) == false ||
-                  infoNei.state != Compress) {
-                found = true;
-                if (info.state == Compress) {
-                  info.state = Leave;
-                  (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
-                }
-                break;
-              }
-            }
-        if (found)
-          for (int i = 2 * (info.index[0] / 2);
-               i <= 2 * (info.index[0] / 2) + 1; i++)
-            for (int j = 2 * (info.index[1] / 2);
-                 j <= 2 * (info.index[1] / 2) + 1; j++)
-              for (int k = 2 * (info.index[2] / 2);
-                   k <= 2 * (info.index[2] / 2) + 1; k++) {
-                long long n = getZforward(m, i, j);
-                BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-                if (grid->Tree1(infoNei) >= 0 && infoNei.state == Compress)
-                  infoNei.state = Leave;
-              }
-      }
-    }
-  }
+  //  void Tag() {
   void Adapt(bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid<ElementType>> *Synch = nullptr;
@@ -6532,7 +6357,184 @@ struct GradChiOnTmp {
 static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
-  var.tmp_amr->Tag();
+  var.tmp_amr->boundary_needed = true;
+  Synchronizer<Grid<ScalarElement>> *Synch =
+      var.tmp_amr->grid->sync1(var.tmp_amr->stencil);
+  var.tmp_amr->CallValidStates = false;
+  bool Reduction = false;
+  MPI_Request Reduction_req;
+  int tmp;
+  std::vector<BlockInfo *> &inner = Synch->avail_inner();
+  var.tmp_amr->TagBlocksVector(inner, Reduction, Reduction_req, tmp);
+  std::vector<BlockInfo *> &halo = Synch->avail_halo();
+  var.tmp_amr->TagBlocksVector(halo, Reduction, Reduction_req, tmp);
+  if (!Reduction) {
+    tmp = var.tmp_amr->CallValidStates ? 1 : 0;
+    Reduction = true;
+    MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+                   &Reduction_req);
+  }
+  MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
+  var.tmp_amr->CallValidStates = (tmp > 0);
+  var.tmp_amr->grid->boundary = halo;
+  if (var.tmp_amr->CallValidStates) {
+    int levelMin = 0;
+    std::vector<BlockInfo> &I = var.tmp_amr->grid->infos;
+#pragma omp parallel for
+    for (size_t j = 0; j < I.size(); j++) {
+      BlockInfo &info = I[j];
+      if ((info.state == Refine && info.level == sim.levelMax - 1) ||
+          (info.state == Compress && info.level == levelMin)) {
+        info.state = Leave;
+        (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+      }
+      if (info.state != Leave) {
+        info.changed2 = true;
+        (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).changed2 =
+            info.changed2;
+      }
+    }
+    bool clean_boundary = true;
+    for (int m = sim.levelMax - 1; m >= levelMin; m--) {
+      for (size_t j = 0; j < I.size(); j++) {
+        BlockInfo &info = I[j];
+        if (info.level == m && info.state != Refine &&
+            info.level != sim.levelMax - 1) {
+          int TwoPower = 1 << info.level;
+          bool xskin =
+              info.index[0] == 0 || info.index[0] == sim.bpdx * TwoPower - 1;
+          bool yskin =
+              info.index[1] == 0 || info.index[1] == sim.bpdy * TwoPower - 1;
+          int xskip = info.index[0] == 0 ? -1 : 1;
+          int yskip = info.index[1] == 0 ? -1 : 1;
+
+          for (int icode = 0; icode < 27; icode++) {
+            if (info.state == Refine)
+              break;
+            if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+              continue;
+            int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                           (icode / 9) % 3 - 1};
+            if (sim.bcx != periodic && code[0] == xskip && xskin)
+              continue;
+            if (sim.bcy != periodic && code[1] == yskip && yskin)
+              continue;
+            if (code[2] != 0)
+              continue;
+            if (var.tmp_amr->grid->Tree0(
+                    info.level, info.Znei[1 + code[0]][1 + code[1]]) == -1) {
+              if (info.state == Compress) {
+                info.state = Leave;
+                (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+                    Leave;
+              }
+              int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
+              int Bstep = 1;
+              if (tmp == 2)
+                Bstep = 3;
+              else if (tmp == 3)
+                Bstep = 4;
+              for (int B = 0; B <= 1; B += Bstep) {
+                int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+                int iNei = 2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                           (B % 2) * std::max(0, 1 - abs(code[0]));
+                int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                           aux * std::max(0, 1 - abs(code[1]));
+                long long zzz = getZforward(m + 1, iNei, jNei);
+                BlockInfo &FinerNei =
+                    var.tmp_amr->grid->getBlockInfoAll(m + 1, zzz);
+                State NeiState = FinerNei.state;
+                if (NeiState == Refine) {
+                  info.state = Refine;
+                  (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z))
+                      .state = Refine;
+                  info.changed2 = true;
+                  (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z))
+                      .changed2 = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      var.tmp_amr->grid->UpdateBoundary(clean_boundary);
+      clean_boundary = false;
+      if (m == levelMin)
+        break;
+      for (size_t j = 0; j < I.size(); j++) {
+        BlockInfo &info = I[j];
+        if (info.level == m && info.state == Compress) {
+          int aux = 1 << info.level;
+          bool xskin =
+              info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+          bool yskin =
+              info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+          int xskip = info.index[0] == 0 ? -1 : 1;
+          int yskip = info.index[1] == 0 ? -1 : 1;
+
+          for (int icode = 0; icode < 27; icode++) {
+            if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+              continue;
+            int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                           (icode / 9) % 3 - 1};
+            if (sim.bcx != periodic && code[0] == xskip && xskin)
+              continue;
+            if (sim.bcy != periodic && code[1] == yskip && yskin)
+              continue;
+            if (code[2] != 0)
+              continue;
+            BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(
+                info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
+                infoNei.state == Refine) {
+              info.state = Leave;
+              (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+                  Leave;
+              break;
+            }
+          }
+        }
+      }
+    }
+    for (size_t jjj = 0; jjj < I.size(); jjj++) {
+      BlockInfo &info = I[jjj];
+      int m = info.level;
+      bool found = false;
+      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+           i++)
+        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
+             j++)
+          for (int k = 2 * (info.index[2] / 2);
+               k <= 2 * (info.index[2] / 2) + 1; k++) {
+            long long n = getZforward(m, i, j);
+            BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(m, n);
+            if ((var.tmp_amr->grid->Tree1(infoNei) >= 0) == false ||
+                infoNei.state != Compress) {
+              found = true;
+              if (info.state == Compress) {
+                info.state = Leave;
+                (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+                    Leave;
+              }
+              break;
+            }
+          }
+      if (found)
+        for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+             i++)
+          for (int j = 2 * (info.index[1] / 2);
+               j <= 2 * (info.index[1] / 2) + 1; j++)
+            for (int k = 2 * (info.index[2] / 2);
+                 k <= 2 * (info.index[2] / 2) + 1; k++) {
+              long long n = getZforward(m, i, j);
+              BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(m, n);
+              if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
+                  infoNei.state == Compress)
+                infoNei.state = Leave;
+            }
+    }
+  }
   var.chi_amr->TagLike(var.tmp->infos);
   var.pres_amr->TagLike(var.tmp->infos);
   var.pold_amr->TagLike(var.tmp->infos);
