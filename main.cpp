@@ -629,7 +629,7 @@ struct CommandlineParser {
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 struct BlockInfo {
   bool changed2;
-  double h, origin[3];
+  double h, origin[2];
   enum State state;
   int index[3], level;
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
@@ -2896,7 +2896,6 @@ template <typename ElementType> struct Grid {
           sim.space_curve->inverse(n, m, i, j);
           dumm->origin[0] = i * _BS_ * dumm->h;
           dumm->origin[1] = j * _BS_ * dumm->h;
-          dumm->origin[2] = dumm->h;
           dumm->Z = n;
           dumm->state = Leave;
           dumm->changed2 = true;
