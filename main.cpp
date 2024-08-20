@@ -348,7 +348,6 @@ static struct {
   Real dt;
   Real dumpTime;
   Real endTime;
-  Real extent;
   Real extents[2];
   Real h0;
   Real lambda;
@@ -2787,10 +2786,6 @@ template <typename ElementType> struct Grid {
     }
   }
   bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
-    const double h0 =
-        (sim.extent / std::max(sim.bpdx * _BS_, std::max(sim.bpdy * _BS_, 1)));
-    const double extent[3] = {sim.bpdx * _BS_ * h0, sim.bpdy * _BS_ * h0,
-                              1 * h0};
     const Real intersect[3][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
         {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
@@ -2802,12 +2797,12 @@ template <typename ElementType> struct Grid {
     const bool isperiodic[2] = {sim.bcx == periodic, sim.bcy == periodic};
     for (int d = 0; d < 2; d++) {
       if (isperiodic[d]) {
-        if (h2[d] > extent[d])
-          intersection[d] = std::min(h1[d], h2[d] - extent[d]) -
-                            std::max(l1[d], l2[d] - extent[d]);
-        else if (h1[d] > extent[d])
-          intersection[d] = std::min(h2[d], h1[d] - extent[d]) -
-                            std::max(l2[d], l1[d] - extent[d]);
+        if (h2[d] > sim.extents[d])
+          intersection[d] = std::min(h1[d], h2[d] - sim.extents[d]) -
+                            std::max(l1[d], l2[d] - sim.extents[d]);
+        else if (h1[d] > sim.extents[d])
+          intersection[d] = std::min(h2[d], h1[d] - sim.extents[d]) -
+                            std::max(l2[d], l1[d] - sim.extents[d]);
       }
       if (!intersection[d])
         return false;
@@ -7603,7 +7598,7 @@ int main(int argc, char **argv) {
   sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
   sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
   sim.levelStart = parser("-levelStart").asInt(-1);
-  sim.extent = parser("-extent").asDouble(1);
+  Real extent = parser("-extent").asDouble(1);
   sim.dt = parser("-dt").asDouble(0);
   sim.CFL = parser("-CFL").asDouble(0.2);
   sim.nsteps = parser("-nsteps").asInt(0);
@@ -7622,7 +7617,7 @@ int main(int argc, char **argv) {
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
-  sim.h0 = sim.extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
+  sim.h0 = extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
