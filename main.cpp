@@ -1429,14 +1429,13 @@ template <typename TGrid> struct Synchronizer {
     BlockInfo &b = *f.infos[1];
     if (a.level == 0 || (!use_averages))
       return false;
-    int imin[3];
-    int imax[3];
+    int imin[2];
+    int imax[2];
     const int aux = 1 << a.level;
-    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
+    const bool periodic0[2] = {sim.bcx == periodic, sim.bcy == periodic};
     const int blocks[3] = {sim.bpdx * aux - 1,
-                           sim.bpdy * aux - 1,
-                           1 * aux - 1};
-    for (int d = 0; d < 3; d++) {
+                           sim.bpdy * aux - 1};
+    for (int d = 0; d < 2; d++) {
       imin[d] = (a.index[d] < b.index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b.index[d]) ? 0 : +1;
       if (periodic0[d]) {
