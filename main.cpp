@@ -737,7 +737,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       grid->getBlockInfoAll(info.level, info.Z).auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
-          info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
       const bool zskin =
@@ -798,7 +798,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       BlockInfo &info = B[i];
       const int aux = 1 << info.level;
       const bool xskin =
-          info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
       const bool zskin =
@@ -2210,7 +2210,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
-          info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
       const bool zskin =
@@ -2502,7 +2502,7 @@ template <typename ElementType> struct Grid {
       std::set<int> receivers;
       const int aux = 1 << info.level;
       const bool xskin =
-          info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
       const bool zskin =
@@ -2656,7 +2656,7 @@ template <typename ElementType> struct Grid {
       bool myflag = false;
       int aux = 1 << info.level;
       bool xskin =
-          info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       bool yskin =
           info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
       bool zskin =
@@ -3160,7 +3160,7 @@ template <typename ElementType> struct BlockLab {
                     const bool applybc = true) {
     const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     const int aux = 1 << info.level;
-    NX = blocksPerDim[0] * aux;
+    NX = sim.bpdx * aux;
     NY = blocksPerDim[1] * aux;
     NZ = blocksPerDim[2] * aux;
     assert(m_cacheBlock != NULL);
@@ -3294,7 +3294,7 @@ template <typename ElementType> struct BlockLab {
     int imax[3];
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
-    const int blocks[3] = {blocksPerDim[0] * aux - 1, blocksPerDim[1] * aux - 1,
+    const int blocks[3] = {sim.bpdx * aux - 1, blocksPerDim[1] * aux - 1,
                            blocksPerDim[2] * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b_index[d]) ? 0 : -1;
@@ -3688,7 +3688,7 @@ template <typename ElementType> struct BlockLab {
     const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     int aux = 1 << info.level;
     bool xskin =
-        info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
+        info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
     bool yskin =
         info.index[1] == 0 || info.index[1] == blocksPerDim[1] * aux - 1;
     bool zskin =
@@ -4386,7 +4386,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
               info.level != sim.levelMax - 1) {
             int TwoPower = 1 << info.level;
             bool xskin = info.index[0] == 0 ||
-                         info.index[0] == blocksPerDim[0] * TwoPower - 1;
+                         info.index[0] == sim.bpdx * TwoPower - 1;
             bool yskin = info.index[1] == 0 ||
                          info.index[1] == blocksPerDim[1] * TwoPower - 1;
             bool zskin = info.index[2] == 0 ||
@@ -4450,7 +4450,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           if (info.level == m && info.state == Compress) {
             int aux = 1 << info.level;
             bool xskin = info.index[0] == 0 ||
-                         info.index[0] == blocksPerDim[0] * aux - 1;
+                         info.index[0] == sim.bpdx * aux - 1;
             bool yskin = info.index[1] == 0 ||
                          info.index[1] == blocksPerDim[1] * aux - 1;
             bool zskin = info.index[2] == 0 ||
@@ -7285,7 +7285,7 @@ struct PoissonSolver {
     for (int i = 0; i < Nblocks; i++) {
       const BlockInfo &rhs_info = RhsInfo[i];
       const int aux = 1 << rhs_info.level;
-      const int MAX_X_BLOCKS = blocksPerDim[0] * aux - 1;
+      const int MAX_X_BLOCKS = sim.bpdx * aux - 1;
       const int MAX_Y_BLOCKS = blocksPerDim[1] * aux - 1;
       std::array<bool, 4> isBoundary;
       isBoundary[0] = (rhs_info.index[0] == 0);
