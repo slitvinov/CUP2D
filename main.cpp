@@ -2406,7 +2406,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
 };
 template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
-  int dim;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
@@ -2417,6 +2416,7 @@ template <typename ElementType> struct Grid {
   FluxCorrection<Grid, ElementType> CorrectorGrid;
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   size_t timestamp;
+  int dim;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
