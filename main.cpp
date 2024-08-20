@@ -7623,7 +7623,6 @@ int main(int argc, char **argv) {
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
-  ScalarLab dummy;
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   var.chi = new ScalarGrid;
   var.vel = new VectorGrid;
