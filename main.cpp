@@ -632,7 +632,7 @@ struct BlockInfo {
   double h, origin[3];
   enum State state;
   int index[3], level;
-  long long id, id2, halo_id, Z, Zchild[2][2][2], Znei[3][3][3], Zparent;
+  long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3][3], Zparent;
   void *auxiliary, *block{nullptr};
   bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
 };
@@ -1604,8 +1604,7 @@ template <typename TGrid> struct Synchronizer {
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))]
-                              [std::max(-code[2], 0) +
-                               (B / 2) * std::max(0, 1 - abs(code[2]))];
+	      ;
             const int infoNeiFinerrank = grid->Tree0(info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
@@ -2283,9 +2282,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))]
-                              [std::max(-code[2], 0) +
-                               (B / 2) * std::max(0, 1 - abs(code[2]))];
+                               temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank =
                 (*TFluxCorrection::grid).Tree0(infoNei.level + 1, nFine);
             {
@@ -2556,9 +2553,7 @@ template <typename ElementType> struct Grid {
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))]
-                              [std::max(-code[2], 0) +
-                               (B / 2) * std::max(0, 1 - abs(code[2]))];
+                               temp * std::max(0, 1 - abs(code[1]))];
             BlockInfo &infoNeiFiner = getBlockInfoAll(infoNei.level + 1, nFine);
             const int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
@@ -2704,9 +2699,7 @@ template <typename ElementType> struct Grid {
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))]
-                              [std::max(-code[2], 0) +
-                               (B / 2) * std::max(0, 1 - abs(code[2]))];
+                               temp * std::max(0, 1 - abs(code[1]))];
             int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               myflag = true;
@@ -2941,7 +2934,7 @@ template <typename ElementType> struct Grid {
           for (int i = 0; i < 2; i++)
             for (int j = 0; j < 2; j++)
               for (int k = 0; k < 2; k++)
-                dumm->Zchild[i][j][k] = sim.space_curve->forward(
+                dumm->Zchild[i][j] = sim.space_curve->forward(
                     dumm->level + 1, 2 * dumm->index[0] + i,
                     2 * dumm->index[1] + j);
           dumm->Zparent = (dumm->level == 0)
@@ -4664,7 +4657,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             if (level + 2 < sim.levelMax)
               for (int i0 = 0; i0 < 2; i0++)
                 for (int i1 = 0; i1 < 2; i1++)
-                  grid->Tree0(level + 2, Child.Zchild[i0][i1][1]) = -2;
+                  grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
           }
       }
     }
@@ -7082,7 +7075,7 @@ struct PoissonSolver {
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[1][int(iy >= _BS_ / 2)][0];
+      return nei_info.Zchild[1][int(iy >= _BS_ / 2)];
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
@@ -7106,7 +7099,7 @@ struct PoissonSolver {
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[0][int(iy >= _BS_ / 2)][0];
+      return nei_info.Zchild[0][int(iy >= _BS_ / 2)];
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
@@ -7148,7 +7141,7 @@ struct PoissonSolver {
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= _BS_ / 2)][1][0];
+      return nei_info.Zchild[int(ix >= _BS_ / 2)][1];
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
@@ -7172,7 +7165,7 @@ struct PoissonSolver {
     }
     long long Zchild(const BlockInfo &nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= _BS_ / 2)][0][0];
+      return nei_info.Zchild[int(ix >= _BS_ / 2)][0];
     }
   };
   CellIndexer GenericCell;
