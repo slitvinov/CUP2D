@@ -4339,11 +4339,9 @@ template <typename TLab, typename ElementType> struct Adaptation {
   LoadBalancer<ElementType> *Balancer;
   Grid<ElementType> *grid;
   bool basic_refinement;
-  double tolerance_for_compression;
   std::vector<long long> dealloc_IDs;
-  Adaptation(Grid<ElementType> &g, double Ctol) {
+  Adaptation(Grid<ElementType> &g) {
     grid = &g;
-    tolerance_for_compression = Ctol;
     boundary_needed = false;
     stencil.sx = -1;
     stencil.sy = -1;
@@ -4794,7 +4792,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           }
         if (Linf > sim.Rtol)
           I[i]->state = Refine;
-        else if (Linf < tolerance_for_compression)
+        else if (Linf < sim.Ctol)
           I[i]->state = Compress;
         else
           I[i]->state = Leave;
@@ -7719,13 +7717,13 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new ScalarAMR(*var.tmp, sim.Ctol);
-  var.chi_amr = new ScalarAMR(*var.chi, sim.Ctol);
-  var.pres_amr = new ScalarAMR(*var.pres, sim.Ctol);
-  var.pold_amr = new ScalarAMR(*var.pold, sim.Ctol);
-  var.vel_amr = new VectorAMR(*var.vel, sim.Ctol);
-  var.vold_amr = new VectorAMR(*var.vold, sim.Ctol);
-  var.tmpV_amr = new VectorAMR(*var.tmpV, sim.Ctol);
+  var.tmp_amr = new ScalarAMR(*var.tmp);
+  var.chi_amr = new ScalarAMR(*var.chi);
+  var.pres_amr = new ScalarAMR(*var.pres);
+  var.pold_amr = new ScalarAMR(*var.pold);
+  var.vel_amr = new VectorAMR(*var.vel);
+  var.vold_amr = new VectorAMR(*var.vold);
+  var.tmpV_amr = new VectorAMR(*var.tmpV);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
