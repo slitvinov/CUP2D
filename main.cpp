@@ -4361,7 +4361,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     CallValidStates = (tmp > 0);
     grid->boundary = halo;
     if (CallValidStates) {
-      std::array<int, 3> blocksPerDim = grid->getMaxBlocks();
+      const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
       int levelMin = 0;
       bool xperiodic = sim.bcx == periodic;
       bool yperiodic = sim.bcy == periodic;
