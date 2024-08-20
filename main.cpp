@@ -7265,7 +7265,7 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    std::array<int, 3> blocksPerDim = var.pres->getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     var.tmp->UpdateBlockInfoAll_States(true);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
