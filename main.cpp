@@ -6248,8 +6248,6 @@ static void ongrid(Real dt) {
           ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
           ObstacleBlock *const o = block;
           const std::vector<AreaSegment *> &v = *pos;
-
-          // putfish(info, b, o, v);
           Real org[2];
           org[0] = info.origin[0] + info.h * 0.5;
           org[1] = info.origin[1] + info.h * 0.5;
