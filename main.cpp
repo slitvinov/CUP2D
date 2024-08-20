@@ -4288,7 +4288,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<ElementType>(*grid);
   }
-  //  void Tag() {
   void Adapt(bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid<ElementType>> *Synch = nullptr;
