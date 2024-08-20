@@ -4311,8 +4311,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
     grid->boundary = halo;
     if (CallValidStates) {
       int levelMin = 0;
-      bool xperiodic = sim.bcx == periodic;
-      bool yperiodic = sim.bcy == periodic;
       std::vector<BlockInfo> &I = grid->infos;
 #pragma omp parallel for
       for (size_t j = 0; j < I.size(); j++) {
@@ -7658,11 +7656,6 @@ int main(int argc, char **argv) {
         for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI[iy][ix].s)
             continue;
-          Real p[2];
-          p[0] =
-              var.tmpV->infos[i].origin[0] + var.tmpV->infos[i].h * (ix + 0.5);
-          p[1] =
-              var.tmpV->infos[i].origin[1] + var.tmpV->infos[i].h * (iy + 0.5);
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
         }
