@@ -1436,8 +1436,8 @@ template <typename TGrid> struct Synchronizer {
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {sim.bpdx * aux - 1,
-                           grid->getMaxBlocks()[1] * aux - 1,
-                           grid->getMaxBlocks()[2] * aux - 1};
+                           sim.bpdy * aux - 1,
+                           1 * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b.index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b.index[d]) ? 0 : +1;
@@ -1484,10 +1484,10 @@ template <typename TGrid> struct Synchronizer {
           info.index[0] == ((sim.bpdx << info.level) - 1);
       const bool yskin =
           info.index[1] == 0 ||
-          info.index[1] == ((grid->getMaxBlocks()[1] << info.level) - 1);
+          info.index[1] == ((sim.bpdy << info.level) - 1);
       const bool zskin =
           info.index[2] == 0 ||
-          info.index[2] == ((grid->getMaxBlocks()[2] << info.level) - 1);
+          info.index[2] == ((1 << info.level) - 1);
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
@@ -1536,8 +1536,8 @@ template <typename TGrid> struct Synchronizer {
             const int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             const int Bmax[3] = {sim.bpdx << (info.level - 1),
-                                 grid->getMaxBlocks()[1] << (info.level - 1),
-                                 grid->getMaxBlocks()[2] << (info.level - 1)};
+                                 sim.bpdy << (info.level - 1),
+                                 1 << (info.level - 1)};
             const int test_idx[3] = {
                 (infoNeiCoarser.index[0] - code[0] + Bmax[0]) % Bmax[0],
                 (infoNeiCoarser.index[1] - code[1] + Bmax[1]) % Bmax[1],
