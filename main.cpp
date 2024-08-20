@@ -1452,14 +1452,12 @@ template <typename TGrid> struct Synchronizer {
       }
     }
     bool retval = false;
-    for (int i2 = imin[2]; i2 <= imax[2]; i2++)
-      for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-        for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-          if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1])) == -2) {
-            retval = true;
-            break;
-          }
-        }
+    for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+      for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+	if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1])) == -2) {
+	  retval = true;
+	  break;
+	}
     return retval;
   }
   void _Setup() {
