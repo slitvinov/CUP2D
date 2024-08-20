@@ -2493,7 +2493,7 @@ template <typename ElementType> struct Grid {
                                      : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
-    const auto blocksPerDim = getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;
     std::set<int> Neighbors;
@@ -2650,7 +2650,7 @@ template <typename ElementType> struct Grid {
       if (Intersect0(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
         myNeighbors.push_back(i);
     }
-    const auto blocksPerDim = getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::vector<long long> myData;
     for (auto &info : infos) {
       bool myflag = false;
