@@ -6517,8 +6517,8 @@ struct GradChiOnTmp {
     const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
-        lab(x, y).s = std::min(lab(x, y).s, (Real)1.0);
-        lab(x, y).s = std::max(lab(x, y).s, (Real)0.0);
+        lab(x, y).s = std::min(lab(x, y).s, 1.0);
+        lab(x, y).s = std::max(lab(x, y).s, 0.0);
         if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
           TMP[_BS_ / 2][_BS_ / 2 - 1].s = 2 * sim.Rtol;
           TMP[_BS_ / 2 - 1][_BS_ / 2 - 1].s = 2 * sim.Rtol;
