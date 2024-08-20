@@ -739,7 +739,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -797,7 +796,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -1477,8 +1475,6 @@ template <typename TGrid> struct Synchronizer {
           info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
       const bool yskin =
           info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
-      const bool zskin =
-          info.index[2] == 0 || info.index[2] == ((1 << info.level) - 1);
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -2202,7 +2198,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -2485,7 +2480,6 @@ template <typename ElementType> struct Grid {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -2635,7 +2629,6 @@ template <typename ElementType> struct Grid {
       int aux = 1 << info.level;
       bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -3162,7 +3155,6 @@ template <typename ElementType> struct BlockLab {
       coarsened = false;
       const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
       const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
-      const bool zskin = info.index[2] == 0 || info.index[2] == NZ - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -3651,7 +3643,6 @@ template <typename ElementType> struct BlockLab {
     int aux = 1 << info.level;
     bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
     bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-    bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -4445,7 +4436,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
-              if (grid->Tree1(infoNei) >= 0 == false ||
+              if ((grid->Tree1(infoNei) >= 0) == false ||
                   infoNei.state != Compress) {
                 found = true;
                 if (info.state == Compress) {
