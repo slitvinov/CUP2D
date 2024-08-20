@@ -729,7 +729,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
     MapOfCases.clear();
     grid = &_grid;
     std::vector<BlockInfo> &B = (*grid).infos;
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -789,7 +788,6 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
   }
   virtual void FillBlockCases() {
     std::vector<BlockInfo> &B = (*grid).infos;
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -2200,7 +2198,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
     std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).infos;
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -2493,7 +2490,6 @@ template <typename ElementType> struct Grid {
                                      : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<BlockInfo *> &bbb = boundary;
     std::set<int> Neighbors;
@@ -2650,7 +2646,6 @@ template <typename ElementType> struct Grid {
       if (Intersect0(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
         myNeighbors.push_back(i);
     }
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     std::vector<long long> myData;
     for (auto &info : infos) {
       bool myflag = false;
@@ -3158,7 +3153,6 @@ template <typename ElementType> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -3289,7 +3283,6 @@ template <typename ElementType> struct BlockLab {
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
@@ -3685,7 +3678,6 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     int aux = 1 << info.level;
     bool xskin =
         info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
@@ -4360,7 +4352,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
     CallValidStates = (tmp > 0);
     grid->boundary = halo;
     if (CallValidStates) {
-      const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
       int levelMin = 0;
       bool xperiodic = sim.bcx == periodic;
       bool yperiodic = sim.bcy == periodic;
@@ -7264,7 +7255,6 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     var.tmp->UpdateBlockInfoAll_States(true);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
