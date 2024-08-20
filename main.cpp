@@ -7836,18 +7836,10 @@ int main(int argc, char **argv) {
         UM = quantities[4];
         VM = quantities[5];
         AM = quantities[6];
-
-        Real fluidAngMom = AM;
-        Real fluidMomX = UM;
-        Real fluidMomY = VM;
-        Real penalDX = PX;
-        Real penalDY = PY;
-        Real penalM = PM;
-        Real penalJ = PJ;
-        double A[3][3] = {{penalM, 0, -penalDY},
-                          {0, penalM, penalDX},
-                          {-penalDY, penalDX, penalJ}};
-        double b[3] = {fluidMomX, fluidMomY, fluidAngMom};
+        double A[3][3] = {{PM, 0, -PY},
+                          {0, PM, PX},
+                          {-PY, PX, PJ}};
+        double b[3] = {UM, VM, AM};
         gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
         gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
         gsl_vector *xgsl = gsl_vector_alloc(3);
