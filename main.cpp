@@ -7626,7 +7626,6 @@ int main(int argc, char **argv) {
   sim.h0 = sim.extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
-  int auxMax = pow(2, sim.levelMax - 1);
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   var.chi = new ScalarGrid;
