@@ -22,7 +22,7 @@ make 'CXXFLAGS = -I/scratch/slitvinov/.grace/include' 'LDFLAGS = -L/scratch/slit
 
 local
 ```
-make -j
+make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
 ```
 
 ```
