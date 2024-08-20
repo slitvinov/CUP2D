@@ -7844,11 +7844,10 @@ int main(int argc, char **argv) {
         Real penalDY = PY;
         Real penalM = PM;
         Real penalJ = PJ;
-        double A[3][3] = {{(double)penalM, (double)0, (double)-penalDY},
-                          {(double)0, (double)penalM, (double)penalDX},
-                          {(double)-penalDY, (double)penalDX, (double)penalJ}};
-        double b[3] = {(double)(fluidMomX), (double)(fluidMomY),
-                       (double)(fluidAngMom)};
+        double A[3][3] = {{penalM, 0, -penalDY},
+                          {0, penalM, penalDX},
+                          {-penalDY, penalDX, penalJ}};
+        double b[3] = {fluidMomX, fluidMomY, fluidAngMom};
         gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
         gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
         gsl_vector *xgsl = gsl_vector_alloc(3);
