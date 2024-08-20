@@ -7856,6 +7856,9 @@ int main(int argc, char **argv) {
         gsl_permutation *permgsl = gsl_permutation_alloc(3);
         gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
         gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
+        shape->u = gsl_vector_get(xgsl, 0);
+        shape->v = gsl_vector_get(xgsl, 1);
+        shape->omega = gsl_vector_get(xgsl, 2);
         gsl_permutation_free(permgsl);
         gsl_vector_free(xgsl);
       }
