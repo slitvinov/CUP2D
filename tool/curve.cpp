@@ -1,10 +1,9 @@
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <vector>
-#include <math.h>
 
-static struct {
-  int levelMax;
-} sim;
+static struct { int levelMax; } sim;
 
 struct SpaceCurve {
   int BX;
@@ -159,10 +158,36 @@ struct SpaceCurve {
   }
 };
 
-int main() {
+uint64_t splitBy3(unsigned int a) {
+  uint64_t x = a & 0x1fffff;
+  x = (x | x << 32) & 0x1f00000000ffff;
+  x = (x | x << 16) & 0x1f0000ff0000ff;
+  x = (x | x << 8) & 0x100f00f00f00f00f;
+  x = (x | x << 4) & 0x10c30c30c30c30c3;
+  x = (x | x << 2) & 0x1249249249249249;
+  return x;
+}
+
+uint64_t morton(unsigned int x, unsigned int y) {
+  uint64_t answer = 0;
+  answer |= splitBy3(x) | splitBy3(y) << 1;
+  return answer;
+}
+
+int main(int argc, char **argv) {
+  int i, j, level;
+  long long Z;
   sim.levelMax = 8;
+  level = 5;
   SpaceCurve curve(2, 1);
-  int i, j;
-  curve.inverse(5, 1, i, j);
-  printf("%d %d\n", i, j);
+  if (argc == 3) {
+    i = atoi(argv[1]);
+    j = atoi(argv[2]);
+    Z = curve.forward(level, i, j);
+    printf("[%d %d] %d %d\n", i, j, Z, morton(i, j));
+  } else {
+    Z = atoi(argv[1]);
+    curve.inverse(Z, level, i, j);
+    printf("%d %d %d\n", i, j, Z);
+  }
 }
