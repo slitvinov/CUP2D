@@ -2920,10 +2920,9 @@ template <typename ElementType> struct Grid {
       {
         const auto retval1 = BlockInfoAll.find(aux);
         if (retval1 == BlockInfoAll.end()) {
-          BlockInfo *dumm = new BlockInfo();
+          BlockInfo *dumm = new BlockInfo;
           dumm->level = m;
-          dumm->h = sim.extent / std::max(sim.bpdx * _BS_, sim.bpdy * _BS_) /
-                    (1 << m);
+          dumm->h = sim.h0 / (1 << dumm->level);
           int i, j;
           sim.space_curve->inverse(n, m, i, j);
           dumm->origin[0] = i * _BS_ * dumm->h;
