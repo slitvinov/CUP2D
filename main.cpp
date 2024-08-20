@@ -6513,8 +6513,8 @@ struct GradChiOnTmp {
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
-    const int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
-    const Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
+    int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
+    Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         lab(x, y).s = std::min(lab(x, y).s, 1.0);
