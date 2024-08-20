@@ -2460,16 +2460,13 @@ template <typename ElementType> struct Grid {
       else
         n_start += total_blocks % sim.size;
     }
-    std::vector<long long> Zs(my_blocks);
-    for (long long n = n_start; n < n_start + my_blocks; n++)
-      Zs[n - n_start] = n;
     for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = getBlockInfoAll(sim.levelStart, Zs[i]);
+      BlockInfo &new_info = getBlockInfoAll(sim.levelStart, n_start + i);
       new_info.block = new Block;
       infos.push_back(new_info);
-      Octree[level_base[sim.levelStart] + Zs[i]] = sim.rank;
+      Octree[level_base[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
-      sim.space_curve->inverse(Zs[i], sim.levelStart, p[0], p[1]);
+      sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
