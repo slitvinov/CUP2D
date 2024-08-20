@@ -684,12 +684,12 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
     assert(CoarseCase.level == info.level);
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      const long long Z = getZforward(
-          info.level + 1,
-          2 * info.index[0] + std::max(code[0], 0) + code[0] +
-              (B % 2) * std::max(0, 1 - abs(code[0])),
-          2 * info.index[1] + std::max(code[1], 0) + code[1] +
-              aux * std::max(0, 1 - abs(code[1])));
+      const long long Z =
+          getZforward(info.level + 1,
+                      2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                          (B % 2) * std::max(0, 1 - abs(code[0])),
+                      2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                          aux * std::max(0, 1 - abs(code[1])));
       const int other_rank = grid->Tree0(info.level + 1, Z);
       if (other_rank != rank)
         continue;
@@ -739,11 +739,10 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin =
-          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       bool storeFace[6] = {false, false, false, false, false, false};
       bool stored = false;
       for (int f = 0; f < 6; f++) {
@@ -755,9 +754,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           continue;
         if (code[2] != 0)
           continue;
-        if (!(grid->Tree0(info.level,
-                         info.Znei[1 + code[0]][1 + code[1]]) >=
-	      0)) {
+        if (!(grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+              0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -799,11 +797,10 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin =
-          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
@@ -814,8 +811,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         if (code[2] != 0)
           continue;
         bool checkFiner =
-            grid->Tree0(info.level,
-                        info.Znei[1 + code[0]][1 + code[1]]) == -1;
+            grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -1;
         if (checkFiner) {
           FillCase(info, code);
           const int myFace = abs(code[0]) * std::max(0, code[0]) +
@@ -1077,27 +1073,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -1433,8 +1432,7 @@ template <typename TGrid> struct Synchronizer {
     int imax[2];
     const int aux = 1 << a.level;
     const bool periodic0[2] = {sim.bcx == periodic, sim.bcy == periodic};
-    const int blocks[3] = {sim.bpdx * aux - 1,
-                           sim.bpdy * aux - 1};
+    const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
     for (int d = 0; d < 2; d++) {
       imin[d] = (a.index[d] < b.index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b.index[d]) ? 0 : +1;
@@ -1451,13 +1449,13 @@ template <typename TGrid> struct Synchronizer {
       }
     }
     bool retval = false;
-      for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-        for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-          if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1])) == -2) {
-            retval = true;
-            break;
-          }
+    for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+      for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+        if ((grid->Tree0(a.level, a.Znei[1 + i0][1 + i1])) == -2) {
+          retval = true;
+          break;
         }
+      }
     return retval;
   }
   void _Setup() {
@@ -1476,17 +1474,14 @@ template <typename TGrid> struct Synchronizer {
     for (BlockInfo &info : grid->infos) {
       info.halo_id = -1;
       const bool xskin =
-          info.index[0] == 0 ||
-          info.index[0] == ((sim.bpdx << info.level) - 1);
+          info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
       const bool yskin =
-          info.index[1] == 0 ||
-          info.index[1] == ((sim.bpdy << info.level) - 1);
+          info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
       const bool zskin =
-          info.index[2] == 0 ||
-          info.index[2] == ((1 << info.level) - 1);
+          info.index[2] == 0 || info.index[2] == ((1 << info.level) - 1);
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       bool isInner = true;
       std::vector<int> ToBeChecked;
       bool Coarsened = false;
@@ -1501,8 +1496,8 @@ template <typename TGrid> struct Synchronizer {
           continue;
         if (!(sim.bcy == periodic) && code[1] == yskip && yskin)
           continue;
-        const int &infoNeiTree = grid->Tree0(
-            info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        const int &infoNeiTree =
+            grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
@@ -1599,8 +1594,7 @@ template <typename TGrid> struct Synchronizer {
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))]
-	      ;
+                               temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank = grid->Tree0(info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
@@ -2106,10 +2100,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
           getZforward(info.level + 1,
-		      2 * info.index[0] + std::max(code[0], 0) + code[0] +
-		      (B % 2) * std::max(0, 1 - abs(code[0])),
-		      2 * info.index[1] + std::max(code[1], 0) + code[1] +
-		      aux * std::max(0, 1 - abs(code[1])));
+                      2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                          (B % 2) * std::max(0, 1 - abs(code[0])),
+                      2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                          aux * std::max(0, 1 - abs(code[1])));
       if (Z != F.infos[0]->Z)
         continue;
       const int d = myFace / 2;
@@ -2208,11 +2202,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin =
-          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       bool storeFace[6] = {false, false, false, false, false, false};
       bool stored = false;
       for (int f = 0; f < 6; f++) {
@@ -2225,9 +2218,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (code[2] != 0)
           continue;
         if (!((*TFluxCorrection::grid)
-                 .Tree0(info.level,
-                        info.Znei[1 + code[0]][1 + code[1]]) >=
-	      0)) {
+                  .Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+              0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -2239,14 +2231,11 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
         if ((*TFluxCorrection::grid)
-                .Tree0(info.level,
-                       info.Znei[1 + code[0]][1 + code[1]]) ==
-            -2) {
+                .Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(
-                      info.level,
-                      info.Znei[1 + code[0]][1 + code[1]]);
+                  .getBlockInfoAll(info.level,
+                                   info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
               (*TFluxCorrection::grid).getBlockInfoAll(info.level - 1, nCoarse);
@@ -2261,15 +2250,12 @@ struct FluxCorrectionMPI : public TFluxCorrection {
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if ((*TFluxCorrection::grid)
-                       .Tree0(
-                           info.level,
-                           info.Znei[1 + code[0]][1 + code[1]]) ==
-                   -1) {
+                       .Tree0(info.level,
+                              info.Znei[1 + code[0]][1 + code[1]]) == -1) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(
-                      info.level,
-                      info.Znei[1 + code[0]][1 + code[1]]);
+                  .getBlockInfoAll(info.level,
+                                   info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -2499,11 +2485,10 @@ template <typename ElementType> struct Grid {
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const bool zskin =
-          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+      const bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
@@ -2515,8 +2500,8 @@ template <typename ElementType> struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei = getBlockInfoAll(
-            info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        BlockInfo &infoNei =
+            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei.state != Refine || clean)
@@ -2648,15 +2633,12 @@ template <typename ElementType> struct Grid {
     for (auto &info : infos) {
       bool myflag = false;
       int aux = 1 << info.level;
-      bool xskin =
-          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-      bool yskin =
-          info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      bool zskin =
-          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+      bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+      bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+      bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
-      int zskip = info.index[2] == 0 ? -1 : 1;
+
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
@@ -2667,8 +2649,8 @@ template <typename ElementType> struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        BlockInfo &infoNei = getBlockInfoAll(
-            info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        BlockInfo &infoNei =
+            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           myflag = true;
@@ -2907,14 +2889,14 @@ template <typename ElementType> struct Grid {
           const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
           for (int i = -1; i < 2; i++)
             for (int j = -1; j < 2; j++)
-                dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                    dumm->level, (dumm->index[0] + i + Bmax[0]) % Bmax[0],
-                    (dumm->index[1] + j + Bmax[1]) % Bmax[1]);
+              dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
+                  dumm->level, (dumm->index[0] + i + Bmax[0]) % Bmax[0],
+                  (dumm->index[1] + j + Bmax[1]) % Bmax[1]);
           for (int i = 0; i < 2; i++)
             for (int j = 0; j < 2; j++)
-                dumm->Zchild[i][j] = sim.space_curve->forward(
-                    dumm->level + 1, 2 * dumm->index[0] + i,
-                    2 * dumm->index[1] + j);
+              dumm->Zchild[i][j] = sim.space_curve->forward(
+                  dumm->level + 1, 2 * dumm->index[0] + i,
+                  2 * dumm->index[1] + j);
           dumm->Zparent = (dumm->level == 0)
                               ? 0
                               : sim.space_curve->forward(
@@ -3183,7 +3165,7 @@ template <typename ElementType> struct BlockLab {
       const bool zskin = info.index[2] == 0 || info.index[2] == NZ - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      
+
       int icodes[8];
       int k = 0;
       coarsened_nei_codes_size = 0;
@@ -3196,8 +3178,8 @@ template <typename ElementType> struct BlockLab {
           continue;
         if (sim.bcy != periodic && code[1] == yskip && yskin)
           continue;
-        const auto &TreeNei = m_refGrid->Tree0(
-            info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        const auto &TreeNei =
+            m_refGrid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (TreeNei >= 0) {
           icodes[k++] = icode;
         } else if (TreeNei == -2) {
@@ -3273,8 +3255,7 @@ template <typename ElementType> struct BlockLab {
     int imax[3];
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
-    const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1,
-                           1 * aux - 1};
+    const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b_index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b_index[d]) ? 0 : +1;
@@ -3306,8 +3287,8 @@ template <typename ElementType> struct BlockLab {
     if (!bytes)
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
-    myblocks[icode] = m_refGrid->avail(
-        info.level, info.Znei[1 + code[0]][1 + code[1]]);
+    myblocks[icode] =
+        m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
@@ -3542,27 +3523,30 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3665,15 +3649,12 @@ template <typename ElementType> struct BlockLab {
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
     int aux = 1 << info.level;
-    bool xskin =
-        info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-    bool yskin =
-        info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-    bool zskin =
-        info.index[2] == 0 || info.index[2] == 1 * aux - 1;
+    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    bool zskin = info.index[2] == 0 || info.index[2] == 1 * aux - 1;
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
-    int zskip = info.index[2] == 0 ? -1 : 1;
+
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
@@ -4014,8 +3995,8 @@ template <typename ElementType> struct LoadBalancer {
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
-      const long long nBlock = getZforward(b.level, 2 * (b.index[0] / 2),
-                                                 2 * (b.index[1] / 2));
+      const long long nBlock =
+          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
       if (!(grid->Tree1(base) >= 0) || base.state != Compress)
         continue;
@@ -4362,15 +4343,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
           if (info.level == m && info.state != Refine &&
               info.level != sim.levelMax - 1) {
             int TwoPower = 1 << info.level;
-            bool xskin = info.index[0] == 0 ||
-                         info.index[0] == sim.bpdx * TwoPower - 1;
-            bool yskin = info.index[1] == 0 ||
-                         info.index[1] == sim.bpdy * TwoPower - 1;
-            bool zskin = info.index[2] == 0 ||
-                         info.index[2] == 1 * TwoPower - 1;
+            bool xskin =
+                info.index[0] == 0 || info.index[0] == sim.bpdx * TwoPower - 1;
+            bool yskin =
+                info.index[1] == 0 || info.index[1] == sim.bpdy * TwoPower - 1;
             int xskip = info.index[0] == 0 ? -1 : 1;
             int yskip = info.index[1] == 0 ? -1 : 1;
-            int zskip = info.index[2] == 0 ? -1 : 1;
+
             for (int icode = 0; icode < 27; icode++) {
               if (info.state == Refine)
                 break;
@@ -4384,9 +4363,8 @@ template <typename TLab, typename ElementType> struct Adaptation {
                 continue;
               if (code[2] != 0)
                 continue;
-              if (grid->Tree0(
-                      info.level,
-                      info.Znei[1 + code[0]][1 + code[1]]) == -1) {
+              if (grid->Tree0(info.level,
+                              info.Znei[1 + code[0]][1 + code[1]]) == -1) {
                 if (info.state == Compress) {
                   info.state = Leave;
                   (grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
@@ -4426,15 +4404,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
           BlockInfo &info = I[j];
           if (info.level == m && info.state == Compress) {
             int aux = 1 << info.level;
-            bool xskin = info.index[0] == 0 ||
-                         info.index[0] == sim.bpdx * aux - 1;
-            bool yskin = info.index[1] == 0 ||
-                         info.index[1] == sim.bpdy * aux - 1;
-            bool zskin = info.index[2] == 0 ||
-                         info.index[2] == 1 * aux - 1;
+            bool xskin =
+                info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+            bool yskin =
+                info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
             int xskip = info.index[0] == 0 ? -1 : 1;
             int yskip = info.index[1] == 0 ? -1 : 1;
-            int zskip = info.index[2] == 0 ? -1 : 1;
+
             for (int icode = 0; icode < 27; icode++) {
               if (icode == 1 * 1 + 3 * 1 + 9 * 1)
                 continue;
@@ -5290,7 +5266,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
-	h = sim.h0 / (1 << info.level);
+        h = sim.h0 / (1 << info.level);
         u0 = info.origin[0] + h * x;
         v0 = info.origin[1] + h * y;
         u1 = u0 + h;
