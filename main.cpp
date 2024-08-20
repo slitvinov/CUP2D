@@ -518,10 +518,8 @@ struct SpaceCurve {
   }
 };
 static long long getZforward(int level, int i, int j) {
-  int TwoPower = 1 << level;
-  int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
-  int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
-  return sim.space_curve->forward(level, ix, iy);
+  return sim.space_curve->forward(level, i % (1 << level * sim.bpdx),
+                                  j % (1 << level * sim.bpdy));
 }
 struct Value {
   std::string content;
