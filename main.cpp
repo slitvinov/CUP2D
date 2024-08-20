@@ -4339,12 +4339,10 @@ template <typename TLab, typename ElementType> struct Adaptation {
   LoadBalancer<ElementType> *Balancer;
   Grid<ElementType> *grid;
   bool basic_refinement;
-  double tolerance_for_refinement;
   double tolerance_for_compression;
   std::vector<long long> dealloc_IDs;
-  Adaptation(Grid<ElementType> &g, double Rtol, double Ctol) {
+  Adaptation(Grid<ElementType> &g, double Ctol) {
     grid = &g;
-    tolerance_for_refinement = Rtol;
     tolerance_for_compression = Ctol;
     boundary_needed = false;
     stencil.sx = -1;
@@ -4794,7 +4792,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           for (int i = 0; i < _BS_; i++) {
             Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
           }
-        if (Linf > tolerance_for_refinement)
+        if (Linf > sim.Rtol)
           I[i]->state = Refine;
         else if (Linf < tolerance_for_compression)
           I[i]->state = Compress;
@@ -7721,13 +7719,13 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new ScalarAMR(*var.tmp, sim.Rtol, sim.Ctol);
-  var.chi_amr = new ScalarAMR(*var.chi, sim.Rtol, sim.Ctol);
-  var.pres_amr = new ScalarAMR(*var.pres, sim.Rtol, sim.Ctol);
-  var.pold_amr = new ScalarAMR(*var.pold, sim.Rtol, sim.Ctol);
-  var.vel_amr = new VectorAMR(*var.vel, sim.Rtol, sim.Ctol);
-  var.vold_amr = new VectorAMR(*var.vold, sim.Rtol, sim.Ctol);
-  var.tmpV_amr = new VectorAMR(*var.tmpV, sim.Rtol, sim.Ctol);
+  var.tmp_amr = new ScalarAMR(*var.tmp, sim.Ctol);
+  var.chi_amr = new ScalarAMR(*var.chi, sim.Ctol);
+  var.pres_amr = new ScalarAMR(*var.pres, sim.Ctol);
+  var.pold_amr = new ScalarAMR(*var.pold, sim.Ctol);
+  var.vel_amr = new VectorAMR(*var.vel, sim.Ctol);
+  var.vold_amr = new VectorAMR(*var.vold, sim.Ctol);
+  var.tmpV_amr = new VectorAMR(*var.tmpV, sim.Ctol);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
