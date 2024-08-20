@@ -1435,7 +1435,7 @@ template <typename TGrid> struct Synchronizer {
     int imax[3];
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
-    const int blocks[3] = {grid->getMaxBlocks()[0] * aux - 1,
+    const int blocks[3] = {sim.bpdx * aux - 1,
                            grid->getMaxBlocks()[1] * aux - 1,
                            grid->getMaxBlocks()[2] * aux - 1};
     for (int d = 0; d < 3; d++) {
@@ -1481,7 +1481,7 @@ template <typename TGrid> struct Synchronizer {
       info.halo_id = -1;
       const bool xskin =
           info.index[0] == 0 ||
-          info.index[0] == ((grid->getMaxBlocks()[0] << info.level) - 1);
+          info.index[0] == ((sim.bpdx << info.level) - 1);
       const bool yskin =
           info.index[1] == 0 ||
           info.index[1] == ((grid->getMaxBlocks()[1] << info.level) - 1);
@@ -1535,7 +1535,7 @@ template <typename TGrid> struct Synchronizer {
                 grid->getBlockInfoAll(infoNei.level - 1, infoNei.Zparent);
             const int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            const int Bmax[3] = {grid->getMaxBlocks()[0] << (info.level - 1),
+            const int Bmax[3] = {sim.bpdx << (info.level - 1),
                                  grid->getMaxBlocks()[1] << (info.level - 1),
                                  grid->getMaxBlocks()[2] << (info.level - 1)};
             const int test_idx[3] = {
