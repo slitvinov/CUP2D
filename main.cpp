@@ -2804,12 +2804,12 @@ template <typename ElementType> struct Grid {
     }
   }
   int &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
-  void _alloc(const int m, const long long n) {
-    BlockInfo &new_info = getBlockInfoAll(m, n);
+  void _alloc(int level, long long Z) {
+    BlockInfo &new_info = getBlockInfoAll(level, Z);
     new_info.block = new Block;
 #pragma omp critical
     { infos.push_back(new_info); }
-    Tree0(m, n) = sim.rank;
+    Tree0(level, Z) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
     free(getBlockInfoAll0(m, n).block);
