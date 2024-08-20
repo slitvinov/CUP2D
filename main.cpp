@@ -2405,6 +2405,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
 };
 template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
+  int dim;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
@@ -2419,7 +2420,7 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(int dim) : timestamp(0) {
+  Grid(int dim) : timestamp(0), dim(dim) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -2806,7 +2807,7 @@ template <typename ElementType> struct Grid {
   int &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = getBlockInfoAll(level, Z);
-    new_info.block = new Block;
+    new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(new_info); }
     Tree0(level, Z) = sim.rank;
