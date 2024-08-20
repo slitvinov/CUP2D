@@ -2224,10 +2224,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           continue;
         if (code[2] != 0)
           continue;
-        if (!(*TFluxCorrection::grid)
+        if (!((*TFluxCorrection::grid)
                  .Tree0(info.level,
                         info.Znei[1 + code[0]][1 + code[1]]) >=
-            0) {
+	      0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
