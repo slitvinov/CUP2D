@@ -3,7 +3,6 @@
 #include <array>
 #include <cassert>
 #include <cstring>
-#include <gsl/gsl_linalg.h>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -7871,24 +7870,6 @@ int main(int argc, char **argv) {
         shape->penalDY = PY;
         shape->penalM = PM;
         shape->penalJ = PJ;
-        double A[3][3] = {
-            {(double)shape->penalM, (double)0, (double)-shape->penalDY},
-            {(double)0, (double)shape->penalM, (double)shape->penalDX},
-            {(double)-shape->penalDY, (double)shape->penalDX,
-             (double)shape->penalJ}};
-        double b[3] = {
-            (double)(shape->fluidMomX + sim.dt * shape->appliedForceX),
-            (double)(shape->fluidMomY + sim.dt * shape->appliedForceY),
-            (double)(shape->fluidAngMom + sim.dt * shape->appliedTorque)};
-        gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
-        gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
-        gsl_vector *xgsl = gsl_vector_alloc(3);
-        int sgsl;
-        gsl_permutation *permgsl = gsl_permutation_alloc(3);
-        gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
-        gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-        gsl_permutation_free(permgsl);
-        gsl_vector_free(xgsl);
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
