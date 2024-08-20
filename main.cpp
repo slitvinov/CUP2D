@@ -2419,7 +2419,7 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid(int size) : timestamp(0) {
+  Grid(int dim) : timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -2438,7 +2438,7 @@ template <typename ElementType> struct Grid {
     }
     for (size_t i = 0; i < my_blocks; i++) {
       BlockInfo &new_info = getBlockInfoAll(sim.levelStart, n_start + i);
-      new_info.block = malloc(size * _BS_ * _BS_ * sizeof(Real));
+      new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
       infos.push_back(new_info);
       Octree[level_base[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
