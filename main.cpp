@@ -807,9 +807,9 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
-        if (!sim.bcx == periodic && code[0] == xskip && xskin)
+        if (!(sim.bcx == periodic) && code[0] == xskip && xskin)
           continue;
-        if (!sim.bcy == periodic && code[1] == yskip && yskin)
+        if (!(sim.bcy == periodic) && code[1] == yskip && yskin)
           continue;
         if (code[2] != 0)
           continue;
@@ -1497,9 +1497,9 @@ template <typename TGrid> struct Synchronizer {
                              (icode / 9) % 3 - 1};
         if (code[2] != 0)
           continue;
-        if (!sim.bcx == periodic && code[0] == xskip && xskin)
+        if (!(sim.bcx == periodic) && code[0] == xskip && xskin)
           continue;
-        if (!sim.bcy == periodic && code[1] == yskip && yskin)
+        if (!(sim.bcy == periodic) && code[1] == yskip && yskin)
           continue;
         const int &infoNeiTree = grid->Tree0(
             info.level, info.Znei[1 + code[0]][1 + code[1]]);
