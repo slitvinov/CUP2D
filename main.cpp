@@ -2812,7 +2812,7 @@ template <typename ElementType> struct Grid {
     Tree0(m, n) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
-    delete[](Block *) getBlockInfoAll(m, n).block;
+    delete[](Block *) getBlockInfoAll0(m, n).block;
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
         infos.erase(infos.begin() + j);
@@ -2829,7 +2829,7 @@ template <typename ElementType> struct Grid {
           const int m = infos[j].level;
           const long long n = infos[j].Z;
           infos[j].changed2 = true;
-          delete[](Block *) getBlockInfoAll(m, n).block;
+          delete[](Block *) getBlockInfoAll0(m, n).block;
           break;
         }
       }
@@ -2853,7 +2853,12 @@ template <typename ElementType> struct Grid {
     return avail(m, n);
   }
   Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
-  BlockInfo &getBlockInfoAll(const int m, const long long n) {
+  BlockInfo &getBlockInfoAll0(int m, long long n) {
+    const auto retval = BlockInfoAll.find(level_base[m] + n);
+    assert(retval != BlockInfoAll.end());
+    return *retval->second;
+  }
+  BlockInfo &getBlockInfoAll(int m, long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
     if (retval != BlockInfoAll.end()) {
