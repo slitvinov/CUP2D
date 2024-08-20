@@ -2888,8 +2888,8 @@ template <typename ElementType> struct Grid {
           for (int i = -1; i < 2; i++)
             for (int j = -1; j < 2; j++)
               dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                  dumm->level, (dumm->index[0] + i + Bmax[0]) % Bmax[0],
-                  (dumm->index[1] + j + Bmax[1]) % Bmax[1]);
+                  dumm->level, (dumm->index[0] + i) % Bmax[0],
+                  (dumm->index[1] + j) % Bmax[1]);
           for (int i = 0; i < 2; i++)
             for (int j = 0; j < 2; j++)
               dumm->Zchild[i][j] = sim.space_curve->forward(
