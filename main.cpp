@@ -5313,17 +5313,20 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
     ScalarBlock &b = *(ScalarBlock *)info.block;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
-        double u, v;
-        u = info.origin[0] + info.h * x;
-        v = info.origin[1] + info.h * y;
-        xyz[k++] = u;
-        xyz[k++] = v;
-        xyz[k++] = u;
-        xyz[k++] = v + info.h;
-        xyz[k++] = u + info.h;
-        xyz[k++] = v + info.h;
-        xyz[k++] = u + info.h;
-        xyz[k++] = v;
+        double u0, v0, u1, v1, h;
+	h = sim.h0 / (1 << info.level);
+        u0 = info.origin[0] + h * x;
+        v0 = info.origin[1] + h * y;
+        u1 = u0 + h;
+        v1 = v0 + h;
+        xyz[k++] = u0;
+        xyz[k++] = v0;
+        xyz[k++] = u0;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v0;
         attr[l++] = b[y][x].s;
       }
   }
