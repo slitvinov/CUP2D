@@ -741,7 +741,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       const bool zskin =
-          info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
@@ -802,7 +802,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       const bool zskin =
-          info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
@@ -2214,7 +2214,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       const bool zskin =
-          info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
@@ -2506,7 +2506,7 @@ template <typename ElementType> struct Grid {
       const bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       const bool zskin =
-          info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
       const int zskip = info.index[2] == 0 ? -1 : 1;
@@ -2660,7 +2660,7 @@ template <typename ElementType> struct Grid {
       bool yskin =
           info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       bool zskin =
-          info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+          info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
       int zskip = info.index[2] == 0 ? -1 : 1;
@@ -3162,7 +3162,7 @@ template <typename ElementType> struct BlockLab {
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
-    NZ = blocksPerDim[2] * aux;
+    NZ = 1 * aux;
     assert(m_cacheBlock != NULL);
     {
       BlockType &block = *(BlockType *)info.block;
@@ -3295,7 +3295,7 @@ template <typename ElementType> struct BlockLab {
     const int aux = 1 << a.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1,
-                           blocksPerDim[2] * aux - 1};
+                           1 * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (a.index[d] < b_index[d]) ? 0 : -1;
       imax[d] = (a.index[d] > b_index[d]) ? 0 : +1;
@@ -3692,7 +3692,7 @@ template <typename ElementType> struct BlockLab {
     bool yskin =
         info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
     bool zskin =
-        info.index[2] == 0 || info.index[2] == blocksPerDim[2] * aux - 1;
+        info.index[2] == 0 || info.index[2] == 1 * aux - 1;
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
     int zskip = info.index[2] == 0 ? -1 : 1;
@@ -4390,7 +4390,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             bool yskin = info.index[1] == 0 ||
                          info.index[1] == sim.bpdy * TwoPower - 1;
             bool zskin = info.index[2] == 0 ||
-                         info.index[2] == blocksPerDim[2] * TwoPower - 1;
+                         info.index[2] == 1 * TwoPower - 1;
             int xskip = info.index[0] == 0 ? -1 : 1;
             int yskip = info.index[1] == 0 ? -1 : 1;
             int zskip = info.index[2] == 0 ? -1 : 1;
@@ -4454,7 +4454,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             bool yskin = info.index[1] == 0 ||
                          info.index[1] == sim.bpdy * aux - 1;
             bool zskin = info.index[2] == 0 ||
-                         info.index[2] == blocksPerDim[2] * aux - 1;
+                         info.index[2] == 1 * aux - 1;
             int xskip = info.index[0] == 0 ? -1 : 1;
             int yskip = info.index[1] == 0 ? -1 : 1;
             int zskip = info.index[2] == 0 ? -1 : 1;
