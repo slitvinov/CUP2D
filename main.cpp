@@ -2419,7 +2419,7 @@ template <typename ElementType> struct Grid {
   FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
       Corrector;
   std::vector<BlockInfo *> boundary;
-  Grid() : timestamp(0) {
+  Grid(int size) : timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -2438,7 +2438,7 @@ template <typename ElementType> struct Grid {
     }
     for (size_t i = 0; i < my_blocks; i++) {
       BlockInfo &new_info = getBlockInfoAll(sim.levelStart, n_start + i);
-      new_info.block = new Block;
+      new_info.block = malloc(size * _BS_ * _BS_ * sizeof(Real));
       infos.push_back(new_info);
       Octree[level_base[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
@@ -2812,7 +2812,7 @@ template <typename ElementType> struct Grid {
     Tree0(m, n) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
-    delete[](Block *) getBlockInfoAll0(m, n).block;
+    free(getBlockInfoAll0(m, n).block);
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
         infos.erase(infos.begin() + j);
@@ -2829,7 +2829,7 @@ template <typename ElementType> struct Grid {
           const int m = infos[j].level;
           const long long n = infos[j].Z;
           infos[j].changed2 = true;
-          delete[](Block *) getBlockInfoAll0(m, n).block;
+          free(getBlockInfoAll0(m, n).block);
           break;
         }
       }
@@ -7545,13 +7545,13 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new ScalarGrid;
-  var.vel = new VectorGrid;
-  var.vold = new VectorGrid;
-  var.pres = new ScalarGrid;
-  var.tmpV = new VectorGrid;
-  var.tmp = new ScalarGrid;
-  var.pold = new ScalarGrid;
+  var.chi = new ScalarGrid(1);
+  var.vel = new VectorGrid(2);
+  var.vold = new VectorGrid(2);
+  var.pres = new ScalarGrid(1);
+  var.tmpV = new VectorGrid(2);
+  var.tmp = new ScalarGrid(1);
+  var.pold = new ScalarGrid(1);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
