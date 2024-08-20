@@ -350,7 +350,7 @@ static struct {
   Real endTime;
   Real extent;
   Real extents[2];
-  Real h;
+  Real h0;
   Real lambda;
   Real minH;
   Real nextDumpTime = 0;
@@ -7632,14 +7632,9 @@ int main(int argc, char **argv) {
   var.tmp = new ScalarGrid;
   var.pold = new ScalarGrid;
   std::vector<BlockInfo> &velInfo = var.vel->infos;
-  if (velInfo.size() == 0) {
-    std::cout << "You are using too many MPI ranks for the given initial "
-                 "number of blocks.";
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-  int aux = pow(2, sim.levelStart);
-  sim.extents[0] = aux * sim.bpdx * velInfo[0].h * _BS_;
-  sim.extents[1] = aux * sim.bpdy * velInfo[0].h * _BS_;
+  sim.h0 = sim.extent / std::max(sim.bpdx, sim.bpdy);
+  sim.extents[0] = sim.bpdx * sim.h0;
+  sim.extents[1] = sim.bpdy * sim.h0;
   int auxMax = pow(2, sim.levelMax - 1);
   sim.minH = sim.extents[0] / (auxMax * sim.bpdx * _BS_);
   std::string shapeArg = parser("-shapes").asString("");
