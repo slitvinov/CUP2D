@@ -2839,7 +2839,6 @@ template <typename ElementType> struct Grid {
   }
   void FillPos() {
     std::sort(infos.begin(), infos.end());
-    Octree.reserve(Octree.size() + infos.size() / 8);
     for (size_t j = 0; j < infos.size(); j++) {
       const int m = infos[j].level;
       const long long n = infos[j].Z;
