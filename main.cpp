@@ -5591,10 +5591,6 @@ struct Shape {
   Shape(CommandlineParser &p, Real C[2])
       : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
         orientation(p("-angle").asDouble(0) * M_PI / 180),
-        bForced(p("-bForced").asBool(false)),
-        bForcedx(p("-bForcedx").asBool(bForced)),
-        bForcedy(p("-bForcedy").asBool(bForced)),
-        bBlockang(p("-bBlockAng").asBool(bForcedx || bForcedy)),
         forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
         forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
         Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
@@ -5608,10 +5604,6 @@ struct Shape {
   Real centerOfMass[2];
   Real orientation;
   Real d_gm[2] = {0, 0};
-  const bool bForced;
-  const bool bForcedx;
-  const bool bForcedy;
-  const bool bBlockang;
   const Real forcedu;
   const Real forcedv;
   const Real forcedomega;
@@ -7888,21 +7880,6 @@ int main(int argc, char **argv) {
             (double)(shape->fluidMomX + sim.dt * shape->appliedForceX),
             (double)(shape->fluidMomY + sim.dt * shape->appliedForceY),
             (double)(shape->fluidAngMom + sim.dt * shape->appliedTorque)};
-        if (shape->bForcedx) {
-          A[0][1] = 0;
-          A[0][2] = 0;
-          b[0] = shape->penalM * shape->forcedu;
-        }
-        if (shape->bForcedy) {
-          A[1][0] = 0;
-          A[1][2] = 0;
-          b[1] = shape->penalM * shape->forcedv;
-        }
-        if (shape->bBlockang) {
-          A[2][0] = 0;
-          A[2][1] = 0;
-          b[2] = shape->penalJ * shape->forcedomega;
-        }
         gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
         gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
         gsl_vector *xgsl = gsl_vector_alloc(3);
@@ -7910,12 +7887,6 @@ int main(int argc, char **argv) {
         gsl_permutation *permgsl = gsl_permutation_alloc(3);
         gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
         gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-        if (not shape->bForcedx)
-          shape->u = gsl_vector_get(xgsl, 0);
-        if (not shape->bForcedy)
-          shape->v = gsl_vector_get(xgsl, 1);
-        if (not shape->bBlockang)
-          shape->omega = gsl_vector_get(xgsl, 2);
         gsl_permutation_free(permgsl);
         gsl_vector_free(xgsl);
       }
@@ -8110,13 +8081,6 @@ int main(int argc, char **argv) {
           {
             sim.bCollisionID.push_back(i);
             sim.bCollisionID.push_back(j);
-          }
-          const bool iForced = shapes[i]->bForced;
-          const bool jForced = shapes[j]->bForced;
-          if (iForced || jForced) {
-            std::cout << "[CUP2D] WARNING: Forced objects not supported for "
-                         "collision."
-                      << std::endl;
           }
           Real ho1[3];
           Real ho2[3];
