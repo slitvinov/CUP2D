@@ -4505,13 +4505,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
     std::vector<BlockInfo> &I2 = grid->infos;
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
       BlockInfo &ary0 = I2[i1];
-      BlockInfo &info = grid->getBlockInfoAll(ary0.level, ary0.Z);
+      BlockInfo &info = grid->getBlockInfoAll0(ary0.level, ary0.Z);
       for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
           const long long n = getZforward(info.level, i, j);
-          BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
+          BlockInfo &infoNei = grid->getBlockInfoAll0(info.level, n);
           infoNei.state = Leave;
         }
       info.state = Leave;
@@ -4521,14 +4521,14 @@ template <typename TLab, typename ElementType> struct Adaptation {
     for (size_t i = 0; i < I1.size(); i++) {
       const BlockInfo &info1 = I1[i];
       BlockInfo &info2 = I2[i];
-      BlockInfo &info3 = grid->getBlockInfoAll(info2.level, info2.Z);
+      BlockInfo &info3 = grid->getBlockInfoAll0(info2.level, info2.Z);
       info2.state = info1.state;
       info3.state = info1.state;
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
         const long long n = getZforward(info2.level, i2, j2);
-        BlockInfo &infoNei = grid->getBlockInfoAll(info2.level, n);
+        BlockInfo &infoNei = grid->getBlockInfoAll0(info2.level, n);
         infoNei.state = Compress;
       }
     }
