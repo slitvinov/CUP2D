@@ -2881,17 +2881,6 @@ template <typename ElementType> struct Grid {
     return avail(m, n);
   }
   Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
-  std::array<int, 3> getMaxMostRefinedBlocks() const {
-    return {
-        sim.bpdx << (sim.levelMax - 1),
-        sim.bpdy << (sim.levelMax - 1),
-        1,
-    };
-  }
-  std::array<int, 3> getMaxMostRefinedCells() const {
-    const auto b = getMaxMostRefinedBlocks();
-    return {b[0] * _BS_, b[1] * _BS_, b[2] * 1};
-  }
   BlockInfo &getBlockInfoAll(const int m, const long long n) {
     const long long aux = level_base[m] + n;
     const auto retval = BlockInfoAll.find(aux);
