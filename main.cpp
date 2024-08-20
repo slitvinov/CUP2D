@@ -7623,6 +7623,11 @@ int main(int argc, char **argv) {
   sim.bMeanConstraint = parser("-bMeanConstraint").asInt(0);
   sim.dumpFreq = parser("-fdump").asInt(0);
   sim.dumpTime = parser("-tdump").asDouble(0);
+  sim.h0 = sim.extent / std::max(sim.bpdx, sim.bpdy);
+  sim.extents[0] = sim.bpdx * sim.h0;
+  sim.extents[1] = sim.bpdy * sim.h0;
+  int auxMax = pow(2, sim.levelMax - 1);
+  sim.minH = sim.extents[0] / (auxMax * sim.bpdx * _BS_);
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   var.chi = new ScalarGrid;
   var.vel = new VectorGrid;
@@ -7632,11 +7637,6 @@ int main(int argc, char **argv) {
   var.tmp = new ScalarGrid;
   var.pold = new ScalarGrid;
   std::vector<BlockInfo> &velInfo = var.vel->infos;
-  sim.h0 = sim.extent / std::max(sim.bpdx, sim.bpdy);
-  sim.extents[0] = sim.bpdx * sim.h0;
-  sim.extents[1] = sim.bpdy * sim.h0;
-  int auxMax = pow(2, sim.levelMax - 1);
-  sim.minH = sim.extents[0] / (auxMax * sim.bpdx * _BS_);
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
