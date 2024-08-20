@@ -517,6 +517,12 @@ struct SpaceCurve {
     return retval;
   }
 };
+static long long getZforward(int level, int i, int j) {
+  int TwoPower = 1 << level;
+  int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
+  int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
+  return sim.space_curve->forward(level, ix, iy);
+}
 struct Value {
   std::string content;
   Value() = default;
@@ -2888,12 +2894,6 @@ template <typename ElementType> struct Grid {
       infos[j] = correct_info;
       assert(Tree0(m, n) >= 0);
     }
-  }
-  long long getZforward(int level, int i, int j) const {
-    int TwoPower = 1 << level;
-    int ix = (i + TwoPower * sim.bpdx) % (sim.bpdx * TwoPower);
-    int iy = (j + TwoPower * sim.bpdy) % (sim.bpdy * TwoPower);
-    return sim.space_curve->forward(level, ix, iy);
   }
   Block *avail1(const int ix, const int iy, const int m) {
     const long long n = getZforward(m, ix, iy);
