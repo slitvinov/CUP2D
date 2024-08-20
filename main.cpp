@@ -2852,7 +2852,6 @@ template <typename ElementType> struct Grid {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
-  Block &operator()(const long long ID) { return *(Block *)infos[ID].block; }
   BlockInfo &getBlockInfoAll0(int m, long long n) {
     const auto retval = BlockInfoAll.find(level_base[m] + n);
     assert(retval != BlockInfoAll.end());
