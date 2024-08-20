@@ -684,7 +684,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
     assert(CoarseCase.level == info.level);
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      const long long Z = (*grid).getZforward(
+      const long long Z = getZforward(
           info.level + 1,
           2 * info.index[0] + std::max(code[0], 0) + code[0] +
               (B % 2) * std::max(0, 1 - abs(code[0])),
@@ -2110,12 +2110,11 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
-          (*TFluxCorrection::grid)
-              .getZforward(info.level + 1,
-                           2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                               (B % 2) * std::max(0, 1 - abs(code[0])),
-                           2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                               aux * std::max(0, 1 - abs(code[1])));
+          getZforward(info.level + 1,
+		      2 * info.index[0] + std::max(code[0], 0) + code[0] +
+		      (B % 2) * std::max(0, 1 - abs(code[0])),
+		      2 * info.index[1] + std::max(code[1], 0) + code[1] +
+		      aux * std::max(0, 1 - abs(code[1])));
       if (Z != F.infos[0]->Z)
         continue;
       const int d = myFace / 2;
@@ -4021,11 +4020,11 @@ template <typename ElementType> struct LoadBalancer {
       for (int j1 = 0; j1 < 2; j1++)
         for (int i1 = 0; i1 < 2; i1++) {
           const long long nc =
-              grid->getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+              getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
           grid->Tree0(level + 1, nc) = -2;
         }
     if (level > 0) {
-      const long long nf = grid->getZforward(level - 1, p[0] / 2, p[1] / 2);
+      const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
       grid->Tree0(level - 1, nf) = -1;
     }
   }
@@ -4052,7 +4051,7 @@ template <typename ElementType> struct LoadBalancer {
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
-      const long long nBlock = grid->getZforward(b.level, 2 * (b.index[0] / 2),
+      const long long nBlock = getZforward(b.level, 2 * (b.index[0] / 2),
                                                  2 * (b.index[1] / 2));
       const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
       if (!(grid->Tree1(base) >= 0) || base.state != Compress)
@@ -4069,7 +4068,7 @@ template <typename ElementType> struct LoadBalancer {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long n =
-                grid->getZforward(b.level, b.index[0] + i, b.index[1] + j);
+                getZforward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
             BlockInfo &temp = grid->getBlockInfoAll(b.level, n);
@@ -4446,7 +4445,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                              code[0] + (B % 2) * std::max(0, 1 - abs(code[0]));
                   int jNei = 2 * info.index[1] + std::max(code[1], 0) +
                              code[1] + aux * std::max(0, 1 - abs(code[1]));
-                  long long zzz = grid->getZforward(m + 1, iNei, jNei);
+                  long long zzz = getZforward(m + 1, iNei, jNei);
                   BlockInfo &FinerNei = grid->getBlockInfoAll(m + 1, zzz);
                   State NeiState = FinerNei.state;
                   if (NeiState == Refine) {
@@ -4510,7 +4509,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                j <= 2 * (info.index[1] / 2) + 1; j++)
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
-              long long n = grid->getZforward(m, i, j);
+              long long n = getZforward(m, i, j);
               BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
               if (grid->Tree1(infoNei) >= 0 == false ||
                   infoNei.state != Compress) {
@@ -4529,7 +4528,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
                  j <= 2 * (info.index[1] / 2) + 1; j++)
               for (int k = 2 * (info.index[2] / 2);
                    k <= 2 * (info.index[2] / 2) + 1; k++) {
-                long long n = grid->getZforward(m, i, j);
+                long long n = getZforward(m, i, j);
                 BlockInfo &infoNei = grid->getBlockInfoAll(m, n);
                 if (grid->Tree1(infoNei) >= 0 && infoNei.state == Compress)
                   infoNei.state = Leave;
@@ -4598,7 +4597,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long nc =
-                grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+                getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
             Child.state = Leave;
             grid->_alloc(level + 1, nc);
@@ -4668,7 +4667,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long nc =
-                grid->getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+                getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
             BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
             grid->Tree1(Child) = sim.rank;
             if (level + 2 < sim.levelMax)
@@ -4692,7 +4691,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         for (int I = 0; I < 2; I++) {
           const int blk = J * 2 + I;
           const long long n =
-              grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+              getZforward(level, info.index[0] + I, info.index[1] + J);
           Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
@@ -4709,7 +4708,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
               }
           }
       const long long np =
-          grid->getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
+          getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
       BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
       grid->Tree0(parent.level, parent.Z) = sim.rank;
       parent.block = info.block;
@@ -4719,7 +4718,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
-              grid->getZforward(level, info.index[0] + I, info.index[1] + J);
+              getZforward(level, info.index[0] + I, info.index[1] + J);
           if (I + J == 0) {
             for (size_t j = 0; j < grid->infos.size(); j++)
               if (level == grid->infos[j].level && n == grid->infos[j].Z) {
@@ -4759,7 +4758,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
-          const long long n = grid->getZforward(info.level, i, j);
+          const long long n = getZforward(info.level, i, j);
           BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
           infoNei.state = Leave;
         }
@@ -4776,7 +4775,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
-        const long long n = grid->getZforward(info2.level, i2, j2);
+        const long long n = getZforward(info2.level, i2, j2);
         BlockInfo &infoNei = grid->getBlockInfoAll(info2.level, n);
         infoNei.state = Compress;
       }
