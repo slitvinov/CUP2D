@@ -2899,8 +2899,8 @@ template <typename ElementType> struct Grid {
                               ? 0
                               : sim.space_curve->forward(
                                     dumm->level - 1,
-                                    (dumm->index[0] / 2 + Bmax[0]) % Bmax[0],
-                                    (dumm->index[1] / 2 + Bmax[1]) % Bmax[1]);
+                                    (dumm->index[0] / 2) % Bmax[0],
+                                    (dumm->index[1] / 2) % Bmax[1]);
           dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
           dumm->id = dumm->id2;
           BlockInfoAll[aux] = dumm;
