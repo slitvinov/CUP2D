@@ -3159,7 +3159,7 @@ template <typename ElementType> struct BlockLab {
   }
   virtual void load(const BlockInfo &info, const Real t = 0,
                     const bool applybc = true) {
-    std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     const int aux = 1 << info.level;
     NX = blocksPerDim[0] * aux;
     NY = blocksPerDim[1] * aux;
@@ -3290,7 +3290,7 @@ template <typename ElementType> struct BlockLab {
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
-    std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     int imin[3];
     int imax[3];
     const int aux = 1 << a.level;
@@ -3686,7 +3686,7 @@ template <typename ElementType> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(const BlockInfo &info) {
-    std::array<int, 3> blocksPerDim = m_refGrid->getMaxBlocks();
+    const int blocksPerDim[3] = {sim.bpdx, sim.bpdy, 1};
     int aux = 1 << info.level;
     bool xskin =
         info.index[0] == 0 || info.index[0] == blocksPerDim[0] * aux - 1;
