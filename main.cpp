@@ -7836,9 +7836,7 @@ int main(int argc, char **argv) {
         UM = quantities[4];
         VM = quantities[5];
         AM = quantities[6];
-        double A[3][3] = {{PM, 0, -PY},
-                          {0, PM, PX},
-                          {-PY, PX, PJ}};
+        double A[3][3] = {{PM, 0, -PY}, {0, PM, PX}, {-PY, PX, PJ}};
         double b[3] = {UM, VM, AM};
         gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
         gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
