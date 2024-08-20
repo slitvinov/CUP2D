@@ -743,7 +743,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       bool storeFace[6] = {false, false, false, false, false, false};
       bool stored = false;
       for (int f = 0; f < 6; f++) {
@@ -803,7 +803,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
                              (icode[f] / 9) % 3 - 1};
@@ -1486,7 +1486,7 @@ template <typename TGrid> struct Synchronizer {
           info.index[2] == ((1 << info.level) - 1);
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       bool isInner = true;
       std::vector<int> ToBeChecked;
       bool Coarsened = false;
@@ -2212,7 +2212,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       bool storeFace[6] = {false, false, false, false, false, false};
       bool stored = false;
       for (int f = 0; f < 6; f++) {
@@ -2503,7 +2503,7 @@ template <typename ElementType> struct Grid {
           info.index[2] == 0 || info.index[2] == 1 * aux - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
@@ -3183,7 +3183,7 @@ template <typename ElementType> struct BlockLab {
       const bool zskin = info.index[2] == 0 || info.index[2] == NZ - 1;
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
-      const int zskip = info.index[2] == 0 ? -1 : 1;
+      
       int icodes[8];
       int k = 0;
       coarsened_nei_codes_size = 0;
