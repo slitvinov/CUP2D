@@ -3024,7 +3024,7 @@ template <typename ElementType> struct BlockLab {
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], - m_stencilStart[2]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], iz - m_stencilStart[2]);
+    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], - m_stencilStart[2]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     constexpr int Istencil_start[3] = {-1, -1, 0};
