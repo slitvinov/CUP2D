@@ -3231,7 +3231,7 @@ template <typename ElementType> struct BlockLab {
       _apply_bc(info, t, true);
     CoarseFineInterpolation(info);
     if (applybc)
-      _apply_bc(info, t);
+      _apply_bc(info, t, false);
   }
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
@@ -3876,8 +3876,8 @@ template <typename ElementType> struct BlockLab {
       }
     }
   }
-  virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
-                         bool coarse = false) {}
+  virtual void _apply_bc(const BlockInfo &info, const Real t,
+                         bool coarse) {}
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       delete t;
@@ -4844,8 +4844,8 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-  virtual void _apply_bc(const BlockInfo &info, const Real t = 0,
-                         const bool coarse = false) override {
+  virtual void _apply_bc(const BlockInfo &info, const Real t,
+                         const bool coarse) override {
     if (sim.bcx != periodic) {
       if (info.index[0] == 0)
         Neumann2D<0, 0>(coarse);
