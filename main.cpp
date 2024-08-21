@@ -2975,8 +2975,6 @@ template <class DataType> struct Matrix3D {
   unsigned int *getSize() const { return (unsigned int *)m_vSize; }
   unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
-constexpr int default_start[3] = {-1, -1, 0};
-constexpr int default_end[3] = {2, 2, 1};
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
   Matrix3D<ElementType> *m_cacheBlock;
@@ -3032,9 +3030,9 @@ template <typename ElementType> struct BlockLab {
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil,
-                       const int Istencil_start[3] = default_start,
-                       const int Istencil_end[3] = default_end) {
+  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
+    constexpr int Istencil_start[3] = {-1, -1, 0};
+    constexpr int Istencil_end[3] = {2, 2, 1};
     istensorial = stencil.tensorial;
     coarsened = false;
     m_stencilStart[0] = stencil.sx;
@@ -3886,9 +3884,7 @@ struct BlockLabMPI : public MyBlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
-  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil,
-                       const int[3] = default_start,
-                       const int[3] = default_end) override {
+  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) override {
     auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
