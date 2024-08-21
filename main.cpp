@@ -3022,11 +3022,13 @@ template <typename ElementType> struct BlockLab {
     _release(m_cacheBlock);
     _release(m_CoarsenedBlock);
   }
-  ElementType &operator()(int ix, int iy = 0, int iz = 0) {
+  ElementType &operator()(int ix, int iy) {
+    int iz = 0;
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
-  const ElementType &operator()(int ix, int iy = 0, int iz = 0) const {
+  const ElementType &operator()(int ix, int iy) const {
+    int iz = 0;
     return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
                                 iz - m_stencilStart[2]);
   }
