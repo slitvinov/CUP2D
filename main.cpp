@@ -6327,7 +6327,7 @@ static void adapt() {
   int tmp;
   std::vector<BlockInfo *> *halo = &Synch->halo_blocks;
   std::vector<BlockInfo *> *infos[2] = {&Synch->inner_blocks, halo};
-  typedef ScalarElement BlockType[_BS_][_BS_];
+  typedef ScalarElement ScalarBlock[_BS_][_BS_];
   for (int iii = 0;; iii++) {
     std::vector<BlockInfo *> *I = infos[iii];
 #pragma omp parallel
@@ -6336,12 +6336,11 @@ static void adapt() {
       for (size_t i = 0; i < I->size(); i++) {
         BlockInfo &info =
             var.tmp_amr->grid->getBlockInfoAll((*I)[i]->level, (*I)[i]->Z);
-        BlockType &b = *(BlockType *)info.block;
+        ScalarBlock &b = *(ScalarBlock *)info.block;
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
-          for (int i = 0; i < _BS_; i++) {
+          for (int i = 0; i < _BS_; i++)
             Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
-          }
         if (Linf > sim.Rtol)
           (*I)[i]->state = Refine;
         else if (Linf < sim.Ctol)
