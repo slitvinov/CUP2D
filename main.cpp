@@ -6370,7 +6370,7 @@ static void adapt() {
   std::vector<BlockInfo *> *infos[2] = {&Synch->inner_blocks, halo};
   for (int i = 0;; i++) {
     var.tmp_amr->TagBlocksVector(infos[i], Reduction, Reduction_req, tmp);
-    if (i == 2)
+    if (i == 1)
       break;
     MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                 MPI_STATUSES_IGNORE);
