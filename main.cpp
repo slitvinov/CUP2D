@@ -2307,10 +2307,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     }
   }
   virtual void FillBlockCases() override {
-    auto MPI_real =
-        (sizeof(Real) == sizeof(float))
-            ? MPI_FLOAT
-            : ((sizeof(Real) == sizeof(double)) ? MPI_DOUBLE : MPI_LONG_DOUBLE);
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2347,24 +2343,24 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         if (recv_buffer[r].size() != 0) {
           MPI_Request req{};
           recv_requests.push_back(req);
-          MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_real, r,
+          MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_Real, r,
                     123456, MPI_COMM_WORLD, &recv_requests.back());
         }
         if (send_buffer[r].size() != 0) {
           MPI_Request req{};
           send_requests.push_back(req);
-          MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_real, r,
+          MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_Real, r,
                     123456, MPI_COMM_WORLD, &send_requests.back());
         }
       }
     MPI_Request me_send_request;
     MPI_Request me_recv_request;
     if (recv_buffer[me].size() != 0) {
-      MPI_Irecv(&recv_buffer[me][0], recv_buffer[me].size(), MPI_real, me,
+      MPI_Irecv(&recv_buffer[me][0], recv_buffer[me].size(), MPI_Real, me,
                 123456, MPI_COMM_WORLD, &me_recv_request);
     }
     if (send_buffer[me].size() != 0) {
-      MPI_Isend(&send_buffer[me][0], send_buffer[me].size(), MPI_real, me,
+      MPI_Isend(&send_buffer[me][0], send_buffer[me].size(), MPI_Real, me,
                 123456, MPI_COMM_WORLD, &me_send_request);
     }
     if (recv_buffer[me].size() > 0)
