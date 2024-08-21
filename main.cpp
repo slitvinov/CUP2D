@@ -3876,8 +3876,7 @@ template <typename ElementType> struct BlockLab {
       }
     }
   }
-  virtual void _apply_bc(const BlockInfo &info, const Real t,
-                         bool coarse) {}
+  virtual void _apply_bc(const BlockInfo &info, const Real t, bool coarse) {}
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       delete t;
@@ -6525,18 +6524,22 @@ static void adapt() {
             }
     }
   }
-  TagLike(&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base,
-          var.chi_amr->grid->infos, var.tmp->infos);
-  TagLike(&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base,
-          var.pres_amr->grid->infos, var.tmp->infos);
-  TagLike(&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base,
-          var.pold_amr->grid->infos, var.tmp->infos);
-  TagLike(&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base,
-          var.vel_amr->grid->infos, var.tmp->infos);
-  TagLike(&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base,
-          var.vold_amr->grid->infos, var.tmp->infos);
-  TagLike(&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base,
-          var.tmpV_amr->grid->infos, var.tmp->infos);
+  struct {
+    std::unordered_map<long long, BlockInfo *> *BlockInfoAll;
+    std::vector<long long> *level_base;
+    std::vector<BlockInfo> &I2;
+  } args[] = {
+    {&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base, var.chi_amr->grid->infos},
+    {&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base, var.pres_amr->grid->infos},
+    {&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base, var.pold_amr->grid->infos},
+    {&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base, var.vel_amr->grid->infos},
+    {&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base, var.vold_amr->grid->infos},
+    {&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base, var.tmpV_amr->grid->infos},
+  };
+  for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
+    TagLike(args[iarg].BlockInfoAll, args[iarg].level_base,
+	    args[iarg].I2, var.tmp->infos);
+  }
   var.tmp_amr->Adapt(false);
   var.chi_amr->Adapt(false);
   var.vel_amr->Adapt(false);
