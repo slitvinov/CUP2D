@@ -1072,27 +1072,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -1764,7 +1767,7 @@ template <typename TGrid> struct Synchronizer {
     ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
   }
-  std::vector<BlockInfo *> &avail_halo() {
+  std::vector<BlockInfo *> &avail_halo0() {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     return halo_blocks;
   }
@@ -3516,27 +3519,30 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4292,7 +4298,9 @@ template <typename TLab, typename ElementType> struct Adaptation {
     Synchronizer<Grid<ElementType>> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync1(stencil);
-      grid->boundary = Synch->avail_halo();
+      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+                  MPI_STATUSES_IGNORE);
+      grid->boundary = Synch->halo_blocks;
       if (boundary_needed)
         grid->UpdateBoundary();
     }
@@ -4604,7 +4612,8 @@ static void computeA(Kernel &&kernel, TGrid *g) {
       }
     }
   }
-  Synch.avail_halo();
+  MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
+              MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename ElementType1, typename LabMPI,
           typename ElementType2, typename LabMPI2>
@@ -4648,8 +4657,13 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     }
 #pragma omp master
     {
-      avail1 = Synch.avail_halo();
-      avail12 = Synch2.avail_halo();
+      MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
+                  MPI_STATUSES_IGNORE);
+      avail1 = Synch.halo_blocks;
+
+      MPI_Waitall(Synch2.requests.size(), Synch2.requests.data(),
+                  MPI_STATUSES_IGNORE);
+      avail12 = Synch2.halo_blocks;
     }
 #pragma omp barrier
     const int Nhalo = avail1.size();
@@ -6364,7 +6378,9 @@ static void adapt() {
   int tmp;
   std::vector<BlockInfo *> &inner = Synch->inner_blocks;
   var.tmp_amr->TagBlocksVector(inner, Reduction, Reduction_req, tmp);
-  std::vector<BlockInfo *> &halo = Synch->avail_halo();
+  MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+              MPI_STATUSES_IGNORE);
+  std::vector<BlockInfo *> &halo = Synch->halo_blocks;
   var.tmp_amr->TagBlocksVector(halo, Reduction, Reduction_req, tmp);
   if (!Reduction) {
     tmp = var.tmp_amr->CallValidStates ? 1 : 0;
