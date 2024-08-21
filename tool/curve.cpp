@@ -184,10 +184,10 @@ int main(int argc, char **argv) {
     i = atoi(argv[1]);
     j = atoi(argv[2]);
     Z = curve.forward(level, i, j);
-    printf("[%d %d] %d %d\n", i, j, Z, morton(i, j));
+    printf("[%d %d] %d %d\n", i, j, (int)Z, (int)morton(i, j));
   } else {
     Z = atoi(argv[1]);
     curve.inverse(Z, level, i, j);
-    printf("%d %d %d\n", i, j, Z);
+    printf("%d %d %d\n", i, j, (int)Z);
   }
 }
