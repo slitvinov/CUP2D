@@ -1767,10 +1767,6 @@ template <typename TGrid> struct Synchronizer {
     ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
   }
-  std::vector<BlockInfo *> &avail_halo0() {
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-    return halo_blocks;
-  }
   std::vector<BlockInfo *> &avail_halo_nowait() { return halo_blocks; }
   std::vector<BlockInfo *> dummy_vector;
   std::vector<BlockInfo *> &avail_next() {
