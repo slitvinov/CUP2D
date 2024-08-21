@@ -4254,10 +4254,6 @@ template <typename ElementType> struct LoadBalancer {
     grid->FillPos();
   }
 };
-static void TagLike(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-                    std::vector<long long> *level_base,
-                    std::vector<BlockInfo> &I2,
-                    const std::vector<BlockInfo> &I1) {}
 template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
