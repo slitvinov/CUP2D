@@ -4803,9 +4803,6 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
 };
 template <typename ElementType>
 struct BlockLabNeumann : public BlockLab<ElementType> {
-  static constexpr int sizeX = _BS_;
-  static constexpr int sizeY = _BS_;
-  static constexpr int sizeZ = 1;
   template <int dir, int side> void Neumann2D(const bool coarse = false) {
     int stenBeg[2];
     int stenEnd[2];
@@ -4815,8 +4812,8 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
       stenEnd[1] = this->m_stencilEnd[1];
       stenBeg[0] = this->m_stencilStart[0];
       stenBeg[1] = this->m_stencilStart[1];
-      bsize[0] = sizeX;
-      bsize[1] = sizeY;
+      bsize[0] = _BS_;
+      bsize[1] = _BS_;
     } else {
       stenEnd[0] =
           (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1;
@@ -4826,8 +4823,8 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
           (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0];
       stenBeg[1] =
           (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1];
-      bsize[0] = sizeX / 2;
-      bsize[1] = sizeY / 2;
+      bsize[0] = _BS_ / 2;
+      bsize[1] = _BS_ / 2;
     }
     auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
     int s[2];
