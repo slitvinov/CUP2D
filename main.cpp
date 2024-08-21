@@ -4650,7 +4650,6 @@ struct ScalarElement {
   friend ScalarElement operator-(ScalarElement lhs, const ScalarElement &rhs) {
     return (lhs -= rhs);
   }
-  Real magnitude() { return s; }
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
 };
@@ -4683,7 +4682,6 @@ struct VectorElement {
   friend VectorElement operator-(VectorElement lhs, const VectorElement &rhs) {
     return (lhs -= rhs);
   }
-  Real magnitude() { return sqrt(u[0] * u[0] + u[1] * u[1]); }
   Real &member(int i) { return u[i]; }
 };
 static BCflag cubismBCX;
@@ -6340,7 +6338,7 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
           for (int i = 0; i < _BS_; i++)
-            Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
+            Linf = std::max(Linf, std::fabs(b[j][i].s));
         if (Linf > sim.Rtol)
           (*I)[i]->state = Refine;
         else if (Linf < sim.Ctol)
