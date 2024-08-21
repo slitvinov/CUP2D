@@ -733,7 +733,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : B) {
-      grid->getBlockInfoAll(info.level, info.Z).auxiliary = nullptr;
+      grid->get(info.level, info.Z).auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
           info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
@@ -776,7 +776,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
               std::pair<std::array<long long, 2>, BlockCase<ElementType> *>(
                   {Cases[Cases_index].level, Cases[Cases_index].Z},
                   &Cases[Cases_index]));
-          grid->getBlockInfoAll(Cases[Cases_index].level, Cases[Cases_index].Z)
+          grid->get(Cases[Cases_index].level, Cases[Cases_index].Z)
               .auxiliary = &Cases[Cases_index];
           info.auxiliary = &Cases[Cases_index];
           Cases_index++;
@@ -1494,7 +1494,7 @@ template <typename TGrid> struct Synchronizer {
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
-          BlockInfo &infoNei = grid->getBlockInfoAll(
+          BlockInfo &infoNei = grid->get(
               info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const int icode2 =
               (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
@@ -1508,7 +1508,7 @@ template <typename TGrid> struct Synchronizer {
           DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
-          BlockInfo &infoNei = grid->getBlockInfoAll(
+          BlockInfo &infoNei = grid->get(
               info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const int infoNeiCoarserrank =
               grid->Tree0(info.level - 1, infoNei.Zparent);
@@ -1516,7 +1516,7 @@ template <typename TGrid> struct Synchronizer {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
-                grid->getBlockInfoAll(infoNei.level - 1, infoNei.Zparent);
+                grid->get(infoNei.level - 1, infoNei.Zparent);
             const int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             const int Bmax[3] = {sim.bpdx << (info.level - 1),
@@ -1570,7 +1570,7 @@ template <typename TGrid> struct Synchronizer {
             }
           }
         } else if (infoNeiTree == -1) {
-          BlockInfo &infoNei = grid->getBlockInfoAll(
+          BlockInfo &infoNei = grid->get(
               info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
@@ -1593,7 +1593,7 @@ template <typename TGrid> struct Synchronizer {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
               BlockInfo &infoNeiFiner =
-                  grid->getBlockInfoAll(info.level + 1, nFine);
+                  grid->get(info.level + 1, nFine);
               const int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
@@ -1669,7 +1669,7 @@ template <typename TGrid> struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      grid->getBlockInfoAll(info.level, info.Z).halo_id = info.halo_id;
+      grid->get(info.level, info.Z).halo_id = info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
@@ -2181,7 +2181,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : BB) {
-      (*TFluxCorrection::grid).getBlockInfoAll(info.level, info.Z).auxiliary =
+      (*TFluxCorrection::grid).get(info.level, info.Z).auxiliary =
           nullptr;
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
@@ -2220,11 +2220,11 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                 .Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(info.level,
+                  .get(info.level,
                                    info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
-              (*TFluxCorrection::grid).getBlockInfoAll(info.level - 1, nCoarse);
+              (*TFluxCorrection::grid).get(info.level - 1, nCoarse);
           const int infoNeiCoarserrank =
               (*TFluxCorrection::grid).Tree0(info.level - 1, nCoarse);
           {
@@ -2240,7 +2240,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                               info.Znei[1 + code[0]][1 + code[1]]) == -1) {
           BlockInfo &infoNei =
               (*TFluxCorrection::grid)
-                  .getBlockInfoAll(info.level,
+                  .get(info.level,
                                    info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
@@ -2255,7 +2255,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
             {
               BlockInfo &infoNeiFiner =
                   (*TFluxCorrection::grid)
-                      .getBlockInfoAll(infoNei.level + 1, nFine);
+                      .get(infoNei.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
@@ -2282,7 +2282,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                    TFluxCorrection::Cases[Cases_index].Z},
                   &TFluxCorrection::Cases[Cases_index]));
           TFluxCorrection::grid
-              ->getBlockInfoAll(TFluxCorrection::Cases[Cases_index].level,
+              ->get(TFluxCorrection::Cases[Cases_index].level,
                                 TFluxCorrection::Cases[Cases_index].Z)
               .auxiliary = &TFluxCorrection::Cases[Cases_index];
           info.auxiliary = &TFluxCorrection::Cases[Cases_index];
@@ -2394,6 +2394,57 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
+
+static BlockInfo &getf(std::unordered_map<long long, BlockInfo *>* BlockInfoAll, std::vector<long long> *level_base, int m, long long n) {
+  const long long aux = (*level_base)[m] + n;
+    const auto retval = BlockInfoAll->find(aux);
+    if (retval != BlockInfoAll->end()) {
+      return *retval->second;
+    } else {
+#pragma omp critical
+      {
+        const auto retval1 = BlockInfoAll->find(aux);
+        if (retval1 == BlockInfoAll->end()) {
+          BlockInfo *dumm = new BlockInfo;
+          dumm->level = m;
+          dumm->h = sim.h0 / (1 << dumm->level);
+          int i, j;
+          sim.space_curve->inverse(n, m, i, j);
+          dumm->origin[0] = i * _BS_ * dumm->h;
+          dumm->origin[1] = j * _BS_ * dumm->h;
+          dumm->Z = n;
+          dumm->state = Leave;
+          dumm->changed2 = true;
+          dumm->auxiliary = nullptr;
+          const int TwoPower = 1 << dumm->level;
+          sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
+                                   dumm->index[1]);
+          dumm->index[2] = 0;
+          const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
+          for (int i = -1; i < 2; i++)
+            for (int j = -1; j < 2; j++)
+              dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
+                  dumm->level, (dumm->index[0] + i) % Bmax[0],
+                  (dumm->index[1] + j) % Bmax[1]);
+          for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
+              dumm->Zchild[i][j] = sim.space_curve->forward(
+                  dumm->level + 1, 2 * dumm->index[0] + i,
+                  2 * dumm->index[1] + j);
+          dumm->Zparent =
+              (dumm->level == 0)
+                  ? 0
+                  : sim.space_curve->forward(dumm->level - 1,
+                                             (dumm->index[0] / 2) % Bmax[0],
+                                             (dumm->index[1] / 2) % Bmax[1]);
+          dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
+          dumm->id = dumm->id2;
+          (*BlockInfoAll)[aux] = dumm;
+        }
+      }
+      return getf(BlockInfoAll, level_base, m, n);
+    }
+  }
 template <typename ElementType> struct Grid {
   typedef ElementType Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
@@ -2429,7 +2480,7 @@ template <typename ElementType> struct Grid {
         n_start += total_blocks % sim.size;
     }
     for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = getBlockInfoAll(sim.levelStart, n_start + i);
+      BlockInfo &new_info = get(sim.levelStart, n_start + i);
       new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
       infos.push_back(new_info);
       Octree[level_base[sim.levelStart] + n_start + i] = sim.rank;
@@ -2457,7 +2508,7 @@ template <typename ElementType> struct Grid {
     MPI_Barrier(MPI_COMM_WORLD);
   }
   Block *avail(const int m, const long long n) {
-    return (Tree0(m, n) == sim.rank) ? (Block *)getBlockInfoAll(m, n).block
+    return (Tree0(m, n) == sim.rank) ? (Block *)get(m, n).block
                                      : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
@@ -2487,7 +2538,7 @@ template <typename ElementType> struct Grid {
         if (code[2] != 0)
           continue;
         BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei.state != Refine || clean)
@@ -2497,7 +2548,7 @@ template <typename ElementType> struct Grid {
         } else if (infoNeiTree == -2) {
           const long long nCoarse = infoNei.Zparent;
           BlockInfo &infoNeiCoarser =
-              getBlockInfoAll(infoNei.level - 1, nCoarse);
+              get(infoNei.level - 1, nCoarse);
           const int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
@@ -2519,7 +2570,7 @@ template <typename ElementType> struct Grid {
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            BlockInfo &infoNeiFiner = getBlockInfoAll(infoNei.level + 1, nFine);
+            BlockInfo &infoNeiFiner = get(infoNei.level + 1, nFine);
             const int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner.state != Refine || clean)
@@ -2576,7 +2627,7 @@ template <typename ElementType> struct Grid {
         for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
           int level = recv_buffer[r][index];
           long long Z = recv_buffer[r][index + 1];
-          getBlockInfoAll(level, Z).state =
+          get(level, Z).state =
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
@@ -2635,7 +2686,7 @@ template <typename ElementType> struct Grid {
         if (code[2] != 0)
           continue;
         BlockInfo &infoNei =
-            getBlockInfoAll(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           myflag = true;
@@ -2721,7 +2772,7 @@ template <typename ElementType> struct Grid {
         const long long Z = recv_buffer[kk][index__ + 1];
         Tree0(level, Z) = r;
         if (UpdateIDs)
-          getBlockInfoAll(level, Z).id = recv_buffer[kk][index__ + 2];
+          get(level, Z).id = recv_buffer[kk][index__ + 2];
         int p[2];
         sim.space_curve->inverse(Z, level, p[0], p[1]);
         if (level < sim.levelMax - 1)
@@ -2797,14 +2848,14 @@ template <typename ElementType> struct Grid {
   }
   int &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
   void _alloc(int level, long long Z) {
-    BlockInfo &new_info = getBlockInfoAll(level, Z);
+    BlockInfo &new_info = get(level, Z);
     new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(new_info); }
     Tree0(level, Z) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
-    free(getBlockInfoAll0(m, n).block);
+    free(get0(m, n).block);
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
         infos.erase(infos.begin() + j);
@@ -2821,7 +2872,7 @@ template <typename ElementType> struct Grid {
           const int m = infos[j].level;
           const long long n = infos[j].Z;
           infos[j].changed2 = true;
-          free(getBlockInfoAll0(m, n).block);
+          free(get0(m, n).block);
           break;
         }
       }
@@ -2834,7 +2885,7 @@ template <typename ElementType> struct Grid {
     for (size_t j = 0; j < infos.size(); j++) {
       const int m = infos[j].level;
       const long long n = infos[j].Z;
-      BlockInfo &correct_info = getBlockInfoAll(m, n);
+      BlockInfo &correct_info = get(m, n);
       correct_info.id = j;
       infos[j] = correct_info;
       assert(Tree0(m, n) >= 0);
@@ -2844,60 +2895,13 @@ template <typename ElementType> struct Grid {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
-  BlockInfo &getBlockInfoAll0(int m, long long n) {
+  BlockInfo &get0(int m, long long n) {
     const auto retval = BlockInfoAll.find(level_base[m] + n);
     assert(retval != BlockInfoAll.end());
     return *retval->second;
   }
-  BlockInfo &getBlockInfoAll(int m, long long n) {
-    const long long aux = level_base[m] + n;
-    const auto retval = BlockInfoAll.find(aux);
-    if (retval != BlockInfoAll.end()) {
-      return *retval->second;
-    } else {
-#pragma omp critical
-      {
-        const auto retval1 = BlockInfoAll.find(aux);
-        if (retval1 == BlockInfoAll.end()) {
-          BlockInfo *dumm = new BlockInfo;
-          dumm->level = m;
-          dumm->h = sim.h0 / (1 << dumm->level);
-          int i, j;
-          sim.space_curve->inverse(n, m, i, j);
-          dumm->origin[0] = i * _BS_ * dumm->h;
-          dumm->origin[1] = j * _BS_ * dumm->h;
-          dumm->Z = n;
-          dumm->state = Leave;
-          dumm->changed2 = true;
-          dumm->auxiliary = nullptr;
-          const int TwoPower = 1 << dumm->level;
-          sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
-                                   dumm->index[1]);
-          dumm->index[2] = 0;
-          const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
-          for (int i = -1; i < 2; i++)
-            for (int j = -1; j < 2; j++)
-              dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                  dumm->level, (dumm->index[0] + i) % Bmax[0],
-                  (dumm->index[1] + j) % Bmax[1]);
-          for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 2; j++)
-              dumm->Zchild[i][j] = sim.space_curve->forward(
-                  dumm->level + 1, 2 * dumm->index[0] + i,
-                  2 * dumm->index[1] + j);
-          dumm->Zparent =
-              (dumm->level == 0)
-                  ? 0
-                  : sim.space_curve->forward(dumm->level - 1,
-                                             (dumm->index[0] / 2) % Bmax[0],
-                                             (dumm->index[1] / 2) % Bmax[1]);
-          dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
-          dumm->id = dumm->id2;
-          BlockInfoAll[aux] = dumm;
-        }
-      }
-      return getBlockInfoAll(m, n);
-    }
+  BlockInfo &get(int m, long long n) {
+    return getf(&BlockInfoAll, &level_base, m, n);
   }
 };
 template <class DataType> struct Matrix3D {
@@ -3936,7 +3940,7 @@ template <typename ElementType> struct LoadBalancer {
   };
   void AddBlock(const int level, const long long Z, Real *data) {
     grid->_alloc(level, Z);
-    BlockInfo &info = grid->getBlockInfoAll(level, Z);
+    BlockInfo &info = grid->get(level, Z);
     BlockType *b1 = (BlockType *)info.block;
     assert(b1 != NULL);
     Real *a1 = &(*b1[0][0]).member(0);
@@ -3980,10 +3984,10 @@ template <typename ElementType> struct LoadBalancer {
     for (auto &b : I) {
       const long long nBlock =
           getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const BlockInfo &base = grid->getBlockInfoAll(b.level, nBlock);
+      const BlockInfo &base = grid->get(b.level, nBlock);
       if (!(grid->Tree1(base) >= 0) || base.state != Compress)
         continue;
-      const BlockInfo &bCopy = grid->getBlockInfoAll(b.level, b.Z);
+      const BlockInfo &bCopy = grid->get(b.level, b.Z);
       const int baserank = grid->Tree0(b.level, nBlock);
       const int brank = grid->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
@@ -3998,7 +4002,7 @@ template <typename ElementType> struct LoadBalancer {
                 getZforward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
-            BlockInfo &temp = grid->getBlockInfoAll(b.level, n);
+            BlockInfo &temp = grid->get(b.level, n);
             const int temprank = grid->Tree0(b.level, n);
             if (temprank != sim.rank) {
               recv_blocks[temprank].push_back({temp, false});
@@ -4037,7 +4041,7 @@ template <typename ElementType> struct LoadBalancer {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
         grid->_alloc(level, Z);
-        BlockInfo &info = grid->getBlockInfoAll(level, Z);
+        BlockInfo &info = grid->get(level, Z);
         BlockType *b1 = (BlockType *)info.block;
         assert(b1 != NULL);
         Real *a1 = &(*b1)[0][0].member(0);
@@ -4333,7 +4337,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       for (size_t i = 0; i < m_ref.size(); i++) {
         const int level = m_ref[i];
         const long long Z = n_ref[i];
-        BlockInfo &parent = grid->getBlockInfoAll(level, Z);
+        BlockInfo &parent = grid->get(level, Z);
         parent.state = Leave;
         if (basic_refinement == false)
           lab.load(parent, 0.0, true);
@@ -4345,7 +4349,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           for (int i = 0; i < 2; i++) {
             const long long nc =
                 getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
+            BlockInfo &Child = grid->get(level + 1, nc);
             Child.state = Leave;
             grid->_alloc(level + 1, nc);
             grid->Tree0(level + 1, nc) = -2;
@@ -4406,8 +4410,8 @@ template <typename TLab, typename ElementType> struct Adaptation {
         const int level = m_ref[i];
         const long long Z = n_ref[i];
 #pragma omp critical
-        { dealloc_IDs.push_back(grid->getBlockInfoAll(level, Z).id2); }
-        BlockInfo &parent = grid->getBlockInfoAll(level, Z);
+        { dealloc_IDs.push_back(grid->get(level, Z).id2); }
+        BlockInfo &parent = grid->get(level, Z);
         grid->Tree1(parent) = -1;
         parent.state = Leave;
         int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
@@ -4415,7 +4419,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           for (int i = 0; i < 2; i++) {
             const long long nc =
                 getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            BlockInfo &Child = grid->getBlockInfoAll(level + 1, nc);
+            BlockInfo &Child = grid->get(level + 1, nc);
             grid->Tree1(Child) = sim.rank;
             if (level + 2 < sim.levelMax)
               for (int i0 = 0; i0 < 2; i0++)
@@ -4431,7 +4435,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
       const int level = m_com[i];
       const long long Z = n_com[i];
       assert(level > 0);
-      BlockInfo &info = grid->getBlockInfoAll(level, Z);
+      BlockInfo &info = grid->get(level, Z);
       assert(info.state == Compress);
       BlockType *Blocks[4];
       for (int J = 0; J < 2; J++)
@@ -4439,7 +4443,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           const int blk = J * 2 + I;
           const long long n =
               getZforward(level, info.index[0] + I, info.index[1] + J);
-          Blocks[blk] = (BlockType *)(grid->getBlockInfoAll(level, n)).block;
+          Blocks[blk] = (BlockType *)(grid->get(level, n)).block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
@@ -4456,7 +4460,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           }
       const long long np =
           getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
-      BlockInfo &parent = grid->getBlockInfoAll(level - 1, np);
+      BlockInfo &parent = grid->get(level - 1, np);
       grid->Tree0(parent.level, parent.Z) = sim.rank;
       parent.block = info.block;
       parent.state = Leave;
@@ -4469,17 +4473,17 @@ template <typename TLab, typename ElementType> struct Adaptation {
           if (I + J == 0) {
             for (size_t j = 0; j < grid->infos.size(); j++)
               if (level == grid->infos[j].level && n == grid->infos[j].Z) {
-                BlockInfo &correct_info = grid->getBlockInfoAll(level - 1, np);
+                BlockInfo &correct_info = grid->get(level - 1, np);
                 correct_info.state = Leave;
                 grid->infos[j] = correct_info;
                 break;
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(grid->getBlockInfoAll(level, n).id2); }
+            { dealloc_IDs.push_back(grid->get(level, n).id2); }
           }
           grid->Tree0(level, n) = -2;
-          grid->getBlockInfoAll(level, n).state = Leave;
+          grid->get(level, n).state = Leave;
         }
     }
     grid->dealloc_many(dealloc_IDs);
@@ -4500,13 +4504,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
     std::vector<BlockInfo> &I2 = grid->infos;
     for (size_t i1 = 0; i1 < I2.size(); i1++) {
       BlockInfo &ary0 = I2[i1];
-      BlockInfo &info = grid->getBlockInfoAll(ary0.level, ary0.Z);
+      BlockInfo &info = grid->get(ary0.level, ary0.Z);
       for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
           const long long n = getZforward(info.level, i, j);
-          BlockInfo &infoNei = grid->getBlockInfoAll(info.level, n);
+          BlockInfo &infoNei = grid->get(info.level, n);
           infoNei.state = Leave;
         }
       info.state = Leave;
@@ -4516,14 +4520,14 @@ template <typename TLab, typename ElementType> struct Adaptation {
     for (size_t i = 0; i < I1.size(); i++) {
       const BlockInfo &info1 = I1[i];
       BlockInfo &info2 = I2[i];
-      BlockInfo &info3 = grid->getBlockInfoAll(info2.level, info2.Z);
+      BlockInfo &info3 = grid->get(info2.level, info2.Z);
       info2.state = info1.state;
       info3.state = info1.state;
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
         const long long n = getZforward(info2.level, i2, j2);
-        BlockInfo &infoNei = grid->getBlockInfoAll(info2.level, n);
+        BlockInfo &infoNei = grid->get(info2.level, n);
         infoNei.state = Compress;
       }
     }
@@ -6332,7 +6336,7 @@ static void adapt() {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I->size(); i++) {
         BlockInfo &info =
-            var.tmp_amr->grid->getBlockInfoAll((*I)[i]->level, (*I)[i]->Z);
+            var.tmp_amr->grid->get((*I)[i]->level, (*I)[i]->Z);
         ScalarBlock &b = *(ScalarBlock *)info.block;
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
@@ -6388,11 +6392,11 @@ static void adapt() {
       if ((info.state == Refine && info.level == sim.levelMax - 1) ||
           (info.state == Compress && info.level == levelMin)) {
         info.state = Leave;
-        (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state = Leave;
+        (var.tmp_amr->grid->get(info.level, info.Z)).state = Leave;
       }
       if (info.state != Leave) {
         info.changed2 = true;
-        (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).changed2 =
+        (var.tmp_amr->grid->get(info.level, info.Z)).changed2 =
             info.changed2;
       }
     }
@@ -6427,7 +6431,7 @@ static void adapt() {
                     info.level, info.Znei[1 + code[0]][1 + code[1]]) == -1) {
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+                (var.tmp_amr->grid->get(info.level, info.Z)).state =
                     Leave;
               }
               int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
@@ -6444,14 +6448,14 @@ static void adapt() {
                            aux * std::max(0, 1 - abs(code[1]));
                 long long zzz = getZforward(m + 1, iNei, jNei);
                 BlockInfo &FinerNei =
-                    var.tmp_amr->grid->getBlockInfoAll(m + 1, zzz);
+                    var.tmp_amr->grid->get(m + 1, zzz);
                 State NeiState = FinerNei.state;
                 if (NeiState == Refine) {
                   info.state = Refine;
-                  (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z))
+                  (var.tmp_amr->grid->get(info.level, info.Z))
                       .state = Refine;
                   info.changed2 = true;
-                  (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z))
+                  (var.tmp_amr->grid->get(info.level, info.Z))
                       .changed2 = true;
                   break;
                 }
@@ -6486,12 +6490,12 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(
+            BlockInfo &infoNei = var.tmp_amr->grid->get(
                 info.level, info.Znei[1 + code[0]][1 + code[1]]);
             if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
                 infoNei.state == Refine) {
               info.state = Leave;
-              (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+              (var.tmp_amr->grid->get(info.level, info.Z)).state =
                   Leave;
               break;
             }
@@ -6510,13 +6514,13 @@ static void adapt() {
           for (int k = 2 * (info.index[2] / 2);
                k <= 2 * (info.index[2] / 2) + 1; k++) {
             long long n = getZforward(m, i, j);
-            BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(m, n);
+            BlockInfo &infoNei = var.tmp_amr->grid->get(m, n);
             if ((var.tmp_amr->grid->Tree1(infoNei) >= 0) == false ||
                 infoNei.state != Compress) {
               found = true;
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp_amr->grid->getBlockInfoAll(info.level, info.Z)).state =
+                (var.tmp_amr->grid->get(info.level, info.Z)).state =
                     Leave;
               }
               break;
@@ -6530,7 +6534,7 @@ static void adapt() {
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = getZforward(m, i, j);
-              BlockInfo &infoNei = var.tmp_amr->grid->getBlockInfoAll(m, n);
+              BlockInfo &infoNei = var.tmp_amr->grid->get(m, n);
               if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
                   infoNei.state == Compress)
                 infoNei.state = Leave;
@@ -7172,7 +7176,7 @@ struct PoissonSolver {
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
       const BlockInfo &rhsNei_c =
-          var.tmp->getBlockInfoAll(rhs_info.level - 1, rhsNei.Zparent);
+          var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
       const int ix_c = indexer.ix_c(rhs_info, ix);
       const int iy_c = indexer.iy_c(rhs_info, iy);
       const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
@@ -7181,7 +7185,7 @@ struct PoissonSolver {
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
-      const BlockInfo &rhsNei_f = var.tmp->getBlockInfoAll(
+      const BlockInfo &rhsNei_f = var.tmp->get(
           rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
       const int nei_rank = var.tmp->Tree1(rhsNei_f);
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
@@ -7236,10 +7240,10 @@ struct PoissonSolver {
       Z[2] = rhs_info.Znei[1][1 - 1];
       Z[3] = rhs_info.Znei[1][1 + 1];
       std::array<const BlockInfo *, 4> rhsNei;
-      rhsNei[0] = &(var.tmp->getBlockInfoAll(rhs_info.level, Z[0]));
-      rhsNei[1] = &(var.tmp->getBlockInfoAll(rhs_info.level, Z[1]));
-      rhsNei[2] = &(var.tmp->getBlockInfoAll(rhs_info.level, Z[2]));
-      rhsNei[3] = &(var.tmp->getBlockInfoAll(rhs_info.level, Z[3]));
+      rhsNei[0] = &(var.tmp->get(rhs_info.level, Z[0]));
+      rhsNei[1] = &(var.tmp->get(rhs_info.level, Z[1]));
+      rhsNei[2] = &(var.tmp->get(rhs_info.level, Z[2]));
+      rhsNei[3] = &(var.tmp->get(rhs_info.level, Z[3]));
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
