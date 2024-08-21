@@ -4529,47 +4529,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
       }
     }
   }
-  void TagBlocksVector(std::vector<BlockInfo *> *I, bool &Reduction,
-                       MPI_Request &Reduction_req, int &tmp) {
-#pragma omp parallel
-    {
-#pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < I->size(); i++) {
-        BlockInfo &info = grid->getBlockInfoAll((*I)[i]->level, (*I)[i]->Z);
-        BlockType &b = *(BlockType *)info.block;
-        double Linf = 0.0;
-        for (int j = 0; j < _BS_; j++)
-          for (int i = 0; i < _BS_; i++) {
-            Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
-          }
-        if (Linf > sim.Rtol)
-          (*I)[i]->state = Refine;
-        else if (Linf < sim.Ctol)
-          (*I)[i]->state = Compress;
-        else
-          (*I)[i]->state = Leave;
-        const bool maxLevel =
-            ((*I)[i]->state == Refine) && ((*I)[i]->level == sim.levelMax - 1);
-        const bool minLevel =
-            ((*I)[i]->state == Compress) && ((*I)[i]->level == 0);
-        if (maxLevel || minLevel)
-          (*I)[i]->state = Leave;
-        info.state = (*I)[i]->state;
-        if (info.state != Leave) {
-#pragma omp critical
-          {
-            CallValidStates = true;
-            if (!Reduction) {
-              tmp = 1;
-              Reduction = true;
-              MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                             MPI_COMM_WORLD, &Reduction_req);
-            }
-          }
-        }
-      }
-    }
-  }
 };
 template <typename Lab, typename Kernel, typename TGrid>
 static void computeA(Kernel &&kernel, TGrid *g) {
@@ -6368,9 +6327,49 @@ static void adapt() {
   int tmp;
   std::vector<BlockInfo *> *halo = &Synch->halo_blocks;
   std::vector<BlockInfo *> *infos[2] = {&Synch->inner_blocks, halo};
-  for (int i = 0;; i++) {
-    var.tmp_amr->TagBlocksVector(infos[i], Reduction, Reduction_req, tmp);
-    if (i == 1)
+  typedef ScalarElement BlockType[_BS_][_BS_];
+  for (int iii = 0;; iii++) {
+    std::vector<BlockInfo *> *I = infos[iii];
+#pragma omp parallel
+    {
+#pragma omp for schedule(dynamic, 1)
+      for (size_t i = 0; i < I->size(); i++) {
+        BlockInfo &info =
+            var.tmp_amr->grid->getBlockInfoAll((*I)[i]->level, (*I)[i]->Z);
+        BlockType &b = *(BlockType *)info.block;
+        double Linf = 0.0;
+        for (int j = 0; j < _BS_; j++)
+          for (int i = 0; i < _BS_; i++) {
+            Linf = std::max(Linf, std::fabs(b[j][i].magnitude()));
+          }
+        if (Linf > sim.Rtol)
+          (*I)[i]->state = Refine;
+        else if (Linf < sim.Ctol)
+          (*I)[i]->state = Compress;
+        else
+          (*I)[i]->state = Leave;
+        const bool maxLevel =
+            ((*I)[i]->state == Refine) && ((*I)[i]->level == sim.levelMax - 1);
+        const bool minLevel =
+            ((*I)[i]->state == Compress) && ((*I)[i]->level == 0);
+        if (maxLevel || minLevel)
+          (*I)[i]->state = Leave;
+        info.state = (*I)[i]->state;
+        if (info.state != Leave) {
+#pragma omp critical
+          {
+            var.tmp_amr->CallValidStates = true;
+            if (!Reduction) {
+              tmp = 1;
+              Reduction = true;
+              MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
+                             MPI_COMM_WORLD, &Reduction_req);
+            }
+          }
+        }
+      }
+    }
+    if (iii == 1)
       break;
     MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                 MPI_STATUSES_IGNORE);
