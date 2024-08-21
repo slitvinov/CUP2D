@@ -4,7 +4,7 @@ ssh rc '
 module load gcc openmpi cuda &&
 set -x
 d='$d' 
-rm -r "${d?not set}" &&
+rm -rf "${d?not set}" &&
    git clone git@github.com:slitvinov/CUP2D "$d" &&
    cd "$d"
    module load gcc openmpi cuda python &&
