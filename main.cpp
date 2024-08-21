@@ -2168,10 +2168,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
     const int NC = ElementType::DIM;
-    int blocksize[3];
-    blocksize[0] = _BS_;
-    blocksize[1] = _BS_;
-    blocksize[2] = 1;
+    int blocksize[] = {_BS_, _BS_, 1};
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
