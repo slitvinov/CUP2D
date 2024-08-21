@@ -573,7 +573,6 @@ struct Value {
 };
 struct CommandlineParser {
   bool bStrictMode;
-  bool _isnumber(const std::string &s) const;
   std::map<std::string, Value> mapArguments;
   void set_strict_mode() { bStrictMode = true; }
   void unset_strict_mode() { bStrictMode = false; }
