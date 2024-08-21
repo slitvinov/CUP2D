@@ -4257,36 +4257,7 @@ template <typename ElementType> struct LoadBalancer {
 static void TagLike(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
                     std::vector<long long> *level_base,
                     std::vector<BlockInfo> &I2,
-                    const std::vector<BlockInfo> &I1) {
-  for (size_t i1 = 0; i1 < I2.size(); i1++) {
-    BlockInfo &ary0 = I2[i1];
-    BlockInfo &info = getf(BlockInfoAll, level_base, ary0.level, ary0.Z);
-    for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1; i++)
-      for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
-           j++) {
-        const long long n = getZforward(info.level, i, j);
-        BlockInfo &infoNei = getf(BlockInfoAll, level_base, info.level, n);
-        infoNei.state = Leave;
-      }
-    info.state = Leave;
-    ary0.state = Leave;
-  }
-#pragma omp parallel for
-  for (size_t i = 0; i < I1.size(); i++) {
-    const BlockInfo &info1 = I1[i];
-    BlockInfo &info2 = I2[i];
-    BlockInfo &info3 = getf(BlockInfoAll, level_base, info2.level, info2.Z);
-    info2.state = info1.state;
-    info3.state = info1.state;
-    if (info2.state == Compress) {
-      const int i2 = 2 * (info2.index[0] / 2);
-      const int j2 = 2 * (info2.index[1] / 2);
-      const long long n = getZforward(info2.level, i2, j2);
-      BlockInfo &infoNei = getf(BlockInfoAll, level_base, info2.level, n);
-      infoNei.state = Compress;
-    }
-  }
-}
+                    const std::vector<BlockInfo> &I1) {}
 template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
@@ -6529,16 +6500,53 @@ static void adapt() {
     std::vector<long long> *level_base;
     std::vector<BlockInfo> &I2;
   } args[] = {
-    {&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base, var.chi_amr->grid->infos},
-    {&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base, var.pres_amr->grid->infos},
-    {&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base, var.pold_amr->grid->infos},
-    {&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base, var.vel_amr->grid->infos},
-    {&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base, var.vold_amr->grid->infos},
-    {&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base, var.tmpV_amr->grid->infos},
+      {&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base,
+       var.chi_amr->grid->infos},
+      {&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base,
+       var.pres_amr->grid->infos},
+      {&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base,
+       var.pold_amr->grid->infos},
+      {&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base,
+       var.vel_amr->grid->infos},
+      {&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base,
+       var.vold_amr->grid->infos},
+      {&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base,
+       var.tmpV_amr->grid->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
-    TagLike(args[iarg].BlockInfoAll, args[iarg].level_base,
-	    args[iarg].I2, var.tmp->infos);
+    for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
+      BlockInfo &ary0 = args[iarg].I2[i1];
+      BlockInfo &info = getf(args[iarg].BlockInfoAll, args[iarg].level_base,
+                             ary0.level, ary0.Z);
+      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+           i++)
+        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
+             j++) {
+          const long long n = getZforward(info.level, i, j);
+          BlockInfo &infoNei = getf(args[iarg].BlockInfoAll,
+                                    args[iarg].level_base, info.level, n);
+          infoNei.state = Leave;
+        }
+      info.state = Leave;
+      ary0.state = Leave;
+    }
+#pragma omp parallel for
+    for (size_t i = 0; i < var.tmp->infos.size(); i++) {
+      const BlockInfo &info1 = var.tmp->infos[i];
+      BlockInfo &info2 = args[iarg].I2[i];
+      BlockInfo &info3 = getf(args[iarg].BlockInfoAll, args[iarg].level_base,
+                              info2.level, info2.Z);
+      info2.state = info1.state;
+      info3.state = info1.state;
+      if (info2.state == Compress) {
+        const int i2 = 2 * (info2.index[0] / 2);
+        const int j2 = 2 * (info2.index[1] / 2);
+        const long long n = getZforward(info2.level, i2, j2);
+        BlockInfo &infoNei = getf(args[iarg].BlockInfoAll,
+                                  args[iarg].level_base, info2.level, n);
+        infoNei.state = Compress;
+      }
+    }
   }
   var.tmp_amr->Adapt(false);
   var.chi_amr->Adapt(false);
