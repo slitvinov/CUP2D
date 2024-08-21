@@ -4255,6 +4255,39 @@ template <typename ElementType> struct LoadBalancer {
     grid->FillPos();
   }
 };
+static void TagLike(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+                    std::vector<long long> *level_base,
+                    std::vector<BlockInfo> &I2,
+                    const std::vector<BlockInfo> &I1) {
+  for (size_t i1 = 0; i1 < I2.size(); i1++) {
+    BlockInfo &ary0 = I2[i1];
+    BlockInfo &info = getf(BlockInfoAll, level_base, ary0.level, ary0.Z);
+    for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1; i++)
+      for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
+           j++) {
+        const long long n = getZforward(info.level, i, j);
+        BlockInfo &infoNei = getf(BlockInfoAll, level_base, info.level, n);
+        infoNei.state = Leave;
+      }
+    info.state = Leave;
+    ary0.state = Leave;
+  }
+#pragma omp parallel for
+  for (size_t i = 0; i < I1.size(); i++) {
+    const BlockInfo &info1 = I1[i];
+    BlockInfo &info2 = I2[i];
+    BlockInfo &info3 = getf(BlockInfoAll, level_base, info2.level, info2.Z);
+    info2.state = info1.state;
+    info3.state = info1.state;
+    if (info2.state == Compress) {
+      const int i2 = 2 * (info2.index[0] / 2);
+      const int j2 = 2 * (info2.index[1] / 2);
+      const long long n = getZforward(info2.level, i2, j2);
+      BlockInfo &infoNei = getf(BlockInfoAll, level_base, info2.level, n);
+      infoNei.state = Compress;
+    }
+  }
+}
 template <typename TLab, typename ElementType> struct Adaptation {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
@@ -4491,38 +4524,6 @@ template <typename TLab, typename ElementType> struct Adaptation {
       while (it != grid->SynchronizerMPIs.end()) {
         (*it->second)._Setup();
         it++;
-      }
-    }
-  }
-  void TagLike(const std::vector<BlockInfo> &I1) {
-    std::vector<BlockInfo> &I2 = grid->infos;
-    for (size_t i1 = 0; i1 < I2.size(); i1++) {
-      BlockInfo &ary0 = I2[i1];
-      BlockInfo &info = grid->get(ary0.level, ary0.Z);
-      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
-           i++)
-        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
-             j++) {
-          const long long n = getZforward(info.level, i, j);
-          BlockInfo &infoNei = grid->get(info.level, n);
-          infoNei.state = Leave;
-        }
-      info.state = Leave;
-      ary0.state = Leave;
-    }
-#pragma omp parallel for
-    for (size_t i = 0; i < I1.size(); i++) {
-      const BlockInfo &info1 = I1[i];
-      BlockInfo &info2 = I2[i];
-      BlockInfo &info3 = grid->get(info2.level, info2.Z);
-      info2.state = info1.state;
-      info3.state = info1.state;
-      if (info2.state == Compress) {
-        const int i2 = 2 * (info2.index[0] / 2);
-        const int j2 = 2 * (info2.index[1] / 2);
-        const long long n = getZforward(info2.level, i2, j2);
-        BlockInfo &infoNei = grid->get(info2.level, n);
-        infoNei.state = Compress;
       }
     }
   }
@@ -6527,12 +6528,18 @@ static void adapt() {
             }
     }
   }
-  var.chi_amr->TagLike(var.tmp->infos);
-  var.pres_amr->TagLike(var.tmp->infos);
-  var.pold_amr->TagLike(var.tmp->infos);
-  var.vel_amr->TagLike(var.tmp->infos);
-  var.vold_amr->TagLike(var.tmp->infos);
-  var.tmpV_amr->TagLike(var.tmp->infos);
+  TagLike(&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base,
+          var.chi_amr->grid->infos, var.tmp->infos);
+  TagLike(&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base,
+          var.pres_amr->grid->infos, var.tmp->infos);
+  TagLike(&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base,
+          var.pold_amr->grid->infos, var.tmp->infos);
+  TagLike(&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base,
+          var.vel_amr->grid->infos, var.tmp->infos);
+  TagLike(&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base,
+          var.vold_amr->grid->infos, var.tmp->infos);
+  TagLike(&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base,
+          var.tmpV_amr->grid->infos, var.tmp->infos);
   var.tmp_amr->Adapt(false);
   var.chi_amr->Adapt(false);
   var.vel_amr->Adapt(false);
