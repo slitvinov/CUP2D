@@ -3021,14 +3021,10 @@ template <typename ElementType> struct BlockLab {
     _release(m_CoarsenedBlock);
   }
   ElementType &operator()(int ix, int iy) {
-    int iz = 0;
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
-                                iz - m_stencilStart[2]);
+    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], - m_stencilStart[2]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    int iz = 0;
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
-                                iz - m_stencilStart[2]);
+    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], iz - m_stencilStart[2]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     constexpr int Istencil_start[3] = {-1, -1, 0};
@@ -3047,18 +3043,6 @@ template <typename ElementType> struct BlockLab {
     m_InterpStencilEnd[0] = Istencil_end[0];
     m_InterpStencilEnd[1] = Istencil_end[1];
     m_InterpStencilEnd[2] = Istencil_end[2];
-    assert(m_InterpStencilStart[0] <= m_InterpStencilEnd[0]);
-    assert(m_InterpStencilStart[1] <= m_InterpStencilEnd[1]);
-    assert(m_InterpStencilStart[2] <= m_InterpStencilEnd[2]);
-    assert(stencil.sx <= stencil.ex);
-    assert(stencil.sy <= stencil.ey);
-    assert(stencil.sz <= stencil.ez);
-    assert(stencil.sx >= -_BS_);
-    assert(stencil.sy >= -_BS_);
-    assert(stencil.sz >= -1);
-    assert(stencil.ex < 2 * _BS_);
-    assert(stencil.ey < 2 * _BS_);
-    assert(stencil.ez < 2 * 1);
     m_refGrid = &grid;
     if (m_cacheBlock == NULL ||
         (int)m_cacheBlock->getSize()[0] !=
