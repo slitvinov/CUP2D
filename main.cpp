@@ -1764,7 +1764,6 @@ template <typename TGrid> struct Synchronizer {
     ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
   }
-  std::vector<BlockInfo *> &avail_inner() { return inner_blocks; }
   std::vector<BlockInfo *> &avail_halo() {
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     return halo_blocks;
@@ -4577,7 +4576,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
 template <typename Lab, typename Kernel, typename TGrid>
 static void computeA(Kernel &&kernel, TGrid *g) {
   Synchronizer<TGrid> &Synch = *(g->sync1(kernel.stencil));
-  std::vector<BlockInfo *> *inner = &Synch.avail_inner();
+  std::vector<BlockInfo *> *inner = &Synch.inner_blocks;
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
 #pragma omp parallel
@@ -4627,8 +4626,8 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.infos;
   std::vector<bool> ready(blk.size(), false);
-  std::vector<BlockInfo *> &avail0 = Synch.avail_inner();
-  std::vector<BlockInfo *> &avail02 = Synch2.avail_inner();
+  std::vector<BlockInfo *> &avail0 = Synch.inner_blocks;
+  std::vector<BlockInfo *> &avail02 = Synch2.inner_blocks;
   const int Ninner = avail0.size();
   std::vector<BlockInfo *> avail1;
   std::vector<BlockInfo *> avail12;
@@ -6363,7 +6362,7 @@ static void adapt() {
   bool Reduction = false;
   MPI_Request Reduction_req;
   int tmp;
-  std::vector<BlockInfo *> &inner = Synch->avail_inner();
+  std::vector<BlockInfo *> &inner = Synch->inner_blocks;
   var.tmp_amr->TagBlocksVector(inner, Reduction, Reduction_req, tmp);
   std::vector<BlockInfo *> &halo = Synch->avail_halo();
   var.tmp_amr->TagBlocksVector(halo, Reduction, Reduction_req, tmp);
