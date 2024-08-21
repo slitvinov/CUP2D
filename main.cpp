@@ -4803,7 +4803,7 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
 };
 template <typename ElementType>
 struct BlockLabNeumann : public BlockLab<ElementType> {
-  template <int dir, int side> void Neumann2D(const bool coarse = false) {
+  template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
     int stenEnd[2];
     int bsize[2];
