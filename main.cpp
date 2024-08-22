@@ -4712,34 +4712,31 @@ struct BlockLabDirichlet : public BlockLab<VectorElement> {
     }
   }
   void _apply_bc(BlockInfo &info, bool coarse) override {
-
-    const BCflag BCX = sim.bcx;
-    const BCflag BCY = sim.bcy;
     if (!coarse) {
       if (sim.bcx != periodic) {
         if (info.index[0] == 0)
-          this->template applyBCface<0, 0>(BCX == wall);
+          this->template applyBCface<0, 0>(sim.bcx == wall);
         if (info.index[0] == this->NX - 1)
-          this->template applyBCface<0, 1>(BCX == wall);
+          this->template applyBCface<0, 1>(sim.bcx == wall);
       }
       if (sim.bcy != periodic) {
         if (info.index[1] == 0)
-          this->template applyBCface<1, 0>(BCY == wall);
+          this->template applyBCface<1, 0>(sim.bcy == wall);
         if (info.index[1] == this->NY - 1)
-          this->template applyBCface<1, 1>(BCY == wall);
+          this->template applyBCface<1, 1>(sim.bcy == wall);
       }
     } else {
       if (sim.bcx != periodic) {
         if (info.index[0] == 0)
-          this->template applyBCface<0, 0>(BCX == wall, coarse);
+          this->template applyBCface<0, 0>(sim.bcx == wall, coarse);
         if (info.index[0] == this->NX - 1)
-          this->template applyBCface<0, 1>(BCX == wall, coarse);
+          this->template applyBCface<0, 1>(sim.bcx == wall, coarse);
       }
       if (sim.bcy != periodic) {
         if (info.index[1] == 0)
-          this->template applyBCface<1, 0>(BCY == wall, coarse);
+          this->template applyBCface<1, 0>(sim.bcy == wall, coarse);
         if (info.index[1] == this->NY - 1)
-          this->template applyBCface<1, 1>(BCY == wall, coarse);
+          this->template applyBCface<1, 1>(sim.bcy == wall, coarse);
       }
     }
   }
