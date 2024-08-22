@@ -4604,8 +4604,6 @@ struct VectorElement {
 };
 typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
-typedef Grid<ScalarElement> ScalarGrid;
-typedef Grid<VectorElement> VectorGrid;
 struct VectorLab : public BlockLab<VectorElement> {
   Synchronizer<Grid<VectorElement>> *refSynchronizerMPI;
   virtual void prepare(Grid<VectorElement> &grid,
@@ -4818,13 +4816,13 @@ struct Skin {
   }
 };
 static struct {
-  ScalarGrid *chi = nullptr;
-  VectorGrid *vel = nullptr;
-  VectorGrid *vold = nullptr;
-  ScalarGrid *pres = nullptr;
-  VectorGrid *tmpV = nullptr;
-  ScalarGrid *tmp = nullptr;
-  ScalarGrid *pold = nullptr;
+  Grid<ScalarElement> *chi = nullptr;
+  Grid<VectorElement> *vel = nullptr;
+  Grid<VectorElement> *vold = nullptr;
+  Grid<ScalarElement> *pres = nullptr;
+  Grid<VectorElement> *tmpV = nullptr;
+  Grid<ScalarElement> *tmp = nullptr;
+  Grid<ScalarElement> *pold = nullptr;
   ScalarAMR *tmp_amr = nullptr;
   ScalarAMR *chi_amr = nullptr;
   ScalarAMR *pres_amr = nullptr;
@@ -6847,7 +6845,7 @@ struct PoissonSolver {
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
   }
-  void solve(const ScalarGrid *input) {
+  void solve(const Grid<ScalarElement> *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7521,13 +7519,13 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new ScalarGrid(1);
-  var.vel = new VectorGrid(2);
-  var.vold = new VectorGrid(2);
-  var.pres = new ScalarGrid(1);
-  var.tmpV = new VectorGrid(2);
-  var.tmp = new ScalarGrid(1);
-  var.pold = new ScalarGrid(1);
+  var.chi = new Grid<ScalarElement>(1);
+  var.vel = new Grid<VectorElement>(2);
+  var.vold = new Grid<VectorElement>(2);
+  var.pres = new Grid<ScalarElement>(1);
+  var.tmpV = new Grid<VectorElement>(2);
+  var.tmp = new Grid<ScalarElement>(1);
+  var.pold = new Grid<ScalarElement>(1);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
