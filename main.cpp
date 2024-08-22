@@ -2952,10 +2952,8 @@ template <typename ElementType> struct BlockLab {
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
     m = NULL;
-    m_refGrid = NULL;
     c = NULL;
-    start[0] = start[1] = start[2] = 0;
-    end[0] = end[1] = end[2] = 0;
+    m_refGrid = NULL;
   }
   ~BlockLab() {
     delete m;
