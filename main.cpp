@@ -3222,21 +3222,21 @@ template <typename ElementType> struct BlockLab {
       }
     }
   }
-  ElementType AverageDown(const ElementType &e0, const ElementType &e1,
+  static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
                           const ElementType &e2, const ElementType &e3) {
     return 0.25 * ((e0 + e3) + (e1 + e2));
   }
-  void LI(ElementType &a, ElementType b, ElementType c) {
+  static void LI(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (4.0 * kappa + 2.0 * lambda) + c;
   }
-  void LE(ElementType &a, ElementType b, ElementType c) {
+  static void LE(ElementType &a, ElementType b, ElementType c) {
     auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
     auto lambda = (b - c) - kappa;
     a = (9.0 * kappa + 3.0 * lambda) + c;
   }
-  virtual void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
+  static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
     const double dx = 0.25 * (2 * x - 1);
     const double dy = 0.25 * (2 * y - 1);
     ElementType dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
