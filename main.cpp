@@ -634,7 +634,7 @@ struct BlockInfo {
   int index[3], level;
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
   void *auxiliary, *block{nullptr};
-  bool operator<(const BlockInfo &other) const { return (id2 < other.id2); }
+  bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 template <typename ElementType> struct BlockCase {
   std::vector<ElementType> m_pData[6];
