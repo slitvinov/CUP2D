@@ -3021,10 +3021,12 @@ template <typename ElementType> struct BlockLab {
     _release(m_CoarsenedBlock);
   }
   ElementType &operator()(int ix, int iy) {
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], - m_stencilStart[2]);
+    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
+                                -m_stencilStart[2]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1], - m_stencilStart[2]);
+    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
+                                -m_stencilStart[2]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     constexpr int Istencil_start[3] = {-1, -1, 0};
@@ -3868,7 +3870,8 @@ struct BlockLabMPI : public MyBlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
-  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) override {
+  virtual void prepare(Grid<ElementType> &grid,
+                       const StencilInfo &stencil) override {
     auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
