@@ -2441,7 +2441,7 @@ template <typename Element> struct Grid {
   FluxCorrection<Grid, Element> CorrectorGrid;
   typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   size_t timestamp;
-  int dim;
+  const int dim;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element> Corrector;
   std::vector<BlockInfo *> boundary;
