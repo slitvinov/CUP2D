@@ -3490,8 +3490,8 @@ template <typename ElementType> struct BlockLab {
             ElementType *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
-                Test[i][j] =
-                    &c->d[XX - 1 + i - offset[0] + nc * (YY - 1 + j - offset[1])];
+                Test[i][j] = &c->d[XX - 1 + i - offset[0] +
+                                   nc * (YY - 1 + j - offset[1])];
             TestInterp(
                 Test, m->Access0(ix - start[0], iy - start[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
