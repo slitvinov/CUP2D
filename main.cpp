@@ -2327,8 +2327,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           for (int j = 0; j < ElementType::DIM; j++)
             send_buffer[r][displacement + j] = avg.member(j);
           displacement += ElementType::DIM;
-          FineFace[i2].clear();
-          FineFace[i2 + 1].clear();
+          memset(&FineFace[i2], 0, sizeof(ElementType));
+          memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
         }
       }
     }
@@ -4067,7 +4067,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
               BlockType &b = *Blocks[J * 2 + I];
-	      memset(&b, 0, sizeof(BlockType));
+              memset(&b, 0, sizeof(BlockType));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
                   ElementType dudx =
