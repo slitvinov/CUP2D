@@ -4544,6 +4544,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
       bsize[1] = _BS_ / 2;
     }
     auto *const cb = coarse ? this->c : this->m;
+    const int n = coarse ? this->nc : this->nm;
     int s[2];
     int e[2];
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
@@ -4554,7 +4555,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
                     : bsize[1] + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
-        cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) = cb->Access0(
+        cb->d[ix - stenBeg[0] + n * (iy - stenBeg[1])] = cb->Access0(
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1]);
   }
