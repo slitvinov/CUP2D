@@ -829,13 +829,13 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block[i2][j] += CoarseFace[i2];
-              CoarseFace[i2].clear();
+              memset(&CoarseFace[i2], 0, sizeof(ElementType));
             }
           } else {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block[j][i2] += CoarseFace[i2];
-              CoarseFace[i2].clear();
+              memset(&CoarseFace[i2], 0, sizeof(ElementType));
             }
           }
         }
