@@ -2909,11 +2909,6 @@ template <class DataType> struct Matrix3D {
     assert(iy < n[1]);
     return d[iy * n[0] + ix];
   }
-  const DataType &Read(unsigned int ix, unsigned int iy) const {
-    assert(ix < n[0]);
-    assert(iy < n[1]);
-    return d[iy * n[0] + ix];
-  }
   DataType &LinAccess(unsigned int i) const {
     assert(i < n[0] * n[1]);
     return d[i];
