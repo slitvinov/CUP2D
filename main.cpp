@@ -4283,28 +4283,6 @@ static void computeB(const Kernel &kernel, Grid<Element1> &grid,
     }
   }
 }
-struct Scalar {
-  Real s = 0;
-  Scalar &operator*=(const Real a) {
-    this->s *= a;
-    return *this;
-  }
-  Scalar &operator+=(const Scalar &rhs) {
-    this->s += rhs.s;
-    return *this;
-  }
-  Scalar &operator-=(const Scalar &rhs) {
-    this->s -= rhs.s;
-    return *this;
-  }
-  friend Scalar operator*(const Real a, Scalar el) { return (el *= a); }
-  friend Scalar operator+(Scalar lhs, const Scalar &rhs) {
-    return (lhs += rhs);
-  }
-  friend Scalar operator-(Scalar lhs, const Scalar &rhs) {
-    return (lhs -= rhs);
-  }
-};
 struct Vector {
   Real u[2];
   Vector() { u[0] = u[1] = 0; }
@@ -4333,6 +4311,7 @@ struct Vector {
   }
   Real &member(int i) { return u[i]; }
 };
+typedef Real Scalar;
 typedef Scalar ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
@@ -4628,7 +4607,7 @@ struct KernelVorticity {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
-        TMP[y][x].s = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
+        TMP[y][x] = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                              (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
@@ -4713,7 +4692,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v1;
         xyz[k++] = u1;
         xyz[k++] = v0;
-        attr[l++] = b[y][x].s;
+        attr[l++] = b[y][x];
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -5103,14 +5082,14 @@ struct ComputeSurfaceNormals {
       const Real fac = 0.5 * h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          const Real gradHX = labChi(ix + 1, iy).s - labChi(ix - 1, iy).s;
-          const Real gradHY = labChi(ix, iy + 1).s - labChi(ix, iy - 1).s;
+          const Real gradHX = labChi(ix + 1, iy) - labChi(ix - 1, iy);
+          const Real gradHY = labChi(ix, iy + 1) - labChi(ix, iy - 1);
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
           const Real gradUX =
-              i2h * (labSDF(ix + 1, iy).s - labSDF(ix - 1, iy).s);
+              i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
           const Real gradUY =
-              i2h * (labSDF(ix, iy + 1).s - labSDF(ix, iy - 1).s);
+              i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
           const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           const Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
@@ -5243,10 +5222,10 @@ struct PutChiOnGrid {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
-            Real distPx = lab(ix + 1, iy).s;
-            Real distMx = lab(ix - 1, iy).s;
-            Real distPy = lab(ix, iy + 1).s;
-            Real distMy = lab(ix, iy - 1).s;
+            Real distPx = lab(ix + 1, iy);
+            Real distMx = lab(ix - 1, iy);
+            Real distPy = lab(ix, iy + 1);
+            Real distMy = lab(ix, iy - 1);
             Real IplusX = std::max((Real)0.0, distPx);
             Real IminuX = std::max((Real)0.0, distMx);
             Real IplusY = std::max((Real)0.0, distPy);
@@ -5258,7 +5237,7 @@ struct PutChiOnGrid {
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
             X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI[iy][ix].s = std::max(CHI[iy][ix].s, X[iy][ix]);
+          CHI[iy][ix] = std::max(CHI[iy][ix], X[iy][ix]);
           if (X[iy][ix] > 0) {
             Real p[2];
             p[0] = info.origin[0] + info.h * (ix + 0.5);
@@ -5333,8 +5312,8 @@ static void ongrid(Real dt) {
   for (size_t i = 0; i < Nblocks; i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)chiInfo[i].block)[x][y].s = 0;
-        (*(ScalarBlock *)tmpInfo[i].block)[x][y].s = -1;
+        (*(ScalarBlock *)chiInfo[i].block)[x][y] = 0;
+        (*(ScalarBlock *)tmpInfo[i].block)[x][y] = -1;
       }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -5774,7 +5753,7 @@ static void ongrid(Real dt) {
               o->dist[iy][ix] = o->dist[iy][ix] >= 0
                                     ? std::sqrt(o->dist[iy][ix])
                                     : -std::sqrt(-o->dist[iy][ix]);
-              b[iy][ix].s = std::max(b[iy][ix].s, o->dist[iy][ix]);
+              b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
               ;
             }
           std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
@@ -5955,13 +5934,13 @@ struct GradChiOnTmp {
     Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
-        lab(x, y).s = std::min(lab(x, y).s, 1.0);
-        lab(x, y).s = std::max(lab(x, y).s, 0.0);
-        if (lab(x, y).s > 0.0 && lab(x, y).s < threshold) {
-          TMP[_BS_ / 2][_BS_ / 2 - 1].s = 2 * sim.Rtol;
-          TMP[_BS_ / 2 - 1][_BS_ / 2 - 1].s = 2 * sim.Rtol;
-          TMP[_BS_ / 2][_BS_ / 2].s = 2 * sim.Rtol;
-          TMP[_BS_ / 2 - 1][_BS_ / 2].s = 2 * sim.Rtol;
+        lab(x, y) = std::min(lab(x, y), 1.0);
+        lab(x, y) = std::max(lab(x, y), 0.0);
+        if (lab(x, y) > 0.0 && lab(x, y) < threshold) {
+          TMP[_BS_ / 2][_BS_ / 2 - 1] = 2 * sim.Rtol;
+          TMP[_BS_ / 2 - 1][_BS_ / 2 - 1] = 2 * sim.Rtol;
+          TMP[_BS_ / 2][_BS_ / 2] = 2 * sim.Rtol;
+          TMP[_BS_ / 2 - 1][_BS_ / 2] = 2 * sim.Rtol;
           break;
         }
       }
@@ -5991,7 +5970,7 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
           for (int i = 0; i < _BS_; i++)
-            Linf = std::max(Linf, std::fabs(b[j][i].s));
+            Linf = std::max(Linf, std::fabs(b[j][i]));
         if (Linf > sim.Rtol)
           (*I)[i]->state = Refine;
         else if (Linf < sim.Ctol)
@@ -6412,7 +6391,7 @@ struct KernelComputeForces {
               continue;
             x = ix + dxi;
             y = iy + dyi;
-            if (chi(x, y).s < 0.01)
+            if (chi(x, y) < 0.01)
               break;
           }
           const auto &l = lab;
@@ -6463,13 +6442,13 @@ struct KernelComputeForces {
               dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
         }
         const Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
-                   fXP = -P[iy][ix].s * normX;
+                   fXP = -P[iy][ix] * normX;
         const Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
-                   fYP = -P[iy][ix].s * normY;
+                   fYP = -P[iy][ix] * normY;
         const Real fXT = fXV + fXP, fYT = fYV + fYP;
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
-        O->p_s[k] = P[iy][ix].s;
+        O->p_s[k] = P[iy][ix];
         O->u_s[k] = V(ix, iy).u[0];
         O->v_s[k] = V(ix, iy).u[1];
         O->nx_s[k] = dx;
@@ -6477,8 +6456,8 @@ struct KernelComputeForces {
         O->omega_s[k] = (DvDx - DuDy) / info.h;
         O->uDef_s[k] = O->udef[iy][ix][0];
         O->vDef_s[k] = O->udef[iy][ix][1];
-        O->fX_s[k] = -P[iy][ix].s * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
-        O->fY_s[k] = -P[iy][ix].s * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
+        O->fX_s[k] = -P[iy][ix] * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
+        O->fY_s[k] = -P[iy][ix] * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
         O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->perimeter += std::sqrt(normX * normX + normY * normY);
@@ -6587,8 +6566,8 @@ struct PoissonSolver {
       const double vv = zInfo[i].h * zInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          P[iy][ix].s = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
-          avg += P[iy][ix].s * vv;
+          P[iy][ix] = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
+          avg += P[iy][ix] * vv;
           avg1 += vv;
         }
     }
@@ -6603,7 +6582,7 @@ struct PoissonSolver {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++)
-          P[iy][ix].s += -avg;
+          P[iy][ix] += -avg;
     }
   }
   struct CellIndexer {
@@ -6988,8 +6967,8 @@ struct PoissonSolver {
               iy == 0)
             b[sfc_loc] = 0.;
           else
-            b[sfc_loc] = rhs[iy][ix].s;
-          x[sfc_loc] = p[iy][ix].s;
+            b[sfc_loc] = rhs[iy][ix];
+          x[sfc_loc] = p[iy][ix];
         }
     }
   }
@@ -7003,8 +6982,8 @@ struct pressureCorrectionKernel {
     VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
-        tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
+        tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
+        tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
       }
     BlockCase<Vector> *tempCase =
         (BlockCase<Vector> *)(tmpVInfo[info.id].auxiliary);
@@ -7021,14 +7000,14 @@ struct pressureCorrectionKernel {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy].u[0] = pFac * (P(ix - 1, iy).s + P(ix, iy).s);
+        faceXm[iy].u[0] = pFac * (P(ix - 1, iy) + P(ix, iy));
         faceXm[iy].u[1] = 0;
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy].u[0] = -pFac * (P(ix + 1, iy).s + P(ix, iy).s);
+        faceXp[iy].u[0] = -pFac * (P(ix + 1, iy) + P(ix, iy));
         faceXp[iy].u[1] = 0;
       }
     }
@@ -7036,14 +7015,14 @@ struct pressureCorrectionKernel {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix].u[0] = 0;
-        faceYm[ix].u[1] = pFac * (P(ix, iy - 1).s + P(ix, iy).s);
+        faceYm[ix].u[1] = pFac * (P(ix, iy - 1) + P(ix, iy));
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix].u[0] = 0;
-        faceYp[ix].u[1] = -pFac * (P(ix, iy + 1).s + P(ix, iy).s);
+        faceYp[ix].u[1] = -pFac * (P(ix, iy + 1) + P(ix, iy));
       }
     }
   }
@@ -7062,11 +7041,11 @@ struct pressure_rhs {
     ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP[iy][ix].s =
+        TMP[iy][ix] =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP[iy][ix].s +=
-            -facDiv * CHI[iy][ix].s *
+        TMP[iy][ix] +=
+            -facDiv * CHI[iy][ix] *
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
@@ -7085,34 +7064,34 @@ struct pressure_rhs {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy].s = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXm[iy].s += -(facDiv * CHI[iy][ix].s) *
+        faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
+        faceXm[iy] += -(facDiv * CHI[iy][ix]) *
                         (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy].s =
+        faceXp[iy] =
             -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXp[iy].s -= -(facDiv * CHI[iy][ix].s) *
+        faceXp[iy] -= -(facDiv * CHI[iy][ix]) *
                         (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[ix].s = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
-        faceYm[ix].s += -(facDiv * CHI[iy][ix].s) *
+        faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
+        faceYm[ix] += -(facDiv * CHI[iy][ix]) *
                         (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix].s =
+        faceYp[ix] =
             -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
-        faceYp[ix].s -= -(facDiv * CHI[iy][ix].s) *
+        faceYp[ix] -= -(facDiv * CHI[iy][ix]) *
                         (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -7126,9 +7105,9 @@ struct pressure_rhs1 {
         *(ScalarBlock *)var.tmp->infos[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
-        TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
-                           (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
-                          4.0 * lab(ix, iy).s);
+        TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
+                           (lab(ix, iy - 1) + lab(ix, iy + 1))) -
+                          4.0 * lab(ix, iy));
     BlockCase<Scalar> *tempCase =
         (BlockCase<Scalar> *)(var.tmp->infos[info.id].auxiliary);
     Scalar *faceXm = nullptr;
@@ -7305,10 +7284,10 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < velInfo.size(); i++)
     for (int x = 0; x < _BS_; x++)
       for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)var.chi->infos[i].block)[x][y].s = 0;
-        (*(ScalarBlock *)var.pres->infos[i].block)[x][y].s = 0;
-        (*(ScalarBlock *)var.pold->infos[i].block)[x][y].s = 0;
-        (*(ScalarBlock *)var.tmp->infos[i].block)[x][y].s = 0;
+        (*(ScalarBlock *)var.chi->infos[i].block)[x][y] = 0;
+        (*(ScalarBlock *)var.pres->infos[i].block)[x][y] = 0;
+        (*(ScalarBlock *)var.pold->infos[i].block)[x][y] = 0;
+        (*(ScalarBlock *)var.tmp->infos[i].block)[x][y] = 0;
 
         (*(VectorBlock *)var.vel->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vel->infos[i].block)[x][y].u[1] = 0;
@@ -7350,7 +7329,7 @@ int main(int argc, char **argv) {
       ScalarBlock &__restrict__ CHI = *(ScalarBlock *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[iy][ix] < CHI[iy][ix].s)
+          if (chi[iy][ix] < CHI[iy][ix])
             continue;
           UDEF[iy][ix].u[0] += udef[iy][ix][0];
           UDEF[iy][ix].u[1] += udef[iy][ix][1];
@@ -7365,9 +7344,9 @@ int main(int argc, char **argv) {
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         UF[iy][ix].u[0] =
-            UF[iy][ix].u[0] * (1 - X[iy][ix].s) + US[iy][ix].u[0] * X[iy][ix].s;
+            UF[iy][ix].u[0] * (1 - X[iy][ix]) + US[iy][ix].u[0] * X[iy][ix];
         UF[iy][ix].u[1] =
-            UF[iy][ix].u[1] * (1 - X[iy][ix].s) + US[iy][ix].u[1] * X[iy][ix].s;
+            UF[iy][ix].u[1] * (1 - X[iy][ix]) + US[iy][ix].u[1] * X[iy][ix];
       }
   }
   while (1) {
@@ -7800,7 +7779,7 @@ int main(int argc, char **argv) {
           VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              if (CHI[iy][ix].s > X[iy][ix])
+              if (CHI[iy][ix] > X[iy][ix])
                 continue;
               if (X[iy][ix] <= 0)
                 continue;
@@ -7837,7 +7816,7 @@ int main(int argc, char **argv) {
           ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
-              if (chi[iy][ix] < CHI[iy][ix].s)
+              if (chi[iy][ix] < CHI[iy][ix])
                 continue;
               Real p[2];
               p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
@@ -7859,8 +7838,8 @@ int main(int argc, char **argv) {
         ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].block;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
-            POLD[iy][ix].s = PRES[iy][ix].s;
-            PRES[iy][ix].s = 0;
+            POLD[iy][ix] = PRES[iy][ix];
+            PRES[iy][ix] = 0;
           }
       }
       var.tmp->Corrector.prepare0(*var.tmp);
@@ -7875,7 +7854,7 @@ int main(int argc, char **argv) {
         const Real vv = presInfo[i].h * presInfo[i].h;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
-            avg += P[iy][ix].s * vv;
+            avg += P[iy][ix] * vv;
             avg1 += vv;
           }
       }
@@ -7892,7 +7871,7 @@ int main(int argc, char **argv) {
             *(ScalarBlock *)poldInfo[i].block;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++)
-            P[iy][ix].s += POLD[iy][ix].s - avg;
+            P[iy][ix] += POLD[iy][ix] - avg;
       }
       {
         var.tmpV->Corrector.prepare0(*var.tmpV);
