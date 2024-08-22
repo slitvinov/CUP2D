@@ -2912,11 +2912,6 @@ template <class DataType> struct Matrix3D {
   }
   Matrix3D() : m_pData(nullptr) {}
   Matrix3D(const Matrix3D &m) = delete;
-  Matrix3D(Matrix3D &&m)
-      : m_pData{m.m_pData}, m_vSize{m.m_vSize[0], m.m_vSize[1], m.m_vSize[2]}
-  {
-    m.m_pData = nullptr;
-  }
   DataType &Access0(unsigned int ix, unsigned int iy) const {
     assert(ix < m_vSize[0]);
     assert(iy < m_vSize[1]);
