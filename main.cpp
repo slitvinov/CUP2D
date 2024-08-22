@@ -4606,7 +4606,7 @@ typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
 typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
-struct BlockLabDirichlet : public BlockLab<VectorElement> {
+struct VectorLab : public BlockLab<VectorElement> {
   Synchronizer<Grid<VectorElement>> *refSynchronizerMPI;
   virtual void prepare(Grid<VectorElement> &grid,
                        const StencilInfo &stencil) override {
@@ -4730,9 +4730,9 @@ struct BlockLabDirichlet : public BlockLab<VectorElement> {
       }
     }
   }
-  BlockLabDirichlet() : BlockLab<VectorElement>() {}
-  BlockLabDirichlet(const BlockLabDirichlet &) = delete;
-  BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
+  VectorLab() : BlockLab<VectorElement>() {}
+  VectorLab(const VectorLab &) = delete;
+  VectorLab &operator=(const VectorLab &) = delete;
 };
 struct BlockLabNeumann : public BlockLab<ScalarElement> {
   Synchronizer<Grid<ScalarElement>> *refSynchronizerMPI;
@@ -4808,7 +4808,6 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef BlockLabDirichlet VectorLab;
 typedef BlockLabNeumann ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
