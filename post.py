@@ -39,8 +39,6 @@ def plot(path):
     plt.gca().add_collection(p)
     plt.tight_layout()
     plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
-    print(ncell)
-
 
 plt.rcParams['image.cmap'] = 'jet'
 for path in sys.argv[1:]:
