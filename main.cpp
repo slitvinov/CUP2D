@@ -21,6 +21,7 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
+enum {max_dim = 2};
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
