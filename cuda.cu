@@ -547,19 +547,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     set_rho<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
     cudaGetLastError();
   }
-  if (rank_ == 0) {
-    if (bConverged)
-      std::cout << "  [BiCGSTAB] Error norm (relative) = " << error_opt << "/"
-                << max_error << " (" << error_opt / error_init << "/"
-                << max_rel_error << ")\n"
-                << std::flush;
-    else
-      std::cout << "  [BiCGSTAB]: Iteration " << max_iter
-                << ". Error norm (relative) = " << error_opt << "/" << max_error
-                << " (" << error_opt / error_init << "/" << max_rel_error
-                << ")\n"
-                << std::flush;
-  }
   cudaMemcpyAsync(LocalLS_.x_.data(), d_x_opt_, m_ * sizeof(double),
                   cudaMemcpyDeviceToHost, solver_stream_);
 }
