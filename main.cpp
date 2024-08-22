@@ -2987,10 +2987,9 @@ template <typename ElementType> struct BlockLab {
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
-    const int e[3] = {end[0] / 2 + 2, end[1] / 2 + 2, end[2] / 2 + 1};
     delete c;
-    c = new matrix<ElementType>(_BS_ / 2 + e[0] - offset[0] - 1,
-				_BS_ / 2 + e[1] - offset[1] - 1);
+    c = new matrix<ElementType>(_BS_ / 2 + end[0] / 2 + 1 - offset[0],
+				_BS_ / 2 + end[1] / 2 + 1 - offset[1]);
     nm = _BS_ + end[0] - start[0] - 1;
     nc = _BS_ / 2 + e[0] - offset[0] - 1;
     
