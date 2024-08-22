@@ -4422,7 +4422,6 @@ struct VectorLab : public BlockLab<VectorElement> {
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
     if (!coarse) {
-      auto *const cb = this->m;
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
       const int *const stenBeg = this->start;
       const int *const stenEnd = this->end;
@@ -4439,10 +4438,10 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
-                (-1.0) * cb->Access0(x, y).member(1 - A);
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
-                cb->Access0(x, y).member(A);
+            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
+                (-1.0) * m->Access0(x, y).member(1 - A);
+            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
+                m->Access0(x, y).member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4451,8 +4450,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
-                (-1.0) * cb->Access0(x, y);
+            m->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
+                (-1.0) * m->Access0(x, y);
           }
     } else {
       auto *const cb = this->c;
