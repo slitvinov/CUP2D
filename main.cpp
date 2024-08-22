@@ -3003,7 +3003,7 @@ template <typename ElementType> struct BlockLab {
     int _iz1 = _iz0 + 1;
     int _iy0 = -start[1];
     int _iy1 = _iy0 + _BS_;
-    int m_vSize0 = m->n[0];
+    int m_vSize0 = nm;
     int my_ix = -start[0];
     for (int iz = _iz0; iz < _iz1; iz++) {
       int my_izx = my_ix;
@@ -3145,7 +3145,7 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int m_vSize0 = m->n[0];
+    const int m_vSize0 = nm;
     const int my_ix = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iz = s[2]; iz < e[2]; iz++) {
@@ -3188,7 +3188,7 @@ template <typename ElementType> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    int m_vSize0 = m->n[0];
+    int m_vSize0 = nm;
     int yStep = (code[1] == 0) ? 2 : 1;
     int zStep = (code[2] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / yStep) % 4;
