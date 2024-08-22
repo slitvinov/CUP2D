@@ -7201,16 +7201,11 @@ struct PoissonSolver {
       std::array<bool, 2> isPeriodic;
       isPeriodic[0] = (sim.bcx == periodic);
       isPeriodic[1] = (sim.bcy == periodic);
-      std::array<long long, 4> Z;
-      Z[0] = rhs_info.Znei[1 - 1][1];
-      Z[1] = rhs_info.Znei[1 + 1][1];
-      Z[2] = rhs_info.Znei[1][1 - 1];
-      Z[3] = rhs_info.Znei[1][1 + 1];
       std::array<const BlockInfo *, 4> rhsNei;
-      rhsNei[0] = &(var.tmp->get(rhs_info.level, Z[0]));
-      rhsNei[1] = &(var.tmp->get(rhs_info.level, Z[1]));
-      rhsNei[2] = &(var.tmp->get(rhs_info.level, Z[2]));
-      rhsNei[3] = &(var.tmp->get(rhs_info.level, Z[3]));
+      rhsNei[0] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]));
+      rhsNei[1] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]));
+      rhsNei[2] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]));
+      rhsNei[3] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]));
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
