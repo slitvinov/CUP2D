@@ -2107,10 +2107,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       int r = (*TFluxCorrection::grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
-        for (int j = 0; j < ElementType::DIM; j++)
+        for (int j = 0; j < sizeof(ElementType) / sizeof(Real); j++)
           CoarseFace[base + (i2 / 2)].member(j) +=
               recv_buffer[r][F.offset + dis + j];
-        dis += ElementType::DIM;
+        dis += sizeof(ElementType) / sizeof(Real);
       }
     }
   }
@@ -2167,7 +2167,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     }
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
-    const int NC = ElementType::DIM;
+    const int NC = sizeof(ElementType) / sizeof(Real);
     int blocksize[] = {_BS_, _BS_, 1};
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
@@ -2324,9 +2324,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
-          for (int j = 0; j < ElementType::DIM; j++)
+          for (int j = 0; j < sizeof(ElementType) / sizeof(Real); j++)
             send_buffer[r][displacement + j] = avg.member(j);
-          displacement += ElementType::DIM;
+          displacement += sizeof(ElementType) / sizeof(Real);
           memset(&FineFace[i2], 0, sizeof(ElementType));
           memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
         }
@@ -3987,7 +3987,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
     stencil.ey = 2;
     stencil.ez = 1;
     stencil.tensorial = true;
-    for (int i = 0; i < ElementType::DIM; i++)
+    for (int i = 0; i < sizeof(ElementType) / sizeof(Real); i++)
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<ElementType>(*grid);
   }
@@ -4323,10 +4323,8 @@ struct Scalar {
     return (lhs -= rhs);
   }
   Real &member(int i) { return s; }
-  static constexpr int DIM = 1;
 };
 struct Vector {
-  static constexpr int DIM = 2;
   Real u[2];
   Vector() { u[0] = u[1] = 0; }
   void clear() { u[0] = u[1] = 0; }
