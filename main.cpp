@@ -2972,11 +2972,17 @@ template <typename ElementType> struct BlockLab {
     delete m;
     delete c;
   }
-  ElementType &operator()(int ix, int iy) {
-    return m->Access0(ix - start[0], iy - start[1]);
+  ElementType &operator()(int x, int y) {
+    x -= start[0];
+    y -= start[1];
+    int n = m->n[0];
+    return m->d[n * y + x];
   }
-  const ElementType &operator()(int ix, int iy) const {
-    return m->Access0(ix - start[0], iy - start[1]);
+  const ElementType &operator()(int x, int y) const {
+    x -= start[0];
+    y -= start[1];
+    int n = m->n[0];
+    return m->d[n * y + x];
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
