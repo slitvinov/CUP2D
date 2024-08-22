@@ -2902,11 +2902,6 @@ template <class DataType> struct matrix {
     assert(d);
   }
   ~matrix() { free(d); }
-  DataType &Access0(unsigned int ix, unsigned int iy) const {
-    assert(ix < n[0]);
-    assert(iy < n[1]);
-    return d[iy * n[0] + ix];
-  }
 };
 
 template <typename ElementType>
@@ -3493,7 +3488,7 @@ template <typename ElementType> struct BlockLab {
                 Test[i][j] = &c->d[XX - 1 + i - offset[0] +
                                    nc * (YY - 1 + j - offset[1])];
             TestInterp(
-                Test, m->Access0(ix - start[0], iy - start[1]),
+                Test, m->d[ix - start[0] + nm * (iy - start[1])],
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
@@ -3535,7 +3530,7 @@ template <typename ElementType> struct BlockLab {
                         2.0 * c->d[XX + nc * (YY - 1)];
               } else {
                 dudy =
-                    0.5 * (c->d[XX + nc * (YY + 1)] - c->Access0(XX, YY - 1));
+                    0.5 * (c->d[XX + nc * (YY + 1)] - c->d[XX + nc * (YY - 1)]);
                 dudy2 = (c->d[XX + nc * (YY + 1)] + c->d[XX + nc * (YY - 1)]) -
                         2.0 * c->d[XX + nc * (YY)];
               }
@@ -3555,15 +3550,15 @@ template <typename ElementType> struct BlockLab {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
                 dudx = (-0.5 * c->d[XX + 2 + nc * (YY)] -
-                        1.5 * c->Access0(XX, YY)) +
+                        1.5 * c->d[XX + nc * (YY)]) +
                        2.0 * c->d[XX + 1 + nc * (YY)];
-                dudx2 = (c->d[XX + 2 + nc * (YY)] + c->Access0(XX, YY)) -
+                dudx2 = (c->d[XX + 2 + nc * (YY)] + c->d[XX + nc * (YY)]) -
                         2.0 * c->d[XX + 1 + nc * (YY)];
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
                 dudx = (0.5 * c->d[XX - 2 + nc * (YY)] +
-                        1.5 * c->Access0(XX, YY)) -
+                        1.5 * c->d[XX + nc * (YY)]) -
                        2.0 * c->d[XX - 1 + nc * (YY)];
-                dudx2 = (c->d[XX - 2 + nc * (YY)] + c->Access0(XX, YY)) -
+                dudx2 = (c->d[XX - 2 + nc * (YY)] + c->d[XX + nc * (YY)]) -
                         2.0 * c->d[XX - 1 + nc * (YY)];
               } else {
                 dudx =
@@ -4420,10 +4415,10 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
+            m->d[ix - stenBeg[0] + nm * (iy - stenBeg[1])].member(1 - A) =
                 (-1.0) * m->d[x + nm * (y)].member(1 - A);
-            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
-                m->Access0(x, y).member(A);
+            m->d[ix - stenBeg[0] + nm * (iy - stenBeg[1])].member(A) =
+                m->d[x + nm * (y)].member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4555,9 +4550,11 @@ struct ScalarLab : public BlockLab<ScalarElement> {
                     : bsize[1] + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
-        cb->d[ix - stenBeg[0] + n * (iy - stenBeg[1])] = cb->d[
-            (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
-            n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1])];
+        cb->d[ix - stenBeg[0] + n * (iy - stenBeg[1])] =
+            cb->d[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) -
+                  stenBeg[0] +
+                  n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
+                       stenBeg[1])];
   }
   ScalarLab() = default;
   ScalarLab(const ScalarLab &) = delete;
