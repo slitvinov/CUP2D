@@ -2958,8 +2958,8 @@ template <typename ElementType> struct BlockLab {
   int coarsened_nei_codes_size;
   int offset[3];
   matrix<ElementType> *m_CoarsenedBlock;
-  int m_InterpStencilStart[3];
-  int m_InterpStencilEnd[3];
+  const int m_InterpStencilStart[3] = {-1, -1, 0};
+  const int m_InterpStencilEnd[3] = {2, 2, 1};
   bool coarsened;
   const double d_coef_plus[9] = {-0.09375, 0.4375,   0.15625, 0.15625, -0.5625,
                                  0.90625,  -0.09375, 0.4375,  0.15625};
@@ -2969,9 +2969,6 @@ template <typename ElementType> struct BlockLab {
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
     m_stencilStart[0] = m_stencilStart[1] = m_stencilStart[2] = 0;
     m_stencilEnd[0] = m_stencilEnd[1] = m_stencilEnd[2] = 0;
-    m_InterpStencilStart[0] = m_InterpStencilStart[1] =
-        m_InterpStencilStart[2] = 0;
-    m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
   }
   ~BlockLab() {
     delete m_cacheBlock;
@@ -2986,8 +2983,6 @@ template <typename ElementType> struct BlockLab {
                                  iy - m_stencilStart[1]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
-    constexpr int Istencil_start[3] = {-1, -1, 0};
-    constexpr int Istencil_end[3] = {2, 2, 1};
     istensorial = stencil.tensorial;
     coarsened = false;
     m_stencilStart[0] = stencil.sx;
@@ -2996,12 +2991,6 @@ template <typename ElementType> struct BlockLab {
     m_stencilEnd[0] = stencil.ex;
     m_stencilEnd[1] = stencil.ey;
     m_stencilEnd[2] = stencil.ez;
-    m_InterpStencilStart[0] = Istencil_start[0];
-    m_InterpStencilStart[1] = Istencil_start[1];
-    m_InterpStencilStart[2] = Istencil_start[2];
-    m_InterpStencilEnd[0] = Istencil_end[0];
-    m_InterpStencilEnd[1] = Istencil_end[1];
-    m_InterpStencilEnd[2] = Istencil_end[2];
     m_refGrid = &grid;
     if (m_cacheBlock == NULL ||
         (int)m_cacheBlock->n[0] !=
