@@ -2944,19 +2944,10 @@ static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
 }
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
-  bool coarsened;
-  bool istensorial;
-  bool use_averages;
+  bool coarsened, istensorial, use_averages;
   Grid<ElementType> *m_refGrid;
-  int coarsened_nei_codes_size;
-  int end[3];
-  int NX;
-  int NY;
-  int NZ;
-  int offset[3];
-  int start[3];
-  matrix<ElementType> *m;
-  matrix<ElementType> *c;
+  int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3], nm, nc;
+  matrix<ElementType> *m, *c;;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
@@ -2973,16 +2964,12 @@ template <typename ElementType> struct BlockLab {
   ElementType &operator()(int x, int y) {
     x -= start[0];
     y -= start[1];
-    int n = _BS_ + end[0] - start[0] - 1;
-    assert(n == m->n[0]);
-    return m->d[n * y + x];
+    return m->d[nm * y + x];
   }
   const ElementType &operator()(int x, int y) const {
     x -= start[0];
     y -= start[1];
-    int n = _BS_ + end[0] - start[0] - 1;
-    assert(n == m->n[0]);
-    return m->d[n * y + x];
+    return m->d[nm * y + x];
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
@@ -2994,24 +2981,19 @@ template <typename ElementType> struct BlockLab {
     end[1] = stencil.ey;
     end[2] = stencil.ez;
     m_refGrid = &grid;
-    if (m == NULL || m->n[0] != _BS_ + end[0] - start[0] - 1 ||
-        m->n[1] != _BS_ + end[1] - start[1] - 1 || 0 != end[2] - start[2]) {
-      if (m != NULL)
-        delete m;
-      m = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
-                                  _BS_ + end[1] - start[1] - 1);
-    }
+    delete m;
+    m = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
+				_BS_ + end[1] - start[1] - 1);
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
-    const int e[3] = {end[0] / 2 + (2), end[1] / 2 + (2), end[2] / 2 + (1)};
-    if (c == NULL || c->n[0] != _BS_ / 2 + e[0] - offset[0] - 1 ||
-        c->n[1] != _BS_ / 2 + e[1] - offset[1] - 1 || 0 != e[2] - offset[2]) {
-      if (c != NULL)
-        delete c;
-      c = new matrix<ElementType>((_BS_ / 2) + e[0] - offset[0] - 1,
-                                  (_BS_ / 2) + e[1] - offset[1] - 1);
-    }
+    const int e[3] = {end[0] / 2 + 2, end[1] / 2 + 2, end[2] / 2 + 1};
+    delete c;
+    c = new matrix<ElementType>(_BS_ / 2 + e[0] - offset[0] - 1,
+				_BS_ / 2 + e[1] - offset[1] - 1);
+    nm = _BS_ + end[0] - start[0] - 1;
+    nc = _BS_ / 2 + e[0] - offset[0] - 1;
+    
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
