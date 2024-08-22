@@ -2324,8 +2324,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           ElementType avg = FineFace[i2] + FineFace[i2 + 1];
-          for (int j = 0; j < sizeof(ElementType) / sizeof(Real); j++)
-            send_buffer[r][displacement + j] = avg.member(j);
+	  memcpy(&send_buffer[r][displacement], &avg, sizeof(ElementType));
           displacement += sizeof(ElementType) / sizeof(Real);
           memset(&FineFace[i2], 0, sizeof(ElementType));
           memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
