@@ -4628,8 +4628,12 @@ struct VectorElement {
 };
 static BCflag cubismBCX;
 static BCflag cubismBCY;
-template <typename TGrid, typename ElementType>
-struct BlockLabDirichlet : public BlockLab<ElementType> {
+typedef ScalarElement ScalarBlock[_BS_][_BS_];
+typedef VectorElement VectorBlock[_BS_][_BS_];
+typedef Grid<ScalarElement> ScalarGrid;
+typedef Grid<VectorElement> VectorGrid;
+template <typename TGrid>
+struct BlockLabDirichlet : public BlockLab<VectorElement> {
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -4741,7 +4745,7 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
       }
     }
   }
-  BlockLabDirichlet() : BlockLab<ElementType>() {}
+  BlockLabDirichlet() : BlockLab<VectorElement>() {}
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
@@ -4802,12 +4806,7 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef ScalarElement ScalarBlock[_BS_][_BS_];
-typedef VectorElement VectorBlock[_BS_][_BS_];
-typedef Grid<ScalarElement> ScalarGrid;
-typedef Grid<VectorElement> VectorGrid;
-typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
-    VectorLab;
+typedef BlockLabMPI<BlockLabDirichlet<VectorGrid>, VectorElement> VectorLab;
 typedef BlockLabMPI<BlockLabNeumann, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
