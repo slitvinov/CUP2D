@@ -2897,10 +2897,10 @@ template <typename ElementType> struct Grid {
 template <class DataType> struct Matrix3D {
   DataType *d;
   unsigned int n[2];
-  void _Setup0(unsigned int nSizeX, unsigned int nSizeY) {
-    n[0] = nSizeX;
-    n[1] = nSizeY;
-    d = (DataType *)malloc(sizeof(DataType) * nSizeX * nSizeY);
+  Matrix3D(unsigned int x, unsigned int y) {
+    n[0] = x;
+    n[1] = y;
+    d = (DataType *)malloc(sizeof(DataType) * x * y);
     assert(d);
   }
   ~Matrix3D() { free(d); }
@@ -2989,9 +2989,8 @@ template <typename ElementType> struct BlockLab {
         0 != 1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         delete m_cacheBlock;
-      m_cacheBlock = new Matrix3D<ElementType>;
-      m_cacheBlock->_Setup0(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
-                            _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
+      m_cacheBlock = new Matrix3D<ElementType>(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
+					       _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
@@ -3007,9 +3006,8 @@ template <typename ElementType> struct BlockLab {
         0 != CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
-      m_CoarsenedBlock = new Matrix3D<ElementType>;
-      m_CoarsenedBlock->_Setup0(CoarseBlockSize[0] + e[0] - offset[0] - 1,
-                                CoarseBlockSize[1] + e[1] - offset[1] - 1);
+      m_CoarsenedBlock = new Matrix3D<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
+						   CoarseBlockSize[1] + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
