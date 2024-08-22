@@ -2896,53 +2896,49 @@ template <typename ElementType> struct Grid {
 };
 template <class DataType> struct Matrix3D {
   DataType *m_pData{nullptr};
-  unsigned int m_vSize[3]{0, 0, 0};
-  unsigned int m_nElements{0};
+  unsigned int m_vSize[2]{0, 0};
   void _Release() {
     if (m_pData != nullptr) {
       free(m_pData);
       m_pData = nullptr;
     }
   }
-  void _Setup(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ) {
+  void _Setup(unsigned int nSizeX, unsigned int nSizeY) {
     _Release();
     m_vSize[0] = nSizeX;
     m_vSize[1] = nSizeY;
-    m_vSize[2] = nSizeZ;
-    m_nElements = nSizeX * nSizeY * nSizeZ;
     posix_memalign((void **)&m_pData, std::max(8, 32),
-                   sizeof(DataType) * m_nElements);
+                   sizeof(DataType) * nSizeX * nSizeY);
     assert(m_pData != nullptr);
   }
   ~Matrix3D() { _Release(); }
   Matrix3D(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ)
-      : m_pData(nullptr), m_nElements(0) {
+      : m_pData(nullptr) {
     _Setup(nSizeX, nSizeY, nSizeZ);
   }
-  Matrix3D() : m_pData(nullptr), m_nElements(-1) {}
+  Matrix3D() : m_pData(nullptr) {}
   Matrix3D(const Matrix3D &m) = delete;
   Matrix3D(Matrix3D &&m)
-      : m_pData{m.m_pData}, m_vSize{m.m_vSize[0], m.m_vSize[1], m.m_vSize[2]},
-        m_nElements{m.m_nElements} {
+      : m_pData{m.m_pData}, m_vSize{m.m_vSize[0], m.m_vSize[1], m.m_vSize[2]}
+  {
     m.m_pData = nullptr;
   }
   Matrix3D &operator=(const Matrix3D &m) {
 #ifndef NDEBUG
     assert(m_vSize[0] == m.m_vSize[0]);
     assert(m_vSize[1] == m.m_vSize[1]);
-    assert(m_vSize[2] == m.m_vSize[2]);
 #endif
-    for (unsigned int i = 0; i < m_nElements; i++)
+    for (unsigned int i = 0; i < m_vSize[0] * m_vSize[1]; i++)
       m_pData[i] = m.m_pData[i];
     return *this;
   }
   Matrix3D &operator=(DataType d) {
-    for (unsigned int i = 0; i < m_nElements; i++)
+    for (unsigned int i = 0; i < m_vSize[0] * m_vSize[1]; i++)
       m_pData[i] = d;
     return *this;
   }
   Matrix3D &operator=(const double a) {
-    for (unsigned int i = 0; i < m_nElements; i++)
+    for (unsigned int i = 0; i < m_vSize[0] * m_vSize[1]; i++)
       m_pData[i].set(a);
     return *this;
   }
@@ -2954,19 +2950,14 @@ template <class DataType> struct Matrix3D {
     return m_pData[iy * m_vSize[0] + ix];
   }
   const DataType &Read(unsigned int ix, unsigned int iy) const {
-#ifndef NDEBUG
     assert(ix < m_vSize[0]);
     assert(iy < m_vSize[1]);
-#endif
     return m_pData[iy * m_vSize[0] + ix];
   }
   DataType &LinAccess(unsigned int i) const {
-#ifndef NDEBUG
-    assert(i < m_nElements);
-#endif
+    assert(i < m_vSize[0] * m_vSize[1]);
     return m_pData[i];
   }
-  unsigned int getNumberOfElements() const { return m_nElements; }
   unsigned int *getSize() const { return (unsigned int *)m_vSize; }
   unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
@@ -3052,8 +3043,7 @@ template <typename ElementType> struct BlockLab {
         _release(m_cacheBlock);
       m_cacheBlock = new Matrix3D<ElementType>;
       m_cacheBlock->_Setup(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
-                           _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1,
-                           1 + m_stencilEnd[2] - m_stencilStart[2] - 1);
+                           _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
@@ -3072,8 +3062,7 @@ template <typename ElementType> struct BlockLab {
         _release(m_CoarsenedBlock);
       m_CoarsenedBlock = new Matrix3D<ElementType>;
       m_CoarsenedBlock->_Setup(CoarseBlockSize[0] + e[0] - offset[0] - 1,
-                               CoarseBlockSize[1] + e[1] - offset[1] - 1,
-                               CoarseBlockSize[2] + e[2] - offset[2] - 1);
+                               CoarseBlockSize[1] + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
