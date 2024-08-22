@@ -3087,8 +3087,7 @@ template <typename ElementType> struct BlockLab {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
-          if (i > -(-1) && i < _BS_ / 2 - (2) && j > -(-1) &&
-              j < _BS_ / 2 - (2))
+          if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
             continue;
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
