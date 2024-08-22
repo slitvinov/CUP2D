@@ -44,4 +44,5 @@ def plot(path):
 
 plt.rcParams['image.cmap'] = 'jet'
 for path in sys.argv[1:]:
+    sys.stderr.write("post.py: %s\n" % path)
     plot(path)

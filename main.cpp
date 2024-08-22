@@ -7218,13 +7218,13 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
   if (sim.rank == 0)
-    printf("%d ranks\n", sim.size);
+    fprintf(stderr, "main.cpp: %d ranks\n", sim.size);
 #ifdef _OPENMP
 #pragma omp parallel
   {
 #pragma omp master
     if (sim.rank == 0)
-      printf("%d threads\n", omp_get_num_threads());
+      fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
   }
 #endif
   parser.set_strict_mode();
