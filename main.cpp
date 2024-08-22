@@ -4743,8 +4743,7 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
   BlockLabDirichlet(const BlockLabDirichlet &) = delete;
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
-template <typename ElementType>
-struct BlockLabNeumann : public BlockLab<ElementType> {
+struct BlockLabNeumann : public BlockLab<ScalarElement> {
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
     int stenEnd[2];
@@ -4807,7 +4806,7 @@ typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
 typedef BlockLabMPI<BlockLabDirichlet<VectorGrid, VectorElement>, VectorElement>
     VectorLab;
-typedef BlockLabMPI<BlockLabNeumann<ScalarElement>, ScalarElement> ScalarLab;
+typedef BlockLabMPI<BlockLabNeumann, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct Skin {
