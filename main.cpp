@@ -4067,9 +4067,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
               BlockType &b = *Blocks[J * 2 + I];
-              for (size_t y = 0; y < _BS_; y++)
-                for (size_t x = 0; x < _BS_; x++)
-                  b[y][x].clear();
+	      memset(&b, 0, sizeof(BlockType));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
                   ElementType dudx =
