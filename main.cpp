@@ -3133,10 +3133,10 @@ template <typename ElementType> struct BlockLab {
           const int iy = 2 * j - m_stencilStart[1];
           ElementType &coarseElement =
               m_CoarsenedBlock->Access0(i - offset[0], j - offset[1]);
-          coarseElement = AverageDown(m_cacheBlock->Read(ix, iy),
-                                      m_cacheBlock->Read(ix + 1, iy),
-                                      m_cacheBlock->Read(ix, iy + 1),
-                                      m_cacheBlock->Read(ix + 1, iy + 1));
+          coarseElement = AverageDown(m_cacheBlock->Access0(ix, iy),
+                                      m_cacheBlock->Access0(ix + 1, iy),
+                                      m_cacheBlock->Access0(ix, iy + 1),
+                                      m_cacheBlock->Access0(ix + 1, iy + 1));
         }
       }
     }
