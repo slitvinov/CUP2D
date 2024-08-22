@@ -2973,13 +2973,15 @@ template <typename ElementType> struct BlockLab {
   ElementType &operator()(int x, int y) {
     x -= start[0];
     y -= start[1];
-    int n = m->n[0];
+    int n = _BS_ + end[0] - start[0] - 1;
+    assert(n == m->n[0]);
     return m->d[n * y + x];
   }
   const ElementType &operator()(int x, int y) const {
     x -= start[0];
     y -= start[1];
-    int n = m->n[0];
+    int n = _BS_ + end[0] - start[0] - 1;
+    assert(n == m->n[0]);
     return m->d[n * y + x];
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
@@ -2992,27 +2994,23 @@ template <typename ElementType> struct BlockLab {
     end[1] = stencil.ey;
     end[2] = stencil.ez;
     m_refGrid = &grid;
-    if (m == NULL ||
-        m->n[0] != _BS_ + end[0] - start[0] - 1 ||
-        m->n[1] != _BS_ + end[1] - start[1] - 1 ||
-        0 != end[2] - start[2]) {
+    if (m == NULL || m->n[0] != _BS_ + end[0] - start[0] - 1 ||
+        m->n[1] != _BS_ + end[1] - start[1] - 1 || 0 != end[2] - start[2]) {
       if (m != NULL)
         delete m;
       m = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
-                                             _BS_ + end[1] - start[1] - 1);
+                                  _BS_ + end[1] - start[1] - 1);
     }
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     const int e[3] = {end[0] / 2 + (2), end[1] / 2 + (2), end[2] / 2 + (1)};
-    if (c == NULL ||
-        c->n[0] != _BS_ / 2 + e[0] - offset[0] - 1 ||
-        c->n[1] != _BS_ / 2 + e[1] - offset[1] - 1 ||
-        0 != e[2] - offset[2]) {
+    if (c == NULL || c->n[0] != _BS_ / 2 + e[0] - offset[0] - 1 ||
+        c->n[1] != _BS_ / 2 + e[1] - offset[1] - 1 || 0 != e[2] - offset[2]) {
       if (c != NULL)
         delete c;
-      c = new matrix<ElementType>(
-          (_BS_ / 2) + e[0] - offset[0] - 1, (_BS_ / 2) + e[1] - offset[1] - 1);
+      c = new matrix<ElementType>((_BS_ / 2) + e[0] - offset[0] - 1,
+                                  (_BS_ / 2) + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
@@ -3115,12 +3113,10 @@ template <typename ElementType> struct BlockLab {
             continue;
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
-          ElementType &coarseElement =
-              c->Access0(i - offset[0], j - offset[1]);
-          coarseElement = AverageDown(m->Access0(ix, iy),
-                                      m->Access0(ix + 1, iy),
-                                      m->Access0(ix, iy + 1),
-                                      m->Access0(ix + 1, iy + 1));
+          ElementType &coarseElement = c->Access0(i - offset[0], j - offset[1]);
+          coarseElement =
+              AverageDown(m->Access0(ix, iy), m->Access0(ix + 1, iy),
+                          m->Access0(ix, iy + 1), m->Access0(ix + 1, iy + 1));
         }
       }
     }
@@ -3246,33 +3242,29 @@ template <typename ElementType> struct BlockLab {
         const int my_izx = my_ix;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
           ElementType *__restrict__ ptrDest0 =
-              &m
-                   ->d[my_izx +
-                       (abs(code[1]) * (iy + 0 * yStep - start[1]) +
-                        (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
-                                              aux * (e[1] - s[1]) / 2)) *
-                           m_vSize0];
+              &m->d[my_izx +
+                    (abs(code[1]) * (iy + 0 * yStep - start[1]) +
+                     (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
+                        m_vSize0];
           ElementType *__restrict__ ptrDest1 =
-              &m
-                   ->d[my_izx +
-                       (abs(code[1]) * (iy + 1 * yStep - start[1]) +
-                        (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
-                                              aux * (e[1] - s[1]) / 2)) *
-                           m_vSize0];
+              &m->d[my_izx +
+                    (abs(code[1]) * (iy + 1 * yStep - start[1]) +
+                     (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
+                        m_vSize0];
           ElementType *__restrict__ ptrDest2 =
-              &m
-                   ->d[my_izx +
-                       (abs(code[1]) * (iy + 2 * yStep - start[1]) +
-                        (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
-                                              aux * (e[1] - s[1]) / 2)) *
-                           m_vSize0];
+              &m->d[my_izx +
+                    (abs(code[1]) * (iy + 2 * yStep - start[1]) +
+                     (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
+                        m_vSize0];
           ElementType *__restrict__ ptrDest3 =
-              &m
-                   ->d[my_izx +
-                       (abs(code[1]) * (iy + 3 * yStep - start[1]) +
-                        (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
-                                              aux * (e[1] - s[1]) / 2)) *
-                           m_vSize0];
+              &m->d[my_izx +
+                    (abs(code[1]) * (iy + 3 * yStep - start[1]) +
+                     (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
+                        m_vSize0];
           int YY0 = (abs(code[1]) == 1)
                         ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
                               std::min(0, code[1]) * _BS_
@@ -3316,12 +3308,11 @@ template <typename ElementType> struct BlockLab {
         }
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
           ElementType *ptrDest =
-              (ElementType *)&m
-                  ->d[my_izx +
-                      (abs(code[1]) * (iy - start[1]) +
-                       (1 - abs(code[1])) *
-                           (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
-                          m_vSize0];
+              (ElementType *)&m->d[my_izx + (abs(code[1]) * (iy - start[1]) +
+                                             (1 - abs(code[1])) *
+                                                 (iy / 2 - start[1] +
+                                                  aux * (e[1] - s[1]) / 2)) *
+                                                m_vSize0];
           int YY = (abs(code[1]) == 1)
                        ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                        : iy;
@@ -3423,8 +3414,7 @@ template <typename ElementType> struct BlockLab {
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        ElementType *ptrDest =
-            &c->d[my_izx + (iy - offset[1]) * m_vSize0];
+        ElementType *ptrDest = &c->d[my_izx + (iy - offset[1]) * m_vSize0];
         const ElementType *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
@@ -3520,8 +3510,8 @@ template <typename ElementType> struct BlockLab {
             ElementType *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
-                Test[i][j] = &c->Access0(XX - 1 + i - offset[0],
-                                                        YY - 1 + j - offset[1]);
+                Test[i][j] =
+                    &c->Access0(XX - 1 + i - offset[0], YY - 1 + j - offset[1]);
             TestInterp(
                 Test, m->Access0(ix - start[0], iy - start[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
@@ -3552,83 +3542,65 @@ template <typename ElementType> struct BlockLab {
             if (code[0] != 0) {
               ElementType dudy, dudy2;
               if (YY + offset[1] == 0) {
-                dudy = (-0.5 * c->Access0(XX, YY + 2) -
-                        1.5 * c->Access0(XX, YY)) +
-                       2.0 * c->Access0(XX, YY + 1);
-                dudy2 = (c->Access0(XX, YY + 2) +
-                         c->Access0(XX, YY)) -
+                dudy =
+                    (-0.5 * c->Access0(XX, YY + 2) - 1.5 * c->Access0(XX, YY)) +
+                    2.0 * c->Access0(XX, YY + 1);
+                dudy2 = (c->Access0(XX, YY + 2) + c->Access0(XX, YY)) -
                         2.0 * c->Access0(XX, YY + 1);
               } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                dudy = (0.5 * c->Access0(XX, YY - 2) +
-                        1.5 * c->Access0(XX, YY)) -
-                       2.0 * c->Access0(XX, YY - 1);
-                dudy2 = (c->Access0(XX, YY - 2) +
-                         c->Access0(XX, YY)) -
+                dudy =
+                    (0.5 * c->Access0(XX, YY - 2) + 1.5 * c->Access0(XX, YY)) -
+                    2.0 * c->Access0(XX, YY - 1);
+                dudy2 = (c->Access0(XX, YY - 2) + c->Access0(XX, YY)) -
                         2.0 * c->Access0(XX, YY - 1);
               } else {
-                dudy = 0.5 * (c->Access0(XX, YY + 1) -
-                              c->Access0(XX, YY - 1));
-                dudy2 = (c->Access0(XX, YY + 1) +
-                         c->Access0(XX, YY - 1)) -
+                dudy = 0.5 * (c->Access0(XX, YY + 1) - c->Access0(XX, YY - 1));
+                dudy2 = (c->Access0(XX, YY + 1) + c->Access0(XX, YY - 1)) -
                         2.0 * c->Access0(XX, YY);
               }
               m->Access0(ix - start[0], iy - start[1]) =
-                  c->Access0(XX, YY) + dy * dudy +
-                  (0.5 * dy * dy) * dudy2;
+                  c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->Access0(ix - start[0], iy - start[1] + iyp) =
-                    c->Access0(XX, YY) - dy * dudy +
-                    (0.5 * dy * dy) * dudy2;
+                    c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->Access0(ix - start[0] + ixp, iy - start[1]) =
-                    c->Access0(XX, YY) + dy * dudy +
-                    (0.5 * dy * dy) * dudy2;
+                    c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m->Access0(ix - start[0] + ixp,
-                                      iy - start[1] + iyp) =
-                    c->Access0(XX, YY) - dy * dudy +
-                    (0.5 * dy * dy) * dudy2;
+                m->Access0(ix - start[0] + ixp, iy - start[1] + iyp) =
+                    c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
             } else {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
-                dudx = (-0.5 * c->Access0(XX + 2, YY) -
-                        1.5 * c->Access0(XX, YY)) +
-                       2.0 * c->Access0(XX + 1, YY);
-                dudx2 = (c->Access0(XX + 2, YY) +
-                         c->Access0(XX, YY)) -
+                dudx =
+                    (-0.5 * c->Access0(XX + 2, YY) - 1.5 * c->Access0(XX, YY)) +
+                    2.0 * c->Access0(XX + 1, YY);
+                dudx2 = (c->Access0(XX + 2, YY) + c->Access0(XX, YY)) -
                         2.0 * c->Access0(XX + 1, YY);
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                dudx = (0.5 * c->Access0(XX - 2, YY) +
-                        1.5 * c->Access0(XX, YY)) -
-                       2.0 * c->Access0(XX - 1, YY);
-                dudx2 = (c->Access0(XX - 2, YY) +
-                         c->Access0(XX, YY)) -
+                dudx =
+                    (0.5 * c->Access0(XX - 2, YY) + 1.5 * c->Access0(XX, YY)) -
+                    2.0 * c->Access0(XX - 1, YY);
+                dudx2 = (c->Access0(XX - 2, YY) + c->Access0(XX, YY)) -
                         2.0 * c->Access0(XX - 1, YY);
               } else {
-                dudx = 0.5 * (c->Access0(XX + 1, YY) -
-                              c->Access0(XX - 1, YY));
-                dudx2 = (c->Access0(XX + 1, YY) +
-                         c->Access0(XX - 1, YY)) -
+                dudx = 0.5 * (c->Access0(XX + 1, YY) - c->Access0(XX - 1, YY));
+                dudx2 = (c->Access0(XX + 1, YY) + c->Access0(XX - 1, YY)) -
                         2.0 * c->Access0(XX, YY);
               }
               m->Access0(ix - start[0], iy - start[1]) =
-                  c->Access0(XX, YY) + dx * dudx +
-                  (0.5 * dx * dx) * dudx2;
+                  c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->Access0(ix - start[0], iy - start[1] + iyp) =
-                    c->Access0(XX, YY) + dx * dudx +
-                    (0.5 * dx * dx) * dudx2;
+                    c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->Access0(ix - start[0] + ixp, iy - start[1]) =
-                    c->Access0(XX, YY) - dx * dudx +
-                    (0.5 * dx * dx) * dudx2;
+                    c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m->Access0(ix - start[0] + ixp,
-                                      iy - start[1] + iyp) =
-                    c->Access0(XX, YY) - dx * dudx +
-                    (0.5 * dx * dx) * dudx2;
+                m->Access0(ix - start[0] + ixp, iy - start[1] + iyp) =
+                    c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
             }
           }
         }
@@ -3643,58 +3615,42 @@ template <typename ElementType> struct BlockLab {
             auto &a = m->Access0(ix - start[0], iy - start[1]);
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
-                auto &b =
-                    m->Access0(ix - start[0], iy - start[1] - 1);
-                auto &c =
-                    m->Access0(ix - start[0], iy - start[1] - 2);
+                auto &b = m->Access0(ix - start[0], iy - start[1] - 1);
+                auto &c = m->Access0(ix - start[0], iy - start[1] - 2);
                 LI(a, b, c);
               } else if (y == 1) {
-                auto &b =
-                    m->Access0(ix - start[0], iy - start[1] - 2);
-                auto &c =
-                    m->Access0(ix - start[0], iy - start[1] - 3);
+                auto &b = m->Access0(ix - start[0], iy - start[1] - 2);
+                auto &c = m->Access0(ix - start[0], iy - start[1] - 3);
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
-                auto &b =
-                    m->Access0(ix - start[0], iy - start[1] + 1);
-                auto &c =
-                    m->Access0(ix - start[0], iy - start[1] + 2);
+                auto &b = m->Access0(ix - start[0], iy - start[1] + 1);
+                auto &c = m->Access0(ix - start[0], iy - start[1] + 2);
                 LI(a, b, c);
               } else if (y == 0) {
-                auto &b =
-                    m->Access0(ix - start[0], iy - start[1] + 2);
-                auto &c =
-                    m->Access0(ix - start[0], iy - start[1] + 3);
+                auto &b = m->Access0(ix - start[0], iy - start[1] + 2);
+                auto &c = m->Access0(ix - start[0], iy - start[1] + 3);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
-                auto &b =
-                    m->Access0(ix - start[0] - 1, iy - start[1]);
-                auto &c =
-                    m->Access0(ix - start[0] - 2, iy - start[1]);
+                auto &b = m->Access0(ix - start[0] - 1, iy - start[1]);
+                auto &c = m->Access0(ix - start[0] - 2, iy - start[1]);
                 LI(a, b, c);
               } else if (x == 1) {
-                auto &b =
-                    m->Access0(ix - start[0] - 2, iy - start[1]);
-                auto &c =
-                    m->Access0(ix - start[0] - 3, iy - start[1]);
+                auto &b = m->Access0(ix - start[0] - 2, iy - start[1]);
+                auto &c = m->Access0(ix - start[0] - 3, iy - start[1]);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
-                auto &b =
-                    m->Access0(ix - start[0] + 1, iy - start[1]);
-                auto &c =
-                    m->Access0(ix - start[0] + 2, iy - start[1]);
+                auto &b = m->Access0(ix - start[0] + 1, iy - start[1]);
+                auto &c = m->Access0(ix - start[0] + 2, iy - start[1]);
                 LI(a, b, c);
               } else if (x == 0) {
-                auto &b =
-                    m->Access0(ix - start[0] + 2, iy - start[1]);
-                auto &c =
-                    m->Access0(ix - start[0] + 3, iy - start[1]);
+                auto &b = m->Access0(ix - start[0] + 2, iy - start[1]);
+                auto &c = m->Access0(ix - start[0] + 3, iy - start[1]);
                 LE(a, b, c);
               }
             }
@@ -4458,8 +4414,7 @@ struct VectorLab : public BlockLab<VectorElement> {
     BlockLab<VectorElement>::load(info, applybc);
     Real *dst = (Real *)&m->d[0];
     Real *dst1 = (Real *)&c->d[0];
-    refSynchronizerMPI->fetch(info, m->n, c->n, dst,
-                              dst1);
+    refSynchronizerMPI->fetch(info, m->n, c->n, dst, dst1);
     if (sim.size > 1)
       post_load(info, applybc);
   }
@@ -4585,8 +4540,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
     Real *dst = (Real *)&BlockLab<ScalarElement>::m->d[0];
     Real *dst1 = (Real *)&BlockLab<ScalarElement>::c->d[0];
     refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::m->n,
-                              BlockLab<ScalarElement>::c->n, dst,
-                              dst1);
+                              BlockLab<ScalarElement>::c->n, dst, dst1);
     if (sim.size > 1)
       BlockLab<ScalarElement>::post_load(info, applybc);
   }
