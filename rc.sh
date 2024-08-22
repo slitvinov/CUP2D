@@ -7,6 +7,6 @@ rm -rf "${d?not set}" &&
    cd "$d"
    module load gcc openmpi cuda &&
    make -j "CXXFLAGS = -Wno-deprecated-declarations -Og -g3" -j &&
-   OMP_NUM_THREADS=4 srun --mpi=pmix -l -p seas_gpu -c 1 -n 2 -N 1 --gpus 1 --mem 1Gb -t 15 sh -x run.sh
+   OMP_NUM_THREADS=4 srun --mpi=pmix -l -p seas_gpu -c 1 -n 2 -N 1 --gpus 1 --mem 2Gb -t 15 sh -x run.sh
 ' &&
 rsync -avz "rc:$d"/vort* .
