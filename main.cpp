@@ -2924,11 +2924,6 @@ template <class DataType> struct Matrix3D {
       m_pData[i] = m.m_pData[i];
     return *this;
   }
-  Matrix3D &operator=(DataType d) {
-    for (unsigned int i = 0; i < m_vSize[0] * m_vSize[1]; i++)
-      m_pData[i] = d;
-    return *this;
-  }
   DataType &Access0(unsigned int ix, unsigned int iy) const {
     assert(ix < m_vSize[0]);
     assert(iy < m_vSize[1]);
