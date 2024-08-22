@@ -2168,7 +2168,6 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
     const int NC = sizeof(Element) / sizeof(Real);
-    int blocksize[] = {_BS_, _BS_, 1};
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
     TFluxCorrection::grid = &_grid;
@@ -2207,8 +2206,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           stored = true;
         }
         int L[3];
-        L[0] = (code[0] == 0) ? blocksize[0] / 2 : 1;
-        L[1] = (code[1] == 0) ? blocksize[1] / 2 : 1;
+        L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
+        L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
         if ((*TFluxCorrection::grid)
@@ -2294,8 +2293,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
         int L[3];
-        L[0] = (code[0] == 0) ? blocksize[0] / 2 : 1;
-        L[1] = (code[1] == 0) ? blocksize[1] / 2 : 1;
+        L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
+        L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
         f.offset = offset;
