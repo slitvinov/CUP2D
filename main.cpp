@@ -2898,7 +2898,6 @@ template <class DataType> struct Matrix3D {
   DataType *m_pData{nullptr};
   unsigned int m_vSize[3]{0, 0, 0};
   unsigned int m_nElements{0};
-  unsigned int m_nElementsPerSlice{0};
   void _Release() {
     if (m_pData != nullptr) {
       free(m_pData);
@@ -2910,7 +2909,6 @@ template <class DataType> struct Matrix3D {
     m_vSize[0] = nSizeX;
     m_vSize[1] = nSizeY;
     m_vSize[2] = nSizeZ;
-    m_nElementsPerSlice = nSizeX * nSizeY;
     m_nElements = nSizeX * nSizeY * nSizeZ;
     posix_memalign((void **)&m_pData, std::max(8, 32),
                    sizeof(DataType) * m_nElements);
@@ -2918,14 +2916,14 @@ template <class DataType> struct Matrix3D {
   }
   ~Matrix3D() { _Release(); }
   Matrix3D(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ)
-      : m_pData(nullptr), m_nElements(0), m_nElementsPerSlice(0) {
+      : m_pData(nullptr), m_nElements(0) {
     _Setup(nSizeX, nSizeY, nSizeZ);
   }
-  Matrix3D() : m_pData(nullptr), m_nElements(-1), m_nElementsPerSlice(-1) {}
+  Matrix3D() : m_pData(nullptr), m_nElements(-1) {}
   Matrix3D(const Matrix3D &m) = delete;
   Matrix3D(Matrix3D &&m)
       : m_pData{m.m_pData}, m_vSize{m.m_vSize[0], m.m_vSize[1], m.m_vSize[2]},
-        m_nElements{m.m_nElements}, m_nElementsPerSlice{m.m_nElementsPerSlice} {
+        m_nElements{m.m_nElements} {
     m.m_pData = nullptr;
   }
   Matrix3D &operator=(const Matrix3D &m) {
@@ -2962,7 +2960,7 @@ template <class DataType> struct Matrix3D {
     assert(iy < m_vSize[1]);
     assert(iz < m_vSize[2]);
 #endif
-    return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
+    return m_pData[iy * m_vSize[0] + ix];
   }
   DataType &LinAccess(unsigned int i) const {
 #ifndef NDEBUG
@@ -2971,9 +2969,6 @@ template <class DataType> struct Matrix3D {
     return m_pData[i];
   }
   unsigned int getNumberOfElements() const { return m_nElements; }
-  unsigned int getNumberOfElementsPerSlice() const {
-    return m_nElementsPerSlice;
-  }
   unsigned int *getSize() const { return (unsigned int *)m_vSize; }
   unsigned int getSize(int dim) const { return m_vSize[dim]; }
 };
@@ -3101,11 +3096,10 @@ template <typename ElementType> struct BlockLab {
       const int _iy0 = -m_stencilStart[1];
       const int _iy1 = _iy0 + _BS_;
       const int m_vSize0 = m_cacheBlock->getSize(0);
-      const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
       const int my_ix = -m_stencilStart[0];
 #pragma GCC ivdep
       for (int iz = _iz0; iz < _iz1; iz++) {
-        const int my_izx = iz * m_nElemsPerSlice + my_ix;
+        const int my_izx = my_ix;
 #pragma GCC ivdep
         for (int iy = _iy0; iy < _iy1; iy += 4) {
           ElementType *__restrict__ ptrDestination0 =
@@ -3258,12 +3252,11 @@ template <typename ElementType> struct BlockLab {
       return;
     const BlockType &b = *myblocks[icode];
     const int m_vSize0 = m_cacheBlock->getSize(0);
-    const int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - m_stencilStart[0];
     const int mod = (e[1] - s[1]) % 4;
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
-      const int my_izx = (iz - m_stencilStart[2]) * m_nElemsPerSlice + my_ix;
+      const int my_izx = my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 = &m_cacheBlock->LinAccess(
@@ -3332,7 +3325,6 @@ template <typename ElementType> struct BlockLab {
     if (!bytes)
       return;
     int m_vSize0 = m_cacheBlock->getSize(0);
-    int m_nElemsPerSlice = m_cacheBlock->getNumberOfElementsPerSlice();
     int yStep = (code[1] == 0) ? 2 : 1;
     int zStep = (code[2] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / yStep) % 4;
@@ -3359,12 +3351,7 @@ template <typename ElementType> struct BlockLab {
           s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
 #pragma GCC ivdep
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
-        const int my_izx =
-            (abs(code[2]) * (iz - m_stencilStart[2]) +
-             (1 - abs(code[2])) *
-                 (iz / 2 - m_stencilStart[2] + (B / 2) * (e[2] - s[2]) / 2)) *
-                m_nElemsPerSlice +
-            my_ix;
+        const int my_izx = my_ix;
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
           ElementType *__restrict__ ptrDest0 = &m_cacheBlock->LinAccess(
@@ -3523,13 +3510,11 @@ template <typename ElementType> struct BlockLab {
             CoarseEdge[2] * code[2] / 2};
 
     const int m_vSize0 = m_CoarsenedBlock->getSize(0);
-    const int m_nElemsPerSlice =
-        m_CoarsenedBlock->getNumberOfElementsPerSlice();
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
-      const int my_izx = (iz - offset[2]) * m_nElemsPerSlice + my_ix;
+      const int my_izx = my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 = &m_CoarsenedBlock->LinAccess(
@@ -3586,12 +3571,11 @@ template <typename ElementType> struct BlockLab {
                     s[2] + std::max(code[2], 0) * CoarseBlockSize[2] -
                         code[2] * 1 + std::min(0, code[2]) * (e[2] - s[2])};
     int m_vSize0 = m_CoarsenedBlock->getSize(0);
-    int m_nElemsPerSlice = m_CoarsenedBlock->getNumberOfElementsPerSlice();
     int my_ix = s[0] - offset[0];
     int XX = start[0];
 #pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
-      int my_izx = (iz - offset[2]) * m_nElemsPerSlice + my_ix;
+      int my_izx = my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
