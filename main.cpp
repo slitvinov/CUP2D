@@ -2958,19 +2958,19 @@ template <typename ElementType> struct BlockLab {
   int offset[3];
   int start[3];
   matrix<ElementType> *m;
-  matrix<ElementType> *m_CoarsenedBlock;
+  matrix<ElementType> *c;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
     m = NULL;
     m_refGrid = NULL;
-    m_CoarsenedBlock = NULL;
+    c = NULL;
     start[0] = start[1] = start[2] = 0;
     end[0] = end[1] = end[2] = 0;
   }
   ~BlockLab() {
     delete m;
-    delete m_CoarsenedBlock;
+    delete c;
   }
   ElementType &operator()(int ix, int iy) {
     return m->Access0(ix - start[0], iy - start[1]);
@@ -3001,13 +3001,13 @@ template <typename ElementType> struct BlockLab {
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     const int e[3] = {end[0] / 2 + (2), end[1] / 2 + (2), end[2] / 2 + (1)};
-    if (m_CoarsenedBlock == NULL ||
-        m_CoarsenedBlock->n[0] != _BS_ / 2 + e[0] - offset[0] - 1 ||
-        m_CoarsenedBlock->n[1] != _BS_ / 2 + e[1] - offset[1] - 1 ||
+    if (c == NULL ||
+        c->n[0] != _BS_ / 2 + e[0] - offset[0] - 1 ||
+        c->n[1] != _BS_ / 2 + e[1] - offset[1] - 1 ||
         0 != e[2] - offset[2]) {
-      if (m_CoarsenedBlock != NULL)
-        delete m_CoarsenedBlock;
-      m_CoarsenedBlock = new matrix<ElementType>(
+      if (c != NULL)
+        delete c;
+      c = new matrix<ElementType>(
           (_BS_ / 2) + e[0] - offset[0] - 1, (_BS_ / 2) + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
@@ -3112,7 +3112,7 @@ template <typename ElementType> struct BlockLab {
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
           ElementType &coarseElement =
-              m_CoarsenedBlock->Access0(i - offset[0], j - offset[1]);
+              c->Access0(i - offset[0], j - offset[1]);
           coarseElement = AverageDown(m->Access0(ix, iy),
                                       m->Access0(ix + 1, iy),
                                       m->Access0(ix, iy + 1),
@@ -3395,20 +3395,20 @@ template <typename ElementType> struct BlockLab {
         std::max(code[2], 0) / 2 + (1 - abs(code[2])) * base[2] / 2 - code[2] +
             CoarseEdge[2] * code[2] / 2};
 
-    const int m_vSize0 = m_CoarsenedBlock->n[0];
+    const int m_vSize0 = c->n[0];
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 =
-            &m_CoarsenedBlock->d[my_izx + (iy + 0 - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy + 0 - offset[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest1 =
-            &m_CoarsenedBlock->d[my_izx + (iy + 1 - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy + 1 - offset[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest2 =
-            &m_CoarsenedBlock->d[my_izx + (iy + 2 - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy + 2 - offset[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest3 =
-            &m_CoarsenedBlock->d[my_izx + (iy + 3 - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy + 3 - offset[1]) * m_vSize0];
         const ElementType *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
         const ElementType *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
         const ElementType *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
@@ -3420,7 +3420,7 @@ template <typename ElementType> struct BlockLab {
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
-            &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy - offset[1]) * m_vSize0];
         const ElementType *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
@@ -3448,7 +3448,7 @@ template <typename ElementType> struct BlockLab {
                         std::min(0, code[1]) * (e[1] - s[1]),
                     s[2] + std::max(code[2], 0) * 1 - code[2] * 1 +
                         std::min(0, code[2]) * (e[2] - s[2])};
-    int m_vSize0 = m_CoarsenedBlock->n[0];
+    int m_vSize0 = c->n[0];
     int my_ix = s[0] - offset[0];
     int XX = start[0];
     for (int iz = s[2]; iz < e[2]; iz++) {
@@ -3458,7 +3458,7 @@ template <typename ElementType> struct BlockLab {
             iz > -(0) && iz < 1 / 2 - (1))
           continue;
         ElementType *__restrict__ ptrDest1 =
-            &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
+            &c->d[my_izx + (iy - offset[1]) * m_vSize0];
         int YY = 2 * (iy - s[1]) + start[1];
         ElementType *ptrSrc_0 = (ElementType *)&b[YY][XX];
         ElementType *ptrSrc_1 = (ElementType *)&b[YY + 1][XX];
@@ -3516,7 +3516,7 @@ template <typename ElementType> struct BlockLab {
             ElementType *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
-                Test[i][j] = &m_CoarsenedBlock->Access0(XX - 1 + i - offset[0],
+                Test[i][j] = &c->Access0(XX - 1 + i - offset[0],
                                                         YY - 1 + j - offset[1]);
             TestInterp(
                 Test, m->Access0(ix - start[0], iy - start[1]),
@@ -3548,82 +3548,82 @@ template <typename ElementType> struct BlockLab {
             if (code[0] != 0) {
               ElementType dudy, dudy2;
               if (YY + offset[1] == 0) {
-                dudy = (-0.5 * m_CoarsenedBlock->Access0(XX, YY + 2) -
-                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) +
-                       2.0 * m_CoarsenedBlock->Access0(XX, YY + 1);
-                dudy2 = (m_CoarsenedBlock->Access0(XX, YY + 2) +
-                         m_CoarsenedBlock->Access0(XX, YY)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX, YY + 1);
+                dudy = (-0.5 * c->Access0(XX, YY + 2) -
+                        1.5 * c->Access0(XX, YY)) +
+                       2.0 * c->Access0(XX, YY + 1);
+                dudy2 = (c->Access0(XX, YY + 2) +
+                         c->Access0(XX, YY)) -
+                        2.0 * c->Access0(XX, YY + 1);
               } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                dudy = (0.5 * m_CoarsenedBlock->Access0(XX, YY - 2) +
-                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
-                       2.0 * m_CoarsenedBlock->Access0(XX, YY - 1);
-                dudy2 = (m_CoarsenedBlock->Access0(XX, YY - 2) +
-                         m_CoarsenedBlock->Access0(XX, YY)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX, YY - 1);
+                dudy = (0.5 * c->Access0(XX, YY - 2) +
+                        1.5 * c->Access0(XX, YY)) -
+                       2.0 * c->Access0(XX, YY - 1);
+                dudy2 = (c->Access0(XX, YY - 2) +
+                         c->Access0(XX, YY)) -
+                        2.0 * c->Access0(XX, YY - 1);
               } else {
-                dudy = 0.5 * (m_CoarsenedBlock->Access0(XX, YY + 1) -
-                              m_CoarsenedBlock->Access0(XX, YY - 1));
-                dudy2 = (m_CoarsenedBlock->Access0(XX, YY + 1) +
-                         m_CoarsenedBlock->Access0(XX, YY - 1)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX, YY);
+                dudy = 0.5 * (c->Access0(XX, YY + 1) -
+                              c->Access0(XX, YY - 1));
+                dudy2 = (c->Access0(XX, YY + 1) +
+                         c->Access0(XX, YY - 1)) -
+                        2.0 * c->Access0(XX, YY);
               }
               m->Access0(ix - start[0], iy - start[1]) =
-                  m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
+                  c->Access0(XX, YY) + dy * dudy +
                   (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->Access0(ix - start[0], iy - start[1] + iyp) =
-                    m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
+                    c->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->Access0(ix - start[0] + ixp, iy - start[1]) =
-                    m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
+                    c->Access0(XX, YY) + dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
                 m->Access0(ix - start[0] + ixp,
                                       iy - start[1] + iyp) =
-                    m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
+                    c->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
             } else {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
-                dudx = (-0.5 * m_CoarsenedBlock->Access0(XX + 2, YY) -
-                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) +
-                       2.0 * m_CoarsenedBlock->Access0(XX + 1, YY);
-                dudx2 = (m_CoarsenedBlock->Access0(XX + 2, YY) +
-                         m_CoarsenedBlock->Access0(XX, YY)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX + 1, YY);
+                dudx = (-0.5 * c->Access0(XX + 2, YY) -
+                        1.5 * c->Access0(XX, YY)) +
+                       2.0 * c->Access0(XX + 1, YY);
+                dudx2 = (c->Access0(XX + 2, YY) +
+                         c->Access0(XX, YY)) -
+                        2.0 * c->Access0(XX + 1, YY);
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                dudx = (0.5 * m_CoarsenedBlock->Access0(XX - 2, YY) +
-                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
-                       2.0 * m_CoarsenedBlock->Access0(XX - 1, YY);
-                dudx2 = (m_CoarsenedBlock->Access0(XX - 2, YY) +
-                         m_CoarsenedBlock->Access0(XX, YY)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX - 1, YY);
+                dudx = (0.5 * c->Access0(XX - 2, YY) +
+                        1.5 * c->Access0(XX, YY)) -
+                       2.0 * c->Access0(XX - 1, YY);
+                dudx2 = (c->Access0(XX - 2, YY) +
+                         c->Access0(XX, YY)) -
+                        2.0 * c->Access0(XX - 1, YY);
               } else {
-                dudx = 0.5 * (m_CoarsenedBlock->Access0(XX + 1, YY) -
-                              m_CoarsenedBlock->Access0(XX - 1, YY));
-                dudx2 = (m_CoarsenedBlock->Access0(XX + 1, YY) +
-                         m_CoarsenedBlock->Access0(XX - 1, YY)) -
-                        2.0 * m_CoarsenedBlock->Access0(XX, YY);
+                dudx = 0.5 * (c->Access0(XX + 1, YY) -
+                              c->Access0(XX - 1, YY));
+                dudx2 = (c->Access0(XX + 1, YY) +
+                         c->Access0(XX - 1, YY)) -
+                        2.0 * c->Access0(XX, YY);
               }
               m->Access0(ix - start[0], iy - start[1]) =
-                  m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
+                  c->Access0(XX, YY) + dx * dudx +
                   (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->Access0(ix - start[0], iy - start[1] + iyp) =
-                    m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
+                    c->Access0(XX, YY) + dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->Access0(ix - start[0] + ixp, iy - start[1]) =
-                    m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
+                    c->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
                 m->Access0(ix - start[0] + ixp,
                                       iy - start[1] + iyp) =
-                    m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
+                    c->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
             }
           }
@@ -4453,8 +4453,8 @@ struct VectorLab : public BlockLab<VectorElement> {
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<VectorElement>::load(info, applybc);
     Real *dst = (Real *)&m->d[0];
-    Real *dst1 = (Real *)&m_CoarsenedBlock->d[0];
-    refSynchronizerMPI->fetch(info, m->n, m_CoarsenedBlock->n, dst,
+    Real *dst1 = (Real *)&c->d[0];
+    refSynchronizerMPI->fetch(info, m->n, c->n, dst,
                               dst1);
     if (sim.size > 1)
       post_load(info, applybc);
@@ -4496,7 +4496,7 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (-1.0) * cb->Access0(x, y);
           }
     } else {
-      auto *const cb = this->m_CoarsenedBlock;
+      auto *const cb = this->c;
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
                          (this->end[1]) / 2 + 1 + (2) - 1,
                          (this->end[2]) / 2 + 1 + (1) - 1};
@@ -4579,9 +4579,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<ScalarElement>::load(info, applybc);
     Real *dst = (Real *)&BlockLab<ScalarElement>::m->d[0];
-    Real *dst1 = (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->d[0];
+    Real *dst1 = (Real *)&BlockLab<ScalarElement>::c->d[0];
     refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::m->n,
-                              BlockLab<ScalarElement>::m_CoarsenedBlock->n, dst,
+                              BlockLab<ScalarElement>::c->n, dst,
                               dst1);
     if (sim.size > 1)
       BlockLab<ScalarElement>::post_load(info, applybc);
@@ -4605,7 +4605,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
       bsize[0] = _BS_ / 2;
       bsize[1] = _BS_ / 2;
     }
-    auto *const cb = coarse ? this->m_CoarsenedBlock : this->m;
+    auto *const cb = coarse ? this->c : this->m;
     int s[2];
     int e[2];
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
