@@ -3491,7 +3491,7 @@ template <typename ElementType> struct BlockLab {
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
                 Test[i][j] =
-                    &c->Access0(XX - 1 + i - offset[0], YY - 1 + j - offset[1]);
+                    &c->d[XX - 1 + i - offset[0] + nc * (YY - 1 + j - offset[1])];
             TestInterp(
                 Test, m->Access0(ix - start[0], iy - start[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
@@ -3524,19 +3524,19 @@ template <typename ElementType> struct BlockLab {
               if (YY + offset[1] == 0) {
                 dudy =
                     (-0.5 * c->Access0(XX, YY + 2) - 1.5 * c->Access0(XX, YY)) +
-                    2.0 * c->Access0(XX, YY + 1);
+                    2.0 * c->d[XX + nc * (YY + 1)];
                 dudy2 = (c->Access0(XX, YY + 2) + c->Access0(XX, YY)) -
-                        2.0 * c->Access0(XX, YY + 1);
+                        2.0 * c->d[XX + nc * (YY + 1)];
               } else if (YY + offset[1] == (_BS_ / 2) - 1) {
                 dudy =
                     (0.5 * c->Access0(XX, YY - 2) + 1.5 * c->Access0(XX, YY)) -
-                    2.0 * c->Access0(XX, YY - 1);
+                    2.0 * c->d[XX + nc * (YY - 1)];
                 dudy2 = (c->Access0(XX, YY - 2) + c->Access0(XX, YY)) -
-                        2.0 * c->Access0(XX, YY - 1);
+                        2.0 * c->d[XX + nc * (YY - 1)];
               } else {
                 dudy = 0.5 * (c->Access0(XX, YY + 1) - c->Access0(XX, YY - 1));
                 dudy2 = (c->Access0(XX, YY + 1) + c->Access0(XX, YY - 1)) -
-                        2.0 * c->Access0(XX, YY);
+                        2.0 * c->d[XX + nc * (YY)];
               }
               m->Access0(ix - start[0], iy - start[1]) =
                   c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
@@ -3555,19 +3555,19 @@ template <typename ElementType> struct BlockLab {
               if (XX + offset[0] == 0) {
                 dudx =
                     (-0.5 * c->Access0(XX + 2, YY) - 1.5 * c->Access0(XX, YY)) +
-                    2.0 * c->Access0(XX + 1, YY);
+                    2.0 * c->d[XX + 1 + nc * (YY)];
                 dudx2 = (c->Access0(XX + 2, YY) + c->Access0(XX, YY)) -
-                        2.0 * c->Access0(XX + 1, YY);
+                        2.0 * c->d[XX + 1 + nc * (YY)];
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
                 dudx =
                     (0.5 * c->Access0(XX - 2, YY) + 1.5 * c->Access0(XX, YY)) -
-                    2.0 * c->Access0(XX - 1, YY);
+                    2.0 * c->d[XX - 1 + nc * (YY)];
                 dudx2 = (c->Access0(XX - 2, YY) + c->Access0(XX, YY)) -
-                        2.0 * c->Access0(XX - 1, YY);
+                        2.0 * c->d[XX - 1 + nc * (YY)];
               } else {
                 dudx = 0.5 * (c->Access0(XX + 1, YY) - c->Access0(XX - 1, YY));
                 dudx2 = (c->Access0(XX + 1, YY) + c->Access0(XX - 1, YY)) -
-                        2.0 * c->Access0(XX, YY);
+                        2.0 * c->d[XX + nc * (YY)];
               }
               m->Access0(ix - start[0], iy - start[1]) =
                   c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
@@ -4468,8 +4468,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            c->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
-                (-1.0) * c->Access0(x, y);
+            c->d[ix - stenBeg[0] + nc * (iy - stenBeg[1])] =
+                (-1.0) * c->d[x + nc * (y)];
           }
     }
   }

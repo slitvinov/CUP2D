@@ -2,22 +2,22 @@
 
 {
     i = j = prefix = $0
-    sub(/c->Access0.*/, "", prefix)
+    sub(/m->Access0.*/, "", prefix)
 
 
-    sub(/.*c->Access0\(/, "", i)
+    sub(/.*m->Access0\(/, "", i)
     sub(/,.*/, "", i)
 
-    sub(/.*c->Access0\(/, "", j)
+    sub(/.*m->Access0\(/, "", j)
     sub(/.*,[ ]*/, "", j)
     suffix = j
     sub(/).*/, "", j)
     sub(/.*\)/, "", suffix);
 
-    rec  = sprintf("%sc->Access0(%s, %s)%s", prefix, i, j, suffix);
+    rec  = sprintf("%sm->Access0(%s, %s)%s", prefix, i, j, suffix);
 
-    if (""rec == ""$0)
-	printf "%sc->Access0(%s + nc * (%s))%s\n", prefix, i, j, suffix;
-    else
+    if (""rec == ""$0) {
+	printf "%sm->d[%s + nc * (%s)]%s\n", prefix, i, j, suffix;
+    } else
 	print
 }
