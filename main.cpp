@@ -3866,12 +3866,10 @@ template <typename ElementType> struct BlockLab {
 };
 template <typename MyBlockLab, typename ElementType>
 struct BlockLabMPI : public MyBlockLab {
-  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
-  SynchronizerMPIType *refSynchronizerMPI;
+  Synchronizer<Grid<ElementType>> *refSynchronizerMPI;
   virtual void prepare(Grid<ElementType> &grid,
                        const StencilInfo &stencil) override {
-    auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
-    refSynchronizerMPI = itSynchronizerMPI->second;
+    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     MyBlockLab::prepare(grid, stencil);
   }
   virtual void load(BlockInfo &info, bool applybc) override {
