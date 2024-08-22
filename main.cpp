@@ -3624,14 +3624,14 @@ template <typename Element> struct LoadBalancer {
       mn[0] = info.level;
       mn[1] = info.Z;
       if (Fillptr)
-        std::memcpy(&data[0], info.block, sizeof(BlockType));
+        std::memcpy(&data[0], info.block, _BS_ * _BS_ * sizeof(Element));
     }
     MPI_Block() {}
   };
   void AddBlock(const int level, const long long Z, Real *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
-    std::memcpy(info.block, data, sizeof(BlockType));
+    memcpy(info.block, data, _BS_ * _BS_ * sizeof(Element));
     int p[2];
     sim.space_curve->inverse(Z, level, p[0], p[1]);
     if (level < sim.levelMax - 1)
