@@ -2924,10 +2924,8 @@ template <class DataType> struct Matrix3D {
     m.m_pData = nullptr;
   }
   Matrix3D &operator=(const Matrix3D &m) {
-#ifndef NDEBUG
     assert(m_vSize[0] == m.m_vSize[0]);
     assert(m_vSize[1] == m.m_vSize[1]);
-#endif
     for (unsigned int i = 0; i < m_vSize[0] * m_vSize[1]; i++)
       m_pData[i] = m.m_pData[i];
     return *this;
@@ -2943,10 +2941,8 @@ template <class DataType> struct Matrix3D {
     return *this;
   }
   DataType &Access0(unsigned int ix, unsigned int iy) const {
-#ifndef NDEBUG
     assert(ix < m_vSize[0]);
     assert(iy < m_vSize[1]);
-#endif
     return m_pData[iy * m_vSize[0] + ix];
   }
   const DataType &Read(unsigned int ix, unsigned int iy) const {
@@ -5916,12 +5912,10 @@ static void ongrid(Real dt) {
                         std::min({dist0, distP, distM}))
                       continue;
                     putfish.changeFromComputationalFrame(p);
-#ifndef NDEBUG
                     Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
                                   rY[ss] + width[ss] * signp * norY[ss]};
                     Real distC = dist(p, p0);
                     assert(std::fabs(distC - dist0) < EPS);
-#endif
                     int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
                     Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
                     if (distP < dist0 || distM < dist0) {
