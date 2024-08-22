@@ -2895,35 +2895,32 @@ template <typename ElementType> struct Grid {
   }
 };
 template <class DataType> struct Matrix3D {
-  DataType *m_pData{nullptr};
-  unsigned int m_vSize[2]{0, 0};
+  DataType *d;
+  unsigned int n[2];
   void _Setup0(unsigned int nSizeX, unsigned int nSizeY) {
-    free(m_pData);
-    m_vSize[0] = nSizeX;
-    m_vSize[1] = nSizeY;
-    posix_memalign((void **)&m_pData, std::max(8, 32),
-                   sizeof(DataType) * nSizeX * nSizeY);
-    assert(m_pData != nullptr);
+    free(d);
+    n[0] = nSizeX;
+    n[1] = nSizeY;
+    d = (DataType*)malloc(sizeof(DataType) * nSizeX * nSizeY);
+    assert(d);
   }
-  ~Matrix3D() { free(m_pData); }
-  Matrix3D() : m_pData(nullptr) {}
-  Matrix3D(const Matrix3D &m) = delete;
+  ~Matrix3D() { free(d); }
   DataType &Access0(unsigned int ix, unsigned int iy) const {
-    assert(ix < m_vSize[0]);
-    assert(iy < m_vSize[1]);
-    return m_pData[iy * m_vSize[0] + ix];
+    assert(ix < n[0]);
+    assert(iy < n[1]);
+    return d[iy * n[0] + ix];
   }
   const DataType &Read(unsigned int ix, unsigned int iy) const {
-    assert(ix < m_vSize[0]);
-    assert(iy < m_vSize[1]);
-    return m_pData[iy * m_vSize[0] + ix];
+    assert(ix < n[0]);
+    assert(iy < n[1]);
+    return d[iy * n[0] + ix];
   }
   DataType &LinAccess(unsigned int i) const {
-    assert(i < m_vSize[0] * m_vSize[1]);
-    return m_pData[i];
+    assert(i < n[0] * n[1]);
+    return d[i];
   }
-  unsigned int *getSize() const { return (unsigned int *)m_vSize; }
-  unsigned int getSize(int dim) const { return m_vSize[dim]; }
+  unsigned int *getSize() const { return (unsigned int*)n; }
+  unsigned int getSize(int dim) const { return n[dim]; }
 };
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
