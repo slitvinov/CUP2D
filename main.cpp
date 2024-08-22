@@ -4535,7 +4535,7 @@ struct VectorLab : public BlockLab<VectorElement> {
           (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1,
           (this->m_stencilEnd[2]) / 2 + 1 + this->m_InterpStencilEnd[2] - 1};
       const int sI[3] = {
-          (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0],
+          (this->m_stencilStart[0] - 1) / 2 + (-1),
           (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1],
           (this->m_stencilStart[2] - 1) / 2 + this->m_InterpStencilStart[2]};
       const int *const stenBeg = sI;
@@ -4638,7 +4638,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
       stenEnd[1] =
           (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1;
       stenBeg[0] =
-          (this->m_stencilStart[0] - 1) / 2 + this->m_InterpStencilStart[0];
+          (this->m_stencilStart[0] - 1) / 2 + (-1);
       stenBeg[1] =
           (this->m_stencilStart[1] - 1) / 2 + this->m_InterpStencilStart[1];
       bsize[0] = _BS_ / 2;
