@@ -3084,7 +3084,7 @@ template <typename ElementType> struct BlockLab {
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
-  virtual void load(const BlockInfo &info, const Real t, const bool applybc) {
+  virtual void load(BlockInfo &info, bool applybc) {
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -3179,11 +3179,11 @@ template <typename ElementType> struct BlockLab {
           }
         }
       if (sim.size == 1) {
-        post_load(info, t, applybc);
+        post_load(info, applybc);
       }
     }
   }
-  void post_load(const BlockInfo &info, const Real t, bool applybc) {
+  void post_load(BlockInfo &info, bool applybc) {
     if (coarsened) {
 #pragma GCC ivdep
       for (int j = 0; j < _BS_ / 2; j++) {
@@ -3206,10 +3206,10 @@ template <typename ElementType> struct BlockLab {
       }
     }
     if (applybc)
-      _apply_bc(info, t, true);
+      _apply_bc(info, true);
     CoarseFineInterpolation(info);
     if (applybc)
-      _apply_bc(info, t, false);
+      _apply_bc(info, false);
   }
   bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
@@ -3854,7 +3854,7 @@ template <typename ElementType> struct BlockLab {
       }
     }
   }
-  virtual void _apply_bc(const BlockInfo &info, const Real t, bool coarse) {}
+  virtual void _apply_bc(BlockInfo &info, bool coarse) {}
   template <typename T> void _release(T *&t) {
     if (t != NULL) {
       delete t;
@@ -3875,16 +3875,15 @@ struct BlockLabMPI : public MyBlockLab {
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
   }
-  virtual void load(const BlockInfo &info, const Real t,
-                    const bool applybc) override {
-    MyBlockLab::load(info, t, applybc);
+  virtual void load(BlockInfo &info, bool applybc) override {
+    MyBlockLab::load(info, applybc);
     Real *dst = (Real *)&MyBlockLab ::m_cacheBlock->LinAccess(0);
     Real *dst1 = (Real *)&MyBlockLab ::m_CoarsenedBlock->LinAccess(0);
     refSynchronizerMPI->fetch(info, MyBlockLab::m_cacheBlock->getSize(),
                               MyBlockLab::m_CoarsenedBlock->getSize(), dst,
                               dst1);
     if (sim.size > 1)
-      MyBlockLab::post_load(info, t, applybc);
+      MyBlockLab::post_load(info, applybc);
   }
 };
 template <typename ElementType> struct LoadBalancer {
@@ -4310,7 +4309,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
         BlockInfo &parent = grid->get(level, Z);
         parent.state = Leave;
         if (basic_refinement == false)
-          lab.load(parent, 0.0, true);
+          lab.load(parent, true);
         const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         assert(parent.block != NULL);
         assert(level <= sim.levelMax - 1);
@@ -4483,7 +4482,7 @@ static void computeA(Kernel &&kernel, TGrid *g) {
     lab.prepare(*g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(*I, 0, true);
+      lab.load(*I, true);
       kernel(lab, *I);
     }
     while (done == false) {
@@ -4492,7 +4491,7 @@ static void computeA(Kernel &&kernel, TGrid *g) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(*I, 0, true);
+        lab.load(*I, true);
         kernel(lab, *I);
       }
 #pragma omp single
@@ -4538,10 +4537,10 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     lab2.prepare(grid2, stencil2);
 #pragma omp for
     for (int i = 0; i < Ninner; i++) {
-      const BlockInfo &I = *avail0[i];
-      const BlockInfo &I2 = *avail02[i];
-      lab.load(I, 0, true);
-      lab2.load(I2, 0, true);
+      BlockInfo &I = *avail0[i];
+      BlockInfo &I2 = *avail02[i];
+      lab.load(I, true);
+      lab2.load(I2, true);
       kernel(lab, lab2, I, I2);
       ready[I.id] = true;
     }
@@ -4559,10 +4558,10 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     const int Nhalo = avail1.size();
 #pragma omp for
     for (int i = 0; i < Nhalo; i++) {
-      const BlockInfo &I = *avail1[i];
-      const BlockInfo &I2 = *avail12[i];
-      lab.load(I, 0, true);
-      lab2.load(I2, 0, true);
+      BlockInfo &I = *avail1[i];
+      BlockInfo &I2 = *avail12[i];
+      lab.load(I, true);
+      lab2.load(I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -4708,8 +4707,8 @@ struct BlockLabDirichlet : public BlockLab<ElementType> {
           }
     }
   }
-  void _apply_bc(const BlockInfo &info, const Real t = 0,
-                 const bool coarse = false) override {
+  void _apply_bc(BlockInfo &info, bool coarse) override {
+
     const BCflag BCX = cubismBCX;
     const BCflag BCY = cubismBCY;
     if (!coarse) {
@@ -4787,8 +4786,7 @@ struct BlockLabNeumann : public BlockLab<ElementType> {
   BlockLabNeumann() = default;
   BlockLabNeumann(const BlockLabNeumann &) = delete;
   BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
-  virtual void _apply_bc(const BlockInfo &info, const Real t,
-                         const bool coarse) override {
+  virtual void _apply_bc(BlockInfo &info, bool coarse) override {
     if (sim.bcx != periodic) {
       if (info.index[0] == 0)
         Neumann2D<0, 0>(coarse);
