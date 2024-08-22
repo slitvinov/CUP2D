@@ -2894,16 +2894,16 @@ template <typename ElementType> struct Grid {
     return getf(&BlockInfoAll, &level_base, m, n);
   }
 };
-template <class DataType> struct Matrix3D {
+template <class DataType> struct matrix {
   DataType *d;
   unsigned int n[2];
-  Matrix3D(unsigned int x, unsigned int y) {
+  matrix(unsigned int x, unsigned int y) {
     n[0] = x;
     n[1] = y;
     d = (DataType *)malloc(sizeof(DataType) * x * y);
     assert(d);
   }
-  ~Matrix3D() { free(d); }
+  ~matrix() { free(d); }
   DataType &Access0(unsigned int ix, unsigned int iy) const {
     assert(ix < n[0]);
     assert(iy < n[1]);
@@ -2912,7 +2912,7 @@ template <class DataType> struct Matrix3D {
 };
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
-  Matrix3D<ElementType> *m_cacheBlock;
+  matrix<ElementType> *m_cacheBlock;
   int m_stencilStart[3];
   int m_stencilEnd[3];
   bool istensorial;
@@ -2925,7 +2925,7 @@ template <typename ElementType> struct BlockLab {
   std::array<int, 27> coarsened_nei_codes;
   int coarsened_nei_codes_size;
   int offset[3];
-  Matrix3D<ElementType> *m_CoarsenedBlock;
+  matrix<ElementType> *m_CoarsenedBlock;
   int m_InterpStencilStart[3];
   int m_InterpStencilEnd[3];
   bool coarsened;
@@ -2989,7 +2989,7 @@ template <typename ElementType> struct BlockLab {
         0 != 1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         delete m_cacheBlock;
-      m_cacheBlock = new Matrix3D<ElementType>(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
+      m_cacheBlock = new matrix<ElementType>(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
 					       _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
@@ -3006,7 +3006,7 @@ template <typename ElementType> struct BlockLab {
         0 != CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
-      m_CoarsenedBlock = new Matrix3D<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
+      m_CoarsenedBlock = new matrix<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
 						   CoarseBlockSize[1] + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
