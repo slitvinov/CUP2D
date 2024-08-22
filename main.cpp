@@ -2899,14 +2899,13 @@ template <class DataType> struct Matrix3D {
   unsigned int m_vSize[2]{0, 0};
   void _Setup(unsigned int nSizeX, unsigned int nSizeY) {
     free(m_pData);
-    _Release();
     m_vSize[0] = nSizeX;
     m_vSize[1] = nSizeY;
     posix_memalign((void **)&m_pData, std::max(8, 32),
                    sizeof(DataType) * nSizeX * nSizeY);
     assert(m_pData != nullptr);
   }
-  ~Matrix3D() { _Release(); }
+  ~Matrix3D() { free(m_pData); }
   Matrix3D(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ)
       : m_pData(nullptr) {
     _Setup(nSizeX, nSizeY, nSizeZ);
