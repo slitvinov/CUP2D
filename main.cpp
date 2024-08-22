@@ -2906,10 +2906,6 @@ template <class DataType> struct Matrix3D {
     assert(m_pData != nullptr);
   }
   ~Matrix3D() { free(m_pData); }
-  Matrix3D(unsigned int nSizeX, unsigned int nSizeY, unsigned int nSizeZ)
-      : m_pData(nullptr) {
-    _Setup0(nSizeX, nSizeY, nSizeZ);
-  }
   Matrix3D() : m_pData(nullptr) {}
   Matrix3D(const Matrix3D &m) = delete;
   DataType &Access0(unsigned int ix, unsigned int iy) const {
