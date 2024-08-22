@@ -2947,7 +2947,8 @@ template <typename ElementType> struct BlockLab {
   bool coarsened, istensorial, use_averages;
   Grid<ElementType> *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3], nm, nc;
-  matrix<ElementType> *m, *c;;
+  matrix<ElementType> *m, *c;
+  ;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
@@ -2981,16 +2982,16 @@ template <typename ElementType> struct BlockLab {
     m_refGrid = &grid;
     delete m;
     m = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
-				_BS_ + end[1] - start[1] - 1);
+                                _BS_ + end[1] - start[1] - 1);
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     delete c;
     c = new matrix<ElementType>(_BS_ / 2 + end[0] / 2 + 1 - offset[0],
-				_BS_ / 2 + end[1] / 2 + 1 - offset[1]);
+                                _BS_ / 2 + end[1] / 2 + 1 - offset[1]);
     nm = _BS_ + end[0] - start[0] - 1;
     nc = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
-    
+
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
@@ -3091,10 +3092,11 @@ template <typename ElementType> struct BlockLab {
             continue;
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
-          ElementType &coarseElement = c->Access0(i - offset[0], j - offset[1]);
-          coarseElement =
-              AverageDown(m->Access0(ix, iy), m->Access0(ix + 1, iy),
-                          m->Access0(ix, iy + 1), m->Access0(ix + 1, iy + 1));
+          ElementType &coarseElement =
+              c->d[i - offset[0] + nc * (j - offset[1])];
+          coarseElement = AverageDown(
+              m->d[ix + nm * iy], m->d[ix + 1 + nm * iy],
+              m->d[ix + nm * (iy + 1)], m->d[ix + 1 + nm * (iy + 1)]);
         }
       }
     }
