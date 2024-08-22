@@ -2,6 +2,7 @@ ssh glados '
 rm -rf /scratch/lisergey/CUP2D &&
    git clone git@github.com:slitvinov/CUP2D /scratch/lisergey/CUP2D &&
    cd /scratch/lisergey/CUP2D
+   git checkout '${1-HEAD}'
    module load mpi &&
    make "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" "CXXFLAGS = -O3" "OPENMPFLAGS = " -j
    mpiexec -n 2 sh ~/run.sh
