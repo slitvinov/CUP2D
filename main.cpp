@@ -2957,26 +2957,26 @@ template <typename ElementType> struct BlockLab {
   int NZ;
   int offset[3];
   int start[3];
-  matrix<ElementType> *m_cacheBlock;
+  matrix<ElementType> *m;
   matrix<ElementType> *m_CoarsenedBlock;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
-    m_cacheBlock = NULL;
+    m = NULL;
     m_refGrid = NULL;
     m_CoarsenedBlock = NULL;
     start[0] = start[1] = start[2] = 0;
     end[0] = end[1] = end[2] = 0;
   }
   ~BlockLab() {
-    delete m_cacheBlock;
+    delete m;
     delete m_CoarsenedBlock;
   }
   ElementType &operator()(int ix, int iy) {
-    return m_cacheBlock->Access0(ix - start[0], iy - start[1]);
+    return m->Access0(ix - start[0], iy - start[1]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    return m_cacheBlock->Access0(ix - start[0], iy - start[1]);
+    return m->Access0(ix - start[0], iy - start[1]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
@@ -2988,13 +2988,13 @@ template <typename ElementType> struct BlockLab {
     end[1] = stencil.ey;
     end[2] = stencil.ez;
     m_refGrid = &grid;
-    if (m_cacheBlock == NULL ||
-        m_cacheBlock->n[0] != _BS_ + end[0] - start[0] - 1 ||
-        m_cacheBlock->n[1] != _BS_ + end[1] - start[1] - 1 ||
+    if (m == NULL ||
+        m->n[0] != _BS_ + end[0] - start[0] - 1 ||
+        m->n[1] != _BS_ + end[1] - start[1] - 1 ||
         0 != end[2] - start[2]) {
-      if (m_cacheBlock != NULL)
-        delete m_cacheBlock;
-      m_cacheBlock = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
+      if (m != NULL)
+        delete m;
+      m = new matrix<ElementType>(_BS_ + end[0] - start[0] - 1,
                                              _BS_ + end[1] - start[1] - 1);
     }
     offset[0] = (start[0] - 1) / 2 - 1;
@@ -3018,7 +3018,7 @@ template <typename ElementType> struct BlockLab {
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
-    assert(m_cacheBlock != NULL);
+    assert(m != NULL);
     BlockType &block = *(BlockType *)info.block;
     ElementType *ptrSource = &block[0][0];
     int nbytes = sizeof(ElementType) * _BS_;
@@ -3026,19 +3026,19 @@ template <typename ElementType> struct BlockLab {
     int _iz1 = _iz0 + 1;
     int _iy0 = -start[1];
     int _iy1 = _iy0 + _BS_;
-    int m_vSize0 = m_cacheBlock->n[0];
+    int m_vSize0 = m->n[0];
     int my_ix = -start[0];
     for (int iz = _iz0; iz < _iz1; iz++) {
       int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
         ElementType *__restrict__ ptrDestination0 =
-            &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
+            &m->d[my_izx + (iy)*m_vSize0];
         ElementType *__restrict__ ptrDestination1 =
-            &m_cacheBlock->d[my_izx + (iy + 1) * m_vSize0];
+            &m->d[my_izx + (iy + 1) * m_vSize0];
         ElementType *__restrict__ ptrDestination2 =
-            &m_cacheBlock->d[my_izx + (iy + 2) * m_vSize0];
+            &m->d[my_izx + (iy + 2) * m_vSize0];
         ElementType *__restrict__ ptrDestination3 =
-            &m_cacheBlock->d[my_izx + (iy + 3) * m_vSize0];
+            &m->d[my_izx + (iy + 3) * m_vSize0];
         memcpy(ptrDestination0, (ptrSource), nbytes);
         memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
         memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
@@ -3113,10 +3113,10 @@ template <typename ElementType> struct BlockLab {
           const int iy = 2 * j - start[1];
           ElementType &coarseElement =
               m_CoarsenedBlock->Access0(i - offset[0], j - offset[1]);
-          coarseElement = AverageDown(m_cacheBlock->Access0(ix, iy),
-                                      m_cacheBlock->Access0(ix + 1, iy),
-                                      m_cacheBlock->Access0(ix, iy + 1),
-                                      m_cacheBlock->Access0(ix + 1, iy + 1));
+          coarseElement = AverageDown(m->Access0(ix, iy),
+                                      m->Access0(ix + 1, iy),
+                                      m->Access0(ix, iy + 1),
+                                      m->Access0(ix + 1, iy + 1));
         }
       }
     }
@@ -3170,20 +3170,20 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int m_vSize0 = m_cacheBlock->n[0];
+    const int m_vSize0 = m->n[0];
     const int my_ix = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 =
-            &m_cacheBlock->d[my_izx + (iy - start[1]) * m_vSize0];
+            &m->d[my_izx + (iy - start[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest1 =
-            &m_cacheBlock->d[my_izx + (iy + 1 - start[1]) * m_vSize0];
+            &m->d[my_izx + (iy + 1 - start[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest2 =
-            &m_cacheBlock->d[my_izx + (iy + 2 - start[1]) * m_vSize0];
+            &m->d[my_izx + (iy + 2 - start[1]) * m_vSize0];
         ElementType *__restrict__ ptrDest3 =
-            &m_cacheBlock->d[my_izx + (iy + 3 - start[1]) * m_vSize0];
+            &m->d[my_izx + (iy + 3 - start[1]) * m_vSize0];
         const ElementType *ptrSrc0 =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc1 =
@@ -3199,7 +3199,7 @@ template <typename ElementType> struct BlockLab {
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest =
-            &m_cacheBlock->d[my_izx + (iy - start[1]) * m_vSize0];
+            &m->d[my_izx + (iy - start[1]) * m_vSize0];
         const ElementType *ptrSrc =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
@@ -3213,7 +3213,7 @@ template <typename ElementType> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    int m_vSize0 = m_cacheBlock->n[0];
+    int m_vSize0 = m->n[0];
     int yStep = (code[1] == 0) ? 2 : 1;
     int zStep = (code[2] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / yStep) % 4;
@@ -3242,28 +3242,28 @@ template <typename ElementType> struct BlockLab {
         const int my_izx = my_ix;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
           ElementType *__restrict__ ptrDest0 =
-              &m_cacheBlock
+              &m
                    ->d[my_izx +
                        (abs(code[1]) * (iy + 0 * yStep - start[1]) +
                         (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
                                               aux * (e[1] - s[1]) / 2)) *
                            m_vSize0];
           ElementType *__restrict__ ptrDest1 =
-              &m_cacheBlock
+              &m
                    ->d[my_izx +
                        (abs(code[1]) * (iy + 1 * yStep - start[1]) +
                         (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
                                               aux * (e[1] - s[1]) / 2)) *
                            m_vSize0];
           ElementType *__restrict__ ptrDest2 =
-              &m_cacheBlock
+              &m
                    ->d[my_izx +
                        (abs(code[1]) * (iy + 2 * yStep - start[1]) +
                         (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
                                               aux * (e[1] - s[1]) / 2)) *
                            m_vSize0];
           ElementType *__restrict__ ptrDest3 =
-              &m_cacheBlock
+              &m
                    ->d[my_izx +
                        (abs(code[1]) * (iy + 3 * yStep - start[1]) +
                         (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
@@ -3312,7 +3312,7 @@ template <typename ElementType> struct BlockLab {
         }
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
           ElementType *ptrDest =
-              (ElementType *)&m_cacheBlock
+              (ElementType *)&m
                   ->d[my_izx +
                       (abs(code[1]) * (iy - start[1]) +
                        (1 - abs(code[1])) *
@@ -3519,7 +3519,7 @@ template <typename ElementType> struct BlockLab {
                 Test[i][j] = &m_CoarsenedBlock->Access0(XX - 1 + i - offset[0],
                                                         YY - 1 + j - offset[1]);
             TestInterp(
-                Test, m_cacheBlock->Access0(ix - start[0], iy - start[1]),
+                Test, m->Access0(ix - start[0], iy - start[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
@@ -3568,20 +3568,20 @@ template <typename ElementType> struct BlockLab {
                          m_CoarsenedBlock->Access0(XX, YY - 1)) -
                         2.0 * m_CoarsenedBlock->Access0(XX, YY);
               }
-              m_cacheBlock->Access0(ix - start[0], iy - start[1]) =
+              m->Access0(ix - start[0], iy - start[1]) =
                   m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
                   (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m_cacheBlock->Access0(ix - start[0], iy - start[1] + iyp) =
+                m->Access0(ix - start[0], iy - start[1] + iyp) =
                     m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m_cacheBlock->Access0(ix - start[0] + ixp, iy - start[1]) =
+                m->Access0(ix - start[0] + ixp, iy - start[1]) =
                     m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m_cacheBlock->Access0(ix - start[0] + ixp,
+                m->Access0(ix - start[0] + ixp,
                                       iy - start[1] + iyp) =
                     m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
@@ -3608,20 +3608,20 @@ template <typename ElementType> struct BlockLab {
                          m_CoarsenedBlock->Access0(XX - 1, YY)) -
                         2.0 * m_CoarsenedBlock->Access0(XX, YY);
               }
-              m_cacheBlock->Access0(ix - start[0], iy - start[1]) =
+              m->Access0(ix - start[0], iy - start[1]) =
                   m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
                   (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m_cacheBlock->Access0(ix - start[0], iy - start[1] + iyp) =
+                m->Access0(ix - start[0], iy - start[1] + iyp) =
                     m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m_cacheBlock->Access0(ix - start[0] + ixp, iy - start[1]) =
+                m->Access0(ix - start[0] + ixp, iy - start[1]) =
                     m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m_cacheBlock->Access0(ix - start[0] + ixp,
+                m->Access0(ix - start[0] + ixp,
                                       iy - start[1] + iyp) =
                     m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
@@ -3636,61 +3636,61 @@ template <typename ElementType> struct BlockLab {
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            auto &a = m_cacheBlock->Access0(ix - start[0], iy - start[1]);
+            auto &a = m->Access0(ix - start[0], iy - start[1]);
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] - 1);
+                    m->Access0(ix - start[0], iy - start[1] - 1);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] - 2);
+                    m->Access0(ix - start[0], iy - start[1] - 2);
                 LI(a, b, c);
               } else if (y == 1) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] - 2);
+                    m->Access0(ix - start[0], iy - start[1] - 2);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] - 3);
+                    m->Access0(ix - start[0], iy - start[1] - 3);
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] + 1);
+                    m->Access0(ix - start[0], iy - start[1] + 1);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] + 2);
+                    m->Access0(ix - start[0], iy - start[1] + 2);
                 LI(a, b, c);
               } else if (y == 0) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] + 2);
+                    m->Access0(ix - start[0], iy - start[1] + 2);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0], iy - start[1] + 3);
+                    m->Access0(ix - start[0], iy - start[1] + 3);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0] - 1, iy - start[1]);
+                    m->Access0(ix - start[0] - 1, iy - start[1]);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0] - 2, iy - start[1]);
+                    m->Access0(ix - start[0] - 2, iy - start[1]);
                 LI(a, b, c);
               } else if (x == 1) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0] - 2, iy - start[1]);
+                    m->Access0(ix - start[0] - 2, iy - start[1]);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0] - 3, iy - start[1]);
+                    m->Access0(ix - start[0] - 3, iy - start[1]);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0] + 1, iy - start[1]);
+                    m->Access0(ix - start[0] + 1, iy - start[1]);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0] + 2, iy - start[1]);
+                    m->Access0(ix - start[0] + 2, iy - start[1]);
                 LI(a, b, c);
               } else if (x == 0) {
                 auto &b =
-                    m_cacheBlock->Access0(ix - start[0] + 2, iy - start[1]);
+                    m->Access0(ix - start[0] + 2, iy - start[1]);
                 auto &c =
-                    m_cacheBlock->Access0(ix - start[0] + 3, iy - start[1]);
+                    m->Access0(ix - start[0] + 3, iy - start[1]);
                 LE(a, b, c);
               }
             }
@@ -4452,9 +4452,9 @@ struct VectorLab : public BlockLab<VectorElement> {
   }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<VectorElement>::load(info, applybc);
-    Real *dst = (Real *)&m_cacheBlock->d[0];
+    Real *dst = (Real *)&m->d[0];
     Real *dst1 = (Real *)&m_CoarsenedBlock->d[0];
-    refSynchronizerMPI->fetch(info, m_cacheBlock->n, m_CoarsenedBlock->n, dst,
+    refSynchronizerMPI->fetch(info, m->n, m_CoarsenedBlock->n, dst,
                               dst1);
     if (sim.size > 1)
       post_load(info, applybc);
@@ -4463,7 +4463,7 @@ struct VectorLab : public BlockLab<VectorElement> {
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
     if (!coarse) {
-      auto *const cb = this->m_cacheBlock;
+      auto *const cb = this->m;
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
       const int *const stenBeg = this->start;
       const int *const stenEnd = this->end;
@@ -4578,9 +4578,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
   }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<ScalarElement>::load(info, applybc);
-    Real *dst = (Real *)&BlockLab<ScalarElement>::m_cacheBlock->d[0];
+    Real *dst = (Real *)&BlockLab<ScalarElement>::m->d[0];
     Real *dst1 = (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->d[0];
-    refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::m_cacheBlock->n,
+    refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::m->n,
                               BlockLab<ScalarElement>::m_CoarsenedBlock->n, dst,
                               dst1);
     if (sim.size > 1)
@@ -4605,7 +4605,7 @@ struct ScalarLab : public BlockLab<ScalarElement> {
       bsize[0] = _BS_ / 2;
       bsize[1] = _BS_ / 2;
     }
-    auto *const cb = coarse ? this->m_CoarsenedBlock : this->m_cacheBlock;
+    auto *const cb = coarse ? this->m_CoarsenedBlock : this->m;
     int s[2];
     int e[2];
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
