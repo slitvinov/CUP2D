@@ -4434,7 +4434,6 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (-1.0) * m->Access0(x, y);
           }
     } else {
-      auto *const cb = this->c;
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
                          (this->end[1]) / 2 + 1 + (2) - 1,
                          (this->end[2]) / 2 + 1 + (1) - 1};
@@ -4457,10 +4456,10 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
-                (-1.0) * cb->Access0(x, y).member(1 - A);
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
-                cb->Access0(x, y).member(A);
+            c->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
+                (-1.0) * c->Access0(x, y).member(1 - A);
+            c->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
+                c->Access0(x, y).member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4469,8 +4468,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
-                (-1.0) * cb->Access0(x, y);
+            c->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
+                (-1.0) * c->Access0(x, y);
           }
     }
   }
