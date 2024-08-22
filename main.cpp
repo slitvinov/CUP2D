@@ -1071,27 +1071,30 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[2] = (code[2] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[2] % 2 == 0) &&
+                                (Cindex_true[2] > f.infos[1]->index[2])) ||
+                               ((f.infos[1]->index[2] % 2 == 1) &&
+                                (Cindex_true[2] < f.infos[1]->index[2])))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
@@ -2945,13 +2948,16 @@ template <class DataType> struct Matrix3D {
       m_pData[i].set(a);
     return *this;
   }
-  DataType &Access(unsigned int ix, unsigned int iy, unsigned int iz) const {
+  DataType &Access0(unsigned int ix, unsigned int iy) const {
 #ifndef NDEBUG
     assert(ix < m_vSize[0]);
     assert(iy < m_vSize[1]);
-    assert(iz < m_vSize[2]);
 #endif
-    return m_pData[iz * m_nElementsPerSlice + iy * m_vSize[0] + ix];
+    return m_pData[iy * m_vSize[0] + ix];
+  }
+  DataType &Access00(unsigned int ix, unsigned int iy, unsigned iz) const {
+    assert(iz == 0);
+    return Access0(ix, iy);
   }
   const DataType &Read(unsigned int ix, unsigned int iy,
                        unsigned int iz) const {
@@ -3021,12 +3027,12 @@ template <typename ElementType> struct BlockLab {
     _release(m_CoarsenedBlock);
   }
   ElementType &operator()(int ix, int iy) {
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
-                                -m_stencilStart[2]);
+    return m_cacheBlock->Access00(ix - m_stencilStart[0],
+                                  iy - m_stencilStart[1], -m_stencilStart[2]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    return m_cacheBlock->Access(ix - m_stencilStart[0], iy - m_stencilStart[1],
-                                -m_stencilStart[2]);
+    return m_cacheBlock->Access00(ix - m_stencilStart[0],
+                                  iy - m_stencilStart[1], -m_stencilStart[2]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     constexpr int Istencil_start[3] = {-1, -1, 0};
@@ -3197,7 +3203,7 @@ template <typename ElementType> struct BlockLab {
           const int ix = 2 * i - m_stencilStart[0];
           const int iy = 2 * j - m_stencilStart[1];
           ElementType &coarseElement =
-              m_CoarsenedBlock->Access(i - offset[0], j - offset[1], 0);
+              m_CoarsenedBlock->Access0(i - offset[0], j - offset[1]);
           coarseElement = AverageDown(m_cacheBlock->Read(ix, iy, 0),
                                       m_cacheBlock->Read(ix + 1, iy, 0),
                                       m_cacheBlock->Read(ix, iy + 1, 0),
@@ -3486,27 +3492,30 @@ template <typename ElementType> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3659,12 +3668,12 @@ template <typename ElementType> struct BlockLab {
             ElementType *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
-                Test[i][j] = &m_CoarsenedBlock->Access(
-                    XX - 1 + i - offset[0], YY - 1 + j - offset[1], 0);
+                Test[i][j] = &m_CoarsenedBlock->Access0(XX - 1 + i - offset[0],
+                                                        YY - 1 + j - offset[1]);
             TestInterp(
                 Test,
-                m_cacheBlock->Access(ix - m_stencilStart[0],
-                                     iy - m_stencilStart[1], 0),
+                m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                      iy - m_stencilStart[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
@@ -3695,88 +3704,88 @@ template <typename ElementType> struct BlockLab {
             if (code[0] != 0) {
               ElementType dudy, dudy2;
               if (YY + offset[1] == 0) {
-                dudy = (-0.5 * m_CoarsenedBlock->Access(XX, YY + 2, 0) -
-                        1.5 * m_CoarsenedBlock->Access(XX, YY, 0)) +
-                       2.0 * m_CoarsenedBlock->Access(XX, YY + 1, 0);
-                dudy2 = (m_CoarsenedBlock->Access(XX, YY + 2, 0) +
-                         m_CoarsenedBlock->Access(XX, YY, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX, YY + 1, 0);
+                dudy = (-0.5 * m_CoarsenedBlock->Access0(XX, YY + 2) -
+                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) +
+                       2.0 * m_CoarsenedBlock->Access0(XX, YY + 1);
+                dudy2 = (m_CoarsenedBlock->Access0(XX, YY + 2) +
+                         m_CoarsenedBlock->Access0(XX, YY)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX, YY + 1);
               } else if (YY + offset[1] == CoarseBlockSize[1] - 1) {
-                dudy = (0.5 * m_CoarsenedBlock->Access(XX, YY - 2, 0) +
-                        1.5 * m_CoarsenedBlock->Access(XX, YY, 0)) -
-                       2.0 * m_CoarsenedBlock->Access(XX, YY - 1, 0);
-                dudy2 = (m_CoarsenedBlock->Access(XX, YY - 2, 0) +
-                         m_CoarsenedBlock->Access(XX, YY, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX, YY - 1, 0);
+                dudy = (0.5 * m_CoarsenedBlock->Access0(XX, YY - 2) +
+                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
+                       2.0 * m_CoarsenedBlock->Access0(XX, YY - 1);
+                dudy2 = (m_CoarsenedBlock->Access0(XX, YY - 2) +
+                         m_CoarsenedBlock->Access0(XX, YY)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX, YY - 1);
               } else {
-                dudy = 0.5 * (m_CoarsenedBlock->Access(XX, YY + 1, 0) -
-                              m_CoarsenedBlock->Access(XX, YY - 1, 0));
-                dudy2 = (m_CoarsenedBlock->Access(XX, YY + 1, 0) +
-                         m_CoarsenedBlock->Access(XX, YY - 1, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX, YY, 0);
+                dudy = 0.5 * (m_CoarsenedBlock->Access0(XX, YY + 1) -
+                              m_CoarsenedBlock->Access0(XX, YY - 1));
+                dudy2 = (m_CoarsenedBlock->Access0(XX, YY + 1) +
+                         m_CoarsenedBlock->Access0(XX, YY - 1)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX, YY);
               }
-              m_cacheBlock->Access(ix - m_stencilStart[0],
-                                   iy - m_stencilStart[1], 0) =
-                  m_CoarsenedBlock->Access(XX, YY, 0) + dy * dudy +
+              m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                    iy - m_stencilStart[1]) =
+                  m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
                   (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m_cacheBlock->Access(ix - m_stencilStart[0],
-                                     iy - m_stencilStart[1] + iyp, 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) - dy * dudy +
+                m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                      iy - m_stencilStart[1] + iyp) =
+                    m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m_cacheBlock->Access(ix - m_stencilStart[0] + ixp,
-                                     iy - m_stencilStart[1], 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) + dy * dudy +
+                m_cacheBlock->Access0(ix - m_stencilStart[0] + ixp,
+                                      iy - m_stencilStart[1]) =
+                    m_CoarsenedBlock->Access0(XX, YY) + dy * dudy +
                     (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m_cacheBlock->Access(ix - m_stencilStart[0] + ixp,
-                                     iy - m_stencilStart[1] + iyp, 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) - dy * dudy +
+                m_cacheBlock->Access0(ix - m_stencilStart[0] + ixp,
+                                      iy - m_stencilStart[1] + iyp) =
+                    m_CoarsenedBlock->Access0(XX, YY) - dy * dudy +
                     (0.5 * dy * dy) * dudy2;
             } else {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
-                dudx = (-0.5 * m_CoarsenedBlock->Access(XX + 2, YY, 0) -
-                        1.5 * m_CoarsenedBlock->Access(XX, YY, 0)) +
-                       2.0 * m_CoarsenedBlock->Access(XX + 1, YY, 0);
-                dudx2 = (m_CoarsenedBlock->Access(XX + 2, YY, 0) +
-                         m_CoarsenedBlock->Access(XX, YY, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX + 1, YY, 0);
+                dudx = (-0.5 * m_CoarsenedBlock->Access0(XX + 2, YY) -
+                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) +
+                       2.0 * m_CoarsenedBlock->Access0(XX + 1, YY);
+                dudx2 = (m_CoarsenedBlock->Access0(XX + 2, YY) +
+                         m_CoarsenedBlock->Access0(XX, YY)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX + 1, YY);
               } else if (XX + offset[0] == CoarseBlockSize[0] - 1) {
-                dudx = (0.5 * m_CoarsenedBlock->Access(XX - 2, YY, 0) +
-                        1.5 * m_CoarsenedBlock->Access(XX, YY, 0)) -
-                       2.0 * m_CoarsenedBlock->Access(XX - 1, YY, 0);
-                dudx2 = (m_CoarsenedBlock->Access(XX - 2, YY, 0) +
-                         m_CoarsenedBlock->Access(XX, YY, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX - 1, YY, 0);
+                dudx = (0.5 * m_CoarsenedBlock->Access0(XX - 2, YY) +
+                        1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
+                       2.0 * m_CoarsenedBlock->Access0(XX - 1, YY);
+                dudx2 = (m_CoarsenedBlock->Access0(XX - 2, YY) +
+                         m_CoarsenedBlock->Access0(XX, YY)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX - 1, YY);
               } else {
-                dudx = 0.5 * (m_CoarsenedBlock->Access(XX + 1, YY, 0) -
-                              m_CoarsenedBlock->Access(XX - 1, YY, 0));
-                dudx2 = (m_CoarsenedBlock->Access(XX + 1, YY, 0) +
-                         m_CoarsenedBlock->Access(XX - 1, YY, 0)) -
-                        2.0 * m_CoarsenedBlock->Access(XX, YY, 0);
+                dudx = 0.5 * (m_CoarsenedBlock->Access0(XX + 1, YY) -
+                              m_CoarsenedBlock->Access0(XX - 1, YY));
+                dudx2 = (m_CoarsenedBlock->Access0(XX + 1, YY) +
+                         m_CoarsenedBlock->Access0(XX - 1, YY)) -
+                        2.0 * m_CoarsenedBlock->Access0(XX, YY);
               }
-              m_cacheBlock->Access(ix - m_stencilStart[0],
-                                   iy - m_stencilStart[1], 0) =
-                  m_CoarsenedBlock->Access(XX, YY, 0) + dx * dudx +
+              m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                    iy - m_stencilStart[1]) =
+                  m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
                   (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m_cacheBlock->Access(ix - m_stencilStart[0],
-                                     iy - m_stencilStart[1] + iyp, 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) + dx * dudx +
+                m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                      iy - m_stencilStart[1] + iyp) =
+                    m_CoarsenedBlock->Access0(XX, YY) + dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m_cacheBlock->Access(ix - m_stencilStart[0] + ixp,
-                                     iy - m_stencilStart[1], 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) - dx * dudx +
+                m_cacheBlock->Access0(ix - m_stencilStart[0] + ixp,
+                                      iy - m_stencilStart[1]) =
+                    m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m_cacheBlock->Access(ix - m_stencilStart[0] + ixp,
-                                     iy - m_stencilStart[1] + iyp, 0) =
-                    m_CoarsenedBlock->Access(XX, YY, 0) - dx * dudx +
+                m_cacheBlock->Access0(ix - m_stencilStart[0] + ixp,
+                                      iy - m_stencilStart[1] + iyp) =
+                    m_CoarsenedBlock->Access0(XX, YY) - dx * dudx +
                     (0.5 * dx * dx) * dudx2;
             }
           }
@@ -3790,62 +3799,62 @@ template <typename ElementType> struct BlockLab {
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            auto &a = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                           iy - m_stencilStart[1], 0);
+            auto &a = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                            iy - m_stencilStart[1]);
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] - 1, 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] - 2, 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] - 1);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] - 2);
                 LI(a, b, c);
               } else if (y == 1) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] - 2, 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] - 3, 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] - 2);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] - 3);
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] + 1, 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] + 2, 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] + 1);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] + 2);
                 LI(a, b, c);
               } else if (y == 0) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] + 2, 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0],
-                                               iy - m_stencilStart[1] + 3, 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] + 2);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                                iy - m_stencilStart[1] + 3);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 1,
-                                               iy - m_stencilStart[1], 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
-                                               iy - m_stencilStart[1], 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0] - 1,
+                                                iy - m_stencilStart[1]);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0] - 2,
+                                                iy - m_stencilStart[1]);
                 LI(a, b, c);
               } else if (x == 1) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] - 2,
-                                               iy - m_stencilStart[1], 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] - 3,
-                                               iy - m_stencilStart[1], 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0] - 2,
+                                                iy - m_stencilStart[1]);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0] - 3,
+                                                iy - m_stencilStart[1]);
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 1,
-                                               iy - m_stencilStart[1], 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
-                                               iy - m_stencilStart[1], 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0] + 1,
+                                                iy - m_stencilStart[1]);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0] + 2,
+                                                iy - m_stencilStart[1]);
                 LI(a, b, c);
               } else if (x == 0) {
-                auto &b = m_cacheBlock->Access(ix - m_stencilStart[0] + 2,
-                                               iy - m_stencilStart[1], 0);
-                auto &c = m_cacheBlock->Access(ix - m_stencilStart[0] + 3,
-                                               iy - m_stencilStart[1], 0);
+                auto &b = m_cacheBlock->Access0(ix - m_stencilStart[0] + 2,
+                                                iy - m_stencilStart[1]);
+                auto &c = m_cacheBlock->Access0(ix - m_stencilStart[0] + 3,
+                                                iy - m_stencilStart[1]);
                 LE(a, b, c);
               }
             }
@@ -4641,10 +4650,10 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(1 - A) =
-                (-1.0) * cb->Access(x, y, 0).member(1 - A);
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(A) =
-                cb->Access(x, y, 0).member(A);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
+                (-1.0) * cb->Access0(x, y).member(1 - A);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
+                cb->Access0(x, y).member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4653,8 +4662,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) =
-                (-1.0) * cb->Access(x, y, 0);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
+                (-1.0) * cb->Access0(x, y);
           }
     } else {
       auto *const cb = this->m_CoarsenedBlock;
@@ -4682,10 +4691,10 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(1 - A) =
-                (-1.0) * cb->Access(x, y, 0).member(1 - A);
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0).member(A) =
-                cb->Access(x, y, 0).member(A);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
+                (-1.0) * cb->Access0(x, y).member(1 - A);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
+                cb->Access0(x, y).member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4694,8 +4703,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) =
-                (-1.0) * cb->Access(x, y, 0);
+            cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
+                (-1.0) * cb->Access0(x, y);
           }
     }
   }
@@ -4784,9 +4793,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
                     : bsize[1] + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
-        cb->Access(ix - stenBeg[0], iy - stenBeg[1], 0) = cb->Access(
+        cb->Access0(ix - stenBeg[0], iy - stenBeg[1]) = cb->Access0(
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
-            (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
+            (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1]);
   }
   ScalarLab() = default;
   ScalarLab(const ScalarLab &) = delete;
