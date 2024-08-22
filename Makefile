@@ -10,7 +10,6 @@ OPENMPFLAGS = -fopenmp
 
 FLAGS =\
 -D_BS_=8\
--Wno-unknown-pragmas\
 $(OPENMPFLAGS)\
 -std=c++17\
 

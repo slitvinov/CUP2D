@@ -3036,10 +3036,8 @@ template <typename ElementType> struct BlockLab {
     const int _iy1 = _iy0 + _BS_;
     const int m_vSize0 = m_cacheBlock->n[0];
     const int my_ix = -m_stencilStart[0];
-#pragma GCC ivdep
     for (int iz = _iz0; iz < _iz1; iz++) {
       const int my_izx = my_ix;
-#pragma GCC ivdep
       for (int iy = _iy0; iy < _iy1; iy += 4) {
         ElementType *__restrict__ ptrDestination0 =
             &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
@@ -3117,9 +3115,7 @@ template <typename ElementType> struct BlockLab {
 
   void post_load(BlockInfo &info, bool applybc) {
     if (coarsened) {
-#pragma GCC ivdep
       for (int j = 0; j < _BS_ / 2; j++) {
-#pragma GCC ivdep
         for (int i = 0; i < _BS_ / 2; i++) {
           if (i > -m_InterpStencilStart[0] &&
               i < _BS_ / 2 - m_InterpStencilEnd[0] &&
@@ -3190,10 +3186,8 @@ template <typename ElementType> struct BlockLab {
     const int m_vSize0 = m_cacheBlock->n[0];
     const int my_ix = s[0] - m_stencilStart[0];
     const int mod = (e[1] - s[1]) % 4;
-#pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
-#pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 =
             &m_cacheBlock->d[my_izx + (iy - m_stencilStart[1]) * m_vSize0];
@@ -3216,7 +3210,6 @@ template <typename ElementType> struct BlockLab {
         memcpy(ptrDest2, ptrSrc2, bytes);
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
-#pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *__restrict__ ptrDest =
             &m_cacheBlock->d[my_izx + (iy - m_stencilStart[1]) * m_vSize0];
@@ -3258,10 +3251,8 @@ template <typename ElementType> struct BlockLab {
                                               (B % 2) * (e[0] - s[0]) / 2);
       const int XX =
           s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-#pragma GCC ivdep
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
         const int my_izx = my_ix;
-#pragma GCC ivdep
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
           ElementType *__restrict__ ptrDest0 =
               &m_cacheBlock
@@ -3319,7 +3310,6 @@ template <typename ElementType> struct BlockLab {
           ElementType *ptrSrc_12 = &b[YY2 + 1][XX];
           ElementType *ptrSrc_03 = &b[YY3][XX];
           ElementType *ptrSrc_13 = &b[YY3 + 1][XX];
-#pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
                ee++) {
@@ -3337,7 +3327,6 @@ template <typename ElementType> struct BlockLab {
                 *(ptrSrc_03 + 2 * ee + 1), *(ptrSrc_13 + 2 * ee + 1));
           }
         }
-#pragma GCC ivdep
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
           ElementType *ptrDest =
               (ElementType *)&m_cacheBlock
@@ -3351,7 +3340,6 @@ template <typename ElementType> struct BlockLab {
                        : iy;
           ElementType *ptrSrc_0 = &b[YY][XX];
           ElementType *ptrSrc_1 = &b[YY + 1][XX];
-#pragma GCC ivdep
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
                ee++) {
@@ -3430,10 +3418,8 @@ template <typename ElementType> struct BlockLab {
     const int m_vSize0 = m_CoarsenedBlock->n[0];
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
-#pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
-#pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         ElementType *__restrict__ ptrDest0 =
             &m_CoarsenedBlock->d[my_izx + (iy + 0 - offset[1]) * m_vSize0];
@@ -3452,7 +3438,6 @@ template <typename ElementType> struct BlockLab {
         memcpy(ptrDest2, ptrSrc2, bytes);
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
-#pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
             &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
@@ -3488,10 +3473,8 @@ template <typename ElementType> struct BlockLab {
     int m_vSize0 = m_CoarsenedBlock->n[0];
     int my_ix = s[0] - offset[0];
     int XX = start[0];
-#pragma GCC ivdep
     for (int iz = s[2]; iz < e[2]; iz++) {
       int my_izx = my_ix;
-#pragma GCC ivdep
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
             iy < _BS_ / 2 - m_InterpStencilEnd[1] &&
@@ -3502,7 +3485,6 @@ template <typename ElementType> struct BlockLab {
         int YY = 2 * (iy - s[1]) + start[1];
         ElementType *ptrSrc_0 = (ElementType *)&b[YY][XX];
         ElementType *ptrSrc_1 = (ElementType *)&b[YY + 1][XX];
-#pragma GCC ivdep
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
               AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
@@ -3549,12 +3531,10 @@ template <typename ElementType> struct BlockLab {
       if (!bytes)
         continue;
       if (use_averages) {
-#pragma GCC ivdep
         for (int iy = s[1]; iy < e[1]; iy += 1) {
           int YY =
               (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
               sC[1];
-#pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             int XX =
                 (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
@@ -3575,7 +3555,6 @@ template <typename ElementType> struct BlockLab {
         }
       }
       if (m_refGrid->FiniteDifferences && abs(code[0]) + abs(code[1]) == 1) {
-#pragma GCC ivdep
         for (int iy = s[1]; iy < e[1]; iy += 2) {
           int YY =
               (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
@@ -3584,7 +3563,6 @@ template <typename ElementType> struct BlockLab {
               abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
           int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
           double dy = 0.25 * (2 * y - 1);
-#pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 2) {
             int XX =
                 (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
@@ -3685,7 +3663,6 @@ template <typename ElementType> struct BlockLab {
           }
         }
         for (int iy = s[1]; iy < e[1]; iy += 1) {
-#pragma GCC ivdep
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
