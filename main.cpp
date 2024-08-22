@@ -4471,7 +4471,7 @@ struct VectorLab : public BlockLab<VectorElement> {
 	      Access0(ix - stenBeg[0], iy - stenBeg[1])
 	      .member(1 - A) =
                 (-1.0) *
-	      m->Access0(x, y)
+	      m->d[x + nm * (y)]
 	      .member(1 - A);
             m->
 	      Access0(ix - stenBeg[0], iy - stenBeg[1])
