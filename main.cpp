@@ -2961,10 +2961,6 @@ template <typename ElementType> struct BlockLab {
   const int m_InterpStencilStart[3] = {-1, -1, 0};
   const int m_InterpStencilEnd[3] = {2, 2, 1};
   bool coarsened;
-  const double d_coef_plus[9] = {-0.09375, 0.4375,   0.15625, 0.15625, -0.5625,
-                                 0.90625,  -0.09375, 0.4375,  0.15625};
-  const double d_coef_minus[9] = {0.15625, -0.5625, 0.90625, -0.09375, 0.4375,
-                                  0.15625, 0.15625, 0.4375,  -0.09375};
   BlockLab()
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
     m_stencilStart[0] = m_stencilStart[1] = m_stencilStart[2] = 0;
