@@ -2898,7 +2898,6 @@ template <class DataType> struct Matrix3D {
   DataType *d;
   unsigned int n[2];
   void _Setup0(unsigned int nSizeX, unsigned int nSizeY) {
-    free(d);
     n[0] = nSizeX;
     n[1] = nSizeY;
     d = (DataType*)malloc(sizeof(DataType) * nSizeX * nSizeY);
