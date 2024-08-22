@@ -721,7 +721,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       }
     }
   }
-  virtual void prepare(TGrid &_grid) {
+  virtual void prepare0(TGrid &_grid) {
     if (_grid.UpdateFluxCorrection == false)
       return;
     _grid.UpdateFluxCorrection = false;
@@ -2155,7 +2155,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       }
     }
   }
-  virtual void prepare(TGrid &_grid) override {
+  virtual void prepare0(TGrid &_grid) override {
     if (_grid.UpdateFluxCorrection == false)
       return;
     _grid.UpdateFluxCorrection = false;
@@ -2918,20 +2918,20 @@ static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
 }
 template <typename ElementType>
 static void LI(ElementType &a, ElementType b, ElementType c) {
-  auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  auto lambda = (b - c) - kappa;
+  ElementType kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  ElementType lambda = (b - c) - kappa;
   a = (4.0 * kappa + 2.0 * lambda) + c;
 }
 template <typename ElementType>
 static void LE(ElementType &a, ElementType b, ElementType c) {
-  auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  auto lambda = (b - c) - kappa;
+  ElementType kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  ElementType lambda = (b - c) - kappa;
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
 template <typename ElementType>
 static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
-  const double dx = 0.25 * (2 * x - 1);
-  const double dy = 0.25 * (2 * y - 1);
+  double dx = 0.25 * (2 * x - 1);
+  double dy = 0.25 * (2 * y - 1);
   ElementType dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
   ElementType dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
   ElementType dudxdy =
@@ -7641,7 +7641,7 @@ int main(int argc, char **argv) {
             Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
-      var.tmpV->Corrector.prepare(*var.tmpV);
+      var.tmpV->Corrector.prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel);
       var.tmpV->Corrector.FillBlockCases();
 #pragma omp parallel for
@@ -7660,7 +7660,7 @@ int main(int argc, char **argv) {
                 Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
-      var.tmpV->Corrector.prepare(*var.tmpV);
+      var.tmpV->Corrector.prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel);
       var.tmpV->Corrector.FillBlockCases();
 #pragma omp parallel for
@@ -8058,7 +8058,7 @@ int main(int argc, char **argv) {
             }
         }
       }
-      var.tmp->Corrector.prepare(*var.tmp);
+      var.tmp->Corrector.prepare0(*var.tmp);
       computeB<pressure_rhs, VectorElement, VectorLab, VectorElement,
                VectorLab>(pressure_rhs(), *var.vel, *var.tmpV);
       var.tmp->Corrector.FillBlockCases();
@@ -8074,7 +8074,7 @@ int main(int argc, char **argv) {
             PRES[iy][ix].s = 0;
           }
       }
-      var.tmp->Corrector.prepare(*var.tmp);
+      var.tmp->Corrector.prepare0(*var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold);
       var.tmp->Corrector.FillBlockCases();
       pressureSolver.solve(var.tmp);
@@ -8106,7 +8106,7 @@ int main(int argc, char **argv) {
             P[iy][ix].s += POLD[iy][ix].s - avg;
       }
       {
-        var.tmpV->Corrector.prepare(*var.tmpV);
+        var.tmpV->Corrector.prepare0(*var.tmpV);
         computeA<ScalarLab>(pressureCorrectionKernel(), var.pres);
         var.tmpV->Corrector.FillBlockCases();
       }
