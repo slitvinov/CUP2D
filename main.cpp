@@ -650,13 +650,13 @@ template <typename Element> struct BlockCase {
     storedFace[3] = _storedFace[3];
     storedFace[4] = _storedFace[4];
     storedFace[5] = _storedFace[5];
-    for (int d = 0; d < 3; d++) {
-      int d1 = (d + 1) % 3;
-      int d2 = (d + 2) % 3;
-      if (storedFace[2 * d])
-        m_pData[2 * d].resize(sizes[d1] * sizes[d2]);
-      if (storedFace[2 * d + 1])
-        m_pData[2 * d + 1].resize(sizes[d1] * sizes[d2]);
+    for (int i = 0; i < 3; i++) {
+      int d1 = (i + 1) % 3;
+      int d2 = (i + 2) % 3;
+      if (storedFace[2 * i])
+        m_pData[2 * i].resize(sizes[d1] * sizes[d2]);
+      if (storedFace[2 * i + 1])
+        m_pData[2 * i + 1].resize(sizes[d1] * sizes[d2]);
     }
     level = _level;
     Z = _Z;
