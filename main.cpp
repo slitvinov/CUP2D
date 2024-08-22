@@ -2896,11 +2896,9 @@ template <typename ElementType> struct Grid {
 };
 template <class DataType> struct matrix {
   DataType *d;
-  unsigned int n[2];
-  matrix(unsigned int x, unsigned int y) {
-    n[0] = x;
-    n[1] = y;
-    d = (DataType *)malloc(sizeof(DataType) * x * y);
+  const unsigned int n[2];
+  matrix(unsigned int x, unsigned int y) : n{x, y} {
+    d = (DataType *)malloc(sizeof(DataType) * n[0] * n[1]);
     assert(d);
   }
   ~matrix() { free(d); }
