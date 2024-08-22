@@ -3029,15 +3029,15 @@ template <typename ElementType> struct BlockLab {
     assert(m_cacheBlock != NULL);
     BlockType &block = *(BlockType *)info.block;
     ElementType *ptrSource = &block[0][0];
-    const int nbytes = sizeof(ElementType) * _BS_;
-    const int _iz0 = -m_stencilStart[2];
-    const int _iz1 = _iz0 + 1;
-    const int _iy0 = -m_stencilStart[1];
-    const int _iy1 = _iy0 + _BS_;
-    const int m_vSize0 = m_cacheBlock->n[0];
-    const int my_ix = -m_stencilStart[0];
+    int nbytes = sizeof(ElementType) * _BS_;
+    int _iz0 = -m_stencilStart[2];
+    int _iz1 = _iz0 + 1;
+    int _iy0 = -m_stencilStart[1];
+    int _iy1 = _iy0 + _BS_;
+    int m_vSize0 = m_cacheBlock->n[0];
+    int my_ix = -m_stencilStart[0];
     for (int iz = _iz0; iz < _iz1; iz++) {
-      const int my_izx = my_ix;
+      int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
         ElementType *__restrict__ ptrDestination0 =
             &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
@@ -3055,11 +3055,10 @@ template <typename ElementType> struct BlockLab {
       }
     }
     coarsened = false;
-    const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
-    const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
-    const int xskip = info.index[0] == 0 ? -1 : 1;
-    const int yskip = info.index[1] == 0 ? -1 : 1;
-
+    bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
+    int xskip = info.index[0] == 0 ? -1 : 1;
+    int yskip = info.index[1] == 0 ? -1 : 1;
     int icodes[8];
     int k = 0;
     coarsened_nei_codes_size = 0;
@@ -3098,9 +3097,9 @@ template <typename ElementType> struct BlockLab {
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
-        const int icode = icodes[i];
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-        const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
+        int icode = icodes[i];
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
+        int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                       (info.index[1] + code[1] + NY) % NY,
                                       (info.index[2] + code[2] + NZ) % NZ};
         if (UseCoarseStencil(info, infoNei_index)) {
@@ -3108,9 +3107,8 @@ template <typename ElementType> struct BlockLab {
           coarsened = true;
         }
       }
-    if (sim.size == 1) {
+    if (sim.size == 1)
       post_load(info, applybc);
-    }
   }
 
   void post_load(BlockInfo &info, bool applybc) {
