@@ -3493,7 +3493,8 @@ template <typename ElementType> struct BlockLab {
                 Test[i][j] = &c->d[XX - 1 + i - offset[0] +
                                    nc * (YY - 1 + j - offset[1])];
             TestInterp(
-                Test, m->Access0(ix - start[0], iy - start[1]),
+                Test,
+		m->Access0(ix - start[0], iy - start[1]),
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
@@ -3523,64 +3524,112 @@ template <typename ElementType> struct BlockLab {
               ElementType dudy, dudy2;
               if (YY + offset[1] == 0) {
                 dudy =
-                    (-0.5 * c->Access0(XX, YY + 2) - 1.5 * c->Access0(XX, YY)) +
+                    (-0.5 *
+		     c->d[XX + nc * (YY + 2)]
+		     - 1.5 *
+		     c->d[XX + nc * (YY)]
+		     ) +
                     2.0 * c->d[XX + nc * (YY + 1)];
-                dudy2 = (c->Access0(XX, YY + 2) + c->Access0(XX, YY)) -
+                dudy2 = (
+			 c->d[XX + nc * (YY + 2)]
+			 +
+			 c->d[XX + nc * (YY)]
+			 ) -
                         2.0 * c->d[XX + nc * (YY + 1)];
               } else if (YY + offset[1] == (_BS_ / 2) - 1) {
                 dudy =
-                    (0.5 * c->Access0(XX, YY - 2) + 1.5 * c->Access0(XX, YY)) -
+                    (0.5 *
+		     c->d[XX + nc * (YY - 2)]
+		     + 1.5 *
+		     c->d[XX + nc * (YY)]
+		     ) -
                     2.0 * c->d[XX + nc * (YY - 1)];
-                dudy2 = (c->Access0(XX, YY - 2) + c->Access0(XX, YY)) -
+                dudy2 = (
+			 c->d[XX + nc * (YY - 2)]
+			 +
+			 c->d[XX + nc * (YY)]
+			 ) -
                         2.0 * c->d[XX + nc * (YY - 1)];
               } else {
-                dudy = 0.5 * (c->Access0(XX, YY + 1) - c->Access0(XX, YY - 1));
-                dudy2 = (c->Access0(XX, YY + 1) + c->Access0(XX, YY - 1)) -
+                dudy = 0.5 * (
+			      c->d[XX + nc * (YY + 1)]
+			      - c->Access0(XX, YY - 1));
+                dudy2 = (
+			 c->d[XX + nc * (YY + 1)]
+			 +
+			 c->d[XX + nc * (YY - 1)]
+			 ) -
                         2.0 * c->d[XX + nc * (YY)];
               }
               m->d[ix - start[0] + nm * (iy - start[1])] =
-                  c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
+                  c->d[XX + nc * (YY)]
+			    + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->d[ix - start[0] + nm * (iy - start[1] + iyp)] =
-                    c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
+                    c->d[XX + nc * (YY)]
+			    - dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->d[ix - start[0] + ixp + nm * (iy - start[1])] =
-                    c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
+                    c->d[XX + nc * (YY)]
+			    + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
                 m->d[ix - start[0] + ixp + nm * (iy - start[1] + iyp)] =
-                    c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
+                    c->d[XX + nc * (YY)]
+		  - dy * dudy + (0.5 * dy * dy) * dudy2;
             } else {
               ElementType dudx, dudx2;
               if (XX + offset[0] == 0) {
                 dudx =
-                    (-0.5 * c->Access0(XX + 2, YY) - 1.5 * c->Access0(XX, YY)) +
+                    (-0.5 *
+		     c->d[XX + 2 + nc * (YY)]
+		     - 1.5 *
+		     c->Access0(XX, YY))
+		  +
                     2.0 * c->d[XX + 1 + nc * (YY)];
-                dudx2 = (c->Access0(XX + 2, YY) + c->Access0(XX, YY)) -
+                dudx2 = (
+			 c->d[XX + 2 + nc * (YY)]
+			 +
+			 c->Access0(XX, YY)) -
                         2.0 * c->d[XX + 1 + nc * (YY)];
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
                 dudx =
-                    (0.5 * c->Access0(XX - 2, YY) + 1.5 * c->Access0(XX, YY)) -
+                    (0.5 *
+		     c->d[XX - 2 + nc * (YY)]
+		     + 1.5 *
+		     c->Access0(XX, YY)) -
                     2.0 * c->d[XX - 1 + nc * (YY)];
-                dudx2 = (c->Access0(XX - 2, YY) + c->Access0(XX, YY)) -
+                dudx2 = (
+			 c->d[XX - 2 + nc * (YY)] +
+			 c->Access0(XX, YY)) -
                         2.0 * c->d[XX - 1 + nc * (YY)];
               } else {
-                dudx = 0.5 * (c->Access0(XX + 1, YY) - c->Access0(XX - 1, YY));
-                dudx2 = (c->Access0(XX + 1, YY) + c->Access0(XX - 1, YY)) -
+                dudx = 0.5 * (
+			      c->d[XX + 1 + nc * (YY)] -
+			      c->d[XX - 1 + nc * (YY)]
+			      );
+                dudx2 = (
+			 c->d[XX + 1 + nc * (YY)] +
+			 c->d[XX - 1 + nc * (YY)]
+			 ) -
                         2.0 * c->d[XX + nc * (YY)];
               }
               m->d[ix - start[0] + nm * (iy - start[1])] =
-                  c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
+                  c->d[XX + nc * (YY)]
+			  + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
                 m->d[ix - start[0] + nm * (iy - start[1] + iyp)] =
-                    c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
+                    c->d[XX + nc * (YY)]
+			  + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
                 m->d[ix - start[0] + ixp + nm * (iy - start[1])] =
-                    c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
+                    c->d[XX + nc * (YY)]
+			  - dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
                 m->d[ix - start[0] + ixp + nm * (iy - start[1] + iyp)] =
-                    c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
+                    c->d[XX + nc * (YY)]
+		  - dx * dudx + (0.5 * dx * dx) * dudx2;
             }
           }
         }
@@ -4418,10 +4467,18 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
-                (-1.0) * m->Access0(x, y).member(1 - A);
-            m->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
-                m->Access0(x, y).member(A);
+            m->
+	      Access0(ix - stenBeg[0], iy - stenBeg[1])
+	      .member(1 - A) =
+                (-1.0) *
+	      m->Access0(x, y)
+	      .member(1 - A);
+            m->
+	      Access0(ix - stenBeg[0], iy - stenBeg[1])
+	      .member(A) =
+                m->
+	      Access0(x, y)
+	      .member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4456,10 +4513,14 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            c->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(1 - A) =
-                (-1.0) * c->Access0(x, y).member(1 - A);
-            c->Access0(ix - stenBeg[0], iy - stenBeg[1]).member(A) =
-                c->Access0(x, y).member(A);
+            c->d[ix - stenBeg[0] + nc * (iy - stenBeg[1])]
+	      .member(1 - A) =
+                (-1.0) * c->d[x + nc * (y)]
+	      .member(1 - A);
+            c->d[ix - stenBeg[0] + nc * (iy - stenBeg[1])]
+	      .member(A) =
+                c->d[x + nc * (y)]
+	      .member(A);
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
