@@ -3866,7 +3866,6 @@ template <typename ElementType> struct BlockLab {
 };
 template <typename MyBlockLab, typename ElementType>
 struct BlockLabMPI : public MyBlockLab {
-  typedef ElementType BlockType[_BS_][_BS_];
   typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(Grid<ElementType> &grid,
