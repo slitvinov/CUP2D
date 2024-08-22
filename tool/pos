@@ -17,7 +17,7 @@
     rec  = sprintf("%sm->Access0(%s, %s)%s", prefix, i, j, suffix);
 
     if (""rec == ""$0) {
-	printf "%sm->d[%s + nc * (%s)]%s\n", prefix, i, j, suffix;
+	printf "%sm->d[%s + nm * (%s)]%s\n", prefix, i, j, suffix;
     } else
 	print
 }

@@ -3538,17 +3538,17 @@ template <typename ElementType> struct BlockLab {
                 dudy2 = (c->Access0(XX, YY + 1) + c->Access0(XX, YY - 1)) -
                         2.0 * c->d[XX + nc * (YY)];
               }
-              m->Access0(ix - start[0], iy - start[1]) =
+              m->d[ix - start[0] + nm * (iy - start[1])] =
                   c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m->Access0(ix - start[0], iy - start[1] + iyp) =
+                m->d[ix - start[0] + nm * (iy - start[1] + iyp)] =
                     c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m->Access0(ix - start[0] + ixp, iy - start[1]) =
+                m->d[ix - start[0] + ixp + nm * (iy - start[1])] =
                     c->Access0(XX, YY) + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m->Access0(ix - start[0] + ixp, iy - start[1] + iyp) =
+                m->d[ix - start[0] + ixp + nm * (iy - start[1] + iyp)] =
                     c->Access0(XX, YY) - dy * dudy + (0.5 * dy * dy) * dudy2;
             } else {
               ElementType dudx, dudx2;
@@ -3569,17 +3569,17 @@ template <typename ElementType> struct BlockLab {
                 dudx2 = (c->Access0(XX + 1, YY) + c->Access0(XX - 1, YY)) -
                         2.0 * c->d[XX + nc * (YY)];
               }
-              m->Access0(ix - start[0], iy - start[1]) =
+              m->d[ix - start[0] + nm * (iy - start[1])] =
                   c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m->Access0(ix - start[0], iy - start[1] + iyp) =
+                m->d[ix - start[0] + nm * (iy - start[1] + iyp)] =
                     c->Access0(XX, YY) + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m->Access0(ix - start[0] + ixp, iy - start[1]) =
+                m->d[ix - start[0] + ixp + nm * (iy - start[1])] =
                     c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m->Access0(ix - start[0] + ixp, iy - start[1] + iyp) =
+                m->d[ix - start[0] + ixp + nm * (iy - start[1] + iyp)] =
                     c->Access0(XX, YY) - dx * dudx + (0.5 * dx * dx) * dudx2;
             }
           }
@@ -3592,45 +3592,45 @@ template <typename ElementType> struct BlockLab {
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            auto &a = m->Access0(ix - start[0], iy - start[1]);
+            auto &a = m->d[ix - start[0] + nm * (iy - start[1])];
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
-                auto &b = m->Access0(ix - start[0], iy - start[1] - 1);
-                auto &c = m->Access0(ix - start[0], iy - start[1] - 2);
+                auto &b = m->d[ix - start[0] + nm * (iy - start[1] - 1)];
+                auto &c = m->d[ix - start[0] + nm * (iy - start[1] - 2)];
                 LI(a, b, c);
               } else if (y == 1) {
-                auto &b = m->Access0(ix - start[0], iy - start[1] - 2);
-                auto &c = m->Access0(ix - start[0], iy - start[1] - 3);
+                auto &b = m->d[ix - start[0] + nm * (iy - start[1] - 2)];
+                auto &c = m->d[ix - start[0] + nm * (iy - start[1] - 3)];
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
-                auto &b = m->Access0(ix - start[0], iy - start[1] + 1);
-                auto &c = m->Access0(ix - start[0], iy - start[1] + 2);
+                auto &b = m->d[ix - start[0] + nm * (iy - start[1] + 1)];
+                auto &c = m->d[ix - start[0] + nm * (iy - start[1] + 2)];
                 LI(a, b, c);
               } else if (y == 0) {
-                auto &b = m->Access0(ix - start[0], iy - start[1] + 2);
-                auto &c = m->Access0(ix - start[0], iy - start[1] + 3);
+                auto &b = m->d[ix - start[0] + nm * (iy - start[1] + 2)];
+                auto &c = m->d[ix - start[0] + nm * (iy - start[1] + 3)];
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
-                auto &b = m->Access0(ix - start[0] - 1, iy - start[1]);
-                auto &c = m->Access0(ix - start[0] - 2, iy - start[1]);
+                auto &b = m->d[ix - start[0] - 1 + nm * (iy - start[1])];
+                auto &c = m->d[ix - start[0] - 2 + nm * (iy - start[1])];
                 LI(a, b, c);
               } else if (x == 1) {
-                auto &b = m->Access0(ix - start[0] - 2, iy - start[1]);
-                auto &c = m->Access0(ix - start[0] - 3, iy - start[1]);
+                auto &b = m->d[ix - start[0] - 2 + nm * (iy - start[1])];
+                auto &c = m->d[ix - start[0] - 3 + nm * (iy - start[1])];
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
-                auto &b = m->Access0(ix - start[0] + 1, iy - start[1]);
-                auto &c = m->Access0(ix - start[0] + 2, iy - start[1]);
+                auto &b = m->d[ix - start[0] + 1 + nm * (iy - start[1])];
+                auto &c = m->d[ix - start[0] + 2 + nm * (iy - start[1])];
                 LI(a, b, c);
               } else if (x == 0) {
-                auto &b = m->Access0(ix - start[0] + 2, iy - start[1]);
-                auto &c = m->Access0(ix - start[0] + 3, iy - start[1]);
+                auto &b = m->d[ix - start[0] + 2 + nm * (iy - start[1])];
+                auto &c = m->d[ix - start[0] + 3 + nm * (iy - start[1])];
                 LE(a, b, c);
               }
             }
@@ -4430,8 +4430,8 @@ struct VectorLab : public BlockLab<VectorElement> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m->Access0(ix - stenBeg[0], iy - stenBeg[1]) =
-                (-1.0) * m->Access0(x, y);
+            m->d[ix - stenBeg[0] + nm * (iy - stenBeg[1])] =
+                (-1.0) * m->d[x + nm * (y)];
           }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
