@@ -2107,9 +2107,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       int r = (*TFluxCorrection::grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
+        Real *s = (Real *)(&CoarseFace[base + (i2 / 2)]);
         for (int j = 0; j < sizeof(Element) / sizeof(Real); j++)
-          CoarseFace[base + (i2 / 2)].member(j) +=
-              recv_buffer[r][F.offset + dis + j];
+          s[j] += recv_buffer[r][F.offset + dis + j];
         dis += sizeof(Element) / sizeof(Real);
       }
     }
@@ -2324,7 +2324,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           Element avg = FineFace[i2] + FineFace[i2 + 1];
-	  memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
+          memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
           displacement += sizeof(Element) / sizeof(Real);
           memset(&FineFace[i2], 0, sizeof(Element));
           memset(&FineFace[i2 + 1], 0, sizeof(Element));
@@ -2447,8 +2447,7 @@ template <typename Element> struct Grid {
   size_t timestamp;
   int dim;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element>
-      Corrector;
+  FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element> Corrector;
   std::vector<BlockInfo *> boundary;
   Grid(int dim) : timestamp(0), dim(dim) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
@@ -2893,20 +2892,16 @@ template <typename Element> struct Grid {
 
 template <typename Element>
 static Element AverageDown(const Element &e0, const Element &e1,
-                               const Element &e2, const Element &e3) {
+                           const Element &e2, const Element &e3) {
   return 0.25 * ((e0 + e3) + (e1 + e2));
 }
-template <typename Element>
-static void LI(Element &a, Element b, Element c) {
-  Element kappa =
-      ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+template <typename Element> static void LI(Element &a, Element b, Element c) {
+  Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   Element lambda = (b - c) - kappa;
   a = (4.0 * kappa + 2.0 * lambda) + c;
 }
-template <typename Element>
-static void LE(Element &a, Element b, Element c) {
-  Element kappa =
-      ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+template <typename Element> static void LE(Element &a, Element b, Element c) {
+  Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   Element lambda = (b - c) - kappa;
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
@@ -3072,8 +3067,7 @@ template <typename Element> struct BlockLab {
             continue;
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
-          Element &coarseElement =
-              c[i - offset[0] + nc[0] * (j - offset[1])];
+          Element &coarseElement = c[i - offset[0] + nc[0] * (j - offset[1])];
           coarseElement = AverageDown(
               m[ix + nm[0] * iy], m[ix + 1 + nm[0] * iy],
               m[ix + nm[0] * (iy + 1)], m[ix + 1 + nm[0] * (iy + 1)]);
@@ -3144,8 +3138,7 @@ template <typename Element> struct BlockLab {
             &m[my_izx + (iy + 2 - start[1]) * m_vSize0];
         Element *__restrict__ ptrDest3 =
             &m[my_izx + (iy + 3 - start[1]) * m_vSize0];
-        const Element *ptrSrc0 =
-            &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        const Element *ptrSrc0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const Element *ptrSrc1 =
             &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
         const Element *ptrSrc2 =
@@ -3158,10 +3151,8 @@ template <typename Element> struct BlockLab {
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element *__restrict__ ptrDest =
-            &m[my_izx + (iy - start[1]) * m_vSize0];
-        const Element *ptrSrc =
-            &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        Element *__restrict__ ptrDest = &m[my_izx + (iy - start[1]) * m_vSize0];
+        const Element *ptrSrc = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3268,11 +3259,11 @@ template <typename Element> struct BlockLab {
         }
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
           Element *ptrDest =
-              (Element *)&m[my_izx + (abs(code[1]) * (iy - start[1]) +
-                                          (1 - abs(code[1])) *
-                                              (iy / 2 - start[1] +
-                                               aux * (e[1] - s[1]) / 2)) *
-                                             m_vSize0];
+              (Element *)&m[my_izx +
+                            (abs(code[1]) * (iy - start[1]) +
+                             (1 - abs(code[1])) * (iy / 2 - start[1] +
+                                                   aux * (e[1] - s[1]) / 2)) *
+                                m_vSize0];
           int YY = (abs(code[1]) == 1)
                        ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                        : iy;
@@ -3636,20 +3627,15 @@ template <typename Element> struct LoadBalancer {
     void prepare1(const BlockInfo &info, const bool Fillptr = true) {
       mn[0] = info.level;
       mn[1] = info.Z;
-      if (Fillptr) {
-        Real *aux = &(*(BlockType *)info.block)[0][0].member(0);
-        std::memcpy(&data[0], aux, sizeof(BlockType));
-      }
+      if (Fillptr)
+        std::memcpy(&data[0], info.block, sizeof(BlockType));
     }
     MPI_Block() {}
   };
   void AddBlock(const int level, const long long Z, Real *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
-    BlockType *b1 = (BlockType *)info.block;
-    assert(b1 != NULL);
-    Real *a1 = &(*b1[0][0]).member(0);
-    std::memcpy(a1, data, sizeof(BlockType));
+    std::memcpy(info.block, data, sizeof(BlockType));
     int p[2];
     sim.space_curve->inverse(Z, level, p[0], p[1]);
     if (level < sim.levelMax - 1)
@@ -4154,7 +4140,7 @@ template <typename TLab, typename Element> struct Adaptation {
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
                 Element average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
-                                              (b[j][i + 1] + b[j + 1][i]));
+                                          (b[j][i + 1] + b[j + 1][i]));
                 (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
               }
           }
@@ -4318,7 +4304,6 @@ struct Scalar {
   friend Scalar operator-(Scalar lhs, const Scalar &rhs) {
     return (lhs -= rhs);
   }
-  Real &member(int i) { return s; }
 };
 struct Vector {
   Real u[2];
