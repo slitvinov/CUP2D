@@ -2960,7 +2960,6 @@ template <typename ElementType> struct BlockLab {
   int coarsened_nei_codes_size;
   int offset[3];
   matrix<ElementType> *m_CoarsenedBlock;
-  const int m_InterpStencilEnd[3] = {2, 2, 1};
   bool coarsened;
   BlockLab()
       : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
@@ -3004,9 +3003,9 @@ template <typename ElementType> struct BlockLab {
     offset[0] = (m_stencilStart[0] - 1) / 2 + (-1);
     offset[1] = (m_stencilStart[1] - 1) / 2 + (-1);
     offset[2] = (m_stencilStart[2] - 1) / 2 + (0);
-    const int e[3] = {(m_stencilEnd[0]) / 2 + 1 + m_InterpStencilEnd[0] - 1,
-                      (m_stencilEnd[1]) / 2 + 1 + m_InterpStencilEnd[1] - 1,
-                      (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
+    const int e[3] = {(m_stencilEnd[0]) / 2 + 1 + (2) - 1,
+                      (m_stencilEnd[1]) / 2 + 1 + (2) - 1,
+                      (m_stencilEnd[2]) / 2 + 1 + (1) - 1};
     if (m_CoarsenedBlock == NULL ||
         (int)m_CoarsenedBlock->n[0] != (_BS_ / 2) + e[0] - offset[0] - 1 ||
         (int)m_CoarsenedBlock->n[1] != (_BS_ / 2) + e[1] - offset[1] - 1 ||
@@ -3115,9 +3114,9 @@ template <typename ElementType> struct BlockLab {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
           if (i > -(-1) &&
-              i < _BS_ / 2 - m_InterpStencilEnd[0] &&
+              i < _BS_ / 2 - (2) &&
               j > -(-1) &&
-              j < _BS_ / 2 - m_InterpStencilEnd[1])
+              j < _BS_ / 2 - (2))
             continue;
           const int ix = 2 * i - m_stencilStart[0];
           const int iy = 2 * j - m_stencilStart[1];
@@ -3366,12 +3365,12 @@ template <typename ElementType> struct BlockLab {
     int e[3] = {
         code[0] < 1
             ? (code[0] < 0 ? 0 : (_BS_ / 2))
-            : (_BS_ / 2) + (m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0] - 1,
+            : (_BS_ / 2) + (m_stencilEnd[0]) / 2 + (2) - 1,
         code[1] < 1
             ? (code[1] < 0 ? 0 : (_BS_ / 2))
-            : (_BS_ / 2) + (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1] - 1,
+            : (_BS_ / 2) + (m_stencilEnd[1]) / 2 + (2) - 1,
         code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                    : 1 + (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2] - 1};
+                    : 1 + (m_stencilEnd[2]) / 2 + (1) - 1};
     int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
@@ -3448,9 +3447,9 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     BlockType &b = *myblocks[icode];
-    int eC[3] = {(m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0],
-                 (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
-                 (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
+    int eC[3] = {(m_stencilEnd[0]) / 2 + (2),
+                 (m_stencilEnd[1]) / 2 + (2),
+                 (m_stencilEnd[2]) / 2 + (1)};
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
                 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
@@ -3474,8 +3473,8 @@ template <typename ElementType> struct BlockLab {
       int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1]; iy++) {
         if (code[1] == 0 && code[2] == 0 && iy > -(-1) &&
-            iy < _BS_ / 2 - m_InterpStencilEnd[1] &&
-            iz > -(0) && iz < 1 / 2 - m_InterpStencilEnd[2])
+            iy < _BS_ / 2 - (2) &&
+            iz > -(0) && iz < 1 / 2 - (1))
           continue;
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
@@ -4530,9 +4529,9 @@ struct VectorLab : public BlockLab<VectorElement> {
     } else {
       auto *const cb = this->m_CoarsenedBlock;
       const int eI[3] = {
-          (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1,
-          (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1,
-          (this->m_stencilEnd[2]) / 2 + 1 + this->m_InterpStencilEnd[2] - 1};
+          (this->m_stencilEnd[0]) / 2 + 1 + (2) - 1,
+          (this->m_stencilEnd[1]) / 2 + 1 + (2) - 1,
+          (this->m_stencilEnd[2]) / 2 + 1 + (1) - 1};
       const int sI[3] = {
           (this->m_stencilStart[0] - 1) / 2 + (-1),
           (this->m_stencilStart[1] - 1) / 2 + (-1),
@@ -4633,9 +4632,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
       bsize[1] = _BS_;
     } else {
       stenEnd[0] =
-          (this->m_stencilEnd[0]) / 2 + 1 + this->m_InterpStencilEnd[0] - 1;
+          (this->m_stencilEnd[0]) / 2 + 1 + (2) - 1;
       stenEnd[1] =
-          (this->m_stencilEnd[1]) / 2 + 1 + this->m_InterpStencilEnd[1] - 1;
+          (this->m_stencilEnd[1]) / 2 + 1 + (2) - 1;
       stenBeg[0] =
           (this->m_stencilStart[0] - 1) / 2 + (-1);
       stenBeg[1] =
