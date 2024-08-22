@@ -2919,7 +2919,6 @@ template <class DataType> struct Matrix3D {
     return d[i];
   }
   unsigned int *getSize() const { return (unsigned int*)n; }
-  unsigned int getSize(int dim) const { return n[dim]; }
 };
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
@@ -3042,7 +3041,7 @@ template <typename ElementType> struct BlockLab {
       const int _iz1 = _iz0 + 1;
       const int _iy0 = -m_stencilStart[1];
       const int _iy1 = _iy0 + _BS_;
-      const int m_vSize0 = m_cacheBlock->getSize(0);
+      const int m_vSize0 = m_cacheBlock->n[0];
       const int my_ix = -m_stencilStart[0];
 #pragma GCC ivdep
       for (int iz = _iz0; iz < _iz1; iz++) {
@@ -3198,7 +3197,7 @@ template <typename ElementType> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *myblocks[icode];
-    const int m_vSize0 = m_cacheBlock->getSize(0);
+    const int m_vSize0 = m_cacheBlock->n[0];
     const int my_ix = s[0] - m_stencilStart[0];
     const int mod = (e[1] - s[1]) % 4;
 #pragma GCC ivdep
@@ -3271,7 +3270,7 @@ template <typename ElementType> struct BlockLab {
                       sizeof(ElementType);
     if (!bytes)
       return;
-    int m_vSize0 = m_cacheBlock->getSize(0);
+    int m_vSize0 = m_cacheBlock->n[0];
     int yStep = (code[1] == 0) ? 2 : 1;
     int zStep = (code[2] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / yStep) % 4;
@@ -3456,7 +3455,7 @@ template <typename ElementType> struct BlockLab {
         std::max(code[2], 0) / 2 + (1 - abs(code[2])) * base[2] / 2 - code[2] +
             CoarseEdge[2] * code[2] / 2};
 
-    const int m_vSize0 = m_CoarsenedBlock->getSize(0);
+    const int m_vSize0 = m_CoarsenedBlock->n[0];
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
 #pragma GCC ivdep
@@ -3517,7 +3516,7 @@ template <typename ElementType> struct BlockLab {
                         code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]),
                     s[2] + std::max(code[2], 0) * CoarseBlockSize[2] -
                         code[2] * 1 + std::min(0, code[2]) * (e[2] - s[2])};
-    int m_vSize0 = m_CoarsenedBlock->getSize(0);
+    int m_vSize0 = m_CoarsenedBlock->n[0];
     int my_ix = s[0] - offset[0];
     int XX = start[0];
 #pragma GCC ivdep
