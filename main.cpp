@@ -3747,10 +3747,7 @@ template <typename Element> struct LoadBalancer {
         const long long Z = recv_blocks[r][i].mn[1];
         grid->_alloc(level, Z);
         BlockInfo &info = grid->get(level, Z);
-        BlockType *b1 = (BlockType *)info.block;
-        assert(b1 != NULL);
-        Real *a1 = &(*b1)[0][0].member(0);
-        std::memcpy(a1, recv_blocks[r][i].data, sizeof(BlockType));
+        std::memcpy(info.block, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
   void Balance_Diffusion(std::vector<long long> &block_distribution) {
