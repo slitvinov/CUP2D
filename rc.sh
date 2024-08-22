@@ -9,6 +9,6 @@ rm -rf "${d?not set}" &&
    module load gcc openmpi cuda python &&
    make -j "CXXFLAGS = -Wno-deprecated-declarations -Og -g3" -j &&
    OMP_NUM_THREADS=4 srun --mpi=pmix -p seas_gpu -c 1 -n 2 -N 1 --gpus 1 --mem 2Gb -t 15 sh -x run.sh &&
-   python3 post.py vort.*.xdmf2
+   ls vort.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
 ' &&
 rsync -avz "rc:$d"/vort* .
