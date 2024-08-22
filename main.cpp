@@ -636,8 +636,8 @@ struct BlockInfo {
   void *auxiliary, *block{nullptr};
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
-template <typename ElementType> struct BlockCase {
-  std::vector<ElementType> m_pData[6];
+template <typename Element> struct BlockCase {
+  std::vector<Element> m_pData[6];
   bool storedFace[6];
   int level;
   long long Z;
@@ -660,13 +660,13 @@ template <typename ElementType> struct BlockCase {
     Z = _Z;
   }
 };
-template <typename TGrid, typename ElementType> struct FluxCorrection {
+template <typename TGrid, typename Element> struct FluxCorrection {
   typedef TGrid GridType;
-  typedef ElementType BlockType[_BS_][_BS_];
+  typedef Element BlockType[_BS_][_BS_];
   int rank{0};
-  std::map<std::array<long long, 2>, BlockCase<ElementType> *> MapOfCases;
+  std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
   TGrid *grid;
-  std::vector<BlockCase<ElementType>> Cases;
+  std::vector<BlockCase<Element>> Cases;
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -676,8 +676,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
                           abs(-code[2]) * (std::max(0, -code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
-    BlockCase<ElementType> &CoarseCase = (*search->second);
-    std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
+    BlockCase<Element> &CoarseCase = (*search->second);
+    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
     assert(myFace / 2 == otherFace / 2);
     assert(search != MapOfCases.end());
     assert(CoarseCase.Z == info.Z);
@@ -694,8 +694,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       if (other_rank != rank)
         continue;
       auto search1 = MapOfCases.find({info.level + 1, Z});
-      BlockCase<ElementType> &FineCase = (*search1->second);
-      std::vector<ElementType> &FineFace = FineCase.m_pData[otherFace];
+      BlockCase<Element> &FineCase = (*search1->second);
+      std::vector<Element> &FineFace = FineCase.m_pData[otherFace];
       int d = myFace / 2;
       int d1 = std::max((d + 1) % 3, (d + 2) % 3);
       int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -716,8 +716,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       assert(FineFace.size() == CoarseFace.size());
       for (int i2 = 0; i2 < N2; i2 += 2) {
         CoarseFace[base + i2 / 2] += FineFace[i2] + FineFace[i2 + 1];
-        memset(&FineFace[i2], 0, sizeof(ElementType));
-        memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
+        memset(&FineFace[i2], 0, sizeof(Element));
+        memset(&FineFace[i2 + 1], 0, sizeof(Element));
       }
     }
   }
@@ -762,7 +762,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(BlockCase<ElementType>(storeFace, info.level, info.Z));
+        Cases.push_back(BlockCase<Element>(storeFace, info.level, info.Z));
       }
     }
     size_t Cases_index = 0;
@@ -773,7 +773,7 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
         if (Cases[Cases_index].level == info.level &&
             Cases[Cases_index].Z == info.Z) {
           MapOfCases.insert(
-              std::pair<std::array<long long, 2>, BlockCase<ElementType> *>(
+              std::pair<std::array<long long, 2>, BlockCase<Element> *>(
                   {Cases[Cases_index].level, Cases[Cases_index].Z},
                   &Cases[Cases_index]));
           grid->get(Cases[Cases_index].level, Cases[Cases_index].Z).auxiliary =
@@ -818,8 +818,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
           std::array<long long, 2> temp = {(long long)info.level, info.Z};
           auto search = MapOfCases.find(temp);
           assert(search != MapOfCases.end());
-          BlockCase<ElementType> &CoarseCase = (*search->second);
-          std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
+          BlockCase<Element> &CoarseCase = (*search->second);
+          std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
           const int d = myFace / 2;
           const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
           const int N2 = sizes[d2];
@@ -829,13 +829,13 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block[i2][j] += CoarseFace[i2];
-              memset(&CoarseFace[i2], 0, sizeof(ElementType));
+              memset(&CoarseFace[i2], 0, sizeof(Element));
             }
           } else {
             const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
             for (int i2 = 0; i2 < N2; i2++) {
               block[j][i2] += CoarseFace[i2];
-              memset(&CoarseFace[i2], 0, sizeof(ElementType));
+              memset(&CoarseFace[i2], 0, sizeof(Element));
             }
           }
         }
@@ -2042,11 +2042,11 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-template <typename TFluxCorrection, typename ElementType>
+template <typename TFluxCorrection, typename Element>
 struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
-  typedef ElementType BlockType[_BS_][_BS_];
-  typedef BlockCase<ElementType> Case;
+  typedef Element BlockType[_BS_][_BS_];
+  typedef BlockCase<Element> Case;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -2081,7 +2081,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     auto search = TFluxCorrection::MapOfCases.find(temp);
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
-    std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
+    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -2107,10 +2107,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       int r = (*TFluxCorrection::grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
-        for (int j = 0; j < sizeof(ElementType) / sizeof(Real); j++)
+        for (int j = 0; j < sizeof(Element) / sizeof(Real); j++)
           CoarseFace[base + (i2 / 2)].member(j) +=
               recv_buffer[r][F.offset + dis + j];
-        dis += sizeof(ElementType) / sizeof(Real);
+        dis += sizeof(Element) / sizeof(Real);
       }
     }
   }
@@ -2132,7 +2132,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     auto search = TFluxCorrection::MapOfCases.find(temp);
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
-    std::vector<ElementType> &CoarseFace = CoarseCase.m_pData[myFace];
+    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -2142,13 +2142,13 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block[i2][j] += CoarseFace[i2];
-        memset(&CoarseFace[i2], 0, sizeof(ElementType));
+        memset(&CoarseFace[i2], 0, sizeof(Element));
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block[j][i2] += CoarseFace[i2];
-        memset(&CoarseFace[i2], 0, sizeof(ElementType));
+        memset(&CoarseFace[i2], 0, sizeof(Element));
       }
     }
   }
@@ -2167,7 +2167,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     }
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
-    const int NC = sizeof(ElementType) / sizeof(Real);
+    const int NC = sizeof(Element) / sizeof(Real);
     int blocksize[] = {_BS_, _BS_, 1};
     TFluxCorrection::Cases.clear();
     TFluxCorrection::MapOfCases.clear();
@@ -2318,16 +2318,16 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        std::vector<ElementType> &FineFace = FineCase.m_pData[myFace];
+        std::vector<Element> &FineFace = FineCase.m_pData[myFace];
         int d = myFace / 2;
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
-          ElementType avg = FineFace[i2] + FineFace[i2 + 1];
-	  memcpy(&send_buffer[r][displacement], &avg, sizeof(ElementType));
-          displacement += sizeof(ElementType) / sizeof(Real);
-          memset(&FineFace[i2], 0, sizeof(ElementType));
-          memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
+          Element avg = FineFace[i2] + FineFace[i2 + 1];
+	  memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
+          displacement += sizeof(Element) / sizeof(Real);
+          memset(&FineFace[i2], 0, sizeof(Element));
+          memset(&FineFace[i2 + 1], 0, sizeof(Element));
         }
       }
     }
@@ -2433,8 +2433,8 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
     return getf(BlockInfoAll, level_base, m, n);
   }
 }
-template <typename ElementType> struct Grid {
-  typedef ElementType Block[_BS_][_BS_];
+template <typename Element> struct Grid {
+  typedef Element Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
@@ -2442,12 +2442,12 @@ template <typename ElementType> struct Grid {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  FluxCorrection<Grid, ElementType> CorrectorGrid;
-  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
+  FluxCorrection<Grid, Element> CorrectorGrid;
+  typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   size_t timestamp;
   int dim;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
-  FluxCorrectionMPI<FluxCorrection<Grid<ElementType>, ElementType>, ElementType>
+  FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element>
       Corrector;
   std::vector<BlockInfo *> boundary;
   Grid(int dim) : timestamp(0), dim(dim) {
@@ -2806,7 +2806,7 @@ template <typename ElementType> struct Grid {
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
     if (itSynchronizerMPI == SynchronizerMPIs.end()) {
       queryresult = new SynchronizerMPIType(stencil, Cstencil, this,
-                                            sizeof(ElementType) / sizeof(Real));
+                                            sizeof(Element) / sizeof(Real));
       queryresult->_Setup();
       SynchronizerMPIs[stencil] = queryresult;
     } else {
@@ -2891,46 +2891,46 @@ template <typename ElementType> struct Grid {
   }
 };
 
-template <typename ElementType>
-static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
-                               const ElementType &e2, const ElementType &e3) {
+template <typename Element>
+static Element AverageDown(const Element &e0, const Element &e1,
+                               const Element &e2, const Element &e3) {
   return 0.25 * ((e0 + e3) + (e1 + e2));
 }
-template <typename ElementType>
-static void LI(ElementType &a, ElementType b, ElementType c) {
-  ElementType kappa =
+template <typename Element>
+static void LI(Element &a, Element b, Element c) {
+  Element kappa =
       ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  ElementType lambda = (b - c) - kappa;
+  Element lambda = (b - c) - kappa;
   a = (4.0 * kappa + 2.0 * lambda) + c;
 }
-template <typename ElementType>
-static void LE(ElementType &a, ElementType b, ElementType c) {
-  ElementType kappa =
+template <typename Element>
+static void LE(Element &a, Element b, Element c) {
+  Element kappa =
       ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  ElementType lambda = (b - c) - kappa;
+  Element lambda = (b - c) - kappa;
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
-template <typename ElementType>
-static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
+template <typename Element>
+static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
   double dx = 0.25 * (2 * x - 1);
   double dy = 0.25 * (2 * y - 1);
-  ElementType dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
-  ElementType dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
-  ElementType dudxdy =
+  Element dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
+  Element dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
+  Element dudxdy =
       0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
-  ElementType dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
-  ElementType dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
+  Element dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
+  Element dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
   R = (*C[1][1] + (dx * dudx + dy * dudy)) +
       (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
        (dx * dy) * dudxdy);
 }
-template <typename ElementType> struct BlockLab {
-  typedef ElementType BlockType[_BS_][_BS_];
+template <typename Element> struct BlockLab {
+  typedef Element BlockType[_BS_][_BS_];
   bool coarsened, istensorial, use_averages;
-  Grid<ElementType> *m_refGrid;
+  Grid<Element> *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
-  ElementType *m, *c;
+  Element *m, *c;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
@@ -2942,17 +2942,17 @@ template <typename ElementType> struct BlockLab {
     free(m);
     free(c);
   }
-  ElementType &operator()(int x, int y) {
+  Element &operator()(int x, int y) {
     x -= start[0];
     y -= start[1];
     return m[nm[0] * y + x];
   }
-  const ElementType &operator()(int x, int y) const {
+  const Element &operator()(int x, int y) const {
     x -= start[0];
     y -= start[1];
     return m[nm[0] * y + x];
   }
-  virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
+  virtual void prepare(Grid<Element> &grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -2965,14 +2965,14 @@ template <typename ElementType> struct BlockLab {
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
-    m = (ElementType *)malloc(nm[0] * nm[1] * sizeof(ElementType));
+    m = (Element *)malloc(nm[0] * nm[1] * sizeof(Element));
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
-    c = (ElementType *)malloc(nc[0] * nc[1] * sizeof(ElementType));
+    c = (Element *)malloc(nc[0] * nc[1] * sizeof(Element));
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
@@ -2983,8 +2983,8 @@ template <typename ElementType> struct BlockLab {
     NZ = 1 * aux;
     assert(m != NULL);
     BlockType &block = *(BlockType *)info.block;
-    ElementType *ptrSource = &block[0][0];
-    int nbytes = sizeof(ElementType) * _BS_;
+    Element *ptrSource = &block[0][0];
+    int nbytes = sizeof(Element) * _BS_;
     int _iz0 = -start[2];
     int _iz1 = _iz0 + 1;
     int _iy0 = -start[1];
@@ -2994,12 +2994,12 @@ template <typename ElementType> struct BlockLab {
     for (int iz = _iz0; iz < _iz1; iz++) {
       int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
-        ElementType *__restrict__ ptrDestination0 = &m[my_izx + (iy)*m_vSize0];
-        ElementType *__restrict__ ptrDestination1 =
+        Element *__restrict__ ptrDestination0 = &m[my_izx + (iy)*m_vSize0];
+        Element *__restrict__ ptrDestination1 =
             &m[my_izx + (iy + 1) * m_vSize0];
-        ElementType *__restrict__ ptrDestination2 =
+        Element *__restrict__ ptrDestination2 =
             &m[my_izx + (iy + 2) * m_vSize0];
-        ElementType *__restrict__ ptrDestination3 =
+        Element *__restrict__ ptrDestination3 =
             &m[my_izx + (iy + 3) * m_vSize0];
         memcpy(ptrDestination0, (ptrSource), nbytes);
         memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
@@ -3072,7 +3072,7 @@ template <typename ElementType> struct BlockLab {
             continue;
           const int ix = 2 * i - start[0];
           const int iy = 2 * j - start[1];
-          ElementType &coarseElement =
+          Element &coarseElement =
               c[i - offset[0] + nc[0] * (j - offset[1])];
           coarseElement = AverageDown(
               m[ix + nm[0] * iy], m[ix + 1 + nm[0] * iy],
@@ -3121,7 +3121,7 @@ template <typename ElementType> struct BlockLab {
   }
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
-    const int bytes = (e[0] - s[0]) * sizeof(ElementType);
+    const int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
@@ -3136,21 +3136,21 @@ template <typename ElementType> struct BlockLab {
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        ElementType *__restrict__ ptrDest0 =
+        Element *__restrict__ ptrDest0 =
             &m[my_izx + (iy - start[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest1 =
+        Element *__restrict__ ptrDest1 =
             &m[my_izx + (iy + 1 - start[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest2 =
+        Element *__restrict__ ptrDest2 =
             &m[my_izx + (iy + 2 - start[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest3 =
+        Element *__restrict__ ptrDest3 =
             &m[my_izx + (iy + 3 - start[1]) * m_vSize0];
-        const ElementType *ptrSrc0 =
+        const Element *ptrSrc0 =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const ElementType *ptrSrc1 =
+        const Element *ptrSrc1 =
             &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const ElementType *ptrSrc2 =
+        const Element *ptrSrc2 =
             &b[iy + 2 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const ElementType *ptrSrc3 =
+        const Element *ptrSrc3 =
             &b[iy + 3 - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
@@ -3158,9 +3158,9 @@ template <typename ElementType> struct BlockLab {
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        ElementType *__restrict__ ptrDest =
+        Element *__restrict__ ptrDest =
             &m[my_izx + (iy - start[1]) * m_vSize0];
-        const ElementType *ptrSrc =
+        const Element *ptrSrc =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
       }
@@ -3170,7 +3170,7 @@ template <typename ElementType> struct BlockLab {
                             const int *const s, const int *const e) {
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-                      sizeof(ElementType);
+                      sizeof(Element);
     if (!bytes)
       return;
     int m_vSize0 = nm[0];
@@ -3201,25 +3201,25 @@ template <typename ElementType> struct BlockLab {
       for (int iz = s[2]; iz < e[2]; iz += zStep) {
         const int my_izx = my_ix;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
-          ElementType *__restrict__ ptrDest0 =
+          Element *__restrict__ ptrDest0 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 0 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      m_vSize0];
-          ElementType *__restrict__ ptrDest1 =
+          Element *__restrict__ ptrDest1 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 1 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      m_vSize0];
-          ElementType *__restrict__ ptrDest2 =
+          Element *__restrict__ ptrDest2 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 2 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      m_vSize0];
-          ElementType *__restrict__ ptrDest3 =
+          Element *__restrict__ ptrDest3 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 3 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
@@ -3241,14 +3241,14 @@ template <typename ElementType> struct BlockLab {
                         ? 2 * (iy + 3 * yStep - code[1] * _BS_) +
                               std::min(0, code[1]) * _BS_
                         : iy + 3 * yStep;
-          ElementType *ptrSrc_00 = &b[YY0][XX];
-          ElementType *ptrSrc_10 = &b[YY0 + 1][XX];
-          ElementType *ptrSrc_01 = &b[YY1][XX];
-          ElementType *ptrSrc_11 = &b[YY1 + 1][XX];
-          ElementType *ptrSrc_02 = &b[YY2][XX];
-          ElementType *ptrSrc_12 = &b[YY2 + 1][XX];
-          ElementType *ptrSrc_03 = &b[YY3][XX];
-          ElementType *ptrSrc_13 = &b[YY3 + 1][XX];
+          Element *ptrSrc_00 = &b[YY0][XX];
+          Element *ptrSrc_10 = &b[YY0 + 1][XX];
+          Element *ptrSrc_01 = &b[YY1][XX];
+          Element *ptrSrc_11 = &b[YY1 + 1][XX];
+          Element *ptrSrc_02 = &b[YY2][XX];
+          Element *ptrSrc_12 = &b[YY2 + 1][XX];
+          Element *ptrSrc_03 = &b[YY3][XX];
+          Element *ptrSrc_13 = &b[YY3 + 1][XX];
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
                ee++) {
@@ -3267,8 +3267,8 @@ template <typename ElementType> struct BlockLab {
           }
         }
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
-          ElementType *ptrDest =
-              (ElementType *)&m[my_izx + (abs(code[1]) * (iy - start[1]) +
+          Element *ptrDest =
+              (Element *)&m[my_izx + (abs(code[1]) * (iy - start[1]) +
                                           (1 - abs(code[1])) *
                                               (iy / 2 - start[1] +
                                                aux * (e[1] - s[1]) / 2)) *
@@ -3276,8 +3276,8 @@ template <typename ElementType> struct BlockLab {
           int YY = (abs(code[1]) == 1)
                        ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                        : iy;
-          ElementType *ptrSrc_0 = &b[YY][XX];
-          ElementType *ptrSrc_1 = &b[YY + 1][XX];
+          Element *ptrSrc_0 = &b[YY][XX];
+          Element *ptrSrc_1 = &b[YY + 1][XX];
           for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                  (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
                ee++) {
@@ -3310,7 +3310,7 @@ template <typename ElementType> struct BlockLab {
                             : (_BS_ / 2) + (end[1]) / 2 + (2) - 1,
                 code[2] < 1 ? (code[2] < 0 ? 0 : 1)
                             : 1 + (end[2]) / 2 + (1) - 1};
-    int bytes = (e[0] - s[0]) * sizeof(ElementType);
+    int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
@@ -3353,26 +3353,26 @@ template <typename ElementType> struct BlockLab {
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        ElementType *__restrict__ ptrDest0 =
+        Element *__restrict__ ptrDest0 =
             &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest1 =
+        Element *__restrict__ ptrDest1 =
             &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest2 =
+        Element *__restrict__ ptrDest2 =
             &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
-        ElementType *__restrict__ ptrDest3 =
+        Element *__restrict__ ptrDest3 =
             &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
-        const ElementType *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
-        const ElementType *ptrSrc3 = &b[iy + 3 + start[1]][s[0] + start[0]];
+        const Element *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
+        const Element *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
+        const Element *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
+        const Element *ptrSrc3 = &b[iy + 3 + start[1]][s[0] + start[0]];
         memcpy(ptrDest0, ptrSrc0, bytes);
         memcpy(ptrDest1, ptrSrc1, bytes);
         memcpy(ptrDest2, ptrSrc2, bytes);
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        ElementType *ptrDest = &c[my_izx + (iy - offset[1]) * m_vSize0];
-        const ElementType *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
+        Element *ptrDest = &c[my_izx + (iy - offset[1]) * m_vSize0];
+        const Element *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
@@ -3390,7 +3390,7 @@ template <typename ElementType> struct BlockLab {
         code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
         code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1,
         code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + eC[2] - 1};
-    int bytes = (e[0] - s[0]) * sizeof(ElementType);
+    int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
     int start[3] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
@@ -3408,11 +3408,11 @@ template <typename ElementType> struct BlockLab {
         if (code[1] == 0 && code[2] == 0 && iy > -(-1) && iy < _BS_ / 2 - (2) &&
             iz > -(0) && iz < 1 / 2 - (1))
           continue;
-        ElementType *__restrict__ ptrDest1 =
+        Element *__restrict__ ptrDest1 =
             &c[my_izx + (iy - offset[1]) * m_vSize0];
         int YY = 2 * (iy - s[1]) + start[1];
-        ElementType *ptrSrc_0 = (ElementType *)&b[YY][XX];
-        ElementType *ptrSrc_1 = (ElementType *)&b[YY + 1][XX];
+        Element *ptrSrc_0 = (Element *)&b[YY][XX];
+        Element *ptrSrc_1 = (Element *)&b[YY + 1][XX];
         for (int ee = 0; ee < e[0] - s[0]; ee++) {
           ptrDest1[ee] =
               AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
@@ -3452,7 +3452,7 @@ template <typename ElementType> struct BlockLab {
           code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
           code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2),
           code[2] < 1 ? (code[2] < 0 ? ((start[2] - 1) / 2) : 0) : 1};
-      int bytes = (e[0] - s[0]) * sizeof(ElementType);
+      int bytes = (e[0] - s[0]) * sizeof(Element);
       if (!bytes)
         continue;
       if (use_averages) {
@@ -3464,7 +3464,7 @@ template <typename ElementType> struct BlockLab {
             int XX =
                 (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
                 sC[0];
-            ElementType *Test[3][3];
+            Element *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++)
                 Test[i][j] = &c[XX - 1 + i - offset[0] +
@@ -3497,7 +3497,7 @@ template <typename ElementType> struct BlockLab {
             if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
             if (code[0] != 0) {
-              ElementType dudy, dudy2;
+              Element dudy, dudy2;
               if (YY + offset[1] == 0) {
                 dudy = (-0.5 * c[XX + nc[0] * (YY + 2)] -
                         1.5 * c[XX + nc[0] * (YY)]) +
@@ -3529,7 +3529,7 @@ template <typename ElementType> struct BlockLab {
                 m[ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp)] =
                     c[XX + nc[0] * (YY)] - dy * dudy + (0.5 * dy * dy) * dudy2;
             } else {
-              ElementType dudx, dudx2;
+              Element dudx, dudx2;
               if (XX + offset[0] == 0) {
                 dudx = (-0.5 * c[XX + 2 + nc[0] * (YY)] -
                         1.5 * c[XX + nc[0] * (YY)]) +
@@ -3622,10 +3622,10 @@ template <typename ElementType> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename ElementType> struct LoadBalancer {
-  typedef ElementType BlockType[_BS_][_BS_];
+template <typename Element> struct LoadBalancer {
+  typedef Element BlockType[_BS_][_BS_];
   bool movedBlocks;
-  Grid<ElementType> *grid;
+  Grid<Element> *grid;
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
     long long mn[2];
@@ -3664,7 +3664,7 @@ template <typename ElementType> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  LoadBalancer(Grid<ElementType> &a_grid) {
+  LoadBalancer(Grid<Element> &a_grid) {
     grid = &a_grid;
     movedBlocks = false;
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
@@ -3966,17 +3966,17 @@ template <typename ElementType> struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename ElementType> struct Adaptation {
-  typedef ElementType BlockType[_BS_][_BS_];
-  typedef Synchronizer<Grid<ElementType>> SynchronizerMPIType;
+template <typename TLab, typename Element> struct Adaptation {
+  typedef Element BlockType[_BS_][_BS_];
+  typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
-  LoadBalancer<ElementType> *Balancer;
-  Grid<ElementType> *grid;
+  LoadBalancer<Element> *Balancer;
+  Grid<Element> *grid;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
-  Adaptation(Grid<ElementType> &g) {
+  Adaptation(Grid<Element> &g) {
     grid = &g;
     boundary_needed = false;
     stencil.sx = -1;
@@ -3986,13 +3986,13 @@ template <typename TLab, typename ElementType> struct Adaptation {
     stencil.ey = 2;
     stencil.ez = 1;
     stencil.tensorial = true;
-    for (int i = 0; i < sizeof(ElementType) / sizeof(Real); i++)
+    for (int i = 0; i < sizeof(Element) / sizeof(Real); i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<ElementType>(*grid);
+    Balancer = new LoadBalancer<Element>(*grid);
   }
   void Adapt(bool basic) {
     basic_refinement = basic;
-    Synchronizer<Grid<ElementType>> *Synch = nullptr;
+    Synchronizer<Grid<Element>> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync1(stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
@@ -4069,21 +4069,21 @@ template <typename TLab, typename ElementType> struct Adaptation {
               memset(&b, 0, sizeof(BlockType));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
-                  ElementType dudx =
+                  Element dudx =
                       0.5 * (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) -
                              lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J]));
-                  ElementType dudy =
+                  Element dudy =
                       0.5 * (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) -
                              lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1));
-                  ElementType dudx2 =
+                  Element dudx2 =
                       (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) +
                        lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J])) -
                       2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
-                  ElementType dudy2 =
+                  Element dudy2 =
                       (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) +
                        lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1)) -
                       2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
-                  ElementType dudxdy =
+                  Element dudxdy =
                       0.25 *
                       ((lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] + 1) +
                         lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
@@ -4156,7 +4156,7 @@ template <typename TLab, typename ElementType> struct Adaptation {
             BlockType &b = *Blocks[J * 2 + I];
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
-                ElementType average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
+                Element average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
                                               (b[j][i + 1] + b[j + 1][i]));
                 (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
               }
@@ -4238,11 +4238,11 @@ static void computeA(Kernel &&kernel, TGrid *g) {
   MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
               MPI_STATUSES_IGNORE);
 }
-template <typename Kernel, typename ElementType1, typename LabMPI,
-          typename ElementType2, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
-                     Grid<ElementType2> &grid2) {
-  Synchronizer<Grid<ElementType1>> &Synch = *grid.sync1(kernel.stencil);
+template <typename Kernel, typename Element1, typename LabMPI,
+          typename Element2, typename LabMPI2>
+static void computeB(const Kernel &kernel, Grid<Element1> &grid,
+                     Grid<Element2> &grid2) {
+  Synchronizer<Grid<Element1>> &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4253,7 +4253,7 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  Synchronizer<Grid<ElementType2>> &Synch2 = *grid2.sync1(kernel2.stencil);
+  Synchronizer<Grid<Element2>> &Synch2 = *grid2.sync1(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.infos;
@@ -6309,7 +6309,7 @@ static Real dV_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
-template <typename ElementType> struct KernelAdvectDiffuse {
+template <typename Element> struct KernelAdvectDiffuse {
   KernelAdvectDiffuse() {
     uinf[0] = sim.uinfx;
     uinf[1] = sim.uinfy;
@@ -6327,12 +6327,12 @@ template <typename ElementType> struct KernelAdvectDiffuse {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase<ElementType> *tempCase =
-        (BlockCase<ElementType> *)(tmpVInfo[info.id].auxiliary);
-    ElementType *faceXm = nullptr;
-    ElementType *faceXp = nullptr;
-    ElementType *faceYm = nullptr;
-    ElementType *faceYp = nullptr;
+    BlockCase<Element> *tempCase =
+        (BlockCase<Element> *)(tmpVInfo[info.id].auxiliary);
+    Element *faceXm = nullptr;
+    Element *faceXp = nullptr;
+    Element *faceYm = nullptr;
+    Element *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
