@@ -2972,7 +2972,6 @@ template <typename ElementType> struct BlockLab {
     m_InterpStencilStart[0] = m_InterpStencilStart[1] =
         m_InterpStencilStart[2] = 0;
     m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
-    1 = 1;
   }
   ~BlockLab() {
     delete m_cacheBlock;
