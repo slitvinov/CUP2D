@@ -641,7 +641,10 @@ template <typename Element> struct BlockCase {
   bool storedFace[6];
   int level;
   long long Z;
-  BlockCase(bool _storedFace[6], int _level, long long _Z) {
+  const int dim;
+  BlockCase(bool _storedFace[6], int _level, long long _Z, int dim) :
+    dim(dim)
+  {
     storedFace[0] = _storedFace[0];
     storedFace[1] = _storedFace[1];
     storedFace[2] = _storedFace[2];
@@ -667,6 +670,8 @@ template <typename TGrid, typename Element> struct FluxCorrection {
   std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
   TGrid *grid;
   std::vector<BlockCase<Element>> Cases;
+  const int dim;
+  FluxCorrection(int dim) : dim(dim) { }
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -762,7 +767,7 @@ template <typename TGrid, typename Element> struct FluxCorrection {
         }
       }
       if (stored) {
-        Cases.push_back(BlockCase<Element>(storeFace, info.level, info.Z));
+        Cases.push_back(BlockCase<Element>(storeFace, info.level, info.Z, dim));
       }
     }
     size_t Cases_index = 0;
@@ -1158,6 +1163,7 @@ struct PackInfo {
   int ez;
 };
 template <typename TGrid> struct Synchronizer {
+  const int dim;
   StencilInfo stencil;
   StencilInfo Cstencil;
   TGrid *grid;
@@ -1171,7 +1177,6 @@ template <typename TGrid> struct Synchronizer {
   std::set<int> Neighbors;
   std::vector<std::vector<UnPackInfo>> myunpacks;
   StencilManager SM;
-  const unsigned int gptfloats;
   const int NC;
   std::vector<std::vector<PackInfo>> send_packinfos;
   std::vector<std::vector<Interface>> send_interfaces;
@@ -1180,6 +1185,7 @@ template <typename TGrid> struct Synchronizer {
   bool use_averages;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::unordered_map<int, MPI_Request *> mapofrequests;
+  Synchronizer(int dim) : dim(dim) { }
   struct DuplicatesManager {
     struct cube {
       std::vector<MyRange> compass[27];
@@ -1744,10 +1750,10 @@ template <typename TGrid> struct Synchronizer {
     }
   }
   Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
-               int gptfloats)
-      : stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1), gptfloats(gptfloats),
-        NC(a_stencil.selcomponents.size()) {
+               int dim)
+    : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
+      SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
+      NC(a_stencil.selcomponents.size()) {
     grid = _grid;
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || stencil.sz < -2 ||
@@ -1852,11 +1858,11 @@ template <typename TGrid> struct Synchronizer {
                     int comp = stencil.selcomponents[c];
                     dst[pos] =
                         0.25 *
-                        (((*(src + gptfloats * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY + 1) * _BS_) +
+                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) +
                              comp))) +
-                         ((*(src + gptfloats * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY)*_BS_) + comp))));
+                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
                   }
                 }
@@ -1892,11 +1898,11 @@ template <typename TGrid> struct Synchronizer {
                     int comp = stencil.selcomponents[c];
                     dst[pos] =
                         0.25 *
-                        (((*(src + gptfloats * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY + 1) * _BS_) +
+                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) +
                              comp))) +
-                         ((*(src + gptfloats * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + gptfloats * (XX + 1 + (YY)*_BS_) + comp))));
+                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
                   }
                 }
@@ -1906,7 +1912,7 @@ template <typename TGrid> struct Synchronizer {
 #pragma omp for
           for (size_t i = 0; i < send_packinfos[r].size(); i++) {
             const PackInfo &info = send_packinfos[r][i];
-            pack(info.block, info.pack, gptfloats,
+            pack(info.block, info.pack, dim,
                  &stencil.selcomponents.front(), NC, info.sx, info.sy, info.sz,
                  info.ex, info.ey, info.ez, _BS_, _BS_);
           }
@@ -1942,9 +1948,9 @@ template <typename TGrid> struct Synchronizer {
         Real *dst =
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
                           (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
-                             gptfloats;
+                             dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         gptfloats, &stencil.selcomponents[0],
+                         dim, &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -1960,14 +1966,14 @@ template <typename TGrid> struct Synchronizer {
           Real *dst1 = coarseBlock +
                        ((sC[2] - offset[2]) * CLength[0] * CLength[1] +
                         (sC[1] - offset[1]) * CLength[0] + sC[0] - offset[0]) *
-                           gptfloats;
+                           dim;
           int L[3];
           SM.CoarseStencilLength(
               (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
           unpack_subregion(
               &recv_buffer[otherrank]
                           [unpack.offset + unpack.CoarseVersionOffset],
-              &dst1[0], gptfloats, &stencil.selcomponents[0],
+              &dst1[0], dim, &stencil.selcomponents[0],
               stencil.selcomponents.size(), unpack.CoarseVersionsrcxstart,
               unpack.CoarseVersionsrcystart, unpack.CoarseVersionsrczstart,
               unpack.CoarseVersionLX, unpack.CoarseVersionLY, 0, 0, 0, L[0],
@@ -1984,9 +1990,9 @@ template <typename TGrid> struct Synchronizer {
         Real *dst = coarseBlock +
                     ((sC[2] - offset[2]) * CLength[0] * CLength[1] + sC[0] -
                      offset[0] + (sC[1] - offset[1]) * CLength[0]) *
-                        gptfloats;
+                        dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         gptfloats, &stencil.selcomponents[0],
+                         dim, &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -2031,9 +2037,9 @@ template <typename TGrid> struct Synchronizer {
                  Length[0] +
              abs(code[0]) * (s[0] - stencil.sx) +
              (1 - abs(code[0])) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
-                gptfloats;
+                dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         gptfloats, &stencil.selcomponents[0],
+                         dim, &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -2047,6 +2053,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   using TGrid = typename TFluxCorrection::GridType;
   typedef Element BlockType[_BS_][_BS_];
   typedef BlockCase<Element> Case;
+  const int dim;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -2069,6 +2076,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
+  FluxCorrectionMPI(int dim) : dim(dim), TFluxCorrection(dim) { }
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -2257,7 +2265,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         }
       }
       if (stored) {
-        TFluxCorrection::Cases.push_back(Case(storeFace, info.level, info.Z));
+        TFluxCorrection::Cases.push_back(Case(storeFace, info.level, info.Z, dim));
       }
     }
     size_t Cases_index = 0;
@@ -2438,14 +2446,14 @@ template <typename Element> struct Grid {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  FluxCorrection<Grid, Element> CorrectorGrid;
   typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
-  size_t timestamp;
   const int dim;
-  std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element> Corrector;
+  FluxCorrection<Grid, Element> CorrectorGrid;
+  size_t timestamp;
+  std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
-  Grid(int dim) : timestamp(0), dim(dim) {
+  Grid(int dim) : dim(dim),  Corrector(dim), CorrectorGrid(dim), timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -2800,8 +2808,7 @@ template <typename Element> struct Grid {
     typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
     if (itSynchronizerMPI == SynchronizerMPIs.end()) {
-      queryresult = new SynchronizerMPIType(stencil, Cstencil, this,
-                                            sizeof(Element) / sizeof(Real));
+      queryresult = new SynchronizerMPIType(stencil, Cstencil, this, dim);
       queryresult->_Setup();
       SynchronizerMPIs[stencil] = queryresult;
     } else {
