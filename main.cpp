@@ -4626,6 +4626,22 @@ typedef VectorElement VectorBlock[_BS_][_BS_];
 typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
 struct BlockLabDirichlet : public BlockLab<VectorElement> {
+  Synchronizer<Grid<VectorElement>> *refSynchronizerMPI;
+  virtual void prepare(Grid<VectorElement> &grid,
+                       const StencilInfo &stencil) override {
+    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
+    BlockLab<VectorElement>::prepare(grid, stencil);
+  }
+  virtual void load(BlockInfo &info, bool applybc) override {
+    BlockLab<VectorElement>::load(info, applybc);
+    Real *dst = (Real *)&m_cacheBlock->LinAccess(0);
+    Real *dst1 = (Real *)&m_CoarsenedBlock->LinAccess(0);
+    refSynchronizerMPI->fetch(info, m_cacheBlock->getSize(),
+                              m_CoarsenedBlock->getSize(), dst,
+                              dst1);
+    if (sim.size > 1)
+      post_load(info, applybc);
+  }
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -4795,7 +4811,7 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef BlockLabMPI<BlockLabDirichlet, VectorElement> VectorLab;
+typedef BlockLabDirichlet VectorLab;
 typedef BlockLabMPI<BlockLabNeumann, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
