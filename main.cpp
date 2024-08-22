@@ -4316,75 +4316,75 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     }
   }
 }
-struct ScalarElement {
+struct Scalar {
   Real s = 0;
   void clear() { s = 0; }
-  ScalarElement &operator*=(const Real a) {
+  Scalar &operator*=(const Real a) {
     this->s *= a;
     return *this;
   }
-  ScalarElement &operator+=(const ScalarElement &rhs) {
+  Scalar &operator+=(const Scalar &rhs) {
     this->s += rhs.s;
     return *this;
   }
-  ScalarElement &operator-=(const ScalarElement &rhs) {
+  Scalar &operator-=(const Scalar &rhs) {
     this->s -= rhs.s;
     return *this;
   }
-  friend ScalarElement operator*(const Real a, ScalarElement el) {
+  friend Scalar operator*(const Real a, Scalar el) {
     return (el *= a);
   }
-  friend ScalarElement operator+(ScalarElement lhs, const ScalarElement &rhs) {
+  friend Scalar operator+(Scalar lhs, const Scalar &rhs) {
     return (lhs += rhs);
   }
-  friend ScalarElement operator-(ScalarElement lhs, const ScalarElement &rhs) {
+  friend Scalar operator-(Scalar lhs, const Scalar &rhs) {
     return (lhs -= rhs);
   }
   Real &member(int i) { return s; }
   static constexpr int DIM = 1;
 };
-struct VectorElement {
+struct Vector {
   static constexpr int DIM = 2;
   Real u[2];
-  VectorElement() { u[0] = u[1] = 0; }
+  Vector() { u[0] = u[1] = 0; }
   void clear() { u[0] = u[1] = 0; }
-  VectorElement &operator*=(const Real a) {
+  Vector &operator*=(const Real a) {
     u[0] *= a;
     u[1] *= a;
     return *this;
   }
-  VectorElement &operator+=(const VectorElement &rhs) {
+  Vector &operator+=(const Vector &rhs) {
     u[0] += rhs.u[0];
     u[1] += rhs.u[1];
     return *this;
   }
-  VectorElement &operator-=(const VectorElement &rhs) {
+  Vector &operator-=(const Vector &rhs) {
     u[0] -= rhs.u[0];
     u[1] -= rhs.u[1];
     return *this;
   }
-  friend VectorElement operator*(const Real a, VectorElement el) {
+  friend Vector operator*(const Real a, Vector el) {
     return (el *= a);
   }
-  friend VectorElement operator+(VectorElement lhs, const VectorElement &rhs) {
+  friend Vector operator+(Vector lhs, const Vector &rhs) {
     return (lhs += rhs);
   }
-  friend VectorElement operator-(VectorElement lhs, const VectorElement &rhs) {
+  friend Vector operator-(Vector lhs, const Vector &rhs) {
     return (lhs -= rhs);
   }
   Real &member(int i) { return u[i]; }
 };
-typedef ScalarElement ScalarBlock[_BS_][_BS_];
-typedef VectorElement VectorBlock[_BS_][_BS_];
-struct VectorLab : public BlockLab<VectorElement> {
-  Synchronizer<Grid<VectorElement>> *refSynchronizerMPI;
-  virtual void prepare(Grid<VectorElement> &grid,
+typedef Scalar ScalarBlock[_BS_][_BS_];
+typedef Vector VectorBlock[_BS_][_BS_];
+struct VectorLab : public BlockLab<Vector> {
+  Synchronizer<Grid<Vector>> *refSynchronizerMPI;
+  virtual void prepare(Grid<Vector> &grid,
 		       const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    BlockLab<VectorElement>::prepare(grid, stencil);
+    BlockLab<Vector>::prepare(grid, stencil);
   }
   virtual void load(BlockInfo &info, bool applybc) override {
-    BlockLab<VectorElement>::load(info, applybc);
+    BlockLab<Vector>::load(info, applybc);
     Real *dst = (Real *)m;
     Real *dst1 = (Real *)c;
     refSynchronizerMPI->fetch(info, nm, nc, dst, dst1);
@@ -4495,25 +4495,25 @@ struct VectorLab : public BlockLab<VectorElement> {
       }
     }
   }
-  VectorLab() : BlockLab<VectorElement>() {}
+  VectorLab() : BlockLab<Vector>() {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
 };
-struct ScalarLab : public BlockLab<ScalarElement> {
-  Synchronizer<Grid<ScalarElement>> *refSynchronizerMPI;
-  virtual void prepare(Grid<ScalarElement> &grid,
+struct ScalarLab : public BlockLab<Scalar> {
+  Synchronizer<Grid<Scalar>> *refSynchronizerMPI;
+  virtual void prepare(Grid<Scalar> &grid,
 		       const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    BlockLab<ScalarElement>::prepare(grid, stencil);
+    BlockLab<Scalar>::prepare(grid, stencil);
   }
   virtual void load(BlockInfo &info, bool applybc) override {
-    BlockLab<ScalarElement>::load(info, applybc);
-    Real *dst = (Real *)&BlockLab<ScalarElement>::m[0];
-    Real *dst1 = (Real *)&BlockLab<ScalarElement>::c[0];
-    refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::nm,
-			      BlockLab<ScalarElement>::nc, dst, dst1);
+    BlockLab<Scalar>::load(info, applybc);
+    Real *dst = (Real *)&BlockLab<Scalar>::m[0];
+    Real *dst1 = (Real *)&BlockLab<Scalar>::c[0];
+    refSynchronizerMPI->fetch(info, BlockLab<Scalar>::nm,
+			      BlockLab<Scalar>::nc, dst, dst1);
     if (sim.size > 1)
-      BlockLab<ScalarElement>::post_load(info, applybc);
+      BlockLab<Scalar>::post_load(info, applybc);
   }
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
@@ -4570,8 +4570,8 @@ struct ScalarLab : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
-typedef Adaptation<VectorLab, VectorElement> VectorAMR;
+typedef Adaptation<ScalarLab, Scalar> ScalarAMR;
+typedef Adaptation<VectorLab, Vector> VectorAMR;
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
@@ -4580,13 +4580,13 @@ struct Skin {
   }
 };
 static struct {
-  Grid<ScalarElement> *chi = nullptr;
-  Grid<VectorElement> *vel = nullptr;
-  Grid<VectorElement> *vold = nullptr;
-  Grid<ScalarElement> *pres = nullptr;
-  Grid<VectorElement> *tmpV = nullptr;
-  Grid<ScalarElement> *tmp = nullptr;
-  Grid<ScalarElement> *pold = nullptr;
+  Grid<Scalar> *chi = nullptr;
+  Grid<Vector> *vel = nullptr;
+  Grid<Vector> *vold = nullptr;
+  Grid<Scalar> *pres = nullptr;
+  Grid<Vector> *tmpV = nullptr;
+  Grid<Scalar> *tmp = nullptr;
+  Grid<Scalar> *pold = nullptr;
   ScalarAMR *tmp_amr = nullptr;
   ScalarAMR *chi_amr = nullptr;
   ScalarAMR *pres_amr = nullptr;
@@ -5829,7 +5829,7 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp);
-  computeB<ComputeSurfaceNormals, ScalarElement, ScalarLab, ScalarElement,
+  computeB<ComputeSurfaceNormals, Scalar, ScalarLab, Scalar,
 	   ScalarLab>(ComputeSurfaceNormals(), *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -6013,7 +6013,7 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->boundary_needed = true;
-  Synchronizer<Grid<ScalarElement>> *Synch =
+  Synchronizer<Grid<Scalar>> *Synch =
       var.tmp_amr->grid->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
   bool Reduction = false;
@@ -6021,7 +6021,7 @@ static void adapt() {
   int tmp;
   std::vector<BlockInfo *> *halo = &Synch->halo_blocks;
   std::vector<BlockInfo *> *infos[2] = {&Synch->inner_blocks, halo};
-  typedef ScalarElement ScalarBlock[_BS_][_BS_];
+  typedef Scalar ScalarBlock[_BS_][_BS_];
   for (int iii = 0;; iii++) {
     std::vector<BlockInfo *> *I = infos[iii];
 #pragma omp parallel
@@ -6460,7 +6460,7 @@ struct KernelComputeForces {
 	  const auto &l = lab;
 	  const int sx = normX > 0 ? +1 : -1;
 	  const int sy = normY > 0 ? +1 : -1;
-	  VectorElement dveldx;
+	  Vector dveldx;
 	  if (inrange(x + 5 * sx))
 	    dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
 			   c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
@@ -6470,7 +6470,7 @@ struct KernelComputeForces {
 			   0.5 * l(x + 2 * sx, y));
 	  else
 	    dveldx = sx * (l(x + sx, y) - l(x, y));
-	  VectorElement dveldy;
+	  Vector dveldy;
 	  if (inrange(y + 5 * sy))
 	    dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
 			   c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
@@ -6480,11 +6480,11 @@ struct KernelComputeForces {
 			   0.5 * l(x, y + 2 * sy));
 	  else
 	    dveldy = sx * (l(x, y + sy) - l(x, y));
-	  const VectorElement dveldx2 =
+	  const Vector dveldx2 =
 	      l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
-	  const VectorElement dveldy2 =
+	  const Vector dveldy2 =
 	      l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
-	  VectorElement dveldxdy;
+	  Vector dveldxdy;
 	  if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
 	    dveldxdy =
 		sx * sy *
@@ -6607,7 +6607,7 @@ struct PoissonSolver {
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
 						 sim.bMeanConstraint, P_inv);
   }
-  void solve(const Grid<ScalarElement> *input) {
+  void solve(const Grid<Scalar> *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7050,12 +7050,12 @@ struct pressureCorrectionKernel {
 	tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy).s - P(ix - 1, iy).s);
 	tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1).s - P(ix, iy - 1).s);
       }
-    BlockCase<VectorElement> *tempCase =
-	(BlockCase<VectorElement> *)(tmpVInfo[info.id].auxiliary);
-    VectorElement *faceXm = nullptr;
-    VectorElement *faceXp = nullptr;
-    VectorElement *faceYm = nullptr;
-    VectorElement *faceYp = nullptr;
+    BlockCase<Vector> *tempCase =
+	(BlockCase<Vector> *)(tmpVInfo[info.id].auxiliary);
+    Vector *faceXm = nullptr;
+    Vector *faceXp = nullptr;
+    Vector *faceYm = nullptr;
+    Vector *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7114,12 +7114,12 @@ struct pressure_rhs {
 	    ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
 	     (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<ScalarElement> *tempCase =
-	(BlockCase<ScalarElement> *)(tmpInfo[info.id].auxiliary);
-    ScalarElement *faceXm = nullptr;
-    ScalarElement *faceXp = nullptr;
-    ScalarElement *faceYm = nullptr;
-    ScalarElement *faceYp = nullptr;
+    BlockCase<Scalar> *tempCase =
+	(BlockCase<Scalar> *)(tmpInfo[info.id].auxiliary);
+    Scalar *faceXm = nullptr;
+    Scalar *faceXp = nullptr;
+    Scalar *faceYm = nullptr;
+    Scalar *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7173,12 +7173,12 @@ struct pressure_rhs1 {
 	TMP[iy][ix].s -= (((lab(ix - 1, iy).s + lab(ix + 1, iy).s) +
 			   (lab(ix, iy - 1).s + lab(ix, iy + 1).s)) -
 			  4.0 * lab(ix, iy).s);
-    BlockCase<ScalarElement> *tempCase =
-	(BlockCase<ScalarElement> *)(var.tmp->infos[info.id].auxiliary);
-    ScalarElement *faceXm = nullptr;
-    ScalarElement *faceXp = nullptr;
-    ScalarElement *faceYm = nullptr;
-    ScalarElement *faceYp = nullptr;
+    BlockCase<Scalar> *tempCase =
+	(BlockCase<Scalar> *)(var.tmp->infos[info.id].auxiliary);
+    Scalar *faceXm = nullptr;
+    Scalar *faceXp = nullptr;
+    Scalar *faceYm = nullptr;
+    Scalar *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7281,13 +7281,13 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new Grid<ScalarElement>(1);
-  var.vel = new Grid<VectorElement>(2);
-  var.vold = new Grid<VectorElement>(2);
-  var.pres = new Grid<ScalarElement>(1);
-  var.tmpV = new Grid<VectorElement>(2);
-  var.tmp = new Grid<ScalarElement>(1);
-  var.pold = new Grid<ScalarElement>(1);
+  var.chi = new Grid<Scalar>(1);
+  var.vel = new Grid<Vector>(2);
+  var.vold = new Grid<Vector>(2);
+  var.pres = new Grid<Scalar>(1);
+  var.tmpV = new Grid<Vector>(2);
+  var.tmp = new Grid<Scalar>(1);
+  var.pold = new Grid<Scalar>(1);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
@@ -7462,7 +7462,7 @@ int main(int argc, char **argv) {
 	adapt();
       ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
-      KernelAdvectDiffuse<VectorElement> Step1;
+      KernelAdvectDiffuse<Vector> Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
 	VectorBlock &__restrict__ Vold =
@@ -7892,7 +7892,7 @@ int main(int argc, char **argv) {
 	}
       }
       var.tmp->Corrector.prepare0(*var.tmp);
-      computeB<pressure_rhs, VectorElement, VectorLab, VectorElement,
+      computeB<pressure_rhs, Vector, VectorLab, Vector,
 	       VectorLab>(pressure_rhs(), *var.vel, *var.tmpV);
       var.tmp->Corrector.FillBlockCases();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
@@ -7954,7 +7954,7 @@ int main(int argc, char **argv) {
 	    V[iy][ix].u[1] += tmpV[iy][ix].u[1] * ih2;
 	  }
       }
-      computeB<KernelComputeForces, VectorElement, VectorLab, ScalarElement,
+      computeB<KernelComputeForces, Vector, VectorLab, Scalar,
 	       ScalarLab>(KernelComputeForces(), *var.vel, *var.chi);
       for (const auto &shape : sim.shapes) {
 	shape->perimeter = 0;
