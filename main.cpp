@@ -2946,23 +2946,25 @@ static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
 }
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
-  matrix<ElementType> *m_cacheBlock;
-  int start[3];
-  int end[3];
+  bool coarsened;
   bool istensorial;
   bool use_averages;
   Grid<ElementType> *m_refGrid;
+  int coarsened_nei_codes_size;
+  int end[3];
   int NX;
   int NY;
   int NZ;
+  int offset[3];
+  int start[3];
+  matrix<ElementType> *m_cacheBlock;
+  matrix<ElementType> *m_CoarsenedBlock;
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
-  int coarsened_nei_codes_size;
-  int offset[3];
-  matrix<ElementType> *m_CoarsenedBlock;
-  bool coarsened;
-  BlockLab()
-      : m_cacheBlock(nullptr), m_refGrid(nullptr), m_CoarsenedBlock(nullptr) {
+  BlockLab() {
+    m_cacheBlock = nullptr;
+    m_refGrid = nullptr;
+    m_CoarsenedBlock = nullptr;
     start[0] = start[1] = start[2] = 0;
     end[0] = end[1] = end[2] = 0;
   }
