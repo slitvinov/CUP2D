@@ -2991,7 +2991,7 @@ template <typename ElementType> struct BlockLab {
     c = new matrix<ElementType>(_BS_ / 2 + end[0] / 2 + 1 - offset[0],
 				_BS_ / 2 + end[1] / 2 + 1 - offset[1]);
     nm = _BS_ + end[0] - start[0] - 1;
-    nc = _BS_ / 2 + e[0] - offset[0] - 1;
+    nc = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
