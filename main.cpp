@@ -4628,7 +4628,6 @@ typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
 typedef Grid<ScalarElement> ScalarGrid;
 typedef Grid<VectorElement> VectorGrid;
-template <typename TGrid>
 struct BlockLabDirichlet : public BlockLab<VectorElement> {
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
@@ -4799,7 +4798,7 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef BlockLabMPI<BlockLabDirichlet<VectorGrid>, VectorElement> VectorLab;
+typedef BlockLabMPI<BlockLabDirichlet, VectorElement> VectorLab;
 typedef BlockLabMPI<BlockLabNeumann, ScalarElement> ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
