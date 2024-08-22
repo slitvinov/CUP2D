@@ -1,36 +1,23 @@
 #!/usr/bin/awk -f
 
 {
-    s = spaces = $0
-    sub(/[^ \t].*/, "", spaces)
-    sub(/^[ \t]*/, "", s)
+    i = j = prefix = $0
+    sub(/c->Access0.*/, "", prefix)
 
-    v = s
-    sub(/\.pos0\(.*/, "", s)
-    sub(/.*\.pos0\(/, "", v)
 
-    i = v
-    sub(/,.*/, "", v)
-    sub(/[^,]*, /, "", i)
-
-    j = i
+    sub(/.*c->Access0\(/, "", i)
     sub(/,.*/, "", i)
 
-    sub(/[^,]*, /, "", j)
-    sub(/\).*/, "", j)
-    # print($0)
-    ref = sprintf("%s%s.pos0(%s, %s, %s);", spaces, s, v, i, j)
-    if (ref != $0) {
-	print($0)
-    } else {
-	for (n = 0; n < 2; n++) {
-	    k = (n == 0) ? i : j
-	    if ("0" == ""k)
-		printf "%s%s[%d] = %s.origin[%d] + %s.h * 0.5;\n", spaces, v, n, s, n, s
-	    else if ("_BS_ - 1" == ""k)
-		printf "%s%s[%d] = %s.origin[%d] + %s.h * (_BS_ - 0.5);\n", spaces, v, n, s, n, s
-	    else
-		printf "%s%s[%d] = %s.origin[%d] + %s.h * (%s + 0.5);\n", spaces, v, n, s, n, s, k
-	}
-    }
+    sub(/.*c->Access0\(/, "", j)
+    sub(/.*,[ ]*/, "", j)
+    suffix = j
+    sub(/).*/, "", j)
+    sub(/.*\)/, "", suffix);
+
+    rec  = sprintf("%sc->Access0(%s, %s)%s", prefix, i, j, suffix);
+
+    if (""rec == ""$0)
+	printf "%sc->Access0(%s + nc * (%s))%s\n", prefix, i, j, suffix;
+    else
+	print
 }
