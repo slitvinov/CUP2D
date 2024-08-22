@@ -4555,9 +4555,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
                     : bsize[1] + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
-        cb->d[ix - stenBeg[0] + n * (iy - stenBeg[1])] = cb->Access0(
-            (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
-            (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1]);
+        cb->d[ix - stenBeg[0] + n * (iy - stenBeg[1])] = cb->d[
+            (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
+            n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1])];
   }
   ScalarLab() = default;
   ScalarLab(const ScalarLab &) = delete;
