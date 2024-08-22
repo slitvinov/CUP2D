@@ -2909,10 +2909,6 @@ template <class DataType> struct Matrix3D {
     assert(iy < n[1]);
     return d[iy * n[0] + ix];
   }
-  DataType &LinAccess(unsigned int i) const {
-    assert(i < n[0] * n[1]);
-    return d[i];
-  }
 };
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
@@ -3042,13 +3038,13 @@ template <typename ElementType> struct BlockLab {
 #pragma GCC ivdep
         for (int iy = _iy0; iy < _iy1; iy += 4) {
           ElementType *__restrict__ ptrDestination0 =
-              &m_cacheBlock->LinAccess(my_izx + (iy)*m_vSize0);
+              &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
           ElementType *__restrict__ ptrDestination1 =
-              &m_cacheBlock->LinAccess(my_izx + (iy + 1) * m_vSize0);
+              &m_cacheBlock->d[my_izx + (iy + 1) * m_vSize0];
           ElementType *__restrict__ ptrDestination2 =
-              &m_cacheBlock->LinAccess(my_izx + (iy + 2) * m_vSize0);
+              &m_cacheBlock->d[my_izx + (iy + 2) * m_vSize0];
           ElementType *__restrict__ ptrDestination3 =
-              &m_cacheBlock->LinAccess(my_izx + (iy + 3) * m_vSize0);
+              &m_cacheBlock->d[my_izx + (iy + 3) * m_vSize0];
           memcpy(ptrDestination0, (ptrSource), nbytes);
           memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
           memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
@@ -3198,14 +3194,14 @@ template <typename ElementType> struct BlockLab {
       const int my_izx = my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        ElementType *__restrict__ ptrDest0 = &m_cacheBlock->LinAccess(
-            my_izx + (iy - m_stencilStart[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest1 = &m_cacheBlock->LinAccess(
-            my_izx + (iy + 1 - m_stencilStart[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest2 = &m_cacheBlock->LinAccess(
-            my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
-            my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0);
+        ElementType *__restrict__ ptrDest0 = &m_cacheBlock->d[
+            my_izx + (iy - m_stencilStart[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest1 = &m_cacheBlock->d[
+            my_izx + (iy + 1 - m_stencilStart[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest2 = &m_cacheBlock->d[
+            my_izx + (iy + 2 - m_stencilStart[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest3 = &m_cacheBlock->d[
+            my_izx + (iy + 3 - m_stencilStart[1]) * m_vSize0];
         const ElementType *ptrSrc0 =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const ElementType *ptrSrc1 =
@@ -3221,8 +3217,8 @@ template <typename ElementType> struct BlockLab {
       }
 #pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        ElementType *__restrict__ ptrDest = &m_cacheBlock->LinAccess(
-            my_izx + (iy - m_stencilStart[1]) * m_vSize0);
+        ElementType *__restrict__ ptrDest = &m_cacheBlock->d[
+            my_izx + (iy - m_stencilStart[1]) * m_vSize0];
         const ElementType *ptrSrc =
             &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
@@ -3293,30 +3289,30 @@ template <typename ElementType> struct BlockLab {
         const int my_izx = my_ix;
 #pragma GCC ivdep
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
-          ElementType *__restrict__ ptrDest0 = &m_cacheBlock->LinAccess(
+          ElementType *__restrict__ ptrDest0 = &m_cacheBlock->d[
               my_izx +
               (abs(code[1]) * (iy + 0 * yStep - m_stencilStart[1]) +
                (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - m_stencilStart[1] +
                                      aux * (e[1] - s[1]) / 2)) *
-                  m_vSize0);
-          ElementType *__restrict__ ptrDest1 = &m_cacheBlock->LinAccess(
+                  m_vSize0];
+          ElementType *__restrict__ ptrDest1 = &m_cacheBlock->d[
               my_izx +
               (abs(code[1]) * (iy + 1 * yStep - m_stencilStart[1]) +
                (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - m_stencilStart[1] +
                                      aux * (e[1] - s[1]) / 2)) *
-                  m_vSize0);
-          ElementType *__restrict__ ptrDest2 = &m_cacheBlock->LinAccess(
+                  m_vSize0];
+          ElementType *__restrict__ ptrDest2 = &m_cacheBlock->d[
               my_izx +
               (abs(code[1]) * (iy + 2 * yStep - m_stencilStart[1]) +
                (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - m_stencilStart[1] +
                                      aux * (e[1] - s[1]) / 2)) *
-                  m_vSize0);
-          ElementType *__restrict__ ptrDest3 = &m_cacheBlock->LinAccess(
+                  m_vSize0];
+          ElementType *__restrict__ ptrDest3 = &m_cacheBlock->d[
               my_izx +
               (abs(code[1]) * (iy + 3 * yStep - m_stencilStart[1]) +
                (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - m_stencilStart[1] +
                                      aux * (e[1] - s[1]) / 2)) *
-                  m_vSize0);
+                  m_vSize0];
           int YY0 = (abs(code[1]) == 1)
                         ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
                               std::min(0, code[1]) * _BS_
@@ -3361,11 +3357,11 @@ template <typename ElementType> struct BlockLab {
         }
 #pragma GCC ivdep
         for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
-          ElementType *ptrDest = (ElementType *)&m_cacheBlock->LinAccess(
+          ElementType *ptrDest = (ElementType *)&m_cacheBlock->d[
               my_izx + (abs(code[1]) * (iy - m_stencilStart[1]) +
                         (1 - abs(code[1])) * (iy / 2 - m_stencilStart[1] +
                                               aux * (e[1] - s[1]) / 2)) *
-                           m_vSize0);
+                           m_vSize0];
           int YY = (abs(code[1]) == 1)
                        ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                        : iy;
@@ -3456,14 +3452,14 @@ template <typename ElementType> struct BlockLab {
       const int my_izx = my_ix;
 #pragma GCC ivdep
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        ElementType *__restrict__ ptrDest0 = &m_CoarsenedBlock->LinAccess(
-            my_izx + (iy + 0 - offset[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest1 = &m_CoarsenedBlock->LinAccess(
-            my_izx + (iy + 1 - offset[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest2 = &m_CoarsenedBlock->LinAccess(
-            my_izx + (iy + 2 - offset[1]) * m_vSize0);
-        ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->LinAccess(
-            my_izx + (iy + 3 - offset[1]) * m_vSize0);
+        ElementType *__restrict__ ptrDest0 = &m_CoarsenedBlock->d[
+            my_izx + (iy + 0 - offset[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest1 = &m_CoarsenedBlock->d[
+            my_izx + (iy + 1 - offset[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest2 = &m_CoarsenedBlock->d[
+            my_izx + (iy + 2 - offset[1]) * m_vSize0];
+        ElementType *__restrict__ ptrDest3 = &m_CoarsenedBlock->d[
+            my_izx + (iy + 3 - offset[1]) * m_vSize0];
         const ElementType *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
         const ElementType *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
         const ElementType *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
@@ -3476,7 +3472,7 @@ template <typename ElementType> struct BlockLab {
 #pragma GCC ivdep
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
         ElementType *ptrDest =
-            &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
+            &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
         const ElementType *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
         memcpy(ptrDest, ptrSrc, bytes);
       }
@@ -3522,7 +3518,7 @@ template <typename ElementType> struct BlockLab {
             iz > -m_InterpStencilStart[2] && iz < 1 / 2 - m_InterpStencilEnd[2])
           continue;
         ElementType *__restrict__ ptrDest1 =
-            &m_CoarsenedBlock->LinAccess(my_izx + (iy - offset[1]) * m_vSize0);
+            &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
         int YY = 2 * (iy - s[1]) + start[1];
         ElementType *ptrSrc_0 = (ElementType *)&b[YY][XX];
         ElementType *ptrSrc_1 = (ElementType *)&b[YY + 1][XX];
@@ -4541,8 +4537,8 @@ struct VectorLab : public BlockLab<VectorElement> {
   }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<VectorElement>::load(info, applybc);
-    Real *dst = (Real *)&m_cacheBlock->LinAccess(0);
-    Real *dst1 = (Real *)&m_CoarsenedBlock->LinAccess(0);
+    Real *dst = (Real *)&m_cacheBlock->d[0];
+    Real *dst1 = (Real *)&m_CoarsenedBlock->d[0];
     refSynchronizerMPI->fetch(info, m_cacheBlock->n,
                               m_CoarsenedBlock->n, dst, dst1);
     if (sim.size > 1)
@@ -4669,9 +4665,9 @@ struct ScalarLab : public BlockLab<ScalarElement> {
   }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<ScalarElement>::load(info, applybc);
-    Real *dst = (Real *)&BlockLab<ScalarElement>::m_cacheBlock->LinAccess(0);
+    Real *dst = (Real *)&BlockLab<ScalarElement>::m_cacheBlock->d[0];
     Real *dst1 =
-        (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->LinAccess(0);
+        (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->d[0];
     refSynchronizerMPI->fetch(
         info, BlockLab<ScalarElement>::m_cacheBlock->n,
         BlockLab<ScalarElement>::m_CoarsenedBlock->n, dst, dst1);
