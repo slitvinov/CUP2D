@@ -2896,9 +2896,8 @@ template <typename ElementType> struct Grid {
 };
 template <class DataType> struct matrix {
   DataType *d;
-  const unsigned int n[2];
-  matrix(unsigned int x, unsigned int y) : n{x, y} {
-    d = (DataType *)malloc(sizeof(DataType) * n[0] * n[1]);
+  matrix(unsigned int x, unsigned int y) {
+    d = (DataType *)malloc(sizeof(DataType) * x * y);
     assert(d);
   }
   ~matrix() { free(d); }
@@ -2988,8 +2987,6 @@ template <typename ElementType> struct BlockLab {
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];        
     delete c;
     c = new matrix<ElementType>(nc[0], nc[1]);
-
-
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
@@ -4394,7 +4391,7 @@ struct VectorLab : public BlockLab<VectorElement> {
     BlockLab<VectorElement>::load(info, applybc);
     Real *dst = (Real *)&m->d[0];
     Real *dst1 = (Real *)&c->d[0];
-    refSynchronizerMPI->fetch(info, m->n, c->n, dst, dst1);
+    refSynchronizerMPI->fetch(info, nm, nc, dst, dst1);
     if (sim.size > 1)
       post_load(info, applybc);
   }
@@ -4517,8 +4514,8 @@ struct ScalarLab : public BlockLab<ScalarElement> {
     BlockLab<ScalarElement>::load(info, applybc);
     Real *dst = (Real *)&BlockLab<ScalarElement>::m->d[0];
     Real *dst1 = (Real *)&BlockLab<ScalarElement>::c->d[0];
-    refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::m->n,
-                              BlockLab<ScalarElement>::c->n, dst, dst1);
+    refSynchronizerMPI->fetch(info, BlockLab<ScalarElement>::nm,
+                              BlockLab<ScalarElement>::nc, dst, dst1);
     if (sim.size > 1)
       BlockLab<ScalarElement>::post_load(info, applybc);
   }
