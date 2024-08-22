@@ -2960,7 +2960,6 @@ template <typename ElementType> struct BlockLab {
   int coarsened_nei_codes_size;
   int offset[3];
   matrix<ElementType> *m_CoarsenedBlock;
-  const int m_InterpStencilStart[3] = {-1, -1, 0};
   const int m_InterpStencilEnd[3] = {2, 2, 1};
   bool coarsened;
   BlockLab()
