@@ -2910,6 +2910,38 @@ template <class DataType> struct matrix {
     return d[iy * n[0] + ix];
   }
 };
+
+template <typename ElementType>
+static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
+                               const ElementType &e2, const ElementType &e3) {
+  return 0.25 * ((e0 + e3) + (e1 + e2));
+}
+template <typename ElementType>
+static void LI(ElementType &a, ElementType b, ElementType c) {
+  auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  auto lambda = (b - c) - kappa;
+  a = (4.0 * kappa + 2.0 * lambda) + c;
+}
+template <typename ElementType>
+static void LE(ElementType &a, ElementType b, ElementType c) {
+  auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  auto lambda = (b - c) - kappa;
+  a = (9.0 * kappa + 3.0 * lambda) + c;
+}
+template <typename ElementType>
+static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
+  const double dx = 0.25 * (2 * x - 1);
+  const double dy = 0.25 * (2 * y - 1);
+  ElementType dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
+  ElementType dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
+  ElementType dudxdy =
+      0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
+  ElementType dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
+  ElementType dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
+  R = (*C[1][1] + (dx * dudx + dy * dudy)) +
+      (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
+       (dx * dy) * dudxdy);
+}
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
   matrix<ElementType> *m_cacheBlock;
@@ -2989,8 +3021,9 @@ template <typename ElementType> struct BlockLab {
         0 != 1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         delete m_cacheBlock;
-      m_cacheBlock = new matrix<ElementType>(_BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
-					       _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
+      m_cacheBlock = new matrix<ElementType>(
+          _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
+          _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
     }
     offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
     offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
@@ -3006,8 +3039,9 @@ template <typename ElementType> struct BlockLab {
         0 != CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
-      m_CoarsenedBlock = new matrix<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
-						   CoarseBlockSize[1] + e[1] - offset[1] - 1);
+      m_CoarsenedBlock =
+          new matrix<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
+                                  CoarseBlockSize[1] + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
@@ -3221,33 +3255,6 @@ template <typename ElementType> struct BlockLab {
         memcpy(ptrDest, ptrSrc, bytes);
       }
     }
-  }
-  static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
-                          const ElementType &e2, const ElementType &e3) {
-    return 0.25 * ((e0 + e3) + (e1 + e2));
-  }
-  static void LI(ElementType &a, ElementType b, ElementType c) {
-    auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-    auto lambda = (b - c) - kappa;
-    a = (4.0 * kappa + 2.0 * lambda) + c;
-  }
-  static void LE(ElementType &a, ElementType b, ElementType c) {
-    auto kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-    auto lambda = (b - c) - kappa;
-    a = (9.0 * kappa + 3.0 * lambda) + c;
-  }
-  static void TestInterp(ElementType *C[3][3], ElementType &R, int x, int y) {
-    const double dx = 0.25 * (2 * x - 1);
-    const double dy = 0.25 * (2 * y - 1);
-    ElementType dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
-    ElementType dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
-    ElementType dudxdy =
-        0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
-    ElementType dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
-    ElementType dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
-    R = (*C[1][1] + (dx * dudx + dy * dudy)) +
-        (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
-         (dx * dy) * dudxdy);
   }
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
