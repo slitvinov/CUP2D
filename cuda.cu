@@ -538,8 +538,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
       cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double),
                       cudaMemcpyDeviceToDevice, solver_stream_);
       if ((error <= max_error) || (error / error_init <= max_rel_error)) {
-        if (rank_ == 0)
-          std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations\n";
         bConverged = true;
         break;
       }
