@@ -2975,13 +2975,7 @@ template <typename ElementType> struct BlockLab {
     m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
     CoarseBlockSize[0] = _BS_ / 2;
     CoarseBlockSize[1] = _BS_ / 2;
-    CoarseBlockSize[2] = 1 / 2;
-    if (CoarseBlockSize[0] == 0)
-      CoarseBlockSize[0] = 1;
-    if (CoarseBlockSize[1] == 0)
-      CoarseBlockSize[1] = 1;
-    if (CoarseBlockSize[2] == 0)
-      CoarseBlockSize[2] = 1;
+    CoarseBlockSize[2] = 1;
   }
   ~BlockLab() {
     delete m_cacheBlock;
