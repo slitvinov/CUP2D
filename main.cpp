@@ -2962,9 +2962,9 @@ template <typename ElementType> struct BlockLab {
   std::array<BlockType *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
-    m_cacheBlock = nullptr;
-    m_refGrid = nullptr;
-    m_CoarsenedBlock = nullptr;
+    m_cacheBlock = NULL;
+    m_refGrid = NULL;
+    m_CoarsenedBlock = NULL;
     start[0] = start[1] = start[2] = 0;
     end[0] = end[1] = end[2] = 0;
   }
