@@ -2961,7 +2961,6 @@ template <typename ElementType> struct BlockLab {
   int m_InterpStencilStart[3];
   int m_InterpStencilEnd[3];
   bool coarsened;
-  int CoarseBlockSize[3];
   const double d_coef_plus[9] = {-0.09375, 0.4375,   0.15625, 0.15625, -0.5625,
                                  0.90625,  -0.09375, 0.4375,  0.15625};
   const double d_coef_minus[9] = {0.15625, -0.5625, 0.90625, -0.09375, 0.4375,
@@ -2973,9 +2972,7 @@ template <typename ElementType> struct BlockLab {
     m_InterpStencilStart[0] = m_InterpStencilStart[1] =
         m_InterpStencilStart[2] = 0;
     m_InterpStencilEnd[0] = m_InterpStencilEnd[1] = m_InterpStencilEnd[2] = 0;
-    CoarseBlockSize[0] = _BS_ / 2;
-    CoarseBlockSize[1] = _BS_ / 2;
-    CoarseBlockSize[2] = 1;
+    1 = 1;
   }
   ~BlockLab() {
     delete m_cacheBlock;
@@ -3027,15 +3024,15 @@ template <typename ElementType> struct BlockLab {
                       (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
     if (m_CoarsenedBlock == NULL ||
         (int)m_CoarsenedBlock->n[0] !=
-            CoarseBlockSize[0] + e[0] - offset[0] - 1 ||
+            (_BS_ / 2) + e[0] - offset[0] - 1 ||
         (int)m_CoarsenedBlock->n[1] !=
-            CoarseBlockSize[1] + e[1] - offset[1] - 1 ||
-        0 != CoarseBlockSize[2] + e[2] - offset[2] - 1) {
+            (_BS_ / 2) + e[1] - offset[1] - 1 ||
+        0 != 1 + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
       m_CoarsenedBlock =
-          new matrix<ElementType>(CoarseBlockSize[0] + e[0] - offset[0] - 1,
-                                  CoarseBlockSize[1] + e[1] - offset[1] - 1);
+          new matrix<ElementType>((_BS_ / 2) + e[0] - offset[0] - 1,
+                                  (_BS_ / 2) + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
@@ -3400,17 +3397,17 @@ template <typename ElementType> struct BlockLab {
       return;
     BlockType &b = *b_ptr;
     int s[3] = {
-        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
-        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
-        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : CoarseBlockSize[2]};
-    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
-                            : CoarseBlockSize[0] + (m_stencilEnd[0]) / 2 +
+        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
+        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
+    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
+                            : (_BS_ / 2) + (m_stencilEnd[0]) / 2 +
                                   m_InterpStencilEnd[0] - 1,
-                code[1] < 1 ? (code[1] < 0 ? 0 : CoarseBlockSize[1])
-                            : CoarseBlockSize[1] + (m_stencilEnd[1]) / 2 +
+                code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
+                            : (_BS_ / 2) + (m_stencilEnd[1]) / 2 +
                                   m_InterpStencilEnd[1] - 1,
-                code[2] < 1 ? (code[2] < 0 ? 0 : CoarseBlockSize[2])
-                            : CoarseBlockSize[2] + (m_stencilEnd[2]) / 2 +
+                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
+                            : 1 + (m_stencilEnd[2]) / 2 +
                                   m_InterpStencilEnd[2] - 1};
     int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
@@ -3495,23 +3492,23 @@ template <typename ElementType> struct BlockLab {
                  (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
                  (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
     int s[3] = {
-        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : CoarseBlockSize[0],
-        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : CoarseBlockSize[1],
-        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : CoarseBlockSize[2]};
-    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : CoarseBlockSize[0])
-                            : CoarseBlockSize[0] + eC[0] - 1,
-                code[1] < 1 ? (code[1] < 0 ? 0 : CoarseBlockSize[1])
-                            : CoarseBlockSize[1] + eC[1] - 1,
-                code[2] < 1 ? (code[2] < 0 ? 0 : CoarseBlockSize[2])
-                            : CoarseBlockSize[2] + eC[2] - 1};
+        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
+        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
+    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
+                            : (_BS_ / 2) + eC[0] - 1,
+                code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
+                            : (_BS_ / 2) + eC[1] - 1,
+                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
+                            : 1 + eC[2] - 1};
     int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-    int start[3] = {s[0] + std::max(code[0], 0) * CoarseBlockSize[0] -
+    int start[3] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) -
                         code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]),
-                    s[1] + std::max(code[1], 0) * CoarseBlockSize[1] -
+                    s[1] + std::max(code[1], 0) * (_BS_ / 2) -
                         code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]),
-                    s[2] + std::max(code[2], 0) * CoarseBlockSize[2] -
+                    s[2] + std::max(code[2], 0) * 1 -
                         code[2] * 1 + std::min(0, code[2]) * (e[2] - s[2])};
     int m_vSize0 = m_CoarsenedBlock->n[0];
     int my_ix = s[0] - offset[0];
@@ -3569,11 +3566,11 @@ template <typename ElementType> struct BlockLab {
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
       int sC[3] = {
           code[0] < 1 ? (code[0] < 0 ? ((m_stencilStart[0] - 1) / 2) : 0)
-                      : CoarseBlockSize[0],
+                      : (_BS_ / 2),
           code[1] < 1 ? (code[1] < 0 ? ((m_stencilStart[1] - 1) / 2) : 0)
-                      : CoarseBlockSize[1],
+                      : (_BS_ / 2),
           code[2] < 1 ? (code[2] < 0 ? ((m_stencilStart[2] - 1) / 2) : 0)
-                      : CoarseBlockSize[2]};
+                      : 1};
       int bytes = (e[0] - s[0]) * sizeof(ElementType);
       if (!bytes)
         continue;
@@ -3633,7 +3630,7 @@ template <typename ElementType> struct BlockLab {
                 dudy2 = (m_CoarsenedBlock->Access0(XX, YY + 2) +
                          m_CoarsenedBlock->Access0(XX, YY)) -
                         2.0 * m_CoarsenedBlock->Access0(XX, YY + 1);
-              } else if (YY + offset[1] == CoarseBlockSize[1] - 1) {
+              } else if (YY + offset[1] == (_BS_ / 2) - 1) {
                 dudy = (0.5 * m_CoarsenedBlock->Access0(XX, YY - 2) +
                         1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
                        2.0 * m_CoarsenedBlock->Access0(XX, YY - 1);
@@ -3676,7 +3673,7 @@ template <typename ElementType> struct BlockLab {
                 dudx2 = (m_CoarsenedBlock->Access0(XX + 2, YY) +
                          m_CoarsenedBlock->Access0(XX, YY)) -
                         2.0 * m_CoarsenedBlock->Access0(XX + 1, YY);
-              } else if (XX + offset[0] == CoarseBlockSize[0] - 1) {
+              } else if (XX + offset[0] == (_BS_ / 2) - 1) {
                 dudx = (0.5 * m_CoarsenedBlock->Access0(XX - 2, YY) +
                         1.5 * m_CoarsenedBlock->Access0(XX, YY)) -
                        2.0 * m_CoarsenedBlock->Access0(XX - 1, YY);
