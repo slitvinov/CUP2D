@@ -3805,9 +3805,9 @@ template <typename ElementType> struct LoadBalancer {
     long long mn[2];
     Real data[sizeof(BlockType) / sizeof(Real)];
     MPI_Block(const BlockInfo &info, const bool Fillptr = true) {
-      prepare(info, Fillptr);
+      prepare1(info, Fillptr);
     }
-    void prepare(const BlockInfo &info, const bool Fillptr = true) {
+    void prepare1(const BlockInfo &info, const bool Fillptr = true) {
       mn[0] = info.level;
       mn[1] = info.Z;
       if (Fillptr) {
@@ -3968,7 +3968,7 @@ template <typename ElementType> struct LoadBalancer {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_left; i++)
-        send_left[i].prepare(SortedInfos[i]);
+        send_left[i].prepare1(SortedInfos[i]);
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
@@ -3984,7 +3984,7 @@ template <typename ElementType> struct LoadBalancer {
       send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_right; i++)
-        send_right[i].prepare(SortedInfos[my_blocks - i - 1]);
+        send_right[i].prepare1(SortedInfos[my_blocks - i - 1]);
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
@@ -4084,7 +4084,7 @@ template <typename ElementType> struct LoadBalancer {
     for (int r = 0; r < sim.rank; r++)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
-          send_blocks[r][i].prepare(SortedInfos[counter_S + i]);
+          send_blocks[r][i].prepare1(SortedInfos[counter_S + i]);
         counter_S += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
@@ -4094,7 +4094,7 @@ template <typename ElementType> struct LoadBalancer {
     for (int r = sim.size - 1; r > sim.rank; r--)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
-          send_blocks[r][i].prepare(
+          send_blocks[r][i].prepare1(
               SortedInfos[SortedInfos.size() - 1 - (counter_E + i)]);
         counter_E += send_blocks[r].size();
         MPI_Request req{};
