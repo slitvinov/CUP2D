@@ -21,7 +21,7 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum {max_dim = 2};
+enum { max_dim = 2 };
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -643,9 +643,7 @@ template <typename Element> struct BlockCase {
   int level;
   long long Z;
   const int dim;
-  BlockCase(bool _storedFace[6], int _level, long long _Z, int dim) :
-    dim(dim)
-  {
+  BlockCase(bool _storedFace[6], int _level, long long _Z, int dim) : dim(dim) {
     storedFace[0] = _storedFace[0];
     storedFace[1] = _storedFace[1];
     storedFace[2] = _storedFace[2];
@@ -672,7 +670,7 @@ template <typename TGrid, typename Element> struct FluxCorrection {
   TGrid *grid;
   std::vector<BlockCase<Element>> Cases;
   const int dim;
-  FluxCorrection(int dim) : dim(dim) { }
+  FluxCorrection(int dim) : dim(dim) {}
   void FillCase(BlockInfo &info, const int *const code) {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -1186,7 +1184,7 @@ template <typename TGrid> struct Synchronizer {
   bool use_averages;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::unordered_map<int, MPI_Request *> mapofrequests;
-  Synchronizer(int dim) : dim(dim) { }
+  Synchronizer(int dim) : dim(dim) {}
   struct DuplicatesManager {
     struct cube {
       std::vector<MyRange> compass[27];
@@ -1752,9 +1750,9 @@ template <typename TGrid> struct Synchronizer {
   }
   Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
                int dim)
-    : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
-      SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
-      NC(a_stencil.selcomponents.size()) {
+      : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
+        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
+        NC(a_stencil.selcomponents.size()) {
     grid = _grid;
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || stencil.sz < -2 ||
@@ -1860,8 +1858,7 @@ template <typename TGrid> struct Synchronizer {
                     dst[pos] =
                         0.25 *
                         (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) +
-                             comp))) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
                          ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
                           (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
@@ -1900,8 +1897,7 @@ template <typename TGrid> struct Synchronizer {
                     dst[pos] =
                         0.25 *
                         (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) +
-                             comp))) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
                          ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
                           (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
                     pos++;
@@ -1913,9 +1909,9 @@ template <typename TGrid> struct Synchronizer {
 #pragma omp for
           for (size_t i = 0; i < send_packinfos[r].size(); i++) {
             const PackInfo &info = send_packinfos[r][i];
-            pack(info.block, info.pack, dim,
-                 &stencil.selcomponents.front(), NC, info.sx, info.sy, info.sz,
-                 info.ex, info.ey, info.ez, _BS_, _BS_);
+            pack(info.block, info.pack, dim, &stencil.selcomponents.front(), NC,
+                 info.sx, info.sy, info.sz, info.ex, info.ey, info.ez, _BS_,
+                 _BS_);
           }
         }
       }
@@ -1950,8 +1946,8 @@ template <typename TGrid> struct Synchronizer {
             cacheBlock + ((s[2] - stencil.sz) * Length[0] * Length[1] +
                           (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
                              dim;
-        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         dim, &stencil.selcomponents[0],
+        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
+                         &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -1992,8 +1988,8 @@ template <typename TGrid> struct Synchronizer {
                     ((sC[2] - offset[2]) * CLength[0] * CLength[1] + sC[0] -
                      offset[0] + (sC[1] - offset[1]) * CLength[0]) *
                         dim;
-        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         dim, &stencil.selcomponents[0],
+        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
+                         &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -2039,8 +2035,8 @@ template <typename TGrid> struct Synchronizer {
              abs(code[0]) * (s[0] - stencil.sx) +
              (1 - abs(code[0])) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                 dim;
-        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0],
-                         dim, &stencil.selcomponents[0],
+        unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
+                         &stencil.selcomponents[0],
                          stencil.selcomponents.size(), unpack.srcxstart,
                          unpack.srcystart, unpack.srczstart, unpack.LX,
                          unpack.LY, 0, 0, 0, unpack.lx, unpack.ly, unpack.lz,
@@ -2077,7 +2073,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
-  FluxCorrectionMPI(int dim) : dim(dim), TFluxCorrection(dim) { }
+  FluxCorrectionMPI(int dim) : dim(dim), TFluxCorrection(dim) {}
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -2266,7 +2262,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         }
       }
       if (stored) {
-        TFluxCorrection::Cases.push_back(Case(storeFace, info.level, info.Z, dim));
+        TFluxCorrection::Cases.push_back(
+            Case(storeFace, info.level, info.Z, dim));
       }
     }
     size_t Cases_index = 0;
@@ -2454,7 +2451,7 @@ template <typename Element> struct Grid {
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
-  Grid(int dim) : dim(dim),  Corrector(dim), CorrectorGrid(dim), timestamp(0) {
+  Grid(int dim) : dim(dim), Corrector(dim), CorrectorGrid(dim), timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -6262,7 +6259,7 @@ static Real dV_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
   return advF * (UU * dvdx + VV * dvdy) +
          difF * (((vp1x + vm1x) + (vp1y + vm1y)) - 4 * v);
 }
-template <typename Element> struct KernelAdvectDiffuse {
+struct KernelAdvectDiffuse {
   KernelAdvectDiffuse() {
     uinf[0] = sim.uinfx;
     uinf[1] = sim.uinfy;
@@ -6280,12 +6277,12 @@ template <typename Element> struct KernelAdvectDiffuse {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase<Element> *tempCase =
-        (BlockCase<Element> *)(tmpVInfo[info.id].auxiliary);
-    Element *faceXm = nullptr;
-    Element *faceXp = nullptr;
-    Element *faceYm = nullptr;
-    Element *faceYp = nullptr;
+    BlockCase<Vector> *tempCase =
+        (BlockCase<Vector> *)(tmpVInfo[info.id].auxiliary);
+    Vector *faceXm = nullptr;
+    Vector *faceXp = nullptr;
+    Vector *faceYm = nullptr;
+    Vector *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
@@ -7385,7 +7382,7 @@ int main(int argc, char **argv) {
         adapt();
       ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
-      KernelAdvectDiffuse<Vector> Step1;
+      KernelAdvectDiffuse Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ Vold =
