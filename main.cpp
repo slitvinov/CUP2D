@@ -4626,7 +4626,6 @@ struct VectorElement {
   }
   Real &member(int i) { return u[i]; }
 };
-static BCflag cubismBCX;
 static BCflag cubismBCY;
 typedef ScalarElement ScalarBlock[_BS_][_BS_];
 typedef VectorElement VectorBlock[_BS_][_BS_];
@@ -4715,7 +4714,7 @@ struct BlockLabDirichlet : public BlockLab<VectorElement> {
   }
   void _apply_bc(BlockInfo &info, bool coarse) override {
 
-    const BCflag BCX = cubismBCX;
+    const BCflag BCX = sim.bcx;
     const BCflag BCY = cubismBCY;
     if (!coarse) {
       if (sim.bcx != periodic) {
@@ -7204,7 +7203,7 @@ struct PoissonSolver {
       isBoundary[2] = (rhs_info.index[1] == 0);
       isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
       std::array<bool, 2> isPeriodic;
-      isPeriodic[0] = (cubismBCX == periodic);
+      isPeriodic[0] = (sim.bcx == periodic);
       isPeriodic[1] = (cubismBCY == periodic);
       std::array<long long, 4> Z;
       Z[0] = rhs_info.Znei[1 - 1][1];
