@@ -2897,13 +2897,8 @@ template <typename ElementType> struct Grid {
 template <class DataType> struct Matrix3D {
   DataType *m_pData{nullptr};
   unsigned int m_vSize[2]{0, 0};
-  void _Release() {
-    if (m_pData != nullptr) {
-      free(m_pData);
-      m_pData = nullptr;
-    }
-  }
   void _Setup(unsigned int nSizeX, unsigned int nSizeY) {
+    free(m_pData);
     _Release();
     m_vSize[0] = nSizeX;
     m_vSize[1] = nSizeY;
