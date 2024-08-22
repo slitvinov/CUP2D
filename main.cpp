@@ -4309,10 +4309,8 @@ struct Vector {
   friend Vector operator-(Vector lhs, const Vector &rhs) {
     return (lhs -= rhs);
   }
-  Real &member(int i) { return u[i]; }
 };
-typedef Real Scalar;
-typedef Scalar ScalarBlock[_BS_][_BS_];
+typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
   Synchronizer<Grid<Vector>> *refSynchronizerMPI;
@@ -4349,10 +4347,10 @@ struct VectorLab : public BlockLab<Vector> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].member(1 - A) =
-                (-1.0) * m[x + nm[0] * (y)].member(1 - A);
-            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].member(A) =
-                m[x + nm[0] * (y)].member(A);
+            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[1 - A] =
+                (-1.0) * m[x + nm[0] * (y)].u[1 - A];
+            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[A] =
+                m[x + nm[0] * (y)].u[A];
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4387,10 +4385,10 @@ struct VectorLab : public BlockLab<Vector> {
                 (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
             const int y =
                 (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].member(1 - A) =
-                (-1.0) * c[x + nc[0] * (y)].member(1 - A);
-            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].member(A) =
-                c[x + nc[0] * (y)].member(A);
+            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[1 - A] =
+                (-1.0) * c[x + nc[0] * (y)].u[1 - A];
+            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[A] =
+                c[x + nc[0] * (y)].u[A];
           }
       else
         for (int iy = s[1]; iy < e[1]; iy++)
@@ -4437,21 +4435,21 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
 };
-struct ScalarLab : public BlockLab<Scalar> {
-  Synchronizer<Grid<Scalar>> *refSynchronizerMPI;
-  virtual void prepare(Grid<Scalar> &grid,
+struct ScalarLab : public BlockLab<Real> {
+  Synchronizer<Grid<Real>> *refSynchronizerMPI;
+  virtual void prepare(Grid<Real> &grid,
                        const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    BlockLab<Scalar>::prepare(grid, stencil);
+    BlockLab<Real>::prepare(grid, stencil);
   }
   virtual void load(BlockInfo &info, bool applybc) override {
-    BlockLab<Scalar>::load(info, applybc);
-    Real *dst = (Real *)&BlockLab<Scalar>::m[0];
-    Real *dst1 = (Real *)&BlockLab<Scalar>::c[0];
-    refSynchronizerMPI->fetch(info, BlockLab<Scalar>::nm, BlockLab<Scalar>::nc,
+    BlockLab<Real>::load(info, applybc);
+    Real *dst = (Real *)&BlockLab<Real>::m[0];
+    Real *dst1 = (Real *)&BlockLab<Real>::c[0];
+    refSynchronizerMPI->fetch(info, BlockLab<Real>::nm, BlockLab<Real>::nc,
                               dst, dst1);
     if (sim.size > 1)
-      BlockLab<Scalar>::post_load(info, applybc);
+      BlockLab<Real>::post_load(info, applybc);
   }
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
@@ -4507,7 +4505,7 @@ struct ScalarLab : public BlockLab<Scalar> {
     }
   }
 };
-typedef Adaptation<ScalarLab, Scalar> ScalarAMR;
+typedef Adaptation<ScalarLab, Real> ScalarAMR;
 typedef Adaptation<VectorLab, Vector> VectorAMR;
 struct Skin {
   size_t n;
@@ -4517,13 +4515,13 @@ struct Skin {
   }
 };
 static struct {
-  Grid<Scalar> *chi = nullptr;
+  Grid<Real> *chi = nullptr;
   Grid<Vector> *vel = nullptr;
   Grid<Vector> *vold = nullptr;
-  Grid<Scalar> *pres = nullptr;
+  Grid<Real> *pres = nullptr;
   Grid<Vector> *tmpV = nullptr;
-  Grid<Scalar> *tmp = nullptr;
-  Grid<Scalar> *pold = nullptr;
+  Grid<Real> *tmp = nullptr;
+  Grid<Real> *pold = nullptr;
   ScalarAMR *tmp_amr = nullptr;
   ScalarAMR *chi_amr = nullptr;
   ScalarAMR *pres_amr = nullptr;
@@ -5766,7 +5764,7 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp);
-  computeB<ComputeSurfaceNormals, Scalar, ScalarLab, Scalar, ScalarLab>(
+  computeB<ComputeSurfaceNormals, Real, ScalarLab, Real, ScalarLab>(
       ComputeSurfaceNormals(), *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -5950,7 +5948,7 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->boundary_needed = true;
-  Synchronizer<Grid<Scalar>> *Synch =
+  Synchronizer<Grid<Real>> *Synch =
       var.tmp_amr->grid->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
   bool Reduction = false;
@@ -5958,7 +5956,7 @@ static void adapt() {
   int tmp;
   std::vector<BlockInfo *> *halo = &Synch->halo_blocks;
   std::vector<BlockInfo *> *infos[2] = {&Synch->inner_blocks, halo};
-  typedef Scalar ScalarBlock[_BS_][_BS_];
+  typedef Real ScalarBlock[_BS_][_BS_];
   for (int iii = 0;; iii++) {
     std::vector<BlockInfo *> *I = infos[iii];
 #pragma omp parallel
@@ -6542,7 +6540,7 @@ struct PoissonSolver {
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
   }
-  void solve(const Grid<Scalar> *input) {
+  void solve(const Grid<Real> *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7049,12 +7047,12 @@ struct pressure_rhs {
             ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
              (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<Scalar> *tempCase =
-        (BlockCase<Scalar> *)(tmpInfo[info.id].auxiliary);
-    Scalar *faceXm = nullptr;
-    Scalar *faceXp = nullptr;
-    Scalar *faceYm = nullptr;
-    Scalar *faceYp = nullptr;
+    BlockCase<Real> *tempCase =
+        (BlockCase<Real> *)(tmpInfo[info.id].auxiliary);
+    Real *faceXm = nullptr;
+    Real *faceXp = nullptr;
+    Real *faceYm = nullptr;
+    Real *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7108,12 +7106,12 @@ struct pressure_rhs1 {
         TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
                            (lab(ix, iy - 1) + lab(ix, iy + 1))) -
                           4.0 * lab(ix, iy));
-    BlockCase<Scalar> *tempCase =
-        (BlockCase<Scalar> *)(var.tmp->infos[info.id].auxiliary);
-    Scalar *faceXm = nullptr;
-    Scalar *faceXp = nullptr;
-    Scalar *faceYm = nullptr;
-    Scalar *faceYp = nullptr;
+    BlockCase<Real> *tempCase =
+        (BlockCase<Real> *)(var.tmp->infos[info.id].auxiliary);
+    Real *faceXm = nullptr;
+    Real *faceXp = nullptr;
+    Real *faceYm = nullptr;
+    Real *faceYp = nullptr;
     if (tempCase != nullptr) {
       faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
       faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
@@ -7216,13 +7214,13 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new Grid<Scalar>(1);
+  var.chi = new Grid<Real>(1);
   var.vel = new Grid<Vector>(2);
   var.vold = new Grid<Vector>(2);
-  var.pres = new Grid<Scalar>(1);
+  var.pres = new Grid<Real>(1);
   var.tmpV = new Grid<Vector>(2);
-  var.tmp = new Grid<Scalar>(1);
-  var.pold = new Grid<Scalar>(1);
+  var.tmp = new Grid<Real>(1);
+  var.pold = new Grid<Real>(1);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
@@ -7889,7 +7887,7 @@ int main(int argc, char **argv) {
             V[iy][ix].u[1] += tmpV[iy][ix].u[1] * ih2;
           }
       }
-      computeB<KernelComputeForces, Vector, VectorLab, Scalar, ScalarLab>(
+      computeB<KernelComputeForces, Vector, VectorLab, Real, ScalarLab>(
           KernelComputeForces(), *var.vel, *var.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
