@@ -2329,7 +2329,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           Real *b = (Real *)(&FineFace[i2 + 1]);
           for (d = 0; d < dim; d++) {
             Real avg = a[d] + b[d];
-            memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
+            memcpy(&send_buffer[r][displacement], &avg, sizeof(Real));
             displacement++;
           }
           memset(&FineFace[i2], 0, dim * sizeof(Real));
