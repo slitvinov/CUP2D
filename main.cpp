@@ -2940,8 +2940,8 @@ template <typename ElementType> struct BlockLab {
     m_refGrid = NULL;
   }
   ~BlockLab() {
-    delete m;
-    delete c;
+    free(m);
+    free(c);
   }
   ElementType &operator()(int x, int y) {
     x -= start[0];
