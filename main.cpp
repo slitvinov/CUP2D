@@ -2325,11 +2325,15 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
-          Element avg = FineFace[i2] + FineFace[i2 + 1];
-          memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
-          displacement += sizeof(Element) / sizeof(Real);
-          memset(&FineFace[i2], 0, sizeof(Element));
-          memset(&FineFace[i2 + 1], 0, sizeof(Element));
+          Real *a = (Real *)(&FineFace[i2]);
+          Real *b = (Real *)(&FineFace[i2 + 1]);
+          for (d = 0; d < dim; d++) {
+            Real avg = a[d] + b[d];
+            memcpy(&send_buffer[r][displacement], &avg, sizeof(Element));
+            displacement++;
+          }
+          memset(&FineFace[i2], 0, dim * sizeof(Real));
+          memset(&FineFace[i2 + 1], 0, dim * sizeof(Real));
         }
       }
     }
