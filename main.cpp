@@ -3864,25 +3864,6 @@ template <typename ElementType> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename MyBlockLab, typename ElementType>
-struct BlockLabMPI : public MyBlockLab {
-  Synchronizer<Grid<ElementType>> *refSynchronizerMPI;
-  virtual void prepare(Grid<ElementType> &grid,
-                       const StencilInfo &stencil) override {
-    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    MyBlockLab::prepare(grid, stencil);
-  }
-  virtual void load(BlockInfo &info, bool applybc) override {
-    MyBlockLab::load(info, applybc);
-    Real *dst = (Real *)&MyBlockLab ::m_cacheBlock->LinAccess(0);
-    Real *dst1 = (Real *)&MyBlockLab ::m_CoarsenedBlock->LinAccess(0);
-    refSynchronizerMPI->fetch(info, MyBlockLab::m_cacheBlock->getSize(),
-                              MyBlockLab::m_CoarsenedBlock->getSize(), dst,
-                              dst1);
-    if (sim.size > 1)
-      MyBlockLab::post_load(info, applybc);
-  }
-};
 template <typename ElementType> struct LoadBalancer {
   typedef ElementType BlockType[_BS_][_BS_];
   bool movedBlocks;
@@ -4637,8 +4618,7 @@ struct BlockLabDirichlet : public BlockLab<VectorElement> {
     Real *dst = (Real *)&m_cacheBlock->LinAccess(0);
     Real *dst1 = (Real *)&m_CoarsenedBlock->LinAccess(0);
     refSynchronizerMPI->fetch(info, m_cacheBlock->getSize(),
-                              m_CoarsenedBlock->getSize(), dst,
-                              dst1);
+                              m_CoarsenedBlock->getSize(), dst, dst1);
     if (sim.size > 1)
       post_load(info, applybc);
   }
@@ -4755,6 +4735,23 @@ struct BlockLabDirichlet : public BlockLab<VectorElement> {
   BlockLabDirichlet &operator=(const BlockLabDirichlet &) = delete;
 };
 struct BlockLabNeumann : public BlockLab<ScalarElement> {
+  Synchronizer<Grid<ScalarElement>> *refSynchronizerMPI;
+  virtual void prepare(Grid<ScalarElement> &grid,
+                       const StencilInfo &stencil) override {
+    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
+    BlockLab<ScalarElement>::prepare(grid, stencil);
+  }
+  virtual void load(BlockInfo &info, bool applybc) override {
+    BlockLab<ScalarElement>::load(info, applybc);
+    Real *dst = (Real *)&BlockLab<ScalarElement>::m_cacheBlock->LinAccess(0);
+    Real *dst1 =
+        (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->LinAccess(0);
+    refSynchronizerMPI->fetch(
+        info, BlockLab<ScalarElement>::m_cacheBlock->getSize(),
+        BlockLab<ScalarElement>::m_CoarsenedBlock->getSize(), dst, dst1);
+    if (sim.size > 1)
+      BlockLab<ScalarElement>::post_load(info, applybc);
+  }
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
     int stenEnd[2];
@@ -4812,7 +4809,7 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
   }
 };
 typedef BlockLabDirichlet VectorLab;
-typedef BlockLabMPI<BlockLabNeumann, ScalarElement> ScalarLab;
+typedef BlockLabNeumann ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct Skin {
