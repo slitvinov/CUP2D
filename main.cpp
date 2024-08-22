@@ -716,8 +716,8 @@ template <typename TGrid, typename ElementType> struct FluxCorrection {
       assert(FineFace.size() == CoarseFace.size());
       for (int i2 = 0; i2 < N2; i2 += 2) {
         CoarseFace[base + i2 / 2] += FineFace[i2] + FineFace[i2 + 1];
-        FineFace[i2].clear();
-        FineFace[i2 + 1].clear();
+        memset(&FineFace[i2], 0, sizeof(ElementType));
+        memset(&FineFace[i2 + 1], 0, sizeof(ElementType));
       }
     }
   }
