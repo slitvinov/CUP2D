@@ -2918,13 +2918,15 @@ static ElementType AverageDown(const ElementType &e0, const ElementType &e1,
 }
 template <typename ElementType>
 static void LI(ElementType &a, ElementType b, ElementType c) {
-  ElementType kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  ElementType kappa =
+      ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   ElementType lambda = (b - c) - kappa;
   a = (4.0 * kappa + 2.0 * lambda) + c;
 }
 template <typename ElementType>
 static void LE(ElementType &a, ElementType b, ElementType c) {
-  ElementType kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  ElementType kappa =
+      ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   ElementType lambda = (b - c) - kappa;
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
@@ -3007,16 +3009,13 @@ template <typename ElementType> struct BlockLab {
                       (m_stencilEnd[1]) / 2 + 1 + m_InterpStencilEnd[1] - 1,
                       (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
     if (m_CoarsenedBlock == NULL ||
-        (int)m_CoarsenedBlock->n[0] !=
-            (_BS_ / 2) + e[0] - offset[0] - 1 ||
-        (int)m_CoarsenedBlock->n[1] !=
-            (_BS_ / 2) + e[1] - offset[1] - 1 ||
+        (int)m_CoarsenedBlock->n[0] != (_BS_ / 2) + e[0] - offset[0] - 1 ||
+        (int)m_CoarsenedBlock->n[1] != (_BS_ / 2) + e[1] - offset[1] - 1 ||
         0 != e[2] - offset[2]) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
-      m_CoarsenedBlock =
-          new matrix<ElementType>((_BS_ / 2) + e[0] - offset[0] - 1,
-                                  (_BS_ / 2) + e[1] - offset[1] - 1);
+      m_CoarsenedBlock = new matrix<ElementType>(
+          (_BS_ / 2) + e[0] - offset[0] - 1, (_BS_ / 2) + e[1] - offset[1] - 1);
     }
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
@@ -3028,94 +3027,93 @@ template <typename ElementType> struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m_cacheBlock != NULL);
-      BlockType &block = *(BlockType *)info.block;
-      ElementType *ptrSource = &block[0][0];
-      const int nbytes = sizeof(ElementType) * _BS_;
-      const int _iz0 = -m_stencilStart[2];
-      const int _iz1 = _iz0 + 1;
-      const int _iy0 = -m_stencilStart[1];
-      const int _iy1 = _iy0 + _BS_;
-      const int m_vSize0 = m_cacheBlock->n[0];
-      const int my_ix = -m_stencilStart[0];
+    BlockType &block = *(BlockType *)info.block;
+    ElementType *ptrSource = &block[0][0];
+    const int nbytes = sizeof(ElementType) * _BS_;
+    const int _iz0 = -m_stencilStart[2];
+    const int _iz1 = _iz0 + 1;
+    const int _iy0 = -m_stencilStart[1];
+    const int _iy1 = _iy0 + _BS_;
+    const int m_vSize0 = m_cacheBlock->n[0];
+    const int my_ix = -m_stencilStart[0];
 #pragma GCC ivdep
-      for (int iz = _iz0; iz < _iz1; iz++) {
-        const int my_izx = my_ix;
+    for (int iz = _iz0; iz < _iz1; iz++) {
+      const int my_izx = my_ix;
 #pragma GCC ivdep
-        for (int iy = _iy0; iy < _iy1; iy += 4) {
-          ElementType *__restrict__ ptrDestination0 =
-              &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
-          ElementType *__restrict__ ptrDestination1 =
-              &m_cacheBlock->d[my_izx + (iy + 1) * m_vSize0];
-          ElementType *__restrict__ ptrDestination2 =
-              &m_cacheBlock->d[my_izx + (iy + 2) * m_vSize0];
-          ElementType *__restrict__ ptrDestination3 =
-              &m_cacheBlock->d[my_izx + (iy + 3) * m_vSize0];
-          memcpy(ptrDestination0, (ptrSource), nbytes);
-          memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
-          memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
-          memcpy(ptrDestination3, (ptrSource + 3 * _BS_), nbytes);
-          ptrSource += 4 * _BS_;
-        }
+      for (int iy = _iy0; iy < _iy1; iy += 4) {
+        ElementType *__restrict__ ptrDestination0 =
+            &m_cacheBlock->d[my_izx + (iy)*m_vSize0];
+        ElementType *__restrict__ ptrDestination1 =
+            &m_cacheBlock->d[my_izx + (iy + 1) * m_vSize0];
+        ElementType *__restrict__ ptrDestination2 =
+            &m_cacheBlock->d[my_izx + (iy + 2) * m_vSize0];
+        ElementType *__restrict__ ptrDestination3 =
+            &m_cacheBlock->d[my_izx + (iy + 3) * m_vSize0];
+        memcpy(ptrDestination0, (ptrSource), nbytes);
+        memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
+        memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
+        memcpy(ptrDestination3, (ptrSource + 3 * _BS_), nbytes);
+        ptrSource += 4 * _BS_;
+      }
     }
-      coarsened = false;
-      const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
-      const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
-      const int xskip = info.index[0] == 0 ? -1 : 1;
-      const int yskip = info.index[1] == 0 ? -1 : 1;
+    coarsened = false;
+    const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
+    const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
+    const int xskip = info.index[0] == 0 ? -1 : 1;
+    const int yskip = info.index[1] == 0 ? -1 : 1;
 
-      int icodes[8];
-      int k = 0;
-      coarsened_nei_codes_size = 0;
-      for (int icode = 9; icode < 18; icode++) {
-        myblocks[icode] = nullptr;
-        if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-          continue;
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-        if (sim.bcx != periodic && code[0] == xskip && xskin)
-          continue;
-        if (sim.bcy != periodic && code[1] == yskip && yskin)
-          continue;
-        const auto &TreeNei =
-            m_refGrid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-        if (TreeNei >= 0) {
-          icodes[k++] = icode;
-        } else if (TreeNei == -2) {
-          coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-          CoarseFineExchange(info, code);
-        }
-        if (!istensorial && !use_averages &&
-            abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
-          continue;
-        const int s[3] = {
-            code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
-            code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : _BS_,
-            code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : 1};
-        const int e[3] = {
-            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
-            code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
-        if (TreeNei >= 0)
-          SameLevelExchange(info, code, s, e);
-        else if (TreeNei == -1)
-          FineToCoarseExchange(info, code, s, e);
+    int icodes[8];
+    int k = 0;
+    coarsened_nei_codes_size = 0;
+    for (int icode = 9; icode < 18; icode++) {
+      myblocks[icode] = nullptr;
+      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+        continue;
+      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
+      if (sim.bcx != periodic && code[0] == xskip && xskin)
+        continue;
+      if (sim.bcy != periodic && code[1] == yskip && yskin)
+        continue;
+      const auto &TreeNei =
+          m_refGrid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+      if (TreeNei >= 0) {
+        icodes[k++] = icode;
+      } else if (TreeNei == -2) {
+        coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
+        CoarseFineExchange(info, code);
       }
-      if (coarsened_nei_codes_size > 0)
-        for (int i = 0; i < k; ++i) {
-          const int icode = icodes[i];
-          const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                               icode / 9 - 1};
-          const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
-                                        (info.index[1] + code[1] + NY) % NY,
-                                        (info.index[2] + code[2] + NZ) % NZ};
-          if (UseCoarseStencil(info, infoNei_index)) {
-            FillCoarseVersion(code);
-            coarsened = true;
-          }
-        }
-      if (sim.size == 1) {
-        post_load(info, applybc);
-      }
+      if (!istensorial && !use_averages &&
+          abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
+        continue;
+      const int s[3] = {
+          code[0] < 1 ? (code[0] < 0 ? m_stencilStart[0] : 0) : _BS_,
+          code[1] < 1 ? (code[1] < 0 ? m_stencilStart[1] : 0) : _BS_,
+          code[2] < 1 ? (code[2] < 0 ? m_stencilStart[2] : 0) : 1};
+      const int e[3] = {
+          code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[0] - 1,
+          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + m_stencilEnd[1] - 1,
+          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + m_stencilEnd[2] - 1};
+      if (TreeNei >= 0)
+        SameLevelExchange(info, code, s, e);
+      else if (TreeNei == -1)
+        FineToCoarseExchange(info, code, s, e);
     }
+    if (coarsened_nei_codes_size > 0)
+      for (int i = 0; i < k; ++i) {
+        const int icode = icodes[i];
+        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
+        const int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
+                                      (info.index[1] + code[1] + NY) % NY,
+                                      (info.index[2] + code[2] + NZ) % NZ};
+        if (UseCoarseStencil(info, infoNei_index)) {
+          FillCoarseVersion(code);
+          coarsened = true;
+        }
+      }
+    if (sim.size == 1) {
+      post_load(info, applybc);
+    }
+  }
 
   void post_load(BlockInfo &info, bool applybc) {
     if (coarsened) {
@@ -3377,19 +3375,18 @@ template <typename ElementType> struct BlockLab {
     if (b_ptr == nullptr)
       return;
     BlockType &b = *b_ptr;
-    int s[3] = {
-        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
-        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
-    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + (m_stencilEnd[0]) / 2 +
-                                  m_InterpStencilEnd[0] - 1,
-                code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + (m_stencilEnd[1]) / 2 +
-                                  m_InterpStencilEnd[1] - 1,
-                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                            : 1 + (m_stencilEnd[2]) / 2 +
-                                  m_InterpStencilEnd[2] - 1};
+    int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
+                code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
+    int e[3] = {
+        code[0] < 1
+            ? (code[0] < 0 ? 0 : (_BS_ / 2))
+            : (_BS_ / 2) + (m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0] - 1,
+        code[1] < 1
+            ? (code[1] < 0 ? 0 : (_BS_ / 2))
+            : (_BS_ / 2) + (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1] - 1,
+        code[2] < 1 ? (code[2] < 0 ? 0 : 1)
+                    : 1 + (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2] - 1};
     int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
@@ -3472,25 +3469,22 @@ template <typename ElementType> struct BlockLab {
     int eC[3] = {(m_stencilEnd[0]) / 2 + m_InterpStencilEnd[0],
                  (m_stencilEnd[1]) / 2 + m_InterpStencilEnd[1],
                  (m_stencilEnd[2]) / 2 + m_InterpStencilEnd[2]};
-    int s[3] = {
-        code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
-        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
-    int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + eC[0] - 1,
-                code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + eC[1] - 1,
-                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                            : 1 + eC[2] - 1};
+    int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
+                code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
+    int e[3] = {
+        code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
+        code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1,
+        code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + eC[2] - 1};
     int bytes = (e[0] - s[0]) * sizeof(ElementType);
     if (!bytes)
       return;
-    int start[3] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) -
-                        code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]),
-                    s[1] + std::max(code[1], 0) * (_BS_ / 2) -
-                        code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]),
-                    s[2] + std::max(code[2], 0) * 1 -
-                        code[2] * 1 + std::min(0, code[2]) * (e[2] - s[2])};
+    int start[3] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
+                        std::min(0, code[0]) * (e[0] - s[0]),
+                    s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
+                        std::min(0, code[1]) * (e[1] - s[1]),
+                    s[2] + std::max(code[2], 0) * 1 - code[2] * 1 +
+                        std::min(0, code[2]) * (e[2] - s[2])};
     int m_vSize0 = m_CoarsenedBlock->n[0];
     int my_ix = s[0] - offset[0];
     int XX = start[0];
@@ -3550,8 +3544,7 @@ template <typename ElementType> struct BlockLab {
                       : (_BS_ / 2),
           code[1] < 1 ? (code[1] < 0 ? ((m_stencilStart[1] - 1) / 2) : 0)
                       : (_BS_ / 2),
-          code[2] < 1 ? (code[2] < 0 ? ((m_stencilStart[2] - 1) / 2) : 0)
-                      : 1};
+          code[2] < 1 ? (code[2] < 0 ? ((m_stencilStart[2] - 1) / 2) : 0) : 1};
       int bytes = (e[0] - s[0]) * sizeof(ElementType);
       if (!bytes)
         continue;
