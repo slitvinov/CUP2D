@@ -2955,10 +2955,6 @@ template <class DataType> struct Matrix3D {
 #endif
     return m_pData[iy * m_vSize[0] + ix];
   }
-  DataType &Access00(unsigned int ix, unsigned int iy, unsigned iz) const {
-    assert(iz == 0);
-    return Access0(ix, iy);
-  }
   const DataType &Read(unsigned int ix, unsigned int iy,
                        unsigned int iz) const {
 #ifndef NDEBUG
@@ -3027,12 +3023,12 @@ template <typename ElementType> struct BlockLab {
     _release(m_CoarsenedBlock);
   }
   ElementType &operator()(int ix, int iy) {
-    return m_cacheBlock->Access00(ix - m_stencilStart[0],
-                                  iy - m_stencilStart[1], -m_stencilStart[2]);
+    return m_cacheBlock->Access0(ix - m_stencilStart[0],
+				 iy - m_stencilStart[1]);
   }
   const ElementType &operator()(int ix, int iy) const {
-    return m_cacheBlock->Access00(ix - m_stencilStart[0],
-                                  iy - m_stencilStart[1], -m_stencilStart[2]);
+    return m_cacheBlock->Access0(ix - m_stencilStart[0],
+                                  iy - m_stencilStart[1]);
   }
   virtual void prepare(Grid<ElementType> &grid, const StencilInfo &stencil) {
     constexpr int Istencil_start[3] = {-1, -1, 0};
