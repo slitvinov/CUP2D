@@ -2292,11 +2292,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         face &f = recv_faces[r][k];
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
-        int L[3];
-        L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
-        L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
-        L[2] = 1;
-        int V = L[0] * L[1] * L[2];
+        int V =
+            ((code[0] == 0) ? _BS_ / 2 : 1) * ((code[1] == 0) ? _BS_ / 2 : 1);
         f.offset = offset;
         offset += V * NC;
       }
@@ -4436,8 +4433,7 @@ struct VectorLab : public BlockLab<Vector> {
 };
 struct ScalarLab : public BlockLab<Real> {
   Synchronizer<Grid<Real>> *refSynchronizerMPI;
-  virtual void prepare(Grid<Real> &grid,
-                       const StencilInfo &stencil) override {
+  virtual void prepare(Grid<Real> &grid, const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     BlockLab<Real>::prepare(grid, stencil);
   }
@@ -4445,8 +4441,8 @@ struct ScalarLab : public BlockLab<Real> {
     BlockLab<Real>::load(info, applybc);
     Real *dst = (Real *)&BlockLab<Real>::m[0];
     Real *dst1 = (Real *)&BlockLab<Real>::c[0];
-    refSynchronizerMPI->fetch(info, BlockLab<Real>::nm, BlockLab<Real>::nc,
-                              dst, dst1);
+    refSynchronizerMPI->fetch(info, BlockLab<Real>::nm, BlockLab<Real>::nc, dst,
+                              dst1);
     if (sim.size > 1)
       BlockLab<Real>::post_load(info, applybc);
   }
@@ -4605,7 +4601,7 @@ struct KernelVorticity {
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
         TMP[y][x] = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
-                             (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
+                           (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
   }
 };
 static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
@@ -5083,10 +5079,8 @@ struct ComputeSurfaceNormals {
           const Real gradHY = labChi(ix, iy + 1) - labChi(ix, iy - 1);
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
-          const Real gradUX =
-              i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
-          const Real gradUY =
-              i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
+          const Real gradUX = i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
+          const Real gradUY = i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
           const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           const Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
@@ -7041,13 +7035,11 @@ struct pressure_rhs {
         TMP[iy][ix] =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP[iy][ix] +=
-            -facDiv * CHI[iy][ix] *
-            ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
-             (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
+        TMP[iy][ix] += -facDiv * CHI[iy][ix] *
+                       ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
+                        (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<Real> *tempCase =
-        (BlockCase<Real> *)(tmpInfo[info.id].auxiliary);
+    BlockCase<Real> *tempCase = (BlockCase<Real> *)(tmpInfo[info.id].auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
@@ -7063,16 +7055,15 @@ struct pressure_rhs {
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
         faceXm[iy] += -(facDiv * CHI[iy][ix]) *
-                        (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
+                      (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy] =
-            -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
+        faceXp[iy] = -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
         faceXp[iy] -= -(facDiv * CHI[iy][ix]) *
-                        (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
+                      (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceYm != nullptr) {
@@ -7080,16 +7071,15 @@ struct pressure_rhs {
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
         faceYm[ix] += -(facDiv * CHI[iy][ix]) *
-                        (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
+                      (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix] =
-            -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
+        faceYp[ix] = -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
         faceYp[ix] -= -(facDiv * CHI[iy][ix]) *
-                        (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
+                      (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
   }
@@ -7103,8 +7093,8 @@ struct pressure_rhs1 {
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
         TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
-                           (lab(ix, iy - 1) + lab(ix, iy + 1))) -
-                          4.0 * lab(ix, iy));
+                         (lab(ix, iy - 1) + lab(ix, iy + 1))) -
+                        4.0 * lab(ix, iy));
     BlockCase<Real> *tempCase =
         (BlockCase<Real> *)(var.tmp->infos[info.id].auxiliary);
     Real *faceXm = nullptr;
