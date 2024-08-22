@@ -4734,7 +4734,7 @@ struct VectorLab : public BlockLab<VectorElement> {
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
 };
-struct BlockLabNeumann : public BlockLab<ScalarElement> {
+struct ScalarLab : public BlockLab<ScalarElement> {
   Synchronizer<Grid<ScalarElement>> *refSynchronizerMPI;
   virtual void prepare(Grid<ScalarElement> &grid,
                        const StencilInfo &stencil) override {
@@ -4790,9 +4790,9 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
             (dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0],
             (dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) - stenBeg[1], 0);
   }
-  BlockLabNeumann() = default;
-  BlockLabNeumann(const BlockLabNeumann &) = delete;
-  BlockLabNeumann &operator=(const BlockLabNeumann &) = delete;
+  ScalarLab() = default;
+  ScalarLab(const ScalarLab &) = delete;
+  ScalarLab &operator=(const ScalarLab &) = delete;
   virtual void _apply_bc(BlockInfo &info, bool coarse) override {
     if (sim.bcx != periodic) {
       if (info.index[0] == 0)
@@ -4808,7 +4808,6 @@ struct BlockLabNeumann : public BlockLab<ScalarElement> {
     }
   }
 };
-typedef BlockLabNeumann ScalarLab;
 typedef Adaptation<ScalarLab, ScalarElement> ScalarAMR;
 typedef Adaptation<VectorLab, VectorElement> VectorAMR;
 struct Skin {
