@@ -3084,8 +3084,7 @@ template <typename ElementType> struct BlockLab {
                     m_stencilStart[0] < -2 || m_stencilStart[1] < -2 ||
                     m_stencilEnd[0] > 3 || m_stencilEnd[1] > 3);
   }
-  virtual void load(const BlockInfo &info, const Real t = 0,
-                    const bool applybc = true) {
+  virtual void load(const BlockInfo &info, const Real t, const bool applybc) {
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -3876,8 +3875,8 @@ struct BlockLabMPI : public MyBlockLab {
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
   }
-  virtual void load(const BlockInfo &info, const Real t = 0,
-                    const bool applybc = true) override {
+  virtual void load(const BlockInfo &info, const Real t,
+                    const bool applybc) override {
     MyBlockLab::load(info, t, applybc);
     Real *dst = (Real *)&MyBlockLab ::m_cacheBlock->LinAccess(0);
     Real *dst1 = (Real *)&MyBlockLab ::m_CoarsenedBlock->LinAccess(0);
@@ -4484,7 +4483,7 @@ static void computeA(Kernel &&kernel, TGrid *g) {
     lab.prepare(*g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(*I, 0);
+      lab.load(*I, 0, true);
       kernel(lab, *I);
     }
     while (done == false) {
@@ -4493,7 +4492,7 @@ static void computeA(Kernel &&kernel, TGrid *g) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(*I, 0);
+        lab.load(*I, 0, true);
         kernel(lab, *I);
       }
 #pragma omp single
@@ -4541,8 +4540,8 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     for (int i = 0; i < Ninner; i++) {
       const BlockInfo &I = *avail0[i];
       const BlockInfo &I2 = *avail02[i];
-      lab.load(I, 0);
-      lab2.load(I2, 0);
+      lab.load(I, 0, true);
+      lab2.load(I2, 0, true);
       kernel(lab, lab2, I, I2);
       ready[I.id] = true;
     }
@@ -4562,8 +4561,8 @@ static void computeB(const Kernel &kernel, Grid<ElementType1> &grid,
     for (int i = 0; i < Nhalo; i++) {
       const BlockInfo &I = *avail1[i];
       const BlockInfo &I2 = *avail12[i];
-      lab.load(I, 0);
-      lab2.load(I2, 0);
+      lab.load(I, 0, true);
+      lab2.load(I2, 0, true);
       kernel(lab, lab2, I, I2);
     }
   }
