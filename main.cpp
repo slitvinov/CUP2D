@@ -2918,7 +2918,6 @@ template <class DataType> struct Matrix3D {
     assert(i < n[0] * n[1]);
     return d[i];
   }
-  unsigned int *getSize() const { return (unsigned int*)n; }
 };
 template <typename ElementType> struct BlockLab {
   typedef ElementType BlockType[_BS_][_BS_];
@@ -2992,12 +2991,11 @@ template <typename ElementType> struct BlockLab {
     m_InterpStencilEnd[2] = Istencil_end[2];
     m_refGrid = &grid;
     if (m_cacheBlock == NULL ||
-        (int)m_cacheBlock->getSize()[0] !=
+        (int)m_cacheBlock->n[0] !=
             _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1 ||
-        (int)m_cacheBlock->getSize()[1] !=
+        (int)m_cacheBlock->n[1] !=
             _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1 ||
-        (int)m_cacheBlock->getSize()[2] !=
-            1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
+        0 != 1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
       if (m_cacheBlock != NULL)
         _release(m_cacheBlock);
       m_cacheBlock = new Matrix3D<ElementType>;
@@ -3011,11 +3009,11 @@ template <typename ElementType> struct BlockLab {
                       (m_stencilEnd[1]) / 2 + 1 + m_InterpStencilEnd[1] - 1,
                       (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
     if (m_CoarsenedBlock == NULL ||
-        (int)m_CoarsenedBlock->getSize()[0] !=
+        (int)m_CoarsenedBlock->n[0] !=
             CoarseBlockSize[0] + e[0] - offset[0] - 1 ||
-        (int)m_CoarsenedBlock->getSize()[1] !=
+        (int)m_CoarsenedBlock->n[1] !=
             CoarseBlockSize[1] + e[1] - offset[1] - 1 ||
-        (int)m_CoarsenedBlock->getSize()[2] !=
+        0 !=
             CoarseBlockSize[2] + e[2] - offset[2] - 1) {
       if (m_CoarsenedBlock != NULL)
         _release(m_CoarsenedBlock);
@@ -4550,8 +4548,8 @@ struct VectorLab : public BlockLab<VectorElement> {
     BlockLab<VectorElement>::load(info, applybc);
     Real *dst = (Real *)&m_cacheBlock->LinAccess(0);
     Real *dst1 = (Real *)&m_CoarsenedBlock->LinAccess(0);
-    refSynchronizerMPI->fetch(info, m_cacheBlock->getSize(),
-                              m_CoarsenedBlock->getSize(), dst, dst1);
+    refSynchronizerMPI->fetch(info, m_cacheBlock->n,
+                              m_CoarsenedBlock->n, dst, dst1);
     if (sim.size > 1)
       post_load(info, applybc);
   }
@@ -4680,8 +4678,8 @@ struct ScalarLab : public BlockLab<ScalarElement> {
     Real *dst1 =
         (Real *)&BlockLab<ScalarElement>::m_CoarsenedBlock->LinAccess(0);
     refSynchronizerMPI->fetch(
-        info, BlockLab<ScalarElement>::m_cacheBlock->getSize(),
-        BlockLab<ScalarElement>::m_CoarsenedBlock->getSize(), dst, dst1);
+        info, BlockLab<ScalarElement>::m_cacheBlock->n,
+        BlockLab<ScalarElement>::m_CoarsenedBlock->n, dst, dst1);
     if (sim.size > 1)
       BlockLab<ScalarElement>::post_load(info, applybc);
   }
