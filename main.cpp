@@ -3002,9 +3002,9 @@ template <typename ElementType> struct BlockLab {
           _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1,
           _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1);
     }
-    offset[0] = (m_stencilStart[0] - 1) / 2 + m_InterpStencilStart[0];
-    offset[1] = (m_stencilStart[1] - 1) / 2 + m_InterpStencilStart[1];
-    offset[2] = (m_stencilStart[2] - 1) / 2 + m_InterpStencilStart[2];
+    offset[0] = (m_stencilStart[0] - 1) / 2 + (-1);
+    offset[1] = (m_stencilStart[1] - 1) / 2 + (-1);
+    offset[2] = (m_stencilStart[2] - 1) / 2 + (0);
     const int e[3] = {(m_stencilEnd[0]) / 2 + 1 + m_InterpStencilEnd[0] - 1,
                       (m_stencilEnd[1]) / 2 + 1 + m_InterpStencilEnd[1] - 1,
                       (m_stencilEnd[2]) / 2 + 1 + m_InterpStencilEnd[2] - 1};
@@ -3115,9 +3115,9 @@ template <typename ElementType> struct BlockLab {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
-          if (i > -m_InterpStencilStart[0] &&
+          if (i > -(-1) &&
               i < _BS_ / 2 - m_InterpStencilEnd[0] &&
-              j > -m_InterpStencilStart[1] &&
+              j > -(-1) &&
               j < _BS_ / 2 - m_InterpStencilEnd[1])
             continue;
           const int ix = 2 * i - m_stencilStart[0];
@@ -3474,9 +3474,9 @@ template <typename ElementType> struct BlockLab {
     for (int iz = s[2]; iz < e[2]; iz++) {
       int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1]; iy++) {
-        if (code[1] == 0 && code[2] == 0 && iy > -m_InterpStencilStart[1] &&
+        if (code[1] == 0 && code[2] == 0 && iy > -(-1) &&
             iy < _BS_ / 2 - m_InterpStencilEnd[1] &&
-            iz > -m_InterpStencilStart[2] && iz < 1 / 2 - m_InterpStencilEnd[2])
+            iz > -(0) && iz < 1 / 2 - m_InterpStencilEnd[2])
           continue;
         ElementType *__restrict__ ptrDest1 =
             &m_CoarsenedBlock->d[my_izx + (iy - offset[1]) * m_vSize0];
