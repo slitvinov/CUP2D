@@ -3028,7 +3028,6 @@ template <typename ElementType> struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m_cacheBlock != NULL);
-    {
       BlockType &block = *(BlockType *)info.block;
       ElementType *ptrSource = &block[0][0];
       const int nbytes = sizeof(ElementType) * _BS_;
@@ -3057,9 +3056,7 @@ template <typename ElementType> struct BlockLab {
           memcpy(ptrDestination3, (ptrSource + 3 * _BS_), nbytes);
           ptrSource += 4 * _BS_;
         }
-      }
     }
-    {
       coarsened = false;
       const bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
       const bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
@@ -3119,7 +3116,7 @@ template <typename ElementType> struct BlockLab {
         post_load(info, applybc);
       }
     }
-  }
+
   void post_load(BlockInfo &info, bool applybc) {
     if (coarsened) {
 #pragma GCC ivdep
