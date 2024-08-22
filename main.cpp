@@ -3871,8 +3871,6 @@ struct BlockLabMPI : public MyBlockLab {
   SynchronizerMPIType *refSynchronizerMPI;
   virtual void prepare(Grid<ElementType> &grid,
                        const StencilInfo &stencil) override {
-    constexpr int Istencil_start[3] = {-1, -1, 0};
-    constexpr int Istencil_end[3] = {2, 2, 1};
     auto itSynchronizerMPI = grid.SynchronizerMPIs.find(stencil);
     refSynchronizerMPI = itSynchronizerMPI->second;
     MyBlockLab::prepare(grid, stencil);
