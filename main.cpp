@@ -2993,7 +2993,7 @@ template <typename ElementType> struct BlockLab {
             _BS_ + m_stencilEnd[0] - m_stencilStart[0] - 1 ||
         (int)m_cacheBlock->n[1] !=
             _BS_ + m_stencilEnd[1] - m_stencilStart[1] - 1 ||
-        0 != 1 + m_stencilEnd[2] - m_stencilStart[2] - 1) {
+        0 != m_stencilEnd[2] - m_stencilStart[2]) {
       if (m_cacheBlock != NULL)
         delete m_cacheBlock;
       m_cacheBlock = new matrix<ElementType>(
@@ -3011,7 +3011,7 @@ template <typename ElementType> struct BlockLab {
             (_BS_ / 2) + e[0] - offset[0] - 1 ||
         (int)m_CoarsenedBlock->n[1] !=
             (_BS_ / 2) + e[1] - offset[1] - 1 ||
-        0 != 1 + e[2] - offset[2] - 1) {
+        0 != e[2] - offset[2]) {
       if (m_CoarsenedBlock != NULL)
         delete m_CoarsenedBlock;
       m_CoarsenedBlock =
