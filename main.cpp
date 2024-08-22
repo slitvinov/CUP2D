@@ -8054,6 +8054,8 @@ int main(int argc, char **argv) {
       sim.time += sim.dt;
       sim.step++;
     }
+    if (sim.step % 100 == 0)
+      fprintf(stderr, "main.cpp: %08d\n", sim.step);
     if (!done) {
       bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
       bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;

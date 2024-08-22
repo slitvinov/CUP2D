@@ -427,10 +427,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
   cudaStreamSynchronize(solver_stream_);
   MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_MAX,
                 m_comm_);
-  if (rank_ == 0) {
-    std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << '\n';
-    std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << '\n';
-  }
   error = h_coeffs_->buff_2;
   error_init = error;
   error_opt = error;
@@ -463,11 +459,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
       restarts++;
       if (restarts >= max_restarts) {
         break;
-      }
-      if (rank_ == 0) {
-        std::cout << "  [BiCGSTAB]: Restart at iteration: " << k
-                  << " norm: " << error << " Initial norm: " << error_init
-                  << '\n';
       }
       cudaMemcpyAsync(d_rhat_, d_r_, m_ * sizeof(double),
                       cudaMemcpyDeviceToDevice, solver_stream_);
