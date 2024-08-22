@@ -3365,7 +3365,7 @@ template <typename ElementType> struct BlockLab {
         std::max(code[2], 0) / 2 + (1 - abs(code[2])) * base[2] / 2 - code[2] +
             CoarseEdge[2] * code[2] / 2};
 
-    const int m_vSize0 = c->n[0];
+    const int m_vSize0 = nc;
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iz = s[2]; iz < e[2]; iz++) {
@@ -3417,7 +3417,7 @@ template <typename ElementType> struct BlockLab {
                         std::min(0, code[1]) * (e[1] - s[1]),
                     s[2] + std::max(code[2], 0) * 1 - code[2] * 1 +
                         std::min(0, code[2]) * (e[2] - s[2])};
-    int m_vSize0 = c->n[0];
+    int m_vSize0 = nc;
     int my_ix = s[0] - offset[0];
     int XX = start[0];
     for (int iz = s[2]; iz < e[2]; iz++) {
