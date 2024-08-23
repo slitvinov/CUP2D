@@ -1885,9 +1885,9 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = (Real *)(&CoarseFace[base + (i2 / 2)]);
-        for (int j = 0; j < sizeof(Element) / sizeof(Real); j++)
+        for (int j = 0; j < dim; j++)
           s[j] += recv_buffer[r][F.offset + dis + j];
-        dis += sizeof(Element) / sizeof(Real);
+        dis += dim;
       }
     }
   }
@@ -3724,7 +3724,9 @@ template <typename TLab, typename Element> struct Adaptation {
   Grid<Element> *grid;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
-  Adaptation(Grid<Element> &g) {
+  const int dim;
+  Adaptation(Grid<Element> &g, int dim) : dim(dim)
+  {
     grid = &g;
     boundary_needed = false;
     stencil.sx = -1;
@@ -3734,7 +3736,7 @@ template <typename TLab, typename Element> struct Adaptation {
     stencil.ey = 2;
     stencil.ez = 1;
     stencil.tensorial = true;
-    for (int i = 0; i < sizeof(Element) / sizeof(Real); i++)
+    for (int i = 0; i < dim; i++)
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<Element>(*grid);
   }
@@ -7026,13 +7028,13 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new ScalarAMR(*var.tmp);
-  var.chi_amr = new ScalarAMR(*var.chi);
-  var.pres_amr = new ScalarAMR(*var.pres);
-  var.pold_amr = new ScalarAMR(*var.pold);
-  var.vel_amr = new VectorAMR(*var.vel);
-  var.vold_amr = new VectorAMR(*var.vold);
-  var.tmpV_amr = new VectorAMR(*var.tmpV);
+  var.tmp_amr = new ScalarAMR(*var.tmp, 1);
+  var.chi_amr = new ScalarAMR(*var.chi, 1);
+  var.pres_amr = new ScalarAMR(*var.pres, 1);
+  var.pold_amr = new ScalarAMR(*var.pold, 1);
+  var.vel_amr = new VectorAMR(*var.vel, 2);
+  var.vold_amr = new VectorAMR(*var.vold, 2);
+  var.tmpV_amr = new VectorAMR(*var.tmpV, 2);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
