@@ -4588,21 +4588,6 @@ template <int Npoints> struct Scheduler {
     dparameters_t0 = std::array<Real, Npoints>();
   }
   void transition(const Real t, const Real tstart, const Real tend,
-                  const std::array<Real, Npoints> parameters_tend,
-                  const bool UseCurrentDerivative = false) {
-    if (t < tstart or t > tend)
-      return;
-    std::array<Real, Npoints> parameters;
-    std::array<Real, Npoints> dparameters;
-    gimmeValues(tstart, parameters, dparameters);
-    t0 = tstart;
-    t1 = tend;
-    parameters_t0 = parameters;
-    parameters_t1 = parameters_tend;
-    dparameters_t0 =
-        UseCurrentDerivative ? dparameters : std::array<Real, Npoints>();
-  }
-  void transition(const Real t, const Real tstart, const Real tend,
                   const std::array<Real, Npoints> parameters_tstart,
                   const std::array<Real, Npoints> parameters_tend) {
     if (t < tstart or t > tend)
@@ -4650,11 +4635,6 @@ template <int Npoints> struct Scheduler {
   }
 };
 struct SchedulerScalar : Scheduler<1> {
-  void transition(const Real t, const Real tstart, const Real tend,
-                  const Real parameter_tend, const bool keepSlope = false) {
-    const std::array<Real, 1> myParameter = {parameter_tend};
-    return Scheduler<1>::transition(t, tstart, tend, myParameter, keepSlope);
-  }
   void transition(const Real t, const Real tstart, const Real tend,
                   const Real parameter_tstart, const Real parameter_tend) {
     const std::array<Real, 1> myParameterStart = {parameter_tstart};
