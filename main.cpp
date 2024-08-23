@@ -2101,6 +2101,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
                      abs(code[2]) * (std::max(0, code[2]) + 4);
         std::vector<Element> &FineFace = FineCase.d[myFace];
         int d = myFace / 2;
+	assert(d == 0 || assert d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
