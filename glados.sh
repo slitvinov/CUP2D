@@ -1,10 +1,14 @@
+d=/scratch/lisergey/CUP2D
 ssh glados '
-rm -rf /scratch/lisergey/CUP2D &&
+d='$d'
+rm -rf ${d?not set} &&
    git clone git@github.com:slitvinov/CUP2D /scratch/lisergey/CUP2D &&
-   cd /scratch/lisergey/CUP2D
-   git checkout '${1-HEAD}'
+   cd "$d" &&
+   git checkout '${1-HEAD}' &&
    module load mpi &&
-   make "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" "CXXFLAGS = -O3" "OPENMPFLAGS = " -j
-   mpiexec -n 2 sh ~/run.sh
+   make -j "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" "CXXFLAGS = -coverage -Og -g3" "LDFLAGS = -Xcompiler -coverage" "OPENMPFLAGS = " &&
+   mpiexec -n 2 sh run.sh &&
+   ls vort.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py &&
+   python -m gcovr --html-details cover.html
 '
-rsync -avz glados:/scratch/lisergey/CUP2D/vort* .
+rsync -avz "rc:$d"/vort* "rc:$d"/cover* .
