@@ -4648,11 +4648,6 @@ struct SchedulerScalar : Scheduler<1> {
     parameter = myParameter[0];
     dparameter = mydParameter[0];
   }
-  void gimmeValues(const Real t, Real &parameter) {
-    std::array<Real, 1> myParameter;
-    Scheduler<1>::gimmeValues(t, myParameter);
-    parameter = myParameter[0];
-  }
 };
 template <int Npoints> struct SchedulerVector : Scheduler<Npoints> {
   void gimmeValues(const Real t, const std::array<Real, Npoints> &positions,
