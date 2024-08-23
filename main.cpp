@@ -1832,7 +1832,6 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
   std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
   std::vector<BlockCase<Element>> Cases;
   TGrid *grid;
-  typedef BlockCase<Element> Case;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -1867,7 +1866,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
-    Case &CoarseCase = (*search->second);
+    BlockCase<Element> &CoarseCase = (*search->second);
     std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -1918,7 +1917,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
-    Case &CoarseCase = (*search->second);
+    BlockCase<Element> &CoarseCase = (*search->second);
     std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -2037,7 +2036,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         }
       }
       if (stored) {
-        Cases.push_back(Case(storeFace, info.level, info.Z, dim));
+        Cases.push_back(BlockCase<Element>(storeFace, info.level, info.Z, dim));
       }
     }
     size_t Cases_index = 0;
@@ -2047,7 +2046,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
           break;
         if (Cases[Cases_index].level == info.level &&
             Cases[Cases_index].Z == info.Z) {
-          MapOfCases.insert(std::pair<std::array<long long, 2>, Case *>(
+          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase<Element> *>(
               {Cases[Cases_index].level, Cases[Cases_index].Z},
               &Cases[Cases_index]));
           grid->get(Cases[Cases_index].level, Cases[Cases_index].Z).auxiliary =
@@ -2083,7 +2082,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         BlockInfo &info = *(f.infos[0]);
         auto search = MapOfCases.find({(long long)info.level, info.Z});
         assert(search != MapOfCases.end());
-        Case &FineCase = (*search->second);
+        BlockCase<Element> &FineCase = (*search->second);
         int icode = f.icode[0];
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
