@@ -618,28 +618,19 @@ struct BlockInfo {
 template <typename Element> struct BlockCase {
   std::vector<Element> d[6];
   bool storedFace[6];
-  int level;
-  long long Z;
   const int dim;
-  BlockCase(bool _storedFace[6], int _level, long long _Z, int dim) : dim(dim) {
-    storedFace[0] = _storedFace[0];
-    storedFace[1] = _storedFace[1];
-    storedFace[2] = _storedFace[2];
-    storedFace[3] = _storedFace[3];
-    storedFace[4] = _storedFace[4];
-    storedFace[5] = _storedFace[5];
-    assert(storedFace[4] == 0);
-    assert(storedFace[5] == 0);
-    for (int i = 0; i < 3; i++) {
-      int d1 = (i + 1) % 3;
-      int d2 = (i + 2) % 3;
-      if (storedFace[2 * i])
-        d[2 * i].resize(sizes[d1] * sizes[d2]);
-      if (storedFace[2 * i + 1])
-        d[2 * i + 1].resize(sizes[d1] * sizes[d2]);
-    }
-    level = _level;
-    Z = _Z;
+  const int level;
+  const long long Z;
+  BlockCase(bool s[4], int _level, long long _Z, int dim) : dim(dim), level(level),  Z(Z) {
+    storedFace[0] = s[0];
+    storedFace[1] = s[1];
+    storedFace[2] = s[2];
+    storedFace[3] = s[3];
+    storedFace[4] = 0;
+    storedFace[5] = 0;
+    for (int i = 0; i < 4; i++)
+      if (s[i])
+	d[i].resize(_BS_);
   }
 };
 template <typename TGrid, typename Element> struct FluxCorrection {};
