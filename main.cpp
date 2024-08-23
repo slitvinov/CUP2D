@@ -596,8 +596,6 @@ struct CommandlineParser {
   Value &operator()(std::string key) {
     if (key[0] == '-')
       key.erase(0, 1);
-    if (key[0] == '+')
-      key.erase(0, 1);
     if (bStrictMode) {
       if (mapArguments.find(key) == mapArguments.end()) {
         printf("runtime %s is not set\n", key.data());
