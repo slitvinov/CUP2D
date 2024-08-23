@@ -620,15 +620,18 @@ template <typename Element> struct BlockCase {
   bool storedFace[4];
   const int dim, level;
   const long long Z;
-  BlockCase(const BlockCase&) = delete;
-  BlockCase(const BlockCase&& o) : dim(o.dim), level(o.level), Z(o.Z) {
-    for (int i = 0; i < 4; i++)
+  BlockCase(const BlockCase &) = delete;
+  BlockCase(BlockCase &&o) : dim(o.dim), level(o.level), Z(o.Z) {
+    for (int i = 0; i < 4; i++) {
       d[i] = o.d[i];
+      o.d[i] = nullptr;
+    }
   };
-  BlockCase(bool s[4], int level, long long Z, int dim) : dim(dim), level(level),  Z(Z) {
+  BlockCase(bool s[4], int level, long long Z, int dim)
+      : dim(dim), level(level), Z(Z) {
     for (int i = 0; i < 4; i++) {
       storedFace[i] = s[i];
-      d[i] = s[i] ? (Element*) malloc(_BS_ * sizeof(Element)) : nullptr;
+      d[i] = s[i] ? (Element *)malloc(_BS_ * sizeof(Element)) : nullptr;
     }
   }
   ~BlockCase() {
@@ -2050,9 +2053,10 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
           break;
         if (Cases[Cases_index].level == info.level &&
             Cases[Cases_index].Z == info.Z) {
-          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase<Element> *>(
-              {Cases[Cases_index].level, Cases[Cases_index].Z},
-              &Cases[Cases_index]));
+          MapOfCases.insert(
+              std::pair<std::array<long long, 2>, BlockCase<Element> *>(
+                  {Cases[Cases_index].level, Cases[Cases_index].Z},
+                  &Cases[Cases_index]));
           grid->get(Cases[Cases_index].level, Cases[Cases_index].Z).auxiliary =
               &Cases[Cases_index];
           info.auxiliary = &Cases[Cases_index];
@@ -2092,9 +2096,9 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        Element* FineFace = FineCase.d[myFace];
+        Element *FineFace = FineCase.d[myFace];
         int d = myFace / 2;
-	assert(d == 0 || d == 1);
+        assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
