@@ -616,20 +616,24 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 template <typename Element> struct BlockCase {
-  std::vector<Element> d[6];
-  bool storedFace[6];
+  Element *d[4];
+  bool storedFace[4];
   const int dim, level;
   const long long Z;
-  BlockCase(bool s[4], int level, long long Z, int dim) : dim(dim), level(level),  Z(Z) {
-    storedFace[0] = s[0];
-    storedFace[1] = s[1];
-    storedFace[2] = s[2];
-    storedFace[3] = s[3];
-    storedFace[4] = 0;
-    storedFace[5] = 0;
+  BlockCase(const BlockCase&) = delete;
+  BlockCase(const BlockCase&& o) : dim(o.dim), level(o.level), Z(o.Z) {
     for (int i = 0; i < 4; i++)
-      if (s[i])
-	d[i].resize(_BS_);
+      d[i] = o.d[i];
+  };
+  BlockCase(bool s[4], int level, long long Z, int dim) : dim(dim), level(level),  Z(Z) {
+    for (int i = 0; i < 4; i++) {
+      storedFace[i] = s[i];
+      d[i] = s[i] ? (Element*) malloc(_BS_ * sizeof(Element)) : nullptr;
+    }
+  }
+  ~BlockCase() {
+    for (int i = 0; i < 4; i++)
+      free(d[i]);
   }
 };
 template <typename TGrid, typename Element> struct FluxCorrection {};
@@ -1867,7 +1871,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase<Element> &CoarseCase = (*search->second);
-    std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
+    Element *CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -1918,7 +1922,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase<Element> &CoarseCase = (*search->second);
-    std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
+    Element *CoarseFace = CoarseCase.d[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -2036,7 +2040,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         }
       }
       if (stored) {
-        Cases.push_back(BlockCase<Element>(storeFace, info.level, info.Z, dim));
+        Cases.emplace_back(storeFace, info.level, info.Z, dim);
       }
     }
     size_t Cases_index = 0;
@@ -2088,7 +2092,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        std::vector<Element> &FineFace = FineCase.d[myFace];
+        Element* FineFace = FineCase.d[myFace];
         int d = myFace / 2;
 	assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
