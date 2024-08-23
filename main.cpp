@@ -628,6 +628,8 @@ template <typename Element> struct BlockCase {
     storedFace[3] = _storedFace[3];
     storedFace[4] = _storedFace[4];
     storedFace[5] = _storedFace[5];
+    assert(storedFace[4] == 0);
+    assert(storedFace[5] == 0);
     for (int i = 0; i < 3; i++) {
       int d1 = (i + 1) % 3;
       int d2 = (i + 2) % 3;
