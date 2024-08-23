@@ -553,19 +553,6 @@ struct Value {
     }
     return atoi(content.c_str());
   }
-  bool asBool(bool def) {
-    if (content == "") {
-      if (def)
-        content = "true";
-      else
-        content = "false";
-    }
-    if (content == "0")
-      return false;
-    if (content == "false")
-      return false;
-    return true;
-  }
   std::string asString(const std::string &def) {
     if (content == "")
       content = def;
