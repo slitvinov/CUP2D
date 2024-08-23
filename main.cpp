@@ -2451,11 +2451,10 @@ template <typename Element> struct Grid {
   typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   const int dim;
   FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element> Corrector;
-  FluxCorrection<Grid, Element> CorrectorGrid;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
-  Grid(int dim) : dim(dim), Corrector(dim), CorrectorGrid(dim), timestamp(0) {
+  Grid(int dim) : dim(dim), Corrector(dim), timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
