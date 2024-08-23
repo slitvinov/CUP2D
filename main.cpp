@@ -617,7 +617,6 @@ struct BlockInfo {
 };
 template <typename Element> struct BlockCase {
   Element *d[4];
-  bool storedFace[4];
   const int dim, level;
   const long long Z;
   BlockCase(const BlockCase &) = delete;
@@ -629,10 +628,8 @@ template <typename Element> struct BlockCase {
   };
   BlockCase(bool s[4], int level, long long Z, int dim)
       : dim(dim), level(level), Z(Z) {
-    for (int i = 0; i < 4; i++) {
-      storedFace[i] = s[i];
+    for (int i = 0; i < 4; i++)
       d[i] = s[i] ? (Element *)malloc(_BS_ * sizeof(Element)) : nullptr;
-    }
   }
   ~BlockCase() {
     for (int i = 0; i < 4; i++)
@@ -6040,10 +6037,10 @@ struct KernelAdvectDiffuse {
     Vector *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6736,10 +6733,10 @@ struct pressureCorrectionKernel {
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6798,10 +6795,10 @@ struct pressure_rhs {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6855,10 +6852,10 @@ struct pressure_rhs1 {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
