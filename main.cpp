@@ -616,25 +616,10 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 template <typename Element> struct BlockCase {
+  BlockCase() { };
   Element *d[4];
-  const int dim, level;
-  const long long Z;
-  BlockCase(const BlockCase &) = delete;
-  BlockCase(BlockCase &&o) : dim(o.dim), level(o.level), Z(o.Z) {
-    for (int i = 0; i < 4; i++) {
-      d[i] = o.d[i];
-      o.d[i] = nullptr;
-    }
-  };
-  BlockCase(bool s[4], int level, long long Z, int dim)
-      : dim(dim), level(level), Z(Z) {
-    for (int i = 0; i < 4; i++)
-      d[i] = s[i] ? (Element *)malloc(_BS_ * sizeof(Element)) : nullptr;
-  }
-  ~BlockCase() {
-    for (int i = 0; i < 4; i++)
-      free(d[i]);
-  }
+  int level;
+  long long Z;
 };
 template <typename TGrid, typename Element> struct FluxCorrection {};
 struct StencilInfo {
@@ -1834,7 +1819,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
-  std::vector<BlockCase<Element>> Cases;
+  std::vector<BlockCase<Element>*> Cases;
   TGrid *grid;
   struct face {
     BlockInfo *infos[2];
@@ -1958,6 +1943,9 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
     const int NC = sizeof(Element) / sizeof(Real);
+    for (int i = 0; i < Cases.size(); i++)
+      for (int j = 0; j < 4; j++)
+	free(Cases[i]->d[j]);
     Cases.clear();
     MapOfCases.clear();
     grid = &_grid;
@@ -2040,7 +2028,12 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         }
       }
       if (stored) {
-        Cases.emplace_back(storeFace, info.level, info.Z, dim);
+	BlockCase<Element> *c = new BlockCase<Element>;
+	c->level = info.level;
+	c->Z = info.Z;
+	for (int i = 0; i < 4; i++)
+	  c->d[i] = storeFace[i] ? (Element *)malloc(_BS_ * sizeof(Element)) : nullptr;
+        Cases.push_back(c);
       }
     }
     size_t Cases_index = 0;
@@ -2048,13 +2041,13 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       for (auto &info : BB) {
         if (Cases_index == Cases.size())
           break;
-        if (Cases[Cases_index].level == info.level &&
-            Cases[Cases_index].Z == info.Z) {
+        if (Cases[Cases_index]->level == info.level &&
+            Cases[Cases_index]->Z == info.Z) {
           MapOfCases.insert(
               std::pair<std::array<long long, 2>, BlockCase<Element> *>(
-                  {Cases[Cases_index].level, Cases[Cases_index].Z},
-                  &Cases[Cases_index]));
-          grid->get(Cases[Cases_index].level, Cases[Cases_index].Z).auxiliary =
+                  {Cases[Cases_index]->level, Cases[Cases_index]->Z},
+                  Cases[Cases_index]));
+          grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
               &Cases[Cases_index];
           info.auxiliary = &Cases[Cases_index];
           Cases_index++;
