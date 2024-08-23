@@ -638,7 +638,7 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 template <typename Element> struct BlockCase {
-  std::vector<Element> m_pData[6];
+  std::vector<Element> d[6];
   bool storedFace[6];
   int level;
   long long Z;
@@ -654,9 +654,9 @@ template <typename Element> struct BlockCase {
       int d1 = (i + 1) % 3;
       int d2 = (i + 2) % 3;
       if (storedFace[2 * i])
-        m_pData[2 * i].resize(sizes[d1] * sizes[d2]);
+        d[2 * i].resize(sizes[d1] * sizes[d2]);
       if (storedFace[2 * i + 1])
-        m_pData[2 * i + 1].resize(sizes[d1] * sizes[d2]);
+        d[2 * i + 1].resize(sizes[d1] * sizes[d2]);
     }
     level = _level;
     Z = _Z;
@@ -681,7 +681,7 @@ template <typename TGrid, typename Element> struct FluxCorrection {
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     BlockCase<Element> &CoarseCase = (*search->second);
-    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
+    std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     assert(myFace / 2 == otherFace / 2);
     assert(search != MapOfCases.end());
     assert(CoarseCase.Z == info.Z);
@@ -699,7 +699,7 @@ template <typename TGrid, typename Element> struct FluxCorrection {
         continue;
       auto search1 = MapOfCases.find({info.level + 1, Z});
       BlockCase<Element> &FineCase = (*search1->second);
-      std::vector<Element> &FineFace = FineCase.m_pData[otherFace];
+      std::vector<Element> &FineFace = FineCase.d[otherFace];
       int d = myFace / 2;
       int d1 = std::max((d + 1) % 3, (d + 2) % 3);
       int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -823,7 +823,7 @@ template <typename TGrid, typename Element> struct FluxCorrection {
           auto search = MapOfCases.find(temp);
           assert(search != MapOfCases.end());
           BlockCase<Element> &CoarseCase = (*search->second);
-          std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
+          std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
           const int d = myFace / 2;
           const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
           const int N2 = sizes[d2];
@@ -2086,7 +2086,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     auto search = TFluxCorrection::MapOfCases.find(temp);
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
-    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
+    std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -2137,7 +2137,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     auto search = TFluxCorrection::MapOfCases.find(temp);
     assert(search != TFluxCorrection::MapOfCases.end());
     Case &CoarseCase = (*search->second);
-    std::vector<Element> &CoarseFace = CoarseCase.m_pData[myFace];
+    std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -2320,7 +2320,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        std::vector<Element> &FineFace = FineCase.m_pData[myFace];
+        std::vector<Element> &FineFace = FineCase.d[myFace];
         int d = myFace / 2;
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
@@ -6289,10 +6289,10 @@ struct KernelAdvectDiffuse {
     Vector *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->m_pData[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->m_pData[3][0] : nullptr;
+      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
+      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
+      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
+      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6985,10 +6985,10 @@ struct pressureCorrectionKernel {
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->m_pData[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->m_pData[3][0] : nullptr;
+      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
+      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
+      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
+      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -7047,10 +7047,10 @@ struct pressure_rhs {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->m_pData[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->m_pData[3][0] : nullptr;
+      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
+      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
+      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
+      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -7104,10 +7104,10 @@ struct pressure_rhs1 {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->storedFace[0] ? &tempCase->m_pData[0][0] : nullptr;
-      faceXp = tempCase->storedFace[1] ? &tempCase->m_pData[1][0] : nullptr;
-      faceYm = tempCase->storedFace[2] ? &tempCase->m_pData[2][0] : nullptr;
-      faceYp = tempCase->storedFace[3] ? &tempCase->m_pData[3][0] : nullptr;
+      faceXm = tempCase->storedFace[0] ? &tempCase->d[0][0] : nullptr;
+      faceXp = tempCase->storedFace[1] ? &tempCase->d[1][0] : nullptr;
+      faceYm = tempCase->storedFace[2] ? &tempCase->d[2][0] : nullptr;
+      faceYp = tempCase->storedFace[3] ? &tempCase->d[3][0] : nullptr;
     }
     if (faceXm != nullptr) {
       int ix = 0;
