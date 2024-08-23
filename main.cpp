@@ -1966,7 +1966,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       const int xskip = info.index[0] == 0 ? -1 : 1;
       const int yskip = info.index[1] == 0 ? -1 : 1;
 
-      bool storeFace[6] = {false, false, false, false, false, false};
+      bool storeFace[4] = {false, false, false, false};
       bool stored = false;
       for (int f = 0; f < 6; f++) {
         const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
@@ -1987,8 +1987,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         int L[3];
         L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
         L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
-        L[2] = 1;
-        int V = L[0] * L[1] * L[2];
+        int V = L[0] * L[1];
         if ((*grid).Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
             -2) {
           BlockInfo &infoNei =
