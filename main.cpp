@@ -585,7 +585,7 @@ struct CommandlineParser {
         key.erase(0, 1);
         if (key[0] == '+') {
           key.erase(0, 1);
-	  mapArguments[key] = Value(values);
+          mapArguments[key] = Value(values);
         } else {
           if (mapArguments.find(key) == mapArguments.end())
             mapArguments[key] = Value(values);
@@ -883,13 +883,7 @@ struct StencilManager {
                             (Cindex_true[1] < f.infos[1]->index[1])))
                             ? 1
                             : 0;
-        CoarseEdge[2] = (code[2] == 0) ? 0
-                        : (((f.infos[1]->index[2] % 2 == 0) &&
-                            (Cindex_true[2] > f.infos[1]->index[2])) ||
-                           ((f.infos[1]->index[2] % 2 == 1) &&
-                            (Cindex_true[2] < f.infos[1]->index[2])))
-                            ? 1
-                            : 0;
+        CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
