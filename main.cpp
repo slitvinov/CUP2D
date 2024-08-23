@@ -614,7 +614,7 @@ struct BlockInfo {
   int index[3], level;
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
   void *block{nullptr};
-  BlockCase **auxiliary;
+  BlockCase *auxiliary;
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 struct BlockCase {
@@ -2050,8 +2050,8 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
                   {Cases[Cases_index]->level, Cases[Cases_index]->Z},
                   Cases[Cases_index]));
           grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
-              &Cases[Cases_index];
-          info.auxiliary = &Cases[Cases_index];
+              Cases[Cases_index];
+          info.auxiliary = Cases[Cases_index];
           Cases_index++;
         }
       }
@@ -6024,8 +6024,7 @@ struct KernelAdvectDiffuse {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase *tempCase =
-        (BlockCase *)(tmpVInfo[info.id].auxiliary);
+    BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
     Vector *faceXp = nullptr;
     Vector *faceYm = nullptr;
@@ -6721,8 +6720,7 @@ struct pressureCorrectionKernel {
         tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
         tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
       }
-    BlockCase *tempCase =
-        (BlockCase *)(tmpVInfo[info.id].auxiliary);
+    BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
     Vector *faceXp = nullptr;
     Vector *faceYm = nullptr;
