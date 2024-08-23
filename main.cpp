@@ -618,8 +618,7 @@ struct BlockInfo {
 template <typename Element> struct BlockCase {
   std::vector<Element> d[6];
   bool storedFace[6];
-  const int dim;
-  const int level;
+  const int dim, level;
   const long long Z;
   BlockCase(bool s[4], int level, long long Z, int dim) : dim(dim), level(level),  Z(Z) {
     storedFace[0] = s[0];
