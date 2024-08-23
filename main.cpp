@@ -606,18 +606,20 @@ struct CommandlineParser {
   }
 };
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
+struct BlockCase;
 struct BlockInfo {
   bool changed2;
   double h, origin[2];
   enum State state;
   int index[3], level;
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
-  void *auxiliary, *block{nullptr};
+  void *block{nullptr};
+  BlockCase **auxiliary;
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
-template <typename Element> struct BlockCase {
+struct BlockCase {
   BlockCase() { };
-  Element *d[4];
+  uint8_t *d[4];
   int level;
   long long Z;
 };
@@ -1818,8 +1820,8 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
   typedef Element BlockType[_BS_][_BS_];
   const int dim;
   int rank{0};
-  std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
-  std::vector<BlockCase<Element>*> Cases;
+  std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
+  std::vector<BlockCase*> Cases;
   TGrid *grid;
   struct face {
     BlockInfo *infos[2];
@@ -1855,8 +1857,8 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
-    BlockCase<Element> &CoarseCase = (*search->second);
-    Element *CoarseFace = CoarseCase.d[myFace];
+    BlockCase &CoarseCase = (*search->second);
+    Element *CoarseFace = (Element*)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -1906,8 +1908,8 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
-    BlockCase<Element> &CoarseCase = (*search->second);
-    Element *CoarseFace = CoarseCase.d[myFace];
+    BlockCase &CoarseCase = (*search->second);
+    Element *CoarseFace = (Element*)CoarseCase.d[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -2028,11 +2030,11 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         }
       }
       if (stored) {
-	BlockCase<Element> *c = new BlockCase<Element>;
+	BlockCase *c = new BlockCase;
 	c->level = info.level;
 	c->Z = info.Z;
 	for (int i = 0; i < 4; i++)
-	  c->d[i] = storeFace[i] ? (Element *)malloc(_BS_ * sizeof(Element)) : nullptr;
+	  c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * sizeof(Element)) : nullptr;
         Cases.push_back(c);
       }
     }
@@ -2044,7 +2046,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         if (Cases[Cases_index]->level == info.level &&
             Cases[Cases_index]->Z == info.Z) {
           MapOfCases.insert(
-              std::pair<std::array<long long, 2>, BlockCase<Element> *>(
+              std::pair<std::array<long long, 2>, BlockCase *>(
                   {Cases[Cases_index]->level, Cases[Cases_index]->Z},
                   Cases[Cases_index]));
           grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
@@ -2080,13 +2082,13 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         BlockInfo &info = *(f.infos[0]);
         auto search = MapOfCases.find({(long long)info.level, info.Z});
         assert(search != MapOfCases.end());
-        BlockCase<Element> &FineCase = (*search->second);
+        BlockCase &FineCase = (*search->second);
         int icode = f.icode[0];
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        Element *FineFace = FineCase.d[myFace];
+        Element *FineFace = (Element*)FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -6022,18 +6024,18 @@ struct KernelAdvectDiffuse {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
         TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
-    BlockCase<Vector> *tempCase =
-        (BlockCase<Vector> *)(tmpVInfo[info.id].auxiliary);
+    BlockCase *tempCase =
+        (BlockCase *)(tmpVInfo[info.id].auxiliary);
     Vector *faceXm = nullptr;
     Vector *faceXp = nullptr;
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
+      faceXm = (Vector*)tempCase->d[0];
+      faceXp = (Vector*)tempCase->d[1];
+      faceYm = (Vector*)tempCase->d[2];
+      faceYp = (Vector*)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6719,17 +6721,17 @@ struct pressureCorrectionKernel {
         tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
         tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
       }
-    BlockCase<Vector> *tempCase =
-        (BlockCase<Vector> *)(tmpVInfo[info.id].auxiliary);
+    BlockCase *tempCase =
+        (BlockCase *)(tmpVInfo[info.id].auxiliary);
     Vector *faceXm = nullptr;
     Vector *faceXp = nullptr;
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
+      faceXm = (Vector*)tempCase->d[0];
+      faceXp = (Vector*)tempCase->d[1];
+      faceYm = (Vector*)tempCase->d[2];
+      faceYp = (Vector*)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6782,16 +6784,16 @@ struct pressure_rhs {
                        ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
                         (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
-    BlockCase<Real> *tempCase = (BlockCase<Real> *)(tmpInfo[info.id].auxiliary);
+    BlockCase *tempCase = (BlockCase *)(tmpInfo[info.id].auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
+      faceXm = (Real*)tempCase->d[0];
+      faceXp = (Real*)tempCase->d[1];
+      faceYm = (Real*)tempCase->d[2];
+      faceYp = (Real*)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6838,17 +6840,17 @@ struct pressure_rhs1 {
         TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
                          (lab(ix, iy - 1) + lab(ix, iy + 1))) -
                         4.0 * lab(ix, iy));
-    BlockCase<Real> *tempCase =
-        (BlockCase<Real> *)(var.tmp->infos[info.id].auxiliary);
+    BlockCase *tempCase =
+        (BlockCase *)(var.tmp->infos[info.id].auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
+      faceXm = (Real*)tempCase->d[0];
+      faceXp = (Real*)tempCase->d[1];
+      faceYm = (Real*)tempCase->d[2];
+      faceYp = (Real*)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
