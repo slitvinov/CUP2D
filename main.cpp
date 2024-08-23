@@ -621,7 +621,7 @@ template <typename Element> struct BlockCase {
   const int dim;
   const int level;
   const long long Z;
-  BlockCase(bool s[4], int _level, long long _Z, int dim) : dim(dim), level(level),  Z(Z) {
+  BlockCase(bool s[4], int level, long long Z, int dim) : dim(dim), level(level),  Z(Z) {
     storedFace[0] = s[0];
     storedFace[1] = s[1];
     storedFace[2] = s[2];
