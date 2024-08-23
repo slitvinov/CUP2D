@@ -7093,6 +7093,8 @@ int main(int argc, char **argv) {
       }
   }
   while (1) {
+    if (sim.rank == 0 && sim.step % 10 == 0)
+      fprintf(stderr, "main.cpp: %08d\n", sim.step);
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
@@ -7732,8 +7734,6 @@ int main(int argc, char **argv) {
       sim.time += sim.dt;
       sim.step++;
     }
-    if (sim.rank == 0 && sim.step % 10 == 0)
-      fprintf(stderr, "main.cpp: %08d\n", sim.step);
     if (!done) {
       bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
       bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
