@@ -649,16 +649,7 @@ template <typename Element> struct BlockCase {
     Z = _Z;
   }
 };
-template <typename TGrid, typename Element> struct FluxCorrection {
-  typedef TGrid GridType;
-  typedef Element BlockType[_BS_][_BS_];
-  const int dim;
-  int rank{0};
-  std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
-  std::vector<BlockCase<Element>> Cases;
-  TGrid *grid;
-  FluxCorrection(int dim) : dim(dim) {}
-};
+template <typename TGrid, typename Element> struct FluxCorrection {};
 struct StencilInfo {
   int sx;
   int sy;
@@ -1857,12 +1848,14 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-template <typename TFluxCorrection, typename Element>
-struct FluxCorrectionMPI : public TFluxCorrection {
-  using TGrid = typename TFluxCorrection::GridType;
+template <typename TGrid, typename Element> struct FluxCorrectionMPI {
   typedef Element BlockType[_BS_][_BS_];
-  typedef BlockCase<Element> Case;
   const int dim;
+  int rank{0};
+  std::map<std::array<long long, 2>, BlockCase<Element> *> MapOfCases;
+  std::vector<BlockCase<Element>> Cases;
+  TGrid *grid;
+  typedef BlockCase<Element> Case;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -1885,7 +1878,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
-  FluxCorrectionMPI(int dim) : dim(dim), TFluxCorrection(dim) {}
+  FluxCorrectionMPI(int dim) : dim(dim) {}
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -1895,8 +1888,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
                        abs(code[2]) * (std::max(0, code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
-    auto search = TFluxCorrection::MapOfCases.find(temp);
-    assert(search != TFluxCorrection::MapOfCases.end());
+    auto search = MapOfCases.find(temp);
+    assert(search != MapOfCases.end());
     Case &CoarseCase = (*search->second);
     std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
@@ -1921,7 +1914,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         base = (0) + (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = (*TFluxCorrection::grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
+      int r = (*grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = (Real *)(&CoarseFace[base + (i2 / 2)]);
@@ -1946,8 +1939,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
                        abs(code[2]) * (std::max(0, code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
-    auto search = TFluxCorrection::MapOfCases.find(temp);
-    assert(search != TFluxCorrection::MapOfCases.end());
+    auto search = MapOfCases.find(temp);
+    assert(search != MapOfCases.end());
     Case &CoarseCase = (*search->second);
     std::vector<Element> &CoarseFace = CoarseCase.d[myFace];
     const int d = myFace / 2;
@@ -1973,7 +1966,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     if (_grid.UpdateFluxCorrection == false)
       return;
     _grid.UpdateFluxCorrection = false;
-    TFluxCorrection::rank = sim.rank;
+    rank = sim.rank;
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
     send_faces.resize(sim.size);
@@ -1985,15 +1978,15 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
     const int NC = sizeof(Element) / sizeof(Real);
-    TFluxCorrection::Cases.clear();
-    TFluxCorrection::MapOfCases.clear();
-    TFluxCorrection::grid = &_grid;
-    std::vector<BlockInfo> &BB = (*TFluxCorrection::grid).infos;
+    Cases.clear();
+    MapOfCases.clear();
+    grid = &_grid;
+    std::vector<BlockInfo> &BB = (*grid).infos;
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : BB) {
-      (*TFluxCorrection::grid).get(info.level, info.Z).auxiliary = nullptr;
+      (*grid).get(info.level, info.Z).auxiliary = nullptr;
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
@@ -2014,8 +2007,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
           continue;
         if (code[2] != 0)
           continue;
-        if (!((*TFluxCorrection::grid)
-                  .Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+        if (!((*grid).Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
               0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
@@ -2027,16 +2019,13 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         L[2] = 1;
         int V = L[0] * L[1] * L[2];
-        if ((*TFluxCorrection::grid)
-                .Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
+        if ((*grid).Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
+            -2) {
           BlockInfo &infoNei =
-              (*TFluxCorrection::grid)
-                  .get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+              (*grid).get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei.Zparent;
-          BlockInfo &infoNeiCoarser =
-              (*TFluxCorrection::grid).get(info.level - 1, nCoarse);
-          const int infoNeiCoarserrank =
-              (*TFluxCorrection::grid).Tree0(info.level - 1, nCoarse);
+          BlockInfo &infoNeiCoarser = (*grid).get(info.level - 1, nCoarse);
+          const int infoNeiCoarserrank = (*grid).Tree0(info.level - 1, nCoarse);
           {
             int code2[3] = {-code[0], -code[1], -code[2]};
             int icode2 =
@@ -2045,12 +2034,10 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                 face(info, infoNeiCoarser, icode[f], icode2));
             send_buffer_size[infoNeiCoarserrank] += V;
           }
-        } else if ((*TFluxCorrection::grid)
-                       .Tree0(info.level,
-                              info.Znei[1 + code[0]][1 + code[1]]) == -1) {
+        } else if ((*grid).Tree0(info.level,
+                                 info.Znei[1 + code[0]][1 + code[1]]) == -1) {
           BlockInfo &infoNei =
-              (*TFluxCorrection::grid)
-                  .get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+              (*grid).get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -2060,10 +2047,9 @@ struct FluxCorrectionMPI : public TFluxCorrection {
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank =
-                (*TFluxCorrection::grid).Tree0(infoNei.level + 1, nFine);
+                (*grid).Tree0(infoNei.level + 1, nFine);
             {
-              BlockInfo &infoNeiFiner =
-                  (*TFluxCorrection::grid).get(infoNei.level + 1, nFine);
+              BlockInfo &infoNeiFiner = (*grid).get(infoNei.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
@@ -2074,27 +2060,22 @@ struct FluxCorrectionMPI : public TFluxCorrection {
         }
       }
       if (stored) {
-        TFluxCorrection::Cases.push_back(
-            Case(storeFace, info.level, info.Z, dim));
+        Cases.push_back(Case(storeFace, info.level, info.Z, dim));
       }
     }
     size_t Cases_index = 0;
-    if (TFluxCorrection::Cases.size() > 0)
+    if (Cases.size() > 0)
       for (auto &info : BB) {
-        if (Cases_index == TFluxCorrection::Cases.size())
+        if (Cases_index == Cases.size())
           break;
-        if (TFluxCorrection::Cases[Cases_index].level == info.level &&
-            TFluxCorrection::Cases[Cases_index].Z == info.Z) {
-          TFluxCorrection::MapOfCases.insert(
-              std::pair<std::array<long long, 2>, Case *>(
-                  {TFluxCorrection::Cases[Cases_index].level,
-                   TFluxCorrection::Cases[Cases_index].Z},
-                  &TFluxCorrection::Cases[Cases_index]));
-          TFluxCorrection::grid
-              ->get(TFluxCorrection::Cases[Cases_index].level,
-                    TFluxCorrection::Cases[Cases_index].Z)
-              .auxiliary = &TFluxCorrection::Cases[Cases_index];
-          info.auxiliary = &TFluxCorrection::Cases[Cases_index];
+        if (Cases[Cases_index].level == info.level &&
+            Cases[Cases_index].Z == info.Z) {
+          MapOfCases.insert(std::pair<std::array<long long, 2>, Case *>(
+              {Cases[Cases_index].level, Cases[Cases_index].Z},
+              &Cases[Cases_index]));
+          grid->get(Cases[Cases_index].level, Cases[Cases_index].Z).auxiliary =
+              &Cases[Cases_index];
+          info.auxiliary = &Cases[Cases_index];
           Cases_index++;
         }
       }
@@ -2123,9 +2104,8 @@ struct FluxCorrectionMPI : public TFluxCorrection {
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
         face &f = send_faces[r][k];
         BlockInfo &info = *(f.infos[0]);
-        auto search =
-            TFluxCorrection::MapOfCases.find({(long long)info.level, info.Z});
-        assert(search != TFluxCorrection::MapOfCases.end());
+        auto search = MapOfCases.find({(long long)info.level, info.Z});
+        assert(search != MapOfCases.end());
         Case &FineCase = (*search->second);
         int icode = f.icode[0];
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
@@ -2151,7 +2131,7 @@ struct FluxCorrectionMPI : public TFluxCorrection {
     }
     std::vector<MPI_Request> send_requests;
     std::vector<MPI_Request> recv_requests;
-    int me = TFluxCorrection::rank;
+    int me = rank;
     for (int r = 0; r < sim.size; r++)
       if (r != me) {
         if (recv_buffer[r].size() != 0) {
@@ -2262,7 +2242,7 @@ template <typename Element> struct Grid {
   bool FiniteDifferences{true};
   typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   const int dim;
-  FluxCorrectionMPI<FluxCorrection<Grid<Element>, Element>, Element> Corrector;
+  FluxCorrectionMPI<Grid<Element>, Element> Corrector;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
