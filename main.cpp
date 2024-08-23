@@ -533,10 +533,6 @@ struct Value {
       content = rhs.content;
     return *this;
   }
-  Value &operator+=(const Value &rhs) {
-    content += " " + rhs.content;
-    return *this;
-  }
   double asDouble(double def = 0) {
     if (content == "") {
       std::ostringstream sbuf;
@@ -589,10 +585,7 @@ struct CommandlineParser {
         key.erase(0, 1);
         if (key[0] == '+') {
           key.erase(0, 1);
-          if (mapArguments.find(key) == mapArguments.end())
-            mapArguments[key] = Value(values);
-          else
-            mapArguments[key] += Value(values);
+	  mapArguments[key] = Value(values);
         } else {
           if (mapArguments.find(key) == mapArguments.end())
             mapArguments[key] = Value(values);
