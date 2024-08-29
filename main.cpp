@@ -3738,7 +3738,7 @@ template <typename TLab, typename Element> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < dim; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<Element>(*grid);
+    Balancer = new LoadBalancer<Element>(g);
   }
   void Adapt(bool basic) {
     basic_refinement = basic;
