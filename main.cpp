@@ -3385,7 +3385,7 @@ template <typename Element> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename Element0> struct LoadBalancer {
+struct LoadBalancer {
   bool movedBlocks;
   const int dim;
   struct MPI_Block {
@@ -3393,7 +3393,8 @@ template <typename Element0> struct LoadBalancer {
     uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
   };
   LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
-  void AddBlock(Grid<Element0> *grid, const int level, const long long Z,
+  template <typename TGrid>
+  void AddBlock(TGrid *grid, const int level, const long long Z,
                 uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
@@ -3412,7 +3413,8 @@ template <typename Element0> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  void PrepareCompression(Grid<Element0> *grid) {
+  template <typename TGrid>
+  void PrepareCompression(TGrid *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
@@ -3490,7 +3492,8 @@ template <typename Element0> struct LoadBalancer {
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
   }
-  void Balance_Diffusion(Grid<Element0> *grid,
+  template <typename TGrid>
+  void Balance_Diffusion(TGrid *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
     {
@@ -3597,7 +3600,8 @@ template <typename Element0> struct LoadBalancer {
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-  void Balance_Global(Grid<Element0> *grid, std::vector<long long> &all_b) {
+  template <typename TGrid>
+  void Balance_Global(TGrid *grid, std::vector<long long> &all_b) {
     std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
@@ -3733,7 +3737,7 @@ template <typename TLab, typename Element> struct Adaptation {
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
-  LoadBalancer<Element> *Balancer;
+  LoadBalancer *Balancer;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
@@ -3748,7 +3752,7 @@ template <typename TLab, typename Element> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < dim; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<Element>(dim);
+    Balancer = new LoadBalancer(dim);
   }
   void Adapt(Grid<Element> *grid, bool basic) {
     basic_refinement = basic;
