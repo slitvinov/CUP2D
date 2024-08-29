@@ -1856,7 +1856,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase &CoarseCase = (*search->second);
-    Element *CoarseFace = (Element *)CoarseCase.d[myFace];
+    Real *CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -1882,7 +1882,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       int r = (*grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
-        Real *s = (Real *)(&CoarseFace[base + (i2 / 2)]);
+        Real *s = &CoarseFace[dim * (base + (i2 / 2))];
         for (int j = 0; j < dim; j++)
           s[j] += recv_buffer[r][F.offset + dis + j];
         dis += dim;
