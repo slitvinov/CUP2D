@@ -5688,7 +5688,7 @@ static void adapt() {
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->boundary_needed = true;
   Synchronizer<Grid<Real>> *Synch =
-      var.tmp_amr->grid->sync1(var.tmp_amr->stencil);
+      var.tmp->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -5702,7 +5702,7 @@ static void adapt() {
     {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I->size(); i++) {
-        BlockInfo &info = var.tmp_amr->grid->get((*I)[i]->level, (*I)[i]->Z);
+        BlockInfo &info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
         ScalarBlock &b = *(ScalarBlock *)info.block;
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
@@ -5748,21 +5748,21 @@ static void adapt() {
   }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
   var.tmp_amr->CallValidStates = (tmp > 0);
-  var.tmp_amr->grid->boundary = *halo;
+  var.tmp->boundary = *halo;
   if (var.tmp_amr->CallValidStates) {
     int levelMin = 0;
-    std::vector<BlockInfo> &I = var.tmp_amr->grid->infos;
+    std::vector<BlockInfo> &I = var.tmp->infos;
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
       BlockInfo &info = I[j];
       if ((info.state == Refine && info.level == sim.levelMax - 1) ||
           (info.state == Compress && info.level == levelMin)) {
         info.state = Leave;
-        (var.tmp_amr->grid->get(info.level, info.Z)).state = Leave;
+        (var.tmp->get(info.level, info.Z)).state = Leave;
       }
       if (info.state != Leave) {
         info.changed2 = true;
-        (var.tmp_amr->grid->get(info.level, info.Z)).changed2 = info.changed2;
+        (var.tmp->get(info.level, info.Z)).changed2 = info.changed2;
       }
     }
     bool clean_boundary = true;
@@ -5792,11 +5792,11 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            if (var.tmp_amr->grid->Tree0(
+            if (var.tmp->Tree0(
                     info.level, info.Znei[1 + code[0]][1 + code[1]]) == -1) {
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp_amr->grid->get(info.level, info.Z)).state = Leave;
+                (var.tmp->get(info.level, info.Z)).state = Leave;
               }
               int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
               int Bstep = 1;
@@ -5811,13 +5811,13 @@ static void adapt() {
                 int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] +
                            aux * std::max(0, 1 - abs(code[1]));
                 long long zzz = getZforward(m + 1, iNei, jNei);
-                BlockInfo &FinerNei = var.tmp_amr->grid->get(m + 1, zzz);
+                BlockInfo &FinerNei = var.tmp->get(m + 1, zzz);
                 State NeiState = FinerNei.state;
                 if (NeiState == Refine) {
                   info.state = Refine;
-                  (var.tmp_amr->grid->get(info.level, info.Z)).state = Refine;
+                  (var.tmp->get(info.level, info.Z)).state = Refine;
                   info.changed2 = true;
-                  (var.tmp_amr->grid->get(info.level, info.Z)).changed2 = true;
+                  (var.tmp->get(info.level, info.Z)).changed2 = true;
                   break;
                 }
               }
@@ -5825,7 +5825,7 @@ static void adapt() {
           }
         }
       }
-      var.tmp_amr->grid->UpdateBoundary(clean_boundary);
+      var.tmp->UpdateBoundary(clean_boundary);
       clean_boundary = false;
       if (m == levelMin)
         break;
@@ -5851,12 +5851,12 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            BlockInfo &infoNei = var.tmp_amr->grid->get(
+            BlockInfo &infoNei = var.tmp->get(
                 info.level, info.Znei[1 + code[0]][1 + code[1]]);
-            if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
+            if (var.tmp->Tree1(infoNei) >= 0 &&
                 infoNei.state == Refine) {
               info.state = Leave;
-              (var.tmp_amr->grid->get(info.level, info.Z)).state = Leave;
+              (var.tmp->get(info.level, info.Z)).state = Leave;
               break;
             }
           }
@@ -5874,13 +5874,13 @@ static void adapt() {
           for (int k = 2 * (info.index[2] / 2);
                k <= 2 * (info.index[2] / 2) + 1; k++) {
             long long n = getZforward(m, i, j);
-            BlockInfo &infoNei = var.tmp_amr->grid->get(m, n);
-            if ((var.tmp_amr->grid->Tree1(infoNei) >= 0) == false ||
+            BlockInfo &infoNei = var.tmp->get(m, n);
+            if ((var.tmp->Tree1(infoNei) >= 0) == false ||
                 infoNei.state != Compress) {
               found = true;
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp_amr->grid->get(info.level, info.Z)).state = Leave;
+                (var.tmp->get(info.level, info.Z)).state = Leave;
               }
               break;
             }
@@ -5893,8 +5893,8 @@ static void adapt() {
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = getZforward(m, i, j);
-              BlockInfo &infoNei = var.tmp_amr->grid->get(m, n);
-              if (var.tmp_amr->grid->Tree1(infoNei) >= 0 &&
+              BlockInfo &infoNei = var.tmp->get(m, n);
+              if (var.tmp->Tree1(infoNei) >= 0 &&
                   infoNei.state == Compress)
                 infoNei.state = Leave;
             }
@@ -5905,18 +5905,18 @@ static void adapt() {
     std::vector<long long> *level_base;
     std::vector<BlockInfo> &I2;
   } args[] = {
-      {&var.chi_amr->grid->BlockInfoAll, &var.chi_amr->grid->level_base,
-       var.chi_amr->grid->infos},
-      {&var.pres_amr->grid->BlockInfoAll, &var.pres_amr->grid->level_base,
-       var.pres_amr->grid->infos},
-      {&var.pold_amr->grid->BlockInfoAll, &var.pold_amr->grid->level_base,
-       var.pold_amr->grid->infos},
-      {&var.vel_amr->grid->BlockInfoAll, &var.vel_amr->grid->level_base,
-       var.vel_amr->grid->infos},
-      {&var.vold_amr->grid->BlockInfoAll, &var.vold_amr->grid->level_base,
-       var.vold_amr->grid->infos},
-      {&var.tmpV_amr->grid->BlockInfoAll, &var.tmpV_amr->grid->level_base,
-       var.tmpV_amr->grid->infos},
+      {&var.chi->BlockInfoAll, &var.chi->level_base,
+       var.chi->infos},
+      {&var.pres->BlockInfoAll, &var.pres->level_base,
+       var.pres->infos},
+      {&var.pold->BlockInfoAll, &var.pold->level_base,
+       var.pold->infos},
+      {&var.vel->BlockInfoAll, &var.vel->level_base,
+       var.vel->infos},
+      {&var.vold->BlockInfoAll, &var.vold->level_base,
+       var.vold->infos},
+      {&var.tmpV->BlockInfoAll, &var.tmpV->level_base,
+       var.tmpV->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
