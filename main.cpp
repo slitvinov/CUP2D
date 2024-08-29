@@ -3967,9 +3967,9 @@ struct Adaptation {
     }
   }
 };
-template <typename Lab, typename Kernel, typename TGrid>
-static void computeA(Kernel &&kernel, TGrid *g) {
-  Synchronizer<TGrid> &Synch = *(g->sync1(kernel.stencil));
+template <typename Lab, typename Kernel>
+static void computeA(Kernel &&kernel, Grid *g) {
+  Synchronizer<Grid> &Synch = *(g->sync1(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.inner_blocks;
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
