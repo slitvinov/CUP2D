@@ -3732,7 +3732,7 @@ struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab0, typename Element> struct Adaptation {
+template <typename Element> struct Adaptation {
   typedef Element BlockType[_BS_][_BS_];
   StencilInfo stencil;
   bool CallValidStates;
@@ -4286,8 +4286,8 @@ struct ScalarLab : public BlockLab<Real> {
     }
   }
 };
-typedef Adaptation<ScalarLab, Real> ScalarAMR;
-typedef Adaptation<VectorLab, Vector> VectorAMR;
+typedef Adaptation<Real> ScalarAMR;
+typedef Adaptation<Vector> VectorAMR;
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
