@@ -3398,12 +3398,6 @@ template <typename Element> struct LoadBalancer {
   struct MPI_Block {
     long long mn[2];
     Real data[sizeof(BlockType) / sizeof(Real)];
-    MPI_Block(const BlockInfo &info, const bool Fillptr) {
-      mn[0] = info.level;
-      mn[1] = info.Z;
-      if (Fillptr)
-        std::memcpy(&data[0], info.block, _BS_ * _BS_ * sizeof(Element));
-    }
     void prepare1(const BlockInfo &info) {
       mn[0] = info.level;
       mn[1] = info.Z;
@@ -3455,7 +3449,11 @@ template <typename Element> struct LoadBalancer {
       const int brank = grid->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
-          send_blocks[baserank].push_back({bCopy, true});
+	  MPI_Block x;
+	  x.mn[0] = bCopy.level;
+	  x.mn[1] = bCopy.Z;
+	  std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * sizeof(Element));
+          send_blocks[baserank].push_back(x);
           grid->Tree0(b.level, b.Z) = baserank;
         }
       } else {
@@ -3468,7 +3466,10 @@ template <typename Element> struct LoadBalancer {
             BlockInfo &temp = grid->get(b.level, n);
             const int temprank = grid->Tree0(b.level, n);
             if (temprank != sim.rank) {
-              recv_blocks[temprank].push_back({temp, false});
+	      MPI_Block x;
+	      x.mn[0] = bCopy.level;
+	      x.mn[1] = bCopy.Z;
+              recv_blocks[temprank].push_back(x);
               grid->Tree0(b.level, n) = baserank;
             }
           }
