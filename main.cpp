@@ -3403,7 +3403,6 @@ template <typename Element> struct LoadBalancer {
       mn[1] = info.Z;
       std::memcpy(data, info.block, _BS_ * _BS_ * sizeof(Element));
     }
-    MPI_Block() {}
   };
   void AddBlock(Grid<Element> *grid, const int level, const long long Z,
                 uint8_t *data) {
