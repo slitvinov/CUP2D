@@ -3722,7 +3722,7 @@ template <typename TLab, typename Element> struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
-  Adaptation(Grid<Element> &g, int dim) : dim(dim)
+  Adaptation(int dim) : dim(dim)
   {
     boundary_needed = false;
     stencil.sx = -1;
@@ -7024,13 +7024,13 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new ScalarAMR(*var.tmp, 1);
-  var.chi_amr = new ScalarAMR(*var.chi, 1);
-  var.pres_amr = new ScalarAMR(*var.pres, 1);
-  var.pold_amr = new ScalarAMR(*var.pold, 1);
-  var.vel_amr = new VectorAMR(*var.vel, 2);
-  var.vold_amr = new VectorAMR(*var.vold, 2);
-  var.tmpV_amr = new VectorAMR(*var.tmpV, 2);
+  var.tmp_amr = new ScalarAMR(1);
+  var.chi_amr = new ScalarAMR(1);
+  var.pres_amr = new ScalarAMR(1);
+  var.pold_amr = new ScalarAMR(1);
+  var.vel_amr = new VectorAMR(2);
+  var.vold_amr = new VectorAMR(2);
+  var.tmpV_amr = new VectorAMR(2);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
