@@ -3406,7 +3406,7 @@ template <typename Element> struct LoadBalancer {
     MPI_Block() {}
   };
   void AddBlock(Grid<Element> *grid, const int level, const long long Z,
-                Real *data) {
+                uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
     memcpy(info.block, data, _BS_ * _BS_ * sizeof(Element));
@@ -3598,10 +3598,10 @@ template <typename Element> struct LoadBalancer {
     MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &request_reduction);
     for (int i = 0; i < -flux_left; i++)
-      AddBlock(grid, recv_left[i].mn[0], recv_left[i].mn[1], (Real*)recv_left[i].data);
+      AddBlock(grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
       AddBlock(grid, recv_right[i].mn[0], recv_right[i].mn[1],
-               (Real*)recv_right[i].data);
+               recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp >= 1);
     grid->FillPos();
@@ -3718,7 +3718,7 @@ template <typename Element> struct LoadBalancer {
 #pragma omp for
           for (size_t i = 0; i < recv_blocks[r].size(); i++)
             AddBlock(grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
-                     (Real*)recv_blocks[r][i].data);
+                     recv_blocks[r][i].data);
         }
     }
     grid->FillPos();
