@@ -3407,7 +3407,7 @@ template <typename Element> struct LoadBalancer {
                 uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
-    memcpy(info.block, data, _BS_ * _BS_ * sizeof(Element));
+    memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
     int p[2];
     sim.space_curve->inverse(Z, level, p[0], p[1]);
     if (level < sim.levelMax - 1)
