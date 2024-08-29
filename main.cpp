@@ -3390,7 +3390,7 @@ template <typename Element> struct LoadBalancer {
   const int dim;
   struct MPI_Block {
     long long mn[2];
-    uint8_t data[_BS_ * _BS_ * sizeof(Element)];
+    uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
     void prepare1(const BlockInfo &info) {
       mn[0] = info.level;
       mn[1] = info.Z;
