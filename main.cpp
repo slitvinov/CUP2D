@@ -3389,6 +3389,7 @@ template <typename Element> struct LoadBalancer {
   typedef Element BlockType[_BS_][_BS_];
   bool movedBlocks;
   MPI_Datatype MPI_BLOCK;
+  const int dim;
   struct MPI_Block {
     long long mn[2];
     Real data[sizeof(BlockType) / sizeof(Real)];
@@ -3421,7 +3422,7 @@ template <typename Element> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  LoadBalancer() {
+  LoadBalancer(int dim) : dim(dim) {
     movedBlocks = false;
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
@@ -3733,7 +3734,7 @@ template <typename TLab, typename Element> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < dim; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<Element>;
+    Balancer = new LoadBalancer<Element>(dim);
   }
   void Adapt(Grid<Element> *grid, bool basic) {
     basic_refinement = basic;
