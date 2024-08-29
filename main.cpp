@@ -4259,6 +4259,15 @@ static struct {
   Adaptation *vel_amr = nullptr;
   Adaptation *vold_amr = nullptr;
   Adaptation *tmpV_amr = nullptr;
+  struct {
+    Grid **g;
+    Adaptation **a;
+    int dim;
+  } F[7] = {
+      {&chi, &chi_amr, 1},   {&vel, &vel_amr, 2},   {&vold, &vold_amr, 2},
+      {&pres, &pres_amr, 1}, {&tmpV, &tmpV_amr, 2}, {&tmp, &tmp_amr, 1},
+      {&pold, &pold_amr, 1},
+  };
 } var;
 typedef Real CHI_MAT[_BS_][_BS_];
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -6901,19 +6910,12 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  struct {
-    Grid **f;
-    int dim;
-  } F[] = {
-      {&var.chi, 1},  {&var.vel, 2}, {&var.vold, 2}, {&var.pres, 1},
-      {&var.tmpV, 2}, {&var.tmp, 1}, {&var.pold, 1},
-  };
-  for (int i = 0; i < sizeof F / sizeof *F; i++) {
-    Grid *f = *F[i].f = new Grid(F[i].dim);
-    f->Corrector = new FluxCorrectionMPI<Grid>(f->dim);
-    f->level_base.push_back(sim.bpdx * sim.bpdy * 2);
+  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+    Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
+    g->Corrector = new FluxCorrectionMPI<Grid>(g->dim);
+    g->level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
-      f->level_base.push_back(f->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
+      g->level_base.push_back(g->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
                               << (m + 1));
     const long long total_blocks =
         sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
@@ -6928,10 +6930,10 @@ int main(int argc, char **argv) {
         n_start += total_blocks % sim.size;
     }
     for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = f->get(sim.levelStart, n_start + i);
-      new_info.block = malloc(f->dim * _BS_ * _BS_ * sizeof(Real));
-      f->infos.push_back(new_info);
-      f->Octree[f->level_base[sim.levelStart] + n_start + i] = sim.rank;
+      BlockInfo &new_info = g->get(sim.levelStart, n_start + i);
+      new_info.block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
+      g->infos.push_back(new_info);
+      g->Octree[g->level_base[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
       sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
@@ -6939,23 +6941,23 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
                 getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            f->Octree[f->level_base[sim.levelStart + 1] + nc] = -2;
+            g->Octree[g->level_base[sim.levelStart + 1] + nc] = -2;
           }
       if (sim.levelStart > 0) {
         const long long nf =
             getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        f->Octree[f->level_base[sim.levelStart - 1] + nf] = -1;
+        g->Octree[g->level_base[sim.levelStart - 1] + nf] = -1;
       }
     }
-    f->FillPos();
-    f->UpdateFluxCorrection = true;
-    f->UpdateGroups = true;
-    f->UpdateBlockInfoAll_States(false);
-    for (auto it = f->SynchronizerMPIs.begin(); it != f->SynchronizerMPIs.end();
+    g->FillPos();
+    g->UpdateFluxCorrection = true;
+    g->UpdateGroups = true;
+    g->UpdateBlockInfoAll_States(false);
+    for (auto it = g->SynchronizerMPIs.begin(); it != g->SynchronizerMPIs.end();
          ++it)
       (*it->second)._Setup();
     MPI_Barrier(MPI_COMM_WORLD);
-    f->timestamp = 0;
+    g->timestamp = 0;
   }
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
