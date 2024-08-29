@@ -3772,7 +3772,7 @@ struct Adaptation {
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
               BlockType &b = *(BlockType *)Blocks[J * 2 + I];
-              memset(&b, 0, sizeof(BlockType));
+              memset(&b, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
                   Element dudx =
