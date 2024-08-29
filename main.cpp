@@ -3732,8 +3732,7 @@ struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename Element> struct Adaptation {
-  typedef Element BlockType[_BS_][_BS_];
+struct Adaptation {
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
@@ -3754,8 +3753,9 @@ template <typename Element> struct Adaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer(dim);
   }
-  template <typename TLab>
+  template <typename TLab, typename Element>
   void Adapt(Grid<Element> *grid, bool basic) {
+    typedef Element BlockType[_BS_][_BS_];
     basic_refinement = basic;
     Synchronizer<Grid<Element>> *Synch = nullptr;
     if (basic == false) {
@@ -4286,8 +4286,8 @@ struct ScalarLab : public BlockLab<Real> {
     }
   }
 };
-typedef Adaptation<Real> ScalarAMR;
-typedef Adaptation<Vector> VectorAMR;
+typedef Adaptation ScalarAMR;
+typedef Adaptation VectorAMR;
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
