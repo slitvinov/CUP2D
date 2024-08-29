@@ -852,22 +852,20 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
@@ -3081,30 +3079,27 @@ template <typename Element> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3421,9 +3416,7 @@ template <typename Element> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  LoadBalancer(int dim) : dim(dim) {
-    movedBlocks = false;
-  }
+  LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
   void PrepareCompression(Grid<Element> *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
@@ -3439,10 +3432,10 @@ template <typename Element> struct LoadBalancer {
       const int brank = grid->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
-	  MPI_Block x;
-	  x.mn[0] = bCopy.level;
-	  x.mn[1] = bCopy.Z;
-	  std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * sizeof(Element));
+          MPI_Block x;
+          x.mn[0] = bCopy.level;
+          x.mn[1] = bCopy.Z;
+          std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * sizeof(Element));
           send_blocks[baserank].push_back(x);
           grid->Tree0(b.level, b.Z) = baserank;
         }
@@ -3456,9 +3449,9 @@ template <typename Element> struct LoadBalancer {
             BlockInfo &temp = grid->get(b.level, n);
             const int temprank = grid->Tree0(b.level, n);
             if (temprank != sim.rank) {
-	      MPI_Block x;
-	      x.mn[0] = bCopy.level;
-	      x.mn[1] = bCopy.Z;
+              MPI_Block x;
+              x.mn[0] = bCopy.level;
+              x.mn[1] = bCopy.Z;
               recv_blocks[temprank].push_back(x);
               grid->Tree0(b.level, n) = baserank;
             }
@@ -3471,14 +3464,16 @@ template <typename Element> struct LoadBalancer {
         if (recv_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
-          MPI_Irecv(&recv_blocks[r][0], recv_blocks[r].size() * sizeof(recv_blocks[r][0]), MPI_UINT8_T, r,
-                    2468, MPI_COMM_WORLD, &requests.back());
+          MPI_Irecv(&recv_blocks[r][0],
+                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests.back());
         }
         if (send_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
-          MPI_Isend(&send_blocks[r][0], send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
-                    2468, MPI_COMM_WORLD, &requests.back());
+          MPI_Isend(&send_blocks[r][0],
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests.back());
         }
       }
     for (int r = 0; r < sim.size; r++)
@@ -3496,7 +3491,8 @@ template <typename Element> struct LoadBalancer {
         const long long Z = recv_blocks[r][i].mn[1];
         grid->_alloc(level, Z);
         BlockInfo &info = grid->get(level, Z);
-        std::memcpy(info.block, recv_blocks[r][i].data, _BS_ * _BS_ * dim * sizeof(Real));
+        std::memcpy(info.block, recv_blocks[r][i].data,
+                    _BS_ * _BS_ * dim * sizeof(Real));
       }
   }
   void Balance_Diffusion(Grid<Element> *grid,
@@ -3544,14 +3540,14 @@ template <typename Element> struct LoadBalancer {
         send_left[i].prepare1(SortedInfos[i]);
       MPI_Request req{};
       request.push_back(req);
-      MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]), MPI_UINT8_T, left, 7890,
-                MPI_COMM_WORLD, &request.back());
+      MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
+                MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
     } else if (flux_left < 0) {
       recv_left.resize(abs(flux_left));
       MPI_Request req{};
       request.push_back(req);
-      MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]), MPI_UINT8_T, left, 4560,
-                MPI_COMM_WORLD, &request.back());
+      MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
+                MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
     }
     if (flux_right > 0) {
       send_right.resize(flux_right);
@@ -3560,14 +3556,14 @@ template <typename Element> struct LoadBalancer {
         send_right[i].prepare1(SortedInfos[my_blocks - i - 1]);
       MPI_Request req{};
       request.push_back(req);
-      MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]), MPI_UINT8_T, right, 4560,
-                MPI_COMM_WORLD, &request.back());
+      MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
+                MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
     } else if (flux_right < 0) {
       recv_right.resize(abs(flux_right));
       MPI_Request req{};
       request.push_back(req);
-      MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]), MPI_UINT8_T, right, 7890,
-                MPI_COMM_WORLD, &request.back());
+      MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
+                MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
     }
     for (int i = 0; i < flux_right; i++) {
       BlockInfo &info = SortedInfos[my_blocks - i - 1];
@@ -3650,8 +3646,9 @@ template <typename Element> struct LoadBalancer {
       if (recv_blocks[r].size() != 0) {
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size() * sizeof(recv_blocks[r][0]), MPI_UINT8_T, r,
-                  tag, MPI_COMM_WORLD, &requests.back());
+        MPI_Irecv(recv_blocks[r].data(),
+                  recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                  MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
       }
     long long counter_S = 0;
     long long counter_E = 0;
@@ -3662,8 +3659,9 @@ template <typename Element> struct LoadBalancer {
         counter_S += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Isend(send_blocks[r].data(), send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
-                  tag, MPI_COMM_WORLD, &requests.back());
+        MPI_Isend(send_blocks[r].data(),
+                  send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                  MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = sim.size - 1; r > sim.rank; r--)
       if (send_blocks[r].size() != 0) {
@@ -3673,8 +3671,9 @@ template <typename Element> struct LoadBalancer {
         counter_E += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Isend(send_blocks[r].data(), send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
-                  tag, MPI_COMM_WORLD, &requests.back());
+        MPI_Isend(send_blocks[r].data(),
+                  send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                  MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
       }
     movedBlocks = true;
     std::vector<long long> deallocIDs;
