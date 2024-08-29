@@ -2208,7 +2208,6 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
   }
 }
 template <typename Element> struct Grid {
-  typedef Element Block[_BS_][_BS_];
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
