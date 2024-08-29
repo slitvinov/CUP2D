@@ -3721,13 +3721,11 @@ template <typename TLab, typename Element> struct Adaptation {
   bool CallValidStates;
   bool boundary_needed;
   LoadBalancer<Element> *Balancer;
-  Grid<Element> *grid;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
   Adaptation(Grid<Element> &g, int dim) : dim(dim)
   {
-    grid = &g;
     boundary_needed = false;
     stencil.sx = -1;
     stencil.sy = -1;
@@ -3740,7 +3738,7 @@ template <typename TLab, typename Element> struct Adaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer<Element>(g);
   }
-  void Adapt(bool basic) {
+  void Adapt(Grid<Element> *grid, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid<Element>> *Synch = nullptr;
     if (basic == false) {
@@ -5953,13 +5951,13 @@ static void adapt() {
       }
     }
   }
-  var.tmp_amr->Adapt(false);
-  var.chi_amr->Adapt(false);
-  var.vel_amr->Adapt(false);
-  var.vold_amr->Adapt(false);
-  var.pres_amr->Adapt(false);
-  var.pold_amr->Adapt(false);
-  var.tmpV_amr->Adapt(true);
+  var.tmp_amr->Adapt(var.tmp, false);
+  var.chi_amr->Adapt(var.chi, false);
+  var.vel_amr->Adapt(var.vel, false);
+  var.vold_amr->Adapt(var.vold, false);
+  var.pres_amr->Adapt(var.pres, false);
+  var.pold_amr->Adapt(var.pold, false);
+  var.tmpV_amr->Adapt(var.tmpV, true);
 }
 static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
                        int iy) {
