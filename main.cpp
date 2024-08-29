@@ -3397,6 +3397,7 @@ template <typename Element> struct LoadBalancer {
       std::memcpy(data, info.block, _BS_ * _BS_ * sizeof(Element));
     }
   };
+  LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
   void AddBlock(Grid<Element> *grid, const int level, const long long Z,
                 uint8_t *data) {
     grid->_alloc(level, Z);
@@ -3416,7 +3417,6 @@ template <typename Element> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
   void PrepareCompression(Grid<Element> *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
