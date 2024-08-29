@@ -2214,11 +2214,10 @@ struct Grid {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  typedef Synchronizer<Grid> SynchronizerMPIType;
   const int dim;
   FluxCorrectionMPI<Grid> Corrector;
   size_t timestamp;
-  std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
+  std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
   Grid(int dim) : dim(dim), Corrector(dim), timestamp(0) {
     level_base.push_back(sim.bpdx * sim.bpdy * 2);
@@ -2569,13 +2568,13 @@ struct Grid {
     }
     return true;
   }
-  SynchronizerMPIType *sync1(const StencilInfo &stencil) {
+  Synchronizer<Grid> *sync1(const StencilInfo &stencil) {
     StencilInfo Cstencil(-1, -1, 0, 2, 2, 1, true, stencil.selcomponents);
-    SynchronizerMPIType *queryresult = nullptr;
-    typename std::map<StencilInfo, SynchronizerMPIType *>::iterator
+    Synchronizer<Grid> *queryresult = nullptr;
+    typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
     if (itSynchronizerMPI == SynchronizerMPIs.end()) {
-      queryresult = new SynchronizerMPIType(stencil, Cstencil, this, dim);
+      queryresult = new Synchronizer<Grid>(stencil, Cstencil, this, dim);
       queryresult->_Setup();
       SynchronizerMPIs[stencil] = queryresult;
     } else {
@@ -4093,8 +4092,7 @@ typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
   Synchronizer<Grid> *refSynchronizerMPI;
-  virtual void prepare(Grid &grid,
-                       const StencilInfo &stencil) override {
+  virtual void prepare(Grid &grid, const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     BlockLab<Vector>::prepare(grid, stencil);
   }
