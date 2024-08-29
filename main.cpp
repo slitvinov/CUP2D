@@ -3388,7 +3388,6 @@ template <typename Element> struct BlockLab {
 template <typename Element> struct LoadBalancer {
   typedef Element BlockType[_BS_][_BS_];
   bool movedBlocks;
-  Grid<Element> *grid;
   MPI_Datatype MPI_BLOCK;
   struct MPI_Block {
     long long mn[2];
@@ -3404,7 +3403,7 @@ template <typename Element> struct LoadBalancer {
     }
     MPI_Block() {}
   };
-  void AddBlock(const int level, const long long Z, Real *data) {
+  void AddBlock(Grid<Element> *grid, const int level, const long long Z, Real *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
     memcpy(info.block, data, _BS_ * _BS_ * sizeof(Element));
@@ -3422,8 +3421,7 @@ template <typename Element> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  LoadBalancer(Grid<Element> &a_grid) {
-    grid = &a_grid;
+  LoadBalancer() {
     movedBlocks = false;
     int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
@@ -3433,7 +3431,7 @@ template <typename Element> struct LoadBalancer {
     MPI_Type_commit(&MPI_BLOCK);
   }
   ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
-  void PrepareCompression() {
+  void PrepareCompression(Grid<Element> *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
@@ -3501,7 +3499,7 @@ template <typename Element> struct LoadBalancer {
         std::memcpy(info.block, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
-  void Balance_Diffusion(std::vector<long long> &block_distribution) {
+  void Balance_Diffusion(Grid<Element> *grid, std::vector<long long> &block_distribution) {
     movedBlocks = false;
     {
       long long max_b = block_distribution[0];
@@ -3512,7 +3510,7 @@ template <typename Element> struct LoadBalancer {
       }
       const double ratio = static_cast<double>(max_b) / min_b;
       if (ratio > 1.01 || min_b == 0) {
-        Balance_Global(block_distribution);
+        Balance_Global(grid, block_distribution);
         return;
       }
     }
@@ -3589,14 +3587,14 @@ template <typename Element> struct LoadBalancer {
     MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &request_reduction);
     for (int i = 0; i < -flux_left; i++)
-      AddBlock(recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
+      AddBlock(grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
-      AddBlock(recv_right[i].mn[0], recv_right[i].mn[1], recv_right[i].data);
+      AddBlock(grid, recv_right[i].mn[0], recv_right[i].mn[1], recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-  void Balance_Global(std::vector<long long> &all_b) {
+  void Balance_Global(Grid<Element> *grid, std::vector<long long> &all_b) {
     std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
@@ -3707,7 +3705,7 @@ template <typename Element> struct LoadBalancer {
         if (recv_blocks[r].size() != 0) {
 #pragma omp for
           for (size_t i = 0; i < recv_blocks[r].size(); i++)
-            AddBlock(recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
+            AddBlock(grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
                      recv_blocks[r][i].data);
         }
     }
@@ -3736,7 +3734,7 @@ template <typename TLab, typename Element> struct Adaptation {
     stencil.tensorial = true;
     for (int i = 0; i < dim; i++)
       stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer<Element>(g);
+    Balancer = new LoadBalancer<Element>;
   }
   void Adapt(Grid<Element> *grid, bool basic) {
     basic_refinement = basic;
@@ -3880,7 +3878,7 @@ template <typename TLab, typename Element> struct Adaptation {
       }
     }
     grid->dealloc_many(dealloc_IDs);
-    Balancer->PrepareCompression();
+    Balancer->PrepareCompression(grid);
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
@@ -3939,7 +3937,7 @@ template <typename TLab, typename Element> struct Adaptation {
     }
     grid->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    Balancer->Balance_Diffusion(block_distribution);
+    Balancer->Balance_Diffusion(grid, block_distribution);
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateGroups = true;
