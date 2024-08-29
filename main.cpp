@@ -623,7 +623,6 @@ struct BlockCase {
   int level;
   long long Z;
 };
-template <typename TGrid, typename Element> struct FluxCorrection {};
 struct StencilInfo {
   int sx;
   int sy;
