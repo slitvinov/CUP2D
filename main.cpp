@@ -3814,7 +3814,7 @@ template <typename Element> struct Adaptation {
         const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         assert(parent.block != NULL);
         assert(level <= sim.levelMax - 1);
-        BlockType *Blocks[4];
+        void *Blocks[4];
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long nc =
@@ -3823,14 +3823,14 @@ template <typename Element> struct Adaptation {
             Child.state = Leave;
             grid->_alloc(level + 1, nc);
             grid->Tree0(level + 1, nc) = -2;
-            Blocks[j * 2 + i] = (BlockType *)Child.block;
+            Blocks[j * 2 + i] = Child.block;
           }
         if (basic_refinement == false) {
           int offsetX[2] = {0, _BS_ / 2};
           int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
-              BlockType &b = *Blocks[J * 2 + I];
+              BlockType &b = *(BlockType*)Blocks[J * 2 + I];
               memset(&b, 0, sizeof(BlockType));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
