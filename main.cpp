@@ -3714,7 +3714,6 @@ template <typename Element> struct LoadBalancer {
 };
 template <typename TLab, typename Element> struct Adaptation {
   typedef Element BlockType[_BS_][_BS_];
-  typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
