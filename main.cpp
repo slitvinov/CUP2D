@@ -3732,7 +3732,7 @@ struct LoadBalancer {
     grid->FillPos();
   }
 };
-template <typename TLab, typename Element> struct Adaptation {
+template <typename TLab0, typename Element> struct Adaptation {
   typedef Element BlockType[_BS_][_BS_];
   StencilInfo stencil;
   bool CallValidStates;
@@ -3754,6 +3754,7 @@ template <typename TLab, typename Element> struct Adaptation {
       stencil.selcomponents.push_back(i);
     Balancer = new LoadBalancer(dim);
   }
+  template <typename TLab>
   void Adapt(Grid<Element> *grid, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid<Element>> *Synch = nullptr;
@@ -5958,13 +5959,13 @@ static void adapt() {
       }
     }
   }
-  var.tmp_amr->Adapt(var.tmp, false);
-  var.chi_amr->Adapt(var.chi, false);
-  var.vel_amr->Adapt(var.vel, false);
-  var.vold_amr->Adapt(var.vold, false);
-  var.pres_amr->Adapt(var.pres, false);
-  var.pold_amr->Adapt(var.pold, false);
-  var.tmpV_amr->Adapt(var.tmpV, true);
+  var.tmp_amr->Adapt<ScalarLab>(var.tmp, false);
+  var.chi_amr->Adapt<ScalarLab>(var.chi, false);
+  var.vel_amr->Adapt<VectorLab>(var.vel, false);
+  var.vold_amr->Adapt<VectorLab>(var.vold, false);
+  var.pres_amr->Adapt<ScalarLab>(var.pres, false);
+  var.pold_amr->Adapt<ScalarLab>(var.pold, false);
+  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
 }
 static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
                        int iy) {
