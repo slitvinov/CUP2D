@@ -3693,7 +3693,7 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
-  Adaptation(int dim) : dim(dim) { }
+  Adaptation(int dim) : dim(dim) {}
   template <typename TLab, typename Element>
   void Adapt(Grid *grid, bool basic) {
     typedef Element BlockType[_BS_][_BS_];
@@ -6994,22 +6994,10 @@ int main(int argc, char **argv) {
   }
   PoissonSolver pressureSolver;
 #pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++)
-    for (int x = 0; x < _BS_; x++)
-      for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)var.chi->infos[i].block)[x][y] = 0;
-        (*(ScalarBlock *)var.pres->infos[i].block)[x][y] = 0;
-        (*(ScalarBlock *)var.pold->infos[i].block)[x][y] = 0;
-        (*(ScalarBlock *)var.tmp->infos[i].block)[x][y] = 0;
-
-        (*(VectorBlock *)var.vel->infos[i].block)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.vel->infos[i].block)[x][y].u[1] = 0;
-        (*(VectorBlock *)var.tmpV->infos[i].block)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.tmpV->infos[i].block)[x][y].u[1] = 0;
-
-        (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
-        (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
-      }
+  for (size_t j = 0; j < velInfo.size(); j++)
+    for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
+      memset((*var.F[i].g)->infos[j].block, 0,
+             var.F[i].dim * _BS_ * _BS_ * sizeof(Real));
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Adaptation *a = *var.F[i].a = new Adaptation(var.F[i].dim);
     a->boundary_needed = false;
