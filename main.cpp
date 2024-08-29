@@ -618,7 +618,7 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 struct BlockCase {
-  BlockCase() { };
+  BlockCase(){};
   uint8_t *d[4];
   int level;
   long long Z;
@@ -852,20 +852,22 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
@@ -1821,7 +1823,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
-  std::vector<BlockCase*> Cases;
+  std::vector<BlockCase *> Cases;
   TGrid *grid;
   struct face {
     BlockInfo *infos[2];
@@ -1858,7 +1860,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase &CoarseCase = (*search->second);
-    Element *CoarseFace = (Element*)CoarseCase.d[myFace];
+    Element *CoarseFace = (Element *)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -1909,7 +1911,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase &CoarseCase = (*search->second);
-    Element *CoarseFace = (Element*)CoarseCase.d[myFace];
+    Element *CoarseFace = (Element *)CoarseCase.d[myFace];
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -1947,7 +1949,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     const int NC = sizeof(Element) / sizeof(Real);
     for (int i = 0; i < Cases.size(); i++)
       for (int j = 0; j < 4; j++)
-	free(Cases[i]->d[j]);
+        free(Cases[i]->d[j]);
     Cases.clear();
     MapOfCases.clear();
     grid = &_grid;
@@ -2029,11 +2031,12 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         }
       }
       if (stored) {
-	BlockCase *c = new BlockCase;
-	c->level = info.level;
-	c->Z = info.Z;
-	for (int i = 0; i < 4; i++)
-	  c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * sizeof(Element)) : nullptr;
+        BlockCase *c = new BlockCase;
+        c->level = info.level;
+        c->Z = info.Z;
+        for (int i = 0; i < 4; i++)
+          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * sizeof(Element))
+                                 : nullptr;
         Cases.push_back(c);
       }
     }
@@ -2044,12 +2047,11 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
           break;
         if (Cases[Cases_index]->level == info.level &&
             Cases[Cases_index]->Z == info.Z) {
-          MapOfCases.insert(
-              std::pair<std::array<long long, 2>, BlockCase *>(
-                  {Cases[Cases_index]->level, Cases[Cases_index]->Z},
-                  Cases[Cases_index]));
-          grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
-              Cases[Cases_index];
+          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase *>(
+              {Cases[Cases_index]->level, Cases[Cases_index]->Z},
+              Cases[Cases_index]));
+          grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z)
+              .auxiliary = Cases[Cases_index];
           info.auxiliary = Cases[Cases_index];
           Cases_index++;
         }
@@ -2087,7 +2089,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2) +
                      abs(code[2]) * (std::max(0, code[2]) + 4);
-        Element *FineFace = (Element*)FineCase.d[myFace];
+        Element *FineFace = (Element *)FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -3079,27 +3081,30 @@ template <typename Element> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3393,10 +3398,10 @@ template <typename Element> struct LoadBalancer {
   struct MPI_Block {
     long long mn[2];
     Real data[sizeof(BlockType) / sizeof(Real)];
-    MPI_Block(const BlockInfo &info, const bool Fillptr = true) {
+    MPI_Block(const BlockInfo &info, const bool Fillptr) {
       prepare1(info, Fillptr);
     }
-    void prepare1(const BlockInfo &info, const bool Fillptr = true) {
+    void prepare1(const BlockInfo &info, const bool Fillptr) {
       mn[0] = info.level;
       mn[1] = info.Z;
       if (Fillptr)
@@ -3404,7 +3409,8 @@ template <typename Element> struct LoadBalancer {
     }
     MPI_Block() {}
   };
-  void AddBlock(Grid<Element> *grid, const int level, const long long Z, Real *data) {
+  void AddBlock(Grid<Element> *grid, const int level, const long long Z,
+                Real *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
     memcpy(info.block, data, _BS_ * _BS_ * sizeof(Element));
@@ -3447,7 +3453,7 @@ template <typename Element> struct LoadBalancer {
       const int brank = grid->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
-          send_blocks[baserank].push_back({bCopy});
+          send_blocks[baserank].push_back({bCopy, true});
           grid->Tree0(b.level, b.Z) = baserank;
         }
       } else {
@@ -3500,7 +3506,8 @@ template <typename Element> struct LoadBalancer {
         std::memcpy(info.block, recv_blocks[r][i].data, sizeof(BlockType));
       }
   }
-  void Balance_Diffusion(Grid<Element> *grid, std::vector<long long> &block_distribution) {
+  void Balance_Diffusion(Grid<Element> *grid,
+                         std::vector<long long> &block_distribution) {
     movedBlocks = false;
     {
       long long max_b = block_distribution[0];
@@ -3541,7 +3548,7 @@ template <typename Element> struct LoadBalancer {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_left; i++)
-        send_left[i].prepare1(SortedInfos[i]);
+        send_left[i].prepare1(SortedInfos[i], true);
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
@@ -3557,7 +3564,7 @@ template <typename Element> struct LoadBalancer {
       send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
       for (int i = 0; i < flux_right; i++)
-        send_right[i].prepare1(SortedInfos[my_blocks - i - 1]);
+        send_right[i].prepare1(SortedInfos[my_blocks - i - 1], true);
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
@@ -3590,7 +3597,8 @@ template <typename Element> struct LoadBalancer {
     for (int i = 0; i < -flux_left; i++)
       AddBlock(grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
-      AddBlock(grid, recv_right[i].mn[0], recv_right[i].mn[1], recv_right[i].data);
+      AddBlock(grid, recv_right[i].mn[0], recv_right[i].mn[1],
+               recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp >= 1);
     grid->FillPos();
@@ -3657,7 +3665,7 @@ template <typename Element> struct LoadBalancer {
     for (int r = 0; r < sim.rank; r++)
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
-          send_blocks[r][i].prepare1(SortedInfos[counter_S + i]);
+          send_blocks[r][i].prepare1(SortedInfos[counter_S + i], true);
         counter_S += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
@@ -3668,7 +3676,7 @@ template <typename Element> struct LoadBalancer {
       if (send_blocks[r].size() != 0) {
         for (size_t i = 0; i < send_blocks[r].size(); i++)
           send_blocks[r][i].prepare1(
-              SortedInfos[SortedInfos.size() - 1 - (counter_E + i)]);
+              SortedInfos[SortedInfos.size() - 1 - (counter_E + i)], true);
         counter_E += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
@@ -3722,8 +3730,7 @@ template <typename TLab, typename Element> struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
-  Adaptation(int dim) : dim(dim)
-  {
+  Adaptation(int dim) : dim(dim) {
     boundary_needed = false;
     stencil.sx = -1;
     stencil.sy = -1;
@@ -5683,8 +5690,7 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->boundary_needed = true;
-  Synchronizer<Grid<Real>> *Synch =
-      var.tmp->sync1(var.tmp_amr->stencil);
+  Synchronizer<Grid<Real>> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -5788,8 +5794,8 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            if (var.tmp->Tree0(
-                    info.level, info.Znei[1 + code[0]][1 + code[1]]) == -1) {
+            if (var.tmp->Tree0(info.level,
+                               info.Znei[1 + code[0]][1 + code[1]]) == -1) {
               if (info.state == Compress) {
                 info.state = Leave;
                 (var.tmp->get(info.level, info.Z)).state = Leave;
@@ -5847,10 +5853,9 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            BlockInfo &infoNei = var.tmp->get(
-                info.level, info.Znei[1 + code[0]][1 + code[1]]);
-            if (var.tmp->Tree1(infoNei) >= 0 &&
-                infoNei.state == Refine) {
+            BlockInfo &infoNei =
+                var.tmp->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            if (var.tmp->Tree1(infoNei) >= 0 && infoNei.state == Refine) {
               info.state = Leave;
               (var.tmp->get(info.level, info.Z)).state = Leave;
               break;
@@ -5890,8 +5895,7 @@ static void adapt() {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = getZforward(m, i, j);
               BlockInfo &infoNei = var.tmp->get(m, n);
-              if (var.tmp->Tree1(infoNei) >= 0 &&
-                  infoNei.state == Compress)
+              if (var.tmp->Tree1(infoNei) >= 0 && infoNei.state == Compress)
                 infoNei.state = Leave;
             }
     }
@@ -5901,18 +5905,12 @@ static void adapt() {
     std::vector<long long> *level_base;
     std::vector<BlockInfo> &I2;
   } args[] = {
-      {&var.chi->BlockInfoAll, &var.chi->level_base,
-       var.chi->infos},
-      {&var.pres->BlockInfoAll, &var.pres->level_base,
-       var.pres->infos},
-      {&var.pold->BlockInfoAll, &var.pold->level_base,
-       var.pold->infos},
-      {&var.vel->BlockInfoAll, &var.vel->level_base,
-       var.vel->infos},
-      {&var.vold->BlockInfoAll, &var.vold->level_base,
-       var.vold->infos},
-      {&var.tmpV->BlockInfoAll, &var.tmpV->level_base,
-       var.tmpV->infos},
+      {&var.chi->BlockInfoAll, &var.chi->level_base, var.chi->infos},
+      {&var.pres->BlockInfoAll, &var.pres->level_base, var.pres->infos},
+      {&var.pold->BlockInfoAll, &var.pold->level_base, var.pold->infos},
+      {&var.vel->BlockInfoAll, &var.vel->level_base, var.vel->infos},
+      {&var.vold->BlockInfoAll, &var.vold->level_base, var.vold->infos},
+      {&var.tmpV->BlockInfoAll, &var.tmpV->level_base, var.tmpV->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
@@ -6028,10 +6026,10 @@ struct KernelAdvectDiffuse {
     Vector *faceYp = nullptr;
     const Real aux_coef = dfac;
     if (tempCase != nullptr) {
-      faceXm = (Vector*)tempCase->d[0];
-      faceXp = (Vector*)tempCase->d[1];
-      faceYm = (Vector*)tempCase->d[2];
-      faceYp = (Vector*)tempCase->d[3];
+      faceXm = (Vector *)tempCase->d[0];
+      faceXp = (Vector *)tempCase->d[1];
+      faceYm = (Vector *)tempCase->d[2];
+      faceYp = (Vector *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6723,10 +6721,10 @@ struct pressureCorrectionKernel {
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Vector*)tempCase->d[0];
-      faceXp = (Vector*)tempCase->d[1];
-      faceYm = (Vector*)tempCase->d[2];
-      faceYp = (Vector*)tempCase->d[3];
+      faceXm = (Vector *)tempCase->d[0];
+      faceXp = (Vector *)tempCase->d[1];
+      faceYm = (Vector *)tempCase->d[2];
+      faceYp = (Vector *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6785,10 +6783,10 @@ struct pressure_rhs {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real*)tempCase->d[0];
-      faceXp = (Real*)tempCase->d[1];
-      faceYm = (Real*)tempCase->d[2];
-      faceYp = (Real*)tempCase->d[3];
+      faceXm = (Real *)tempCase->d[0];
+      faceXp = (Real *)tempCase->d[1];
+      faceYm = (Real *)tempCase->d[2];
+      faceYp = (Real *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6835,17 +6833,16 @@ struct pressure_rhs1 {
         TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
                          (lab(ix, iy - 1) + lab(ix, iy + 1))) -
                         4.0 * lab(ix, iy));
-    BlockCase *tempCase =
-        (BlockCase *)(var.tmp->infos[info.id].auxiliary);
+    BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info.id].auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real*)tempCase->d[0];
-      faceXp = (Real*)tempCase->d[1];
-      faceYm = (Real*)tempCase->d[2];
-      faceYp = (Real*)tempCase->d[3];
+      faceXm = (Real *)tempCase->d[0];
+      faceXp = (Real *)tempCase->d[1];
+      faceYm = (Real *)tempCase->d[2];
+      faceYp = (Real *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
