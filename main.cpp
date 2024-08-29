@@ -1816,7 +1816,6 @@ template <typename TGrid> struct Synchronizer {
   }
 };
 template <typename TGrid, typename Element> struct FluxCorrectionMPI {
-  typedef Element BlockType[_BS_][_BS_];
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
@@ -1891,6 +1890,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     }
   }
   void FillCase_2(face &F, int codex, int codey, int codez) {
+    typedef Element BlockType[_BS_][_BS_];
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
