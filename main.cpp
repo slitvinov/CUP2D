@@ -1815,7 +1815,7 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-template <typename TGrid, typename Element> struct FluxCorrectionMPI {
+template <typename TGrid> struct FluxCorrectionMPI {
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
@@ -1889,6 +1889,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       }
     }
   }
+  template <typename Element>
   void FillCase_2(face &F, int codex, int codey, int codez) {
     typedef Element BlockType[_BS_][_BS_];
     BlockInfo &info = *F.infos[1];
@@ -2071,7 +2072,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       }
     }
   }
-  virtual void FillBlockCases() {
+  template <typename Element> void FillBlockCases() {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2145,10 +2146,10 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
           FillCase(recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(recv_faces[r][index], 1, 0, 0);
+        FillCase_2<Element>(recv_faces[r][index], 1, 0, 0);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(recv_faces[r][index], 0, 1, 0);
+        FillCase_2<Element>(recv_faces[r][index], 0, 1, 0);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
@@ -2205,7 +2206,7 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
     return getf(BlockInfoAll, level_base, m, n);
   }
 }
-template <typename Element> struct Grid {
+struct Grid {
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo> infos;
@@ -2213,9 +2214,9 @@ template <typename Element> struct Grid {
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   bool FiniteDifferences{true};
-  typedef Synchronizer<Grid<Element>> SynchronizerMPIType;
+  typedef Synchronizer<Grid> SynchronizerMPIType;
   const int dim;
-  FluxCorrectionMPI<Grid<Element>, Element> Corrector;
+  FluxCorrectionMPI<Grid> Corrector;
   size_t timestamp;
   std::map<StencilInfo, SynchronizerMPIType *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
@@ -2691,7 +2692,7 @@ static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
 template <typename Element> struct BlockLab {
   typedef Element BlockType[_BS_][_BS_];
   bool coarsened, istensorial, use_averages;
-  Grid<Element> *m_refGrid;
+  Grid *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Element *m, *c;
@@ -2716,7 +2717,7 @@ template <typename Element> struct BlockLab {
     y -= start[1];
     return m[nm[0] * y + x];
   }
-  virtual void prepare(Grid<Element> &grid, const StencilInfo &stencil) {
+  virtual void prepare(Grid &grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -3751,10 +3752,10 @@ struct Adaptation {
     Balancer = new LoadBalancer(dim);
   }
   template <typename TLab, typename Element>
-  void Adapt(Grid<Element> *grid, bool basic) {
+  void Adapt(Grid *grid, bool basic) {
     typedef Element BlockType[_BS_][_BS_];
     basic_refinement = basic;
-    Synchronizer<Grid<Element>> *Synch = nullptr;
+    Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
       Synch = grid->sync1(stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
@@ -4002,9 +4003,8 @@ static void computeA(Kernel &&kernel, TGrid *g) {
 }
 template <typename Kernel, typename Element1, typename LabMPI,
           typename Element2, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid<Element1> &grid,
-                     Grid<Element2> &grid2) {
-  Synchronizer<Grid<Element1>> &Synch = *grid.sync1(kernel.stencil);
+static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
+  Synchronizer<Grid> &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -4015,7 +4015,7 @@ static void computeB(const Kernel &kernel, Grid<Element1> &grid,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
-  Synchronizer<Grid<Element2>> &Synch2 = *grid2.sync1(kernel2.stencil);
+  Synchronizer<Grid> &Synch2 = *grid2.sync1(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.infos;
@@ -4092,8 +4092,8 @@ struct Vector {
 typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
-  Synchronizer<Grid<Vector>> *refSynchronizerMPI;
-  virtual void prepare(Grid<Vector> &grid,
+  Synchronizer<Grid> *refSynchronizerMPI;
+  virtual void prepare(Grid &grid,
                        const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     BlockLab<Vector>::prepare(grid, stencil);
@@ -4215,8 +4215,8 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab &operator=(const VectorLab &) = delete;
 };
 struct ScalarLab : public BlockLab<Real> {
-  Synchronizer<Grid<Real>> *refSynchronizerMPI;
-  virtual void prepare(Grid<Real> &grid, const StencilInfo &stencil) override {
+  Synchronizer<Grid> *refSynchronizerMPI;
+  virtual void prepare(Grid &grid, const StencilInfo &stencil) override {
     refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     BlockLab<Real>::prepare(grid, stencil);
   }
@@ -4291,13 +4291,13 @@ struct Skin {
   }
 };
 static struct {
-  Grid<Real> *chi = nullptr;
-  Grid<Vector> *vel = nullptr;
-  Grid<Vector> *vold = nullptr;
-  Grid<Real> *pres = nullptr;
-  Grid<Vector> *tmpV = nullptr;
-  Grid<Real> *tmp = nullptr;
-  Grid<Real> *pold = nullptr;
+  Grid *chi = nullptr;
+  Grid *vel = nullptr;
+  Grid *vold = nullptr;
+  Grid *pres = nullptr;
+  Grid *tmpV = nullptr;
+  Grid *tmp = nullptr;
+  Grid *pold = nullptr;
   Adaptation *tmp_amr = nullptr;
   Adaptation *chi_amr = nullptr;
   Adaptation *pres_amr = nullptr;
@@ -5697,7 +5697,7 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi);
   var.tmp_amr->boundary_needed = true;
-  Synchronizer<Grid<Real>> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
+  Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -5954,13 +5954,13 @@ static void adapt() {
       }
     }
   }
-  var.tmp_amr->Adapt<ScalarLab>(var.tmp, false);
-  var.chi_amr->Adapt<ScalarLab>(var.chi, false);
-  var.vel_amr->Adapt<VectorLab>(var.vel, false);
-  var.vold_amr->Adapt<VectorLab>(var.vold, false);
-  var.pres_amr->Adapt<ScalarLab>(var.pres, false);
-  var.pold_amr->Adapt<ScalarLab>(var.pold, false);
-  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
+  var.tmp_amr->Adapt<ScalarLab, Real>(var.tmp, false);
+  var.chi_amr->Adapt<ScalarLab, Real>(var.chi, false);
+  var.vel_amr->Adapt<VectorLab, Vector>(var.vel, false);
+  var.vold_amr->Adapt<VectorLab, Vector>(var.vold, false);
+  var.pres_amr->Adapt<ScalarLab, Real>(var.pres, false);
+  var.pold_amr->Adapt<ScalarLab, Real>(var.pold, false);
+  var.tmpV_amr->Adapt<VectorLab, Vector>(var.tmpV, true);
 }
 static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
                        int iy) {
@@ -6279,7 +6279,7 @@ struct PoissonSolver {
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
   }
-  void solve(const Grid<Real> *input) {
+  void solve(const Grid *input) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -6947,13 +6947,13 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new Grid<Real>(1);
-  var.vel = new Grid<Vector>(2);
-  var.vold = new Grid<Vector>(2);
-  var.pres = new Grid<Real>(1);
-  var.tmpV = new Grid<Vector>(2);
-  var.tmp = new Grid<Real>(1);
-  var.pold = new Grid<Real>(1);
+  var.chi = new Grid(1);
+  var.vel = new Grid(2);
+  var.vold = new Grid(2);
+  var.pres = new Grid(1);
+  var.tmpV = new Grid(2);
+  var.tmp = new Grid(1);
+  var.pold = new Grid(1);
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
@@ -7144,7 +7144,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->Corrector.prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel);
-      var.tmpV->Corrector.FillBlockCases();
+      var.tmpV->Corrector.FillBlockCases<Vector>();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7163,7 +7163,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->Corrector.prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel);
-      var.tmpV->Corrector.FillBlockCases();
+      var.tmpV->Corrector.FillBlockCases<Vector>();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7562,7 +7562,7 @@ int main(int argc, char **argv) {
       var.tmp->Corrector.prepare0(*var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
           pressure_rhs(), *var.vel, *var.tmpV);
-      var.tmp->Corrector.FillBlockCases();
+      var.tmp->Corrector.FillBlockCases<Real>();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7577,7 +7577,7 @@ int main(int argc, char **argv) {
       }
       var.tmp->Corrector.prepare0(*var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold);
-      var.tmp->Corrector.FillBlockCases();
+      var.tmp->Corrector.FillBlockCases<Real>();
       pressureSolver.solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -7609,7 +7609,7 @@ int main(int argc, char **argv) {
       {
         var.tmpV->Corrector.prepare0(*var.tmpV);
         computeA<ScalarLab>(pressureCorrectionKernel(), var.pres);
-        var.tmpV->Corrector.FillBlockCases();
+        var.tmpV->Corrector.FillBlockCases<Vector>();
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
