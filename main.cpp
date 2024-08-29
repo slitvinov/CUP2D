@@ -1856,7 +1856,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase &CoarseCase = (*search->second);
-    Real *CoarseFace = (Real*)CoarseCase.d[myFace];
+    Real *CoarseFace = (Real *)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
@@ -2031,7 +2031,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         c->level = info.level;
         c->Z = info.Z;
         for (int i = 0; i < 4; i++)
-          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * dim *sizeof(Element))
+          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * dim * sizeof(Real))
                                  : nullptr;
         Cases.push_back(c);
       }
@@ -2695,7 +2695,7 @@ template <typename Element> struct BlockLab {
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Element *m, *c;
-  std::array<void*, 27> myblocks;
+  std::array<void *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
     m = NULL;
@@ -2892,7 +2892,7 @@ template <typename Element> struct BlockLab {
         m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
-    const BlockType &b = *(BlockType*)myblocks[icode];
+    const BlockType &b = *(BlockType *)myblocks[icode];
     const int m_vSize0 = nm[0];
     const int my_ix = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
@@ -2952,7 +2952,7 @@ template <typename Element> struct BlockLab {
                             info.level + 1);
       if (b_ptr == nullptr)
         continue;
-      BlockType &b = *(BlockType*)b_ptr;
+      BlockType &b = *(BlockType *)b_ptr;
       const int my_ix =
           abs(code[0]) * (s[0] - start[0]) +
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
@@ -3056,11 +3056,11 @@ template <typename Element> struct BlockLab {
     int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                  (info.index[1] + code[1]),
                                  (info.index[2] + code[2])};
-    void *b_ptr = m_refGrid->avail1(
-        (infoNei_index[0]) / 2, (infoNei_index[1]) / 2, info.level - 1);
+    void *b_ptr = m_refGrid->avail1((infoNei_index[0]) / 2,
+                                    (infoNei_index[1]) / 2, info.level - 1);
     if (b_ptr == nullptr)
       return;
-    BlockType &b = *(BlockType*)b_ptr;
+    BlockType &b = *(BlockType *)b_ptr;
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
                 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
@@ -3141,7 +3141,7 @@ template <typename Element> struct BlockLab {
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
       return;
-    BlockType &b = *(BlockType*)myblocks[icode];
+    BlockType &b = *(BlockType *)myblocks[icode];
     int eC[3] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2), (end[2]) / 2 + (1)};
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
@@ -3410,8 +3410,7 @@ struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  template <typename TGrid>
-  void PrepareCompression(TGrid *grid) {
+  template <typename TGrid> void PrepareCompression(TGrid *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
@@ -3429,7 +3428,8 @@ struct LoadBalancer {
           MPI_Block x;
           x.mn[0] = bCopy.level;
           x.mn[1] = bCopy.Z;
-          std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * dim * sizeof(Real));
+          std::memcpy(&x.data[0], bCopy.block,
+                      _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
           grid->Tree0(b.level, b.Z) = baserank;
         }
@@ -3827,7 +3827,7 @@ struct Adaptation {
           int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
-              BlockType &b = *(BlockType*)Blocks[J * 2 + I];
+              BlockType &b = *(BlockType *)Blocks[J * 2 + I];
               memset(&b, 0, sizeof(BlockType));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
