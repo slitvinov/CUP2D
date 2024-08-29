@@ -3391,7 +3391,6 @@ template <typename Element> struct BlockLab {
   BlockLab &operator=(const BlockLab &) = delete;
 };
 template <typename Element> struct LoadBalancer {
-  typedef Element BlockType[_BS_][_BS_];
   bool movedBlocks;
   MPI_Datatype MPI_BLOCK;
   const int dim;
@@ -3425,7 +3424,7 @@ template <typename Element> struct LoadBalancer {
   }
   LoadBalancer(int dim) : dim(dim) {
     movedBlocks = false;
-    int array_of_blocklengths[2] = {2, sizeof(BlockType) / sizeof(Real)};
+    int array_of_blocklengths[2] = {2, dim * _BS_ * _BS_};
     MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
     MPI_Datatype array_of_types[2] = {MPI_LONG_LONG, MPI_Real};
     MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements,
@@ -3505,7 +3504,7 @@ template <typename Element> struct LoadBalancer {
         const long long Z = recv_blocks[r][i].mn[1];
         grid->_alloc(level, Z);
         BlockInfo &info = grid->get(level, Z);
-        std::memcpy(info.block, recv_blocks[r][i].data, sizeof(BlockType));
+        std::memcpy(info.block, recv_blocks[r][i].data, _BS_ * _BS_ * dim * sizeof(Real));
       }
   }
   void Balance_Diffusion(Grid<Element> *grid,
