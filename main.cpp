@@ -3391,11 +3391,6 @@ template <typename Element> struct LoadBalancer {
   struct MPI_Block {
     long long mn[2];
     uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
-    void prepare1(const BlockInfo &info) {
-      mn[0] = info.level;
-      mn[1] = info.Z;
-      std::memcpy(data, info.block, _BS_ * _BS_ * sizeof(Element));
-    }
   };
   LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
   void AddBlock(Grid<Element> *grid, const int level, const long long Z,
@@ -3536,8 +3531,13 @@ template <typename Element> struct LoadBalancer {
     if (flux_left > 0) {
       send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
-      for (int i = 0; i < flux_left; i++)
-        send_left[i].prepare1(SortedInfos[i]);
+      for (int i = 0; i < flux_left; i++) {
+        BlockInfo *info = &SortedInfos[i];
+        MPI_Block *x = &send_left[i];
+        x->mn[0] = info->level;
+        x->mn[1] = info->Z;
+        std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+      }
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
@@ -3552,8 +3552,13 @@ template <typename Element> struct LoadBalancer {
     if (flux_right > 0) {
       send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
-      for (int i = 0; i < flux_right; i++)
-        send_right[i].prepare1(SortedInfos[my_blocks - i - 1]);
+      for (int i = 0; i < flux_right; i++) {
+        BlockInfo *info = &SortedInfos[my_blocks - i - 1];
+        MPI_Block *x = &send_right[i];
+        x->mn[0] = info->level;
+        x->mn[1] = info->Z;
+        std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+      }
       MPI_Request req{};
       request.push_back(req);
       MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
@@ -3654,8 +3659,13 @@ template <typename Element> struct LoadBalancer {
     long long counter_E = 0;
     for (int r = 0; r < sim.rank; r++)
       if (send_blocks[r].size() != 0) {
-        for (size_t i = 0; i < send_blocks[r].size(); i++)
-          send_blocks[r][i].prepare1(SortedInfos[counter_S + i]);
+        for (size_t i = 0; i < send_blocks[r].size(); i++) {
+          BlockInfo *info = &SortedInfos[counter_S + i];
+          MPI_Block *x = &send_blocks[r][i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+        }
         counter_S += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
@@ -3665,9 +3675,14 @@ template <typename Element> struct LoadBalancer {
       }
     for (int r = sim.size - 1; r > sim.rank; r--)
       if (send_blocks[r].size() != 0) {
-        for (size_t i = 0; i < send_blocks[r].size(); i++)
-          send_blocks[r][i].prepare1(
-              SortedInfos[SortedInfos.size() - 1 - (counter_E + i)]);
+        for (size_t i = 0; i < send_blocks[r].size(); i++) {
+          BlockInfo *info =
+              &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+          MPI_Block *x = &send_blocks[r][i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+        }
         counter_E += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
