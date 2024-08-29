@@ -3392,7 +3392,6 @@ template <typename Element> struct BlockLab {
 };
 template <typename Element> struct LoadBalancer {
   bool movedBlocks;
-  MPI_Datatype MPI_BLOCK;
   const int dim;
   struct MPI_Block {
     long long mn[2];
@@ -3424,14 +3423,7 @@ template <typename Element> struct LoadBalancer {
   }
   LoadBalancer(int dim) : dim(dim) {
     movedBlocks = false;
-    int array_of_blocklengths[2] = {2, dim * _BS_ * _BS_};
-    MPI_Aint array_of_displacements[2] = {0, 2 * sizeof(long long)};
-    MPI_Datatype array_of_types[2] = {MPI_LONG_LONG, MPI_Real};
-    MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements,
-                           array_of_types, &MPI_BLOCK);
-    MPI_Type_commit(&MPI_BLOCK);
   }
-  ~LoadBalancer() { MPI_Type_free(&MPI_BLOCK); }
   void PrepareCompression(Grid<Element> *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
@@ -3479,13 +3471,13 @@ template <typename Element> struct LoadBalancer {
         if (recv_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
-          MPI_Irecv(&recv_blocks[r][0], recv_blocks[r].size(), MPI_BLOCK, r,
+          MPI_Irecv(&recv_blocks[r][0], recv_blocks[r].size() * sizeof(recv_blocks[r][0]), MPI_UINT8_T, r,
                     2468, MPI_COMM_WORLD, &requests.back());
         }
         if (send_blocks[r].size() != 0) {
           MPI_Request req{};
           requests.push_back(req);
-          MPI_Isend(&send_blocks[r][0], send_blocks[r].size(), MPI_BLOCK, r,
+          MPI_Isend(&send_blocks[r][0], send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
                     2468, MPI_COMM_WORLD, &requests.back());
         }
       }
@@ -3552,13 +3544,13 @@ template <typename Element> struct LoadBalancer {
         send_left[i].prepare1(SortedInfos[i]);
       MPI_Request req{};
       request.push_back(req);
-      MPI_Isend(&send_left[0], send_left.size(), MPI_BLOCK, left, 7890,
+      MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]), MPI_UINT8_T, left, 7890,
                 MPI_COMM_WORLD, &request.back());
     } else if (flux_left < 0) {
       recv_left.resize(abs(flux_left));
       MPI_Request req{};
       request.push_back(req);
-      MPI_Irecv(&recv_left[0], recv_left.size(), MPI_BLOCK, left, 4560,
+      MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]), MPI_UINT8_T, left, 4560,
                 MPI_COMM_WORLD, &request.back());
     }
     if (flux_right > 0) {
@@ -3568,13 +3560,13 @@ template <typename Element> struct LoadBalancer {
         send_right[i].prepare1(SortedInfos[my_blocks - i - 1]);
       MPI_Request req{};
       request.push_back(req);
-      MPI_Isend(&send_right[0], send_right.size(), MPI_BLOCK, right, 4560,
+      MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]), MPI_UINT8_T, right, 4560,
                 MPI_COMM_WORLD, &request.back());
     } else if (flux_right < 0) {
       recv_right.resize(abs(flux_right));
       MPI_Request req{};
       request.push_back(req);
-      MPI_Irecv(&recv_right[0], recv_right.size(), MPI_BLOCK, right, 7890,
+      MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]), MPI_UINT8_T, right, 7890,
                 MPI_COMM_WORLD, &request.back());
     }
     for (int i = 0; i < flux_right; i++) {
@@ -3658,7 +3650,7 @@ template <typename Element> struct LoadBalancer {
       if (recv_blocks[r].size() != 0) {
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCK, r,
+        MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size() * sizeof(recv_blocks[r][0]), MPI_UINT8_T, r,
                   tag, MPI_COMM_WORLD, &requests.back());
       }
     long long counter_S = 0;
@@ -3670,7 +3662,7 @@ template <typename Element> struct LoadBalancer {
         counter_S += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
+        MPI_Isend(send_blocks[r].data(), send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
                   tag, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = sim.size - 1; r > sim.rank; r--)
@@ -3681,7 +3673,7 @@ template <typename Element> struct LoadBalancer {
         counter_E += send_blocks[r].size();
         MPI_Request req{};
         requests.push_back(req);
-        MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCK, r,
+        MPI_Isend(send_blocks[r].data(), send_blocks[r].size() * sizeof(send_blocks[r][0]), MPI_UINT8_T, r,
                   tag, MPI_COMM_WORLD, &requests.back());
       }
     movedBlocks = true;
