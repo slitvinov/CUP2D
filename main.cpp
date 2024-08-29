@@ -2219,52 +2219,7 @@ struct Grid {
   size_t timestamp;
   std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
   std::vector<BlockInfo *> boundary;
-  Grid(int dim) : dim(dim), timestamp(0) {
-    Corrector = new FluxCorrectionMPI<Grid>(dim);
-    level_base.push_back(sim.bpdx * sim.bpdy * 2);
-    for (int m = 1; m < sim.levelMax; m++)
-      level_base.push_back(level_base[m - 1] + sim.bpdx * sim.bpdy * 1
-                           << (m + 1));
-    const long long total_blocks =
-        sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
-    long long my_blocks = total_blocks / sim.size;
-    if ((long long)sim.rank < total_blocks % sim.size)
-      my_blocks++;
-    long long n_start = sim.rank * (total_blocks / sim.size);
-    if (total_blocks % sim.size > 0) {
-      if ((long long)sim.rank < total_blocks % sim.size)
-        n_start += sim.rank;
-      else
-        n_start += total_blocks % sim.size;
-    }
-    for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = get(sim.levelStart, n_start + i);
-      new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
-      infos.push_back(new_info);
-      Octree[level_base[sim.levelStart] + n_start + i] = sim.rank;
-      int p[2];
-      sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
-      if (sim.levelStart < sim.levelMax - 1)
-        for (int j1 = 0; j1 < 2; j1++)
-          for (int i1 = 0; i1 < 2; i1++) {
-            const long long nc =
-                getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            Octree[level_base[sim.levelStart + 1] + nc] = -2;
-          }
-      if (sim.levelStart > 0) {
-        const long long nf =
-            getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        Octree[level_base[sim.levelStart - 1] + nf] = -1;
-      }
-    }
-    FillPos();
-    UpdateFluxCorrection = true;
-    UpdateGroups = true;
-    UpdateBlockInfoAll_States(false);
-    for (auto it = SynchronizerMPIs.begin(); it != SynchronizerMPIs.end(); ++it)
-      (*it->second)._Setup();
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
+  Grid(int dim) : dim(dim) {}
   void *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? get(m, n).block : nullptr;
   }
@@ -6946,13 +6901,62 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  var.chi = new Grid(1);
-  var.vel = new Grid(2);
-  var.vold = new Grid(2);
-  var.pres = new Grid(1);
-  var.tmpV = new Grid(2);
-  var.tmp = new Grid(1);
-  var.pold = new Grid(1);
+  struct {
+    Grid **f;
+    int dim;
+  } F[] = {
+      {&var.chi, 1},  {&var.vel, 2}, {&var.vold, 2}, {&var.pres, 1},
+      {&var.tmpV, 2}, {&var.tmp, 1}, {&var.pold, 1},
+  };
+  for (int i = 0; i < sizeof F / sizeof *F; i++) {
+    Grid *f = *F[i].f = new Grid(F[i].dim);
+    f->Corrector = new FluxCorrectionMPI<Grid>(f->dim);
+    f->level_base.push_back(sim.bpdx * sim.bpdy * 2);
+    for (int m = 1; m < sim.levelMax; m++)
+      f->level_base.push_back(f->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
+                              << (m + 1));
+    const long long total_blocks =
+        sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
+    long long my_blocks = total_blocks / sim.size;
+    if ((long long)sim.rank < total_blocks % sim.size)
+      my_blocks++;
+    long long n_start = sim.rank * (total_blocks / sim.size);
+    if (total_blocks % sim.size > 0) {
+      if ((long long)sim.rank < total_blocks % sim.size)
+        n_start += sim.rank;
+      else
+        n_start += total_blocks % sim.size;
+    }
+    for (size_t i = 0; i < my_blocks; i++) {
+      BlockInfo &new_info = f->get(sim.levelStart, n_start + i);
+      new_info.block = malloc(f->dim * _BS_ * _BS_ * sizeof(Real));
+      f->infos.push_back(new_info);
+      f->Octree[f->level_base[sim.levelStart] + n_start + i] = sim.rank;
+      int p[2];
+      sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
+      if (sim.levelStart < sim.levelMax - 1)
+        for (int j1 = 0; j1 < 2; j1++)
+          for (int i1 = 0; i1 < 2; i1++) {
+            const long long nc =
+                getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            f->Octree[f->level_base[sim.levelStart + 1] + nc] = -2;
+          }
+      if (sim.levelStart > 0) {
+        const long long nf =
+            getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+        f->Octree[f->level_base[sim.levelStart - 1] + nf] = -1;
+      }
+    }
+    f->FillPos();
+    f->UpdateFluxCorrection = true;
+    f->UpdateGroups = true;
+    f->UpdateBlockInfoAll_States(false);
+    for (auto it = f->SynchronizerMPIs.begin(); it != f->SynchronizerMPIs.end();
+         ++it)
+      (*it->second)._Setup();
+    MPI_Barrier(MPI_COMM_WORLD);
+    f->timestamp = 0;
+  }
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
