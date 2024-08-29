@@ -1918,13 +1918,13 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block[i2][j] += CoarseFace[i2];
-        memset(&CoarseFace[i2], 0, sizeof(Element));
+        memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
         block[j][i2] += CoarseFace[i2];
-        memset(&CoarseFace[i2], 0, sizeof(Element));
+        memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     }
   }
@@ -1943,7 +1943,6 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
     }
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
-    const int NC = sizeof(Element) / sizeof(Real);
     for (int i = 0; i < Cases.size(); i++)
       for (int j = 0; j < 4; j++)
         free(Cases[i]->d[j]);
@@ -2032,7 +2031,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         c->level = info.level;
         c->Z = info.Z;
         for (int i = 0; i < 4; i++)
-          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * sizeof(Element))
+          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * dim *sizeof(Element))
                                  : nullptr;
         Cases.push_back(c);
       }
@@ -2058,8 +2057,8 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
       std::sort(recv_faces[r].begin(), recv_faces[r].end());
     }
     for (int r = 0; r < sim.size; r++) {
-      send_buffer[r].resize(send_buffer_size[r] * NC);
-      recv_buffer[r].resize(recv_buffer_size[r] * NC);
+      send_buffer[r].resize(send_buffer_size[r] * dim);
+      recv_buffer[r].resize(recv_buffer_size[r] * dim);
       int offset = 0;
       for (int k = 0; k < (int)recv_faces[r].size(); k++) {
         face &f = recv_faces[r][k];
@@ -2068,7 +2067,7 @@ template <typename TGrid, typename Element> struct FluxCorrectionMPI {
         int V =
             ((code[0] == 0) ? _BS_ / 2 : 1) * ((code[1] == 0) ? _BS_ / 2 : 1);
         f.offset = offset;
-        offset += V * NC;
+        offset += V * dim;
       }
     }
   }
