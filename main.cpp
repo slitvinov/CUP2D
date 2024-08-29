@@ -2267,8 +2267,8 @@ template <typename Element> struct Grid {
       (*it->second)._Setup();
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  Block *avail(const int m, const long long n) {
-    return (Tree0(m, n) == sim.rank) ? (Block *)get(m, n).block : nullptr;
+  void *avail(const int m, const long long n) {
+    return (Tree0(m, n) == sim.rank) ? get(m, n).block : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
     std::vector<std::vector<long long>> send_buffer(sim.size);
@@ -2648,7 +2648,7 @@ template <typename Element> struct Grid {
       assert(Tree0(m, n) >= 0);
     }
   }
-  Block *avail1(const int ix, const int iy, const int m) {
+  void *avail1(const int ix, const int iy, const int m) {
     const long long n = getZforward(m, ix, iy);
     return avail(m, n);
   }
@@ -2698,7 +2698,7 @@ template <typename Element> struct BlockLab {
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Element *m, *c;
-  std::array<BlockType *, 27> myblocks;
+  std::array<void*, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() {
     m = NULL;
@@ -2895,7 +2895,7 @@ template <typename Element> struct BlockLab {
         m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
-    const BlockType &b = *myblocks[icode];
+    const BlockType &b = *(BlockType*)myblocks[icode];
     const int m_vSize0 = nm[0];
     const int my_ix = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
@@ -2947,7 +2947,7 @@ template <typename Element> struct BlockLab {
       Bstep = 4;
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      BlockType *b_ptr =
+      void *b_ptr =
           m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                                 (B % 2) * std::max(0, 1 - abs(code[0])),
                             2 * info.index[1] + std::max(code[1], 0) + code[1] +
@@ -2955,7 +2955,7 @@ template <typename Element> struct BlockLab {
                             info.level + 1);
       if (b_ptr == nullptr)
         continue;
-      BlockType &b = *b_ptr;
+      BlockType &b = *(BlockType*)b_ptr;
       const int my_ix =
           abs(code[0]) * (s[0] - start[0]) +
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
@@ -3059,11 +3059,11 @@ template <typename Element> struct BlockLab {
     int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                  (info.index[1] + code[1]),
                                  (info.index[2] + code[2])};
-    BlockType *b_ptr = m_refGrid->avail1(
+    void *b_ptr = m_refGrid->avail1(
         (infoNei_index[0]) / 2, (infoNei_index[1]) / 2, info.level - 1);
     if (b_ptr == nullptr)
       return;
-    BlockType &b = *b_ptr;
+    BlockType &b = *(BlockType*)b_ptr;
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
                 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
@@ -3144,7 +3144,7 @@ template <typename Element> struct BlockLab {
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
       return;
-    BlockType &b = *myblocks[icode];
+    BlockType &b = *(BlockType*)myblocks[icode];
     int eC[3] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2), (end[2]) / 2 + (1)};
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
