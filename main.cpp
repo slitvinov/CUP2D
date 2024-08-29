@@ -3397,11 +3397,11 @@ template <typename Element> struct LoadBalancer {
   const int dim;
   struct MPI_Block {
     long long mn[2];
-    Real data[sizeof(BlockType) / sizeof(Real)];
+    Real data[max_dim * _BS_ * _BS_];
     void prepare1(const BlockInfo &info) {
       mn[0] = info.level;
       mn[1] = info.Z;
-      std::memcpy(&data[0], info.block, _BS_ * _BS_ * sizeof(Element));
+      std::memcpy(data, info.block, _BS_ * _BS_ * sizeof(Element));
     }
     MPI_Block() {}
   };
