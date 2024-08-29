@@ -4286,8 +4286,6 @@ struct ScalarLab : public BlockLab<Real> {
     }
   }
 };
-typedef Adaptation ScalarAMR;
-typedef Adaptation VectorAMR;
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
@@ -4303,13 +4301,13 @@ static struct {
   Grid<Vector> *tmpV = nullptr;
   Grid<Real> *tmp = nullptr;
   Grid<Real> *pold = nullptr;
-  ScalarAMR *tmp_amr = nullptr;
-  ScalarAMR *chi_amr = nullptr;
-  ScalarAMR *pres_amr = nullptr;
-  ScalarAMR *pold_amr = nullptr;
-  VectorAMR *vel_amr = nullptr;
-  VectorAMR *vold_amr = nullptr;
-  VectorAMR *tmpV_amr = nullptr;
+  Adaptation *tmp_amr = nullptr;
+  Adaptation *chi_amr = nullptr;
+  Adaptation *pres_amr = nullptr;
+  Adaptation *pold_amr = nullptr;
+  Adaptation *vel_amr = nullptr;
+  Adaptation *vold_amr = nullptr;
+  Adaptation *tmpV_amr = nullptr;
 } var;
 typedef Real CHI_MAT[_BS_][_BS_];
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -7033,13 +7031,13 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new ScalarAMR(1);
-  var.chi_amr = new ScalarAMR(1);
-  var.pres_amr = new ScalarAMR(1);
-  var.pold_amr = new ScalarAMR(1);
-  var.vel_amr = new VectorAMR(2);
-  var.vold_amr = new VectorAMR(2);
-  var.tmpV_amr = new VectorAMR(2);
+  var.tmp_amr = new Adaptation(1);
+  var.chi_amr = new Adaptation(1);
+  var.pres_amr = new Adaptation(1);
+  var.pold_amr = new Adaptation(1);
+  var.vel_amr = new Adaptation(2);
+  var.vold_amr = new Adaptation(2);
+  var.tmpV_amr = new Adaptation(2);
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
