@@ -3385,7 +3385,7 @@ template <typename Element> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-template <typename Element> struct LoadBalancer {
+template <typename Element0> struct LoadBalancer {
   bool movedBlocks;
   const int dim;
   struct MPI_Block {
@@ -3393,7 +3393,7 @@ template <typename Element> struct LoadBalancer {
     uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
   };
   LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
-  void AddBlock(Grid<Element> *grid, const int level, const long long Z,
+  void AddBlock(Grid<Element0> *grid, const int level, const long long Z,
                 uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
@@ -3412,7 +3412,7 @@ template <typename Element> struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  void PrepareCompression(Grid<Element> *grid) {
+  void PrepareCompression(Grid<Element0> *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
@@ -3430,7 +3430,7 @@ template <typename Element> struct LoadBalancer {
           MPI_Block x;
           x.mn[0] = bCopy.level;
           x.mn[1] = bCopy.Z;
-          std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * sizeof(Element));
+          std::memcpy(&x.data[0], bCopy.block, _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
           grid->Tree0(b.level, b.Z) = baserank;
         }
@@ -3490,7 +3490,7 @@ template <typename Element> struct LoadBalancer {
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
   }
-  void Balance_Diffusion(Grid<Element> *grid,
+  void Balance_Diffusion(Grid<Element0> *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
     {
@@ -3536,7 +3536,7 @@ template <typename Element> struct LoadBalancer {
         MPI_Block *x = &send_left[i];
         x->mn[0] = info->level;
         x->mn[1] = info->Z;
-        std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+        std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
       }
       MPI_Request req{};
       request.push_back(req);
@@ -3557,7 +3557,7 @@ template <typename Element> struct LoadBalancer {
         MPI_Block *x = &send_right[i];
         x->mn[0] = info->level;
         x->mn[1] = info->Z;
-        std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+        std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
       }
       MPI_Request req{};
       request.push_back(req);
@@ -3597,7 +3597,7 @@ template <typename Element> struct LoadBalancer {
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-  void Balance_Global(Grid<Element> *grid, std::vector<long long> &all_b) {
+  void Balance_Global(Grid<Element0> *grid, std::vector<long long> &all_b) {
     std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
@@ -3664,7 +3664,7 @@ template <typename Element> struct LoadBalancer {
           MPI_Block *x = &send_blocks[r][i];
           x->mn[0] = info->level;
           x->mn[1] = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         counter_S += send_blocks[r].size();
         MPI_Request req{};
@@ -3681,7 +3681,7 @@ template <typename Element> struct LoadBalancer {
           MPI_Block *x = &send_blocks[r][i];
           x->mn[0] = info->level;
           x->mn[1] = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * sizeof(Element));
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         counter_E += send_blocks[r].size();
         MPI_Request req{};
