@@ -3693,19 +3693,7 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   const int dim;
-  Adaptation(int dim) : dim(dim) {
-    boundary_needed = false;
-    stencil.sx = -1;
-    stencil.sy = -1;
-    stencil.sz = 0;
-    stencil.ex = 2;
-    stencil.ey = 2;
-    stencil.ez = 1;
-    stencil.tensorial = true;
-    for (int i = 0; i < dim; i++)
-      stencil.selcomponents.push_back(i);
-    Balancer = new LoadBalancer(dim);
-  }
+  Adaptation(int dim) : dim(dim) { }
   template <typename TLab, typename Element>
   void Adapt(Grid *grid, bool basic) {
     typedef Element BlockType[_BS_][_BS_];
@@ -4245,20 +4233,9 @@ struct Skin {
   }
 };
 static struct {
-  Grid *chi = nullptr;
-  Grid *vel = nullptr;
-  Grid *vold = nullptr;
-  Grid *pres = nullptr;
-  Grid *tmpV = nullptr;
-  Grid *tmp = nullptr;
-  Grid *pold = nullptr;
-  Adaptation *tmp_amr = nullptr;
-  Adaptation *chi_amr = nullptr;
-  Adaptation *pres_amr = nullptr;
-  Adaptation *pold_amr = nullptr;
-  Adaptation *vel_amr = nullptr;
-  Adaptation *vold_amr = nullptr;
-  Adaptation *tmpV_amr = nullptr;
+  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
+  Adaptation *tmp_amr, *chi_amr, *pres_amr, *pold_amr, *vel_amr, *vold_amr,
+      *tmpV_amr;
   struct {
     Grid **g;
     Adaptation **a;
@@ -7033,13 +7010,20 @@ int main(int argc, char **argv) {
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[0] = 0;
         (*(VectorBlock *)var.vold->infos[i].block)[x][y].u[1] = 0;
       }
-  var.tmp_amr = new Adaptation(1);
-  var.chi_amr = new Adaptation(1);
-  var.pres_amr = new Adaptation(1);
-  var.pold_amr = new Adaptation(1);
-  var.vel_amr = new Adaptation(2);
-  var.vold_amr = new Adaptation(2);
-  var.tmpV_amr = new Adaptation(2);
+  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+    Adaptation *a = *var.F[i].a = new Adaptation(var.F[i].dim);
+    a->boundary_needed = false;
+    a->stencil.sx = -1;
+    a->stencil.sy = -1;
+    a->stencil.sz = 0;
+    a->stencil.ex = 2;
+    a->stencil.ey = 2;
+    a->stencil.ez = 1;
+    a->stencil.tensorial = true;
+    for (int i = 0; i < a->dim; i++)
+      a->stencil.selcomponents.push_back(i);
+    a->Balancer = new LoadBalancer(a->dim);
+  }
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
