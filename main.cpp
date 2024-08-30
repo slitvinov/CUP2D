@@ -1877,8 +1877,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
       }
     }
   }
-  template <typename Element>
-  void FillCase_2(face &F, int codex, int codey) {
+  template <typename Element> void FillCase_2(face &F, int codex, int codey) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
@@ -1887,29 +1886,31 @@ template <typename TGrid> struct FluxCorrectionMPI {
     if (abs(code[1]) != codey)
       return;
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
-      abs(code[1]) * (std::max(0, code[1]) + 2);
+                       abs(code[1]) * (std::max(0, code[1]) + 2);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
     BlockCase &CoarseCase = (*search->second);
-    Element *CoarseFace = (Element *)CoarseCase.d[myFace];
+    Real *CoarseFace = (Real *)CoarseCase.d[myFace];
+    Real *block = (Real *)info.block;
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
-    Element * block = (Element*)info.block;
     assert(d != 2);
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-	int k = _BS_ * i2 + j;
-	block[k] += CoarseFace[i2];
+        int k = _BS_ * i2 + j;
+        for (int d = 0; d < dim; d++)
+          block[dim * k + d] += CoarseFace[dim * i2 + d];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-	int k = _BS_ * j + i2;
-        block[k] += CoarseFace[i2];
+        int k = _BS_ * j + i2;
+        for (int d = 0; d < dim; d++)
+          block[dim * k + d] += CoarseFace[dim * i2 + d];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     }
