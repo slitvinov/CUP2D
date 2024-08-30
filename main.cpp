@@ -2701,29 +2701,27 @@ template <typename Element> struct BlockLab {
     NZ = 1 * aux;
     assert(m != NULL);
     BlockType &block = *(BlockType *)info.block;
-    Element *ptrSource = &block[0][0];
+    Element *p = &block[0][0];
     int nbytes = sizeof(Element) * _BS_;
-    int _iz0 = -start[2];
-    int _iz1 = _iz0 + 1;
     int _iy0 = -start[1];
     int _iy1 = _iy0 + _BS_;
     int m_vSize0 = nm[0];
     int my_ix = -start[0];
-    for (int iz = _iz0; iz < _iz1; iz++) {
+    for (int iz = 0; iz < 1; iz++) {
       int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
-        Element *ptrDestination0 = &m[my_izx + (iy)*m_vSize0];
-        Element *ptrDestination1 =
+        Element *q0 = &m[my_izx + (iy)*m_vSize0];
+        Element *q1 =
             &m[my_izx + (iy + 1) * m_vSize0];
-        Element *ptrDestination2 =
+        Element *q2 =
             &m[my_izx + (iy + 2) * m_vSize0];
-        Element *ptrDestination3 =
+        Element *q3 =
             &m[my_izx + (iy + 3) * m_vSize0];
-        memcpy(ptrDestination0, (ptrSource), nbytes);
-        memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
-        memcpy(ptrDestination2, (ptrSource + 2 * _BS_), nbytes);
-        memcpy(ptrDestination3, (ptrSource + 3 * _BS_), nbytes);
-        ptrSource += 4 * _BS_;
+        memcpy(q0, (p), nbytes);
+        memcpy(q1, (p + _BS_), nbytes);
+        memcpy(q2, (p + 2 * _BS_), nbytes);
+        memcpy(q3, (p + 3 * _BS_), nbytes);
+        p += 4 * _BS_;
       }
     }
     coarsened = false;
