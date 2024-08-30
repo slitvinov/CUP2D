@@ -628,20 +628,18 @@ struct StencilInfo {
   int sy;
   int ex;
   int ey;
-  int ez;
   std::vector<int> selcomponents;
   bool tensorial;
   StencilInfo() {}
-  StencilInfo(int _sx, int _sy, int _ex, int _ey, int _ez,
+  StencilInfo(int _sx, int _sy, int _ex, int _ey,
               bool _tensorial, const std::vector<int> &components)
-      : sx(_sx), sy(_sy), ex(_ex), ey(_ey), ez(_ez),
+    : sx(_sx), sy(_sy), ex(_ex), ey(_ey),
         selcomponents(components), tensorial(_tensorial) {
-    assert(ez == 1);
     assert(selcomponents.size() > 0);
   }
   StencilInfo(const StencilInfo &c) = default;
   std::vector<int> _all() const {
-    int extra[] = {sx, sy, ex, ey, ez, (int)tensorial};
+    int extra[] = {sx, sy, ex, ey, (int)tensorial};
     std::vector<int> all(selcomponents);
     all.insert(all.end(), extra, extra + sizeof(extra) / sizeof(int));
     return all;
@@ -753,7 +751,7 @@ struct StencilManager {
                        (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
                        stencil.ey / 2 + Cstencil.ey,
-                       stencil.ez / 2 + Cstencil.ez};
+                       1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
@@ -763,7 +761,7 @@ struct StencilManager {
       range0.sz = code[2] < 1 ? (code[2] < 0 ? nZ : 0) : 0;
       range0.ex = code[0] < 1 ? nX : stencil.ex - 1;
       range0.ey = code[1] < 1 ? nY : stencil.ey - 1;
-      range0.ez = code[2] < 1 ? nZ : stencil.ez - 1;
+      range0.ez = code[2] < 1 ? nZ : 0;
       sLength[3 * icode + 0] = range0.ex - range0.sx;
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
@@ -773,7 +771,7 @@ struct StencilManager {
       range1.sz = code[2] < 1 ? (code[2] < 0 ? nZ : 0) : 0;
       range1.ex = code[0] < 1 ? nX : 2 * (stencil.ex - 1);
       range1.ey = code[1] < 1 ? nY : 2 * (stencil.ey - 1);
-      range1.ez = code[2] < 1 ? nZ : 2 * (stencil.ez - 1);
+      range1.ez = code[2] < 1 ? nZ : 0;
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
@@ -841,7 +839,7 @@ struct StencilManager {
             code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2)
                         : nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2)
-                        : nZ / 2 + stencil.ez / 2 + Cstencil.ez - 1};
+                        : nZ / 2};
         const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
                              (f.infos[1]->index[1] + code[1]) % 2,
                              (f.infos[1]->index[2] + code[2]) % 2};
@@ -1526,7 +1524,7 @@ template <typename TGrid> struct Synchronizer {
     grid = _grid;
     use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
                     stencil.sx < -2 || stencil.sy < -2 || 0 < -2 ||
-                    stencil.ex > 3 || stencil.ey > 3 || stencil.ez > 3);
+                    stencil.ex > 3 || stencil.ey > 3);
     send_interfaces.resize(sim.size);
     recv_interfaces.resize(sim.size);
     send_packinfos.resize(sim.size);
@@ -1599,7 +1597,7 @@ template <typename TGrid> struct Synchronizer {
               const BlockInfo *const info = f.infos[0];
               const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
                                  (stencil.ey) / 2 + Cstencil.ey,
-                                 (stencil.ez) / 2 + Cstencil.ez};
+                                 1};
               const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
                                  (0 - 1) / 2 + 0};
@@ -1647,7 +1645,7 @@ template <typename TGrid> struct Synchronizer {
                                 code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
                                             : _BS_ + stencil.ey - 1,
                                 code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                                            : 1 + stencil.ez - 1};
+                                            : -1};
               Real *src = (Real *)(*info).block;
               const int xStep = (code[0] == 0) ? 2 : 1;
               const int yStep = (code[1] == 0) ? 2 : 1;
@@ -1710,7 +1708,7 @@ template <typename TGrid> struct Synchronizer {
       const int e[3] = {
           code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
-          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + stencil.ez - 1};
+          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 };
       if (unpack.level == info.level) {
         Real *dst =
             cacheBlock + ((s[2] - 0) * Length[0] * Length[1] +
@@ -2525,7 +2523,7 @@ struct Grid {
     return true;
   }
   Synchronizer<Grid> *sync1(const StencilInfo &stencil) {
-    StencilInfo Cstencil(-1, -1, 2, 2, 1, true, stencil.selcomponents);
+    StencilInfo Cstencil(-1, -1, 2, 2, true, stencil.selcomponents);
     Synchronizer<Grid> *queryresult = nullptr;
     typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
         itSynchronizerMPI = SynchronizerMPIs.find(stencil);
@@ -2680,7 +2678,7 @@ template <typename Element> struct BlockLab {
     start[2] = 0;
     end[0] = stencil.ex;
     end[1] = stencil.ey;
-    end[2] = stencil.ez;
+    end[2] = 1;
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
@@ -3964,7 +3962,6 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
   kernel2.stencil.sy = kernel2.stencil2.sy;
   kernel2.stencil.ex = kernel2.stencil2.ex;
   kernel2.stencil.ey = kernel2.stencil2.ey;
-  kernel2.stencil.ez = kernel2.stencil2.ez;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   kernel2.stencil.selcomponents.clear();
   kernel2.stencil.selcomponents = kernel2.stencil2.selcomponents;
@@ -4297,7 +4294,7 @@ struct ObstacleBlock {
 struct KernelVorticity {
   KernelVorticity() {}
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
-  const StencilInfo stencil{-1, -1, 2, 2, 1, false, {0, 1}};
+  const StencilInfo stencil{-1, -1, 2, 2, false, {0, 1}};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
@@ -4739,8 +4736,8 @@ struct Shape {
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
-  StencilInfo stencil{-1, -1, 2, 2, 1, false, {0}};
-  StencilInfo stencil2{-1, -1, 2, 2, 1, false, {0}};
+  StencilInfo stencil{-1, -1, 2, 2, false, {0}};
+  StencilInfo stencil2{-1, -1, 2, 2, false, {0}};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
                   const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
     for (const auto &shape : sim.shapes) {
@@ -4870,7 +4867,7 @@ struct AreaSegment {
 };
 struct PutChiOnGrid {
   PutChiOnGrid(){};
-  StencilInfo stencil{-1, -1, 2, 2, 1, false, {0}};
+  StencilInfo stencil{-1, -1, 2, 2, false, {0}};
   std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     for (auto &shape : sim.shapes) {
@@ -5595,7 +5592,7 @@ static void ongrid(Real dt) {
 }
 struct GradChiOnTmp {
   GradChiOnTmp() {}
-  const StencilInfo stencil{-4, -4, 5, 5, 1, true, {0}};
+  const StencilInfo stencil{-4, -4, 5, 5, true, {0}};
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
@@ -5936,7 +5933,7 @@ struct KernelAdvectDiffuse {
     uinf[1] = sim.uinfy;
   }
   Real uinf[2];
-  StencilInfo stencil{-3, -3, 4, 4, 1, true, {0, 1}};
+  StencilInfo stencil{-3, -3, 4, 4, true, {0, 1}};
   std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(VectorLab &lab, BlockInfo &info) {
     Real h = info.h;
@@ -5994,8 +5991,8 @@ struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
   KernelComputeForces(){};
-  StencilInfo stencil{small, small, big, big, 1, true, {0, 1}};
-  StencilInfo stencil2{small, small, big, big, 1, true, {0}};
+  StencilInfo stencil{small, small, big, big, true, {0, 1}};
+  StencilInfo stencil2{small, small, big, big, true, {0}};
   const int bigg = _BS_ + big - 1;
   const int stencil_start[3] = {small, small, small},
             stencil_end[3] = {big, big, big};
@@ -6634,7 +6631,7 @@ struct PoissonSolver {
 };
 struct pressureCorrectionKernel {
   pressureCorrectionKernel(){};
-  const StencilInfo stencil{-1, -1, 2, 2, 1, false, {0}};
+  const StencilInfo stencil{-1, -1, 2, 2, false, {0}};
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
@@ -6687,8 +6684,8 @@ struct pressureCorrectionKernel {
 };
 struct pressure_rhs {
   pressure_rhs(){};
-  StencilInfo stencil{-1, -1, 2, 2, 1, false, {0, 1}};
-  StencilInfo stencil2{-1, -1, 2, 2, 1, false, {0, 1}};
+  StencilInfo stencil{-1, -1, 2, 2, false, {0, 1}};
+  StencilInfo stencil2{-1, -1, 2, 2, false, {0, 1}};
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   const std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const BlockInfo &info,
@@ -6753,7 +6750,7 @@ struct pressure_rhs {
 };
 struct pressure_rhs1 {
   pressure_rhs1() {}
-  StencilInfo stencil{-1, -1, 2, 2, 1, false, {0}};
+  StencilInfo stencil{-1, -1, 2, 2, false, {0}};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     ScalarBlock &__restrict__ TMP =
         *(ScalarBlock *)var.tmp->infos[info.id].block;
@@ -6987,7 +6984,6 @@ int main(int argc, char **argv) {
     a->stencil.sy = -1;
     a->stencil.ex = 2;
     a->stencil.ey = 2;
-    a->stencil.ez = 1;
     a->stencil.tensorial = true;
     for (int i = 0; i < a->dim; i++)
       a->stencil.selcomponents.push_back(i);
