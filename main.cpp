@@ -1901,13 +1901,15 @@ template <typename TGrid> struct FluxCorrectionMPI {
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block[_BS_ * i2 + j] += CoarseFace[i2];
+	int k = _BS_ * i2 + j;
+	block[k] += CoarseFace[i2];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block[_BS_ * j + i2] += CoarseFace[i2];
+	int k = _BS_ * j + i2;
+        block[k] += CoarseFace[i2];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     }
