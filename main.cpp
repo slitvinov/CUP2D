@@ -3782,6 +3782,7 @@ struct Adaptation {
             Blocks[j * 2 + i] = Child.block;
           }
         if (basic_refinement == false) {
+	  int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
           int offsetX[2] = {0, _BS_ / 2};
           int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
@@ -3791,7 +3792,6 @@ struct Adaptation {
               memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
-                  int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
                   int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
                   int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
                   int im = i0 - 1;
