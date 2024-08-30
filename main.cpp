@@ -2700,14 +2700,13 @@ template <typename Element> struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    BlockType &block = *(BlockType *)info.block;
-    Element *p = &block[0][0];
+    Element *p = (Element *)info.block;
     int nbytes = dim * sizeof(Real) * _BS_;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
-      void *q0 = &m[-start[0] + iy*nm[0]];
-      void *q1 = &m[-start[0] + (iy + 1) * nm[0]];
-      void *q2 = &m[-start[0] + (iy + 2) * nm[0]];
-      void *q3 = &m[-start[0] + (iy + 3) * nm[0]];
+      void *q0 = &m[iy*nm[0] - start[0]];
+      void *q1 = &m[(iy + 1) * nm[0] - start[0]];
+      void *q2 = &m[(iy + 2) * nm[0] - start[0]];
+      void *q3 = &m[(iy + 3) * nm[0] - start[0]];
       memcpy(q0, (p), nbytes);
       memcpy(q1, (p + _BS_), nbytes);
       memcpy(q2, (p + 2 * _BS_), nbytes);
