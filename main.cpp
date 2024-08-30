@@ -2763,12 +2763,14 @@ template <typename Element> struct BlockLab {
         for (int i = 0; i < _BS_ / 2; i++) {
           if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
             continue;
-          const int ix = 2 * i - start[0];
-          const int iy = 2 * j - start[1];
-          Element &coarseElement = c[i - offset[0] + nc[0] * (j - offset[1])];
-          coarseElement = AverageDown(
-              m[ix + nm[0] * iy], m[ix + 1 + nm[0] * iy],
-              m[ix + nm[0] * (iy + 1)], m[ix + 1 + nm[0] * (iy + 1)]);
+          int ix = 2 * i - start[0];
+          int iy = 2 * j - start[1];
+	  int i00 = ix + nm[0] * iy;
+	  int i10 = ix + 1 + nm[0] * iy;
+	  int i01 = ix + nm[0] * (iy + 1);
+	  int i11 = ix + 1 + nm[0] * (iy + 1);
+	  int j00 = i - offset[0] + nc[0] * (j - offset[1]);
+          c[j00] = AverageDown(m[i01], m[i00], m[i10], m[i11]);
         }
       }
     }
