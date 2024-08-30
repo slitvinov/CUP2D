@@ -2838,19 +2838,19 @@ template <typename Element> struct BlockLab {
 	int i1 = i + (iy + 1 - start[1]) * nm[0];
 	int i2 = i + (iy + 2 - start[1]) * nm[0];
 	int i3 = i + (iy + 3 - start[1]) * nm[0];
-	int x0 = iy - code[1] * _BS_;
-	int x1 = iy + 1 - code[1] * _BS_;
-	int x2 = iy + 2 - code[1] * _BS_;
-	int x3 = iy + 3 - code[1] * _BS_;
-	int y0 = s[0] - code[0] * _BS_;
+	int x0 = s[0] - code[0] * _BS_;
+	int y0 = iy - code[1] * _BS_;
+	int y1 = iy + 1 - code[1] * _BS_;
+	int y2 = iy + 2 - code[1] * _BS_;
+	int y3 = iy + 3 - code[1] * _BS_;
         Element *p0 = &m[i0];
         Element *p1 = &m[i1];
         Element *p2 = &m[i2];
         Element *p3 = &m[i3];
-        Element *q0 = &b[x0][y0];
-        Element *q1 = &b[x1][y0];
-        Element *q2 = &b[x2][y0];
-        Element *q3 = &b[x3][y0];
+        Element *q0 = &b[y0][x0];
+        Element *q1 = &b[y1][x0];
+        Element *q2 = &b[y2][x0];
+        Element *q3 = &b[y3][x0];
         memcpy(p0, q0, bytes);
         memcpy(p1, q1, bytes);
         memcpy(p2, q2, bytes);
@@ -2858,10 +2858,10 @@ template <typename Element> struct BlockLab {
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
 	int i0 = i + (iy - start[1]) * nm[0];
-	int x0 = iy - code[1] * _BS_;
-	int y0 = s[0] - code[0] * _BS_;
+	int x0 = s[0] - code[0] * _BS_;
+	int y0 = iy - code[1] * _BS_;
         Element *p = &m[i0];
-        Element *q = &b[x0][y0];
+        Element *q = &b[y0][x0];
         memcpy(p, q, bytes);
       }
   }
