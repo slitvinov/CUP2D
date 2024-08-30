@@ -2701,7 +2701,7 @@ template <typename Element> struct BlockLab {
     NZ = 1 * aux;
     assert(m != NULL);
     BlockType &block = *(BlockType *)info.block;
-    Element *p = &block;
+    Element *p = (Element*)block;
     int nbytes = dim * sizeof(Real) * _BS_;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       void *q0 = &m[iy*nm[0] - start[0]];
