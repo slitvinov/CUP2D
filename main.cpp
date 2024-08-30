@@ -851,20 +851,22 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
@@ -3041,27 +3043,30 @@ template <typename Element> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
+    CoarseEdge[2] = (code[2] == 0)
+                        ? 0
+                        : (((info.index[2] % 2 == 0) &&
+                            (infoNei_index_true[2] > info.index[2])) ||
+                           ((info.index[2] % 2 == 1) &&
+                            (infoNei_index_true[2] < info.index[2])))
+                              ? 1
+                              : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3785,41 +3790,31 @@ struct Adaptation {
               memset(&b, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
-                  Element dudx =
-                      0.5 * (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) -
-                             lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J]));
-                  Element dudy =
-                      0.5 * (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) -
-                             lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1));
+                  int i0 = i / 2 + offsetX[I];
+                  int j0 = j / 2 + offsetY[J];
+                  int ip = i0 + 1;
+                  int im = i0 - 1;
+                  int jp = j0 + 1;
+                  int jm = j0 - 1;
+                  Element dudx = 0.5 * (lab(ip, j0) - lab(im, j0));
+                  Element dudy = 0.5 * (lab(i0, jp) - lab(i0, jm));
                   Element dudx2 =
-                      (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J]) +
-                       lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J])) -
-                      2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
+                      (lab(ip, j0) + lab(im, j0)) - 2.0 * lab(i0, j0);
                   Element dudy2 =
-                      (lab(i / 2 + offsetX[I], j / 2 + offsetY[J] + 1) +
-                       lab(i / 2 + offsetX[I], j / 2 + offsetY[J] - 1)) -
-                      2.0 * lab(i / 2 + offsetX[I], j / 2 + offsetY[J]);
-                  Element dudxdy =
-                      0.25 *
-                      ((lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] + 1) +
-                        lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] - 1)) -
-                       (lab(i / 2 + offsetX[I] + 1, j / 2 + offsetY[J] - 1) +
-                        lab(i / 2 + offsetX[I] - 1, j / 2 + offsetY[J] + 1)));
+                      (lab(i0, jp) + lab(i0, jm)) - 2.0 * lab(i0, j0);
+                  Element dudxdy = 0.25 * ((lab(ip, jp) + lab(im, jm)) -
+                                           (lab(ip, jm) + lab(im, jp)));
                   b[j][i] =
-                      (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
-                       (-0.25 * dudx - 0.25 * dudy)) +
+                      (lab(i0, j0) + (-0.25 * dudx - 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
                   b[j][i + 1] =
-                      (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
-                       (+0.25 * dudx - 0.25 * dudy)) +
+                      (lab(i0, j0) + (+0.25 * dudx - 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
                   b[j + 1][i] =
-                      (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
-                       (-0.25 * dudx + 0.25 * dudy)) +
+                      (lab(i0, j0) + (-0.25 * dudx + 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
                   b[j + 1][i + 1] =
-                      (lab(i / 2 + offsetX[I], j / 2 + offsetY[J]) +
-                       (+0.25 * dudx + 0.25 * dudy)) +
+                      (lab(i0, j0) + (+0.25 * dudx + 0.25 * dudy)) +
                       ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
                 }
             }
