@@ -1929,7 +1929,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
       }
     }
   }
-  virtual void prepare0(TGrid &_grid) {
+  void prepare0(TGrid &_grid) {
     if (_grid.UpdateFluxCorrection == false)
       return;
     _grid.UpdateFluxCorrection = false;
