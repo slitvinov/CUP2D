@@ -2689,15 +2689,14 @@ template <typename Element> struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    uint8_t *p = (uint8_t *)info.block;
-    uint8_t *u = (uint8_t *)m;
-    const int s = dim * sizeof(Real);
+    Real *p = (Real *)info.block;
+    Real *u = (Real *)m;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
-      uint8_t *q = u + s * iy * nm[0] - s * start[0];
-      memcpy(q, p, s * _BS_), q += s * nm[0], p += s * _BS_;
-      memcpy(q, p, s * _BS_), q += s * nm[0], p += s * _BS_;
-      memcpy(q, p, s * _BS_), q += s * nm[0], p += s * _BS_;
-      memcpy(q, p, s * _BS_), q += s * nm[0], p += s * _BS_;
+      Real *q = u + dim * iy * nm[0] - dim * start[0];
+      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
     }
     coarsened = false;
     bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
