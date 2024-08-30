@@ -2682,14 +2682,14 @@ template <typename Element> struct BlockLab {
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
-    m = (Element *)malloc(nm[0] * nm[1] * sizeof(Element));
+    m = (Element *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
-    c = (Element *)malloc(nc[0] * nc[1] * sizeof(Element));
+    c = (Element *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
     use_averages = (grid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
