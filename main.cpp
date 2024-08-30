@@ -2831,7 +2831,8 @@ template <typename Element> struct BlockLab {
     const BlockType &b = *(BlockType *)myblocks[icode];
     const int i = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
-    for (int iz = s[2]; iz < e[2]; iz++) {
+    assert(s[2] == 0);
+    assert(e[2] == 1);
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         Element * p0 =
             &m[i + (iy - start[1]) * nm[0]];
@@ -2858,7 +2859,6 @@ template <typename Element> struct BlockLab {
         const Element *q = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(p, q, bytes);
       }
-    }
   }
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
                             const int *const code, const int *const s,
