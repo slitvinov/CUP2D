@@ -7039,7 +7039,7 @@ int main(int argc, char **argv) {
       }
   }
   while (1) {
-    if (sim.rank == 0 && sim.step % 10 == 0)
+    if (sim.rank == 0 && sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d\n", sim.step);
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
