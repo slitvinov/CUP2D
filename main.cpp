@@ -2965,8 +2965,9 @@ template <typename Element> struct BlockLab {
         int y = (abs(code[1]) == 1)
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
+	int z = y + 1;
         Element *q0 = &b[y][x];
-        Element *q1 = &b[y + 1][x];
+        Element *q1 = &b[z][x];
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
