@@ -2645,7 +2645,6 @@ static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
        (dx * dy) * dudxdy);
 }
 template <typename Element> struct BlockLab {
-  typedef Element BlockType[_BS_][_BS_];
   bool coarsened, istensorial, use_averages;
   Grid *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
@@ -2697,6 +2696,7 @@ template <typename Element> struct BlockLab {
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
   virtual void load(BlockInfo &info, bool applybc) {
+    typedef Element BlockType[_BS_][_BS_];
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -2840,6 +2840,7 @@ template <typename Element> struct BlockLab {
   }
   void SameLevelExchange(const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
+    typedef Element BlockType[_BS_][_BS_];
     const int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
@@ -2884,6 +2885,7 @@ template <typename Element> struct BlockLab {
   }
   void FineToCoarseExchange(const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
+    typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
                       sizeof(Element);
@@ -3006,6 +3008,7 @@ template <typename Element> struct BlockLab {
     }
   }
   void CoarseFineExchange(const BlockInfo &info, const int *const code) {
+    typedef Element BlockType[_BS_][_BS_];
     int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                             (info.index[1] + code[1] + NY) % NY,
                             (info.index[2] + code[2] + NZ) % NZ};
@@ -3094,6 +3097,7 @@ template <typename Element> struct BlockLab {
     }
   }
   void FillCoarseVersion(const int *const code) {
+    typedef Element BlockType[_BS_][_BS_];
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     if (myblocks[icode] == nullptr)
       return;
