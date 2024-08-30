@@ -2645,6 +2645,7 @@ static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
        (dx * dy) * dudxdy);
 }
 template <typename Element> struct BlockLab {
+  Synchronizer<Grid> *refSynchronizerMPI;
   bool coarsened, istensorial, use_averages;
   Grid *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
@@ -2672,7 +2673,8 @@ template <typename Element> struct BlockLab {
     y -= start[1];
     return m[nm[0] * y + x];
   }
-  virtual void prepare(Grid &grid, const StencilInfo &stencil) {
+  void prepare(Grid &grid, const StencilInfo &stencil) {
+    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -4040,11 +4042,6 @@ struct Vector {
 typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
-  Synchronizer<Grid> *refSynchronizerMPI;
-  virtual void prepare(Grid &grid, const StencilInfo &stencil) override {
-    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    BlockLab<Vector>::prepare(grid, stencil);
-  }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<Vector>::load(info, applybc);
     Real *dst = (Real *)m;
@@ -4162,11 +4159,6 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab &operator=(const VectorLab &) = delete;
 };
 struct ScalarLab : public BlockLab<Real> {
-  Synchronizer<Grid> *refSynchronizerMPI;
-  virtual void prepare(Grid &grid, const StencilInfo &stencil) override {
-    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
-    BlockLab<Real>::prepare(grid, stencil);
-  }
   virtual void load(BlockInfo &info, bool applybc) override {
     BlockLab<Real>::load(info, applybc);
     Real *dst = (Real *)&BlockLab<Real>::m[0];
