@@ -2947,12 +2947,13 @@ template <typename Element> struct BlockLab {
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
 	  Element q000 = *(q00 + 2 * ee);
-	  Element q010 = *(q10 + 2 * ee);
 	  Element q001 = *(q00 + 2 * ee + 1);
+	  Element q010 = *(q10 + 2 * ee);
 	  Element q011 = *(q10 + 2 * ee + 1);
+	  Element q110 = *(q11 + 2 * ee);
+	  Element q111 = *(q11 + 2 * ee + 1);	  
           p0[ee] = AverageDown(q000, q010, q001, q011);
-          p1[ee] = AverageDown(*(q01 + 2 * ee), *(q11 + 2 * ee),
-                               *(q01 + 2 * ee + 1), *(q11 + 2 * ee + 1));
+          p1[ee] = AverageDown(q010, q110, q011, q111);
           p2[ee] = AverageDown(*(q02 + 2 * ee), *(q12 + 2 * ee),
                                *(q02 + 2 * ee + 1), *(q12 + 2 * ee + 1));
           p3[ee] = AverageDown(*(q03 + 2 * ee), *(q13 + 2 * ee),
