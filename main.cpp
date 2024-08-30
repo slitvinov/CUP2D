@@ -2649,7 +2649,6 @@ static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
 template <typename Element> struct BlockLab {
   Synchronizer<Grid> *refSynchronizerMPI;
   bool coarsened, istensorial, use_averages;
-  Grid *m_refGrid;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Element *m, *c;
@@ -2659,7 +2658,6 @@ template <typename Element> struct BlockLab {
   BlockLab(int dim) : dim(dim) {
     m = NULL;
     c = NULL;
-    m_refGrid = NULL;
   }
   ~BlockLab() {
     free(m);
@@ -2675,8 +2673,8 @@ template <typename Element> struct BlockLab {
     y -= start[1];
     return m[nm[0] * y + x];
   }
-  void prepare(Grid &grid, const StencilInfo &stencil) {
-    refSynchronizerMPI = grid.SynchronizerMPIs.find(stencil)->second;
+  void prepare(Grid *grid, const StencilInfo &stencil) {
+    refSynchronizerMPI = grid->SynchronizerMPIs.find(stencil)->second;
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -2685,7 +2683,6 @@ template <typename Element> struct BlockLab {
     end[0] = stencil.ex;
     end[1] = stencil.ey;
     end[2] = stencil.ez;
-    m_refGrid = &grid;
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
@@ -2697,10 +2694,10 @@ template <typename Element> struct BlockLab {
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
     c = (Element *)malloc(nc[0] * nc[1] * sizeof(Element));
-    use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
+    use_averages = (grid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
-  void load(BlockInfo &info, bool applybc) {
+  void load(Grid *grid, BlockInfo &info, bool applybc) {
     typedef Element BlockType[_BS_][_BS_];
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
@@ -2751,12 +2748,12 @@ template <typename Element> struct BlockLab {
       if (sim.bcy != periodic && code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
-          m_refGrid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        CoarseFineExchange(info, code);
+        CoarseFineExchange(grid, info, code);
       }
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
@@ -2769,9 +2766,9 @@ template <typename Element> struct BlockLab {
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
       if (TreeNei >= 0)
-        SameLevelExchange(info, code, s, e);
+        SameLevelExchange(grid, info, code, s, e);
       else if (TreeNei == -1)
-        FineToCoarseExchange(info, code, s, e);
+        FineToCoarseExchange(grid, info, code, s, e);
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
@@ -2786,13 +2783,13 @@ template <typename Element> struct BlockLab {
         }
       }
     if (sim.size == 1)
-      post_load(info, applybc);
+      post_load(grid, info, applybc);
     refSynchronizerMPI->fetch(info, nm, nc, (Real *)m, (Real *)c);
     if (sim.size > 1)
-      post_load(info, applybc);
+      post_load(grid, info, applybc);
   }
 
-  void post_load(BlockInfo &info, bool applybc) {
+  void post_load(Grid *grid, BlockInfo &info, bool applybc) {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
@@ -2809,7 +2806,7 @@ template <typename Element> struct BlockLab {
     }
     if (applybc)
       _apply_bc(info, true);
-    CoarseFineInterpolation(info);
+    CoarseFineInterpolation(grid, info);
     if (applybc)
       _apply_bc(info, false);
   }
@@ -2846,7 +2843,7 @@ template <typename Element> struct BlockLab {
           }
     return false;
   }
-  void SameLevelExchange(const BlockInfo &info, const int *const code,
+  void SameLevelExchange(Grid *grid, const BlockInfo &info, const int *const code,
                          const int *const s, const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (e[0] - s[0]) * sizeof(Element);
@@ -2854,7 +2851,7 @@ template <typename Element> struct BlockLab {
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
     myblocks[icode] =
-        m_refGrid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        grid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *(BlockType *)myblocks[icode];
@@ -2891,7 +2888,7 @@ template <typename Element> struct BlockLab {
       }
     }
   }
-  void FineToCoarseExchange(const BlockInfo &info, const int *const code,
+  void FineToCoarseExchange(Grid *grid, const BlockInfo &info, const int *const code,
                             const int *const s, const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -2911,7 +2908,7 @@ template <typename Element> struct BlockLab {
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       void *b_ptr =
-          m_refGrid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
+          grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                                 (B % 2) * std::max(0, 1 - abs(code[0])),
                             2 * info.index[1] + std::max(code[1], 0) + code[1] +
                                 aux * std::max(0, 1 - abs(code[1])),
@@ -3015,7 +3012,7 @@ template <typename Element> struct BlockLab {
       }
     }
   }
-  void CoarseFineExchange(const BlockInfo &info, const int *const code) {
+  void CoarseFineExchange(Grid *grid, const BlockInfo &info, const int *const code) {
     typedef Element BlockType[_BS_][_BS_];
     int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                             (info.index[1] + code[1] + NY) % NY,
@@ -3023,7 +3020,7 @@ template <typename Element> struct BlockLab {
     int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                  (info.index[1] + code[1]),
                                  (info.index[2] + code[2])};
-    void *b_ptr = m_refGrid->avail1((infoNei_index[0]) / 2,
+    void *b_ptr = grid->avail1((infoNei_index[0]) / 2,
                                     (infoNei_index[1]) / 2, info.level - 1);
     if (b_ptr == nullptr)
       return;
@@ -3152,7 +3149,7 @@ template <typename Element> struct BlockLab {
       }
     }
   }
-  void CoarseFineInterpolation(const BlockInfo &info) {
+  void CoarseFineInterpolation(Grid *grid, const BlockInfo &info) {
     int aux = 1 << info.level;
     bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
     bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
@@ -3208,7 +3205,7 @@ template <typename Element> struct BlockLab {
           }
         }
       }
-      if (m_refGrid->FiniteDifferences && abs(code[0]) + abs(code[1]) == 1) {
+      if (grid->FiniteDifferences && abs(code[0]) + abs(code[1]) == 1) {
         for (int iy = s[1]; iy < e[1]; iy += 2) {
           int YY =
               (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
@@ -3759,14 +3756,14 @@ struct Adaptation {
     {
       TLab lab(dim);
       if (Synch != nullptr)
-        lab.prepare(*grid, Synch->stencil);
+        lab.prepare(grid, Synch->stencil);
       for (size_t i = 0; i < m_ref.size(); i++) {
         const int level = m_ref[i];
         const long long Z = n_ref[i];
         BlockInfo &parent = grid->get(level, Z);
         parent.state = Leave;
         if (basic_refinement == false)
-          lab.load(parent, true);
+          lab.load(grid, parent, true);
         const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
         assert(parent.block != NULL);
         assert(level <= sim.levelMax - 1);
@@ -3934,10 +3931,10 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp parallel
   {
     Lab lab(dim);
-    lab.prepare(*g, kernel.stencil);
+    lab.prepare(g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(*I, true);
+      lab.load(g, *I, true);
       kernel(lab, *I);
     }
     while (done == false) {
@@ -3946,7 +3943,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(*I, true);
+        lab.load(g, *I, true);
         kernel(lab, *I);
       }
 #pragma omp single
@@ -3988,14 +3985,14 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
   {
     LabMPI lab(dim1);
     LabMPI2 lab2(dim2);
-    lab.prepare(grid, stencil);
-    lab2.prepare(grid2, stencil2);
+    lab.prepare(&grid, stencil);
+    lab2.prepare(&grid2, stencil2);
 #pragma omp for
     for (int i = 0; i < Ninner; i++) {
       BlockInfo &I = *avail0[i];
       BlockInfo &I2 = *avail02[i];
-      lab.load(I, true);
-      lab2.load(I2, true);
+      lab.load(&grid, I, true);
+      lab2.load(&grid2, I2, true);
       kernel(lab, lab2, I, I2);
       ready[I.id] = true;
     }
@@ -4015,8 +4012,8 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
     for (int i = 0; i < Nhalo; i++) {
       BlockInfo &I = *avail1[i];
       BlockInfo &I2 = *avail12[i];
-      lab.load(I, true);
-      lab2.load(I2, true);
+      lab.load(&grid, I, true);
+      lab2.load(&grid2, I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
