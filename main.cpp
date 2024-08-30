@@ -2914,10 +2914,6 @@ template <typename Element> struct BlockLab {
                       (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
                                             aux * (e[1] - s[1]) / 2)) *
                          nm[0];
-        Element *p0 = &m[k0];
-        Element *p1 = &m[k1];
-        Element *p2 = &m[k2];
-        Element *p3 = &m[k3];
         int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
                                            std::min(0, code[1]) * _BS_
                                      : iy + 0 * ys;
@@ -2934,6 +2930,10 @@ template <typename Element> struct BlockLab {
         int z1 = y1 + 1;
         int z2 = y2 + 1;
         int z3 = y3 + 1;
+        Element *p0 = &m[k0];
+        Element *p1 = &m[k1];
+        Element *p2 = &m[k2];
+        Element *p3 = &m[k3];
         Element *q00 = &b[_BS_ * y0 + x];
         Element *q10 = &b[_BS_ * z0 + x];
         Element *q01 = &b[_BS_ * y1 + x];
@@ -2970,11 +2970,11 @@ template <typename Element> struct BlockLab {
                                (1 - abs(code[1])) * (iy / 2 - start[1] +
                                                      aux * (e[1] - s[1]) / 2)) *
 	  nm[0];
-        Element *p = &m[k];
         int y = (abs(code[1]) == 1)
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
         int z = y + 1;
+        Element *p = &m[k];
         Element *q0 = &b[_BS_ * y + x];
         Element *q1 = &b[_BS_ * z + x];
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
