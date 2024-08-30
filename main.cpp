@@ -3786,26 +3786,27 @@ struct Adaptation {
           int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
-	      void *bb = Blocks[J * 2 + I];
-              Element *b = (Element*)bb;
+              void *bb = Blocks[J * 2 + I];
+              Element *b = (Element *)bb;
               memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
-                  int i0 = i / 2 + offsetX[I];
-                  int j0 = j / 2 + offsetY[J];
+                  int nm = _BS_ + stencil.ex - Synch->stencil.sx - 1;
+                  int i0 = i / 2 + offsetX[I] + Synch->stencil.sx;
+                  int j0 = j / 2 + offsetY[J] + Synch->stencil.sy;
                   int im = i0 - 1;
                   int ip = i0 + 1;
                   int jm = j0 - 1;
                   int jp = j0 + 1;
-                  Element l00 = lab(i0, j0);
-                  Element l0p = lab(i0, jp);
-                  Element lm0 = lab(im, j0);
-                  Element lmm = lab(im, jm);
-                  Element lmp = lab(im, jp);
-                  Element lp0 = lab(ip, j0);
-                  Element lpm = lab(ip, jm);
-                  Element lpp = lab(ip, jp);
-                  Element l0m = lab(i0, jm);
+                  Element l00 = lab.m[nm * j0 + i0];
+                  Element l0p = lab.m[nm * jp + i0];
+                  Element lm0 = lab.m[nm * j0 + im];
+                  Element lmm = lab.m[nm * jm + im];
+                  Element lmp = lab.m[nm * jp + im];
+                  Element lp0 = lab.m[nm * j0 + ip];
+                  Element lpm = lab.m[nm * jm + ip];
+                  Element lpp = lab.m[nm * jp + ip];
+                  Element l0m = lab.m[nm * jm + i0];
                   Element x = 0.5 * (lp0 - lm0);
                   Element y = 0.5 * (l0p - l0m);
                   Element x2 = (lp0 + lm0) - 2.0 * l00;
@@ -3815,14 +3816,18 @@ struct Adaptation {
                   int ii = i + 1;
                   int jj = j + 1;
 
-                  b[_BS_ * j + i] = (l00 + (-0.25 * x - 0.25 * y)) +
-                            ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[_BS_ * j + ii] = (l00 + (+0.25 * x - 0.25 * y)) +
-                             ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[_BS_ * jj + i] = (l00 + (-0.25 * x + 0.25 * y)) +
-                             ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[_BS_ * jj + ii] = (l00 + (+0.25 * x + 0.25 * y)) +
-                              ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[_BS_ * j + i] =
+                      (l00 + (-0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[_BS_ * j + ii] =
+                      (l00 + (+0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[_BS_ * jj + i] =
+                      (l00 + (-0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[_BS_ * jj + ii] =
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
                 }
             }
         }
