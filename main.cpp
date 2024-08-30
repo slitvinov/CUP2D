@@ -2834,21 +2834,23 @@ template <typename Element> struct BlockLab {
     assert(s[2] == 0);
     assert(e[2] == 1);
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        Element * p0 =
-            &m[i + (iy - start[1]) * nm[0]];
-        Element * p1 =
-            &m[i + (iy + 1 - start[1]) * nm[0]];
-        Element * p2 =
-            &m[i + (iy + 2 - start[1]) * nm[0]];
-        Element * p3 =
-            &m[i + (iy + 3 - start[1]) * nm[0]];
-        const Element *q0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *q1 =
-            &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *q2 =
-            &b[iy + 2 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *q3 =
-            &b[iy + 3 - code[1] * _BS_][s[0] - code[0] * _BS_];
+	int i0 = i + (iy - start[1]) * nm[0];
+	int i1 = i + (iy + 1 - start[1]) * nm[0];
+	int i2 = i + (iy + 2 - start[1]) * nm[0];
+	int i3 = i + (iy + 3 - start[1]) * nm[0];
+	int x0 = iy - code[1] * _BS_;
+	int x1 = iy + 1 - code[1] * _BS_;
+	int x2 = iy + 2 - code[1] * _BS_;
+	int x3 = iy + 3 - code[1] * _BS_;
+	int y0 = s[0] - code[0] * _BS_;
+        Element *p0 = &m[i0];
+        Element *p1 = &m[i1];
+        Element *p2 = &m[i2];
+        Element *p3 = &m[i3];
+        Element *q0 = &b[x0][y0];
+        Element *q1 = &b[x1][y0];
+        Element *q2 = &b[x2][y0];
+        Element *q3 = &b[x3][y0];
         memcpy(p0, q0, bytes);
         memcpy(p1, q1, bytes);
         memcpy(p2, q2, bytes);
