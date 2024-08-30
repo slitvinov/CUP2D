@@ -2829,19 +2829,18 @@ template <typename Element> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     const BlockType &b = *(BlockType *)myblocks[icode];
-    const int my_ix = s[0] - start[0];
+    const int i = s[0] - start[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iz = s[2]; iz < e[2]; iz++) {
-      const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
         Element * p0 =
-            &m[my_izx + (iy - start[1]) * nm[0]];
+            &m[i + (iy - start[1]) * nm[0]];
         Element * p1 =
-            &m[my_izx + (iy + 1 - start[1]) * nm[0]];
+            &m[i + (iy + 1 - start[1]) * nm[0]];
         Element * p2 =
-            &m[my_izx + (iy + 2 - start[1]) * nm[0]];
+            &m[i + (iy + 2 - start[1]) * nm[0]];
         Element * p3 =
-            &m[my_izx + (iy + 3 - start[1]) * nm[0]];
+            &m[i + (iy + 3 - start[1]) * nm[0]];
         const Element *q0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const Element *q1 =
             &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
@@ -2855,7 +2854,7 @@ template <typename Element> struct BlockLab {
         memcpy(p3, q3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element * p = &m[my_izx + (iy - start[1]) * nm[0]];
+        Element * p = &m[i + (iy - start[1]) * nm[0]];
         const Element *q = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(p, q, bytes);
       }
