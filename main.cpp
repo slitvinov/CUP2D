@@ -2770,7 +2770,7 @@ template <typename Element> struct BlockLab {
 	  int i01 = ix + nm[0] * (iy + 1);
 	  int i11 = ix + 1 + nm[0] * (iy + 1);
 	  int j00 = i - offset[0] + nc[0] * (j - offset[1]);
-          c[j00] = AverageDown(m[i01], m[i00], m[i10], m[i11]);
+          c[j00] = (m[i01] + m[i00] + m[i10] + m[i11]) / 4;
         }
       }
     }
