@@ -2872,9 +2872,8 @@ template <typename Element> struct BlockLab {
                       dim * sizeof(Real);
     if (!bytes)
       return;
-    int m_vSize0 = nm[0];
+    assert(code[2] == 0);
     int yStep = (code[1] == 0) ? 2 : 1;
-    int zStep = (code[2] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / yStep) % 4;
     int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
@@ -2897,33 +2896,33 @@ template <typename Element> struct BlockLab {
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
       const int XX =
           s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-      for (int iz = s[2]; iz < e[2]; iz += zStep) {
+      for (int iz = s[2]; iz < e[2]; iz += 2) {
         const int my_izx = my_ix;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
-          Element *__restrict__ ptrDest0 =
+          Element * ptrDest0 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 0 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
-                     m_vSize0];
-          Element *__restrict__ ptrDest1 =
+                     nm[0]];
+          Element * ptrDest1 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 1 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
-                     m_vSize0];
-          Element *__restrict__ ptrDest2 =
+                     nm[0]];
+          Element * ptrDest2 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 2 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
-                     m_vSize0];
-          Element *__restrict__ ptrDest3 =
+                     nm[0]];
+          Element * ptrDest3 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 3 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
-                     m_vSize0];
+                     nm[0]];
           int YY0 = (abs(code[1]) == 1)
                         ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
                               std::min(0, code[1]) * _BS_
@@ -2971,7 +2970,7 @@ template <typename Element> struct BlockLab {
                             (abs(code[1]) * (iy - start[1]) +
                              (1 - abs(code[1])) * (iy / 2 - start[1] +
                                                    aux * (e[1] - s[1]) / 2)) *
-                                m_vSize0];
+                                nm[0]];
           int YY = (abs(code[1]) == 1)
                        ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                        : iy;
