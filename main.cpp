@@ -2866,7 +2866,6 @@ template <typename Element> struct BlockLab {
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
                             const int *const code, const int *const s,
                             const int *const e) {
-    typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
                       dim * sizeof(Real);
