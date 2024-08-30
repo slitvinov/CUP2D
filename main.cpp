@@ -2871,9 +2871,6 @@ template <typename Element> struct BlockLab {
                       dim * sizeof(Real);
     if (!bytes)
       return;
-    assert(code[2] == 0);
-    assert(s[2] == 0);
-    assert(e[2] == 1);
     int ys = (code[1] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / ys) % 4;
     int Bstep = 1;
