@@ -2690,6 +2690,7 @@ template <typename Element> struct BlockLab {
     NZ = 1 * aux;
     assert(m != NULL);
     Element *p = (Element *)info.block;
+    const int s = dim * sizeof(Real);
     int nbytes = dim * sizeof(Real) * _BS_;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       void *q0 = &m[iy * nm[0] - start[0]];
@@ -2697,10 +2698,10 @@ template <typename Element> struct BlockLab {
       void *q2 = &m[(iy + 2) * nm[0] - start[0]];
       void *q3 = &m[(iy + 3) * nm[0] - start[0]];
       memcpy(q0, p, nbytes);
-      memcpy(q1, p + _BS_, nbytes);
-      memcpy(q2, p + 2 * _BS_, nbytes);
-      memcpy(q3, p + 3 * _BS_, nbytes);
-      p += 4 * _BS_;
+      memcpy(q1, p + s * _BS_, nbytes);
+      memcpy(q2, p + 2 * s * _BS_, nbytes);
+      memcpy(q3, p + 3 * s * _BS_, nbytes);
+      p += 4 * s * _BS_;
     }
     coarsened = false;
     bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
