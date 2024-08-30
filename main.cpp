@@ -2823,14 +2823,14 @@ template <typename Element> struct BlockLab {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
-    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+    int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     myblocks[icode] =
         grid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
-    const BlockType &b = *(BlockType *)myblocks[icode];
-    const int i = s[0] - start[0];
-    const int mod = (e[1] - s[1]) % 4;
+    BlockType &b = *(BlockType *)myblocks[icode];
+    int i = s[0] - start[0];
+    int mod = (e[1] - s[1]) % 4;
     assert(s[2] == 0);
     assert(e[2] == 1);
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -2857,8 +2857,11 @@ template <typename Element> struct BlockLab {
         memcpy(p3, q3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element * p = &m[i + (iy - start[1]) * nm[0]];
-        const Element *q = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+	int i0 = i + (iy - start[1]) * nm[0];
+	int x0 = iy - code[1] * _BS_;
+	int y0 = s[0] - code[0] * _BS_;
+        Element * p = &m[i0];
+        Element *q = &b[x0][y0];
         memcpy(p, q, bytes);
       }
   }
