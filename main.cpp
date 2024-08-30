@@ -2874,9 +2874,9 @@ template <typename Element> struct BlockLab {
     int ys = (code[1] == 0) ? 2 : 1;
     int mod = ((e[1] - s[1]) / ys) % 4;
     int Bstep = 1;
-    if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
+    if ((abs(code[0]) + abs(code[1]) == 2))
       Bstep = 3;
-    else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+    else if ((abs(code[0]) + abs(code[1]) == 3))
       Bstep = 4;
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
