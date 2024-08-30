@@ -2869,7 +2869,7 @@ template <typename Element> struct BlockLab {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-                      sizeof(Element);
+                      dim * sizeof(Real);
     if (!bytes)
       return;
     int m_vSize0 = nm[0];
