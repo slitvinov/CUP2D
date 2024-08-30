@@ -2702,7 +2702,7 @@ template <typename Element> struct BlockLab {
     assert(m != NULL);
     BlockType &block = *(BlockType *)info.block;
     Element *p = &block[0][0];
-    int nbytes = sizeof(Element) * _BS_;
+    int nbytes = dim * sizeof(Real) * _BS_;
     int _iy0 = -start[1];
     int _iy1 = _iy0 + _BS_;
     int m_vSize0 = nm[0];
