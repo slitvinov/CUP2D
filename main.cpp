@@ -2698,7 +2698,7 @@ template <typename Element> struct BlockLab {
     use_averages = (m_refGrid->FiniteDifferences == false || istensorial ||
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
-  virtual void load(BlockInfo &info, bool applybc) {
+  void load(BlockInfo &info, bool applybc) {
     typedef Element BlockType[_BS_][_BS_];
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
@@ -2784,6 +2784,9 @@ template <typename Element> struct BlockLab {
         }
       }
     if (sim.size == 1)
+      post_load(info, applybc);
+    refSynchronizerMPI->fetch(info, nm, nc, (Real *)m, (Real *)c);
+    if (sim.size > 1)
       post_load(info, applybc);
   }
 
@@ -3953,7 +3956,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 }
 template <typename Kernel, typename Element1, typename LabMPI,
           typename Element2, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2, int dim2) {
+static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
+                     int dim2) {
   Synchronizer<Grid> &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -4042,14 +4046,6 @@ struct Vector {
 typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
-  virtual void load(BlockInfo &info, bool applybc) override {
-    BlockLab<Vector>::load(info, applybc);
-    Real *dst = (Real *)m;
-    Real *dst1 = (Real *)c;
-    refSynchronizerMPI->fetch(info, nm, nc, dst, dst1);
-    if (sim.size > 1)
-      post_load(info, applybc);
-  }
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -4159,15 +4155,6 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab &operator=(const VectorLab &) = delete;
 };
 struct ScalarLab : public BlockLab<Real> {
-  virtual void load(BlockInfo &info, bool applybc) override {
-    BlockLab<Real>::load(info, applybc);
-    Real *dst = (Real *)&BlockLab<Real>::m[0];
-    Real *dst1 = (Real *)&BlockLab<Real>::c[0];
-    refSynchronizerMPI->fetch(info, BlockLab<Real>::nm, BlockLab<Real>::nc, dst,
-                              dst1);
-    if (sim.size > 1)
-      BlockLab<Real>::post_load(info, applybc);
-  }
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
     int stenEnd[2];
@@ -4204,7 +4191,7 @@ struct ScalarLab : public BlockLab<Real> {
                n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                        stenBeg[1])];
   }
-  ScalarLab(int dim) : BlockLab(dim) { };
+  ScalarLab(int dim) : BlockLab(dim){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
   virtual void _apply_bc(BlockInfo &info, bool coarse) override {
@@ -5451,7 +5438,7 @@ static void ongrid(Real dt) {
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   computeB<ComputeSurfaceNormals, Real, ScalarLab, Real, ScalarLab>(
-								    ComputeSurfaceNormals(), *var.chi, 1, *var.tmp, 1);
+      ComputeSurfaceNormals(), *var.chi, 1, *var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -7535,7 +7522,7 @@ int main(int argc, char **argv) {
       }
       var.tmp->Corrector->prepare0(*var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
-								   pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
+          pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
       var.tmp->Corrector->FillBlockCases<Real>();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
@@ -7597,7 +7584,7 @@ int main(int argc, char **argv) {
           }
       }
       computeB<KernelComputeForces, Vector, VectorLab, Real, ScalarLab>(
-									KernelComputeForces(), *var.vel, 2, *var.chi, 1);
+          KernelComputeForces(), *var.vel, 2, *var.chi, 1);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
