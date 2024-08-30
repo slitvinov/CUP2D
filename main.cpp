@@ -2705,18 +2705,17 @@ template <typename Element> struct BlockLab {
     int nbytes = dim * sizeof(Real) * _BS_;
     int _iy0 = -start[1];
     int _iy1 = _iy0 + _BS_;
-    int m_vSize0 = nm[0];
     int my_ix = -start[0];
     for (int iz = 0; iz < 1; iz++) {
       int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
-        Element *q0 = &m[my_izx + (iy)*m_vSize0];
+        Element *q0 = &m[my_izx + (iy)*nm[0]];
         Element *q1 =
-            &m[my_izx + (iy + 1) * m_vSize0];
+            &m[my_izx + (iy + 1) * nm[0]];
         Element *q2 =
-            &m[my_izx + (iy + 2) * m_vSize0];
+            &m[my_izx + (iy + 2) * nm[0]];
         Element *q3 =
-            &m[my_izx + (iy + 3) * m_vSize0];
+            &m[my_izx + (iy + 3) * nm[0]];
         memcpy(q0, (p), nbytes);
         memcpy(q1, (p + _BS_), nbytes);
         memcpy(q2, (p + 2 * _BS_), nbytes);
