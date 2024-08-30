@@ -2981,11 +2981,11 @@ template <typename Element> struct BlockLab {
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
-	  Element q00 = *(q0 + 2 * ee);
-	  Element q01 = *(q0 + 2 * ee + 1);
-	  Element q10 = *(q1 + 2 * ee);
-	  Element q11 = *(q1 + 2 * ee + 1);
-	  p[ee] = AverageDown(q00, q10, q01, q11);
+          Element q00 = *(q0 + 2 * ee);
+          Element q01 = *(q0 + 2 * ee + 1);
+          Element q10 = *(q1 + 2 * ee);
+          Element q11 = *(q1 + 2 * ee + 1);
+          p[ee] = AverageDown(q00, q10, q01, q11);
         }
       }
     }
