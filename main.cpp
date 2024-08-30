@@ -636,6 +636,7 @@ struct StencilInfo {
               bool _tensorial, const std::vector<int> &components)
       : sx(_sx), sy(_sy), ex(_ex), ey(_ey), ez(_ez),
         selcomponents(components), tensorial(_tensorial) {
+    assert(ez == 1);
     assert(selcomponents.size() > 0);
   }
   StencilInfo(const StencilInfo &c) = default;
