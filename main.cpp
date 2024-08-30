@@ -5576,12 +5576,14 @@ struct GradChiOnTmp {
     int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    Real *um = lab.m;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
 	int k = nm * (y - stencil.sy) + x - stencil.sx;
-        lab.m[k] = std::min(lab.m[k], 1.0);
-        lab.m[k] = std::max(lab.m[k], 0.0);
-        if (lab.m[k] > 0.0 && lab.m[k] < threshold) {
+	assert(k >= 0);
+        um[k] = std::min(um[k], 1.0);
+        um[k] = std::max(um[k], 0.0);
+        if (um[k] > 0.0 && um[k] < threshold) {
           TMP[_BS_ / 2][_BS_ / 2 - 1] = 2 * sim.Rtol;
           TMP[_BS_ / 2 - 1][_BS_ / 2 - 1] = 2 * sim.Rtol;
           TMP[_BS_ / 2][_BS_ / 2] = 2 * sim.Rtol;
