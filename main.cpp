@@ -2820,7 +2820,7 @@ template <typename Element> struct BlockLab {
                          const int *const code, const int *const s,
                          const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
-    const int bytes = (e[0] - s[0]) * sizeof(Element);
+    int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
