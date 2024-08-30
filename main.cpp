@@ -2891,33 +2891,33 @@ template <typename Element> struct BlockLab {
                        info.level + 1);
       if (b_ptr == nullptr)
         continue;
-      Element *b = (Element*)b_ptr;
+      Element *b = (Element *)b_ptr;
       const int i =
           abs(code[0]) * (s[0] - start[0]) +
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
       const int x =
           s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
       for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-        Element *p0 =
-            &m[i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p1 =
-            &m[i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p2 =
-            &m[i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p3 =
-            &m[i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
+        int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
+                      (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
+                                            aux * (e[1] - s[1]) / 2)) *
+                         nm[0];
+        int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
+                      (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
+                                            aux * (e[1] - s[1]) / 2)) *
+                         nm[0];
+        int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
+                      (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
+                                            aux * (e[1] - s[1]) / 2)) *
+                         nm[0];
+        int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
+                      (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
+                                            aux * (e[1] - s[1]) / 2)) *
+                         nm[0];
+        Element *p0 = &m[k0];
+        Element *p1 = &m[k1];
+        Element *p2 = &m[k2];
+        Element *p3 = &m[k3];
         int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
                                            std::min(0, code[1]) * _BS_
                                      : iy + 0 * ys;
