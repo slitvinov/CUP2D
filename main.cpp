@@ -2828,7 +2828,7 @@ template <typename Element> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     Real *b = (Real *)myblocks[icode];
-    Real *um = (Real*)m;
+    Real *um = (Real *)m;
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -2899,25 +2899,25 @@ template <typename Element> struct BlockLab {
       for (int iz = s[2]; iz < e[2]; iz += 2) {
         const int my_izx = my_ix;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
-          Element * ptrDest0 =
+          Element *ptrDest0 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 0 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      nm[0]];
-          Element * ptrDest1 =
+          Element *ptrDest1 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 1 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      nm[0]];
-          Element * ptrDest2 =
+          Element *ptrDest2 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 2 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
                                         aux * (e[1] - s[1]) / 2)) *
                      nm[0]];
-          Element * ptrDest3 =
+          Element *ptrDest3 =
               &m[my_izx +
                  (abs(code[1]) * (iy + 3 * yStep - start[1]) +
                   (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
