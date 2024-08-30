@@ -2819,7 +2819,6 @@ template <typename Element> struct BlockLab {
   void SameLevelExchange(Grid *grid, const BlockInfo &info,
                          const int *const code, const int *const s,
                          const int *const e) {
-    typedef Element BlockType[_BS_][_BS_];
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
@@ -2828,42 +2827,42 @@ template <typename Element> struct BlockLab {
         grid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
-    Element *b = (Element *)myblocks[icode];
+    Real *b = (Real *)myblocks[icode];
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
     assert(s[2] == 0);
     assert(e[2] == 1);
-      for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-	int i0 = i + (iy - start[1]) * nm[0];
-	int i1 = i + (iy + 1 - start[1]) * nm[0];
-	int i2 = i + (iy + 2 - start[1]) * nm[0];
-	int i3 = i + (iy + 3 - start[1]) * nm[0];
-	int x0 = s[0] - code[0] * _BS_;
-	int y0 = iy - code[1] * _BS_;
-	int y1 = iy + 1 - code[1] * _BS_;
-	int y2 = iy + 2 - code[1] * _BS_;
-	int y3 = iy + 3 - code[1] * _BS_;
-        Element *p0 = &m[i0];
-        Element *p1 = &m[i1];
-        Element *p2 = &m[i2];
-        Element *p3 = &m[i3];
-        Element *q0 = &b[_BS_ * y0 + x0];
-        Element *q1 = &b[_BS_ * y1 + x0];
-        Element *q2 = &b[_BS_ * y2 + x0];
-        Element *q3 = &b[_BS_ * y3 + x0];
-        memcpy(p0, q0, bytes);
-        memcpy(p1, q1, bytes);
-        memcpy(p2, q2, bytes);
-        memcpy(p3, q3, bytes);
-      }
-      for (int iy = e[1] - mod; iy < e[1]; iy++) {
-	int i0 = i + (iy - start[1]) * nm[0];
-	int x0 = s[0] - code[0] * _BS_;
-	int y0 = iy - code[1] * _BS_;
-        Element *p = &m[i0];
-        Element *q = &b[_BS_ * y0 + x0];
-        memcpy(p, q, bytes);
-      }
+    for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+      int i0 = i + (iy - start[1]) * nm[0];
+      int i1 = i + (iy + 1 - start[1]) * nm[0];
+      int i2 = i + (iy + 2 - start[1]) * nm[0];
+      int i3 = i + (iy + 3 - start[1]) * nm[0];
+      int x0 = s[0] - code[0] * _BS_;
+      int y0 = iy - code[1] * _BS_;
+      int y1 = iy + 1 - code[1] * _BS_;
+      int y2 = iy + 2 - code[1] * _BS_;
+      int y3 = iy + 3 - code[1] * _BS_;
+      Real *p0 = &m[dim * i0];
+      Real *p1 = &m[dim * i1];
+      Real *p2 = &m[dim * i2];
+      Real *p3 = &m[dim * i3];
+      Real *q0 = &b[dim * (_BS_ * y0 + x0)];
+      Real *q1 = &b[dim * (_BS_ * y1 + x0)];
+      Real *q2 = &b[dim * (_BS_ * y2 + x0)];
+      Real *q3 = &b[dim * (_BS_ * y3 + x0)];
+      memcpy(p0, q0, bytes);
+      memcpy(p1, q1, bytes);
+      memcpy(p2, q2, bytes);
+      memcpy(p3, q3, bytes);
+    }
+    for (int iy = e[1] - mod; iy < e[1]; iy++) {
+      int i0 = i + (iy - start[1]) * nm[0];
+      int x0 = s[0] - code[0] * _BS_;
+      int y0 = iy - code[1] * _BS_;
+      Real *p = &m[dim * i0];
+      Real *q = &b[dim * (_BS_ * y0 + x0)];
+      memcpy(p, q, bytes);
+    }
   }
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
                             const int *const code, const int *const s,
@@ -3682,8 +3681,7 @@ struct Adaptation {
   std::vector<long long> dealloc_IDs;
   const int dim;
   Adaptation(int dim) : dim(dim) {}
-  template <typename TLab>
-  void Adapt(Grid *grid, bool basic) {
+  template <typename TLab> void Adapt(Grid *grid, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
