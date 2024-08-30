@@ -2860,7 +2860,7 @@ template <typename Element> struct BlockLab {
 	int i0 = i + (iy - start[1]) * nm[0];
 	int x0 = iy - code[1] * _BS_;
 	int y0 = s[0] - code[0] * _BS_;
-        Element * p = &m[i0];
+        Element *p = &m[i0];
         Element *q = &b[x0][y0];
         memcpy(p, q, bytes);
       }
