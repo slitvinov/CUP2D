@@ -3787,7 +3787,7 @@ struct Adaptation {
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
 	      void *bb = Blocks[J * 2 + I];
-              BlockType &b = *((BlockType*)bb);
+              Element *b = (Element*)bb;
               memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
@@ -3815,13 +3815,13 @@ struct Adaptation {
                   int ii = i + 1;
                   int jj = j + 1;
 
-                  b[j][i] = (l00 + (-0.25 * x - 0.25 * y)) +
+                  b[_BS_ * j + i] = (l00 + (-0.25 * x - 0.25 * y)) +
                             ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[j][ii] = (l00 + (+0.25 * x - 0.25 * y)) +
+                  b[_BS_ * j + ii] = (l00 + (+0.25 * x - 0.25 * y)) +
                              ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[jj][i] = (l00 + (-0.25 * x + 0.25 * y)) +
+                  b[_BS_ * jj + i] = (l00 + (-0.25 * x + 0.25 * y)) +
                              ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[jj][ii] = (l00 + (+0.25 * x + 0.25 * y)) +
+                  b[_BS_ * jj + ii] = (l00 + (+0.25 * x + 0.25 * y)) +
                               ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
                 }
             }
