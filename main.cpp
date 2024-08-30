@@ -4019,7 +4019,6 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
 struct Vector {
   Real u[2];
   Vector() { u[0] = u[1] = 0; }
-  void clear() { u[0] = u[1] = 0; }
   Vector &operator*=(const Real a) {
     u[0] *= a;
     u[1] *= a;
@@ -4046,6 +4045,9 @@ struct Vector {
 typedef Real ScalarBlock[_BS_][_BS_];
 typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
+  VectorLab(int dim) : BlockLab<Vector>(dim) {}
+  VectorLab(const VectorLab &) = delete;
+  VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
@@ -4150,11 +4152,11 @@ struct VectorLab : public BlockLab<Vector> {
       }
     }
   }
-  VectorLab(int dim) : BlockLab<Vector>(dim) {}
-  VectorLab(const VectorLab &) = delete;
-  VectorLab &operator=(const VectorLab &) = delete;
 };
 struct ScalarLab : public BlockLab<Real> {
+  ScalarLab(int dim) : BlockLab(dim){};
+  ScalarLab(const ScalarLab &) = delete;
+  ScalarLab &operator=(const ScalarLab &) = delete;
   template <int dir, int side> void Neumann2D(bool coarse) {
     int stenBeg[2];
     int stenEnd[2];
@@ -4191,9 +4193,6 @@ struct ScalarLab : public BlockLab<Real> {
                n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                        stenBeg[1])];
   }
-  ScalarLab(int dim) : BlockLab(dim){};
-  ScalarLab(const ScalarLab &) = delete;
-  ScalarLab &operator=(const ScalarLab &) = delete;
   virtual void _apply_bc(BlockInfo &info, bool coarse) override {
     if (sim.bcx != periodic) {
       if (info.index[0] == 0)
