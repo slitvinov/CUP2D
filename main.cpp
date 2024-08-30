@@ -1877,7 +1877,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
       }
     }
   }
-  template <typename Element> void FillCase_2(face &F, int codex, int codey) {
+  void FillCase_2(face &F, int codex, int codey) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
@@ -2132,10 +2132,10 @@ template <typename TGrid> struct FluxCorrectionMPI {
           FillCase(recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2<Element>(recv_faces[r][index], 1, 0);
+        FillCase_2(recv_faces[r][index], 1, 0);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2<Element>(recv_faces[r][index], 0, 1);
+        FillCase_2(recv_faces[r][index], 0, 1);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
