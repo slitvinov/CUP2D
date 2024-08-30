@@ -2716,12 +2716,12 @@ template <typename Element> struct BlockLab {
     for (int iz = _iz0; iz < _iz1; iz++) {
       int my_izx = my_ix;
       for (int iy = _iy0; iy < _iy1; iy += 4) {
-        Element *__restrict__ ptrDestination0 = &m[my_izx + (iy)*m_vSize0];
-        Element *__restrict__ ptrDestination1 =
+        Element *ptrDestination0 = &m[my_izx + (iy)*m_vSize0];
+        Element *ptrDestination1 =
             &m[my_izx + (iy + 1) * m_vSize0];
-        Element *__restrict__ ptrDestination2 =
+        Element *ptrDestination2 =
             &m[my_izx + (iy + 2) * m_vSize0];
-        Element *__restrict__ ptrDestination3 =
+        Element *ptrDestination3 =
             &m[my_izx + (iy + 3) * m_vSize0];
         memcpy(ptrDestination0, (ptrSource), nbytes);
         memcpy(ptrDestination1, (ptrSource + _BS_), nbytes);
