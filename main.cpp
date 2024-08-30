@@ -2828,6 +2828,7 @@ template <typename Element> struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     Real *b = (Real *)myblocks[icode];
+    Real *um = (Real*)m;
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -2840,10 +2841,10 @@ template <typename Element> struct BlockLab {
       int y1 = iy + 1 - code[1] * _BS_;
       int y2 = iy + 2 - code[1] * _BS_;
       int y3 = iy + 3 - code[1] * _BS_;
-      Real *p0 = &m[dim * i0];
-      Real *p1 = &m[dim * i1];
-      Real *p2 = &m[dim * i2];
-      Real *p3 = &m[dim * i3];
+      Real *p0 = &um[dim * i0];
+      Real *p1 = &um[dim * i1];
+      Real *p2 = &um[dim * i2];
+      Real *p3 = &um[dim * i3];
       Real *q0 = &b[dim * (_BS_ * y0 + x0)];
       Real *q1 = &b[dim * (_BS_ * y1 + x0)];
       Real *q2 = &b[dim * (_BS_ * y2 + x0)];
@@ -2857,7 +2858,7 @@ template <typename Element> struct BlockLab {
       int i0 = i + (iy - start[1]) * nm[0];
       int x0 = s[0] - code[0] * _BS_;
       int y0 = iy - code[1] * _BS_;
-      Real *p = &m[dim * i0];
+      Real *p = &um[dim * i0];
       Real *q = &b[dim * (_BS_ * y0 + x0)];
       memcpy(p, q, bytes);
     }
