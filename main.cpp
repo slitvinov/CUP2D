@@ -3792,8 +3792,8 @@ struct Adaptation {
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
                   int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
-                  int i0 = i / 2 + offsetX[I] + Synch->stencil.sx;
-                  int j0 = j / 2 + offsetY[J] + Synch->stencil.sy;
+                  int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
+                  int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
                   int im = i0 - 1;
                   int ip = i0 + 1;
                   int jm = j0 - 1;
