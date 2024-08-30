@@ -3791,7 +3791,7 @@ struct Adaptation {
               memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
-                  int nm = _BS_ + stencil.ex - Synch->stencil.sx - 1;
+                  int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
                   int i0 = i / 2 + offsetX[I] + Synch->stencil.sx;
                   int j0 = j / 2 + offsetY[J] + Synch->stencil.sy;
                   int im = i0 - 1;
@@ -3812,10 +3812,8 @@ struct Adaptation {
                   Element x2 = (lp0 + lm0) - 2.0 * l00;
                   Element y2 = (l0p + l0m) - 2.0 * l00;
                   Element xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-
                   int ii = i + 1;
                   int jj = j + 1;
-
                   b[_BS_ * j + i] =
                       (l00 + (-0.25 * x - 0.25 * y)) +
                       ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
