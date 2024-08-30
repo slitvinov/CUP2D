@@ -2966,11 +2966,11 @@ template <typename Element> struct BlockLab {
         }
       }
       for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-        Element *p =
-            (Element *)&m[i + (abs(code[1]) * (iy - start[1]) +
+	int k = i + (abs(code[1]) * (iy - start[1]) +
                                (1 - abs(code[1])) * (iy / 2 - start[1] +
                                                      aux * (e[1] - s[1]) / 2)) *
-                                  nm[0]];
+	  nm[0];
+        Element *p = &m[k];
         int y = (abs(code[1]) == 1)
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
