@@ -3782,20 +3782,18 @@ struct Adaptation {
                   Element x2 = (lp0 + lm0) - 2.0 * l00;
                   Element y2 = (l0p + l0m) - 2.0 * l00;
                   Element xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                  int ii = i + 1;
-                  int jj = j + 1;
-                  b[_BS_ * j + i] =
-                      (l00 + (-0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[_BS_ * j + ii] =
-                      (l00 + (+0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[_BS_ * jj + i] =
-                      (l00 + (-0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[_BS_ * jj + ii] =
-                      (l00 + (+0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  int o0 = _BS_ * j + i;
+                  int o1 = _BS_ * j + i + 1;
+                  int o2 = _BS_ * (j + 1) + i;
+                  int o3 = _BS_ * (j + 1) + i + 1;
+                  b[o0] = (l00 + (-0.25 * x - 0.25 * y)) +
+                          ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[o1] = (l00 + (+0.25 * x - 0.25 * y)) +
+                          ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[o2] = (l00 + (-0.25 * x + 0.25 * y)) +
+                          ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[o3] = (l00 + (+0.25 * x + 0.25 * y)) +
+                          ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
                 }
             }
         }
@@ -5579,8 +5577,8 @@ struct GradChiOnTmp {
     Real *um = lab.m;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
-	int k = nm * (y - stencil.sy) + x - stencil.sx;
-	assert(k >= 0);
+        int k = nm * (y - stencil.sy) + x - stencil.sx;
+        assert(k >= 0);
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
         if (um[k] > 0.0 && um[k] < threshold) {
