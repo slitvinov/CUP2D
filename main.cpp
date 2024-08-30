@@ -2936,13 +2936,13 @@ template <typename Element> struct BlockLab {
 	int z2 = y2 + 1;
 	int z3 = y3 + 1;
         Element *q00 = &b[y0][x];
-        Element *q10 = &b[y0 + 1][x];
+        Element *q10 = &b[z0][x];
         Element *q01 = &b[y1][x];
-        Element *q11 = &b[y1 + 1][x];
+        Element *q11 = &b[z1][x];
         Element *q02 = &b[y2][x];
-        Element *q12 = &b[y2 + 1][x];
+        Element *q12 = &b[z2][x];
         Element *q03 = &b[y3][x];
-        Element *q13 = &b[y3 + 1][x];
+        Element *q13 = &b[z3][x];
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
