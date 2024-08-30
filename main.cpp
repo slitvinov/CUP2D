@@ -3792,30 +3792,33 @@ struct Adaptation {
                 for (int i = 0; i < _BS_; i += 2) {
                   int i0 = i / 2 + offsetX[I];
                   int j0 = j / 2 + offsetY[J];
-                  int ip = i0 + 1;
                   int im = i0 - 1;
-                  int jp = j0 + 1;
+                  int ip = i0 + 1;
                   int jm = j0 - 1;
-                  Element dudx = 0.5 * (lab(ip, j0) - lab(im, j0));
-                  Element dudy = 0.5 * (lab(i0, jp) - lab(i0, jm));
-                  Element dudx2 =
-                      (lab(ip, j0) + lab(im, j0)) - 2.0 * lab(i0, j0);
-                  Element dudy2 =
-                      (lab(i0, jp) + lab(i0, jm)) - 2.0 * lab(i0, j0);
-                  Element dudxdy = 0.25 * ((lab(ip, jp) + lab(im, jm)) -
-                                           (lab(ip, jm) + lab(im, jp)));
-                  b[j][i] =
-                      (lab(i0, j0) + (-0.25 * dudx - 0.25 * dudy)) +
-                      ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
-                  b[j][i + 1] =
-                      (lab(i0, j0) + (+0.25 * dudx - 0.25 * dudy)) +
-                      ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
-                  b[j + 1][i] =
-                      (lab(i0, j0) + (-0.25 * dudx + 0.25 * dudy)) +
-                      ((0.03125 * dudx2 + 0.03125 * dudy2) - 0.0625 * dudxdy);
+                  int jp = j0 + 1;
+                  Element l00 = lab(i0, j0);
+                  Element l0p = lab(i0, jp);
+                  Element lm0 = lab(im, j0);
+                  Element lmm = lab(im, jm);
+                  Element lmp = lab(im, jp);
+                  Element lp0 = lab(ip, j0);
+                  Element lpm = lab(ip, jm);
+                  Element lpp = lab(ip, jp);
+                  Element l0m = lab(i0, jm);
+                  Element x = 0.5 * (lp0 - lm0);
+                  Element y = 0.5 * (l0p - l0m);
+                  Element x2 = (lp0 + lm0) - 2.0 * l00;
+                  Element y2 = (l0p + l0m) - 2.0 * l00;
+                  Element xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                  b[j][i] = (l00 + (-0.25 * x - 0.25 * y)) +
+                            ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[j][i + 1] = (l00 + (+0.25 * x - 0.25 * y)) +
+                                ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[j + 1][i] = (l00 + (-0.25 * x + 0.25 * y)) +
+                                ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
                   b[j + 1][i + 1] =
-                      (lab(i0, j0) + (+0.25 * dudx + 0.25 * dudy)) +
-                      ((0.03125 * dudx2 + 0.03125 * dudy2) + 0.0625 * dudxdy);
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
                 }
             }
         }
