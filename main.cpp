@@ -2864,12 +2864,12 @@ template <typename Element> struct BlockLab {
     }
   }
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
-                            const int *const code, const int *const s,
-                            const int *const e) {
+			    const int *const code, const int *const s,
+			    const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
-                       (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-                      dim * sizeof(Real);
+		       (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
+		      dim * sizeof(Real);
     if (!bytes)
       return;
     assert(code[2] == 0);
@@ -2885,99 +2885,105 @@ template <typename Element> struct BlockLab {
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       void *b_ptr =
-          grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                           (B % 2) * std::max(0, 1 - abs(code[0])),
-                       2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                           aux * std::max(0, 1 - abs(code[1])),
-                       info.level + 1);
+	  grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
+			   (B % 2) * std::max(0, 1 - abs(code[0])),
+		       2 * info.index[1] + std::max(code[1], 0) + code[1] +
+			   aux * std::max(0, 1 - abs(code[1])),
+		       info.level + 1);
       if (b_ptr == nullptr)
-        continue;
+	continue;
       BlockType &b = *(BlockType *)b_ptr;
       const int i =
-          abs(code[0]) * (s[0] - start[0]) +
-          (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
+	  abs(code[0]) * (s[0] - start[0]) +
+	  (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
       const int x =
-          s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
+	  s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
       for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-        Element *p0 =
-            &m[i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p1 =
-            &m[i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p2 =
-            &m[i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        Element *p3 =
-            &m[i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
-                                          aux * (e[1] - s[1]) / 2)) *
-                       nm[0]];
-        int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 0 * ys;
-        int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 1 * ys;
-        int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 2 * ys;
-        int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 3 * ys;
+	Element *p0 =
+	    &m[i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
+		    (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
+					  aux * (e[1] - s[1]) / 2)) *
+		       nm[0]];
+	Element *p1 =
+	    &m[i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
+		    (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
+					  aux * (e[1] - s[1]) / 2)) *
+		       nm[0]];
+	Element *p2 =
+	    &m[i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
+		    (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
+					  aux * (e[1] - s[1]) / 2)) *
+		       nm[0]];
+	Element *p3 =
+	    &m[i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
+		    (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
+					  aux * (e[1] - s[1]) / 2)) *
+		       nm[0]];
+	int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
+					   std::min(0, code[1]) * _BS_
+				     : iy + 0 * ys;
+	int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
+					   std::min(0, code[1]) * _BS_
+				     : iy + 1 * ys;
+	int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
+					   std::min(0, code[1]) * _BS_
+				     : iy + 2 * ys;
+	int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
+					   std::min(0, code[1]) * _BS_
+				     : iy + 3 * ys;
 	int z0 = y0 + 1;
 	int z1 = y1 + 1;
 	int z2 = y2 + 1;
 	int z3 = y3 + 1;
-        Element *q00 = &b[y0][x];
-        Element *q10 = &b[z0][x];
-        Element *q01 = &b[y1][x];
-        Element *q11 = &b[z1][x];
-        Element *q02 = &b[y2][x];
-        Element *q12 = &b[z2][x];
-        Element *q03 = &b[y3][x];
-        Element *q13 = &b[z3][x];
-        for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                               (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-             ee++) {
+	Element *q00 = &b[y0][x];
+	Element *q10 = &b[z0][x];
+	Element *q01 = &b[y1][x];
+	Element *q11 = &b[z1][x];
+	Element *q02 = &b[y2][x];
+	Element *q12 = &b[z2][x];
+	Element *q03 = &b[y3][x];
+	Element *q13 = &b[z3][x];
+	for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+			       (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+	     ee++) {
 	  Element q000 = *(q00 + 2 * ee);
 	  Element q001 = *(q00 + 2 * ee + 1);
 	  Element q010 = *(q10 + 2 * ee);
 	  Element q011 = *(q10 + 2 * ee + 1);
+	  Element q020 = *(q02 + 2 * ee);
+	  Element q021 = *(q02 + 2 * ee + 1);
 	  Element q110 = *(q11 + 2 * ee);
-	  Element q111 = *(q11 + 2 * ee + 1);	  
-          p0[ee] = AverageDown(q000, q010, q001, q011);
-          p1[ee] = AverageDown(q010, q110, q011, q111);
-          p2[ee] = AverageDown(*(q02 + 2 * ee), *(q12 + 2 * ee),
-                               *(q02 + 2 * ee + 1), *(q12 + 2 * ee + 1));
-          p3[ee] = AverageDown(*(q03 + 2 * ee), *(q13 + 2 * ee),
-                               *(q03 + 2 * ee + 1), *(q13 + 2 * ee + 1));
-        }
+	  Element q111 = *(q11 + 2 * ee + 1);
+	  Element q120 = *(q12 + 2 * ee);
+	  Element q121 = *(q12 + 2 * ee + 1);
+	  Element q030 = *(q03 + 2 * ee);
+	  Element q031 = *(q03 + 2 * ee + 1);
+	  Element q130 = *(q13 + 2 * ee);
+	  Element q131 = *(q13 + 2 * ee + 1);
+	  p0[ee] = AverageDown(q000, q010, q001, q011);
+	  p1[ee] = AverageDown(q010, q110, q011, q111);
+	  p2[ee] = AverageDown(q020, q021, q120, q121);
+	  p3[ee] = AverageDown(q030, q031, q130, q131);
+	}
       }
       for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-        Element *p =
-            (Element *)&m[i + (abs(code[1]) * (iy - start[1]) +
-                               (1 - abs(code[1])) * (iy / 2 - start[1] +
-                                                     aux * (e[1] - s[1]) / 2)) *
-                                  nm[0]];
-        int y = (abs(code[1]) == 1)
-                    ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
-                    : iy;
+	Element *p =
+	    (Element *)&m[i + (abs(code[1]) * (iy - start[1]) +
+			       (1 - abs(code[1])) * (iy / 2 - start[1] +
+						     aux * (e[1] - s[1]) / 2)) *
+				  nm[0]];
+	int y = (abs(code[1]) == 1)
+		    ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
+		    : iy;
 	int z = y + 1;
-        Element *q0 = &b[y][x];
-        Element *q1 = &b[z][x];
-        for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                               (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-             ee++) {
-          p[ee] = AverageDown(*(q0 + 2 * ee), *(q1 + 2 * ee),
-                              *(q0 + 2 * ee + 1), *(q1 + 2 * ee + 1));
-        }
+	Element *q0 = &b[y][x];
+	Element *q1 = &b[z][x];
+	for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+			       (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+	     ee++) {
+	  p[ee] = AverageDown(*(q0 + 2 * ee), *(q1 + 2 * ee),
+			      *(q0 + 2 * ee + 1), *(q1 + 2 * ee + 1));
+	}
       }
     }
   }
