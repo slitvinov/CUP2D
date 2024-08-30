@@ -2652,7 +2652,8 @@ template <typename Element> struct BlockLab {
   Element *m, *c;
   std::array<void *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
-  BlockLab() {
+  const int dim;
+  BlockLab(int dim) : dim(dim) {
     m = NULL;
     c = NULL;
     m_refGrid = NULL;
@@ -3746,7 +3747,7 @@ struct Adaptation {
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     dealloc_IDs.clear();
     {
-      TLab lab;
+      TLab lab(dim);
       if (Synch != nullptr)
         lab.prepare(*grid, Synch->stencil);
       for (size_t i = 0; i < m_ref.size(); i++) {
@@ -3915,14 +3916,14 @@ struct Adaptation {
   }
 };
 template <typename Lab, typename Kernel>
-static void computeA(Kernel &&kernel, Grid *g) {
+static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer<Grid> &Synch = *(g->sync1(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.inner_blocks;
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
 #pragma omp parallel
   {
-    Lab lab;
+    Lab lab(dim);
     lab.prepare(*g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
@@ -3950,7 +3951,7 @@ static void computeA(Kernel &&kernel, Grid *g) {
 }
 template <typename Kernel, typename Element1, typename LabMPI,
           typename Element2, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
+static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2, int dim2) {
   Synchronizer<Grid> &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -3974,8 +3975,8 @@ static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
   std::vector<BlockInfo *> avail12;
 #pragma omp parallel
   {
-    LabMPI lab;
-    LabMPI2 lab2;
+    LabMPI lab(dim1);
+    LabMPI2 lab2(dim2);
     lab.prepare(grid, stencil);
     lab2.prepare(grid2, stencil2);
 #pragma omp for
@@ -4156,7 +4157,7 @@ struct VectorLab : public BlockLab<Vector> {
       }
     }
   }
-  VectorLab() : BlockLab<Vector>() {}
+  VectorLab(int dim) : BlockLab<Vector>(dim) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
 };
@@ -4211,7 +4212,7 @@ struct ScalarLab : public BlockLab<Real> {
                n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                        stenBeg[1])];
   }
-  ScalarLab() = default;
+  ScalarLab(int dim) : BlockLab(dim) { };
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
   virtual void _apply_bc(BlockInfo &info, bool coarse) override {
@@ -5456,9 +5457,9 @@ static void ongrid(Real dt) {
     for (auto &E : segmentsPerBlock)
       delete E;
   }
-  computeA<ScalarLab>(PutChiOnGrid(), var.tmp);
+  computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   computeB<ComputeSurfaceNormals, Real, ScalarLab, Real, ScalarLab>(
-      ComputeSurfaceNormals(), *var.chi, *var.tmp);
+								    ComputeSurfaceNormals(), *var.chi, 1, *var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -5638,8 +5639,8 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
-  computeA<VectorLab>(KernelVorticity(), var.vel);
-  computeA<ScalarLab>(GradChiOnTmp(), var.chi);
+  computeA<VectorLab>(KernelVorticity(), var.vel, 2);
+  computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp_amr->boundary_needed = true;
   Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
@@ -7102,7 +7103,7 @@ int main(int argc, char **argv) {
       bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-        computeA<VectorLab>(KernelVorticity(), var.vel);
+        computeA<VectorLab>(KernelVorticity(), var.vel, 2);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
         dump(sim.time, var.tmp->infos.size(), var.tmp->infos.data(), path);
@@ -7124,7 +7125,7 @@ int main(int argc, char **argv) {
           }
       }
       var.tmpV->Corrector->prepare0(*var.tmpV);
-      computeA<VectorLab>(Step1, var.vel);
+      computeA<VectorLab>(Step1, var.vel, 2);
       var.tmpV->Corrector->FillBlockCases<Vector>();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -7143,7 +7144,7 @@ int main(int argc, char **argv) {
           }
       }
       var.tmpV->Corrector->prepare0(*var.tmpV);
-      computeA<VectorLab>(Step1, var.vel);
+      computeA<VectorLab>(Step1, var.vel, 2);
       var.tmpV->Corrector->FillBlockCases<Vector>();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -7542,7 +7543,7 @@ int main(int argc, char **argv) {
       }
       var.tmp->Corrector->prepare0(*var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
-          pressure_rhs(), *var.vel, *var.tmpV);
+								   pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
       var.tmp->Corrector->FillBlockCases<Real>();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
@@ -7557,7 +7558,7 @@ int main(int argc, char **argv) {
           }
       }
       var.tmp->Corrector->prepare0(*var.tmp);
-      computeA<ScalarLab>(pressure_rhs1(), var.pold);
+      computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->Corrector->FillBlockCases<Real>();
       pressureSolver.solve(var.tmp);
       Real avg = 0;
@@ -7589,7 +7590,7 @@ int main(int argc, char **argv) {
       }
       {
         var.tmpV->Corrector->prepare0(*var.tmpV);
-        computeA<ScalarLab>(pressureCorrectionKernel(), var.pres);
+        computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
         var.tmpV->Corrector->FillBlockCases<Vector>();
       }
 #pragma omp parallel for
@@ -7604,7 +7605,7 @@ int main(int argc, char **argv) {
           }
       }
       computeB<KernelComputeForces, Vector, VectorLab, Real, ScalarLab>(
-          KernelComputeForces(), *var.vel, *var.chi);
+									KernelComputeForces(), *var.vel, 2, *var.chi, 1);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
