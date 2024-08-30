@@ -2834,30 +2834,30 @@ template <typename Element> struct BlockLab {
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        Element * ptrDest0 =
+        Element * p0 =
             &m[my_izx + (iy - start[1]) * nm[0]];
-        Element * ptrDest1 =
+        Element * p1 =
             &m[my_izx + (iy + 1 - start[1]) * nm[0]];
-        Element * ptrDest2 =
+        Element * p2 =
             &m[my_izx + (iy + 2 - start[1]) * nm[0]];
-        Element * ptrDest3 =
+        Element * p3 =
             &m[my_izx + (iy + 3 - start[1]) * nm[0]];
-        const Element *ptrSrc0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *ptrSrc1 =
+        const Element *q0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        const Element *q1 =
             &b[iy + 1 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *ptrSrc2 =
+        const Element *q2 =
             &b[iy + 2 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        const Element *ptrSrc3 =
+        const Element *q3 =
             &b[iy + 3 - code[1] * _BS_][s[0] - code[0] * _BS_];
-        memcpy(ptrDest0, ptrSrc0, bytes);
-        memcpy(ptrDest1, ptrSrc1, bytes);
-        memcpy(ptrDest2, ptrSrc2, bytes);
-        memcpy(ptrDest3, ptrSrc3, bytes);
+        memcpy(p0, q0, bytes);
+        memcpy(p1, q1, bytes);
+        memcpy(p2, q2, bytes);
+        memcpy(p3, q3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element * ptrDest = &m[my_izx + (iy - start[1]) * nm[0]];
-        const Element *ptrSrc = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
-        memcpy(ptrDest, ptrSrc, bytes);
+        Element * p = &m[my_izx + (iy - start[1]) * nm[0]];
+        const Element *q = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
+        memcpy(p, q, bytes);
       }
     }
   }
