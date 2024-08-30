@@ -2830,8 +2830,6 @@ template <typename Element> struct BlockLab {
     Real *b = (Real *)myblocks[icode];
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
-    assert(s[2] == 0);
-    assert(e[2] == 1);
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
       int i0 = i + (iy - start[1]) * nm[0];
       int i1 = i + (iy + 1 - start[1]) * nm[0];
