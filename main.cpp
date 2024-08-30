@@ -2835,13 +2835,13 @@ template <typename Element> struct BlockLab {
     for (int iz = s[2]; iz < e[2]; iz++) {
       const int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        Element *__restrict__ ptrDest0 =
+        Element * ptrDest0 =
             &m[my_izx + (iy - start[1]) * m_vSize0];
-        Element *__restrict__ ptrDest1 =
+        Element * ptrDest1 =
             &m[my_izx + (iy + 1 - start[1]) * m_vSize0];
-        Element *__restrict__ ptrDest2 =
+        Element * ptrDest2 =
             &m[my_izx + (iy + 2 - start[1]) * m_vSize0];
-        Element *__restrict__ ptrDest3 =
+        Element * ptrDest3 =
             &m[my_izx + (iy + 3 - start[1]) * m_vSize0];
         const Element *ptrSrc0 = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         const Element *ptrSrc1 =
@@ -2856,7 +2856,7 @@ template <typename Element> struct BlockLab {
         memcpy(ptrDest3, ptrSrc3, bytes);
       }
       for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element *__restrict__ ptrDest = &m[my_izx + (iy - start[1]) * m_vSize0];
+        Element * ptrDest = &m[my_izx + (iy - start[1]) * m_vSize0];
         const Element *ptrSrc = &b[iy - code[1] * _BS_][s[0] - code[0] * _BS_];
         memcpy(ptrDest, ptrSrc, bytes);
       }
