@@ -2824,7 +2824,7 @@ template <typename Element> struct BlockLab {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
-    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
+    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     myblocks[icode] =
         grid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
