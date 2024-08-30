@@ -3849,12 +3849,19 @@ struct Adaptation {
       if (basic_refinement == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            BlockType &b = *Blocks[J * 2 + I];
+            Real *b = (Real *)Blocks[J * 2 + I];
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
-                Element average = 0.25 * ((b[j][i] + b[j + 1][i + 1]) +
-                                          (b[j][i + 1] + b[j + 1][i]));
-                (*Blocks[0])[j / 2 + offsetY[J]][i / 2 + offsetX[I]] = average;
+                int i00 = _BS_ * j + i;
+                int i01 = _BS_ * (j + 1) + i;
+                int i10 = _BS_ * j + i + 1;
+                int i11 = _BS_ * (j + 1) + i + 1;
+                int o = _BS_ * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+                for (int d = 0; d < dim; d++)
+                  ((Real *)Blocks[0])[dim * o + d] =
+                      (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
+                       b[dim * i11 + d]) /
+                      4;
               }
           }
       const long long np =
