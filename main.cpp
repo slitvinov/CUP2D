@@ -3755,10 +3755,11 @@ struct Adaptation {
           int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
           int offsetX[2] = {0, _BS_ / 2};
           int offsetY[2] = {0, _BS_ / 2};
+          Real *um = (Real *)lab.m;
           for (int J = 0; J < 2; J++)
             for (int I = 0; I < 2; I++) {
               void *bb = Blocks[J * 2 + I];
-              Element *b = (Element *)bb;
+              Real *b = (Real *)bb;
               memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
               for (int j = 0; j < _BS_; j += 2)
                 for (int i = 0; i < _BS_; i += 2) {
@@ -3768,32 +3769,38 @@ struct Adaptation {
                   int ip = i0 + 1;
                   int jm = j0 - 1;
                   int jp = j0 + 1;
-                  Element l00 = lab.m[nm * j0 + i0];
-                  Element l0p = lab.m[nm * jp + i0];
-                  Element lm0 = lab.m[nm * j0 + im];
-                  Element lmm = lab.m[nm * jm + im];
-                  Element lmp = lab.m[nm * jp + im];
-                  Element lp0 = lab.m[nm * j0 + ip];
-                  Element lpm = lab.m[nm * jm + ip];
-                  Element lpp = lab.m[nm * jp + ip];
-                  Element l0m = lab.m[nm * jm + i0];
-                  Element x = 0.5 * (lp0 - lm0);
-                  Element y = 0.5 * (l0p - l0m);
-                  Element x2 = (lp0 + lm0) - 2.0 * l00;
-                  Element y2 = (l0p + l0m) - 2.0 * l00;
-                  Element xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
                   int o0 = _BS_ * j + i;
                   int o1 = _BS_ * j + i + 1;
                   int o2 = _BS_ * (j + 1) + i;
                   int o3 = _BS_ * (j + 1) + i + 1;
-                  b[o0] = (l00 + (-0.25 * x - 0.25 * y)) +
-                          ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[o1] = (l00 + (+0.25 * x - 0.25 * y)) +
-                          ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[o2] = (l00 + (-0.25 * x + 0.25 * y)) +
-                          ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[o3] = (l00 + (+0.25 * x + 0.25 * y)) +
-                          ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  for (int d = 0; d < dim; d++) {
+                    Real l00 = um[dim * nm * j0 + dim * i0 + d];
+                    Real l0p = um[dim * nm * jp + dim * i0 + d];
+                    Real lm0 = um[dim * nm * j0 + dim * im + d];
+                    Real lmm = um[dim * nm * jm + dim * im + d];
+                    Real lmp = um[dim * nm * jp + dim * im + d];
+                    Real lp0 = um[dim * nm * j0 + dim * ip + d];
+                    Real lpm = um[dim * nm * jm + dim * ip + d];
+                    Real lpp = um[dim * nm * jp + dim * ip + d];
+                    Real l0m = um[dim * nm * jm + dim * i0 + d];
+                    Real x = 0.5 * (lp0 - lm0);
+                    Real y = 0.5 * (l0p - l0m);
+                    Real x2 = (lp0 + lm0) - 2.0 * l00;
+                    Real y2 = (l0p + l0m) - 2.0 * l00;
+                    Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                    b[dim * o0 + d] =
+                        (l00 + (-0.25 * x - 0.25 * y)) +
+                        ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                    b[dim * o1 + d] =
+                        (l00 + (+0.25 * x - 0.25 * y)) +
+                        ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                    b[dim * o2 + d] =
+                        (l00 + (-0.25 * x + 0.25 * y)) +
+                        ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                    b[dim * o3 + d] =
+                        (l00 + (+0.25 * x + 0.25 * y)) +
+                        ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  }
                 }
             }
         }
