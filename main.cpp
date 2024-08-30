@@ -2689,7 +2689,7 @@ template <typename Element> struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    Element *p = (Element *)info.block;
+    uint8_t *p = (uint8_t *)info.block;
     const int s = dim * sizeof(Real);
     int nbytes = dim * sizeof(Real) * _BS_;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
