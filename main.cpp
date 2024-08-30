@@ -2058,7 +2058,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
       }
     }
   }
-  template <typename Element> void FillBlockCases() {
+  void FillBlockCases() {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2072,21 +2072,21 @@ template <typename TGrid> struct FluxCorrectionMPI {
         int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
 	  abs(code[1]) * (std::max(0, code[1]) + 2);
-        Element *FineFace = (Element *)FineCase.d[myFace];
+        Real *FineFace = (Real *)FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
-          Real *a = (Real *)(&FineFace[i2]);
-          Real *b = (Real *)(&FineFace[i2 + 1]);
+          Real *a = &FineFace[dim * i2];
+	  Real *b = &FineFace[dim * (i2 + 1)];
           for (d = 0; d < dim; d++) {
             Real avg = a[d] + b[d];
             memcpy(&send_buffer[r][displacement], &avg, sizeof(Real));
             displacement++;
           }
-          memset(&FineFace[i2], 0, dim * sizeof(Real));
-          memset(&FineFace[i2 + 1], 0, dim * sizeof(Real));
+          memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
+          memset(&FineFace[dim * (i2 + 1)], 0, dim * sizeof(Real));
         }
       }
     }
@@ -7080,7 +7080,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->Corrector->prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases<Vector>();
+      var.tmpV->Corrector->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7099,7 +7099,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->Corrector->prepare0(*var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases<Vector>();
+      var.tmpV->Corrector->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7498,7 +7498,7 @@ int main(int argc, char **argv) {
       var.tmp->Corrector->prepare0(*var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
           pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
-      var.tmp->Corrector->FillBlockCases<Real>();
+      var.tmp->Corrector->FillBlockCases();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7513,7 +7513,7 @@ int main(int argc, char **argv) {
       }
       var.tmp->Corrector->prepare0(*var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      var.tmp->Corrector->FillBlockCases<Real>();
+      var.tmp->Corrector->FillBlockCases();
       pressureSolver.solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -7545,7 +7545,7 @@ int main(int argc, char **argv) {
       {
         var.tmpV->Corrector->prepare0(*var.tmpV);
         computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-        var.tmpV->Corrector->FillBlockCases<Vector>();
+        var.tmpV->Corrector->FillBlockCases();
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
