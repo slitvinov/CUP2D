@@ -3679,9 +3679,8 @@ struct Adaptation {
   std::vector<long long> dealloc_IDs;
   const int dim;
   Adaptation(int dim) : dim(dim) {}
-  template <typename TLab, typename Element>
+  template <typename TLab>
   void Adapt(Grid *grid, bool basic) {
-    typedef Element BlockType[_BS_][_BS_];
     basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
@@ -3836,13 +3835,13 @@ struct Adaptation {
       assert(level > 0);
       BlockInfo &info = grid->get(level, Z);
       assert(info.state == Compress);
-      BlockType *Blocks[4];
+      void *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const int blk = J * 2 + I;
           const long long n =
               getZforward(level, info.index[0] + I, info.index[1] + J);
-          Blocks[blk] = (BlockType *)(grid->get(level, n)).block;
+          Blocks[blk] = (grid->get(level, n)).block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
@@ -5866,13 +5865,13 @@ static void adapt() {
       }
     }
   }
-  var.tmp_amr->Adapt<ScalarLab, Real>(var.tmp, false);
-  var.chi_amr->Adapt<ScalarLab, Real>(var.chi, false);
-  var.vel_amr->Adapt<VectorLab, Vector>(var.vel, false);
-  var.vold_amr->Adapt<VectorLab, Vector>(var.vold, false);
-  var.pres_amr->Adapt<ScalarLab, Real>(var.pres, false);
-  var.pold_amr->Adapt<ScalarLab, Real>(var.pold, false);
-  var.tmpV_amr->Adapt<VectorLab, Vector>(var.tmpV, true);
+  var.tmp_amr->Adapt<ScalarLab>(var.tmp, false);
+  var.chi_amr->Adapt<ScalarLab>(var.chi, false);
+  var.vel_amr->Adapt<VectorLab>(var.vel, false);
+  var.vold_amr->Adapt<VectorLab>(var.vold, false);
+  var.pres_amr->Adapt<ScalarLab>(var.pres, false);
+  var.pold_amr->Adapt<ScalarLab>(var.pold, false);
+  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
 }
 static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
                        int iy) {
