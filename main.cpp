@@ -2981,7 +2981,7 @@ template <typename Element> struct BlockLab {
           Element *q01 = q0 + 2 * ee + 1;
           Element *q10 = q1 + 2 * ee;
           Element *q11 = q1 + 2 * ee + 1;
-          p[ee] = AverageDown(&q00, &q10, &q01, &q11);
+          p[ee] = AverageDown(*q00, *q10, *q01, *q11);
         }
       }
     }
