@@ -631,10 +631,10 @@ struct StencilInfo {
   std::vector<int> selcomponents;
   bool tensorial;
   StencilInfo() {}
-  StencilInfo(int _sx, int _sy, int _ex, int _ey,
-              bool _tensorial, const std::vector<int> &components)
-    : sx(_sx), sy(_sy), ex(_ex), ey(_ey),
-        selcomponents(components), tensorial(_tensorial) {
+  StencilInfo(int _sx, int _sy, int _ex, int _ey, bool _tensorial,
+              const std::vector<int> &components)
+      : sx(_sx), sy(_sy), ex(_ex), ey(_ey), selcomponents(components),
+        tensorial(_tensorial) {
     assert(selcomponents.size() > 0);
   }
   StencilInfo(const StencilInfo &c) = default;
@@ -747,11 +747,9 @@ struct StencilManager {
                  int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
-                       (stencil.sy - 1) / 2 + Cstencil.sy,
-                       (0 - 1) / 2 + 0};
+                       (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
-                       stencil.ey / 2 + Cstencil.ey,
-                       1 / 2 + 1};
+                       stencil.ey / 2 + Cstencil.ey, 1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
@@ -830,16 +828,13 @@ struct StencilManager {
             code[1] < 1
                 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 + Cstencil.sy) : 0)
                 : nY / 2,
-            code[2] < 1
-                ? (code[2] < 0 ? ((0 - 1) / 2) : 0)
-                : nZ / 2};
+            code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : nZ / 2};
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2)
                         : nX / 2 + stencil.ex / 2 + Cstencil.ex - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2)
                         : nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
-            code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2)
-                        : nZ / 2};
+            code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2) : nZ / 2};
         const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
                              (f.infos[1]->index[1] + code[1]) % 2,
                              (f.infos[1]->index[2] + code[2]) % 2};
@@ -847,22 +842,20 @@ struct StencilManager {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
@@ -1596,8 +1589,7 @@ template <typename TGrid> struct Synchronizer {
               Real *dst = send_buffer[r].data() + d;
               const BlockInfo *const info = f.infos[0];
               const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
-                                 (stencil.ey) / 2 + Cstencil.ey,
-                                 1};
+                                 (stencil.ey) / 2 + Cstencil.ey, 1};
               const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
                                  (0 - 1) / 2 + 0};
@@ -1644,8 +1636,7 @@ template <typename TGrid> struct Synchronizer {
                                             : _BS_ + stencil.ex - 1,
                                 code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
                                             : _BS_ + stencil.ey - 1,
-                                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                                            : -1};
+                                code[2] < 1 ? (code[2] < 0 ? 0 : 1) : -1};
               Real *src = (Real *)(*info).block;
               const int xStep = (code[0] == 0) ? 2 : 1;
               const int yStep = (code[1] == 0) ? 2 : 1;
@@ -1708,7 +1699,7 @@ template <typename TGrid> struct Synchronizer {
       const int e[3] = {
           code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
-          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 };
+          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
       if (unpack.level == info.level) {
         Real *dst =
             cacheBlock + ((s[2] - 0) * Length[0] * Length[1] +
@@ -1794,8 +1785,7 @@ template <typename TGrid> struct Synchronizer {
         Real *dst =
             cacheBlock +
             ((abs(code[2]) * (s[2] - 0) +
-              (1 - abs(code[2])) *
-                  (0 + (B / 2) * (e[2] - s[2]) / 2)) *
+              (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
                  Length[0] * Length[1] +
              (abs(code[1]) * (s[1] - stencil.sy) +
               (1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
@@ -2694,16 +2684,15 @@ template <typename Element> struct BlockLab {
                     start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
   }
   void load(Grid *grid, BlockInfo &info, bool applybc) {
-    typedef Element BlockType[_BS_][_BS_];
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    Element *p = (Element*)info.block;
+    Element *p = (Element *)info.block;
     int nbytes = dim * sizeof(Real) * _BS_;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
-      void *q0 = &m[iy*nm[0] - start[0]];
+      void *q0 = &m[iy * nm[0] - start[0]];
       void *q1 = &m[(iy + 1) * nm[0] - start[0]];
       void *q2 = &m[(iy + 2) * nm[0] - start[0]];
       void *q3 = &m[(iy + 3) * nm[0] - start[0]];
@@ -2826,8 +2815,9 @@ template <typename Element> struct BlockLab {
           }
     return false;
   }
-  void SameLevelExchange(Grid *grid, const BlockInfo &info, const int *const code,
-                         const int *const s, const int *const e) {
+  void SameLevelExchange(Grid *grid, const BlockInfo &info,
+                         const int *const code, const int *const s,
+                         const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
@@ -2871,8 +2861,9 @@ template <typename Element> struct BlockLab {
       }
     }
   }
-  void FineToCoarseExchange(Grid *grid, const BlockInfo &info, const int *const code,
-                            const int *const s, const int *const e) {
+  void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
+                            const int *const code, const int *const s,
+                            const int *const e) {
     typedef Element BlockType[_BS_][_BS_];
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
@@ -2892,10 +2883,10 @@ template <typename Element> struct BlockLab {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       void *b_ptr =
           grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                                (B % 2) * std::max(0, 1 - abs(code[0])),
-                            2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                                aux * std::max(0, 1 - abs(code[1])),
-                            info.level + 1);
+                           (B % 2) * std::max(0, 1 - abs(code[0])),
+                       2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                           aux * std::max(0, 1 - abs(code[1])),
+                       info.level + 1);
       if (b_ptr == nullptr)
         continue;
       BlockType &b = *(BlockType *)b_ptr;
@@ -2995,7 +2986,8 @@ template <typename Element> struct BlockLab {
       }
     }
   }
-  void CoarseFineExchange(Grid *grid, const BlockInfo &info, const int *const code) {
+  void CoarseFineExchange(Grid *grid, const BlockInfo &info,
+                          const int *const code) {
     typedef Element BlockType[_BS_][_BS_];
     int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                             (info.index[1] + code[1] + NY) % NY,
@@ -3003,8 +2995,8 @@ template <typename Element> struct BlockLab {
     int infoNei_index_true[3] = {(info.index[0] + code[0]),
                                  (info.index[1] + code[1]),
                                  (info.index[2] + code[2])};
-    void *b_ptr = grid->avail1((infoNei_index[0]) / 2,
-                                    (infoNei_index[1]) / 2, info.level - 1);
+    void *b_ptr = grid->avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
+                               info.level - 1);
     if (b_ptr == nullptr)
       return;
     BlockType &b = *(BlockType *)b_ptr;
@@ -3023,30 +3015,27 @@ template <typename Element> struct BlockLab {
     int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
                    (info.index[2] + code[2]) % 2};
     int CoarseEdge[3];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
-    CoarseEdge[2] = (code[2] == 0)
-                        ? 0
-                        : (((info.index[2] % 2 == 0) &&
-                            (infoNei_index_true[2] > info.index[2])) ||
-                           ((info.index[2] % 2 == 1) &&
-                            (infoNei_index_true[2] < info.index[2])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
+    CoarseEdge[2] = (code[2] == 0) ? 0
+                    : (((info.index[2] % 2 == 0) &&
+                        (infoNei_index_true[2] > info.index[2])) ||
+                       ((info.index[2] % 2 == 1) &&
+                        (infoNei_index_true[2] < info.index[2])))
+                        ? 1
+                        : 0;
     const int start[3] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3762,7 +3751,7 @@ struct Adaptation {
             Blocks[j * 2 + i] = Child.block;
           }
         if (basic_refinement == false) {
-	  int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
+          int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
           int offsetX[2] = {0, _BS_ / 2};
           int offsetY[2] = {0, _BS_ / 2};
           for (int J = 0; J < 2; J++)
