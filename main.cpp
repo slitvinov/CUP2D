@@ -2068,10 +2068,10 @@ template <typename TGrid> struct FluxCorrectionMPI {
         assert(search != MapOfCases.end());
         BlockCase &FineCase = (*search->second);
         int icode = f.icode[0];
-	assert((icode / 9) % 3 - 1 == 0);
+        assert((icode / 9) % 3 - 1 == 0);
         int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
-	  abs(code[1]) * (std::max(0, code[1]) + 2);
+                     abs(code[1]) * (std::max(0, code[1]) + 2);
         Real *FineFace = (Real *)FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
@@ -2079,7 +2079,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
         int N2 = sizes[d2];
         for (int i2 = 0; i2 < N2; i2 += 2) {
           Real *a = &FineFace[dim * i2];
-	  Real *b = &FineFace[dim * (i2 + 1)];
+          Real *b = &FineFace[dim * (i2 + 1)];
           for (d = 0; d < dim; d++) {
             Real avg = a[d] + b[d];
             memcpy(&send_buffer[r][displacement], &avg, sizeof(Real));
