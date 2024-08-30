@@ -2693,10 +2693,10 @@ template <typename Element> struct BlockLab {
     Real *u = (Real *)m;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       Real *q = u + dim * iy * nm[0] - dim * start[0];
-      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
-      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
-      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
-      memcpy(q, p, dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0], p += dim * _BS_;
+      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0], p += dim * _BS_;
     }
     coarsened = false;
     bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
