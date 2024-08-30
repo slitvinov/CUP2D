@@ -2703,25 +2703,16 @@ template <typename Element> struct BlockLab {
     BlockType &block = *(BlockType *)info.block;
     Element *p = &block[0][0];
     int nbytes = dim * sizeof(Real) * _BS_;
-    int _iy0 = -start[1];
-    int _iy1 = _iy0 + _BS_;
-    int my_ix = -start[0];
-    for (int iz = 0; iz < 1; iz++) {
-      int my_izx = my_ix;
-      for (int iy = _iy0; iy < _iy1; iy += 4) {
-        Element *q0 = &m[my_izx + (iy)*nm[0]];
-        Element *q1 =
-            &m[my_izx + (iy + 1) * nm[0]];
-        Element *q2 =
-            &m[my_izx + (iy + 2) * nm[0]];
-        Element *q3 =
-            &m[my_izx + (iy + 3) * nm[0]];
-        memcpy(q0, (p), nbytes);
-        memcpy(q1, (p + _BS_), nbytes);
-        memcpy(q2, (p + 2 * _BS_), nbytes);
-        memcpy(q3, (p + 3 * _BS_), nbytes);
-        p += 4 * _BS_;
-      }
+    for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
+      void *q0 = &m[-start[0] + iy*nm[0]];
+      void *q1 = &m[-start[0] + (iy + 1) * nm[0]];
+      void *q2 = &m[-start[0] + (iy + 2) * nm[0]];
+      void *q3 = &m[-start[0] + (iy + 3) * nm[0]];
+      memcpy(q0, (p), nbytes);
+      memcpy(q1, (p + _BS_), nbytes);
+      memcpy(q2, (p + 2 * _BS_), nbytes);
+      memcpy(q3, (p + 3 * _BS_), nbytes);
+      p += 4 * _BS_;
     }
     coarsened = false;
     bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
