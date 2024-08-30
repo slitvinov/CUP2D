@@ -2962,8 +2962,8 @@ template <typename Element> struct BlockLab {
           Element q131 = *(q13 + 2 * ee + 1);
           p0[ee] = AverageDown(q000, q010, q001, q011);
           p1[ee] = AverageDown(q010, q110, q011, q111);
-          p2[ee] = AverageDown(q020, q021, q120, q121);
-          p3[ee] = AverageDown(q030, q031, q130, q131);
+          p2[ee] = AverageDown(q020, q120, q021, q121);
+          p3[ee] = AverageDown(q030, q130, q031, q131);
         }
       }
       for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
