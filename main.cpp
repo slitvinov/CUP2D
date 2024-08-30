@@ -2068,10 +2068,10 @@ template <typename TGrid> struct FluxCorrectionMPI {
         assert(search != MapOfCases.end());
         BlockCase &FineCase = (*search->second);
         int icode = f.icode[0];
-        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
+	assert((icode / 9) % 3 - 1 == 0);
+        int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
-                     abs(code[1]) * (std::max(0, code[1]) + 2) +
-                     abs(code[2]) * (std::max(0, code[2]) + 4);
+	  abs(code[1]) * (std::max(0, code[1]) + 2);
         Element *FineFace = (Element *)FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
