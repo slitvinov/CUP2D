@@ -1882,16 +1882,13 @@ template <typename TGrid> struct FluxCorrectionMPI {
     typedef Element BlockType[_BS_][_BS_];
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
-    const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                         (icode / 9) % 3 - 1};
+    const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
     if (abs(code[0]) != codex)
       return;
     if (abs(code[1]) != codey)
       return;
-    assert(code[2] == 0);
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
-                       abs(code[1]) * (std::max(0, code[1]) + 2) +
-                       abs(code[2]) * (std::max(0, code[2]) + 4);
+      abs(code[1]) * (std::max(0, code[1]) + 2);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = MapOfCases.find(temp);
     assert(search != MapOfCases.end());
