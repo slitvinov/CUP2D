@@ -1879,7 +1879,6 @@ template <typename TGrid> struct FluxCorrectionMPI {
   }
   template <typename Element>
   void FillCase_2(face &F, int codex, int codey) {
-    typedef Element BlockType[_BS_][_BS_];
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
@@ -1897,18 +1896,18 @@ template <typename TGrid> struct FluxCorrectionMPI {
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
-    BlockType &block = *(BlockType *)info.block;
+    Element * block = (Element*)info.block;
     assert(d != 2);
     if (d == 0) {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block[i2][j] += CoarseFace[i2];
+        block[_BS_ * i2 + j] += CoarseFace[i2];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     } else {
       const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
       for (int i2 = 0; i2 < N2; i2++) {
-        block[j][i2] += CoarseFace[i2];
+        block[_BS_ * j + i2] += CoarseFace[i2];
         memset(&CoarseFace[i2], 0, dim * sizeof(Real));
       }
     }
