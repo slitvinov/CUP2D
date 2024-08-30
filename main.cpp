@@ -2875,8 +2875,8 @@ template <typename Element> struct BlockLab {
     assert(code[2] == 0);
     assert(s[2] == 0);
     assert(e[2] == 1);
-    int yStep = (code[1] == 0) ? 2 : 1;
-    int mod = ((e[1] - s[1]) / yStep) % 4;
+    int ys = (code[1] == 0) ? 2 : 1;
+    int mod = ((e[1] - s[1]) / ys) % 4;
     int Bstep = 1;
     if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
       Bstep = 3;
@@ -2896,49 +2896,49 @@ template <typename Element> struct BlockLab {
       const int i =
           abs(code[0]) * (s[0] - start[0]) +
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
-      const int XX =
+      const int x =
           s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-      for (int iy = s[1]; iy < e[1] - mod; iy += 4 * yStep) {
+      for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
         Element *p0 =
-            &m[i + (abs(code[1]) * (iy + 0 * yStep - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 0 * yStep) / 2 - start[1] +
+            &m[i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
+                    (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
                                           aux * (e[1] - s[1]) / 2)) *
                        nm[0]];
         Element *p1 =
-            &m[i + (abs(code[1]) * (iy + 1 * yStep - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 1 * yStep) / 2 - start[1] +
+            &m[i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
+                    (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
                                           aux * (e[1] - s[1]) / 2)) *
                        nm[0]];
         Element *p2 =
-            &m[i + (abs(code[1]) * (iy + 2 * yStep - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 2 * yStep) / 2 - start[1] +
+            &m[i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
+                    (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
                                           aux * (e[1] - s[1]) / 2)) *
                        nm[0]];
         Element *p3 =
-            &m[i + (abs(code[1]) * (iy + 3 * yStep - start[1]) +
-                    (1 - abs(code[1])) * ((iy + 3 * yStep) / 2 - start[1] +
+            &m[i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
+                    (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
                                           aux * (e[1] - s[1]) / 2)) *
                        nm[0]];
-        int YY0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * yStep - code[1] * _BS_) +
-                                            std::min(0, code[1]) * _BS_
-                                      : iy + 0 * yStep;
-        int YY1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * yStep - code[1] * _BS_) +
-                                            std::min(0, code[1]) * _BS_
-                                      : iy + 1 * yStep;
-        int YY2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * yStep - code[1] * _BS_) +
-                                            std::min(0, code[1]) * _BS_
-                                      : iy + 2 * yStep;
-        int YY3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * yStep - code[1] * _BS_) +
-                                            std::min(0, code[1]) * _BS_
-                                      : iy + 3 * yStep;
-        Element *q00 = &b[YY0][XX];
-        Element *q10 = &b[YY0 + 1][XX];
-        Element *q01 = &b[YY1][XX];
-        Element *q11 = &b[YY1 + 1][XX];
-        Element *q02 = &b[YY2][XX];
-        Element *q12 = &b[YY2 + 1][XX];
-        Element *q03 = &b[YY3][XX];
-        Element *q13 = &b[YY3 + 1][XX];
+        int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
+                                           std::min(0, code[1]) * _BS_
+                                     : iy + 0 * ys;
+        int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
+                                           std::min(0, code[1]) * _BS_
+                                     : iy + 1 * ys;
+        int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
+                                           std::min(0, code[1]) * _BS_
+                                     : iy + 2 * ys;
+        int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
+                                           std::min(0, code[1]) * _BS_
+                                     : iy + 3 * ys;
+        Element *q00 = &b[y0][x];
+        Element *q10 = &b[y0 + 1][x];
+        Element *q01 = &b[y1][x];
+        Element *q11 = &b[y1 + 1][x];
+        Element *q02 = &b[y2][x];
+        Element *q12 = &b[y2 + 1][x];
+        Element *q03 = &b[y3][x];
+        Element *q13 = &b[y3 + 1][x];
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
@@ -2952,17 +2952,17 @@ template <typename Element> struct BlockLab {
                                *(q03 + 2 * ee + 1), *(q13 + 2 * ee + 1));
         }
       }
-      for (int iy = e[1] - mod; iy < e[1]; iy += yStep) {
+      for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
         Element *p =
             (Element *)&m[i + (abs(code[1]) * (iy - start[1]) +
                                (1 - abs(code[1])) * (iy / 2 - start[1] +
                                                      aux * (e[1] - s[1]) / 2)) *
                                   nm[0]];
-        int YY = (abs(code[1]) == 1)
-                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
-                     : iy;
-        Element *q0 = &b[YY][XX];
-        Element *q1 = &b[YY + 1][XX];
+        int y = (abs(code[1]) == 1)
+                    ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
+                    : iy;
+        Element *q0 = &b[y][x];
+        Element *q1 = &b[y + 1][x];
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
