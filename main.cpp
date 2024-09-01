@@ -1805,7 +1805,7 @@ template <typename TGrid> struct Synchronizer {
 template <typename TGrid> struct FluxCorrection {
   const int dim;
   int rank{0};
-  std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
+  std::map<std::array<long long, 2>, BlockCase *> Map;
   std::vector<BlockCase *> Cases;
   TGrid *grid;
   struct face {
@@ -1840,8 +1840,8 @@ template <typename TGrid> struct FluxCorrection {
                        abs(code[1]) * (std::max(0, code[1]) + 2) +
                        abs(code[2]) * (std::max(0, code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
-    auto search = MapOfCases.find(temp);
-    assert(search != MapOfCases.end());
+    auto search = Map.find(temp);
+    assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
@@ -1887,8 +1887,8 @@ template <typename TGrid> struct FluxCorrection {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
-    auto search = MapOfCases.find(temp);
-    assert(search != MapOfCases.end());
+    auto search = Map.find(temp);
+    assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
     Real *block = (Real *)info.block;
@@ -1933,7 +1933,7 @@ template <typename TGrid> struct FluxCorrection {
       for (int j = 0; j < 4; j++)
         free(Cases[i]->d[j]);
     Cases.clear();
-    MapOfCases.clear();
+    Map.clear();
     grid = &_grid;
     std::vector<BlockInfo> &BB = (*grid).infos;
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
@@ -2029,7 +2029,7 @@ template <typename TGrid> struct FluxCorrection {
           break;
         if (Cases[Cases_index]->level == info.level &&
             Cases[Cases_index]->Z == info.Z) {
-          MapOfCases.insert(std::pair<std::array<long long, 2>, BlockCase *>(
+          Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
               {Cases[Cases_index]->level, Cases[Cases_index]->Z},
               Cases[Cases_index]));
           grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z)
@@ -2063,8 +2063,8 @@ template <typename TGrid> struct FluxCorrection {
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
         face &f = send_faces[r][k];
         BlockInfo &info = *(f.infos[0]);
-        auto search = MapOfCases.find({(long long)info.level, info.Z});
-        assert(search != MapOfCases.end());
+        auto search = Map.find({(long long)info.level, info.Z});
+        assert(search != Map.end());
         BlockCase &FineCase = (*search->second);
         int icode = f.icode[0];
         assert((icode / 9) % 3 - 1 == 0);
