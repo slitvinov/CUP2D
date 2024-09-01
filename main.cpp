@@ -1872,22 +1872,22 @@ struct Grid {
       }
     }
   };
+  bool UpdateFluxCorrection{true};
   const int dim;
   int rank{0};
-  std::map<std::array<long long, 2>, BlockCase *> Map;
-  std::vector<BlockCase *> Cases;
-  std::vector<std::vector<Real>> send_buffer;
-  std::vector<std::vector<Real>> recv_buffer;
-  std::vector<std::vector<face>> send_faces;
-  std::vector<std::vector<face>> recv_faces;
-  bool UpdateFluxCorrection{true};
   size_t timestamp;
-  std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
+  std::map<std::array<long long, 2>, BlockCase *> Map;
+  std::map<StencilInfo, Synchronizer<Grid> *> Synchronizers;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
+  std::vector<BlockCase *> Cases;
   std::vector<BlockInfo *> boundary;
   std::vector<BlockInfo> infos;
   std::vector<long long> level_base;
+  std::vector<std::vector<face>> recv_faces;
+  std::vector<std::vector<face>> send_faces;
+  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<std::vector<Real>> send_buffer;
   Grid(int dim) : dim(dim) {}
   void FillCase(Grid *grid, face &F) {
     BlockInfo &info = *F.infos[1];
@@ -2503,11 +2503,11 @@ struct Grid {
     StencilInfo Cstencil(-1, -1, 2, 2, true, stencil.selcomponents);
     Synchronizer<Grid> *queryresult = nullptr;
     typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
-        itSynchronizerMPI = SynchronizerMPIs.find(stencil);
-    if (itSynchronizerMPI == SynchronizerMPIs.end()) {
+        itSynchronizerMPI = Synchronizers.find(stencil);
+    if (itSynchronizerMPI == Synchronizers.end()) {
       queryresult = new Synchronizer<Grid>(stencil, Cstencil, this, dim);
       queryresult->_Setup();
-      SynchronizerMPIs[stencil] = queryresult;
+      Synchronizers[stencil] = queryresult;
     } else {
       queryresult = itSynchronizerMPI->second;
     }
@@ -2642,7 +2642,7 @@ template <typename Element> struct BlockLab {
     return m[nm[0] * y + x];
   }
   void prepare(Grid *grid, const StencilInfo &stencil) {
-    refSynchronizerMPI = grid->SynchronizerMPIs.find(stencil)->second;
+    refSynchronizerMPI = grid->Synchronizers.find(stencil)->second;
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -3884,8 +3884,8 @@ struct Adaptation {
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateBlockInfoAll_States(false);
-      auto it = grid->SynchronizerMPIs.begin();
-      while (it != grid->SynchronizerMPIs.end()) {
+      auto it = grid->Synchronizers.begin();
+      while (it != grid->Synchronizers.end()) {
         (*it->second)._Setup();
         it++;
       }
@@ -6885,8 +6885,7 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
-    for (auto it = g->SynchronizerMPIs.begin(); it != g->SynchronizerMPIs.end();
-         ++it)
+    for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
       (*it->second)._Setup();
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
