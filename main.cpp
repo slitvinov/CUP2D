@@ -1515,9 +1515,8 @@ template <typename TGrid> struct Synchronizer {
         SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
         NC(a_stencil.selcomponents.size()) {
     grid = _grid;
-    use_averages = (grid->FiniteDifferences == false || stencil.tensorial ||
-                    stencil.sx < -2 || stencil.sy < -2 || 0 < -2 ||
-                    stencil.ex > 3 || stencil.ey > 3);
+    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
+                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
     send_interfaces.resize(sim.size);
     recv_interfaces.resize(sim.size);
     send_packinfos.resize(sim.size);
@@ -2192,7 +2191,6 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
   }
 }
 struct Grid {
-  bool FiniteDifferences{true};
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
   const int dim;
@@ -2672,8 +2670,8 @@ template <typename Element> struct BlockLab {
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
     c = (Element *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
-    use_averages = (grid->FiniteDifferences == false || istensorial ||
-                    start[0] < -2 || start[1] < -2 || end[0] > 3 || end[1] > 3);
+    use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
+                   end[0] > 3 || end[1] > 3;
   }
   void load(Grid *grid, BlockInfo &info, bool applybc) {
     const int aux = 1 << info.level;
@@ -3176,7 +3174,7 @@ template <typename Element> struct BlockLab {
           }
         }
       }
-      if (grid->FiniteDifferences && abs(code[0]) + abs(code[1]) == 1) {
+      if (abs(code[0]) + abs(code[1]) == 1) {
         for (int iy = s[1]; iy < e[1]; iy += 2) {
           int YY =
               (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
