@@ -2975,7 +2975,7 @@ template <typename Element> struct BlockLab {
                             : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
                 code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
                             : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
-    int bytes = (e[0] - s[0]) * sizeof(Element);
+    int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
     int base[2] = {(info.index[0] + code[0]) % 2,
