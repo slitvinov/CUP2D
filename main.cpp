@@ -1802,11 +1802,58 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-struct FluxCorrection {
-  const int dim;
-  int rank{0};
-  std::map<std::array<long long, 2>, BlockCase *> Map;
-  std::vector<BlockCase *> Cases;
+static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+                       std::vector<long long> *level_base, int m, long long n) {
+  const long long aux = (*level_base)[m] + n;
+  const auto retval = BlockInfoAll->find(aux);
+  if (retval != BlockInfoAll->end()) {
+    return *retval->second;
+  } else {
+#pragma omp critical
+    {
+      const auto retval1 = BlockInfoAll->find(aux);
+      if (retval1 == BlockInfoAll->end()) {
+        BlockInfo *dumm = new BlockInfo;
+        dumm->level = m;
+        dumm->h = sim.h0 / (1 << dumm->level);
+        int i, j;
+        sim.space_curve->inverse(n, m, i, j);
+        dumm->origin[0] = i * _BS_ * dumm->h;
+        dumm->origin[1] = j * _BS_ * dumm->h;
+        dumm->Z = n;
+        dumm->state = Leave;
+        dumm->changed2 = true;
+        dumm->auxiliary = nullptr;
+        const int TwoPower = 1 << dumm->level;
+        sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
+                                 dumm->index[1]);
+        dumm->index[2] = 0;
+        const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
+        for (int i = -1; i < 2; i++)
+          for (int j = -1; j < 2; j++)
+            dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
+                dumm->level, (dumm->index[0] + i) % Bmax[0],
+                (dumm->index[1] + j) % Bmax[1]);
+        for (int i = 0; i < 2; i++)
+          for (int j = 0; j < 2; j++)
+            dumm->Zchild[i][j] = sim.space_curve->forward(
+                dumm->level + 1, 2 * dumm->index[0] + i,
+                2 * dumm->index[1] + j);
+        dumm->Zparent =
+            (dumm->level == 0)
+                ? 0
+                : sim.space_curve->forward(dumm->level - 1,
+                                           (dumm->index[0] / 2) % Bmax[0],
+                                           (dumm->index[1] / 2) % Bmax[1]);
+        dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
+        dumm->id = dumm->id2;
+        (*BlockInfoAll)[aux] = dumm;
+      }
+    }
+    return getf(BlockInfoAll, level_base, m, n);
+  }
+}
+struct Grid {
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -1825,11 +1872,23 @@ struct FluxCorrection {
       }
     }
   };
+  const int dim;
+  int rank{0};
+  std::map<std::array<long long, 2>, BlockCase *> Map;
+  std::vector<BlockCase *> Cases;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
-  FluxCorrection(int dim) : dim(dim) {}
+  bool UpdateFluxCorrection{true};
+  size_t timestamp;
+  std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
+  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
+  std::unordered_map<long long, int> Octree;
+  std::vector<BlockInfo *> boundary;
+  std::vector<BlockInfo> infos;
+  std::vector<long long> level_base;
+  Grid(int dim) : dim(dim) {}
   template <typename TGrid> void FillCase(TGrid *grid, face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -2136,70 +2195,6 @@ struct FluxCorrection {
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
-};
-static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-                       std::vector<long long> *level_base, int m, long long n) {
-  const long long aux = (*level_base)[m] + n;
-  const auto retval = BlockInfoAll->find(aux);
-  if (retval != BlockInfoAll->end()) {
-    return *retval->second;
-  } else {
-#pragma omp critical
-    {
-      const auto retval1 = BlockInfoAll->find(aux);
-      if (retval1 == BlockInfoAll->end()) {
-        BlockInfo *dumm = new BlockInfo;
-        dumm->level = m;
-        dumm->h = sim.h0 / (1 << dumm->level);
-        int i, j;
-        sim.space_curve->inverse(n, m, i, j);
-        dumm->origin[0] = i * _BS_ * dumm->h;
-        dumm->origin[1] = j * _BS_ * dumm->h;
-        dumm->Z = n;
-        dumm->state = Leave;
-        dumm->changed2 = true;
-        dumm->auxiliary = nullptr;
-        const int TwoPower = 1 << dumm->level;
-        sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
-                                 dumm->index[1]);
-        dumm->index[2] = 0;
-        const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
-        for (int i = -1; i < 2; i++)
-          for (int j = -1; j < 2; j++)
-            dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                dumm->level, (dumm->index[0] + i) % Bmax[0],
-                (dumm->index[1] + j) % Bmax[1]);
-        for (int i = 0; i < 2; i++)
-          for (int j = 0; j < 2; j++)
-            dumm->Zchild[i][j] = sim.space_curve->forward(
-                dumm->level + 1, 2 * dumm->index[0] + i,
-                2 * dumm->index[1] + j);
-        dumm->Zparent =
-            (dumm->level == 0)
-                ? 0
-                : sim.space_curve->forward(dumm->level - 1,
-                                           (dumm->index[0] / 2) % Bmax[0],
-                                           (dumm->index[1] / 2) % Bmax[1]);
-        dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
-        dumm->id = dumm->id2;
-        (*BlockInfoAll)[aux] = dumm;
-      }
-    }
-    return getf(BlockInfoAll, level_base, m, n);
-  }
-}
-struct Grid {
-  bool UpdateFluxCorrection{true};
-  const int dim;
-  FluxCorrection *Corrector;
-  size_t timestamp;
-  std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
-  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-  std::unordered_map<long long, int> Octree;
-  std::vector<BlockInfo *> boundary;
-  std::vector<BlockInfo> infos;
-  std::vector<long long> level_base;
-  Grid(int dim) : dim(dim) {}
   void *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? get(m, n).block : nullptr;
   }
@@ -6851,7 +6846,6 @@ int main(int argc, char **argv) {
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
-    g->Corrector = new FluxCorrection(g->dim);
     g->level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       g->level_base.push_back(g->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -7078,9 +7072,9 @@ int main(int argc, char **argv) {
             Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
-      var.tmpV->Corrector->prepare0(var.tmpV);
+      var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases(var.tmpV);
+      var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7097,9 +7091,9 @@ int main(int argc, char **argv) {
                 Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
-      var.tmpV->Corrector->prepare0(var.tmpV);
+      var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases(var.tmpV);
+      var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7495,10 +7489,10 @@ int main(int argc, char **argv) {
             }
         }
       }
-      var.tmp->Corrector->prepare0(var.tmp);
+      var.tmp->prepare0(var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
           pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
-      var.tmp->Corrector->FillBlockCases(var.tmpV);
+      var.tmp->FillBlockCases(var.tmpV);
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7511,9 +7505,9 @@ int main(int argc, char **argv) {
             PRES[iy][ix] = 0;
           }
       }
-      var.tmp->Corrector->prepare0(var.tmp);
+      var.tmp->prepare0(var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      var.tmp->Corrector->FillBlockCases(var.tmpV);
+      var.tmp->FillBlockCases(var.tmpV);
       pressureSolver.solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -7543,9 +7537,9 @@ int main(int argc, char **argv) {
             P[iy][ix] += POLD[iy][ix] - avg;
       }
       {
-        var.tmpV->Corrector->prepare0(var.tmpV);
+        var.tmpV->prepare0(var.tmpV);
         computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-        var.tmpV->Corrector->FillBlockCases(var.tmpV);
+        var.tmpV->FillBlockCases(var.tmpV);
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
