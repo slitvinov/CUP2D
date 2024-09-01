@@ -922,6 +922,73 @@ struct PackInfo {
   int ey;
   int ez;
 };
+struct Cube {
+  std::vector<Range> compass[27];
+  void clear() {
+    for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+      compass[i].clear();
+  }
+  std::vector<Range *> keepEl() {
+    std::vector<Range *> retval;
+    for (int i = 0; i < 27; i++)
+      for (size_t j = 0; j < compass[i].size(); j++)
+        if (compass[i][j].needed)
+          retval.push_back(&compass[i][j]);
+    return retval;
+  }
+  void needed(std::vector<int> &v) {
+    static constexpr std::array<int, 3> faces_and_edges[18] = {
+        {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
+        {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
+        {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
+    for (auto &f : faces_and_edges)
+      if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
+        bool needme = false;
+        auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
+        for (size_t j1 = 0; j1 < me.size(); j1++)
+          if (me[j1].needed) {
+            needme = true;
+            for (size_t j2 = 0; j2 < me.size(); j2++)
+              if (me[j2].needed && me[j2].contains(me[j1])) {
+                me[j1].needed = false;
+                me[j2].removedIndices.push_back(me[j1].index);
+                me[j2].Remove(me[j1]);
+                v.push_back(me[j1].index);
+                break;
+              }
+          }
+        if (!needme)
+          continue;
+        int imax = (f[0] == 1) ? 2 : f[0];
+        int imin = (f[0] == 1) ? 0 : f[0];
+        int jmax = (f[1] == 1) ? 2 : f[1];
+        int jmin = (f[1] == 1) ? 0 : f[1];
+        int kmax = (f[2] == 1) ? 2 : f[2];
+        int kmin = (f[2] == 1) ? 0 : f[2];
+        for (int k = kmin; k <= kmax; k++)
+          for (int j = jmin; j <= jmax; j++)
+            for (int i = imin; i <= imax; i++) {
+              if (i == f[0] && j == f[1] && k == f[2])
+                continue;
+              auto &other = compass[i + j * 3 + k * 9];
+              for (size_t j1 = 0; j1 < other.size(); j1++) {
+                auto &o = other[j1];
+                if (o.needed)
+                  for (size_t k1 = 0; k1 < me.size(); k1++) {
+                    auto &m = me[k1];
+                    if (m.needed && m.contains(o)) {
+                      o.needed = false;
+                      m.removedIndices.push_back(o.index);
+                      m.Remove(o);
+                      v.push_back(o.index);
+                      break;
+                    }
+                  }
+              }
+            }
+      }
+  }
+};
 template <typename TGrid> struct Synchronizer {
   const int dim;
   StencilInfo stencil;
@@ -946,75 +1013,7 @@ template <typename TGrid> struct Synchronizer {
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::unordered_map<int, MPI_Request *> mapofrequests;
   struct DuplicatesManager {
-    struct cube {
-      std::vector<Range> compass[27];
-      void clear() {
-        for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-          compass[i].clear();
-      }
-      cube() {}
-      std::vector<Range *> keepEl() {
-        std::vector<Range *> retval;
-        for (int i = 0; i < 27; i++)
-          for (size_t j = 0; j < compass[i].size(); j++)
-            if (compass[i][j].needed)
-              retval.push_back(&compass[i][j]);
-        return retval;
-      }
-      void needed(std::vector<int> &v) {
-        static constexpr std::array<int, 3> faces_and_edges[18] = {
-            {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
-            {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
-            {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
-        for (auto &f : faces_and_edges)
-          if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
-            bool needme = false;
-            auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
-            for (size_t j1 = 0; j1 < me.size(); j1++)
-              if (me[j1].needed) {
-                needme = true;
-                for (size_t j2 = 0; j2 < me.size(); j2++)
-                  if (me[j2].needed && me[j2].contains(me[j1])) {
-                    me[j1].needed = false;
-                    me[j2].removedIndices.push_back(me[j1].index);
-                    me[j2].Remove(me[j1]);
-                    v.push_back(me[j1].index);
-                    break;
-                  }
-              }
-            if (!needme)
-              continue;
-            int imax = (f[0] == 1) ? 2 : f[0];
-            int imin = (f[0] == 1) ? 0 : f[0];
-            int jmax = (f[1] == 1) ? 2 : f[1];
-            int jmin = (f[1] == 1) ? 0 : f[1];
-            int kmax = (f[2] == 1) ? 2 : f[2];
-            int kmin = (f[2] == 1) ? 0 : f[2];
-            for (int k = kmin; k <= kmax; k++)
-              for (int j = jmin; j <= jmax; j++)
-                for (int i = imin; i <= imax; i++) {
-                  if (i == f[0] && j == f[1] && k == f[2])
-                    continue;
-                  auto &other = compass[i + j * 3 + k * 9];
-                  for (size_t j1 = 0; j1 < other.size(); j1++) {
-                    auto &o = other[j1];
-                    if (o.needed)
-                      for (size_t k1 = 0; k1 < me.size(); k1++) {
-                        auto &m = me[k1];
-                        if (m.needed && m.contains(o)) {
-                          o.needed = false;
-                          m.removedIndices.push_back(o.index);
-                          m.Remove(o);
-                          v.push_back(o.index);
-                          break;
-                        }
-                      }
-                  }
-                }
-          }
-      }
-    };
-    cube C;
+    Cube C;
     std::vector<int> offsets;
     std::vector<int> offsets_recv;
     Synchronizer *Synch_ptr;
@@ -1293,8 +1292,7 @@ template <typename TGrid> struct Synchronizer {
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
-        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
         if (code[2] != 0)
           continue;
         if (!(sim.bcx == periodic) && code[0] == xskip && xskin)
@@ -1308,8 +1306,7 @@ template <typename TGrid> struct Synchronizer {
           Neighbors.insert(infoNeiTree);
           BlockInfo &infoNei =
               grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int icode2 =
-              (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
           recv_interfaces[infoNeiTree].push_back(
@@ -1322,8 +1319,7 @@ template <typename TGrid> struct Synchronizer {
           Coarsened = true;
           BlockInfo &infoNei =
               grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank =
-              grid->Tree0(info.level - 1, infoNei.Zparent);
+          int infoNeiCoarserrank = grid->Tree0(info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1332,8 +1328,7 @@ template <typename TGrid> struct Synchronizer {
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             int Bmax[3] = {sim.bpdx << (info.level - 1),
-                                 sim.bpdy << (info.level - 1),
-                                 1 << (info.level - 1)};
+                           sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
             int test_idx[3] = {
                 (infoNeiCoarser.index[0] - code[0] + Bmax[0]) % Bmax[0],
                 (infoNeiCoarser.index[1] - code[1] + Bmax[1]) % Bmax[1],
@@ -1518,7 +1513,7 @@ template <typename TGrid> struct Synchronizer {
                range.sy, range.sz, range.ex, range.ey, range.ez});
           if (f.CoarseStencil) {
             int V = (range.ex - range.sx) * (range.ey - range.sy) *
-                          (range.ez - range.sz);
+                    (range.ez - range.sz);
             ToBeAveragedDown[r].push_back(i);
             ToBeAveragedDown[r].push_back(f.dis + V * NC);
           }
