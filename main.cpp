@@ -2891,10 +2891,10 @@ template <typename Element> struct BlockLab {
         int z1 = y1 + 1;
         int z2 = y2 + 1;
         int z3 = y3 + 1;
-        Real *p0 = (Real *)(m + k0);
-        Real *p1 = (Real *)(m + k1);
-        Real *p2 = (Real *)(m + k2);
-        Real *p3 = (Real *)(m + k3);
+        Real *p0 = (Real *)(m) + dim * k0;
+        Real *p1 = (Real *)(m) + dim * k1;
+        Real *p2 = (Real *)(m) + dim * k2;
+	Real *p3 = (Real *)(m) + dim * k3;
         Real *q00 = (Real *)(b + _BS_ * y0 + x);
         Real *q10 = (Real *)(b + _BS_ * z0 + x);
         Real *q01 = (Real *)(b + _BS_ * y1 + x);
