@@ -1018,7 +1018,7 @@ template <typename TGrid> struct Synchronizer {
     std::vector<int> offsets_recv;
     std::vector<int> positions;
     std::vector<size_t> sizes;
-    DuplicatesManager(Synchronizer &Synch) {
+    DuplicatesManager() {
       positions.resize(sim.size);
       sizes.resize(sim.size);
       offsets.resize(sim.size, 0);
@@ -1271,7 +1271,7 @@ template <typename TGrid> struct Synchronizer {
     for (size_t i = 0; i < myunpacks.size(); i++)
       myunpacks[i].clear();
     myunpacks.clear();
-    DuplicatesManager DM(*(this));
+    DuplicatesManager DM;
     for (BlockInfo &info : grid->infos) {
       info.halo_id = -1;
       bool xskin =
