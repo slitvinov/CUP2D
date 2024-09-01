@@ -2192,18 +2192,18 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
   }
 }
 struct Grid {
-  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-  std::unordered_map<long long, int> Octree;
-  std::vector<BlockInfo> infos;
-  std::vector<long long> level_base;
+  bool FiniteDifferences{true};
   bool UpdateFluxCorrection{true};
   bool UpdateGroups{true};
-  bool FiniteDifferences{true};
   const int dim;
   FluxCorrectionMPI<Grid> *Corrector;
   size_t timestamp;
   std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
+  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
+  std::unordered_map<long long, int> Octree;
   std::vector<BlockInfo *> boundary;
+  std::vector<BlockInfo> infos;
+  std::vector<long long> level_base;
   Grid(int dim) : dim(dim) {}
   void *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? get(m, n).block : nullptr;
