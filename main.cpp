@@ -990,28 +990,28 @@ struct Cube {
   }
 };
 template <typename TGrid> struct Synchronizer {
-  const int dim;
-  StencilInfo stencil;
-  StencilInfo Cstencil;
-  TGrid *grid;
-  std::vector<BlockInfo *> inner_blocks;
-  std::vector<BlockInfo *> halo_blocks;
-  std::vector<std::vector<Real>> send_buffer;
-  std::vector<std::vector<Real>> recv_buffer;
-  std::vector<MPI_Request> requests;
-  std::vector<int> send_buffer_size;
-  std::vector<int> recv_buffer_size;
-  std::set<int> Neighbors;
-  std::vector<std::vector<UnPackInfo>> myunpacks;
-  StencilManager SM;
-  const int NC;
-  std::vector<std::vector<PackInfo>> send_packinfos;
-  std::vector<std::vector<Interface>> send_interfaces;
-  std::vector<std::vector<Interface>> recv_interfaces;
-  std::vector<std::vector<int>> ToBeAveragedDown;
   bool use_averages;
-  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
+  const int dim;
+  const int NC;
+  std::set<int> Neighbors;
   std::unordered_map<int, MPI_Request *> mapofrequests;
+  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
+  std::vector<BlockInfo *> halo_blocks;
+  std::vector<BlockInfo *> inner_blocks;
+  std::vector<int> recv_buffer_size;
+  std::vector<int> send_buffer_size;
+  std::vector<MPI_Request> requests;
+  std::vector<std::vector<Interface>> recv_interfaces;
+  std::vector<std::vector<Interface>> send_interfaces;
+  std::vector<std::vector<int>> ToBeAveragedDown;
+  std::vector<std::vector<PackInfo>> send_packinfos;
+  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<std::vector<Real>> send_buffer;
+  std::vector<std::vector<UnPackInfo>> myunpacks;
+  StencilInfo Cstencil;
+  StencilInfo stencil;
+  StencilManager SM;
+  TGrid *grid;
   struct DuplicatesManager {
     Cube C;
     std::vector<int> offsets;
