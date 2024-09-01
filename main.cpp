@@ -2921,13 +2921,13 @@ template <typename Element> struct BlockLab {
           Real *q130 = (Real *)(q13 + 2 * ee);
           Real *q131 = (Real *)(q13 + 2 * ee + 1);
           for (int d = 0; d < dim; d++) {
-            *(p0 + ee + d) =
+            *(p0 + dim * ee + d) =
                 (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
-            *(p1 + ee + d) =
+            *(p1 + dim * ee + d) =
                 (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
-            *(p2 + ee + d) =
+            *(p2 + dim * ee + d) =
                 (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
-            *(p3 + ee + d) =
+            *(p3 + dim * ee + d) =
                 (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
           }
         }
