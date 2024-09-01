@@ -961,7 +961,7 @@ template <typename TGrid> struct Synchronizer {
               retval.push_back(&compass[i][j]);
         return retval;
       }
-      void __needed(std::vector<int> &v) {
+      void needed(std::vector<int> &v) {
         static constexpr std::array<int, 3> faces_and_edges[18] = {
             {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
             {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
@@ -1052,7 +1052,7 @@ template <typename TGrid> struct Synchronizer {
       }
       if (skip_needed == false) {
         std::vector<int> remEl;
-        C.__needed(remEl);
+        C.needed(remEl);
         for (size_t k = 0; k < remEl.size(); k++)
           f[remEl[k]].ToBeKept = false;
       }
@@ -1093,7 +1093,7 @@ template <typename TGrid> struct Synchronizer {
       }
       if (skip_needed == false) {
         std::vector<int> remEl;
-        C.__needed(remEl);
+        C.needed(remEl);
         for (size_t k = 0; k < remEl.size(); k++)
           f[remEl[k]].ToBeKept = false;
       }
