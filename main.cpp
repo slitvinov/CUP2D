@@ -2941,9 +2941,9 @@ template <typename Element> struct BlockLab {
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
         int z = y + 1;
-        Real *p = (Real*)m + dim * k;
-        Real *q0 = (Real*)b + dim * (_BS_ * y + x);
-        Real *q1 = (Real*)b + dim * (_BS_ * z + x);
+        Real *p = um + dim * k;
+        Real *q0 = b + dim * (_BS_ * y + x);
+        Real *q1 = b + dim * (_BS_ * z + x);
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
