@@ -684,7 +684,7 @@ struct Interface {
     return (infos[0]->id2 < other.infos[0]->id2);
   }
 };
-struct MyRange {
+struct Range {
   std::vector<int> removedIndices;
   int index;
   int sx;
@@ -695,7 +695,7 @@ struct MyRange {
   int ez;
   bool needed{true};
   bool avg_down{true};
-  bool contains(MyRange &r) const {
+  bool contains(Range &r) const {
     if (avg_down != r.avg_down)
       return false;
     int V = (ez - sz) * (ey - sy) * (ex - sx);
@@ -703,7 +703,7 @@ struct MyRange {
     return (sx <= r.sx && r.ex <= ex) && (sy <= r.sy && r.ey <= ey) &&
            (sz <= r.sz && r.ez <= ez) && (Vr < V);
   }
-  void Remove(const MyRange &other) {
+  void Remove(const Range &other) {
     size_t s = removedIndices.size();
     removedIndices.resize(s + other.removedIndices.size());
     for (size_t i = 0; i < other.removedIndices.size(); i++)
@@ -741,8 +741,8 @@ struct StencilManager {
   int nY;
   int nZ;
   int sLength[3 * 27 * 3];
-  std::array<MyRange, 3 * 27> AllStencils;
-  MyRange Coarse_Range;
+  std::array<Range, 3 * 27> AllStencils;
+  Range Coarse_Range;
   StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
                  int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
@@ -753,7 +753,7 @@ struct StencilManager {
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
-      MyRange &range0 = AllStencils[icode];
+      Range &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
       range0.sz = code[2] < 1 ? (code[2] < 0 ? nZ : 0) : 0;
@@ -763,7 +763,7 @@ struct StencilManager {
       sLength[3 * icode + 0] = range0.ex - range0.sx;
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
-      MyRange &range1 = AllStencils[icode + 27];
+      Range &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? nX + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? nY + 2 * stencil.sy : 0) : 0;
       range1.sz = code[2] < 1 ? (code[2] < 0 ? nZ : 0) : 0;
@@ -773,7 +773,7 @@ struct StencilManager {
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
-      MyRange &range2 = AllStencils[icode + 2 * 27];
+      Range &range2 = AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? nX / 2 + sC[0] : 0) : 0;
       range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
       range2.ex = code[0] < 1 ? nX / 2 : eC[0] - 1;
@@ -806,7 +806,7 @@ struct StencilManager {
       L[2] = sLength[3 * (icode + 2 * 27) + 2];
     }
   }
-  MyRange &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
+  Range &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
     if (CoarseVersion) {
       AllStencils[f.icode[1] + 2 * 27].needed = true;
       return AllStencils[f.icode[1] + 2 * 27];
@@ -888,8 +888,8 @@ struct StencilManager {
       sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
       sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
     } else {
-      MyRange &range = DetermineStencil(f);
-      MyRange &range_dup = DetermineStencil(f_dup);
+      Range &range = DetermineStencil(f);
+      Range &range_dup = DetermineStencil(f_dup);
       sx = range_dup.sx - range.sx;
       sy = range_dup.sy - range.sy;
       sz = range_dup.sz - range.sz;
@@ -900,8 +900,8 @@ struct StencilManager {
     if (f.infos[0]->level != f.infos[1]->level ||
         f_dup.infos[0]->level != f_dup.infos[1]->level)
       return;
-    MyRange &range = DetermineStencil(f, true);
-    MyRange &range_dup = DetermineStencil(f_dup, true);
+    Range &range = DetermineStencil(f, true);
+    Range &range_dup = DetermineStencil(f_dup, true);
     sx = range_dup.sx - range.sx;
     sy = range_dup.sy - range.sy;
     sz = range_dup.sz - range.sz;
@@ -948,14 +948,14 @@ template <typename TGrid> struct Synchronizer {
   Synchronizer(int dim) : dim(dim) {}
   struct DuplicatesManager {
     struct cube {
-      std::vector<MyRange> compass[27];
+      std::vector<Range> compass[27];
       void clear() {
         for (int i = 0; i < 27; i++)
           compass[i].clear();
       }
       cube() {}
-      std::vector<MyRange *> keepEl() {
-        std::vector<MyRange *> retval;
+      std::vector<Range *> keepEl() {
+        std::vector<Range *> retval;
         for (int i = 0; i < 27; i++)
           for (size_t j = 0; j < compass[i].size(); j++)
             if (compass[i][j].needed)
@@ -1466,7 +1466,7 @@ template <typename TGrid> struct Synchronizer {
         if (!f.ToBeKept)
           continue;
         if (f.infos[0]->level <= f.infos[1]->level) {
-          const MyRange &range = SM.DetermineStencil(f);
+          const Range &range = SM.DetermineStencil(f);
           send_packinfos[r].push_back(
               {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
