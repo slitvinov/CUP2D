@@ -23,7 +23,7 @@
 #include "cuda.h"
 enum { max_dim = 2 };
 typedef double Real;
-#define MPI_Real MPI_DOUBLE
+static const MPI_Datatype MPI_Real = MPI_DOUBLE;
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static Real dist(Real a[2], Real b[2]) {
@@ -2140,7 +2140,6 @@ template <typename TGrid> struct FluxCorrectionMPI {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
 };
-
 static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
                        std::vector<long long> *level_base, int m, long long n) {
   const long long aux = (*level_base)[m] + n;
