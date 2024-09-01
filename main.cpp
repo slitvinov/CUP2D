@@ -2941,17 +2941,19 @@ template <typename Element> struct BlockLab {
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
         int z = y + 1;
-        Element *p = m + k;
-        Element *q0 = b + _BS_ * y + x;
-        Element *q1 = b + _BS_ * z + x;
+        Real *p = (Real*)m + dim * k;
+        Real *q0 = (Real*)b + dim * (_BS_ * y + x);
+        Real *q1 = (Real*)b + dim * (_BS_ * z + x);
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
-          Element *q00 = q0 + 2 * ee;
-          Element *q01 = q0 + 2 * ee + 1;
-          Element *q10 = q1 + 2 * ee;
-          Element *q11 = q1 + 2 * ee + 1;
-          p[ee] = AverageDown(*q00, *q10, *q01, *q11);
+          Real *q00 = q0 + dim * 2 * ee;
+          Real *q01 = q0 + dim * (2 * ee + 1);
+          Real *q10 = q1 + dim * 2 * ee;
+          Real *q11 = q1 + dim * (2 * ee + 1);
+	  for (d = 0; d < dim; d++)
+	    *(p + dim * ee + d) =
+	      AverageDown(*(q00 + d), *(q10 + d), *(q01 + d), *(q11 + d));
         }
       }
     }
