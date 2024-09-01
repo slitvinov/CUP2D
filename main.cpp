@@ -3006,10 +3006,14 @@ template <typename Element> struct BlockLab {
     const int i = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-      Element *p0 = &c[i + (iy + 0 - offset[1]) * nc[0]];
-      Element *p1 = &c[i + (iy + 1 - offset[1]) * nc[0]];
-      Element *p2 = &c[i + (iy + 2 - offset[1]) * nc[0]];
-      Element *p3 = &c[i + (iy + 3 - offset[1]) * nc[0]];
+      int i0 = i + (iy + 0 - offset[1]) * nc[0];
+      int i1 = i + (iy + 1 - offset[1]) * nc[0];
+      int i2 = i + (iy + 2 - offset[1]) * nc[0];
+      int i3 = i + (iy + 3 - offset[1]) * nc[0];
+      Element *p0 = &c[i0];
+      Element *p1 = &c[i1];
+      Element *p2 = &c[i2];
+      Element *p3 = &c[i3];
       const Element *q0 = &b[iy + 0 + start[1]][s[0] + start[0]];
       const Element *q1 = &b[iy + 1 + start[1]][s[0] + start[0]];
       const Element *q2 = &b[iy + 2 + start[1]][s[0] + start[0]];
