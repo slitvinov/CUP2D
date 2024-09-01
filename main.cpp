@@ -3009,13 +3009,13 @@ template <typename Element> struct BlockLab {
     const int mod = (e[1] - s[1]) % 4;
     const int my_izx = my_ix;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-      Element *__restrict__ ptrDest0 =
+      Element * ptrDest0 =
           &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
-      Element *__restrict__ ptrDest1 =
+      Element * ptrDest1 =
           &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
-      Element *__restrict__ ptrDest2 =
+      Element * ptrDest2 =
           &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
-      Element *__restrict__ ptrDest3 =
+      Element * ptrDest3 =
           &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
       const Element *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
       const Element *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
