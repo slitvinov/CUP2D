@@ -945,7 +945,6 @@ template <typename TGrid> struct Synchronizer {
   bool use_averages;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::unordered_map<int, MPI_Request *> mapofrequests;
-  Synchronizer(int dim) : dim(dim) {}
   struct DuplicatesManager {
     struct cube {
       std::vector<Range> compass[27];
@@ -1184,6 +1183,53 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   };
+  Synchronizer(int dim) : dim(dim) {}
+  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
+               int dim)
+      : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
+        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
+        NC(a_stencil.selcomponents.size()) {
+    grid = _grid;
+    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
+                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
+    send_interfaces.resize(sim.size);
+    recv_interfaces.resize(sim.size);
+    send_packinfos.resize(sim.size);
+    send_buffer_size.resize(sim.size);
+    recv_buffer_size.resize(sim.size);
+    send_buffer.resize(sim.size);
+    recv_buffer.resize(sim.size);
+    ToBeAveragedDown.resize(sim.size);
+    std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
+  }
+  std::vector<BlockInfo *> dummy_vector;
+  std::vector<BlockInfo *> &avail_next() {
+    bool done = false;
+    auto it = mapofHaloBlockGroups.begin();
+    while (done == false) {
+      done = true;
+      it = mapofHaloBlockGroups.begin();
+      while (it != mapofHaloBlockGroups.end()) {
+        if ((it->second).ready == false) {
+          std::set<int> ranks = (it->second).myranks;
+          int flag = 0;
+          for (auto r : ranks) {
+            const auto retval = mapofrequests.find(r);
+            MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+            if (flag == false)
+              break;
+          }
+          if (flag == 1) {
+            (it->second).ready = true;
+            return (it->second).myblocks;
+          }
+        }
+        done = done && (it->second).ready;
+        it++;
+      }
+    }
+    return dummy_vector;
+  }
   bool UseCoarseStencil(const Interface &f) {
     BlockInfo &a = *f.infos[0];
     BlockInfo &b = *f.infos[1];
@@ -1508,52 +1554,6 @@ template <typename TGrid> struct Synchronizer {
         (retval->second).myblocks.push_back(info);
       }
     }
-  }
-  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
-               int dim)
-      : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1),
-        NC(a_stencil.selcomponents.size()) {
-    grid = _grid;
-    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
-    send_interfaces.resize(sim.size);
-    recv_interfaces.resize(sim.size);
-    send_packinfos.resize(sim.size);
-    send_buffer_size.resize(sim.size);
-    recv_buffer_size.resize(sim.size);
-    send_buffer.resize(sim.size);
-    recv_buffer.resize(sim.size);
-    ToBeAveragedDown.resize(sim.size);
-    std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
-  }
-  std::vector<BlockInfo *> dummy_vector;
-  std::vector<BlockInfo *> &avail_next() {
-    bool done = false;
-    auto it = mapofHaloBlockGroups.begin();
-    while (done == false) {
-      done = true;
-      it = mapofHaloBlockGroups.begin();
-      while (it != mapofHaloBlockGroups.end()) {
-        if ((it->second).ready == false) {
-          std::set<int> ranks = (it->second).myranks;
-          int flag = 0;
-          for (auto r : ranks) {
-            const auto retval = mapofrequests.find(r);
-            MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
-            if (flag == false)
-              break;
-          }
-          if (flag == 1) {
-            (it->second).ready = true;
-            return (it->second).myblocks;
-          }
-        }
-        done = done && (it->second).ready;
-        it++;
-      }
-    }
-    return dummy_vector;
   }
   void sync0() {
     auto it = mapofHaloBlockGroups.begin();
