@@ -1807,7 +1807,6 @@ template <typename TGrid> struct FluxCorrection {
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> Map;
   std::vector<BlockCase *> Cases;
-  TGrid *grid;
   struct face {
     BlockInfo *infos[2];
     int icode[2];
@@ -1831,7 +1830,7 @@ template <typename TGrid> struct FluxCorrection {
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
   FluxCorrection(int dim) : dim(dim) {}
-  void FillCase(face &F) {
+  void FillCase(TGrid *grid, face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
@@ -1914,10 +1913,10 @@ template <typename TGrid> struct FluxCorrection {
       }
     }
   }
-  void prepare0(TGrid &_grid) {
-    if (_grid.UpdateFluxCorrection == false)
+  void prepare0(TGrid *grid) {
+    if (grid->UpdateFluxCorrection == false)
       return;
-    _grid.UpdateFluxCorrection = false;
+    grid->UpdateFluxCorrection = false;
     rank = sim.rank;
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
@@ -1934,8 +1933,7 @@ template <typename TGrid> struct FluxCorrection {
         free(Cases[i]->d[j]);
     Cases.clear();
     Map.clear();
-    grid = &_grid;
-    std::vector<BlockInfo> &BB = (*grid).infos;
+    std::vector<BlockInfo> &BB = grid->infos;
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -2057,7 +2055,7 @@ template <typename TGrid> struct FluxCorrection {
       }
     }
   }
-  void FillBlockCases() {
+  void FillBlockCases(TGrid *grid) {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2122,13 +2120,13 @@ template <typename TGrid> struct FluxCorrection {
     if (send_buffer[me].size() > 0)
       MPI_Waitall(1, &me_send_request, MPI_STATUSES_IGNORE);
     for (int index = 0; index < (int)recv_faces[me].size(); index++)
-      FillCase(recv_faces[me][index]);
+      FillCase(grid, recv_faces[me][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != me)
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
-          FillCase(recv_faces[r][index]);
+          FillCase(grid, recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0);
@@ -7080,9 +7078,9 @@ int main(int argc, char **argv) {
             Vold[iy][ix].u[1] = V[iy][ix].u[1];
           }
       }
-      var.tmpV->Corrector->prepare0(*var.tmpV);
+      var.tmpV->Corrector->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases();
+      var.tmpV->Corrector->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7099,9 +7097,9 @@ int main(int argc, char **argv) {
                 Vold[iy][ix].u[1] + (0.5 * tmpV[iy][ix].u[1]) * ih2;
           }
       }
-      var.tmpV->Corrector->prepare0(*var.tmpV);
+      var.tmpV->Corrector->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->Corrector->FillBlockCases();
+      var.tmpV->Corrector->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
@@ -7497,10 +7495,10 @@ int main(int argc, char **argv) {
             }
         }
       }
-      var.tmp->Corrector->prepare0(*var.tmp);
+      var.tmp->Corrector->prepare0(var.tmp);
       computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
           pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
-      var.tmp->Corrector->FillBlockCases();
+      var.tmp->Corrector->FillBlockCases(var.tmpV);
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7513,9 +7511,9 @@ int main(int argc, char **argv) {
             PRES[iy][ix] = 0;
           }
       }
-      var.tmp->Corrector->prepare0(*var.tmp);
+      var.tmp->Corrector->prepare0(var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      var.tmp->Corrector->FillBlockCases();
+      var.tmp->Corrector->FillBlockCases(var.tmpV);
       pressureSolver.solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -7545,9 +7543,9 @@ int main(int argc, char **argv) {
             P[iy][ix] += POLD[iy][ix] - avg;
       }
       {
-        var.tmpV->Corrector->prepare0(*var.tmpV);
+        var.tmpV->Corrector->prepare0(var.tmpV);
         computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-        var.tmpV->Corrector->FillBlockCases();
+        var.tmpV->Corrector->FillBlockCases(var.tmpV);
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
