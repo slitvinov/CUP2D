@@ -2964,11 +2964,10 @@ template <typename Element> struct BlockLab {
                             (info.index[1] + code[1] + NY) % NY};
     int infoNei_index_true[2] = {(info.index[0] + code[0]),
                                  (info.index[1] + code[1])};
-    void *b_ptr = grid->avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-                               info.level - 1);
-    if (b_ptr == nullptr)
+    Real *b = (Real *)grid->avail1((infoNei_index[0]) / 2,
+                                   (infoNei_index[1]) / 2, info.level - 1);
+    if (b == nullptr)
       return;
-    Element *b = (Element *)b_ptr;
     int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
     int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
@@ -3018,10 +3017,10 @@ template <typename Element> struct BlockLab {
       int y2 = iy + 2 + start[1];
       int y3 = iy + 3 + start[1];
       int x = s[0] + start[0];
-      Element *q0 = b + _BS_ * y0 + x;
-      Element *q1 = b + _BS_ * y1 + x;
-      Element *q2 = b + _BS_ * y2 + x;
-      Element *q3 = b + _BS_ * y3 + x;
+      Real *q0 = b + dim * (_BS_ * y0 + x);
+      Real *q1 = b + dim * (_BS_ * y1 + x);
+      Real *q2 = b + dim * (_BS_ * y2 + x);
+      Real *q3 = b + dim * (_BS_ * y3 + x);
       memcpy(p0, q0, bytes);
       memcpy(p1, q1, bytes);
       memcpy(p2, q2, bytes);
@@ -3031,8 +3030,8 @@ template <typename Element> struct BlockLab {
       int i0 = i + (iy - offset[1]) * nc[0];
       int y0 = iy + start[1];
       int x = s[0] + start[0];
-      Element *p = c + i0;
-      Element *q = b + _BS_ * y0 + x;
+      Real *p = (Real *)c + dim * i0;
+      Real *q = b + dim * (_BS_ * y0 + x);
       memcpy(p, q, bytes);
     }
   }
