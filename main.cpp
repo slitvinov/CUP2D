@@ -922,71 +922,73 @@ struct PackInfo {
   int ey;
   int ez;
 };
-struct Cube {
-  std::vector<Range> compass[27];
-  void clear() {
-    for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-      compass[i].clear();
-  }
-  std::vector<Range *> keepEl() {
-    std::vector<Range *> retval;
-    for (int i = 0; i < 27; i++)
-      for (size_t j = 0; j < compass[i].size(); j++)
-        if (compass[i][j].needed)
-          retval.push_back(&compass[i][j]);
-    return retval;
-  }
-  void needed(std::vector<int> &v) {
-    static constexpr std::array<int, 3> faces_and_edges[18] = {
-        {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
-        {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
-        {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
-    for (auto &f : faces_and_edges)
-      if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
-        bool needme = false;
-        auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
-        for (size_t j1 = 0; j1 < me.size(); j1++)
-          if (me[j1].needed) {
-            needme = true;
-            for (size_t j2 = 0; j2 < me.size(); j2++)
-              if (me[j2].needed && me[j2].contains(me[j1])) {
-                me[j1].needed = false;
-                me[j2].removedIndices.push_back(me[j1].index);
-                me[j2].Remove(me[j1]);
-                v.push_back(me[j1].index);
-                break;
-              }
-          }
-        if (!needme)
-          continue;
-        int imax = (f[0] == 1) ? 2 : f[0];
-        int imin = (f[0] == 1) ? 0 : f[0];
-        int jmax = (f[1] == 1) ? 2 : f[1];
-        int jmin = (f[1] == 1) ? 0 : f[1];
-        int kmax = (f[2] == 1) ? 2 : f[2];
-        int kmin = (f[2] == 1) ? 0 : f[2];
-        for (int k = kmin; k <= kmax; k++)
-          for (int j = jmin; j <= jmax; j++)
-            for (int i = imin; i <= imax; i++) {
-              if (i == f[0] && j == f[1] && k == f[2])
-                continue;
-              auto &other = compass[i + j * 3 + k * 9];
-              for (size_t j1 = 0; j1 < other.size(); j1++) {
-                auto &o = other[j1];
-                if (o.needed)
-                  for (size_t k1 = 0; k1 < me.size(); k1++) {
-                    auto &m = me[k1];
-                    if (m.needed && m.contains(o)) {
-                      o.needed = false;
-                      m.removedIndices.push_back(o.index);
-                      m.Remove(o);
-                      v.push_back(o.index);
-                      break;
-                    }
-                  }
-              }
+static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
+  std::vector<Range *> retval;
+  for (int i = 0; i < 27; i++)
+    for (size_t j = 0; j < compass[i].size(); j++)
+      if (compass[i][j].needed)
+        retval.push_back(&compass[i][j]);
+  return retval;
+}
+static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
+  static constexpr std::array<int, 3> faces_and_edges[18] = {
+      {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
+      {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
+      {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
+  for (auto &f : faces_and_edges)
+    if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
+      bool needme = false;
+      auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
+      for (size_t j1 = 0; j1 < me.size(); j1++)
+        if (me[j1].needed) {
+          needme = true;
+          for (size_t j2 = 0; j2 < me.size(); j2++)
+            if (me[j2].needed && me[j2].contains(me[j1])) {
+              me[j1].needed = false;
+              me[j2].removedIndices.push_back(me[j1].index);
+              me[j2].Remove(me[j1]);
+              v.push_back(me[j1].index);
+              break;
             }
-      }
+        }
+      if (!needme)
+        continue;
+      int imax = (f[0] == 1) ? 2 : f[0];
+      int imin = (f[0] == 1) ? 0 : f[0];
+      int jmax = (f[1] == 1) ? 2 : f[1];
+      int jmin = (f[1] == 1) ? 0 : f[1];
+      int kmax = (f[2] == 1) ? 2 : f[2];
+      int kmin = (f[2] == 1) ? 0 : f[2];
+      for (int k = kmin; k <= kmax; k++)
+        for (int j = jmin; j <= jmax; j++)
+          for (int i = imin; i <= imax; i++) {
+            if (i == f[0] && j == f[1] && k == f[2])
+              continue;
+            auto &other = compass[i + j * 3 + k * 9];
+            for (size_t j1 = 0; j1 < other.size(); j1++) {
+              auto &o = other[j1];
+              if (o.needed)
+                for (size_t k1 = 0; k1 < me.size(); k1++) {
+                  auto &m = me[k1];
+                  if (m.needed && m.contains(o)) {
+                    o.needed = false;
+                    m.removedIndices.push_back(o.index);
+                    m.Remove(o);
+                    v.push_back(o.index);
+                    break;
+                  }
+                }
+            }
+          }
+    }
+}
+struct DuplicatesManager {
+  std::vector<int> positions;
+  std::vector<size_t> sizes;
+  void Add(int r, int index) {
+    if (sizes[r] == 0)
+      positions[r] = index;
+    sizes[r]++;
   }
 };
 template <typename TGrid> struct Synchronizer {
@@ -1012,170 +1014,7 @@ template <typename TGrid> struct Synchronizer {
   StencilInfo stencil;
   StencilManager SM;
   TGrid *grid;
-  struct DuplicatesManager {
-    Cube C;
-    std::vector<int> offsets;
-    std::vector<int> offsets_recv;
-    std::vector<int> positions;
-    std::vector<size_t> sizes;
-    DuplicatesManager() {
-      positions.resize(sim.size);
-      sizes.resize(sim.size);
-      offsets.resize(sim.size, 0);
-      offsets_recv.resize(sim.size, 0);
-    }
-    void Add(const int r, const int index) {
-      if (sizes[r] == 0)
-        positions[r] = index;
-      sizes[r]++;
-    }
-    void RemoveDuplicates(Synchronizer *Synch, const int r,
-                          std::vector<Interface> &f, int &total_size) {
-      bool skip_needed = false;
-      const int nc = Synch->stencil.selcomponents.size();
-      std::sort(f.begin() + positions[r], f.begin() + sizes[r] + positions[r]);
-      C.clear();
-      for (size_t i = 0; i < sizes[r]; i++) {
-        C.compass[f[i + positions[r]].icode[0]].push_back(
-            Synch->SM.DetermineStencil(f[i + positions[r]]));
-        C.compass[f[i + positions[r]].icode[0]].back().index = i + positions[r];
-        C.compass[f[i + positions[r]].icode[0]].back().avg_down =
-            (f[i + positions[r]].infos[0]->level >
-             f[i + positions[r]].infos[1]->level);
-        if (skip_needed == false)
-          skip_needed = f[i + positions[r]].CoarseStencil;
-      }
-      if (skip_needed == false) {
-        std::vector<int> remEl;
-        C.needed(remEl);
-        for (size_t k = 0; k < remEl.size(); k++)
-          f[remEl[k]].ToBeKept = false;
-      }
-      int L[3] = {0, 0, 0};
-      int Lc[3] = {0, 0, 0};
-      for (auto &i : C.keepEl()) {
-        const int k = i->index;
-        Synch->SM.DetermineStencilLength(
-            f[k].infos[0]->level, f[k].infos[1]->level, f[k].icode[1], L);
-        const int V = L[0] * L[1] * L[2];
-        total_size += V;
-        f[k].dis = offsets[r];
-        if (f[k].CoarseStencil) {
-          Synch->SM.CoarseStencilLength(f[k].icode[1], Lc);
-          const int Vc = Lc[0] * Lc[1] * Lc[2];
-          total_size += Vc;
-          offsets[r] += Vc * nc;
-        }
-        offsets[r] += V * nc;
-        for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++)
-          f[i->removedIndices[kk]].dis = f[k].dis;
-      }
-    }
-    void RemoveDuplicates_recv(Synchronizer *Synch, std::vector<Interface> &f,
-                               int &total_size, const int otherrank,
-                               const size_t start, const size_t finish) {
-      bool skip_needed = false;
-      const int nc = Synch->stencil.selcomponents.size();
-      C.clear();
-      for (size_t i = start; i < finish; i++) {
-        C.compass[f[i].icode[0]].push_back(Synch->SM.DetermineStencil(f[i]));
-        C.compass[f[i].icode[0]].back().index = i;
-        C.compass[f[i].icode[0]].back().avg_down =
-            (f[i].infos[0]->level > f[i].infos[1]->level);
-        if (skip_needed == false)
-          skip_needed = f[i].CoarseStencil;
-      }
-      if (skip_needed == false) {
-        std::vector<int> remEl;
-        C.needed(remEl);
-        for (size_t k = 0; k < remEl.size(); k++)
-          f[remEl[k]].ToBeKept = false;
-      }
-      for (auto &i : C.keepEl()) {
-        const int k = i->index;
-        int L[3] = {0, 0, 0};
-        int Lc[3] = {0, 0, 0};
-        Synch->SM.DetermineStencilLength(
-            f[k].infos[0]->level, f[k].infos[1]->level, f[k].icode[1], L);
-        const int V = L[0] * L[1] * L[2];
-        int Vc = 0;
-        total_size += V;
-        f[k].dis = offsets_recv[otherrank];
-        UnPackInfo info = {f[k].dis,
-                           L[0],
-                           L[1],
-                           L[2],
-                           0,
-                           0,
-                           0,
-                           L[0],
-                           L[1],
-                           -1,
-                           0,
-                           0,
-                           0,
-                           0,
-                           0,
-                           f[k].infos[0]->level,
-                           f[k].icode[1],
-                           otherrank,
-                           f[k].infos[0]->index[0],
-                           f[k].infos[0]->index[1],
-                           f[k].infos[0]->index[2],
-                           f[k].infos[1]->id2};
-        if (f[k].CoarseStencil) {
-          Synch->SM.CoarseStencilLength(f[k].icode[1], Lc);
-          Vc = Lc[0] * Lc[1] * Lc[2];
-          total_size += Vc;
-          offsets_recv[otherrank] += Vc * nc;
-          info.CoarseVersionOffset = V * nc;
-          info.CoarseVersionLX = Lc[0];
-          info.CoarseVersionLY = Lc[1];
-        }
-        offsets_recv[otherrank] += V * nc;
-        Synch->myunpacks[f[k].infos[1]->halo_id].push_back(info);
-        for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
-          const int remEl1 = i->removedIndices[kk];
-          Synch->SM.DetermineStencilLength(f[remEl1].infos[0]->level,
-                                           f[remEl1].infos[1]->level,
-                                           f[remEl1].icode[1], &L[0]);
-          int srcx, srcy, srcz;
-          Synch->SM.__FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz,
-                                    L[0], L[1], L[2], srcx, srcy, srcz);
-          int Csrcx = 0;
-          int Csrcy = 0;
-          int Csrcz = 0;
-          if (f[k].CoarseStencil)
-            Synch->SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
-          Synch->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
-              {info.offset,
-               L[0],
-               L[1],
-               L[2],
-               srcx,
-               srcy,
-               srcz,
-               info.LX,
-               info.LY,
-               info.CoarseVersionOffset,
-               info.CoarseVersionLX,
-               info.CoarseVersionLY,
-               Csrcx,
-               Csrcy,
-               Csrcz,
-               f[remEl1].infos[0]->level,
-               f[remEl1].icode[1],
-               otherrank,
-               f[remEl1].infos[0]->index[0],
-               f[remEl1].infos[0]->index[1],
-               f[remEl1].infos[0]->index[2],
-               f[remEl1].infos[1]->id2});
-          f[remEl1].dis = info.offset;
-        }
-      }
-    }
-  };
-  Synchronizer(int dim) : dim(dim) {}
+  std::vector<BlockInfo *> dummy_vector;
   Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
                int dim)
       : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
@@ -1194,7 +1033,6 @@ template <typename TGrid> struct Synchronizer {
     ToBeAveragedDown.resize(sim.size);
     std::sort(stencil.selcomponents.begin(), stencil.selcomponents.end());
   }
-  std::vector<BlockInfo *> dummy_vector;
   std::vector<BlockInfo *> &avail_next() {
     bool done = false;
     auto it = mapofHaloBlockGroups.begin();
@@ -1258,6 +1096,11 @@ template <typename TGrid> struct Synchronizer {
     return retval;
   }
   void _Setup() {
+    DuplicatesManager DM;
+    std::vector<int> offsets(sim.size, 0);
+    std::vector<int> offsets_recv(sim.size, 0);
+    DM.positions.resize(sim.size);
+    DM.sizes.resize(sim.size);
     Neighbors.clear();
     inner_blocks.clear();
     halo_blocks.clear();
@@ -1269,7 +1112,7 @@ template <typename TGrid> struct Synchronizer {
     for (size_t i = 0; i < myunpacks.size(); i++)
       myunpacks[i].clear();
     myunpacks.clear();
-    DuplicatesManager DM;
+    std::vector<Range> compass[27];
     for (BlockInfo &info : grid->infos) {
       info.halo_id = -1;
       bool xskin =
@@ -1466,8 +1309,48 @@ template <typename TGrid> struct Synchronizer {
           if (DM.sizes[r] > 0) {
             std::vector<Interface> &f = send_interfaces[r];
             int &total_size = send_buffer_size[r];
-            DM.RemoveDuplicates(this, r, send_interfaces[r],
-                                send_buffer_size[r]);
+            bool skip_needed = false;
+            const int nc = stencil.selcomponents.size();
+            std::sort(f.begin() + DM.positions[r],
+                      f.begin() + DM.sizes[r] + DM.positions[r]);
+            for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+              compass[i].clear();
+            for (size_t i = 0; i < DM.sizes[r]; i++) {
+              compass[f[i + DM.positions[r]].icode[0]].push_back(
+                  SM.DetermineStencil(f[i + DM.positions[r]]));
+              compass[f[i + DM.positions[r]].icode[0]].back().index =
+                  i + DM.positions[r];
+              compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
+                  (f[i + DM.positions[r]].infos[0]->level >
+                   f[i + DM.positions[r]].infos[1]->level);
+              if (skip_needed == false)
+                skip_needed = f[i + DM.positions[r]].CoarseStencil;
+            }
+            if (skip_needed == false) {
+              std::vector<int> remEl;
+              needed0(compass, remEl);
+              for (size_t k = 0; k < remEl.size(); k++)
+                f[remEl[k]].ToBeKept = false;
+            }
+            int L[3] = {0, 0, 0};
+            int Lc[3] = {0, 0, 0};
+            for (auto &i : keepEl(compass)) {
+              const int k = i->index;
+              SM.DetermineStencilLength(f[k].infos[0]->level,
+                                        f[k].infos[1]->level, f[k].icode[1], L);
+              const int V = L[0] * L[1] * L[2];
+              total_size += V;
+              f[k].dis = offsets[r];
+              if (f[k].CoarseStencil) {
+                SM.CoarseStencilLength(f[k].icode[1], Lc);
+                const int Vc = Lc[0] * Lc[1] * Lc[2];
+                total_size += Vc;
+                offsets[r] += Vc * nc;
+              }
+              offsets[r] += V * nc;
+              for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++)
+                f[i->removedIndices[kk]].dis = f[k].dis;
+            }
             DM.sizes[r] = 0;
           }
       }
@@ -1491,8 +1374,109 @@ template <typename TGrid> struct Synchronizer {
             break;
         }
         counter = j;
-        DM.RemoveDuplicates_recv(this, recv_interfaces[r], recv_buffer_size[r],
-                                 r, start, finish);
+        std::vector<Interface> &f = recv_interfaces[r];
+        int &total_size = recv_buffer_size[r];
+        const int otherrank = r;
+        bool skip_needed = false;
+        const int nc = stencil.selcomponents.size();
+        for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+          compass[i].clear();
+        for (size_t i = start; i < finish; i++) {
+          compass[f[i].icode[0]].push_back(SM.DetermineStencil(f[i]));
+          compass[f[i].icode[0]].back().index = i;
+          compass[f[i].icode[0]].back().avg_down =
+              (f[i].infos[0]->level > f[i].infos[1]->level);
+          if (skip_needed == false)
+            skip_needed = f[i].CoarseStencil;
+        }
+        if (skip_needed == false) {
+          std::vector<int> remEl;
+          needed0(compass, remEl);
+          for (size_t k = 0; k < remEl.size(); k++)
+            f[remEl[k]].ToBeKept = false;
+        }
+        for (auto &i : keepEl(compass)) {
+          const int k = i->index;
+          int L[3] = {0, 0, 0};
+          int Lc[3] = {0, 0, 0};
+          SM.DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
+                                    f[k].icode[1], L);
+          const int V = L[0] * L[1] * L[2];
+          int Vc = 0;
+          total_size += V;
+          f[k].dis = offsets_recv[otherrank];
+          UnPackInfo info = {f[k].dis,
+                             L[0],
+                             L[1],
+                             L[2],
+                             0,
+                             0,
+                             0,
+                             L[0],
+                             L[1],
+                             -1,
+                             0,
+                             0,
+                             0,
+                             0,
+                             0,
+                             f[k].infos[0]->level,
+                             f[k].icode[1],
+                             otherrank,
+                             f[k].infos[0]->index[0],
+                             f[k].infos[0]->index[1],
+                             f[k].infos[0]->index[2],
+                             f[k].infos[1]->id2};
+          if (f[k].CoarseStencil) {
+            SM.CoarseStencilLength(f[k].icode[1], Lc);
+            Vc = Lc[0] * Lc[1] * Lc[2];
+            total_size += Vc;
+            offsets_recv[otherrank] += Vc * nc;
+            info.CoarseVersionOffset = V * nc;
+            info.CoarseVersionLX = Lc[0];
+            info.CoarseVersionLY = Lc[1];
+          }
+          offsets_recv[otherrank] += V * nc;
+          myunpacks[f[k].infos[1]->halo_id].push_back(info);
+          for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
+            const int remEl1 = i->removedIndices[kk];
+            SM.DetermineStencilLength(f[remEl1].infos[0]->level,
+                                      f[remEl1].infos[1]->level,
+                                      f[remEl1].icode[1], &L[0]);
+            int srcx, srcy, srcz;
+            SM.__FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
+                               L[1], L[2], srcx, srcy, srcz);
+            int Csrcx = 0;
+            int Csrcy = 0;
+            int Csrcz = 0;
+            if (f[k].CoarseStencil)
+              SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
+            myunpacks[f[remEl1].infos[1]->halo_id].push_back(
+                {info.offset,
+                 L[0],
+                 L[1],
+                 L[2],
+                 srcx,
+                 srcy,
+                 srcz,
+                 info.LX,
+                 info.LY,
+                 info.CoarseVersionOffset,
+                 info.CoarseVersionLX,
+                 info.CoarseVersionLY,
+                 Csrcx,
+                 Csrcy,
+                 Csrcz,
+                 f[remEl1].infos[0]->level,
+                 f[remEl1].icode[1],
+                 otherrank,
+                 f[remEl1].infos[0]->index[0],
+                 f[remEl1].infos[0]->index[1],
+                 f[remEl1].infos[0]->index[2],
+                 f[remEl1].infos[1]->id2});
+            f[remEl1].dis = info.offset;
+          }
+        }
       }
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
@@ -2922,20 +2906,20 @@ template <typename Element> struct BlockLab {
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
-          Element * q000 = q00 + 2 * ee;
-          Element * q001 = q00 + 2 * ee + 1;
-          Element * q010 = q01 + 2 * ee;
-          Element * q011 = q01 + 2 * ee + 1;
-          Element * q020 = q02 + 2 * ee;
-          Element * q021 = q02 + 2 * ee + 1;
-          Element * q030 = q03 + 2 * ee;
-          Element * q031 = q03 + 2 * ee + 1;
-          Element * q110 = q11 + 2 * ee;
-          Element * q111 = q11 + 2 * ee + 1;
-          Element * q120 = q12 + 2 * ee;
-          Element * q121 = q12 + 2 * ee + 1;
-          Element * q130 = q13 + 2 * ee;
-          Element * q131 = q13 + 2 * ee + 1;
+          Element *q000 = q00 + 2 * ee;
+          Element *q001 = q00 + 2 * ee + 1;
+          Element *q010 = q01 + 2 * ee;
+          Element *q011 = q01 + 2 * ee + 1;
+          Element *q020 = q02 + 2 * ee;
+          Element *q021 = q02 + 2 * ee + 1;
+          Element *q030 = q03 + 2 * ee;
+          Element *q031 = q03 + 2 * ee + 1;
+          Element *q110 = q11 + 2 * ee;
+          Element *q111 = q11 + 2 * ee + 1;
+          Element *q120 = q12 + 2 * ee;
+          Element *q121 = q12 + 2 * ee + 1;
+          Element *q130 = q13 + 2 * ee;
+          Element *q131 = q13 + 2 * ee + 1;
           p0[ee] = AverageDown(*q000, *q010, *q001, *q011);
           p1[ee] = AverageDown(*q010, *q110, *q011, *q111);
           p2[ee] = AverageDown(*q020, *q120, *q021, *q121);
@@ -2943,10 +2927,10 @@ template <typename Element> struct BlockLab {
         }
       }
       for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-	int k = i + (abs(code[1]) * (iy - start[1]) +
-                               (1 - abs(code[1])) * (iy / 2 - start[1] +
-                                                     aux * (e[1] - s[1]) / 2)) *
-	  nm[0];
+        int k = i + (abs(code[1]) * (iy - start[1]) +
+                     (1 - abs(code[1])) *
+                         (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
+                        nm[0];
         int y = (abs(code[1]) == 1)
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
@@ -4276,6 +4260,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
+  Real sum;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -4331,6 +4316,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   attr = (float *)malloc(ncell * sizeof *xyz);
   k = 0;
   l = 0;
+  sum = 0;
   for (i = 0; i < nblock; i++) {
     const BlockInfo &info = infos[i];
     ScalarBlock &b = *(ScalarBlock *)info.block;
@@ -4351,8 +4337,10 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = u1;
         xyz[k++] = v0;
         attr[l++] = b[y][x];
+        sum += b[y][x];
       }
   }
+  printf("main.cpp: %d: %8.3e\n", sim.rank, sum / (_BS_ * _BS_ * nblock));
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz,
