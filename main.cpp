@@ -3019,10 +3019,10 @@ template <typename Element> struct BlockLab {
       int y2 = iy + 2 + start[1];
       int y3 = iy + 3 + start[1];
       int x = s[0] + start[0];
-      const Element *q0 = &b[y0][x];
-      const Element *q1 = &b[y1][x];
-      const Element *q2 = &b[y2][x];
-      const Element *q3 = &b[y3][x];
+      const Element *q0 = &b[_BS_ * y0 + x];
+      const Element *q1 = &b[_BS_ * y1 + x];
+      const Element *q2 = &b[_BS_ * y2 + x];
+      const Element *q3 = &b[_BS_ * y3 + x];
       memcpy(p0, q0, bytes);
       memcpy(p1, q1, bytes);
       memcpy(p2, q2, bytes);
@@ -3033,7 +3033,7 @@ template <typename Element> struct BlockLab {
       int y0 = iy + start[1];
       int x = s[0] + start[0];
       Element *p = &c[i0];
-      const Element *q = &b[y0][x];
+      const Element *q = &b[_BS_ * y0 + x];
       memcpy(p, q, bytes);
     }
   }
