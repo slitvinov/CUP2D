@@ -3009,19 +3009,19 @@ template <typename Element> struct BlockLab {
       int i1 = i + (iy + 1 - offset[1]) * nc[0];
       int i2 = i + (iy + 2 - offset[1]) * nc[0];
       int i3 = i + (iy + 3 - offset[1]) * nc[0];
-      Element *p0 = &c[i0];
-      Element *p1 = &c[i1];
-      Element *p2 = &c[i2];
-      Element *p3 = &c[i3];
+      Element *p0 = c + i0;
+      Element *p1 = c + i1;
+      Element *p2 = c + i2;
+      Element *p3 = c + i3;
       int y0 = iy + 0 + start[1];
       int y1 = iy + 1 + start[1];
       int y2 = iy + 2 + start[1];
       int y3 = iy + 3 + start[1];
       int x = s[0] + start[0];
-      Element *q0 = &b[_BS_ * y0 + x];
-      Element *q1 = &b[_BS_ * y1 + x];
-      Element *q2 = &b[_BS_ * y2 + x];
-      Element *q3 = &b[_BS_ * y3 + x];
+      Element *q0 = b + _BS_ * y0 + x;
+      Element *q1 = b + _BS_ * y1 + x;
+      Element *q2 = b + _BS_ * y2 + x;
+      Element *q3 = b + _BS_ * y3 + x;
       memcpy(p0, q0, bytes);
       memcpy(p1, q1, bytes);
       memcpy(p2, q2, bytes);
@@ -3031,8 +3031,8 @@ template <typename Element> struct BlockLab {
       int i0 = i + (iy - offset[1]) * nc[0];
       int y0 = iy + start[1];
       int x = s[0] + start[0];
-      Element *p = &c[i0];
-      Element *q = &b[_BS_ * y0 + x];
+      Element *p = c + i0;
+      Element *q = b + _BS_ * y0 + x;
       memcpy(p, q, bytes);
     }
   }
