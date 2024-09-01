@@ -2891,10 +2891,10 @@ template <typename Element> struct BlockLab {
         int z1 = y1 + 1;
         int z2 = y2 + 1;
         int z3 = y3 + 1;
-        Element *p0 = m + k0;
-        Element *p1 = m + k1;
-        Element *p2 = m + k2;
-        Element *p3 = m + k3;
+        Real *p0 = (Real *)(m + k0);
+        Real *p1 = (Real *)(m + k1);
+        Real *p2 = (Real *)(m + k2);
+        Real *p3 = (Real *)(m + k3);
         Element *q00 = b + _BS_ * y0 + x;
         Element *q10 = b + _BS_ * z0 + x;
         Element *q01 = b + _BS_ * y1 + x;
@@ -2906,24 +2906,30 @@ template <typename Element> struct BlockLab {
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
-          Element *q000 = q00 + 2 * ee;
-          Element *q001 = q00 + 2 * ee + 1;
-          Element *q010 = q01 + 2 * ee;
-          Element *q011 = q01 + 2 * ee + 1;
-          Element *q020 = q02 + 2 * ee;
-          Element *q021 = q02 + 2 * ee + 1;
-          Element *q030 = q03 + 2 * ee;
-          Element *q031 = q03 + 2 * ee + 1;
-          Element *q110 = q11 + 2 * ee;
-          Element *q111 = q11 + 2 * ee + 1;
-          Element *q120 = q12 + 2 * ee;
-          Element *q121 = q12 + 2 * ee + 1;
-          Element *q130 = q13 + 2 * ee;
-          Element *q131 = q13 + 2 * ee + 1;
-          p0[ee] = AverageDown(*q000, *q010, *q001, *q011);
-          p1[ee] = AverageDown(*q010, *q110, *q011, *q111);
-          p2[ee] = AverageDown(*q020, *q120, *q021, *q121);
-          p3[ee] = AverageDown(*q030, *q130, *q031, *q131);
+          Real *q000 = (Real *)(q00 + 2 * ee);
+          Real *q001 = (Real *)(q00 + 2 * ee + 1);
+          Real *q010 = (Real *)(q01 + 2 * ee);
+          Real *q011 = (Real *)(q01 + 2 * ee + 1);
+          Real *q020 = (Real *)(q02 + 2 * ee);
+          Real *q021 = (Real *)(q02 + 2 * ee + 1);
+          Real *q030 = (Real *)(q03 + 2 * ee);
+          Real *q031 = (Real *)(q03 + 2 * ee + 1);
+          Real *q110 = (Real *)(q11 + 2 * ee);
+          Real *q111 = (Real *)(q11 + 2 * ee + 1);
+          Real *q120 = (Real *)(q12 + 2 * ee);
+          Real *q121 = (Real *)(q12 + 2 * ee + 1);
+          Real *q130 = (Real *)(q13 + 2 * ee);
+          Real *q131 = (Real *)(q13 + 2 * ee + 1);
+          for (int d = 0; d < dim; d++) {
+            *(p0 + ee + d) =
+                (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
+            *(p1 + ee + d) =
+                (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
+            *(p2 + ee + d) =
+                (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
+            *(p3 + ee + d) =
+                (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
+          }
         }
       }
       for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
