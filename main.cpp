@@ -2192,7 +2192,6 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
-  bool UpdateGroups{true};
   const int dim;
   FluxCorrectionMPI<Grid> *Corrector;
   size_t timestamp;
@@ -3891,7 +3890,6 @@ struct Adaptation {
     Balancer->Balance_Diffusion(grid, block_distribution);
     if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
       grid->UpdateFluxCorrection = true;
-      grid->UpdateGroups = true;
       grid->UpdateBlockInfoAll_States(false);
       auto it = grid->SynchronizerMPIs.begin();
       while (it != grid->SynchronizerMPIs.end()) {
@@ -6894,7 +6892,6 @@ int main(int argc, char **argv) {
     }
     g->FillPos();
     g->UpdateFluxCorrection = true;
-    g->UpdateGroups = true;
     g->UpdateBlockInfoAll_States(false);
     for (auto it = g->SynchronizerMPIs.begin(); it != g->SynchronizerMPIs.end();
          ++it)
