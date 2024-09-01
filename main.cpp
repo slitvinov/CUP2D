@@ -2895,14 +2895,14 @@ template <typename Element> struct BlockLab {
         Real *p1 = (Real *)(m) + dim * k1;
         Real *p2 = (Real *)(m) + dim * k2;
 	Real *p3 = (Real *)(m) + dim * k3;
-        Real *q00 = (Real *)(b + _BS_ * y0 + x);
-        Real *q10 = (Real *)(b + _BS_ * z0 + x);
-        Real *q01 = (Real *)(b + _BS_ * y1 + x);
-        Real *q11 = (Real *)(b + _BS_ * z1 + x);
-        Real *q02 = (Real *)(b + _BS_ * y2 + x);
-        Real *q12 = (Real *)(b + _BS_ * z2 + x);
-        Real *q03 = (Real *)(b + _BS_ * y3 + x);
-        Real *q13 = (Real *)(b + _BS_ * z3 + x);
+        Real *q00 = (Real *)(b) + dim * (_BS_ * y0 + x);
+        Real *q10 = (Real *)(b) + dim * (_BS_ * z0 + x);
+        Real *q01 = (Real *)(b) + dim * (_BS_ * y1 + x);
+        Real *q11 = (Real *)(b) + dim * (_BS_ * z1 + x);
+        Real *q02 = (Real *)(b) + dim * (_BS_ * y2 + x);
+        Real *q12 = (Real *)(b) + dim * (_BS_ * z2 + x);
+        Real *q03 = (Real *)(b) + dim * (_BS_ * y3 + x);
+        Real *q13 = (Real *)(b) + dim * (_BS_ * z3 + x);
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
