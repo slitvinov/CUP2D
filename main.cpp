@@ -950,7 +950,7 @@ template <typename TGrid> struct Synchronizer {
     struct cube {
       std::vector<Range> compass[27];
       void clear() {
-        for (int i = 0; i < 27; i++)
+        for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
       }
       cube() {}
@@ -985,12 +985,12 @@ template <typename TGrid> struct Synchronizer {
               }
             if (!needme)
               continue;
-            const int imax = (f[0] == 1) ? 2 : f[0];
-            const int imin = (f[0] == 1) ? 0 : f[0];
-            const int jmax = (f[1] == 1) ? 2 : f[1];
-            const int jmin = (f[1] == 1) ? 0 : f[1];
-            const int kmax = (f[2] == 1) ? 2 : f[2];
-            const int kmin = (f[2] == 1) ? 0 : f[2];
+            int imax = (f[0] == 1) ? 2 : f[0];
+            int imin = (f[0] == 1) ? 0 : f[0];
+            int jmax = (f[1] == 1) ? 2 : f[1];
+            int jmin = (f[1] == 1) ? 0 : f[1];
+            int kmax = (f[2] == 1) ? 2 : f[2];
+            int kmin = (f[2] == 1) ? 0 : f[2];
             for (int k = kmin; k <= kmax; k++)
               for (int j = jmin; j <= jmax; j++)
                 for (int i = imin; i <= imax; i++) {
