@@ -1802,7 +1802,7 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-template <typename TGrid> struct FluxCorrection {
+struct FluxCorrection {
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> Map;
@@ -1830,7 +1830,7 @@ template <typename TGrid> struct FluxCorrection {
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
   FluxCorrection(int dim) : dim(dim) {}
-  void FillCase(TGrid *grid, face &F) {
+  template <typename TGrid> void FillCase(TGrid *grid, face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
@@ -1913,7 +1913,7 @@ template <typename TGrid> struct FluxCorrection {
       }
     }
   }
-  void prepare0(TGrid *grid) {
+  template <typename TGrid> void prepare0(TGrid *grid) {
     if (grid->UpdateFluxCorrection == false)
       return;
     grid->UpdateFluxCorrection = false;
@@ -2055,7 +2055,7 @@ template <typename TGrid> struct FluxCorrection {
       }
     }
   }
-  void FillBlockCases(TGrid *grid) {
+  template <typename TGrid> void FillBlockCases(TGrid *grid) {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2191,7 +2191,7 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
-  FluxCorrection<Grid> *Corrector;
+  FluxCorrection *Corrector;
   size_t timestamp;
   std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
@@ -6851,7 +6851,7 @@ int main(int argc, char **argv) {
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
-    g->Corrector = new FluxCorrection<Grid>(g->dim);
+    g->Corrector = new FluxCorrection(g->dim);
     g->level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       g->level_base.push_back(g->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
