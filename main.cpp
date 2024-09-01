@@ -2953,7 +2953,7 @@ template <typename Element> struct BlockLab {
           Real *q11 = q1 + dim * (2 * ee + 1);
 	  for (d = 0; d < dim; d++)
 	    *(p + dim * ee + d) =
-	      AverageDown(*(q00 + d), *(q10 + d), *(q01 + d), *(q11 + d));
+	      (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
         }
       }
     }
