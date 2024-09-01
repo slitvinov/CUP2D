@@ -1031,8 +1031,6 @@ template <typename TGrid> struct Synchronizer {
     }
     void RemoveDuplicates(Synchronizer *Synch, const int r,
                           std::vector<Interface> &f, int &total_size) {
-      if (sizes[r] == 0)
-        return;
       bool skip_needed = false;
       const int nc = Synch->stencil.selcomponents.size();
       std::sort(f.begin() + positions[r], f.begin() + sizes[r] + positions[r]);
