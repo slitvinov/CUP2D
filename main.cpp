@@ -1802,7 +1802,7 @@ template <typename TGrid> struct Synchronizer {
     }
   }
 };
-template <typename TGrid> struct FluxCorrectionMPI {
+template <typename TGrid> struct FluxCorrection {
   const int dim;
   int rank{0};
   std::map<std::array<long long, 2>, BlockCase *> MapOfCases;
@@ -1830,7 +1830,7 @@ template <typename TGrid> struct FluxCorrectionMPI {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<face>> send_faces;
   std::vector<std::vector<face>> recv_faces;
-  FluxCorrectionMPI(int dim) : dim(dim) {}
+  FluxCorrection(int dim) : dim(dim) {}
   void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -2193,7 +2193,7 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
-  FluxCorrectionMPI<Grid> *Corrector;
+  FluxCorrection<Grid> *Corrector;
   size_t timestamp;
   std::map<StencilInfo, Synchronizer<Grid> *> SynchronizerMPIs;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
@@ -6853,7 +6853,7 @@ int main(int argc, char **argv) {
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
-    g->Corrector = new FluxCorrectionMPI<Grid>(g->dim);
+    g->Corrector = new FluxCorrection<Grid>(g->dim);
     g->level_base.push_back(sim.bpdx * sim.bpdy * 2);
     for (int m = 1; m < sim.levelMax; m++)
       g->level_base.push_back(g->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
