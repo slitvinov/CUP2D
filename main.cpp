@@ -1016,7 +1016,6 @@ template <typename TGrid> struct Synchronizer {
     Cube C;
     std::vector<int> offsets;
     std::vector<int> offsets_recv;
-    Synchronizer *Synch_ptr;
     std::vector<int> positions;
     std::vector<size_t> sizes;
     DuplicatesManager(Synchronizer &Synch) {
@@ -1024,24 +1023,23 @@ template <typename TGrid> struct Synchronizer {
       sizes.resize(sim.size);
       offsets.resize(sim.size, 0);
       offsets_recv.resize(sim.size, 0);
-      Synch_ptr = &Synch;
     }
     void Add(const int r, const int index) {
       if (sizes[r] == 0)
         positions[r] = index;
       sizes[r]++;
     }
-    void RemoveDuplicates(const int r, std::vector<Interface> &f,
-                          int &total_size) {
+    void RemoveDuplicates(Synchronizer *Synch, const int r,
+                          std::vector<Interface> &f, int &total_size) {
       if (sizes[r] == 0)
         return;
       bool skip_needed = false;
-      const int nc = Synch_ptr->stencil.selcomponents.size();
+      const int nc = Synch->stencil.selcomponents.size();
       std::sort(f.begin() + positions[r], f.begin() + sizes[r] + positions[r]);
       C.clear();
       for (size_t i = 0; i < sizes[r]; i++) {
         C.compass[f[i + positions[r]].icode[0]].push_back(
-            Synch_ptr->SM.DetermineStencil(f[i + positions[r]]));
+            Synch->SM.DetermineStencil(f[i + positions[r]]));
         C.compass[f[i + positions[r]].icode[0]].back().index = i + positions[r];
         C.compass[f[i + positions[r]].icode[0]].back().avg_down =
             (f[i + positions[r]].infos[0]->level >
@@ -1059,13 +1057,13 @@ template <typename TGrid> struct Synchronizer {
       int Lc[3] = {0, 0, 0};
       for (auto &i : C.keepEl()) {
         const int k = i->index;
-        Synch_ptr->SM.DetermineStencilLength(
+        Synch->SM.DetermineStencilLength(
             f[k].infos[0]->level, f[k].infos[1]->level, f[k].icode[1], L);
         const int V = L[0] * L[1] * L[2];
         total_size += V;
         f[k].dis = offsets[r];
         if (f[k].CoarseStencil) {
-          Synch_ptr->SM.CoarseStencilLength(f[k].icode[1], Lc);
+          Synch->SM.CoarseStencilLength(f[k].icode[1], Lc);
           const int Vc = Lc[0] * Lc[1] * Lc[2];
           total_size += Vc;
           offsets[r] += Vc * nc;
@@ -1075,15 +1073,14 @@ template <typename TGrid> struct Synchronizer {
           f[i->removedIndices[kk]].dis = f[k].dis;
       }
     }
-    void RemoveDuplicates_recv(std::vector<Interface> &f, int &total_size,
-                               const int otherrank, const size_t start,
-                               const size_t finish) {
+    void RemoveDuplicates_recv(Synchronizer *Synch, std::vector<Interface> &f,
+                               int &total_size, const int otherrank,
+                               const size_t start, const size_t finish) {
       bool skip_needed = false;
-      const int nc = Synch_ptr->stencil.selcomponents.size();
+      const int nc = Synch->stencil.selcomponents.size();
       C.clear();
       for (size_t i = start; i < finish; i++) {
-        C.compass[f[i].icode[0]].push_back(
-            Synch_ptr->SM.DetermineStencil(f[i]));
+        C.compass[f[i].icode[0]].push_back(Synch->SM.DetermineStencil(f[i]));
         C.compass[f[i].icode[0]].back().index = i;
         C.compass[f[i].icode[0]].back().avg_down =
             (f[i].infos[0]->level > f[i].infos[1]->level);
@@ -1100,7 +1097,7 @@ template <typename TGrid> struct Synchronizer {
         const int k = i->index;
         int L[3] = {0, 0, 0};
         int Lc[3] = {0, 0, 0};
-        Synch_ptr->SM.DetermineStencilLength(
+        Synch->SM.DetermineStencilLength(
             f[k].infos[0]->level, f[k].infos[1]->level, f[k].icode[1], L);
         const int V = L[0] * L[1] * L[2];
         int Vc = 0;
@@ -1129,7 +1126,7 @@ template <typename TGrid> struct Synchronizer {
                            f[k].infos[0]->index[2],
                            f[k].infos[1]->id2};
         if (f[k].CoarseStencil) {
-          Synch_ptr->SM.CoarseStencilLength(f[k].icode[1], Lc);
+          Synch->SM.CoarseStencilLength(f[k].icode[1], Lc);
           Vc = Lc[0] * Lc[1] * Lc[2];
           total_size += Vc;
           offsets_recv[otherrank] += Vc * nc;
@@ -1138,23 +1135,21 @@ template <typename TGrid> struct Synchronizer {
           info.CoarseVersionLY = Lc[1];
         }
         offsets_recv[otherrank] += V * nc;
-        Synch_ptr->myunpacks[f[k].infos[1]->halo_id].push_back(info);
+        Synch->myunpacks[f[k].infos[1]->halo_id].push_back(info);
         for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
           const int remEl1 = i->removedIndices[kk];
-          Synch_ptr->SM.DetermineStencilLength(f[remEl1].infos[0]->level,
-                                               f[remEl1].infos[1]->level,
-                                               f[remEl1].icode[1], &L[0]);
+          Synch->SM.DetermineStencilLength(f[remEl1].infos[0]->level,
+                                           f[remEl1].infos[1]->level,
+                                           f[remEl1].icode[1], &L[0]);
           int srcx, srcy, srcz;
-          Synch_ptr->SM.__FixDuplicates(f[k], f[remEl1], info.lx, info.ly,
-                                        info.lz, L[0], L[1], L[2], srcx, srcy,
-                                        srcz);
+          Synch->SM.__FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz,
+                                    L[0], L[1], L[2], srcx, srcy, srcz);
           int Csrcx = 0;
           int Csrcy = 0;
           int Csrcz = 0;
           if (f[k].CoarseStencil)
-            Synch_ptr->SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy,
-                                           Csrcz);
-          Synch_ptr->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
+            Synch->SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
+          Synch->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
               {info.offset,
                L[0],
                L[1],
@@ -1471,7 +1466,8 @@ template <typename TGrid> struct Synchronizer {
         }
         for (int r = 0; r < sim.size; r++)
           if (DM.sizes[r] > 0) {
-            DM.RemoveDuplicates(r, send_interfaces[r], send_buffer_size[r]);
+            DM.RemoveDuplicates(this, r, send_interfaces[r],
+                                send_buffer_size[r]);
             DM.sizes[r] = 0;
           }
       }
@@ -1495,8 +1491,8 @@ template <typename TGrid> struct Synchronizer {
             break;
         }
         counter = j;
-        DM.RemoveDuplicates_recv(recv_interfaces[r], recv_buffer_size[r], r,
-                                 start, finish);
+        DM.RemoveDuplicates_recv(this, recv_interfaces[r], recv_buffer_size[r],
+                                 r, start, finish);
       }
       send_buffer[r].resize(send_buffer_size[r] * NC);
       recv_buffer[r].resize(recv_buffer_size[r] * NC);
