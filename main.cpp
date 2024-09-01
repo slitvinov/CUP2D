@@ -2979,10 +2979,9 @@ template <typename Element> struct BlockLab {
     int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
-    int base[3] = {
-      (info.index[0] + code[0]) % 2,
-      (info.index[1] + code[1]) % 2
-    } int CoarseEdge[2];
+    int base[3] = {(info.index[0] + code[0]) % 2,
+                   (info.index[1] + code[1]) % 2};
+    int CoarseEdge[2];
     CoarseEdge[0] = (code[0] == 0) ? 0
                     : (((info.index[0] % 2 == 0) &&
                         (infoNei_index_true[0] > info.index[0])) ||
@@ -3009,14 +3008,10 @@ template <typename Element> struct BlockLab {
     const int mod = (e[1] - s[1]) % 4;
     const int my_izx = my_ix;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-      Element * ptrDest0 =
-          &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
-      Element * ptrDest1 =
-          &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
-      Element * ptrDest2 =
-          &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
-      Element * ptrDest3 =
-          &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
+      Element *ptrDest0 = &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
+      Element *ptrDest1 = &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
+      Element *ptrDest2 = &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
+      Element *ptrDest3 = &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
       const Element *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
       const Element *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
       const Element *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
