@@ -2845,7 +2845,7 @@ template <typename Element> struct BlockLab {
       Bstep = 4;
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      void *b = (Real*)
+      Real *b = (Real*)
           grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                            (B % 2) * std::max(0, 1 - abs(code[0])),
                        2 * info.index[1] + std::max(code[1], 0) + code[1] +
