@@ -1889,7 +1889,7 @@ struct Grid {
   std::vector<BlockInfo> infos;
   std::vector<long long> level_base;
   Grid(int dim) : dim(dim) {}
-  template <typename TGrid> void FillCase(TGrid *grid, face &F) {
+  void FillCase(Grid *grid, face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
@@ -1972,7 +1972,7 @@ struct Grid {
       }
     }
   }
-  template <typename TGrid> void prepare0(TGrid *grid) {
+  void prepare0(Grid *grid) {
     if (grid->UpdateFluxCorrection == false)
       return;
     grid->UpdateFluxCorrection = false;
@@ -2114,7 +2114,7 @@ struct Grid {
       }
     }
   }
-  template <typename TGrid> void FillBlockCases(TGrid *grid) {
+  void FillBlockCases(Grid *grid) {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
