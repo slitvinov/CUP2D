@@ -3038,38 +3038,28 @@ template <typename Element> struct BlockLab {
   }
   void FillCoarseVersion(const int *const code) {
     typedef Element BlockType[_BS_][_BS_];
-    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9 * (code[2] + 1);
+    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
     BlockType &b = *(BlockType *)myblocks[icode];
-    int eC[3] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2), (end[2]) / 2 + (1)};
-    int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
-                code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
-    int e[3] = {
+    int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
+    int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+      code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
+    int e[2] = {
         code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
-        code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1,
-        code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + eC[2] - 1};
+        code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
     int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
-    int start[3] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
+    int start[2] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
                         std::min(0, code[0]) * (e[0] - s[0]),
                     s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
-                        std::min(0, code[1]) * (e[1] - s[1]),
-                    s[2] + std::max(code[2], 0) * 1 - code[2] * 1 +
-                        std::min(0, code[2]) * (e[2] - s[2])};
-    int m_vSize0 = nc[0];
-    int my_ix = s[0] - offset[0];
+		    std::min(0, code[1]) * (e[1] - s[1])};
+    int i = s[0] - offset[0];
     int XX = start[0];
-    for (int iz = s[2]; iz < e[2]; iz++) {
-      int my_izx = my_ix;
       for (int iy = s[1]; iy < e[1]; iy++) {
-        if (code[1] == 0 && code[2] == 0 && iy > -(-1) && iy < _BS_ / 2 - (2) &&
-            iz > -(0) && iz < 1 / 2 - (1))
-          continue;
-        Element *__restrict__ ptrDest1 =
-            &c[my_izx + (iy - offset[1]) * m_vSize0];
+        Element * ptrDest1 =
+            &c[i + (iy - offset[1]) * nc[0]];
         int YY = 2 * (iy - s[1]) + start[1];
         Element *ptrSrc_0 = (Element *)&b[YY][XX];
         Element *ptrSrc_1 = (Element *)&b[YY + 1][XX];
@@ -3078,7 +3068,6 @@ template <typename Element> struct BlockLab {
               AverageDown(*(ptrSrc_0 + 2 * ee), *(ptrSrc_1 + 2 * ee),
                           *(ptrSrc_0 + 2 * ee + 1), *(ptrSrc_1 + 2 * ee + 1));
         }
-      }
     }
   }
   void CoarseFineInterpolation(Grid *grid, const BlockInfo &info) {
