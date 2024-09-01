@@ -2894,7 +2894,7 @@ template <typename Element> struct BlockLab {
         Real *p0 = (Real *)(m) + dim * k0;
         Real *p1 = (Real *)(m) + dim * k1;
         Real *p2 = (Real *)(m) + dim * k2;
-	Real *p3 = (Real *)(m) + dim * k3;
+        Real *p3 = (Real *)(m) + dim * k3;
         Real *q00 = (Real *)(b) + dim * (_BS_ * y0 + x);
         Real *q10 = (Real *)(b) + dim * (_BS_ * z0 + x);
         Real *q01 = (Real *)(b) + dim * (_BS_ * y1 + x);
@@ -2906,20 +2906,20 @@ template <typename Element> struct BlockLab {
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
-          Real *q000 = (q00 + dim * 2 * ee);
-          Real *q001 = (q00 + dim * (2 * ee + 1));
-          Real *q010 = (q01 + dim * 2 * ee);
-          Real *q011 = (q01 + dim * (2 * ee + 1));
-          Real *q020 = (q02 + dim * 2 * ee);
-          Real *q021 = (q02 + dim * (2 * ee + 1));
-          Real *q030 = (q03 + dim * 2 * ee);
-          Real *q031 = (q03 + dim * (2 * ee + 1));
-          Real *q110 = (q11 + dim * 2 * ee);
-          Real *q111 = (q11 + dim * (2 * ee + 1));
-          Real *q120 = (q12 + dim * 2 * ee);
-          Real *q121 = (q12 + dim *(2 * ee + 1));
-          Real *q130 = (q13 + dim * 2 * ee);
-          Real *q131 = (q13 + dim * (2 * ee + 1));
+          Real *q000 = q00 + dim * 2 * ee;
+          Real *q001 = q00 + dim * (2 * ee + 1);
+          Real *q010 = q01 + dim * 2 * ee;
+          Real *q011 = q01 + dim * (2 * ee + 1);
+          Real *q020 = q02 + dim * 2 * ee;
+          Real *q021 = q02 + dim * (2 * ee + 1);
+          Real *q030 = q03 + dim * 2 * ee;
+          Real *q031 = q03 + dim * (2 * ee + 1);
+          Real *q110 = q11 + dim * 2 * ee;
+          Real *q111 = q11 + dim * (2 * ee + 1);
+          Real *q120 = q12 + dim * 2 * ee;
+          Real *q121 = q12 + dim * (2 * ee + 1);
+          Real *q130 = q13 + dim * 2 * ee;
+          Real *q131 = q13 + dim * (2 * ee + 1);
           for (int d = 0; d < dim; d++) {
             *(p0 + dim * ee + d) =
                 (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
