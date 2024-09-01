@@ -2960,6 +2960,7 @@ template <typename Element> struct BlockLab {
   }
   void CoarseFineExchange(Grid *grid, const BlockInfo &info,
                           const int *const code) {
+    Real *uc = (Real *)c;
     int infoNei_index[2] = {(info.index[0] + code[0] + NX) % NX,
                             (info.index[1] + code[1] + NY) % NY};
     int infoNei_index_true[2] = {(info.index[0] + code[0]),
@@ -3008,15 +3009,15 @@ template <typename Element> struct BlockLab {
       int i1 = i + (iy + 1 - offset[1]) * nc[0];
       int i2 = i + (iy + 2 - offset[1]) * nc[0];
       int i3 = i + (iy + 3 - offset[1]) * nc[0];
-      Element *p0 = c + i0;
-      Element *p1 = c + i1;
-      Element *p2 = c + i2;
-      Element *p3 = c + i3;
       int y0 = iy + 0 + start[1];
       int y1 = iy + 1 + start[1];
       int y2 = iy + 2 + start[1];
       int y3 = iy + 3 + start[1];
       int x = s[0] + start[0];
+      Real *p0 = uc + dim * i0;
+      Real *p1 = uc + dim * i1;
+      Real *p2 = uc + dim * i2;
+      Real *p3 = uc + dim * i3;
       Real *q0 = b + dim * (_BS_ * y0 + x);
       Real *q1 = b + dim * (_BS_ * y1 + x);
       Real *q2 = b + dim * (_BS_ * y2 + x);
@@ -3030,7 +3031,7 @@ template <typename Element> struct BlockLab {
       int i0 = i + (iy - offset[1]) * nc[0];
       int y0 = iy + start[1];
       int x = s[0] + start[0];
-      Real *p = (Real *)c + dim * i0;
+      Real *p = uc + dim * i0;
       Real *q = b + dim * (_BS_ * y0 + x);
       memcpy(p, q, bytes);
     }
