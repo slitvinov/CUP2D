@@ -1234,12 +1234,12 @@ template <typename TGrid> struct Synchronizer {
     DuplicatesManager DM(*(this));
     for (BlockInfo &info : grid->infos) {
       info.halo_id = -1;
-      const bool xskin =
+      bool xskin =
           info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
-      const bool yskin =
+      bool yskin =
           info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
-      const int xskip = info.index[0] == 0 ? -1 : 1;
-      const int yskip = info.index[1] == 0 ? -1 : 1;
+      int xskip = info.index[0] == 0 ? -1 : 1;
+      int yskip = info.index[1] == 0 ? -1 : 1;
 
       bool isInner = true;
       std::vector<int> ToBeChecked;
@@ -1247,7 +1247,7 @@ template <typename TGrid> struct Synchronizer {
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
           continue;
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                              (icode / 9) % 3 - 1};
         if (code[2] != 0)
           continue;
@@ -1255,14 +1255,14 @@ template <typename TGrid> struct Synchronizer {
           continue;
         if (!(sim.bcy == periodic) && code[1] == yskip && yskin)
           continue;
-        const int &infoNeiTree =
+        int &infoNeiTree =
             grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
           BlockInfo &infoNei =
               grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          const int icode2 =
+          int icode2 =
               (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
@@ -1276,19 +1276,19 @@ template <typename TGrid> struct Synchronizer {
           Coarsened = true;
           BlockInfo &infoNei =
               grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          const int infoNeiCoarserrank =
+          int infoNeiCoarserrank =
               grid->Tree0(info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
                 grid->get(infoNei.level - 1, infoNei.Zparent);
-            const int icode2 =
+            int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            const int Bmax[3] = {sim.bpdx << (info.level - 1),
+            int Bmax[3] = {sim.bpdx << (info.level - 1),
                                  sim.bpdy << (info.level - 1),
                                  1 << (info.level - 1)};
-            const int test_idx[3] = {
+            int test_idx[3] = {
                 (infoNeiCoarser.index[0] - code[0] + Bmax[0]) % Bmax[0],
                 (infoNeiCoarser.index[1] - code[1] + Bmax[1]) % Bmax[1],
                 (infoNeiCoarser.index[2] - code[2] + Bmax[2]) % Bmax[2]};
@@ -1302,26 +1302,26 @@ template <typename TGrid> struct Synchronizer {
               DM.Add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
-                const int d0 = abs(code[1] + 2 * code[2]);
-                const int d1 = (d0 + 1) % 3;
-                const int d2 = (d0 + 2) % 3;
+                int d0 = abs(code[1] + 2 * code[2]);
+                int d1 = (d0 + 1) % 3;
+                int d2 = (d0 + 2) % 3;
                 int code3[3];
                 code3[d0] = code[d0];
                 code3[d1] = -2 * (info.index[d1] % 2) + 1;
                 code3[d2] = -2 * (info.index[d2] % 2) + 1;
-                const int icode3 =
+                int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
                 int code4[3];
                 code4[d0] = code[d0];
                 code4[d1] = code3[d1];
                 code4[d2] = 0;
-                const int icode4 =
+                int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
                 int code5[3];
                 code5[d0] = code[d0];
                 code5[d1] = 0;
                 code5[d2] = code3[d2];
-                const int icode5 =
+                int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
@@ -1348,18 +1348,18 @@ template <typename TGrid> struct Synchronizer {
               continue;
             if (Bstep > 1 && B >= 1)
               continue;
-            const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            const long long nFine =
+            int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+            long long nFine =
                 infoNei.Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            const int infoNeiFinerrank = grid->Tree0(info.level + 1, nFine);
+            int infoNeiFinerrank = grid->Tree0(info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
               BlockInfo &infoNeiFiner = grid->get(info.level + 1, nFine);
-              const int icode2 =
+              int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
                   {info, infoNeiFiner, icode, icode2});
@@ -1368,26 +1368,26 @@ template <typename TGrid> struct Synchronizer {
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
               if (Bstep == 1) {
-                const int d0 = abs(code[1] + 2 * code[2]);
-                const int d1 = (d0 + 1) % 3;
-                const int d2 = (d0 + 2) % 3;
+                int d0 = abs(code[1] + 2 * code[2]);
+                int d1 = (d0 + 1) % 3;
+                int d2 = (d0 + 2) % 3;
                 int code3[3];
                 code3[d0] = -code[d0];
                 code3[d1] = -2 * (infoNeiFiner.index[d1] % 2) + 1;
                 code3[d2] = -2 * (infoNeiFiner.index[d2] % 2) + 1;
-                const int icode3 =
+                int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
                 int code4[3];
                 code4[d0] = -code[d0];
                 code4[d1] = code3[d1];
                 code4[d2] = 0;
-                const int icode4 =
+                int icode4 =
                     (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
                 int code5[3];
                 code5[d0] = -code[d0];
                 code5[d1] = 0;
                 code5[d2] = code3[d2];
-                const int icode5 =
+                int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
@@ -1420,10 +1420,10 @@ template <typename TGrid> struct Synchronizer {
         halo_blocks.push_back(&info);
         if (Coarsened) {
           for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
-            const int r = ToBeChecked[j];
-            const int send = ToBeChecked[j + 1];
-            const int recv = ToBeChecked[j + 2];
-            const bool tmp = UseCoarseStencil(send_interfaces[r][send]);
+            int r = ToBeChecked[j];
+            int send = ToBeChecked[j + 1];
+            int recv = ToBeChecked[j + 2];
+            bool tmp = UseCoarseStencil(send_interfaces[r][send]);
             send_interfaces[r][send].CoarseStencil = tmp;
             recv_interfaces[r][recv].CoarseStencil = tmp;
           }
@@ -1442,8 +1442,8 @@ template <typename TGrid> struct Synchronizer {
       std::sort(recv_interfaces[r].begin(), recv_interfaces[r].end());
       size_t counter = 0;
       while (counter < recv_interfaces[r].size()) {
-        const long long ID = recv_interfaces[r][counter].infos[0]->id2;
-        const size_t start = counter;
+        long long ID = recv_interfaces[r][counter].infos[0]->id2;
+        size_t start = counter;
         size_t finish = start + 1;
         counter++;
         size_t j;
@@ -1462,16 +1462,16 @@ template <typename TGrid> struct Synchronizer {
       send_packinfos[r].clear();
       ToBeAveragedDown[r].clear();
       for (int i = 0; i < (int)send_interfaces[r].size(); i++) {
-        const Interface &f = send_interfaces[r][i];
+        Interface &f = send_interfaces[r][i];
         if (!f.ToBeKept)
           continue;
         if (f.infos[0]->level <= f.infos[1]->level) {
-          const Range &range = SM.DetermineStencil(f);
+          Range &range = SM.DetermineStencil(f);
           send_packinfos[r].push_back(
               {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
           if (f.CoarseStencil) {
-            const int V = (range.ex - range.sx) * (range.ey - range.sy) *
+            int V = (range.ex - range.sx) * (range.ey - range.sy) *
                           (range.ez - range.sz);
             ToBeAveragedDown[r].push_back(i);
             ToBeAveragedDown[r].push_back(f.dis + V * NC);
@@ -1484,11 +1484,11 @@ template <typename TGrid> struct Synchronizer {
     }
     mapofHaloBlockGroups.clear();
     for (auto &info : halo_blocks) {
-      const int id = info->halo_id;
+      int id = info->halo_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
       for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
-        const UnPackInfo &unpack = unpacks[jj];
+        UnPackInfo &unpack = unpacks[jj];
         ranks.insert(unpack.rank);
       }
       std::string set_ID;
@@ -1498,7 +1498,7 @@ template <typename TGrid> struct Synchronizer {
         std::string s = ss.str();
         set_ID += s;
       }
-      const auto retval = mapofHaloBlockGroups.find(set_ID);
+      auto retval = mapofHaloBlockGroups.find(set_ID);
       if (retval == mapofHaloBlockGroups.end()) {
         HaloBlockGroup temporary;
         temporary.myranks = ranks;
