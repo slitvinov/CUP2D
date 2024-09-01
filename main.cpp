@@ -1464,6 +1464,8 @@ template <typename TGrid> struct Synchronizer {
         }
         for (int r = 0; r < sim.size; r++)
           if (DM.sizes[r] > 0) {
+            std::vector<Interface> &f = send_interfaces[r];
+            int &total_size = send_buffer_size[r];
             DM.RemoveDuplicates(this, r, send_interfaces[r],
                                 send_buffer_size[r]);
             DM.sizes[r] = 0;
