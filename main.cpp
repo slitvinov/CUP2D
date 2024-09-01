@@ -3014,18 +3014,26 @@ template <typename Element> struct BlockLab {
       Element *p1 = &c[i1];
       Element *p2 = &c[i2];
       Element *p3 = &c[i3];
-      const Element *q0 = &b[iy + 0 + start[1]][s[0] + start[0]];
-      const Element *q1 = &b[iy + 1 + start[1]][s[0] + start[0]];
-      const Element *q2 = &b[iy + 2 + start[1]][s[0] + start[0]];
-      const Element *q3 = &b[iy + 3 + start[1]][s[0] + start[0]];
+      int y0 = iy + 0 + start[1];
+      int y1 = iy + 1 + start[1];
+      int y2 = iy + 2 + start[1];
+      int y3 = iy + 3 + start[1];
+      int x = s[0] + start[0];
+      const Element *q0 = &b[y0][x];
+      const Element *q1 = &b[y1][x];
+      const Element *q2 = &b[y2][x];
+      const Element *q3 = &b[y3][x];
       memcpy(p0, q0, bytes);
       memcpy(p1, q1, bytes);
       memcpy(p2, q2, bytes);
       memcpy(p3, q3, bytes);
     }
     for (int iy = e[1] - mod; iy < e[1]; iy++) {
-      Element *p = &c[i + (iy - offset[1]) * nc[0]];
-      const Element *q = &b[iy + start[1]][s[0] + start[0]];
+      int i0 = i + (iy - offset[1]) * nc[0];
+      int y0 = iy + start[1];
+      int x = s[0] + start[0];
+      Element *p = &c[i0];
+      const Element *q = &b[y0][x];
       memcpy(p, q, bytes);
     }
   }
