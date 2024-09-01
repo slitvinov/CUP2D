@@ -2830,7 +2830,7 @@ template <typename Element> struct BlockLab {
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
                             const int *const code, const int *const s,
                             const int *const e) {
-    Real *um = (Real*)m;
+    Real *um = (Real *)m;
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
                       dim * sizeof(Real);
@@ -2845,12 +2845,12 @@ template <typename Element> struct BlockLab {
       Bstep = 4;
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      Real *b = (Real*)
-          grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                           (B % 2) * std::max(0, 1 - abs(code[0])),
-                       2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                           aux * std::max(0, 1 - abs(code[1])),
-                       info.level + 1);
+      Real *b = (Real *)grid->avail1(
+          2 * info.index[0] + std::max(code[0], 0) + code[0] +
+              (B % 2) * std::max(0, 1 - abs(code[0])),
+          2 * info.index[1] + std::max(code[1], 0) + code[1] +
+              aux * std::max(0, 1 - abs(code[1])),
+          info.level + 1);
       if (b == nullptr)
         continue;
       const int i =
@@ -2951,9 +2951,9 @@ template <typename Element> struct BlockLab {
           Real *q01 = q0 + dim * (2 * ee + 1);
           Real *q10 = q1 + dim * 2 * ee;
           Real *q11 = q1 + dim * (2 * ee + 1);
-	  for (int d = 0; d < dim; d++)
-	    *(p + dim * ee + d) =
-	      (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+          for (int d = 0; d < dim; d++)
+            *(p + dim * ee + d) =
+                (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
         }
       }
     }
@@ -2961,32 +2961,28 @@ template <typename Element> struct BlockLab {
   void CoarseFineExchange(Grid *grid, const BlockInfo &info,
                           const int *const code) {
     typedef Element BlockType[_BS_][_BS_];
-    int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
-                            (info.index[1] + code[1] + NY) % NY,
-                            (info.index[2] + code[2] + NZ) % NZ};
+    int infoNei_index[2] = {(info.index[0] + code[0] + NX) % NX,
+                            (info.index[1] + code[1] + NY) % NY};
     int infoNei_index_true[3] = {(info.index[0] + code[0]),
-                                 (info.index[1] + code[1]),
-                                 (info.index[2] + code[2])};
+                                 (info.index[1] + code[1])};
     void *b_ptr = grid->avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
                                info.level - 1);
     if (b_ptr == nullptr)
       return;
     BlockType &b = *(BlockType *)b_ptr;
     int s[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2),
-                code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1};
+                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
     int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
                             : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
                 code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + (end[1]) / 2 + (2) - 1,
-                code[2] < 1 ? (code[2] < 0 ? 0 : 1)
-                            : 1 + (end[2]) / 2 + (1) - 1};
+                            : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
     int bytes = (e[0] - s[0]) * sizeof(Element);
     if (!bytes)
       return;
-    int base[3] = {(info.index[0] + code[0]) % 2, (info.index[1] + code[1]) % 2,
-                   (info.index[2] + code[2]) % 2};
-    int CoarseEdge[3];
+    int base[3] = {
+      (info.index[0] + code[0]) % 2,
+      (info.index[1] + code[1]) % 2
+    } int CoarseEdge[2];
     CoarseEdge[0] = (code[0] == 0) ? 0
                     : (((info.index[0] % 2 == 0) &&
                         (infoNei_index_true[0] > info.index[0])) ||
@@ -3001,51 +2997,39 @@ template <typename Element> struct BlockLab {
                         (infoNei_index_true[1] < info.index[1])))
                         ? 1
                         : 0;
-    CoarseEdge[2] = (code[2] == 0) ? 0
-                    : (((info.index[2] % 2 == 0) &&
-                        (infoNei_index_true[2] > info.index[2])) ||
-                       ((info.index[2] % 2 == 1) &&
-                        (infoNei_index_true[2] < info.index[2])))
-                        ? 1
-                        : 0;
-    const int start[3] = {
+    const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
             CoarseEdge[0] * code[0] * _BS_ / 2,
         std::max(code[1], 0) * _BS_ / 2 +
             (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
-            CoarseEdge[1] * code[1] * _BS_ / 2,
-        std::max(code[2], 0) / 2 + (1 - abs(code[2])) * base[2] / 2 - code[2] +
-            CoarseEdge[2] * code[2] / 2};
-
+            CoarseEdge[1] * code[1] * _BS_ / 2};
     const int m_vSize0 = nc[0];
     const int my_ix = s[0] - offset[0];
     const int mod = (e[1] - s[1]) % 4;
-    for (int iz = s[2]; iz < e[2]; iz++) {
-      const int my_izx = my_ix;
-      for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-        Element *__restrict__ ptrDest0 =
-            &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
-        Element *__restrict__ ptrDest1 =
-            &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
-        Element *__restrict__ ptrDest2 =
-            &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
-        Element *__restrict__ ptrDest3 =
-            &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
-        const Element *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
-        const Element *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
-        const Element *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
-        const Element *ptrSrc3 = &b[iy + 3 + start[1]][s[0] + start[0]];
-        memcpy(ptrDest0, ptrSrc0, bytes);
-        memcpy(ptrDest1, ptrSrc1, bytes);
-        memcpy(ptrDest2, ptrSrc2, bytes);
-        memcpy(ptrDest3, ptrSrc3, bytes);
-      }
-      for (int iy = e[1] - mod; iy < e[1]; iy++) {
-        Element *ptrDest = &c[my_izx + (iy - offset[1]) * m_vSize0];
-        const Element *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
-        memcpy(ptrDest, ptrSrc, bytes);
-      }
+    const int my_izx = my_ix;
+    for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+      Element *__restrict__ ptrDest0 =
+          &c[my_izx + (iy + 0 - offset[1]) * m_vSize0];
+      Element *__restrict__ ptrDest1 =
+          &c[my_izx + (iy + 1 - offset[1]) * m_vSize0];
+      Element *__restrict__ ptrDest2 =
+          &c[my_izx + (iy + 2 - offset[1]) * m_vSize0];
+      Element *__restrict__ ptrDest3 =
+          &c[my_izx + (iy + 3 - offset[1]) * m_vSize0];
+      const Element *ptrSrc0 = &b[iy + 0 + start[1]][s[0] + start[0]];
+      const Element *ptrSrc1 = &b[iy + 1 + start[1]][s[0] + start[0]];
+      const Element *ptrSrc2 = &b[iy + 2 + start[1]][s[0] + start[0]];
+      const Element *ptrSrc3 = &b[iy + 3 + start[1]][s[0] + start[0]];
+      memcpy(ptrDest0, ptrSrc0, bytes);
+      memcpy(ptrDest1, ptrSrc1, bytes);
+      memcpy(ptrDest2, ptrSrc2, bytes);
+      memcpy(ptrDest3, ptrSrc3, bytes);
+    }
+    for (int iy = e[1] - mod; iy < e[1]; iy++) {
+      Element *ptrDest = &c[my_izx + (iy - offset[1]) * m_vSize0];
+      const Element *ptrSrc = &b[iy + start[1]][s[0] + start[0]];
+      memcpy(ptrDest, ptrSrc, bytes);
     }
   }
   void FillCoarseVersion(const int *const code) {
