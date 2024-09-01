@@ -2830,6 +2830,7 @@ template <typename Element> struct BlockLab {
   void FineToCoarseExchange(Grid *grid, const BlockInfo &info,
                             const int *const code, const int *const s,
                             const int *const e) {
+    Real *um = (Real*)m;
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
                       dim * sizeof(Real);
@@ -2844,15 +2845,14 @@ template <typename Element> struct BlockLab {
       Bstep = 4;
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      void *b_ptr =
+      void *b = (Real*)
           grid->avail1(2 * info.index[0] + std::max(code[0], 0) + code[0] +
                            (B % 2) * std::max(0, 1 - abs(code[0])),
                        2 * info.index[1] + std::max(code[1], 0) + code[1] +
                            aux * std::max(0, 1 - abs(code[1])),
                        info.level + 1);
-      if (b_ptr == nullptr)
+      if (b == nullptr)
         continue;
-      Element *b = (Element *)b_ptr;
       const int i =
           abs(code[0]) * (s[0] - start[0]) +
           (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
@@ -2891,18 +2891,18 @@ template <typename Element> struct BlockLab {
         int z1 = y1 + 1;
         int z2 = y2 + 1;
         int z3 = y3 + 1;
-        Real *p0 = (Real *)(m) + dim * k0;
-        Real *p1 = (Real *)(m) + dim * k1;
-        Real *p2 = (Real *)(m) + dim * k2;
-        Real *p3 = (Real *)(m) + dim * k3;
-        Real *q00 = (Real *)(b) + dim * (_BS_ * y0 + x);
-        Real *q10 = (Real *)(b) + dim * (_BS_ * z0 + x);
-        Real *q01 = (Real *)(b) + dim * (_BS_ * y1 + x);
-        Real *q11 = (Real *)(b) + dim * (_BS_ * z1 + x);
-        Real *q02 = (Real *)(b) + dim * (_BS_ * y2 + x);
-        Real *q12 = (Real *)(b) + dim * (_BS_ * z2 + x);
-        Real *q03 = (Real *)(b) + dim * (_BS_ * y3 + x);
-        Real *q13 = (Real *)(b) + dim * (_BS_ * z3 + x);
+        Real *p0 = um + dim * k0;
+        Real *p1 = um + dim * k1;
+        Real *p2 = um + dim * k2;
+        Real *p3 = um + dim * k3;
+        Real *q00 = b + dim * (_BS_ * y0 + x);
+        Real *q10 = b + dim * (_BS_ * z0 + x);
+        Real *q01 = b + dim * (_BS_ * y1 + x);
+        Real *q11 = b + dim * (_BS_ * z1 + x);
+        Real *q02 = b + dim * (_BS_ * y2 + x);
+        Real *q12 = b + dim * (_BS_ * z2 + x);
+        Real *q03 = b + dim * (_BS_ * y3 + x);
+        Real *q13 = b + dim * (_BS_ * z3 + x);
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
                                (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
              ee++) {
