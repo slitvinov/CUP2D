@@ -1830,7 +1830,6 @@ struct Grid {
   };
   bool UpdateFluxCorrection{true};
   const int dim;
-  int rank{0};
   size_t timestamp;
   std::map<std::array<long long, 2>, BlockCase *> Map;
   std::map<StencilInfo, Synchronizer<Grid> *> Synchronizers;
@@ -1932,7 +1931,6 @@ struct Grid {
     if (grid->UpdateFluxCorrection == false)
       return;
     grid->UpdateFluxCorrection = false;
-    rank = sim.rank;
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
     send_faces.resize(sim.size);
@@ -2104,9 +2102,8 @@ struct Grid {
     }
     std::vector<MPI_Request> send_requests;
     std::vector<MPI_Request> recv_requests;
-    int me = rank;
     for (int r = 0; r < sim.size; r++)
-      if (r != me) {
+      if (r != sim.rank) {
         if (recv_buffer[r].size() != 0) {
           MPI_Request req{};
           recv_requests.push_back(req);
@@ -2122,24 +2119,24 @@ struct Grid {
       }
     MPI_Request me_send_request;
     MPI_Request me_recv_request;
-    if (recv_buffer[me].size() != 0) {
-      MPI_Irecv(&recv_buffer[me][0], recv_buffer[me].size(), MPI_Real, me,
-                123456, MPI_COMM_WORLD, &me_recv_request);
+    if (recv_buffer[sim.rank].size() != 0) {
+      MPI_Irecv(&recv_buffer[sim.rank][0], recv_buffer[sim.rank].size(),
+                MPI_Real, sim.rank, 123456, MPI_COMM_WORLD, &me_recv_request);
     }
-    if (send_buffer[me].size() != 0) {
-      MPI_Isend(&send_buffer[me][0], send_buffer[me].size(), MPI_Real, me,
-                123456, MPI_COMM_WORLD, &me_send_request);
+    if (send_buffer[sim.rank].size() != 0) {
+      MPI_Isend(&send_buffer[sim.rank][0], send_buffer[sim.rank].size(),
+                MPI_Real, sim.rank, 123456, MPI_COMM_WORLD, &me_send_request);
     }
-    if (recv_buffer[me].size() > 0)
+    if (recv_buffer[sim.rank].size() > 0)
       MPI_Waitall(1, &me_recv_request, MPI_STATUSES_IGNORE);
-    if (send_buffer[me].size() > 0)
+    if (send_buffer[sim.rank].size() > 0)
       MPI_Waitall(1, &me_send_request, MPI_STATUSES_IGNORE);
-    for (int index = 0; index < (int)recv_faces[me].size(); index++)
-      FillCase(grid, recv_faces[me][index]);
+    for (int index = 0; index < (int)recv_faces[sim.rank].size(); index++)
+      FillCase(grid, recv_faces[sim.rank][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
-      if (r != me)
+      if (r != sim.rank)
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
           FillCase(grid, recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
