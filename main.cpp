@@ -3278,8 +3278,7 @@ struct LoadBalancer {
     uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
   };
   LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
-  template <typename TGrid>
-  void AddBlock(TGrid *grid, const int level, const long long Z,
+  void AddBlock(Grid *grid, const int level, const long long Z,
                 uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
@@ -3298,7 +3297,7 @@ struct LoadBalancer {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  template <typename TGrid> void PrepareCompression(TGrid *grid) {
+  void PrepareCompression(Grid *grid) {
     std::vector<BlockInfo> &I = grid->infos;
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
@@ -3377,8 +3376,7 @@ struct LoadBalancer {
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
   }
-  template <typename TGrid>
-  void Balance_Diffusion(TGrid *grid,
+  void Balance_Diffusion(Grid *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
     {
@@ -3485,8 +3483,7 @@ struct LoadBalancer {
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-  template <typename TGrid>
-  void Balance_Global(TGrid *grid, std::vector<long long> &all_b) {
+  void Balance_Global(Grid *grid, std::vector<long long> &all_b) {
     std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
