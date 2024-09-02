@@ -7460,7 +7460,7 @@ int main(int argc, char **argv) {
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
+        Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
         Real *V = (Real *)velInfo[i].block;
         Real *tmpV = (Real *)tmpVInfo[i].block;
         for (int i = 0; i < 2 * _BS_ * _BS_; i++)
