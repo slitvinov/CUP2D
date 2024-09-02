@@ -56,8 +56,8 @@ static double getA_local(int I1, int I2) {
   else
     return 0.0;
 }
-static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart, int zstart, int xend,
-                 int yend, int zend, int BSX, int BSY) {
+static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
+                 int zstart, int xend, int yend, int zend, int BSX, int BSY) {
   if (dim == 1) {
     const int mod = (xend - xstart) % 4;
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
@@ -82,11 +82,11 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart, int 
         }
   }
 }
-static void unpack_subregion(Real *pack, Real *dstbase, int dim,
-                             int srcxstart, int srcystart, int srczstart,
-                             int LX, int LY, int dstxstart, int dstystart,
-                             int dstzstart, int dstxend, int dstyend,
-                             int dstzend, int xsize, int ysize) {
+static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
+                             int srcystart, int srczstart, int LX, int LY,
+                             int dstxstart, int dstystart, int dstzstart,
+                             int dstxend, int dstyend, int dstzend, int xsize,
+                             int ysize) {
   if (dim == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
@@ -109,12 +109,11 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim,
     for (int zd = dstzstart; zd < dstzend; ++zd)
       for (int yd = dstystart; yd < dstyend; ++yd)
         for (int xd = dstxstart; xd < dstxend; ++xd) {
-          Real *const dst =
-              dstbase + dim * (xd + xsize * (yd + ysize * zd));
+          Real *const dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
           const Real *src =
               pack + dim * (xd - dstxstart + srcxstart +
-                                  LX * (yd - dstystart + srcystart +
-                                        LY * (zd - dstzstart + srczstart)));
+                            LX * (yd - dstystart + srcystart +
+                                  LY * (zd - dstzstart + srczstart)));
           for (int c = 0; c < dim; ++c)
             dst[c] = src[c];
         }
@@ -1632,8 +1631,8 @@ template <typename TGrid> struct Synchronizer {
 #pragma omp for
           for (size_t i = 0; i < send_packinfos[r].size(); i++) {
             const PackInfo &info = send_packinfos[r][i];
-            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz,
-                 info.ex, info.ey, info.ez, _BS_, _BS_);
+            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
+                 info.ey, info.ez, _BS_, _BS_);
           }
         }
       }
@@ -3019,11 +3018,11 @@ template <typename Element> struct BlockLab {
     }
   }
   void FillCoarseVersion(const int *const code) {
-    typedef Element BlockType[_BS_][_BS_];
+    Real *uc = (Real *)c;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
-    BlockType &b = *(BlockType *)myblocks[icode];
+    Real *b = (Real *)myblocks[icode];
     int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
     int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
@@ -3041,17 +3040,19 @@ template <typename Element> struct BlockLab {
     int x = start[0];
     for (int iy = s[1]; iy < e[1]; iy++) {
       int i0 = i + (iy - offset[1]) * nc[0];
-      Element *p1 = &c[i0];
+      Real *p1 = uc + dim * i0;
       int y0 = 2 * (iy - s[1]) + start[1];
       int y1 = y0 + 1;
-      Element *q0 = (Element *)&b[y0][x];
-      Element *q1 = (Element *)&b[y1][x];
+      Real *q0 = b + dim * (_BS_ * y0 + x);
+      Real *q1 = b + dim * (_BS_ * y1 + x);
       for (int ee = 0; ee < e[0] - s[0]; ee++) {
-	Element *q00 = q0 + 2 * ee;
-	Element *q01 = q0 + 2 * ee + 1;
-	Element *q10 = q1 + 2 * ee;
-	Element *q11 = q1 + 2 * ee + 1;
-        p1[ee] = AverageDown(*q00, *q10, *q01, *q11);
+        Real *q00 = q0 + dim * 2 * ee;
+        Real *q01 = q0 + dim * (2 * ee + 1);
+        Real *q10 = q1 + dim * 2 * ee;
+        Real *q11 = q1 + dim * (2 * ee + 1);
+        for (int d = 0; d < dim; d++)
+          *(p1 + dim * ee + d) =
+              (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
       }
     }
   }
