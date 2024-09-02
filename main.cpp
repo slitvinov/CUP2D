@@ -3038,15 +3038,20 @@ template <typename Element> struct BlockLab {
                     s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
                         std::min(0, code[1]) * (e[1] - s[1])};
     int i = s[0] - offset[0];
-    int XX = start[0];
+    int x = start[0];
     for (int iy = s[1]; iy < e[1]; iy++) {
-      Element *p1 = &c[i + (iy - offset[1]) * nc[0]];
-      int YY = 2 * (iy - s[1]) + start[1];
-      Element *q0 = (Element *)&b[YY][XX];
-      Element *q1 = (Element *)&b[YY + 1][XX];
+      int i0 = i + (iy - offset[1]) * nc[0];
+      Element *p1 = &c[i0];
+      int y0 = 2 * (iy - s[1]) + start[1];
+      int y1 = y0 + 1;
+      Element *q0 = (Element *)&b[y0][x];
+      Element *q1 = (Element *)&b[y1][x];
       for (int ee = 0; ee < e[0] - s[0]; ee++) {
-        p1[ee] = AverageDown(*(q0 + 2 * ee), *(q1 + 2 * ee), *(q0 + 2 * ee + 1),
-                             *(q1 + 2 * ee + 1));
+	Element *q00 = q0 + 2 * ee;
+	Element *q01 = q0 + 2 * ee + 1;
+	Element *q10 = q1 + 2 * ee;
+	Element *q11 = q1 + 2 * ee + 1;
+        p1[ee] = AverageDown(*q00, *q10, *q01, *q11);
       }
     }
   }
