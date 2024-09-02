@@ -6932,14 +6932,6 @@ int main(int argc, char **argv) {
     adapt();
   }
   ongrid(0.0);
-#pragma omp parallel for
-  for (size_t i = 0; i < velInfo.size(); i++) {
-    for (size_t y = 0; y < _BS_; y++)
-      for (size_t x = 0; x < _BS_; x++) {
-        (*(VectorBlock *)var.tmpV->infos[i].block)[y][x].u[0] = 0;
-        (*(VectorBlock *)var.tmpV->infos[i].block)[y][x].u[1] = 0;
-      }
-  }
   for (auto &shape : sim.shapes) {
     std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
