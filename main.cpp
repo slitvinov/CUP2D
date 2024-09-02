@@ -7447,24 +7447,21 @@ int main(int argc, char **argv) {
       avg = avg / avg1;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        ScalarBlock &P = *(ScalarBlock *)presInfo[i].block;
-        const ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].block;
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++)
-            P[iy][ix] += POLD[iy][ix] - avg;
+        Real *P = (Real *)presInfo[i].block;
+        Real *pold = (Real *)poldInfo[i].block;
+        for (int j = 0; j < _BS_ * _BS_; j++)
+          P[j] += POLD[j] - avg;
       }
-      {
-        var.tmpV->prepare0(var.tmpV);
-        computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-        var.tmpV->FillBlockCases(var.tmpV);
-      }
+      var.tmpV->prepare0(var.tmpV);
+      computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
+      var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
         Real *V = (Real *)velInfo[i].block;
         Real *tmpV = (Real *)tmpVInfo[i].block;
-        for (int i = 0; i < 2 * _BS_ * _BS_; i++)
-          V[i] += tmpV[i] * ih2;
+        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+          V[j] += tmpV[j] * ih2;
       }
       computeB<KernelComputeForces, Vector, VectorLab, Real, ScalarLab>(
           KernelComputeForces(), *var.vel, 2, *var.chi, 1);
