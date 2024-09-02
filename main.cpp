@@ -1589,7 +1589,7 @@ template <typename TGrid> struct Synchronizer {
                 }
               }
             } else {
-              Real *__restrict__ dst = send_buffer[r].data() + d;
+              Real * dst = send_buffer[r].data() + d;
               const BlockInfo *const info = f.infos[0];
               const int s[3] = {
                   code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
@@ -4206,7 +4206,7 @@ struct KernelVorticity {
   const StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
-    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
+    auto & TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     for (int y = 0; y < _BS_; ++y)
       for (int x = 0; x < _BS_; ++x)
         TMP[y][x] = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
@@ -4790,12 +4790,12 @@ struct PutChiOnGrid {
       Real h = info.h;
       Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.id];
-      CHI_MAT &__restrict__ X = o.chi;
-      const CHI_MAT &__restrict__ sdf = o.dist;
+      CHI_MAT & X = o.chi;
+      const CHI_MAT & sdf = o.dist;
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      auto &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.id].block;
+      auto & CHI = *(ScalarBlock *)chiInfo[info.id].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
@@ -5372,8 +5372,8 @@ static void ongrid(Real dt) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
-      const CHI_MAT &__restrict__ CHI = pos->chi;
-      const UDEFMAT &__restrict__ UDEF = pos->udef;
+      const CHI_MAT & CHI = pos->chi;
+      const UDEFMAT & UDEF = pos->udef;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
           if (CHI[iy][ix] <= 0)
@@ -5508,7 +5508,7 @@ struct GradChiOnTmp {
   const StencilInfo stencil{-4, -4, 5, 5, true};
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
-    auto &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
+    auto & TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -5856,7 +5856,7 @@ struct KernelAdvectDiffuse {
     Real h = info.h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    VectorBlock &__restrict__ TMP = *(VectorBlock *)tmpVInfo[info.id].block;
+    VectorBlock & TMP = *(VectorBlock *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
@@ -5924,7 +5924,7 @@ struct KernelComputeForces {
   void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
     VectorLab &V = lab;
-    ScalarBlock &__restrict__ P = *(ScalarBlock *)presInfo[info.id].block;
+    ScalarBlock & P = *(ScalarBlock *)presInfo[info.id].block;
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       const Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
@@ -6529,8 +6529,8 @@ struct PoissonSolver {
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       const BlockInfo &rhs_info = RhsInfo[i];
-      const ScalarBlock &__restrict__ rhs = *(ScalarBlock *)RhsInfo[i].block;
-      const ScalarBlock &__restrict__ p = *(ScalarBlock *)zInfo[i].block;
+      const ScalarBlock & rhs = *(ScalarBlock *)RhsInfo[i].block;
+      const ScalarBlock & p = *(ScalarBlock *)zInfo[i].block;
       h2[i] = RhsInfo[i].h * RhsInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
@@ -6552,7 +6552,7 @@ struct pressureCorrectionKernel {
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
-    VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[info.id].block;
+    VectorBlock & tmpV = *(VectorBlock *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
@@ -6609,8 +6609,8 @@ struct pressure_rhs {
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
-    ScalarBlock &__restrict__ TMP = *(ScalarBlock *)tmpInfo[info.id].block;
-    ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[info.id].block;
+    ScalarBlock & TMP = *(ScalarBlock *)tmpInfo[info.id].block;
+    ScalarBlock & CHI = *(ScalarBlock *)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         TMP[iy][ix] =
@@ -6669,7 +6669,7 @@ struct pressure_rhs1 {
   pressure_rhs1() {}
   StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
-    ScalarBlock &__restrict__ TMP =
+    ScalarBlock & TMP =
         *(ScalarBlock *)var.tmp->infos[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix)
@@ -6911,10 +6911,10 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < velInfo.size(); i++) {
       if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
         continue;
-      UDEFMAT &__restrict__ udef = OBLOCK[var.tmpV->infos[i].id]->udef;
-      CHI_MAT &__restrict__ chi = OBLOCK[var.tmpV->infos[i].id]->chi;
-      auto &__restrict__ UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
-      ScalarBlock &__restrict__ CHI = *(ScalarBlock *)var.chi->infos[i].block;
+      UDEFMAT & udef = OBLOCK[var.tmpV->infos[i].id]->udef;
+      CHI_MAT & chi = OBLOCK[var.tmpV->infos[i].id]->chi;
+      auto & UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
+      ScalarBlock & CHI = *(ScalarBlock *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           if (chi[iy][ix] < CHI[iy][ix])
@@ -6990,9 +6990,9 @@ int main(int argc, char **argv) {
       KernelAdvectDiffuse Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &__restrict__ Vold =
+        VectorBlock & Vold =
             *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
+        const VectorBlock & V = *(VectorBlock *)velInfo[i].block;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
             Vold[iy][ix].u[0] = V[iy][ix].u[0];
@@ -7004,10 +7004,10 @@ int main(int argc, char **argv) {
       var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
-        const VectorBlock &__restrict__ Vold =
+        VectorBlock & V = *(VectorBlock *)velInfo[i].block;
+        const VectorBlock & Vold =
             *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &__restrict__ tmpV =
+        const VectorBlock & tmpV =
             *(VectorBlock *)var.tmpV->infos[i].block;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
@@ -7023,10 +7023,10 @@ int main(int argc, char **argv) {
       var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
-        const VectorBlock &__restrict__ Vold =
+        VectorBlock & V = *(VectorBlock *)velInfo[i].block;
+        const VectorBlock & Vold =
             *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &__restrict__ tmpV =
+        const VectorBlock & tmpV =
             *(VectorBlock *)var.tmpV->infos[i].block;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
@@ -7037,10 +7037,10 @@ int main(int argc, char **argv) {
       }
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
-        const VectorBlock &__restrict__ Vold =
+        VectorBlock & V = *(VectorBlock *)velInfo[i].block;
+        const VectorBlock & Vold =
             *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &__restrict__ tmpV =
+        const VectorBlock & tmpV =
             *(VectorBlock *)var.tmpV->infos[i].block;
         const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int iy = 0; iy < _BS_; ++iy)
@@ -7056,13 +7056,13 @@ int main(int argc, char **argv) {
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
         for (size_t i = 0; i < velInfo.size(); i++) {
-          const VectorBlock &__restrict__ VEL =
+          const VectorBlock & VEL =
               *(VectorBlock *)velInfo[i].block;
           const Real hsq = velInfo[i].h * velInfo[i].h;
           if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
-          const CHI_MAT &__restrict__ chi = OBLOCK[velInfo[i].id]->chi;
-          const UDEFMAT &__restrict__ udef = OBLOCK[velInfo[i].id]->udef;
+          const CHI_MAT & chi = OBLOCK[velInfo[i].id]->chi;
+          const UDEFMAT & udef = OBLOCK[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
@@ -7363,10 +7363,10 @@ int main(int argc, char **argv) {
           Real omega_s = shape->omega;
           Real Cx = shape->centerOfMass[0];
           Real Cy = shape->centerOfMass[1];
-          CHI_MAT &__restrict__ X = o->chi;
-          UDEFMAT &__restrict__ UDEF = o->udef;
-          ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].block;
-          VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
+          CHI_MAT & X = o->chi;
+          UDEFMAT & UDEF = o->udef;
+          ScalarBlock & CHI = *(ScalarBlock *)chiInfo[i].block;
+          VectorBlock & V = *(VectorBlock *)velInfo[i].block;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (CHI[iy][ix] > X[iy][ix])
@@ -7400,10 +7400,10 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < Nblocks; i++) {
           if (OBLOCK[tmpVInfo[i].id] == nullptr)
             continue;
-          UDEFMAT &__restrict__ udef = OBLOCK[tmpVInfo[i].id]->udef;
-          CHI_MAT &__restrict__ chi = OBLOCK[tmpVInfo[i].id]->chi;
-          auto &__restrict__ UDEF = *(VectorBlock *)tmpVInfo[i].block;
-          ScalarBlock &__restrict__ CHI = *(ScalarBlock *)chiInfo[i].block;
+          UDEFMAT & udef = OBLOCK[tmpVInfo[i].id]->udef;
+          CHI_MAT & chi = OBLOCK[tmpVInfo[i].id]->chi;
+          auto & UDEF = *(VectorBlock *)tmpVInfo[i].block;
+          ScalarBlock & CHI = *(ScalarBlock *)chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
               if (chi[iy][ix] < CHI[iy][ix])
@@ -7424,8 +7424,8 @@ int main(int argc, char **argv) {
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        ScalarBlock &__restrict__ PRES = *(ScalarBlock *)presInfo[i].block;
-        ScalarBlock &__restrict__ POLD = *(ScalarBlock *)poldInfo[i].block;
+        ScalarBlock & PRES = *(ScalarBlock *)presInfo[i].block;
+        ScalarBlock & POLD = *(ScalarBlock *)poldInfo[i].block;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
             POLD[iy][ix] = PRES[iy][ix];
@@ -7457,7 +7457,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
         ScalarBlock &P = *(ScalarBlock *)presInfo[i].block;
-        const ScalarBlock &__restrict__ POLD =
+        const ScalarBlock & POLD =
             *(ScalarBlock *)poldInfo[i].block;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++)
@@ -7471,8 +7471,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-        VectorBlock &__restrict__ V = *(VectorBlock *)velInfo[i].block;
-        VectorBlock &__restrict__ tmpV = *(VectorBlock *)tmpVInfo[i].block;
+        VectorBlock & V = *(VectorBlock *)velInfo[i].block;
+        VectorBlock & tmpV = *(VectorBlock *)tmpVInfo[i].block;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
             V[iy][ix].u[0] += tmpV[iy][ix].u[0] * ih2;
