@@ -3285,85 +3285,6 @@ struct Adaptation {
       grid->Tree0(level - 1, nf) = -1;
     }
   }
-  void PrepareCompression(Grid *grid) {
-    std::vector<BlockInfo> &I = grid->infos;
-    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
-    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
-    for (auto &b : I) {
-      const long long nBlock =
-          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const BlockInfo &base = grid->get(b.level, nBlock);
-      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
-        continue;
-      const BlockInfo &bCopy = grid->get(b.level, b.Z);
-      const int baserank = grid->Tree0(b.level, nBlock);
-      const int brank = grid->Tree0(b.level, b.Z);
-      if (b.Z != nBlock) {
-        if (baserank != sim.rank && brank == sim.rank) {
-          MPI_Block x;
-          x.mn[0] = bCopy.level;
-          x.mn[1] = bCopy.Z;
-          std::memcpy(&x.data[0], bCopy.block,
-                      _BS_ * _BS_ * dim * sizeof(Real));
-          send_blocks[baserank].push_back(x);
-          grid->Tree0(b.level, b.Z) = baserank;
-        }
-      } else {
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            const long long n =
-                getZforward(b.level, b.index[0] + i, b.index[1] + j);
-            if (n == nBlock)
-              continue;
-            BlockInfo &temp = grid->get(b.level, n);
-            const int temprank = grid->Tree0(b.level, n);
-            if (temprank != sim.rank) {
-              MPI_Block x;
-              x.mn[0] = bCopy.level;
-              x.mn[1] = bCopy.Z;
-              recv_blocks[temprank].push_back(x);
-              grid->Tree0(b.level, n) = baserank;
-            }
-          }
-      }
-    }
-    std::vector<MPI_Request> requests0;
-    for (int r = 0; r < sim.size; r++)
-      if (r != sim.rank) {
-        if (recv_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Irecv(&recv_blocks[r][0],
-                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-        if (send_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Isend(&send_blocks[r][0],
-                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-      }
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
-        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
-      }
-    if (requests0.size() != 0) {
-      movedBlocks = true;
-      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
-    }
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
-        const int level = (int)recv_blocks[r][i].mn[0];
-        const long long Z = recv_blocks[r][i].mn[1];
-        grid->_alloc(level, Z);
-        BlockInfo &info = grid->get(level, Z);
-        std::memcpy(info.block, recv_blocks[r][i].data,
-                    _BS_ * _BS_ * dim * sizeof(Real));
-      }
-  }
   void Balance_Diffusion(Grid *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
@@ -3748,7 +3669,83 @@ struct Adaptation {
       }
     }
     grid->dealloc_many(dealloc_IDs);
-    PrepareCompression(grid);
+    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
+    for (auto &b : I) {
+      const long long nBlock =
+          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
+      const BlockInfo &base = grid->get(b.level, nBlock);
+      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
+        continue;
+      const BlockInfo &bCopy = grid->get(b.level, b.Z);
+      const int baserank = grid->Tree0(b.level, nBlock);
+      const int brank = grid->Tree0(b.level, b.Z);
+      if (b.Z != nBlock) {
+        if (baserank != sim.rank && brank == sim.rank) {
+          MPI_Block x;
+          x.mn[0] = bCopy.level;
+          x.mn[1] = bCopy.Z;
+          std::memcpy(&x.data[0], bCopy.block,
+                      _BS_ * _BS_ * dim * sizeof(Real));
+          send_blocks[baserank].push_back(x);
+          grid->Tree0(b.level, b.Z) = baserank;
+        }
+      } else {
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            const long long n =
+                getZforward(b.level, b.index[0] + i, b.index[1] + j);
+            if (n == nBlock)
+              continue;
+            BlockInfo &temp = grid->get(b.level, n);
+            const int temprank = grid->Tree0(b.level, n);
+            if (temprank != sim.rank) {
+              MPI_Block x;
+              x.mn[0] = bCopy.level;
+              x.mn[1] = bCopy.Z;
+              recv_blocks[temprank].push_back(x);
+              grid->Tree0(b.level, n) = baserank;
+            }
+          }
+      }
+    }
+    std::vector<MPI_Request> requests0;
+    for (int r = 0; r < sim.size; r++)
+      if (r != sim.rank) {
+        if (recv_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests0.push_back(req);
+          MPI_Irecv(&recv_blocks[r][0],
+                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
+        }
+        if (send_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests0.push_back(req);
+          MPI_Isend(&send_blocks[r][0],
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
+        }
+      }
+    for (int r = 0; r < sim.size; r++)
+      for (int i = 0; i < (int)send_blocks[r].size(); i++) {
+        grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
+        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
+      }
+    if (requests0.size() != 0) {
+      movedBlocks = true;
+      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
+    }
+    for (int r = 0; r < sim.size; r++)
+      for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
+        const int level = (int)recv_blocks[r][i].mn[0];
+        const long long Z = recv_blocks[r][i].mn[1];
+        grid->_alloc(level, Z);
+        BlockInfo &info = grid->get(level, Z);
+        std::memcpy(info.block, recv_blocks[r][i].data,
+                    _BS_ * _BS_ * dim * sizeof(Real));
+      }
+
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
