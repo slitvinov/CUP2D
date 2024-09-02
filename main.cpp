@@ -3327,22 +3327,22 @@ struct Adaptation {
           }
       }
     }
-    std::vector<MPI_Request> requests;
+    std::vector<MPI_Request> requests0;
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank) {
         if (recv_blocks[r].size() != 0) {
           MPI_Request req{};
-          requests.push_back(req);
+          requests0.push_back(req);
           MPI_Irecv(&recv_blocks[r][0],
                     recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests.back());
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
         }
         if (send_blocks[r].size() != 0) {
           MPI_Request req{};
-          requests.push_back(req);
+          requests0.push_back(req);
           MPI_Isend(&send_blocks[r][0],
                     send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests.back());
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
         }
       }
     for (int r = 0; r < sim.size; r++)
@@ -3350,9 +3350,9 @@ struct Adaptation {
         grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
         grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
-    if (requests.size() != 0) {
+    if (requests0.size() != 0) {
       movedBlocks = true;
-      MPI_Waitall(requests.size(), &requests[0], MPI_STATUSES_IGNORE);
+      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
     }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
