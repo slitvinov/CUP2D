@@ -7447,10 +7447,10 @@ int main(int argc, char **argv) {
       avg = avg / avg1;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        Real *P = (Real *)presInfo[i].block;
+        Real *pres = (Real *)presInfo[i].block;
         Real *pold = (Real *)poldInfo[i].block;
         for (int j = 0; j < _BS_ * _BS_; j++)
-          P[j] += POLD[j] - avg;
+          pres[j] += pold[j] - avg;
       }
       var.tmpV->prepare0(var.tmpV);
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
