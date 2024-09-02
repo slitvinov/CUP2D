@@ -3063,9 +3063,8 @@ template <typename Element> struct BlockLab {
       Element *q0 = (Element *)&b[YY][XX];
       Element *q1 = (Element *)&b[YY + 1][XX];
       for (int ee = 0; ee < e[0] - s[0]; ee++) {
-        p1[ee] =
-            AverageDown(*(q0 + 2 * ee), *(q1 + 2 * ee),
-                        *(q0 + 2 * ee + 1), *(q1 + 2 * ee + 1));
+        p1[ee] = AverageDown(*(q0 + 2 * ee), *(q1 + 2 * ee), *(q0 + 2 * ee + 1),
+                             *(q1 + 2 * ee + 1));
       }
     }
   }
@@ -3270,16 +3269,20 @@ template <typename Element> struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-struct LoadBalancer {
+struct Adaptation {
   bool movedBlocks;
   const int dim;
   struct MPI_Block {
     long long mn[2];
     uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
   };
-  LoadBalancer(int dim) : dim(dim) { movedBlocks = false; }
-  void AddBlock(Grid *grid, const int level, const long long Z,
-                uint8_t *data) {
+  StencilInfo stencil;
+  bool CallValidStates;
+  bool boundary_needed;
+  bool basic_refinement;
+  std::vector<long long> dealloc_IDs;
+  Adaptation(int dim) : dim(dim) { movedBlocks = false; }
+  void AddBlock(Grid *grid, const int level, const long long Z, uint8_t *data) {
     grid->_alloc(level, Z);
     BlockInfo &info = grid->get(level, Z);
     memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
@@ -3613,16 +3616,6 @@ struct LoadBalancer {
     }
     grid->FillPos();
   }
-};
-struct Adaptation {
-  StencilInfo stencil;
-  bool CallValidStates;
-  bool boundary_needed;
-  LoadBalancer *Balancer;
-  bool basic_refinement;
-  std::vector<long long> dealloc_IDs;
-  const int dim;
-  Adaptation(int dim) : dim(dim) {}
   template <typename TLab> void Adapt(Grid *grid, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
@@ -3770,7 +3763,7 @@ struct Adaptation {
       }
     }
     grid->dealloc_many(dealloc_IDs);
-    Balancer->PrepareCompression(grid);
+    PrepareCompression(grid);
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
@@ -3836,8 +3829,8 @@ struct Adaptation {
     }
     grid->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    Balancer->Balance_Diffusion(grid, block_distribution);
-    if (result[0] > 0 || result[1] > 0 || Balancer->movedBlocks) {
+    Balance_Diffusion(grid, block_distribution);
+    if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       grid->UpdateFluxCorrection = true;
       grid->UpdateBlockInfoAll_States(false);
       auto it = grid->Synchronizers.begin();
@@ -6922,7 +6915,6 @@ int main(int argc, char **argv) {
     a->stencil.tensorial = true;
     for (int i = 0; i < a->dim; i++)
       a->stencil.selcomponents.push_back(i);
-    a->Balancer = new LoadBalancer(a->dim);
   }
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
