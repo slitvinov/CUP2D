@@ -56,10 +56,9 @@ static double getA_local(int I1, int I2) {
   else
     return 0.0;
 }
-static void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
-                 int ncomponents, int xstart, int ystart, int zstart, int xend,
+static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart, int zstart, int xend,
                  int yend, int zend, int BSX, int BSY) {
-  if (gptfloats == 1) {
+  if (dim == 1) {
     const int mod = (xend - xstart) % 4;
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy) {
@@ -77,18 +76,18 @@ static void pack(Real *srcbase, Real *dst, unsigned int gptfloats,
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy)
         for (int ix = xstart; ix < xend; ++ix) {
-          const Real *src = srcbase + gptfloats * (ix + BSX * (iy + BSY * iz));
-          for (int ic = 0; ic < ncomponents; ic++, idst++)
+          const Real *src = srcbase + dim * (ix + BSX * (iy + BSY * iz));
+          for (int ic = 0; ic < dim; ic++, idst++)
             dst[idst] = src[ic];
         }
   }
 }
-static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
+static void unpack_subregion(Real *pack, Real *dstbase, int dim,
                              int srcxstart, int srcystart, int srczstart,
                              int LX, int LY, int dstxstart, int dstystart,
                              int dstzstart, int dstxend, int dstyend,
                              int dstzend, int xsize, int ysize) {
-  if (gptfloats == 1) {
+  if (dim == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
       for (int yd = dstystart; yd < dstyend; ++yd) {
@@ -111,12 +110,12 @@ static void unpack_subregion(Real *pack, Real *dstbase, unsigned int gptfloats,
       for (int yd = dstystart; yd < dstyend; ++yd)
         for (int xd = dstxstart; xd < dstxend; ++xd) {
           Real *const dst =
-              dstbase + gptfloats * (xd + xsize * (yd + ysize * zd));
+              dstbase + dim * (xd + xsize * (yd + ysize * zd));
           const Real *src =
-              pack + gptfloats * (xd - dstxstart + srcxstart +
+              pack + dim * (xd - dstxstart + srcxstart +
                                   LX * (yd - dstystart + srcystart +
                                         LY * (zd - dstzstart + srczstart)));
-          for (int c = 0; c < gptfloats; ++c)
+          for (int c = 0; c < dim; ++c)
             dst[c] = src[c];
         }
   }
@@ -1633,7 +1632,7 @@ template <typename TGrid> struct Synchronizer {
 #pragma omp for
           for (size_t i = 0; i < send_packinfos[r].size(); i++) {
             const PackInfo &info = send_packinfos[r][i];
-            pack(info.block, info.pack, dim, NC, info.sx, info.sy, info.sz,
+            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz,
                  info.ex, info.ey, info.ez, _BS_, _BS_);
           }
         }
