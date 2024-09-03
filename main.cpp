@@ -4228,23 +4228,23 @@ struct KernelVorticity {
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   const StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
-    Real *um = (Real*)lab.m;
+    Real *um = (Real *)lab.m;
     const Real i2h = 0.5 / info.h;
-    Real *TMP = (Real*)tmpInfo[info.id].block;
+    Real *TMP = (Real *)tmpInfo[info.id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
-        int x0 = i; // - stencil.sx;
-        int y0 = j; // - stencil.sy;
+        int x0 = i - stencil.sx;
+        int y0 = j - stencil.sy;
         int xp = x0 + 1;
         int yp = y0 + 1;
         int xm = x0 - 1;
         int ym = y0 - 1;
-	Real e0 = lab(x0, ym).u[0];
-	Real e1 = lab(x0, yp).u[0];
-	Real e2 = lab(xp, y0).u[1];
-	Real e3 = lab(xm, y0).u[1];
-        TMP[j * _BS_  + i] = i2h * (e0 - e1 + e2 - e3);
+        Real *e0 = um + 2 * (nm * ym + x0) + 0;
+        Real *e1 = um + 2 * (nm * yp + x0) + 0;
+        Real *e2 = um + 2 * (nm * y0 + xp) + 1;
+        Real *e3 = um + 2 * (nm * y0 + xm) + 1;
+        TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
       }
   }
 };
