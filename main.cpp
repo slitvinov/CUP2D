@@ -5912,57 +5912,57 @@ struct KernelAdvectDiffuse {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-	int ip0 = ix;
-	int jp0 = iy;
+	int ip0 = ix - stencil.sx;
+	int jp0 = iy - stencil.sy;
 	int im1 = ip0 - 1;
-	Real l0 = lab(ip0, jp0).u[0];
-	Real l1 = lab(im1, jp0).u[0];
-	Real l2 = lab(ip0, jp0).u[1];
-	Real l3 = lab(im1, jp0).u[1];
-        faceXm[2 * iy] = dfac * (l0 - l1);
-        faceXm[2 * iy + 1] = dfac * (l2 - l3);
+	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+	Real *l1 = um + 2 * (nm * jp0 + im1) + 0;
+	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+	Real *l3 = um + 2 * (nm * jp0 + im1) + 1;
+        faceXm[2 * iy] = dfac * (*l0 - *l1);
+        faceXm[2 * iy + 1] = dfac * (*l2 - *l3);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-	int ip0 = ix;
-	int jp0 = iy;
+	int ip0 = ix - stencil.sx;
+	int jp0 = iy - stencil.sy;
 	int ip1 = ip0 + 1;
-	Real l0 = lab(ip0, jp0).u[0];
-	Real l1 = lab(ip1, jp0).u[0];
-	Real l2 = lab(ip0, jp0).u[1];
-	Real l3 = lab(ip1, jp0).u[1];
-        faceXp[2 * iy] = dfac * (l0 - l1);
-        faceXp[2 * iy + 1] = dfac * (l2 - l3);
+	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+	Real *l1 = um + 2 * (nm * jp0 + ip1) + 0;
+	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+	Real *l3 = um + 2 * (nm * jp0 + ip1) + 1;
+        faceXp[2 * iy] = dfac * (*l0 - *l1);
+        faceXp[2 * iy + 1] = dfac * (*l2 - *l3);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-	int ip0 = ix;
-	int jp0 = iy;
+	int ip0 = ix - stencil.sx;
+	int jp0 = iy - stencil.sy;
 	int jm1 = jp0 - 1;
-	Real l0 = lab(ip0, jp0).u[0];
-	Real l1 = lab(ip0, jm1).u[0];
-	Real l2 = lab(ip0, jp0).u[1];
-	Real l3 = lab(ip0, jm1).u[1];
-        faceYm[2 * ix] = dfac * (l0 - l1);
-        faceYm[2 * ix + 1] = dfac * (l2 - l3);
+	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+	Real *l1 = um + 2 * (nm * jm1 + ip0) + 0;
+	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+	Real *l3 = um + 2 * (nm * jm1 + ip0) + 1;
+        faceYm[2 * ix] = dfac * (*l0 - *l1);
+        faceYm[2 * ix + 1] = dfac * (*l2 - *l3);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-	int ip0 = ix;
-	int jp0 = iy;
+	int ip0 = ix - stencil.sx;
+	int jp0 = iy - stencil.sy;
 	int jp1 = jp0 + 1;
-	Real l0 = lab(ip0, jp0).u[0];
-	Real l1 = lab(ip0, jp1).u[0];
-	Real l2 = lab(ip0, jp0).u[1];
-	Real l3 = lab(ip0, jp1).u[1];
-        faceYp[2 * ix] = dfac * (l0 - l1);
-        faceYp[2 * ix + 1] = dfac * (l2 - l3);
+	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+	Real *l1 = um + 2 * (nm * jp1 + ip0) + 0;
+	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+	Real *l3 = um + 2 * (nm * jp1 + ip0) + 1;
+        faceYp[2 * ix] = dfac * (*l0 - *l1);
+        faceYp[2 * ix + 1] = dfac * (*l2 - *l3);
       }
     }
   }
