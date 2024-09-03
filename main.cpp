@@ -2543,11 +2543,6 @@ struct Grid {
   }
 };
 
-template <typename Element>
-static Element AverageDown(const Element &e0, const Element &e1,
-                           const Element &e2, const Element &e3) {
-  return 0.25 * ((e0 + e3) + (e1 + e2));
-}
 static void LI(Real *a0, Real *b0, Real *c0) {
   Real a = *a0;
   Real b = *b0;
