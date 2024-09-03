@@ -5835,46 +5835,6 @@ static void adapt() {
   var.pold_amr->Adapt<ScalarLab>(var.pold, false);
   var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
 }
-static Real dU_adv_dif(VectorLab &lab, Real afac, Real dfac, int ix, int iy) {
-  Real u = lab(ix, iy).u[0];
-  Real v = lab(ix, iy).u[1];
-  Real up1x = lab(ix + 1, iy).u[0];
-  Real up2x = lab(ix + 2, iy).u[0];
-  Real up3x = lab(ix + 3, iy).u[0];
-  Real um1x = lab(ix - 1, iy).u[0];
-  Real um2x = lab(ix - 2, iy).u[0];
-  Real um3x = lab(ix - 3, iy).u[0];
-  Real up1y = lab(ix, iy + 1).u[0];
-  Real up2y = lab(ix, iy + 2).u[0];
-  Real up3y = lab(ix, iy + 3).u[0];
-  Real um1y = lab(ix, iy - 1).u[0];
-  Real um2y = lab(ix, iy - 2).u[0];
-  Real um3y = lab(ix, iy - 3).u[0];
-  Real dudx = derivative(u, um3x, um2x, um1x, u, up1x, up2x, up3x);
-  Real dudy = derivative(v, um3y, um2y, um1y, u, up1y, up2y, up3y);
-  return afac * (u * dudx + v * dudy) +
-         dfac * (up1x + um1x + up1y + um1y - 4 * u);
-}
-static Real dV_adv_dif(VectorLab &lab, Real afac, Real dfac, int ix, int iy) {
-  Real u = lab(ix, iy).u[0];
-  Real v = lab(ix, iy).u[1];
-  Real up1x = lab(ix + 1, iy).u[1];
-  Real up2x = lab(ix + 2, iy).u[1];
-  Real up3x = lab(ix + 3, iy).u[1];
-  Real um1x = lab(ix - 1, iy).u[1];
-  Real um2x = lab(ix - 2, iy).u[1];
-  Real um3x = lab(ix - 3, iy).u[1];
-  Real up1y = lab(ix, iy + 1).u[1];
-  Real up2y = lab(ix, iy + 2).u[1];
-  Real up3y = lab(ix, iy + 3).u[1];
-  Real um1y = lab(ix, iy - 1).u[1];
-  Real um2y = lab(ix, iy - 2).u[1];
-  Real um3y = lab(ix, iy - 3).u[1];
-  Real dvdx = derivative(u, um3x, um2x, um1x, v, up1x, up2x, up3x);
-  Real dvdy = derivative(v, um3y, um2y, um1y, v, up1y, up2y, up3y);
-  return afac * (u * dvdx + v * dvdy) +
-         dfac * (up1x + um1x + up1y + um1y - 4 * v);
-}
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
   std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
@@ -5885,8 +5845,42 @@ struct KernelAdvectDiffuse {
     Real *TMP = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP[2 * (_BS_ * iy + ix)] = dU_adv_dif(lab, afac, dfac, ix, iy);
-        TMP[2 * (_BS_ * iy + ix) + 1] = dV_adv_dif(lab, afac, dfac, ix, iy);
+        Real u = lab(ix, iy).u[0];
+        Real v = lab(ix, iy).u[1];
+        Real up1x0 = lab(ix + 1, iy).u[0];
+        Real up2x0 = lab(ix + 2, iy).u[0];
+        Real up3x0 = lab(ix + 3, iy).u[0];
+        Real um1x0 = lab(ix - 1, iy).u[0];
+        Real um2x0 = lab(ix - 2, iy).u[0];
+        Real um3x0 = lab(ix - 3, iy).u[0];
+        Real up1y0 = lab(ix, iy + 1).u[0];
+        Real up2y0 = lab(ix, iy + 2).u[0];
+        Real up3y0 = lab(ix, iy + 3).u[0];
+        Real um1y0 = lab(ix, iy - 1).u[0];
+        Real um2y0 = lab(ix, iy - 2).u[0];
+        Real um3y0 = lab(ix, iy - 3).u[0];
+        Real dudx = derivative(u, um3x0, um2x0, um1x0, u, up1x0, up2x0, up3x0);
+        Real dudy = derivative(v, um3y0, um2y0, um1y0, u, up1y0, up2y0, up3y0);
+        Real up1x1 = lab(ix + 1, iy).u[1];
+        Real up2x1 = lab(ix + 2, iy).u[1];
+        Real up3x1 = lab(ix + 3, iy).u[1];
+        Real um1x1 = lab(ix - 1, iy).u[1];
+        Real um2x1 = lab(ix - 2, iy).u[1];
+        Real um3x1 = lab(ix - 3, iy).u[1];
+        Real up1y1 = lab(ix, iy + 1).u[1];
+        Real up2y1 = lab(ix, iy + 2).u[1];
+        Real up3y1 = lab(ix, iy + 3).u[1];
+        Real um1y1 = lab(ix, iy - 1).u[1];
+        Real um2y1 = lab(ix, iy - 2).u[1];
+        Real um3y1 = lab(ix, iy - 3).u[1];
+        Real dvdx = derivative(u, um3x1, um2x1, um1x1, v, up1x1, up2x1, up3x1);
+        Real dvdy = derivative(v, um3y1, um2y1, um1y1, v, up1y1, up2y1, up3y1);
+        TMP[2 * (_BS_ * iy + ix)] =
+            afac * (u * dudx + v * dudy) +
+            dfac * (up1x0 + um1x0 + up1y0 + um1y0 - 4 * u);
+        TMP[2 * (_BS_ * iy + ix) + 1] =
+            afac * (u * dvdx + v * dvdy) +
+            dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
