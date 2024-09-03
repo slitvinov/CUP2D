@@ -4690,6 +4690,8 @@ struct ComputeSurfaceNormals {
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
                   const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    Real *um0 = (Real *)labChi.m;
+    Real *um1 = (Real *)labSDF.m;
     for (const auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.id] == nullptr)
@@ -4700,16 +4702,16 @@ struct ComputeSurfaceNormals {
       Real fac = 0.5 * h;
       for (int y0 = 0; y0 < _BS_; y0++)
         for (int x0 = 0; x0 < _BS_; x0++) {
-          int xp = x0 + 1;
-          int xm = x0 - 1;
-          int yp = y0 + 1;
-          int ym = y0 - 1;
-          Real gradHX = labChi(xp, y0) - labChi(xm, y0);
-          Real gradHY = labChi(x0, yp) - labChi(x0, ym);
+          int xp = x0 + 1 - stencil.sx;
+          int xm = x0 - 1 - stencil.sy;
+          int yp = y0 + 1 - stencil.sx;
+          int ym = y0 - 1 - stencil.sy;
+          Real gradHX = um0[nm * y0 + xp] - um0[nm * y0 + xm];
+          Real gradHY = um0[nm * yp + x0] - um0[nm * ym + x0];
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
-          Real gradUX = i2h * (labSDF(xp, y0) - labSDF(xm, y0));
-          Real gradUY = i2h * (labSDF(x0, yp) - labSDF(x0, ym));
+          Real gradUX = i2h * (um1[nm * y0 + xp] - um1[nm * y0 + xm]);
+          Real gradUY = i2h * (um1[nm * yp + x0] - um1[nm * ym + x0]);
           Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
