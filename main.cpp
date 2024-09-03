@@ -4697,21 +4697,21 @@ struct ComputeSurfaceNormals {
       ObstacleBlock &o = *OBLOCK[infoChi.id];
       Real i2h = 0.5 / h;
       Real fac = 0.5 * h;
-      for (int iy = 0; iy < _BS_; iy++)
+      for (int y0 = 0; y0 < _BS_; y0++)
         for (int ix = 0; ix < _BS_; ix++) {
-          Real gradHX = labChi(ix + 1, iy) - labChi(ix - 1, iy);
-          Real gradHY = labChi(ix, iy + 1) - labChi(ix, iy - 1);
+          Real gradHX = labChi(ix + 1, y0) - labChi(ix - 1, y0);
+          Real gradHY = labChi(ix, y0 + 1) - labChi(ix, y0 - 1);
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
-          Real gradUX = i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
-          Real gradUY = i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
+          Real gradUX = i2h * (labSDF(ix + 1, y0) - labSDF(ix - 1, y0));
+          Real gradUY = i2h * (labSDF(ix, y0 + 1) - labSDF(ix, y0 - 1));
           Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
             o.n_surfPoints++;
             Real dchidx = -D * gradUX, dchidy = -D * gradUY;
             struct surface_data s {
-              ix, iy, dchidx, dchidy, D
+              ix, y0, dchidx, dchidy, D
             };
             o.surface.push_back(s);
           }
