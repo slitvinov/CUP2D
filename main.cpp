@@ -4307,7 +4307,8 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   sum = 0;
   for (i = 0; i < nblock; i++) {
     BlockInfo &info = infos[i];
-    Real *b = (Real*)info.block;
+    Real *b = (Real *)info.block;
+    j = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
@@ -4324,9 +4325,9 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v1;
         xyz[k++] = u1;
         xyz[k++] = v0;
-        attr[l] = b[l];
-        sum += b[l];
-	l++;
+        attr[l++] = b[j];
+        sum += b[j];
+        j++;
       }
   }
   printf("main.cpp: %d: %8.3e\n", sim.rank, sum / (_BS_ * _BS_ * nblock));
