@@ -4244,7 +4244,7 @@ struct KernelVorticity {
 	Real e1 = lab(x0, yp).u[0];
 	Real e2 = lab(xp, y0).u[1];
 	Real e3 = lab(xm, y0).u[1];
-        TMP[j][i] = i2h * (e0 - e1 + e2 - e3);
+        TMP[j * _BS_  + i] = i2h * (e0 - e1 + e2 - e3);
       }
   }
 };
