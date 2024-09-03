@@ -4225,7 +4225,6 @@ struct ObstacleBlock {
   }
 };
 struct KernelVorticity {
-  KernelVorticity() {}
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   const StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
