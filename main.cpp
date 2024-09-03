@@ -3158,43 +3158,43 @@ template <typename Element> struct BlockLab {
               if (code[0] != 0) {
                 Element dudy, dudy2;
                 if (YY + offset[1] == 0) {
-                  dudy = (-0.5 * c[i0] - 1.5 * c[i1]) + 2.0 * c[i2];
-                  dudy2 = (c[i0] + c[i1]) - 2.0 * c[i2];
+                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i2 + d];
+                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i2 + d];
                 } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                  dudy = (0.5 * c[i3] + 1.5 * c[i1]) - 2.0 * c[i4];
-                  dudy2 = (c[i3] + c[i1]) - 2.0 * c[i4];
+                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) - 2.0 * uc[dim * i4 + d];
+                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i4 + d];
                 } else {
-                  dudy = 0.5 * (c[i2] - c[i4]);
-                  dudy2 = (c[i2] + c[i4]) - 2.0 * c[i1];
+                  dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
+                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) - 2.0 * uc[dim * i1 + d];
                 }
-                m[j0] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                m[j0] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[j1] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[j1] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[j2] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[j2] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  m[j3] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[j3] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
                 Element dudx, dudx2;
                 if (XX + offset[0] == 0) {
-                  dudx = (-0.5 * c[i5] - 1.5 * c[i1]) + 2.0 * c[i6];
-                  dudx2 = (c[i5] + c[i1]) - 2.0 * c[i6];
+                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i6 + d];
+                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i6 + d];
                 } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                  dudx = (0.5 * c[i8] + 1.5 * c[i1]) - 2.0 * c[i7];
-                  dudx2 = (c[i8] + c[i1]) - 2.0 * c[i7];
+                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) - 2.0 * uc[dim * i7 + d];
+                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i7 + d];
                 } else {
-                  dudx = 0.5 * (c[i6] - c[i7]);
-                  dudx2 = (c[i6] + c[i7]) - 2.0 * c[i1];
+                  dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
+                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) - 2.0 * uc[dim * i1 + d];
                 }
-                m[j0] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                m[j0] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[j1] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[j1] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[j2] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[j2] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  m[j3] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[j3] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
               }
             }
           }
