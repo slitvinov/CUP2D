@@ -6983,8 +6983,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < Nblocks; i++) {
       Real *vel = (Real *)velInfo[i].block;
-      for (i = 0; i < 2 * _BS_ * _BS_; i++)
-        umax = std::max(umax, std::fabs(vel[i]));
+      for (j = 0; j < 2 * _BS_ * _BS_; j++)
+        umax = std::max(umax, std::fabs(vel[j]));
     }
     MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
     if (CFL > 0) {
