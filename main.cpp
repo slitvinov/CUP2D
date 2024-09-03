@@ -3154,46 +3154,48 @@ template <typename Element> struct BlockLab {
             int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
             int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
             int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
-            if (code[0] != 0) {
-              Element dudy, dudy2;
-              if (YY + offset[1] == 0) {
-                dudy = (-0.5 * c[i0] - 1.5 * c[i1]) + 2.0 * c[i2];
-                dudy2 = (c[i0] + c[i1]) - 2.0 * c[i2];
-              } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                dudy = (0.5 * c[i3] + 1.5 * c[i1]) - 2.0 * c[i4];
-                dudy2 = (c[i3] + c[i1]) - 2.0 * c[i4];
+            for (int d = 0; d < dim; d++) {
+              if (code[0] != 0) {
+                Element dudy, dudy2;
+                if (YY + offset[1] == 0) {
+                  dudy = (-0.5 * c[i0] - 1.5 * c[i1]) + 2.0 * c[i2];
+                  dudy2 = (c[i0] + c[i1]) - 2.0 * c[i2];
+                } else if (YY + offset[1] == (_BS_ / 2) - 1) {
+                  dudy = (0.5 * c[i3] + 1.5 * c[i1]) - 2.0 * c[i4];
+                  dudy2 = (c[i3] + c[i1]) - 2.0 * c[i4];
+                } else {
+                  dudy = 0.5 * (c[i2] - c[i4]);
+                  dudy2 = (c[i2] + c[i4]) - 2.0 * c[i1];
+                }
+                m[j0] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  m[j1] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  m[j2] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  m[j3] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
-                dudy = 0.5 * (c[i2] - c[i4]);
-                dudy2 = (c[i2] + c[i4]) - 2.0 * c[i1];
+                Element dudx, dudx2;
+                if (XX + offset[0] == 0) {
+                  dudx = (-0.5 * c[i5] - 1.5 * c[i1]) + 2.0 * c[i6];
+                  dudx2 = (c[i5] + c[i1]) - 2.0 * c[i6];
+                } else if (XX + offset[0] == (_BS_ / 2) - 1) {
+                  dudx = (0.5 * c[i8] + 1.5 * c[i1]) - 2.0 * c[i7];
+                  dudx2 = (c[i8] + c[i1]) - 2.0 * c[i7];
+                } else {
+                  dudx = 0.5 * (c[i6] - c[i7]);
+                  dudx2 = (c[i6] + c[i7]) - 2.0 * c[i1];
+                }
+                m[j0] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  m[j1] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  m[j2] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  m[j3] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
               }
-              m[j0] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
-              if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m[j1] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
-              if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m[j2] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1])
-                m[j3] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
-            } else {
-              Element dudx, dudx2;
-              if (XX + offset[0] == 0) {
-                dudx = (-0.5 * c[i5] - 1.5 * c[i1]) + 2.0 * c[i6];
-                dudx2 = (c[i5] + c[i1]) - 2.0 * c[i6];
-              } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                dudx = (0.5 * c[i8] + 1.5 * c[i1]) - 2.0 * c[i7];
-                dudx2 = (c[i8] + c[i1]) - 2.0 * c[i7];
-              } else {
-                dudx = 0.5 * (c[i6] - c[i7]);
-                dudx2 = (c[i6] + c[i7]) - 2.0 * c[i1];
-              }
-              m[j0] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
-              if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m[j1] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
-              if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m[j2] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
-              if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                  iy + iyp < e[1])
-                m[j3] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
             }
           }
         }
