@@ -5835,45 +5835,45 @@ static void adapt() {
   var.pold_amr->Adapt<ScalarLab>(var.pold, false);
   var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
 }
-static Real dU_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
-  Real u = V(ix, iy).u[0];
-  Real v = V(ix, iy).u[1];
-  Real up1x = V(ix + 1, iy).u[0];
-  Real up2x = V(ix + 2, iy).u[0];
-  Real up3x = V(ix + 3, iy).u[0];
-  Real um1x = V(ix - 1, iy).u[0];
-  Real um2x = V(ix - 2, iy).u[0];
-  Real um3x = V(ix - 3, iy).u[0];
-  Real up1y = V(ix, iy + 1).u[0];
-  Real up2y = V(ix, iy + 2).u[0];
-  Real up3y = V(ix, iy + 3).u[0];
-  Real um1y = V(ix, iy - 1).u[0];
-  Real um2y = V(ix, iy - 2).u[0];
-  Real um3y = V(ix, iy - 3).u[0];
+static Real dU_adv_dif(VectorLab &lab, Real afac, Real dfac, int ix, int iy) {
+  Real u = lab(ix, iy).u[0];
+  Real v = lab(ix, iy).u[1];
+  Real up1x = lab(ix + 1, iy).u[0];
+  Real up2x = lab(ix + 2, iy).u[0];
+  Real up3x = lab(ix + 3, iy).u[0];
+  Real um1x = lab(ix - 1, iy).u[0];
+  Real um2x = lab(ix - 2, iy).u[0];
+  Real um3x = lab(ix - 3, iy).u[0];
+  Real up1y = lab(ix, iy + 1).u[0];
+  Real up2y = lab(ix, iy + 2).u[0];
+  Real up3y = lab(ix, iy + 3).u[0];
+  Real um1y = lab(ix, iy - 1).u[0];
+  Real um2y = lab(ix, iy - 2).u[0];
+  Real um3y = lab(ix, iy - 3).u[0];
   Real dudx = derivative(u, um3x, um2x, um1x, u, up1x, up2x, up3x);
   Real dudy = derivative(v, um3y, um2y, um1y, u, up1y, up2y, up3y);
-  return advF * (u * dudx + v * dudy) +
-         difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
+  return afac * (u * dudx + v * dudy) +
+         dfac * (up1x + um1x + up1y + um1y - 4 * u);
 }
-static Real dV_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
-  Real u = V(ix, iy).u[0];
-  Real v = V(ix, iy).u[1];
-  Real up1x = V(ix + 1, iy).u[1];
-  Real up2x = V(ix + 2, iy).u[1];
-  Real up3x = V(ix + 3, iy).u[1];
-  Real um1x = V(ix - 1, iy).u[1];
-  Real um2x = V(ix - 2, iy).u[1];
-  Real um3x = V(ix - 3, iy).u[1];
-  Real up1y = V(ix, iy + 1).u[1];
-  Real up2y = V(ix, iy + 2).u[1];
-  Real up3y = V(ix, iy + 3).u[1];
-  Real um1y = V(ix, iy - 1).u[1];
-  Real um2y = V(ix, iy - 2).u[1];
-  Real um3y = V(ix, iy - 3).u[1];
+static Real dV_adv_dif(VectorLab &lab, Real afac, Real dfac, int ix, int iy) {
+  Real u = lab(ix, iy).u[0];
+  Real v = lab(ix, iy).u[1];
+  Real up1x = lab(ix + 1, iy).u[1];
+  Real up2x = lab(ix + 2, iy).u[1];
+  Real up3x = lab(ix + 3, iy).u[1];
+  Real um1x = lab(ix - 1, iy).u[1];
+  Real um2x = lab(ix - 2, iy).u[1];
+  Real um3x = lab(ix - 3, iy).u[1];
+  Real up1y = lab(ix, iy + 1).u[1];
+  Real up2y = lab(ix, iy + 2).u[1];
+  Real up3y = lab(ix, iy + 3).u[1];
+  Real um1y = lab(ix, iy - 1).u[1];
+  Real um2y = lab(ix, iy - 2).u[1];
+  Real um3y = lab(ix, iy - 3).u[1];
   Real dvdx = derivative(u, um3x, um2x, um1x, v, up1x, up2x, up3x);
   Real dvdy = derivative(v, um3y, um2y, um1y, v, up1y, up2y, up3y);
-  return advF * (u * dvdx + v * dvdy) +
-         difF * (((up1x + um1x) + (up1y + um1y)) - 4 * v);
+  return afac * (u * dvdx + v * dvdy) +
+         dfac * (up1x + um1x + up1y + um1y - 4 * v);
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
