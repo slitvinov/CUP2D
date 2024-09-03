@@ -3191,6 +3191,17 @@ template <typename Element> struct BlockLab {
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
+            int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
+            int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
+            int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
+            int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
+            int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
+            int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
+            int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
+            int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
+            int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
+            int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
+            int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
             int x =
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
@@ -3198,42 +3209,42 @@ template <typename Element> struct BlockLab {
             auto &a = m[ix - start[0] + nm[0] * (iy - start[1])];
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
-                auto &b = m[ix - start[0] + nm[0] * (iy - start[1] - 1)];
-                auto &c = m[ix - start[0] + nm[0] * (iy - start[1] - 2)];
+                auto &b = m[k0];
+                auto &c = m[k1];
                 LI(a, b, c);
               } else if (y == 1) {
-                auto &b = m[ix - start[0] + nm[0] * (iy - start[1] - 2)];
+                auto &b = m[k1];
                 auto &c = m[ix - start[0] + nm[0] * (iy - start[1] - 3)];
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
-                auto &b = m[ix - start[0] + nm[0] * (iy - start[1] + 1)];
-                auto &c = m[ix - start[0] + nm[0] * (iy - start[1] + 2)];
+                auto &b = m[k2];
+                auto &c = m[k3];
                 LI(a, b, c);
               } else if (y == 0) {
-                auto &b = m[ix - start[0] + nm[0] * (iy - start[1] + 2)];
-                auto &c = m[ix - start[0] + nm[0] * (iy - start[1] + 3)];
+                auto &b = m[k3];
+                auto &c = m[k4];
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
-                auto &b = m[ix - start[0] - 1 + nm[0] * (iy - start[1])];
-                auto &c = m[ix - start[0] - 2 + nm[0] * (iy - start[1])];
+                auto &b = m[k5];
+                auto &c = m[k6];
                 LI(a, b, c);
               } else if (x == 1) {
-                auto &b = m[ix - start[0] - 2 + nm[0] * (iy - start[1])];
-                auto &c = m[ix - start[0] - 3 + nm[0] * (iy - start[1])];
+                auto &b = m[k6];
+                auto &c = m[k7];
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
-                auto &b = m[ix - start[0] + 1 + nm[0] * (iy - start[1])];
-                auto &c = m[ix - start[0] + 2 + nm[0] * (iy - start[1])];
+                auto &b = m[k8];
+                auto &c = m[k9];
                 LI(a, b, c);
               } else if (x == 0) {
-                auto &b = m[ix - start[0] + 2 + nm[0] * (iy - start[1])];
-                auto &c = m[ix - start[0] + 3 + nm[0] * (iy - start[1])];
+                auto &b = m[k9];
+                auto &c = m[k10];
                 LE(a, b, c);
               }
             }
