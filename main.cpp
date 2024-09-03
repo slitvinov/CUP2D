@@ -41,8 +41,8 @@ static Real dds(int i, int m, Real *a, Real *b) {
     return (a[i] - a[i - 1]) / (b[i] - b[i - 1]);
   else
     return ((a[i + 1] - a[i]) / (b[i + 1] - b[i]) +
-            (a[i] - a[i - 1]) / (b[i] - b[i - 1])) /
-           2;
+	    (a[i] - a[i - 1]) / (b[i] - b[i - 1])) /
+	   2;
 }
 static double getA_local(int I1, int I2) {
   int j1 = I1 / _BS_;
@@ -57,71 +57,71 @@ static double getA_local(int I1, int I2) {
     return 0.0;
 }
 static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
-                 int zstart, int xend, int yend, int zend, int BSX, int BSY) {
+		 int zstart, int xend, int yend, int zend, int BSX, int BSY) {
   if (dim == 1) {
     const int mod = (xend - xstart) % 4;
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy) {
-        for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
-          dst[idst + 0] = srcbase[ix + 0 + BSX * (iy + BSY * iz)];
-          dst[idst + 1] = srcbase[ix + 1 + BSX * (iy + BSY * iz)];
-          dst[idst + 2] = srcbase[ix + 2 + BSX * (iy + BSY * iz)];
-          dst[idst + 3] = srcbase[ix + 3 + BSX * (iy + BSY * iz)];
-        }
-        for (int ix = xend - mod; ix < xend; ix++, idst++) {
-          dst[idst] = srcbase[ix + BSX * (iy + BSY * iz)];
-        }
+	for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
+	  dst[idst + 0] = srcbase[ix + 0 + BSX * (iy + BSY * iz)];
+	  dst[idst + 1] = srcbase[ix + 1 + BSX * (iy + BSY * iz)];
+	  dst[idst + 2] = srcbase[ix + 2 + BSX * (iy + BSY * iz)];
+	  dst[idst + 3] = srcbase[ix + 3 + BSX * (iy + BSY * iz)];
+	}
+	for (int ix = xend - mod; ix < xend; ix++, idst++) {
+	  dst[idst] = srcbase[ix + BSX * (iy + BSY * iz)];
+	}
       }
   } else {
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy)
-        for (int ix = xstart; ix < xend; ++ix) {
-          const Real *src = srcbase + dim * (ix + BSX * (iy + BSY * iz));
-          for (int ic = 0; ic < dim; ic++, idst++)
-            dst[idst] = src[ic];
-        }
+	for (int ix = xstart; ix < xend; ++ix) {
+	  const Real *src = srcbase + dim * (ix + BSX * (iy + BSY * iz));
+	  for (int ic = 0; ic < dim; ic++, idst++)
+	    dst[idst] = src[ic];
+	}
   }
 }
 static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
-                             int srcystart, int srczstart, int LX, int LY,
-                             int dstxstart, int dstystart, int dstzstart,
-                             int dstxend, int dstyend, int dstzend, int xsize,
-                             int ysize) {
+			     int srcystart, int srczstart, int LX, int LY,
+			     int dstxstart, int dstystart, int dstzstart,
+			     int dstxend, int dstyend, int dstzend, int xsize,
+			     int ysize) {
   if (dim == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
       for (int yd = dstystart; yd < dstyend; ++yd) {
-        const int offset = -dstxstart + srcxstart +
-                           LX * (yd - dstystart + srcystart +
-                                 LY * (zd - dstzstart + srczstart));
-        const int offset_dst = xsize * (yd + ysize * zd);
-        for (int xd = dstxstart; xd < dstxend - mod; xd += 4) {
-          dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
-          dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
-          dstbase[xd + 2 + offset_dst] = pack[xd + 2 + offset];
-          dstbase[xd + 3 + offset_dst] = pack[xd + 3 + offset];
-        }
-        for (int xd = dstxend - mod; xd < dstxend; ++xd) {
-          dstbase[xd + offset_dst] = pack[xd + offset];
-        }
+	const int offset = -dstxstart + srcxstart +
+			   LX * (yd - dstystart + srcystart +
+				 LY * (zd - dstzstart + srczstart));
+	const int offset_dst = xsize * (yd + ysize * zd);
+	for (int xd = dstxstart; xd < dstxend - mod; xd += 4) {
+	  dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
+	  dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
+	  dstbase[xd + 2 + offset_dst] = pack[xd + 2 + offset];
+	  dstbase[xd + 3 + offset_dst] = pack[xd + 3 + offset];
+	}
+	for (int xd = dstxend - mod; xd < dstxend; ++xd) {
+	  dstbase[xd + offset_dst] = pack[xd + offset];
+	}
       }
   } else {
     for (int zd = dstzstart; zd < dstzend; ++zd)
       for (int yd = dstystart; yd < dstyend; ++yd)
-        for (int xd = dstxstart; xd < dstxend; ++xd) {
-          Real *const dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
-          const Real *src =
-              pack + dim * (xd - dstxstart + srcxstart +
-                            LX * (yd - dstystart + srcystart +
-                                  LY * (zd - dstzstart + srczstart)));
-          for (int c = 0; c < dim; ++c)
-            dst[c] = src[c];
-        }
+	for (int xd = dstxstart; xd < dstxend; ++xd) {
+	  Real *const dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
+	  const Real *src =
+	      pack + dim * (xd - dstxstart + srcxstart +
+			    LX * (yd - dstystart + srcystart +
+				  LY * (zd - dstzstart + srczstart)));
+	  for (int c = 0; c < dim; ++c)
+	    dst[c] = src[c];
+	}
   }
 }
 static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
-                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
-                       Real *norY, Real *vNorX, Real *vNorY) {
+		       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
+		       Real *norY, Real *vNorX, Real *vNorY) {
   rX[0] = 0.0;
   rY[0] = 0.0;
   norX[0] = 0.0;
@@ -140,9 +140,9 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
     const Real dnuX = -curv[i - 1] * ksiX;
     const Real dnuY = -curv[i - 1] * ksiY;
     const Real dvKsiX =
-        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
+	curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
     const Real dvKsiY =
-        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
+	curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
     const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
     const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
     const Real ds = rS[i] - rS[i - 1];
@@ -175,11 +175,11 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
+	    0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
   Real b2 =
       13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
   Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
+	    0.25 * pow((3 * u + up2) - 4 * up1, 2);
   Real g1 = 0.1, g2 = 0.6, g3 = 0.3;
   Real what1 = g1 / pow(b1 + e, exponent);
   Real what2 = g2 / pow(b2 + e, exponent);
@@ -194,11 +194,11 @@ static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
 static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
+	    0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
   Real b2 =
       13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
   Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
+	    0.25 * pow((3 * u + up2) - 4 * up1, 2);
   Real g1 = 0.3, g2 = 0.6, g3 = 0.1;
   Real what1 = g1 / pow(b1 + e, exponent);
   Real what2 = g2 / pow(b2 + e, exponent);
@@ -213,7 +213,7 @@ static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
   return (w1 * f1 + w3 * f3) + w2 * f2;
 }
 static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
-                       Real up2, Real up3) {
+		       Real up2, Real up3) {
   Real fp = 0.0;
   Real fm = 0.0;
   if (U > 0) {
@@ -253,9 +253,9 @@ static void compute_j(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
   J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
 }
 static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
-                      Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
-                      Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
-                      Real CX, Real CY, Real CZ, Real *vc1, Real *vc2) {
+		      Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
+		      Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
+		      Real CX, Real CY, Real CZ, Real *vc1, Real *vc2) {
   Real e = 1.0;
   Real N[3] = {NX, NY, NZ};
   Real C[3] = {CX, CY, CZ};
@@ -277,23 +277,23 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   u2DEF[1] = vc2[1] - v2[1] - (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2]));
   u2DEF[2] = vc2[2] - v2[2] - (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0]));
   Real nom = e * ((vc1[0] - vc2[0]) * N[0] + (vc1[1] - vc2[1]) * N[1] +
-                  (vc1[2] - vc2[2]) * N[2]) +
-             ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
-              (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
-              (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
-             ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
-              (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
-              (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
-             ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
-              (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
-              (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
+		  (vc1[2] - vc2[2]) * N[2]) +
+	     ((v1[0] - v2[0] + u1DEF[0] - u2DEF[0]) * N[0] +
+	      (v1[1] - v2[1] + u1DEF[1] - u2DEF[1]) * N[1] +
+	      (v1[2] - v2[2] + u1DEF[2] - u2DEF[2]) * N[2]) +
+	     ((o1[1] * (C[2] - C1[2]) - o1[2] * (C[1] - C1[1])) * N[0] +
+	      (o1[2] * (C[0] - C1[0]) - o1[0] * (C[2] - C1[2])) * N[1] +
+	      (o1[0] * (C[1] - C1[1]) - o1[1] * (C[0] - C1[0])) * N[2]) -
+	     ((o2[1] * (C[2] - C2[2]) - o2[2] * (C[1] - C2[1])) * N[0] +
+	      (o2[2] * (C[0] - C2[0]) - o2[0] * (C[2] - C2[2])) * N[1] +
+	      (o2[0] * (C[1] - C2[1]) - o2[1] * (C[0] - C2[0])) * N[2]);
   Real denom = -(1.0 / m1 + 1.0 / m2) +
-               +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
-                 (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
-                 (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
-               ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
-                (J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
-                (J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
+	       +((J1[1] * (C[2] - C1[2]) - J1[2] * (C[1] - C1[1])) * (-N[0]) +
+		 (J1[2] * (C[0] - C1[0]) - J1[0] * (C[2] - C1[2])) * (-N[1]) +
+		 (J1[0] * (C[1] - C1[1]) - J1[1] * (C[0] - C1[0])) * (-N[2])) -
+	       ((J2[1] * (C[2] - C2[2]) - J2[2] * (C[1] - C2[1])) * (-N[0]) +
+		(J2[2] * (C[0] - C2[0]) - J2[0] * (C[2] - C2[2])) * (-N[1]) +
+		(J2[0] * (C[1] - C2[1]) - J2[1] * (C[0] - C2[0])) * (-N[2]));
   Real impulse = nom / (denom + 1e-21);
   hv1[0] = v1[0] + k1[0] * impulse;
   hv1[1] = v1[1] + k1[1] * impulse;
@@ -401,8 +401,8 @@ struct SpaceCurve {
   void rot(long long n, int *x, int *y, long long rx, long long ry) const {
     if (ry == 0) {
       if (rx == 1) {
-        *x = n - 1 - *x;
-        *y = n - 1 - *y;
+	*x = n - 1 - *x;
+	*y = n - 1 - *y;
       }
       int t = *x;
       *x = *y;
@@ -428,21 +428,21 @@ struct SpaceCurve {
 #pragma omp parallel for collapse(2)
     for (int j = 0; j < BY; j++)
       for (int i = 0; i < BX; i++) {
-        const int c[2] = {i, j};
-        long long index = AxestoTranspose(c, base_level);
-        long long substract = 0;
-        for (long long h = 0; h < index; h++) {
-          int X[2] = {0, 0};
-          TransposetoAxes(h, X, base_level);
-          if (X[0] >= BX || X[1] >= BY)
-            substract++;
-        }
-        index -= substract;
-        if (substract > 0)
-          isRegular = false;
-        i_inverse[0][index] = i;
-        j_inverse[0][index] = j;
-        Zsave[0][j * BX + i] = index;
+	const int c[2] = {i, j};
+	long long index = AxestoTranspose(c, base_level);
+	long long substract = 0;
+	for (long long h = 0; h < index; h++) {
+	  int X[2] = {0, 0};
+	  TransposetoAxes(h, X, base_level);
+	  if (X[0] >= BX || X[1] >= BY)
+	    substract++;
+	}
+	index -= substract;
+	if (substract > 0)
+	  isRegular = false;
+	i_inverse[0][index] = i;
+	j_inverse[0][index] = j;
+	Zsave[0][j * BX + i] = index;
       }
   }
   long long forward(const int l, const int i, const int j) const {
@@ -517,7 +517,7 @@ struct SpaceCurve {
 };
 static long long getZforward(int level, int i, int j) {
   return sim.space_curve->forward(level, i % (1 << level * sim.bpdx),
-                                  j % (1 << level * sim.bpdy));
+				  j % (1 << level * sim.bpdy));
 }
 struct Value {
   std::string content;
@@ -559,34 +559,34 @@ struct CommandlineParser {
   CommandlineParser(const int argc, char **argv) : bStrictMode(false) {
     for (int i = 1; i < argc; i++)
       if (argv[i][0] == '-') {
-        std::string values = "";
-        int itemCount = 0;
-        for (int j = i + 1; j < argc; j++) {
-          const bool leadingDash = (argv[j][0] == '-');
-          char *end = NULL;
-          strtod(argv[j], &end);
-          const bool isNumeric = end != argv[j];
-          if (leadingDash && !isNumeric)
-            break;
-          else {
-            if (std::strcmp(values.c_str(), ""))
-              values += ' ';
-            values += argv[j];
-            itemCount++;
-          }
-        }
-        if (itemCount == 0)
-          values = "true";
-        std::string key(argv[i]);
-        key.erase(0, 1);
-        if (key[0] == '+') {
-          key.erase(0, 1);
-          mapArguments[key] = Value(values);
-        } else {
-          if (mapArguments.find(key) == mapArguments.end())
-            mapArguments[key] = Value(values);
-        }
-        i += itemCount;
+	std::string values = "";
+	int itemCount = 0;
+	for (int j = i + 1; j < argc; j++) {
+	  const bool leadingDash = (argv[j][0] == '-');
+	  char *end = NULL;
+	  strtod(argv[j], &end);
+	  const bool isNumeric = end != argv[j];
+	  if (leadingDash && !isNumeric)
+	    break;
+	  else {
+	    if (std::strcmp(values.c_str(), ""))
+	      values += ' ';
+	    values += argv[j];
+	    itemCount++;
+	  }
+	}
+	if (itemCount == 0)
+	  values = "true";
+	std::string key(argv[i]);
+	key.erase(0, 1);
+	if (key[0] == '+') {
+	  key.erase(0, 1);
+	  mapArguments[key] = Value(values);
+	} else {
+	  if (mapArguments.find(key) == mapArguments.end())
+	    mapArguments[key] = Value(values);
+	}
+	i += itemCount;
       }
   }
   Value &operator()(std::string key) {
@@ -594,8 +594,8 @@ struct CommandlineParser {
       key.erase(0, 1);
     if (bStrictMode) {
       if (mapArguments.find(key) == mapArguments.end()) {
-        printf("runtime %s is not set\n", key.data());
-        abort();
+	printf("runtime %s is not set\n", key.data());
+	abort();
       }
     }
     return mapArguments[key];
@@ -640,9 +640,9 @@ struct StencilInfo {
     const int N = std::min(me.size(), you.size());
     for (int i = 0; i < N; ++i)
       if (me[i] < you[i])
-        return true;
+	return true;
       else if (me[i] > you[i])
-        return false;
+	return false;
     return me.size() < you.size();
   }
 };
@@ -653,7 +653,7 @@ struct Interface {
   bool ToBeKept;
   int dis;
   Interface(BlockInfo &i0, BlockInfo &i1, const int a_icode0,
-            const int a_icode1) {
+	    const int a_icode1) {
     infos[0] = &i0;
     infos[1] = &i1;
     icode[0] = a_icode0;
@@ -665,10 +665,10 @@ struct Interface {
   bool operator<(const Interface &other) const {
     if (infos[0]->id2 == other.infos[0]->id2) {
       if (icode[0] == other.icode[0]) {
-        if (infos[1]->id2 == other.infos[1]->id2) {
-          return (icode[1] < other.icode[1]);
-        }
-        return (infos[1]->id2 < other.infos[1]->id2);
+	if (infos[1]->id2 == other.infos[1]->id2) {
+	  return (icode[1] < other.icode[1]);
+	}
+	return (infos[1]->id2 < other.infos[1]->id2);
       }
       return (icode[0] < other.icode[0]);
     }
@@ -692,7 +692,7 @@ struct Range {
     int V = (ez - sz) * (ey - sy) * (ex - sx);
     int Vr = (r.ez - r.sz) * (r.ey - r.sy) * (r.ex - r.sx);
     return (sx <= r.sx && r.ex <= ex) && (sy <= r.sy && r.ey <= ey) &&
-           (sz <= r.sz && r.ez <= ez) && (Vr < V);
+	   (sz <= r.sz && r.ez <= ez) && (Vr < V);
   }
   void Remove(const Range &other) {
     size_t s = removedIndices.size();
@@ -735,15 +735,15 @@ struct StencilManager {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
-                 int a_nY, int a_nZ)
+		 int a_nY, int a_nZ)
       : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY), nZ(a_nZ) {
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
-                       (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
+		       (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
-                       stencil.ey / 2 + Cstencil.ey, 1 / 2 + 1};
+		       stencil.ey / 2 + Cstencil.ey, 1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                           (icode / 9) % 3 - 1};
+			   (icode / 9) % 3 - 1};
       Range &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
@@ -782,7 +782,7 @@ struct StencilManager {
     L[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
   void DetermineStencilLength(const int level_sender, const int level_receiver,
-                              const int icode, int *L) {
+			      const int icode, int *L) {
     if (level_sender == level_receiver) {
       L[0] = sLength[3 * icode + 0];
       L[1] = sLength[3 * icode + 1];
@@ -803,78 +803,78 @@ struct StencilManager {
       return AllStencils[f.icode[1] + 2 * 27];
     } else {
       if (f.infos[0]->level == f.infos[1]->level) {
-        AllStencils[f.icode[1]].needed = true;
-        return AllStencils[f.icode[1]];
+	AllStencils[f.icode[1]].needed = true;
+	return AllStencils[f.icode[1]];
       } else if (f.infos[0]->level > f.infos[1]->level) {
-        AllStencils[f.icode[1] + 27].needed = true;
-        return AllStencils[f.icode[1] + 27];
+	AllStencils[f.icode[1] + 27].needed = true;
+	return AllStencils[f.icode[1] + 27];
       } else {
-        Coarse_Range.needed = true;
-        const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
-                             (f.icode[1] / 9) % 3 - 1};
-        const int s[3] = {
-            code[0] < 1
-                ? (code[0] < 0 ? ((stencil.sx - 1) / 2 + Cstencil.sx) : 0)
-                : nX / 2,
-            code[1] < 1
-                ? (code[1] < 0 ? ((stencil.sy - 1) / 2 + Cstencil.sy) : 0)
-                : nY / 2,
-            code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : nZ / 2};
-        const int e[3] = {
-            code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2)
-                        : nX / 2 + stencil.ex / 2 + Cstencil.ex - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2)
-                        : nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
-            code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2) : nZ / 2};
-        const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
-                             (f.infos[1]->index[1] + code[1]) % 2,
-                             (f.infos[1]->index[2] + code[2]) % 2};
-        int Cindex_true[3];
-        for (int d = 0; d < 3; d++)
-          Cindex_true[d] = f.infos[1]->index[d] + code[d];
-        int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
-        CoarseEdge[2] = 0;
-        Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
-                          (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
-                          CoarseEdge[0] * code[0] * nX / 2;
-        Coarse_Range.sy = s[1] + std::max(code[1], 0) * nY / 2 +
-                          (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
-                          CoarseEdge[1] * code[1] * nY / 2;
-        Coarse_Range.sz = 0;
-        Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 +
-                          (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
-                          CoarseEdge[0] * code[0] * nX / 2;
-        Coarse_Range.ey = e[1] + std::max(code[1], 0) * nY / 2 +
-                          (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
-                          CoarseEdge[1] * code[1] * nY / 2;
-        Coarse_Range.ez = 1;
-        return Coarse_Range;
+	Coarse_Range.needed = true;
+	const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
+			     (f.icode[1] / 9) % 3 - 1};
+	const int s[3] = {
+	    code[0] < 1
+		? (code[0] < 0 ? ((stencil.sx - 1) / 2 + Cstencil.sx) : 0)
+		: nX / 2,
+	    code[1] < 1
+		? (code[1] < 0 ? ((stencil.sy - 1) / 2 + Cstencil.sy) : 0)
+		: nY / 2,
+	    code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : nZ / 2};
+	const int e[3] = {
+	    code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2)
+			: nX / 2 + stencil.ex / 2 + Cstencil.ex - 1,
+	    code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2)
+			: nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
+	    code[2] < 1 ? (code[2] < 0 ? 0 : nZ / 2) : nZ / 2};
+	const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
+			     (f.infos[1]->index[1] + code[1]) % 2,
+			     (f.infos[1]->index[2] + code[2]) % 2};
+	int Cindex_true[3];
+	for (int d = 0; d < 3; d++)
+	  Cindex_true[d] = f.infos[1]->index[d] + code[d];
+	int CoarseEdge[3];
+	CoarseEdge[0] = (code[0] == 0) ? 0
+			: (((f.infos[1]->index[0] % 2 == 0) &&
+			    (Cindex_true[0] > f.infos[1]->index[0])) ||
+			   ((f.infos[1]->index[0] % 2 == 1) &&
+			    (Cindex_true[0] < f.infos[1]->index[0])))
+			    ? 1
+			    : 0;
+	CoarseEdge[1] = (code[1] == 0) ? 0
+			: (((f.infos[1]->index[1] % 2 == 0) &&
+			    (Cindex_true[1] > f.infos[1]->index[1])) ||
+			   ((f.infos[1]->index[1] % 2 == 1) &&
+			    (Cindex_true[1] < f.infos[1]->index[1])))
+			    ? 1
+			    : 0;
+	CoarseEdge[2] = 0;
+	Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
+			  (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
+			  CoarseEdge[0] * code[0] * nX / 2;
+	Coarse_Range.sy = s[1] + std::max(code[1], 0) * nY / 2 +
+			  (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
+			  CoarseEdge[1] * code[1] * nY / 2;
+	Coarse_Range.sz = 0;
+	Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 +
+			  (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
+			  CoarseEdge[0] * code[0] * nX / 2;
+	Coarse_Range.ey = e[1] + std::max(code[1], 0) * nY / 2 +
+			  (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
+			  CoarseEdge[1] * code[1] * nY / 2;
+	Coarse_Range.ez = 1;
+	return Coarse_Range;
       }
     }
   }
   void __FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
-                       int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
-                       int &sx, int &sy, int &sz) {
+		       int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
+		       int &sx, int &sy, int &sz) {
     const BlockInfo &receiver = *f.infos[1];
     const BlockInfo &receiver_dup = *f_dup.infos[1];
     if (receiver.level >= receiver_dup.level) {
       int icode_dup = f_dup.icode[1];
       const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
-                               (icode_dup / 9) % 3 - 1};
+			       (icode_dup / 9) % 3 - 1};
       sx = (lx == lx_dup || code_dup[0] != -1) ? 0 : lx - lx_dup;
       sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
       sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
@@ -887,9 +887,9 @@ struct StencilManager {
     }
   }
   void __FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
-                        int &sy, int &sz) {
+			int &sy, int &sz) {
     if (f.infos[0]->level != f.infos[1]->level ||
-        f_dup.infos[0]->level != f_dup.infos[1]->level)
+	f_dup.infos[0]->level != f_dup.infos[1]->level)
       return;
     Range &range = DetermineStencil(f, true);
     Range &range_dup = DetermineStencil(f_dup, true);
@@ -918,7 +918,7 @@ static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
   for (int i = 0; i < 27; i++)
     for (size_t j = 0; j < compass[i].size(); j++)
       if (compass[i][j].needed)
-        retval.push_back(&compass[i][j]);
+	retval.push_back(&compass[i][j]);
   return retval;
 }
 static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
@@ -931,16 +931,16 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
       bool needme = false;
       auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
       for (size_t j1 = 0; j1 < me.size(); j1++)
-        if (me[j1].needed) {
-          needme = true;
-          for (size_t j2 = 0; j2 < me.size(); j2++)
-            if (me[j2].needed && me[j2].contains(me[j1])) {
-              me[j1].needed = false;
-              me[j2].removedIndices.push_back(me[j1].index);
-              me[j2].Remove(me[j1]);
-              v.push_back(me[j1].index);
-              break;
-            }
+	if (me[j1].needed) {
+	  needme = true;
+	  for (size_t j2 = 0; j2 < me.size(); j2++)
+	    if (me[j2].needed && me[j2].contains(me[j1])) {
+	      me[j1].needed = false;
+	      me[j2].removedIndices.push_back(me[j1].index);
+	      me[j2].Remove(me[j1]);
+	      v.push_back(me[j1].index);
+	      break;
+}
         }
       if (!needme)
         continue;
@@ -4689,6 +4689,7 @@ struct ComputeSurfaceNormals {
   StencilInfo stencil2{-1, -1, 2, 2, false};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
                   const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;    
     for (const auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.id] == nullptr)
