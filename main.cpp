@@ -356,8 +356,6 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  Real uinfx = 0;
-  Real uinfy = 0;
   struct SpaceCurve *space_curve;
   std::vector<Shape *> shapes;
   std::vector<int> bCollisionID;
@@ -4826,7 +4824,7 @@ struct PutChiOnGrid {
   StencilInfo stencil{-1, -1, 2, 2, false};
   std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
-    Real *um = (Real*)lab.m;
+    Real *um = (Real *)lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -4843,12 +4841,12 @@ struct PutChiOnGrid {
       auto &CHI = *(ScalarBlock *)chiInfo[info.id].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-	  int x0 = ix - stencil.sx;
-	  int y0 = iy - stencil.sy;
-	  int xp = x0 + 1;
-	  int yp = y0 + 1;
-	  int xm = x0 - 1;
-	  int ym = y0 - 1;
+          int x0 = ix - stencil.sx;
+          int y0 = iy - stencil.sy;
+          int xp = x0 + 1;
+          int yp = y0 + 1;
+          int xm = x0 - 1;
+          int ym = y0 - 1;
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
@@ -4905,17 +4903,9 @@ static void ongrid(Real dt) {
   std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   std::vector<BlockInfo> &chiInfo = var.chi->infos;
-  int nSum[2] = {0, 0};
-  Real uSum[2] = {0, 0};
-  if (nSum[0] > 0) {
-    sim.uinfx = uSum[0] / nSum[0];
-  }
-  if (nSum[1] > 0) {
-    sim.uinfy = uSum[1] / nSum[1];
-  }
   for (const auto &shape : sim.shapes) {
-    shape->centerOfMass[0] += dt * (shape->u + sim.uinfx);
-    shape->centerOfMass[1] += dt * (shape->v + sim.uinfy);
+    shape->centerOfMass[0] += dt * shape->u;
+    shape->centerOfMass[1] += dt * shape->v;
     shape->orientation += dt * shape->omega;
     shape->orientation = shape->orientation > M_PI
                              ? shape->orientation - 2 * M_PI
@@ -5849,12 +5839,11 @@ static void adapt() {
   var.pold_amr->Adapt<ScalarLab>(var.pold, false);
   var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
 }
-static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
-                       int iy) {
+static Real dU_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real u = V(ix, iy).u[0];
   Real v = V(ix, iy).u[1];
-  Real UU = u + uinf[0];
-  Real VV = v + uinf[1];
+  Real UU = u;
+  Real VV = v;
   Real up1x = V(ix + 1, iy).u[0];
   Real up2x = V(ix + 2, iy).u[0];
   Real up3x = V(ix + 3, iy).u[0];
@@ -5872,12 +5861,11 @@ static Real dU_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
   return advF * (UU * dudx + VV * dudy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
 }
-static Real dV_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
-                       int iy) {
+static Real dV_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real u = V(ix, iy).u[0];
   Real v = V(ix, iy).u[1];
-  Real UU = u + uinf[0];
-  Real VV = v + uinf[1];
+  Real UU = u;
+  Real VV = v;
   Real up1x = V(ix + 1, iy).u[1];
   Real up2x = V(ix + 2, iy).u[1];
   Real up3x = V(ix + 3, iy).u[1];
@@ -5896,11 +5884,6 @@ static Real dV_adv_dif(VectorLab &V, Real uinf[2], Real advF, Real difF, int ix,
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * v);
 }
 struct KernelAdvectDiffuse {
-  KernelAdvectDiffuse() {
-    uinf[0] = sim.uinfx;
-    uinf[1] = sim.uinfy;
-  }
-  Real uinf[2];
   StencilInfo stencil{-3, -3, 4, 4, true};
   std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(VectorLab &lab, BlockInfo &info) {
@@ -5910,8 +5893,8 @@ struct KernelAdvectDiffuse {
     Real *TMP = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP[2 * (_BS_ * iy + ix)] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
-        TMP[2 * (_BS_ * iy + ix) + 1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP[2 * (_BS_ * iy + ix)] = dU_adv_dif(lab, afac, dfac, ix, iy);
+        TMP[2 * (_BS_ * iy + ix) + 1] = dV_adv_dif(lab, afac, dfac, ix, iy);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
@@ -7002,8 +6985,6 @@ int main(int argc, char **argv) {
       VectorBlock &VEL = *(VectorBlock *)velInfo[i].block;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-          umax = std::max(umax, std::fabs(VEL[iy][ix].u[0] + sim.uinfx));
-          umax = std::max(umax, std::fabs(VEL[iy][ix].u[1] + sim.uinfy));
           umax = std::max(umax, std::fabs(VEL[iy][ix].u[0]));
           umax = std::max(umax, std::fabs(VEL[iy][ix].u[1]));
         }
