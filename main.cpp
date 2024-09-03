@@ -2559,7 +2559,7 @@ template <typename Element> static void LE(Element &a, Element b, Element c) {
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
 template <typename Element>
-static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
+static void TestInterp(Element *C[3][3], Element *R, int x, int y) {
   double dx = 0.25 * (2 * x - 1);
   double dy = 0.25 * (2 * y - 1);
   Element dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
@@ -2568,7 +2568,7 @@ static void TestInterp(Element *C[3][3], Element &R, int x, int y) {
       0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
   Element dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
   Element dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
-  R = (*C[1][1] + (dx * dudx + dy * dudy)) +
+  *R = (*C[1][1] + (dx * dudx + dy * dudy)) +
       (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
        (dx * dy) * dudxdy);
 }
@@ -3101,11 +3101,11 @@ template <typename Element> struct BlockLab {
               for (int j = 0; j < 3; j++) {
                 int i0 =
                     XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
-                Test[i][j] = &c[i0];
+                Test[i][j] = c + i0;
               }
             int i1 = ix - start[0] + nm[0] * (iy - start[1]);
             TestInterp(
-                Test, m[i1],
+                Test, m + i1,
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
