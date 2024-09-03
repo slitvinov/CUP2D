@@ -3141,6 +3141,7 @@ template <typename Element> struct BlockLab {
             int i5 = XX + 2 + nc[0] * (YY);
             int i6 = XX + 1 + nc[0] * (YY);
             int i7 = XX - 1 + nc[0] * (YY);
+	    int i8 = XX - 2 + nc[0] * (YY);
             int j0 = ix - start[0] + nm[0] * (iy - start[1]);
             int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
             int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
@@ -3171,9 +3172,9 @@ template <typename Element> struct BlockLab {
                 dudx = (-0.5 * c[i5] - 1.5 * c[i1]) + 2.0 * c[i6];
                 dudx2 = (c[i5] + c[i1]) - 2.0 * c[i6];
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                dudx = (0.5 * c[XX - 2 + nc[0] * (YY)] + 1.5 * c[i1]) -
+                dudx = (0.5 * c[i8] + 1.5 * c[i1]) -
                        2.0 * c[i7];
-                dudx2 = (c[XX - 2 + nc[0] * (YY)] + c[i1]) - 2.0 * c[i7];
+                dudx2 = (c[i8] + c[i1]) - 2.0 * c[i7];
               } else {
                 dudx = 0.5 * (c[i6] - c[i7]);
                 dudx2 = (c[i6] + c[i7]) - 2.0 * c[i1];
