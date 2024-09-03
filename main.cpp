@@ -5843,7 +5843,7 @@ struct KernelAdvectDiffuse {
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = (Real *)tmpVInfo[info.id].block;
-    Real *um = (Real*)lab.m;
+    Real *um = (Real *)lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -5904,21 +5904,21 @@ struct KernelAdvectDiffuse {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real*)tempCase->d[0];
-      faceXp = (Real*)tempCase->d[1];
-      faceYm = (Real*)tempCase->d[2];
-      faceYp = (Real*)tempCase->d[3];
+      faceXm = (Real *)tempCase->d[0];
+      faceXp = (Real *)tempCase->d[1];
+      faceYm = (Real *)tempCase->d[2];
+      faceYp = (Real *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-	int ip0 = ix - stencil.sx;
-	int jp0 = iy - stencil.sy;
-	int im1 = ip0 - 1;
-	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-	Real *l1 = um + 2 * (nm * jp0 + im1) + 0;
-	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-	Real *l3 = um + 2 * (nm * jp0 + im1) + 1;
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int im1 = ip0 - 1;
+        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *l1 = um + 2 * (nm * jp0 + im1) + 0;
+        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *l3 = um + 2 * (nm * jp0 + im1) + 1;
         faceXm[2 * iy] = dfac * (*l0 - *l1);
         faceXm[2 * iy + 1] = dfac * (*l2 - *l3);
       }
@@ -5926,13 +5926,13 @@ struct KernelAdvectDiffuse {
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-	int ip0 = ix - stencil.sx;
-	int jp0 = iy - stencil.sy;
-	int ip1 = ip0 + 1;
-	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-	Real *l1 = um + 2 * (nm * jp0 + ip1) + 0;
-	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-	Real *l3 = um + 2 * (nm * jp0 + ip1) + 1;
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
+        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *l1 = um + 2 * (nm * jp0 + ip1) + 0;
+        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *l3 = um + 2 * (nm * jp0 + ip1) + 1;
         faceXp[2 * iy] = dfac * (*l0 - *l1);
         faceXp[2 * iy + 1] = dfac * (*l2 - *l3);
       }
@@ -5940,13 +5940,13 @@ struct KernelAdvectDiffuse {
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-	int ip0 = ix - stencil.sx;
-	int jp0 = iy - stencil.sy;
-	int jm1 = jp0 - 1;
-	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-	Real *l1 = um + 2 * (nm * jm1 + ip0) + 0;
-	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-	Real *l3 = um + 2 * (nm * jm1 + ip0) + 1;
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jm1 = jp0 - 1;
+        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *l1 = um + 2 * (nm * jm1 + ip0) + 0;
+        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *l3 = um + 2 * (nm * jm1 + ip0) + 1;
         faceYm[2 * ix] = dfac * (*l0 - *l1);
         faceYm[2 * ix + 1] = dfac * (*l2 - *l3);
       }
@@ -5954,13 +5954,13 @@ struct KernelAdvectDiffuse {
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-	int ip0 = ix - stencil.sx;
-	int jp0 = iy - stencil.sy;
-	int jp1 = jp0 + 1;
-	Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-	Real *l1 = um + 2 * (nm * jp1 + ip0) + 0;
-	Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-	Real *l3 = um + 2 * (nm * jp1 + ip0) + 1;
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jp1 = jp0 + 1;
+        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *l1 = um + 2 * (nm * jp1 + ip0) + 0;
+        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *l3 = um + 2 * (nm * jp1 + ip0) + 1;
         faceYp[2 * ix] = dfac * (*l0 - *l1);
         faceYp[2 * ix + 1] = dfac * (*l2 - *l3);
       }
@@ -6015,68 +6015,62 @@ struct KernelComputeForces {
         Real DuDy;
         Real DvDx;
         Real DvDy;
-        {
-          int x = ix;
-          int y = iy;
-          for (int kk = 0; kk < 5; kk++) {
-            const int dxi = round(kk * dx);
-            const int dyi = round(kk * dy);
-            if (ix + dxi + 1 >= _BS_ + big - 1 || ix + dxi - 1 < small)
-              continue;
-            if (iy + dyi + 1 >= _BS_ + big - 1 || iy + dyi - 1 < small)
-              continue;
-            x = ix + dxi;
-            y = iy + dyi;
-            if (chi(x, y) < 0.01)
-              break;
-          }
-          const auto &l = lab;
-          const int sx = normX > 0 ? +1 : -1;
-          const int sy = normY > 0 ? +1 : -1;
-          Vector dveldx;
-          if (inrange(x + 5 * sx))
-            dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
-                           c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
-                           c4 * l(x + 4 * sx, y) + c5 * l(x + 5 * sx, y));
-          else if (inrange(x + 2 * sx))
-            dveldx = sx * (-1.5 * l(x, y) + 2.0 * l(x + sx, y) -
-                           0.5 * l(x + 2 * sx, y));
-          else
-            dveldx = sx * (l(x + sx, y) - l(x, y));
-          Vector dveldy;
-          if (inrange(y + 5 * sy))
-            dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
-                           c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
-                           c4 * l(x, y + 4 * sy) + c5 * l(x, y + 5 * sy));
-          else if (inrange(y + 2 * sy))
-            dveldy = sy * (-1.5 * l(x, y) + 2.0 * l(x, y + sy) -
-                           0.5 * l(x, y + 2 * sy));
-          else
-            dveldy = sx * (l(x, y + sy) - l(x, y));
-          const Vector dveldx2 = l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
-          const Vector dveldy2 = l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
-          Vector dveldxdy;
-          if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
-            dveldxdy =
-                sx * sy *
-                (-0.5 * (-1.5 * l(x + 2 * sx, y) + 2 * l(x + 2 * sx, y + sy) -
-                         0.5 * l(x + 2 * sx, y + 2 * sy)) +
-                 2 * (-1.5 * l(x + sx, y) + 2 * l(x + sx, y + sy) -
-                      0.5 * l(x + sx, y + 2 * sy)) -
-                 1.5 * (-1.5 * l(x, y) + 2 * l(x, y + sy) -
-                        0.5 * l(x, y + 2 * sy)));
-          else
-            dveldxdy = sx * sy * (l(x + sx, y + sy) - l(x + sx, y)) -
-                       (l(x, y + sy) - l(x, y));
-          DuDx =
-              dveldx.u[0] + dveldx2.u[0] * (ix - x) + dveldxdy.u[0] * (iy - y);
-          DvDx =
-              dveldx.u[1] + dveldx2.u[1] * (ix - x) + dveldxdy.u[1] * (iy - y);
-          DuDy =
-              dveldy.u[0] + dveldy2.u[0] * (iy - y) + dveldxdy.u[0] * (ix - x);
-          DvDy =
-              dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
+        int x = ix;
+        int y = iy;
+        for (int kk = 0; kk < 5; kk++) {
+          const int dxi = round(kk * dx);
+          const int dyi = round(kk * dy);
+          if (ix + dxi + 1 >= _BS_ + big - 1 || ix + dxi - 1 < small)
+            continue;
+          if (iy + dyi + 1 >= _BS_ + big - 1 || iy + dyi - 1 < small)
+            continue;
+          x = ix + dxi;
+          y = iy + dyi;
+          if (chi(x, y) < 0.01)
+            break;
         }
+        const auto &l = lab;
+        const int sx = normX > 0 ? +1 : -1;
+        const int sy = normY > 0 ? +1 : -1;
+        Vector dveldx;
+        if (inrange(x + 5 * sx))
+          dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
+                         c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
+                         c4 * l(x + 4 * sx, y) + c5 * l(x + 5 * sx, y));
+        else if (inrange(x + 2 * sx))
+          dveldx = sx * (-1.5 * l(x, y) + 2.0 * l(x + sx, y) -
+                         0.5 * l(x + 2 * sx, y));
+        else
+          dveldx = sx * (l(x + sx, y) - l(x, y));
+        Vector dveldy;
+        if (inrange(y + 5 * sy))
+          dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
+                         c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
+                         c4 * l(x, y + 4 * sy) + c5 * l(x, y + 5 * sy));
+        else if (inrange(y + 2 * sy))
+          dveldy = sy * (-1.5 * l(x, y) + 2.0 * l(x, y + sy) -
+                         0.5 * l(x, y + 2 * sy));
+        else
+          dveldy = sx * (l(x, y + sy) - l(x, y));
+        const Vector dveldx2 = l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
+        const Vector dveldy2 = l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
+        Vector dveldxdy;
+        if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
+          dveldxdy =
+              sx * sy *
+              (-0.5 * (-1.5 * l(x + 2 * sx, y) + 2 * l(x + 2 * sx, y + sy) -
+                       0.5 * l(x + 2 * sx, y + 2 * sy)) +
+               2 * (-1.5 * l(x + sx, y) + 2 * l(x + sx, y + sy) -
+                    0.5 * l(x + sx, y + 2 * sy)) -
+               1.5 * (-1.5 * l(x, y) + 2 * l(x, y + sy) -
+                      0.5 * l(x, y + 2 * sy)));
+        else
+          dveldxdy = sx * sy * (l(x + sx, y + sy) - l(x + sx, y)) -
+                     (l(x, y + sy) - l(x, y));
+        DuDx = dveldx.u[0] + dveldx2.u[0] * (ix - x) + dveldxdy.u[0] * (iy - y);
+        DvDx = dveldx.u[1] + dveldx2.u[1] * (ix - x) + dveldxdy.u[1] * (iy - y);
+        DuDy = dveldy.u[0] + dveldy2.u[0] * (iy - y) + dveldxdy.u[0] * (ix - x);
+        DvDy = dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
         const Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
                    fXP = -P[iy][ix] * normX;
         const Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
