@@ -3099,12 +3099,13 @@ template <typename Element> struct BlockLab {
             Element *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++) {
-		int i0 = XX - 1 + i - offset[0] +
-		  nc[0] * (YY - 1 + j - offset[1]);
+                int i0 =
+                    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
                 Test[i][j] = &c[i0];
-	      }
+              }
+            int i1 = ix - start[0] + nm[0] * (iy - start[1]);
             TestInterp(
-                Test, m[ix - start[0] + nm[0] * (iy - start[1])],
+                Test, m[i1],
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
                     2);
