@@ -2588,6 +2588,7 @@ template <typename Element> struct BlockLab {
     free(m);
     free(c);
   }
+
   const Element &operator()(int x, int y) const {
     x -= start[0];
     y -= start[1];
@@ -4689,26 +4690,26 @@ struct ComputeSurfaceNormals {
   void operator()(ScalarLab &labChi, ScalarLab &labSDF,
                   const BlockInfo &infoChi, const BlockInfo &infoSDF) const {
     for (const auto &shape : sim.shapes) {
-      const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi.id] == nullptr)
         continue;
-      const Real h = infoChi.h;
+      Real h = infoChi.h;
       ObstacleBlock &o = *OBLOCK[infoChi.id];
-      const Real i2h = 0.5 / h;
-      const Real fac = 0.5 * h;
+      Real i2h = 0.5 / h;
+      Real fac = 0.5 * h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          const Real gradHX = labChi(ix + 1, iy) - labChi(ix - 1, iy);
-          const Real gradHY = labChi(ix, iy + 1) - labChi(ix, iy - 1);
+          Real gradHX = labChi(ix + 1, iy) - labChi(ix - 1, iy);
+          Real gradHY = labChi(ix, iy + 1) - labChi(ix, iy - 1);
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
-          const Real gradUX = i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
-          const Real gradUY = i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
-          const Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-          const Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
+          Real gradUX = i2h * (labSDF(ix + 1, iy) - labSDF(ix - 1, iy));
+          Real gradUY = i2h * (labSDF(ix, iy + 1) - labSDF(ix, iy - 1));
+          Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+          Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
             o.n_surfPoints++;
-            const Real dchidx = -D * gradUX, dchidy = -D * gradUY;
+            Real dchidx = -D * gradUX, dchidy = -D * gradUY;
             struct surface_data s {
               ix, iy, dchidx, dchidy, D
             };
