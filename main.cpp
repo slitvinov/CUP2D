@@ -4228,6 +4228,7 @@ struct KernelVorticity {
   const std::vector<BlockInfo> &tmpInfo = var.tmp->infos;
   const StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const BlockInfo &info) const {
+    Real *um = (Real*)lab.m;
     const Real i2h = 0.5 / info.h;
     auto &TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -4239,8 +4240,11 @@ struct KernelVorticity {
         int yp = y0 + 1;
         int xm = x0 - 1;
         int ym = y0 - 1;
-        TMP[j][i] = i2h * ((lab(x0, ym).u[0] - lab(x0, yp).u[0]) +
-                           (lab(xp, y0).u[1] - lab(xm, y0).u[1]));
+	Real e0 = lab(x0, ym).u[0];
+	Real e1 = lab(x0, yp).u[0];
+	Real e2 = lab(xp, y0).u[1];
+	Real e3 = lab(xm, y0).u[1];
+        TMP[j][i] = i2h * (e0 - e1 + e2 - e3);
       }
   }
 };
