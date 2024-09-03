@@ -5553,8 +5553,8 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
-  computeA<VectorLab>(KernelVorticity(), var.vel, 2);
-  computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
+  computeA<VectorLab>(KernelVorticity, var.vel, 2);
+  computeA<ScalarLab>(GradChiOnTmp, var.chi, 1);
   var.tmp_amr->boundary_needed = true;
   Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
   var.tmp_amr->CallValidStates = false;
