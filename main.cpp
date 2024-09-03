@@ -4306,7 +4306,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   l = 0;
   sum = 0;
   for (i = 0; i < nblock; i++) {
-    const BlockInfo &info = infos[i];
+    BlockInfo &info = infos[i];
     Real *b = (Real*)info.block;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
