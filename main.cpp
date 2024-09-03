@@ -6982,12 +6982,9 @@ int main(int argc, char **argv) {
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < Nblocks; i++) {
-      VectorBlock &VEL = *(VectorBlock *)velInfo[i].block;
-      for (int iy = 0; iy < _BS_; ++iy)
-        for (int ix = 0; ix < _BS_; ++ix) {
-          umax = std::max(umax, std::fabs(VEL[iy][ix].u[0]));
-          umax = std::max(umax, std::fabs(VEL[iy][ix].u[1]));
-        }
+      Real *vel = (Real *)velInfo[i].block;
+      for (i = 0; i < 2 * _BS_ * _BS_; i++)
+        umax = std::max(umax, std::fabs(vel[i]));
     }
     MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
     if (CFL > 0) {
