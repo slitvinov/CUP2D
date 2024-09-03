@@ -3131,70 +3131,59 @@ template <typename Element> struct BlockLab {
             double dx = 0.25 * (2 * x - 1);
             if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
+            int i0 = XX + nc[0] * (YY + 2);
+            int i1 = XX + nc[0] * (YY);
+            int i2 = XX + nc[0] * (YY + 1);
+            int i3 = XX + nc[0] * (YY - 2);
+            int i4 = XX + nc[0] * (YY - 1);
+            int i5 = XX + 2 + nc[0] * (YY);
+            int i6 = XX + 1 + nc[0] * (YY);
+            int i7 = XX - 1 + nc[0] * (YY);
+            int j0 = ix - start[0] + nm[0] * (iy - start[1]);
+            int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
+            int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
+            int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
             if (code[0] != 0) {
               Element dudy, dudy2;
               if (YY + offset[1] == 0) {
-                dudy = (-0.5 * c[XX + nc[0] * (YY + 2)] -
-                        1.5 * c[XX + nc[0] * (YY)]) +
-                       2.0 * c[XX + nc[0] * (YY + 1)];
-                dudy2 = (c[XX + nc[0] * (YY + 2)] + c[XX + nc[0] * (YY)]) -
-                        2.0 * c[XX + nc[0] * (YY + 1)];
+                dudy = (-0.5 * c[i0] - 1.5 * c[i1]) + 2.0 * c[i2];
+                dudy2 = (c[i0] + c[i1]) - 2.0 * c[i2];
               } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                dudy = (0.5 * c[XX + nc[0] * (YY - 2)] +
-                        1.5 * c[XX + nc[0] * (YY)]) -
-                       2.0 * c[XX + nc[0] * (YY - 1)];
-                dudy2 = (c[XX + nc[0] * (YY - 2)] + c[XX + nc[0] * (YY)]) -
-                        2.0 * c[XX + nc[0] * (YY - 1)];
+                dudy = (0.5 * c[i3] + 1.5 * c[i1]) - 2.0 * c[i4];
+                dudy2 = (c[i3] + c[i1]) - 2.0 * c[i4];
               } else {
-                dudy =
-                    0.5 * (c[XX + nc[0] * (YY + 1)] - c[XX + nc[0] * (YY - 1)]);
-                dudy2 = (c[XX + nc[0] * (YY + 1)] + c[XX + nc[0] * (YY - 1)]) -
-                        2.0 * c[XX + nc[0] * (YY)];
+                dudy = 0.5 * (c[i2] - c[i4]);
+                dudy2 = (c[i2] + c[i4]) - 2.0 * c[i1];
               }
-              m[ix - start[0] + nm[0] * (iy - start[1])] =
-                  c[XX + nc[0] * (YY)] + dy * dudy + (0.5 * dy * dy) * dudy2;
+              m[j0] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m[ix - start[0] + nm[0] * (iy - start[1] + iyp)] =
-                    c[XX + nc[0] * (YY)] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                m[j1] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m[ix - start[0] + ixp + nm[0] * (iy - start[1])] =
-                    c[XX + nc[0] * (YY)] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                m[j2] = c[i1] + dy * dudy + (0.5 * dy * dy) * dudy2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m[ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp)] =
-                    c[XX + nc[0] * (YY)] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                m[j3] = c[i1] - dy * dudy + (0.5 * dy * dy) * dudy2;
             } else {
               Element dudx, dudx2;
               if (XX + offset[0] == 0) {
-                dudx = (-0.5 * c[XX + 2 + nc[0] * (YY)] -
-                        1.5 * c[XX + nc[0] * (YY)]) +
-                       2.0 * c[XX + 1 + nc[0] * (YY)];
-                dudx2 = (c[XX + 2 + nc[0] * (YY)] + c[XX + nc[0] * (YY)]) -
-                        2.0 * c[XX + 1 + nc[0] * (YY)];
+                dudx = (-0.5 * c[i5] - 1.5 * c[i1]) + 2.0 * c[i6];
+                dudx2 = (c[i5] + c[i1]) - 2.0 * c[i6];
               } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                dudx = (0.5 * c[XX - 2 + nc[0] * (YY)] +
-                        1.5 * c[XX + nc[0] * (YY)]) -
-                       2.0 * c[XX - 1 + nc[0] * (YY)];
-                dudx2 = (c[XX - 2 + nc[0] * (YY)] + c[XX + nc[0] * (YY)]) -
-                        2.0 * c[XX - 1 + nc[0] * (YY)];
+                dudx = (0.5 * c[XX - 2 + nc[0] * (YY)] + 1.5 * c[i1]) -
+                       2.0 * c[i7];
+                dudx2 = (c[XX - 2 + nc[0] * (YY)] + c[i1]) - 2.0 * c[i7];
               } else {
-                dudx =
-                    0.5 * (c[XX + 1 + nc[0] * (YY)] - c[XX - 1 + nc[0] * (YY)]);
-                dudx2 = (c[XX + 1 + nc[0] * (YY)] + c[XX - 1 + nc[0] * (YY)]) -
-                        2.0 * c[XX + nc[0] * (YY)];
+                dudx = 0.5 * (c[i6] - c[i7]);
+                dudx2 = (c[i6] + c[i7]) - 2.0 * c[i1];
               }
-              m[ix - start[0] + nm[0] * (iy - start[1])] =
-                  c[XX + nc[0] * (YY)] + dx * dudx + (0.5 * dx * dx) * dudx2;
+              m[j0] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (iy + iyp >= s[1] && iy + iyp < e[1])
-                m[ix - start[0] + nm[0] * (iy - start[1] + iyp)] =
-                    c[XX + nc[0] * (YY)] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                m[j1] = c[i1] + dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0])
-                m[ix - start[0] + ixp + nm[0] * (iy - start[1])] =
-                    c[XX + nc[0] * (YY)] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                m[j2] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
               if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                   iy + iyp < e[1])
-                m[ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp)] =
-                    c[XX + nc[0] * (YY)] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                m[j3] = c[i1] - dx * dudx + (0.5 * dx * dx) * dudx2;
             }
           }
         }
