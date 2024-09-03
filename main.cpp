@@ -5903,7 +5903,6 @@ struct KernelAdvectDiffuse {
     Vector *faceXp = nullptr;
     Vector *faceYm = nullptr;
     Vector *faceYp = nullptr;
-    const Real aux_coef = dfac;
     if (tempCase != nullptr) {
       faceXm = (Vector *)tempCase->d[0];
       faceXp = (Vector *)tempCase->d[1];
@@ -5913,29 +5912,29 @@ struct KernelAdvectDiffuse {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
-        faceXm[iy].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
+        faceXm[iy].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
+        faceXm[iy].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
-        faceXp[iy].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
+        faceXp[iy].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
+        faceXp[iy].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[ix].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
-        faceYm[ix].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
+        faceYm[ix].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
+        faceYm[ix].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix].u[0] = aux_coef * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
-        faceYp[ix].u[1] = aux_coef * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
+        faceYp[ix].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
+        faceYp[ix].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
       }
     }
   }
