@@ -7037,15 +7037,12 @@ int main(int argc, char **argv) {
       var.tmpV->FillBlockCases(var.tmpV);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &V = *(VectorBlock *)velInfo[i].block;
-        const VectorBlock &Vold = *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &tmpV = *(VectorBlock *)var.tmpV->infos[i].block;
-        const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            V[iy][ix].u[0] = Vold[iy][ix].u[0] + tmpV[iy][ix].u[0] * ih2;
-            V[iy][ix].u[1] = Vold[iy][ix].u[1] + tmpV[iy][ix].u[1] * ih2;
-          }
+        Real *V = (Real *)velInfo[i].block;
+        Real *Vold = (Real *)var.vold->infos[i].block;
+        Real *tmpV = (Real *)var.tmpV->infos[i].block;
+        Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+          V[j] = Vold[j] + tmpV[j] * ih2;
       }
       for (const auto &shape : sim.shapes) {
         const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
