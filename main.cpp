@@ -4230,12 +4230,17 @@ struct KernelVorticity {
   void operator()(VectorLab &lab, const BlockInfo &info) const {
     const Real i2h = 0.5 / info.h;
     auto &TMP = *(ScalarBlock *)tmpInfo[info.id].block;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
-        int x = i;
-        int y = j;
-        TMP[j][i] = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
-                           (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
+        int x0 = i; // - stencil.sx;
+        int y0 = j; // - stencil.sy;
+        int xp = x0 + 1;
+        int yp = y0 + 1;
+        int xm = x0 - 1;
+        int ym = y0 - 1;
+        TMP[j][i] = i2h * ((lab(x0, ym).u[0] - lab(x0, yp).u[0]) +
+                           (lab(xp, y0).u[1] - lab(xm, y0).u[1]));
       }
   }
 };
