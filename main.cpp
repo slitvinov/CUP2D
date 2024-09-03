@@ -5912,29 +5912,41 @@ struct KernelAdvectDiffuse {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[2 * iy] = dfac * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
-        faceXm[2 * iy + 1] = dfac * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
+	int ip0 = ix;
+	int jp0 = iy;
+	int im1 = ip0 - 1;
+        faceXm[2 * iy] = dfac * (lab(ip0, jp0).u[0] - lab(im1, jp0).u[0]);
+        faceXm[2 * iy + 1] = dfac * (lab(ix, jp0).u[1] - lab(im1, jp0).u[1]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[2 * iy] = dfac * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
-        faceXp[2 * iy + 1] = dfac * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
+	int ip0 = ix;
+	int jp0 = iy;
+	int ip1 = ip0 + 1;
+        faceXp[2 * iy] = dfac * (lab(ip0, jp0).u[0] - lab(ip1, jp0).u[0]);
+        faceXp[2 * iy + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip1, jp0).u[1]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[2 * ix] = dfac * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
-        faceYm[2 * ix + 1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
+	int ip0 = ix;
+	int jp0 = iy;
+	int jm1 = jp0 - 1;
+        faceYm[2 * ix] = dfac * (lab(ip0, jp0).u[0] - lab(ip0, jm1).u[0]);
+        faceYm[2 * ix + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip0, jm1).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[2 * ix] = dfac * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
-        faceYp[2 * ix + 1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
+	int ip0 = ix;
+	int jp0 = iy;
+	int jp1 = jp0 + 1;
+        faceYp[2 * ix] = dfac * (lab(ip0, jp0).u[0] - lab(ip0, jp1).u[0]);
+        faceYp[2 * ix + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip0, jp1).u[1]);
       }
     }
   }
