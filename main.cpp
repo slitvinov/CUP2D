@@ -5859,8 +5859,6 @@ struct KernelAdvectDiffuse {
         Real um1y0 = lab(ix, iy - 1).u[0];
         Real um2y0 = lab(ix, iy - 2).u[0];
         Real um3y0 = lab(ix, iy - 3).u[0];
-        Real dudx = derivative(u, um3x0, um2x0, um1x0, u, up1x0, up2x0, up3x0);
-        Real dudy = derivative(v, um3y0, um2y0, um1y0, u, up1y0, up2y0, up3y0);
         Real up1x1 = lab(ix + 1, iy).u[1];
         Real up2x1 = lab(ix + 2, iy).u[1];
         Real up3x1 = lab(ix + 3, iy).u[1];
@@ -5873,6 +5871,8 @@ struct KernelAdvectDiffuse {
         Real um1y1 = lab(ix, iy - 1).u[1];
         Real um2y1 = lab(ix, iy - 2).u[1];
         Real um3y1 = lab(ix, iy - 3).u[1];
+        Real dudx = derivative(u, um3x0, um2x0, um1x0, u, up1x0, up2x0, up3x0);
+        Real dudy = derivative(v, um3y0, um2y0, um1y0, u, up1y0, up2y0, up3y0);
         Real dvdx = derivative(u, um3x1, um2x1, um1x1, v, up1x1, up2x1, up3x1);
         Real dvdy = derivative(v, um3y1, um2y1, um1y1, v, up1y1, up2y1, up3y1);
         TMP[2 * (_BS_ * iy + ix)] =
