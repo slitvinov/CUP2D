@@ -4826,6 +4826,7 @@ struct PutChiOnGrid {
   StencilInfo stencil{-1, -1, 2, 2, false};
   std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
+    Real *um = (Real*)lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -4842,8 +4843,8 @@ struct PutChiOnGrid {
       auto &CHI = *(ScalarBlock *)chiInfo[info.id].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-	  int x0 = ix;
-	  int y0 = iy;
+	  int x0 = ix - stencil.sx;
+	  int y0 = iy - stencil.sy;
 	  int xp = x0 + 1;
 	  int yp = y0 + 1;
 	  int xm = x0 - 1;
@@ -4851,10 +4852,10 @@ struct PutChiOnGrid {
           if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
             X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
           } else {
-            Real distPx = lab(xp, y0);
-            Real distMx = lab(xm, y0);
-            Real distPy = lab(x0, yp);
-            Real distMy = lab(x0, ym);
+            Real distPx = *(um + nm * y0 + xp);
+            Real distMx = *(um + nm * y0 + xm);
+            Real distPy = *(um + nm * yp + x0);
+            Real distMy = *(um + nm * ym + x0);
             Real IplusX = std::max(0.0, distPx);
             Real IminuX = std::max(0.0, distMx);
             Real IplusY = std::max(0.0, distPy);
