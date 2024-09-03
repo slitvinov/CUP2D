@@ -5907,11 +5907,11 @@ struct KernelAdvectDiffuse {
     Real h = info.h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    VectorBlock &TMP = *(VectorBlock *)tmpVInfo[info.id].block;
+    Real *TMP = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP[iy][ix].u[0] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
-        TMP[iy][ix].u[1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP[2 * (_BS_ * iy + ix)] = dU_adv_dif(lab, uinf, afac, dfac, ix, iy);
+        TMP[2 * (_BS_ * iy + ix) + 1] = dV_adv_dif(lab, uinf, afac, dfac, ix, iy);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
