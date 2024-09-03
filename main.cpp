@@ -2558,16 +2558,15 @@ template <typename Element> static void LE(Element &a, Element b, Element c) {
   Element lambda = (b - c) - kappa;
   a = (9.0 * kappa + 3.0 * lambda) + c;
 }
-template <typename Element>
-static void TestInterp(Element *C[3][3], Element *R, int x, int y) {
+static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
   double dx = 0.25 * (2 * x - 1);
   double dy = 0.25 * (2 * y - 1);
-  Element dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
-  Element dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
-  Element dudxdy =
+  Real dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
+  Real dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
+  Real dudxdy =
       0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
-  Element dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
-  Element dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
+  Real dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
+  Real dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
   *R = (*C[1][1] + (dx * dudx + dy * dudy)) +
       (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
        (dx * dy) * dudxdy);
@@ -3054,6 +3053,8 @@ template <typename Element> struct BlockLab {
     }
   }
   void CoarseFineInterpolation(Grid *grid, const BlockInfo &info) {
+    Real *um = (Real*)m;
+    Real *uc = (Real*)c;
     int aux = 1 << info.level;
     bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
     bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
@@ -3096,19 +3097,20 @@ template <typename Element> struct BlockLab {
             int XX =
                 (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
                 sC[0];
-            Element *Test[3][3];
+            Real *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++) {
                 int i0 =
                     XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
-                Test[i][j] = c + i0;
+                Test[i][j] = uc + dim * i0;
               }
             int i1 = ix - start[0] + nm[0] * (iy - start[1]);
-            TestInterp(
-                Test, m + i1,
-                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
-                abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
-                    2);
+	    for (int d = 0; d < dim; d++)
+	      TestInterp(
+			 Test, um + dim * i1 + d,
+			 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2,
+			 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
+			 2);
           }
         }
       }
