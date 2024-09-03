@@ -3156,7 +3156,7 @@ template <typename Element> struct BlockLab {
             int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
             for (int d = 0; d < dim; d++) {
               if (code[0] != 0) {
-                Element dudy, dudy2;
+                Real dudy, dudy2;
                 if (YY + offset[1] == 0) {
                   dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i2 + d];
                   dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i2 + d];
@@ -3167,16 +3167,16 @@ template <typename Element> struct BlockLab {
                   dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
                   dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) - 2.0 * uc[dim * i1 + d];
                 }
-                m[j0] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                um[dim * j0 + d] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[j1] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j1 + d] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[j2] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j2 + d] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  m[j3] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j3 + d] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
-                Element dudx, dudx2;
+                Real dudx, dudx2;
                 if (XX + offset[0] == 0) {
                   dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i6 + d];
                   dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i6 + d];
@@ -3187,14 +3187,14 @@ template <typename Element> struct BlockLab {
                   dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
                   dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) - 2.0 * uc[dim * i1 + d];
                 }
-                m[j0] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                um[dim * j0 + d] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[j1] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j1 + d] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[j2] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j2 + d] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  m[j3] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j3 + d] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
               }
             }
           }
