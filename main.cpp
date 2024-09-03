@@ -7052,18 +7052,6 @@ int main(int argc, char **argv) {
             V[iy][ix].u[1] = Vold[iy][ix].u[1] + tmpV[iy][ix].u[1] * ih2;
           }
       }
-#pragma omp parallel for
-      for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &V = *(VectorBlock *)velInfo[i].block;
-        const VectorBlock &Vold = *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &tmpV = *(VectorBlock *)var.tmpV->infos[i].block;
-        const Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            V[iy][ix].u[0] = Vold[iy][ix].u[0] + tmpV[iy][ix].u[0] * ih2;
-            V[iy][ix].u[1] = Vold[iy][ix].u[1] + tmpV[iy][ix].u[1] * ih2;
-          }
-      }
       for (const auto &shape : sim.shapes) {
         const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
         const Real Cx = shape->centerOfMass[0];
