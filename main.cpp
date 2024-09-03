@@ -7017,12 +7017,9 @@ int main(int argc, char **argv) {
       size_t Nblocks = velInfo.size();
       KernelAdvectDiffuse Step1;
 #pragma omp parallel for
-      for (size_t i = 0; i < velInfo.size(); i++) {
-        Real *Vold = (Real *)var.vold->infos[i].block;
-        Real *V = (Real *)velInfo[i].block;
-        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
-          Vold[j] = V[j];
-      }
+      for (size_t i = 0; i < velInfo.size(); i++)
+        memcpy(var.vold->infos[i].block, velInfo[i].block,
+               2 * _BS_ * _BS_ * sizeof(Real));
       var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
       var.tmpV->FillBlockCases(var.tmpV);
