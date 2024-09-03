@@ -5899,42 +5899,42 @@ struct KernelAdvectDiffuse {
             dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
-    Vector *faceXm = nullptr;
-    Vector *faceXp = nullptr;
-    Vector *faceYm = nullptr;
-    Vector *faceYp = nullptr;
+    Real *faceXm = nullptr;
+    Real *faceXp = nullptr;
+    Real *faceYm = nullptr;
+    Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Vector *)tempCase->d[0];
-      faceXp = (Vector *)tempCase->d[1];
-      faceYm = (Vector *)tempCase->d[2];
-      faceYp = (Vector *)tempCase->d[3];
+      faceXm = (Real*)tempCase->d[0];
+      faceXp = (Real*)tempCase->d[1];
+      faceYm = (Real*)tempCase->d[2];
+      faceYp = (Real*)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
-        faceXm[iy].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
+        faceXm[2 * iy] = dfac * (lab(ix, iy).u[0] - lab(ix - 1, iy).u[0]);
+        faceXm[2 * iy + 1] = dfac * (lab(ix, iy).u[1] - lab(ix - 1, iy).u[1]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
-        faceXp[iy].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
+        faceXp[2 * iy] = dfac * (lab(ix, iy).u[0] - lab(ix + 1, iy).u[0]);
+        faceXp[2 * iy + 1] = dfac * (lab(ix, iy).u[1] - lab(ix + 1, iy).u[1]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[ix].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
-        faceYm[ix].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
+        faceYm[2 * ix] = dfac * (lab(ix, iy).u[0] - lab(ix, iy - 1).u[0]);
+        faceYm[2 * ix + 1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy - 1).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix].u[0] = dfac * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
-        faceYp[ix].u[1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
+        faceYp[2 * ix] = dfac * (lab(ix, iy).u[0] - lab(ix, iy + 1).u[0]);
+        faceYp[2 * ix + 1] = dfac * (lab(ix, iy).u[1] - lab(ix, iy + 1).u[1]);
       }
     }
   }
