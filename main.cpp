@@ -7018,13 +7018,10 @@ int main(int argc, char **argv) {
       KernelAdvectDiffuse Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        VectorBlock &Vold = *(VectorBlock *)var.vold->infos[i].block;
-        const VectorBlock &V = *(VectorBlock *)velInfo[i].block;
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            Vold[iy][ix].u[0] = V[iy][ix].u[0];
-            Vold[iy][ix].u[1] = V[iy][ix].u[1];
-          }
+        Real *Vold = (Real *)var.vold->infos[i].block;
+        Real *V = (Real *)velInfo[i].block;
+        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+          Vold[j] = V[j];
       }
       var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
