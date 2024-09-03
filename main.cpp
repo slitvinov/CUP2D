@@ -2548,15 +2548,23 @@ static Element AverageDown(const Element &e0, const Element &e1,
                            const Element &e2, const Element &e3) {
   return 0.25 * ((e0 + e3) + (e1 + e2));
 }
-template <typename Element> static void LI(Element *a, Element b, Element c) {
+template <typename Element>
+static void LI(Element *a0, Element *b0, Element *c0) {
+  Element a = *a0;
+  Element b = *b0;
+  Element c = *c0;
   Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   Element lambda = (b - c) - kappa;
-  *a = (4.0 * kappa + 2.0 * lambda) + c;
+  *a0 = (4.0 * kappa + 2.0 * lambda) + c;
 }
-template <typename Element> static void LE(Element *a, Element b, Element c) {
+template <typename Element>
+static void LE(Element *a0, Element *b0, Element *c0) {
+  Element a = *a0;
+  Element b = *b0;
+  Element c = *c0;
   Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
   Element lambda = (b - c) - kappa;
-  *a = (9.0 * kappa + 3.0 * lambda) + c;
+  *a0 = (9.0 * kappa + 3.0 * lambda) + c;
 }
 static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
   double dx = 0.25 * (2 * x - 1);
@@ -3205,49 +3213,50 @@ template <typename Element> struct BlockLab {
             int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
             int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
             int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
+            int k12 = ix - start[0] + nm[0] * (iy - start[1]);
             int x =
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            auto &a = m[ix - start[0] + nm[0] * (iy - start[1])];
+            Element *a = m + k12;
             if (code[0] == 0 && code[1] == 1) {
               if (y == 0) {
-                auto &b = m[k0];
-                auto &c = m[k1];
+                Element *b = m + k0;
+                Element *c = m + k1;
                 LI(a, b, c);
               } else if (y == 1) {
-                auto &b = m[k1];
-                auto &c = m[k11];
+                Element *b = m + k1;
+                Element *c = m + k11;
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
               if (y == 1) {
-                auto &b = m[k2];
-                auto &c = m[k3];
+                Element *b = m + k2;
+                Element *c = m + k3;
                 LI(a, b, c);
               } else if (y == 0) {
-                auto &b = m[k3];
-                auto &c = m[k4];
+                Element *b = m + k3;
+                Element *c = m + k4;
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == 1) {
               if (x == 0) {
-                auto &b = m[k5];
-                auto &c = m[k6];
+                Element *b = m + k5;
+                Element *c = m + k6;
                 LI(a, b, c);
               } else if (x == 1) {
-                auto &b = m[k6];
-                auto &c = m[k7];
+                Element *b = m + k6;
+                Element *c = m + k7;
                 LE(a, b, c);
               }
             } else if (code[1] == 0 && code[0] == -1) {
               if (x == 1) {
-                auto &b = m[k8];
-                auto &c = m[k9];
+                Element *b = m + k8;
+                Element *c = m + k9;
                 LI(a, b, c);
               } else if (x == 0) {
-                auto &b = m[k9];
-                auto &c = m[k10];
+                Element *b = m + k9;
+                Element *c = m + k10;
                 LE(a, b, c);
               }
             }
