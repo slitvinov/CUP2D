@@ -5843,6 +5843,8 @@ struct KernelAdvectDiffuse {
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = (Real *)tmpVInfo[info.id].block;
+    Real *um = (Real*)lab.m;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix;
