@@ -2548,22 +2548,20 @@ static Element AverageDown(const Element &e0, const Element &e1,
                            const Element &e2, const Element &e3) {
   return 0.25 * ((e0 + e3) + (e1 + e2));
 }
-template <typename Element>
-static void LI(Element *a0, Element *b0, Element *c0) {
-  Element a = *a0;
-  Element b = *b0;
-  Element c = *c0;
-  Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Element lambda = (b - c) - kappa;
+static void LI(Real *a0, Real *b0, Real *c0) {
+  Real a = *a0;
+  Real b = *b0;
+  Real c = *c0;
+  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  Real lambda = (b - c) - kappa;
   *a0 = (4.0 * kappa + 2.0 * lambda) + c;
 }
-template <typename Element>
-static void LE(Element *a0, Element *b0, Element *c0) {
-  Element a = *a0;
-  Element b = *b0;
-  Element c = *c0;
-  Element kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Element lambda = (b - c) - kappa;
+static void LE(Real *a0, Real *b0, Real *c0) {
+  Real a = *a0;
+  Real b = *b0;
+  Real c = *c0;
+  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
+  Real lambda = (b - c) - kappa;
   *a0 = (9.0 * kappa + 3.0 * lambda) + c;
 }
 static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
