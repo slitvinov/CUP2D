@@ -4324,8 +4324,9 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v1;
         xyz[k++] = u1;
         xyz[k++] = v0;
-        attr[l++] = b[_BS_ * y + x];
-        sum += b[_BS_ * y + x];
+        attr[l] = b[l];
+        sum += b[l];
+	l++;
       }
   }
   printf("main.cpp: %d: %8.3e\n", sim.rank, sum / (_BS_ * _BS_ * nblock));
