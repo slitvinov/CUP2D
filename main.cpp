@@ -5915,8 +5915,12 @@ struct KernelAdvectDiffuse {
 	int ip0 = ix;
 	int jp0 = iy;
 	int im1 = ip0 - 1;
-        faceXm[2 * iy] = dfac * (lab(ip0, jp0).u[0] - lab(im1, jp0).u[0]);
-        faceXm[2 * iy + 1] = dfac * (lab(ix, jp0).u[1] - lab(im1, jp0).u[1]);
+	Real l0 = lab(ip0, jp0).u[0];
+	Real l1 = lab(im1, jp0).u[0];
+	Real l2 = lab(ip0, jp0).u[1];
+	Real l3 = lab(im1, jp0).u[1];
+        faceXm[2 * iy] = dfac * (l0 - l1);
+        faceXm[2 * iy + 1] = dfac * (l2 - l3);
       }
     }
     if (faceXp != nullptr) {
@@ -5925,8 +5929,12 @@ struct KernelAdvectDiffuse {
 	int ip0 = ix;
 	int jp0 = iy;
 	int ip1 = ip0 + 1;
-        faceXp[2 * iy] = dfac * (lab(ip0, jp0).u[0] - lab(ip1, jp0).u[0]);
-        faceXp[2 * iy + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip1, jp0).u[1]);
+	Real l0 = lab(ip0, jp0).u[0];
+	Real l1 = lab(ip1, jp0).u[0];
+	Real l2 = lab(ip0, jp0).u[1];
+	Real l3 = lab(ip1, jp0).u[1];
+        faceXp[2 * iy] = dfac * (l0 - l1);
+        faceXp[2 * iy + 1] = dfac * (l2 - l3);
       }
     }
     if (faceYm != nullptr) {
@@ -5935,8 +5943,12 @@ struct KernelAdvectDiffuse {
 	int ip0 = ix;
 	int jp0 = iy;
 	int jm1 = jp0 - 1;
-        faceYm[2 * ix] = dfac * (lab(ip0, jp0).u[0] - lab(ip0, jm1).u[0]);
-        faceYm[2 * ix + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip0, jm1).u[1]);
+	Real l0 = lab(ip0, jp0).u[0];
+	Real l1 = lab(ip0, jm1).u[0];
+	Real l2 = lab(ip0, jp0).u[1];
+	Real l3 = lab(ip0, jm1).u[1];
+        faceYm[2 * ix] = dfac * (l0 - l1);
+        faceYm[2 * ix + 1] = dfac * (l2 - l3);
       }
     }
     if (faceYp != nullptr) {
@@ -5945,8 +5957,12 @@ struct KernelAdvectDiffuse {
 	int ip0 = ix;
 	int jp0 = iy;
 	int jp1 = jp0 + 1;
-        faceYp[2 * ix] = dfac * (lab(ip0, jp0).u[0] - lab(ip0, jp1).u[0]);
-        faceYp[2 * ix + 1] = dfac * (lab(ip0, jp0).u[1] - lab(ip0, jp1).u[1]);
+	Real l0 = lab(ip0, jp0).u[0];
+	Real l1 = lab(ip0, jp1).u[0];
+	Real l2 = lab(ip0, jp0).u[1];
+	Real l3 = lab(ip0, jp1).u[1];
+        faceYp[2 * ix] = dfac * (l0 - l1);
+        faceYp[2 * ix + 1] = dfac * (l2 - l3);
       }
     }
   }
