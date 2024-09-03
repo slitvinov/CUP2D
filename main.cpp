@@ -4307,7 +4307,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   sum = 0;
   for (i = 0; i < nblock; i++) {
     const BlockInfo &info = infos[i];
-    ScalarBlock &b = *(ScalarBlock *)info.block;
+    Real *b = (Real*)info.block;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
@@ -4324,8 +4324,8 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v1;
         xyz[k++] = u1;
         xyz[k++] = v0;
-        attr[l++] = b[y][x];
-        sum += b[y][x];
+        attr[l++] = b[_BS_ * y + x];
+        sum += b[_BS_ * y + x];
       }
   }
   printf("main.cpp: %d: %8.3e\n", sim.rank, sum / (_BS_ * _BS_ * nblock));
