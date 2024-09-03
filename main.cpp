@@ -4855,10 +4855,10 @@ struct PutChiOnGrid {
             Real distMx = lab(xm, y0);
             Real distPy = lab(x0, yp);
             Real distMy = lab(x0, ym);
-            Real IplusX = std::max((Real)0.0, distPx);
-            Real IminuX = std::max((Real)0.0, distMx);
-            Real IplusY = std::max((Real)0.0, distPy);
-            Real IminuY = std::max((Real)0.0, distMy);
+            Real IplusX = std::max(0.0, distPx);
+            Real IminuX = std::max(0.0, distMx);
+            Real IplusY = std::max(0.0, distPy);
+            Real IminuY = std::max(0.0, distMy);
             Real gradIX = IplusX - IminuX;
             Real gradIY = IplusY - IminuY;
             Real gradUX = distPx - distMx;
