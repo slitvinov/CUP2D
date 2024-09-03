@@ -5842,8 +5842,6 @@ static void adapt() {
 static Real dU_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real u = V(ix, iy).u[0];
   Real v = V(ix, iy).u[1];
-  Real UU = u;
-  Real VV = v;
   Real up1x = V(ix + 1, iy).u[0];
   Real up2x = V(ix + 2, iy).u[0];
   Real up3x = V(ix + 3, iy).u[0];
@@ -5856,16 +5854,14 @@ static Real dU_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real um1y = V(ix, iy - 1).u[0];
   Real um2y = V(ix, iy - 2).u[0];
   Real um3y = V(ix, iy - 3).u[0];
-  Real dudx = derivative(UU, um3x, um2x, um1x, u, up1x, up2x, up3x);
-  Real dudy = derivative(VV, um3y, um2y, um1y, u, up1y, up2y, up3y);
-  return advF * (UU * dudx + VV * dudy) +
+  Real dudx = derivative(u, um3x, um2x, um1x, u, up1x, up2x, up3x);
+  Real dudy = derivative(v, um3y, um2y, um1y, u, up1y, up2y, up3y);
+  return advF * (u * dudx + v * dudy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * u);
 }
 static Real dV_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real u = V(ix, iy).u[0];
   Real v = V(ix, iy).u[1];
-  Real UU = u;
-  Real VV = v;
   Real up1x = V(ix + 1, iy).u[1];
   Real up2x = V(ix + 2, iy).u[1];
   Real up3x = V(ix + 3, iy).u[1];
@@ -5878,9 +5874,9 @@ static Real dV_adv_dif(VectorLab &V, Real advF, Real difF, int ix, int iy) {
   Real um1y = V(ix, iy - 1).u[1];
   Real um2y = V(ix, iy - 2).u[1];
   Real um3y = V(ix, iy - 3).u[1];
-  Real dvdx = derivative(UU, um3x, um2x, um1x, v, up1x, up2x, up3x);
-  Real dvdy = derivative(VV, um3y, um2y, um1y, v, up1y, up2y, up3y);
-  return advF * (UU * dvdx + VV * dvdy) +
+  Real dvdx = derivative(u, um3x, um2x, um1x, v, up1x, up2x, up3x);
+  Real dvdy = derivative(v, um3y, um2y, um1y, v, up1y, up2y, up3y);
+  return advF * (u * dvdx + v * dvdy) +
          difF * (((up1x + um1x) + (up1y + um1y)) - 4 * v);
 }
 struct KernelAdvectDiffuse {
