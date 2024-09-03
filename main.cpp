@@ -3158,43 +3158,61 @@ template <typename Element> struct BlockLab {
               if (code[0] != 0) {
                 Real dudy, dudy2;
                 if (YY + offset[1] == 0) {
-                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i2 + d];
-                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i2 + d];
+                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) +
+                         2.0 * uc[dim * i2 + d];
+                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i2 + d];
                 } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) - 2.0 * uc[dim * i4 + d];
-                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i4 + d];
+                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) -
+                         2.0 * uc[dim * i4 + d];
+                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i4 + d];
                 } else {
                   dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
-                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) - 2.0 * uc[dim * i1 + d];
+                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) -
+                          2.0 * uc[dim * i1 + d];
                 }
-                um[dim * j0 + d] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                um[dim * j0 + d] =
+                    uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j1 + d] =
+                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] = uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j2 + d] =
+                      uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  um[dim * j3 + d] = uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  um[dim * j3 + d] =
+                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
                 Real dudx, dudx2;
                 if (XX + offset[0] == 0) {
-                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) + 2.0 * uc[dim * i6 + d];
-                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i6 + d];
+                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) +
+                         2.0 * uc[dim * i6 + d];
+                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i6 + d];
                 } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) - 2.0 * uc[dim * i7 + d];
-                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) - 2.0 * uc[dim * i7 + d];
+                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) -
+                         2.0 * uc[dim * i7 + d];
+                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i7 + d];
                 } else {
                   dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
-                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) - 2.0 * uc[dim * i1 + d];
+                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) -
+                          2.0 * uc[dim * i1 + d];
                 }
-                um[dim * j0 + d] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                um[dim * j0 + d] =
+                    uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] = uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j1 + d] =
+                      uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j2 + d] =
+                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  um[dim * j3 + d] = uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  um[dim * j3 + d] =
+                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
               }
             }
           }
@@ -3220,46 +3238,48 @@ template <typename Element> struct BlockLab {
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            Element *a = m + k12;
-            if (code[0] == 0 && code[1] == 1) {
-              if (y == 0) {
-                Element *b = m + k0;
-                Element *c = m + k1;
-                LI(a, b, c);
-              } else if (y == 1) {
-                Element *b = m + k1;
-                Element *c = m + k11;
-                LE(a, b, c);
-              }
-            } else if (code[0] == 0 && code[1] == -1) {
-              if (y == 1) {
-                Element *b = m + k2;
-                Element *c = m + k3;
-                LI(a, b, c);
-              } else if (y == 0) {
-                Element *b = m + k3;
-                Element *c = m + k4;
-                LE(a, b, c);
-              }
-            } else if (code[1] == 0 && code[0] == 1) {
-              if (x == 0) {
-                Element *b = m + k5;
-                Element *c = m + k6;
-                LI(a, b, c);
-              } else if (x == 1) {
-                Element *b = m + k6;
-                Element *c = m + k7;
-                LE(a, b, c);
-              }
-            } else if (code[1] == 0 && code[0] == -1) {
-              if (x == 1) {
-                Element *b = m + k8;
-                Element *c = m + k9;
-                LI(a, b, c);
-              } else if (x == 0) {
-                Element *b = m + k9;
-                Element *c = m + k10;
-                LE(a, b, c);
+            for (int d = 0; d < dim; d++) {
+              Real *a = um + dim * k12 + d;
+              if (code[0] == 0 && code[1] == 1) {
+                if (y == 0) {
+                  Real *b = um + dim * k0 + d;
+                  Real *c = um + dim * k1 + d;
+                  LI(a, b, c);
+                } else if (y == 1) {
+                  Real *b = um + dim * k1 + d;
+                  Real *c = um + dim * k11 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[0] == 0 && code[1] == -1) {
+                if (y == 1) {
+                  Real *b = um + dim * k2 + d;
+                  Real *c = um + dim * k3 + d;
+                  LI(a, b, c);
+                } else if (y == 0) {
+                  Real *b = um + dim * k3 + d;
+                  Real *c = um + dim * k4 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == 1) {
+                if (x == 0) {
+                  Real *b = um + dim * k5 + d;
+                  Real *c = um + dim * k6 + d;
+                  LI(a, b, c);
+                } else if (x == 1) {
+                  Real *b = um + dim * k6 + d;
+                  Real *c = um + dim * k7 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == -1) {
+                if (x == 1) {
+                  Real *b = um + dim * k8 + d;
+                  Real *c = um + dim * k9 + d;
+                  LI(a, b, c);
+                } else if (x == 0) {
+                  Real *b = um + dim * k9 + d;
+                  Real *c = um + dim * k10 + d;
+                  LE(a, b, c);
+                }
               }
             }
           }
