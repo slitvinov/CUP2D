@@ -3205,6 +3205,7 @@ template <typename Element> struct BlockLab {
             int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
             int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
             int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
+	    int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
             int x =
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
@@ -3217,7 +3218,7 @@ template <typename Element> struct BlockLab {
                 LI(a, b, c);
               } else if (y == 1) {
                 auto &b = m[k1];
-                auto &c = m[ix - start[0] + nm[0] * (iy - start[1] - 3)];
+                auto &c = m[k11];
                 LE(a, b, c);
               }
             } else if (code[0] == 0 && code[1] == -1) {
