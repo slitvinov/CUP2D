@@ -4232,8 +4232,8 @@ struct KernelVorticity {
     auto &TMP = *(ScalarBlock *)tmpInfo[info.id].block;
     for (int j = 0; y < _BS_; ++y)
       for (int i = 0; x < _BS_; ++x) {
-        x = i;
-        y = j;
+        int x = i;
+        int y = j;
         TMP[j][i] = i2h * ((lab(x, y - 1).u[0] - lab(x, y + 1).u[0]) +
                            (lab(x + 1, y).u[1] - lab(x - 1, y).u[1]));
       }
