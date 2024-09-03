@@ -214,16 +214,9 @@ static Real weno5_minus(Real um2, Real um1, Real u, Real up1, Real up2) {
 }
 static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
                        Real up2, Real up3) {
-  Real fp = 0.0;
-  Real fm = 0.0;
-  if (U > 0) {
-    fp = weno5_plus(um2, um1, u, up1, up2);
-    fm = weno5_plus(um3, um2, um1, u, up1);
-  } else {
-    fp = weno5_minus(um1, u, up1, up2, up3);
-    fm = weno5_minus(um2, um1, u, up1, up2);
-  }
-  return fp - fm;
+  retrun U > 0
+      ? weno5_plus(um2, um1, u, up1, up2) - weno5_plus(um3, um2, um1, u, up1)
+      : weno5_minus(um1, u, up1, up2, up3) - weno5_minus(um2, um1, u, up1, up2);
 }
 static void compute_j(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
   Real m00 = 1.0;
