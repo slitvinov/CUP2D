@@ -4699,12 +4699,16 @@ struct ComputeSurfaceNormals {
       Real fac = 0.5 * h;
       for (int y0 = 0; y0 < _BS_; y0++)
         for (int x0 = 0; x0 < _BS_; x0++) {
-          Real gradHX = labChi(x0 + 1, y0) - labChi(x0 - 1, y0);
-          Real gradHY = labChi(x0, y0 + 1) - labChi(x0, y0 - 1);
+	  int xp = x0 + 1;
+	  int xm = x0 - 1;
+	  int yp = y0 + 1;
+	  int ym = y0 - 1;
+          Real gradHX = labChi(xp, y0) - labChi(xm, y0);
+          Real gradHY = labChi(x0, yp) - labChi(x0, ym);
           if (gradHX * gradHX + gradHY * gradHY < 1e-12)
             continue;
-          Real gradUX = i2h * (labSDF(x0 + 1, y0) - labSDF(x0 - 1, y0));
-          Real gradUY = i2h * (labSDF(x0, y0 + 1) - labSDF(x0, y0 - 1));
+          Real gradUX = i2h * (labSDF(xp, y0) - labSDF(xm, y0));
+          Real gradUY = i2h * (labSDF(x0, yp) - labSDF(x0, ym));
           Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
