@@ -4234,8 +4234,8 @@ struct KernelVorticity {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
-        int x0 = i; // - stencil.sx;
-        int y0 = j; // - stencil.sy;
+        int x0 = i - stencil.sx;
+        int y0 = j - stencil.sy;
         int xp = x0 + 1;
         int yp = y0 + 1;
         int xm = x0 - 1;
