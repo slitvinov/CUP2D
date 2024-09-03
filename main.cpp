@@ -3090,7 +3090,7 @@ template <typename Element> struct BlockLab {
           code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
           code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2),
           code[2] < 1 ? (code[2] < 0 ? ((start[2] - 1) / 2) : 0) : 1};
-      int bytes = (e[0] - s[0]) * sizeof(Element);
+      int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
       if (use_averages) {
