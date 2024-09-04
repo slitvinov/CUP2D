@@ -6763,7 +6763,7 @@ struct pressure_rhs1 {
         int im1 = ip0 - 1;
         Real *l0 = um + nm * jp0 + ip0;
         Real *l1 = um + nm * jp0 + im1;
-        faceXm[iy] = lab(ix - 1, iy) - lab(ix, iy);
+        faceXm[iy] = *l1 - *l0;
       }
     }
     if (faceXp != nullptr) {
@@ -6774,7 +6774,7 @@ struct pressure_rhs1 {
         int ip1 = ip0 + 1;
         Real *l0 = um + nm * jp0 + ip0;
         Real *l1 = um + nm * jp0 + ip1;
-        faceXp[iy] = lab(ix + 1, iy) - lab(ix, iy);
+        faceXp[iy] = *l1 - *l0;
       }
     }
     if (faceYm != nullptr) {
@@ -6785,7 +6785,7 @@ struct pressure_rhs1 {
         int jm1 = jp0 - 1;
         Real *l0 = um + nm * jp0 + ip0;
         Real *l1 = um + nm * jm1 + ip0;
-        faceYm[ix] = lab(ix, iy - 1) - lab(ix, iy);
+        faceYm[ix] = *l1 - *l0;
       }
     }
     if (faceYp != nullptr) {
@@ -6796,7 +6796,7 @@ struct pressure_rhs1 {
         int jp1 = jp0 + 1;
         Real *l0 = um + nm * jp0 + ip0;
         Real *l1 = um + nm * jp1 + ip0;
-        faceYp[ix] = lab(ix, iy + 1) - lab(ix, iy);
+        faceYp[ix] = *l1 - *l0;
       }
     }
   }
