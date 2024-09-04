@@ -6761,6 +6761,8 @@ struct pressure_rhs1 {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int im1 = ip0 - 1;
+        Real *l0 = um + nm * jp0 + ip0;
+        Real *l1 = um + nm * jp0 + im1;
         faceXm[iy] = lab(ix - 1, iy) - lab(ix, iy);
       }
     }
@@ -6770,6 +6772,8 @@ struct pressure_rhs1 {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
+        Real *l0 = um + nm * jp0 + ip0;
+        Real *l1 = um + nm * jp0 + ip1;
         faceXp[iy] = lab(ix + 1, iy) - lab(ix, iy);
       }
     }
@@ -6779,6 +6783,8 @@ struct pressure_rhs1 {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int jm1 = jp0 - 1;
+        Real *l0 = um + nm * jp0 + ip0;
+        Real *l1 = um + nm * jm1 + ip0;
         faceYm[ix] = lab(ix, iy - 1) - lab(ix, iy);
       }
     }
@@ -6788,6 +6794,8 @@ struct pressure_rhs1 {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int jp1 = jp0 + 1;
+        Real *l0 = um + nm * jp0 + ip0;
+        Real *l1 = um + nm * jp1 + ip0;
         faceYp[ix] = lab(ix, iy + 1) - lab(ix, iy);
       }
     }
