@@ -621,21 +621,15 @@ struct StencilInfo {
   StencilInfo(int _sx, int _sy, int _ex, int _ey, bool _tensorial)
       : sx(_sx), sy(_sy), ex(_ex), ey(_ey), tensorial(_tensorial) {}
   StencilInfo(const StencilInfo &c) = default;
-  std::vector<int> _all() const {
-    int extra[] = {sx, sy, ex, ey, (int)tensorial};
-    std::vector<int> all;
-    all.insert(all.end(), extra, extra + sizeof(extra) / sizeof(int));
-    return all;
-  }
   bool operator<(StencilInfo s) const {
-    std::vector<int> me = _all(), you = s._all();
-    const int N = std::min(me.size(), you.size());
-    for (int i = 0; i < N; ++i)
+    int me[] = {sx, sy, ex, ey, tensorial};
+    int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
+    for (int i = 0; i < sizeof me / sizeof *me; ++i)
       if (me[i] < you[i])
         return true;
       else if (me[i] > you[i])
         return false;
-    return me.size() < you.size();
+    return false;
   }
 };
 struct Interface {
