@@ -2675,7 +2675,7 @@ template <typename Element> struct BlockLab {
         int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
                                 (info.index[1] + code[1] + NY) % NY,
                                 (info.index[2] + code[2] + NZ) % NZ};
-        if (UseCoarseStencil(info, infoNei_index)) {
+        if (UseCoarseStencil0(info, infoNei_index)) {
           FillCoarseVersion(code);
           coarsened = true;
         }
@@ -2716,7 +2716,7 @@ template <typename Element> struct BlockLab {
     if (applybc)
       _apply_bc(info, false);
   }
-  bool UseCoarseStencil(const BlockInfo &a, const int *b_index) {
+  bool UseCoarseStencil0(const BlockInfo &a, const int *b_index) {
     if (a.level == 0 || (!use_averages))
       return false;
     int imin[3];
