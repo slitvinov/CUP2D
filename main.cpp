@@ -612,10 +612,7 @@ struct BlockCase {
   long long Z;
 };
 struct StencilInfo {
-  int sx;
-  int sy;
-  int ex;
-  int ey;
+  int sx, sy, ex, ey;
   bool tensorial;
   StencilInfo() {}
   StencilInfo(int sx, int sy, int ex, int ey, bool tensorial)
