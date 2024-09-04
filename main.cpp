@@ -4828,7 +4828,6 @@ struct PutChiOnGrid {
       Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.id];
       ScalarBlock &X = o.chi;
-      const ScalarBlock &sdf = o.dist;
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
@@ -4841,8 +4840,8 @@ struct PutChiOnGrid {
           int yp = y0 + 1;
           int xm = x0 - 1;
           int ym = y0 - 1;
-          if (sdf[iy][ix] > +h || sdf[iy][ix] < -h) {
-            X[iy][ix] = sdf[iy][ix] > 0 ? 1 : 0;
+          if (o.dist[iy][ix] > +h || o.dist[iy][ix] < -h) {
+            X[iy][ix] = o.dist[iy][ix] > 0 ? 1 : 0;
           } else {
             Real distPx = *(um + nm * y0 + xp);
             Real distMx = *(um + nm * y0 + xm);
