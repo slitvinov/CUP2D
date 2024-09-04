@@ -1835,7 +1835,7 @@ struct Grid {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   Grid(int dim) : dim(dim) {}
-  void FillCase(Grid *grid, face &F) {
+  void FillCase(face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
@@ -1870,7 +1870,7 @@ struct Grid {
         base = (0) + (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = (*grid).Tree0(F.infos[0]->level, F.infos[0]->Z);
+      int r = Tree0(F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
@@ -2123,13 +2123,13 @@ struct Grid {
     if (send_buffer[sim.rank].size() > 0)
       MPI_Waitall(1, &me_send_request, MPI_STATUSES_IGNORE);
     for (int index = 0; index < (int)recv_faces[sim.rank].size(); index++)
-      FillCase(grid, recv_faces[sim.rank][index]);
+      FillCase(recv_faces[sim.rank][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
-          FillCase(grid, recv_faces[r][index]);
+          FillCase(recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0);
