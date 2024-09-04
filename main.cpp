@@ -4830,7 +4830,7 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      auto &CHI = *(ScalarBlock *)chiInfo[info.id].block;
+      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[info.id].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           int x0 = ix - stencil.sx;
