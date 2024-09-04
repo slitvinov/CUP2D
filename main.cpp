@@ -963,7 +963,7 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   }
-  void __FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
+  void FixDuplicates(const Interface &f, const Interface &f_dup, int lx,
                        int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
                        int &sx, int &sy, int &sz) {
     const BlockInfo &receiver = *f.infos[1];
@@ -983,7 +983,7 @@ template <typename TGrid> struct Synchronizer {
       sz = range_dup.sz - range.sz;
     }
   }
-  void __FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
+  void FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
                         int &sy, int &sz) {
     if (f.infos[0]->level != f.infos[1]->level ||
         f_dup.infos[0]->level != f_dup.infos[1]->level)
@@ -1405,13 +1405,13 @@ template <typename TGrid> struct Synchronizer {
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            __FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
+            FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
                             L[1], L[2], srcx, srcy, srcz);
             int Csrcx = 0;
             int Csrcy = 0;
             int Csrcz = 0;
             if (f[k].CoarseStencil)
-              __FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
+              FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
             myunpacks[f[remEl1].infos[1]->halo_id].push_back(
                 {info.offset,
                  L[0],
