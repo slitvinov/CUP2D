@@ -717,14 +717,128 @@ struct UnPackInfo {
   int index_2;
   long long IDreceiver;
 };
-struct StencilManager {
+struct HaloBlockGroup {
+  std::vector<BlockInfo *> myblocks;
+  std::set<int> myranks;
+  bool ready = false;
+};
+struct PackInfo {
+  Real *block;
+  Real *pack;
+  int sx;
+  int sy;
+  int sz;
+  int ex;
+  int ey;
+  int ez;
+};
+static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
+  std::vector<Range *> retval;
+  for (int i = 0; i < 27; i++)
+    for (size_t j = 0; j < compass[i].size(); j++)
+      if (compass[i][j].needed)
+        retval.push_back(&compass[i][j]);
+  return retval;
+}
+static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
+  static constexpr std::array<int, 3> faces_and_edges[18] = {
+      {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
+      {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
+      {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
+  for (auto &f : faces_and_edges)
+    if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
+      bool needme = false;
+      auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
+      for (size_t j1 = 0; j1 < me.size(); j1++)
+        if (me[j1].needed) {
+          needme = true;
+          for (size_t j2 = 0; j2 < me.size(); j2++)
+            if (me[j2].needed && me[j2].contains(me[j1])) {
+              me[j1].needed = false;
+              me[j2].removedIndices.push_back(me[j1].index);
+              me[j2].Remove(me[j1]);
+              v.push_back(me[j1].index);
+              break;
+            }
+        }
+      if (!needme)
+        continue;
+      int imax = (f[0] == 1) ? 2 : f[0];
+      int imin = (f[0] == 1) ? 0 : f[0];
+      int jmax = (f[1] == 1) ? 2 : f[1];
+      int jmin = (f[1] == 1) ? 0 : f[1];
+      int kmax = (f[2] == 1) ? 2 : f[2];
+      int kmin = (f[2] == 1) ? 0 : f[2];
+      for (int k = kmin; k <= kmax; k++)
+        for (int j = jmin; j <= jmax; j++)
+          for (int i = imin; i <= imax; i++) {
+            if (i == f[0] && j == f[1] && k == f[2])
+              continue;
+            auto &other = compass[i + j * 3 + k * 9];
+            for (size_t j1 = 0; j1 < other.size(); j1++) {
+              auto &o = other[j1];
+              if (o.needed)
+                for (size_t k1 = 0; k1 < me.size(); k1++) {
+                  auto &m = me[k1];
+                  if (m.needed && m.contains(o)) {
+                    o.needed = false;
+                    m.removedIndices.push_back(o.index);
+                    m.Remove(o);
+                    v.push_back(o.index);
+                    break;
+                  }
+                }
+            }
+          }
+    }
+}
+struct DuplicatesManager {
+  std::vector<int> positions;
+  std::vector<size_t> sizes;
+  void Add(int r, int index) {
+    if (sizes[r] == 0)
+      positions[r] = index;
+    sizes[r]++;
+  }
+};
+template <typename TGrid> struct Synchronizer {
+  bool use_averages;
+  const int dim;
+  std::set<int> Neighbors;
+  std::unordered_map<int, MPI_Request *> mapofrequests;
+  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
+  std::vector<BlockInfo *> halo_blocks;
+  std::vector<BlockInfo *> inner_blocks;
+  std::vector<int> recv_buffer_size;
+  std::vector<int> send_buffer_size;
+  std::vector<MPI_Request> requests;
+  std::vector<std::vector<Interface>> recv_interfaces;
+  std::vector<std::vector<Interface>> send_interfaces;
+  std::vector<std::vector<int>> ToBeAveragedDown;
+  std::vector<std::vector<PackInfo>> send_packinfos;
+  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<std::vector<Real>> send_buffer;
+  std::vector<std::vector<UnPackInfo>> myunpacks;
+  TGrid *grid;
+  std::vector<BlockInfo *> dummy_vector;
   const StencilInfo stencil;
   const StencilInfo Cstencil{-1, -1, 2, 2, true};
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  StencilManager(StencilInfo a_stencil)
-      : stencil(a_stencil) {
+  Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
+      : dim(dim), stencil(a_stencil) {
+    grid = _grid;
+    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
+                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
+    send_interfaces.resize(sim.size);
+    recv_interfaces.resize(sim.size);
+    send_packinfos.resize(sim.size);
+    send_buffer_size.resize(sim.size);
+    recv_buffer_size.resize(sim.size);
+    send_buffer.resize(sim.size);
+    recv_buffer.resize(sim.size);
+    ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                        (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
@@ -884,127 +998,6 @@ struct StencilManager {
     sx = range_dup.sx - range.sx;
     sy = range_dup.sy - range.sy;
     sz = range_dup.sz - range.sz;
-  }
-};
-struct HaloBlockGroup {
-  std::vector<BlockInfo *> myblocks;
-  std::set<int> myranks;
-  bool ready = false;
-};
-struct PackInfo {
-  Real *block;
-  Real *pack;
-  int sx;
-  int sy;
-  int sz;
-  int ex;
-  int ey;
-  int ez;
-};
-static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
-  std::vector<Range *> retval;
-  for (int i = 0; i < 27; i++)
-    for (size_t j = 0; j < compass[i].size(); j++)
-      if (compass[i][j].needed)
-        retval.push_back(&compass[i][j]);
-  return retval;
-}
-static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
-  static constexpr std::array<int, 3> faces_and_edges[18] = {
-      {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
-      {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
-      {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
-  for (auto &f : faces_and_edges)
-    if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
-      bool needme = false;
-      auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
-      for (size_t j1 = 0; j1 < me.size(); j1++)
-        if (me[j1].needed) {
-          needme = true;
-          for (size_t j2 = 0; j2 < me.size(); j2++)
-            if (me[j2].needed && me[j2].contains(me[j1])) {
-              me[j1].needed = false;
-              me[j2].removedIndices.push_back(me[j1].index);
-              me[j2].Remove(me[j1]);
-              v.push_back(me[j1].index);
-              break;
-            }
-        }
-      if (!needme)
-        continue;
-      int imax = (f[0] == 1) ? 2 : f[0];
-      int imin = (f[0] == 1) ? 0 : f[0];
-      int jmax = (f[1] == 1) ? 2 : f[1];
-      int jmin = (f[1] == 1) ? 0 : f[1];
-      int kmax = (f[2] == 1) ? 2 : f[2];
-      int kmin = (f[2] == 1) ? 0 : f[2];
-      for (int k = kmin; k <= kmax; k++)
-        for (int j = jmin; j <= jmax; j++)
-          for (int i = imin; i <= imax; i++) {
-            if (i == f[0] && j == f[1] && k == f[2])
-              continue;
-            auto &other = compass[i + j * 3 + k * 9];
-            for (size_t j1 = 0; j1 < other.size(); j1++) {
-              auto &o = other[j1];
-              if (o.needed)
-                for (size_t k1 = 0; k1 < me.size(); k1++) {
-                  auto &m = me[k1];
-                  if (m.needed && m.contains(o)) {
-                    o.needed = false;
-                    m.removedIndices.push_back(o.index);
-                    m.Remove(o);
-                    v.push_back(o.index);
-                    break;
-                  }
-                }
-            }
-          }
-    }
-}
-struct DuplicatesManager {
-  std::vector<int> positions;
-  std::vector<size_t> sizes;
-  void Add(int r, int index) {
-    if (sizes[r] == 0)
-      positions[r] = index;
-    sizes[r]++;
-  }
-};
-template <typename TGrid> struct Synchronizer {
-  bool use_averages;
-  const int dim;
-  std::set<int> Neighbors;
-  std::unordered_map<int, MPI_Request *> mapofrequests;
-  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
-  std::vector<BlockInfo *> halo_blocks;
-  std::vector<BlockInfo *> inner_blocks;
-  std::vector<int> recv_buffer_size;
-  std::vector<int> send_buffer_size;
-  std::vector<MPI_Request> requests;
-  std::vector<std::vector<Interface>> recv_interfaces;
-  std::vector<std::vector<Interface>> send_interfaces;
-  std::vector<std::vector<int>> ToBeAveragedDown;
-  std::vector<std::vector<PackInfo>> send_packinfos;
-  std::vector<std::vector<Real>> recv_buffer;
-  std::vector<std::vector<Real>> send_buffer;
-  std::vector<std::vector<UnPackInfo>> myunpacks;
-  StencilInfo stencil;
-  StencilManager SM;
-  TGrid *grid;
-  std::vector<BlockInfo *> dummy_vector;
-  Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
-      : dim(dim), stencil(a_stencil), SM(a_stencil) {
-    grid = _grid;
-    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
-    send_interfaces.resize(sim.size);
-    recv_interfaces.resize(sim.size);
-    send_packinfos.resize(sim.size);
-    send_buffer_size.resize(sim.size);
-    recv_buffer_size.resize(sim.size);
-    send_buffer.resize(sim.size);
-    recv_buffer.resize(sim.size);
-    ToBeAveragedDown.resize(sim.size);
   }
   std::vector<BlockInfo *> &avail_next() {
     bool done = false;
@@ -1290,7 +1283,7 @@ template <typename TGrid> struct Synchronizer {
               compass[i].clear();
             for (size_t i = 0; i < DM.sizes[r]; i++) {
               compass[f[i + DM.positions[r]].icode[0]].push_back(
-                  SM.DetermineStencil(f[i + DM.positions[r]]));
+                  DetermineStencil(f[i + DM.positions[r]]));
               compass[f[i + DM.positions[r]].icode[0]].back().index =
                   i + DM.positions[r];
               compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
@@ -1309,13 +1302,13 @@ template <typename TGrid> struct Synchronizer {
             int Lc[3] = {0, 0, 0};
             for (auto &i : keepEl(compass)) {
               const int k = i->index;
-              SM.DetermineStencilLength(f[k].infos[0]->level,
-                                        f[k].infos[1]->level, f[k].icode[1], L);
+              DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
+                                     f[k].icode[1], L);
               const int V = L[0] * L[1] * L[2];
               total_size += V;
               f[k].dis = offsets[r];
               if (f[k].CoarseStencil) {
-                SM.CoarseStencilLength(f[k].icode[1], Lc);
+                CoarseStencilLength(f[k].icode[1], Lc);
                 const int Vc = Lc[0] * Lc[1] * Lc[2];
                 total_size += Vc;
                 offsets[r] += Vc * nc;
@@ -1355,7 +1348,7 @@ template <typename TGrid> struct Synchronizer {
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
         for (size_t i = start; i < finish; i++) {
-          compass[f[i].icode[0]].push_back(SM.DetermineStencil(f[i]));
+          compass[f[i].icode[0]].push_back(DetermineStencil(f[i]));
           compass[f[i].icode[0]].back().index = i;
           compass[f[i].icode[0]].back().avg_down =
               (f[i].infos[0]->level > f[i].infos[1]->level);
@@ -1372,8 +1365,8 @@ template <typename TGrid> struct Synchronizer {
           const int k = i->index;
           int L[3] = {0, 0, 0};
           int Lc[3] = {0, 0, 0};
-          SM.DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
-                                    f[k].icode[1], L);
+          DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
+                                 f[k].icode[1], L);
           const int V = L[0] * L[1] * L[2];
           int Vc = 0;
           total_size += V;
@@ -1401,7 +1394,7 @@ template <typename TGrid> struct Synchronizer {
                              f[k].infos[0]->index[2],
                              f[k].infos[1]->id2};
           if (f[k].CoarseStencil) {
-            SM.CoarseStencilLength(f[k].icode[1], Lc);
+            CoarseStencilLength(f[k].icode[1], Lc);
             Vc = Lc[0] * Lc[1] * Lc[2];
             total_size += Vc;
             offsets_recv[otherrank] += Vc * nc;
@@ -1413,17 +1406,17 @@ template <typename TGrid> struct Synchronizer {
           myunpacks[f[k].infos[1]->halo_id].push_back(info);
           for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
             const int remEl1 = i->removedIndices[kk];
-            SM.DetermineStencilLength(f[remEl1].infos[0]->level,
-                                      f[remEl1].infos[1]->level,
-                                      f[remEl1].icode[1], &L[0]);
+            DetermineStencilLength(f[remEl1].infos[0]->level,
+                                   f[remEl1].infos[1]->level,
+                                   f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            SM.__FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
-                               L[1], L[2], srcx, srcy, srcz);
+            __FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
+                            L[1], L[2], srcx, srcy, srcz);
             int Csrcx = 0;
             int Csrcy = 0;
             int Csrcz = 0;
             if (f[k].CoarseStencil)
-              SM.__FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
+              __FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
             myunpacks[f[remEl1].infos[1]->halo_id].push_back(
                 {info.offset,
                  L[0],
@@ -1460,7 +1453,7 @@ template <typename TGrid> struct Synchronizer {
         if (!f.ToBeKept)
           continue;
         if (f.infos[0]->level <= f.infos[1]->level) {
-          Range &range = SM.DetermineStencil(f);
+          Range &range = DetermineStencil(f);
           send_packinfos[r].push_back(
               {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
@@ -1535,11 +1528,9 @@ template <typename TGrid> struct Synchronizer {
             if (f.CoarseStencil) {
               Real *dst = send_buffer[r].data() + d;
               const BlockInfo *const info = f.infos[0];
-              const int eC[3] = {(stencil.ex) / 2 + 2,
-                                 (stencil.ey) / 2 + 2, 1};
+              const int eC[3] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2, 1};
               const int sC[3] = {(stencil.sx - 1) / 2 - 1,
-                                 (stencil.sy - 1) / 2 - 1,
-                                 (0 - 1) / 2 + 0};
+                                 (stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
               const int s[3] = {
                   code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
                   code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2,
@@ -2587,10 +2578,9 @@ template <typename Element> struct BlockLab {
                            unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0,
                            unpack.lx, unpack.ly, unpack.lz, nm[0], nm[1]);
           if (unpack.CoarseVersionOffset >= 0) {
-            const int offset[3] = {
-                (sync->stencil.sx - 1) / 2 - 1,
-                (sync->stencil.sy - 1) / 2 - 1,
-                (0 - 1) / 2 + 0};
+            const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
+                                   (sync->stencil.sy - 1) / 2 - 1,
+                                   (0 - 1) / 2 + 0};
             const int sC[3] = {
                 code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
@@ -2600,7 +2590,7 @@ template <typename Element> struct BlockLab {
                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                 dim;
             int L[3];
-            sync->SM.CoarseStencilLength(
+            sync->CoarseStencilLength(
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
             unpack_subregion(
                 &sync->recv_buffer[otherrank]
