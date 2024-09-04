@@ -3589,106 +3589,104 @@ struct Adaptation {
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     dealloc_IDs.clear();
-    {
-      TLab lab(dim);
-      if (Synch != nullptr)
-        lab.prepare(grid, Synch->stencil);
-      for (size_t i = 0; i < m_ref.size(); i++) {
-        const int level = m_ref[i];
-        const long long Z = n_ref[i];
-        BlockInfo &parent = grid->get(level, Z);
-        parent.state = Leave;
-        if (basic_refinement == false)
-          lab.load(grid, parent, true);
-        const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-        assert(parent.block != NULL);
-        assert(level <= sim.levelMax - 1);
-        void *Blocks[4];
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            const long long nc =
-                getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            BlockInfo &Child = grid->get(level + 1, nc);
-            Child.state = Leave;
-            grid->_alloc(level + 1, nc);
-            grid->Tree0(level + 1, nc) = -2;
-            Blocks[j * 2 + i] = Child.block;
-          }
-        if (basic_refinement == false) {
-          int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
-          int offsetX[2] = {0, _BS_ / 2};
-          int offsetY[2] = {0, _BS_ / 2};
-          Real *um = (Real *)lab.m;
-          for (int J = 0; J < 2; J++)
-            for (int I = 0; I < 2; I++) {
-              void *bb = Blocks[J * 2 + I];
-              Real *b = (Real *)bb;
-              memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
-              for (int j = 0; j < _BS_; j += 2)
-                for (int i = 0; i < _BS_; i += 2) {
-                  int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
-                  int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
-                  int im = i0 - 1;
-                  int ip = i0 + 1;
-                  int jm = j0 - 1;
-                  int jp = j0 + 1;
-                  int o0 = _BS_ * j + i;
-                  int o1 = _BS_ * j + i + 1;
-                  int o2 = _BS_ * (j + 1) + i;
-                  int o3 = _BS_ * (j + 1) + i + 1;
-                  for (int d = 0; d < dim; d++) {
-                    Real l00 = um[dim * (nm * j0 + i0) + d];
-                    Real l0p = um[dim * (nm * jp + i0) + d];
-                    Real lm0 = um[dim * (nm * j0 + im) + d];
-                    Real lmm = um[dim * (nm * jm + im) + d];
-                    Real lmp = um[dim * (nm * jp + im) + d];
-                    Real lp0 = um[dim * (nm * j0 + ip) + d];
-                    Real lpm = um[dim * (nm * jm + ip) + d];
-                    Real lpp = um[dim * (nm * jp + ip) + d];
-                    Real l0m = um[dim * (nm * jm + i0) + d];
-                    Real x = 0.5 * (lp0 - lm0);
-                    Real y = 0.5 * (l0p - l0m);
-                    Real x2 = (lp0 + lm0) - 2.0 * l00;
-                    Real y2 = (l0p + l0m) - 2.0 * l00;
-                    Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                    b[dim * o0 + d] =
-                        (l00 + (-0.25 * x - 0.25 * y)) +
-                        ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                    b[dim * o1 + d] =
-                        (l00 + (+0.25 * x - 0.25 * y)) +
-                        ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                    b[dim * o2 + d] =
-                        (l00 + (-0.25 * x + 0.25 * y)) +
-                        ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                    b[dim * o3 + d] =
-                        (l00 + (+0.25 * x + 0.25 * y)) +
-                        ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  }
-                }
-            }
+    TLab lab(dim);
+    if (Synch != nullptr)
+      lab.prepare(grid, Synch->stencil);
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      const int level = m_ref[i];
+      const long long Z = n_ref[i];
+      BlockInfo &parent = grid->get(level, Z);
+      parent.state = Leave;
+      if (basic_refinement == false)
+        lab.load(grid, parent, true);
+      const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+      assert(parent.block != NULL);
+      assert(level <= sim.levelMax - 1);
+      void *Blocks[4];
+      for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+          const long long nc =
+              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          BlockInfo &Child = grid->get(level + 1, nc);
+          Child.state = Leave;
+          grid->_alloc(level + 1, nc);
+          grid->Tree0(level + 1, nc) = -2;
+          Blocks[j * 2 + i] = Child.block;
         }
-      }
-      for (size_t i = 0; i < m_ref.size(); i++) {
-        const int level = m_ref[i];
-        const long long Z = n_ref[i];
-#pragma omp critical
-        { dealloc_IDs.push_back(grid->get(level, Z).id2); }
-        BlockInfo &parent = grid->get(level, Z);
-        grid->Tree1(parent) = -1;
-        parent.state = Leave;
-        int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            const long long nc =
-                getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            BlockInfo &Child = grid->get(level + 1, nc);
-            grid->Tree1(Child) = sim.rank;
-            if (level + 2 < sim.levelMax)
-              for (int i0 = 0; i0 < 2; i0++)
-                for (int i1 = 0; i1 < 2; i1++)
-                  grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
+      if (basic_refinement == false) {
+        int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
+        int offsetX[2] = {0, _BS_ / 2};
+        int offsetY[2] = {0, _BS_ / 2};
+        Real *um = (Real *)lab.m;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            void *bb = Blocks[J * 2 + I];
+            Real *b = (Real *)bb;
+            memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
+            for (int j = 0; j < _BS_; j += 2)
+              for (int i = 0; i < _BS_; i += 2) {
+                int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
+                int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
+                int im = i0 - 1;
+                int ip = i0 + 1;
+                int jm = j0 - 1;
+                int jp = j0 + 1;
+                int o0 = _BS_ * j + i;
+                int o1 = _BS_ * j + i + 1;
+                int o2 = _BS_ * (j + 1) + i;
+                int o3 = _BS_ * (j + 1) + i + 1;
+                for (int d = 0; d < dim; d++) {
+                  Real l00 = um[dim * (nm * j0 + i0) + d];
+                  Real l0p = um[dim * (nm * jp + i0) + d];
+                  Real lm0 = um[dim * (nm * j0 + im) + d];
+                  Real lmm = um[dim * (nm * jm + im) + d];
+                  Real lmp = um[dim * (nm * jp + im) + d];
+                  Real lp0 = um[dim * (nm * j0 + ip) + d];
+                  Real lpm = um[dim * (nm * jm + ip) + d];
+                  Real lpp = um[dim * (nm * jp + ip) + d];
+                  Real l0m = um[dim * (nm * jm + i0) + d];
+                  Real x = 0.5 * (lp0 - lm0);
+                  Real y = 0.5 * (l0p - l0m);
+                  Real x2 = (lp0 + lm0) - 2.0 * l00;
+                  Real y2 = (l0p + l0m) - 2.0 * l00;
+                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                  b[dim * o0 + d] =
+                      (l00 + (-0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[dim * o1 + d] =
+                      (l00 + (+0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o2 + d] =
+                      (l00 + (-0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o3 + d] =
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                }
+              }
           }
       }
+    }
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      const int level = m_ref[i];
+      const long long Z = n_ref[i];
+#pragma omp critical
+      { dealloc_IDs.push_back(grid->get(level, Z).id2); }
+      BlockInfo &parent = grid->get(level, Z);
+      grid->Tree1(parent) = -1;
+      parent.state = Leave;
+      int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+      for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+          const long long nc =
+              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          BlockInfo &Child = grid->get(level + 1, nc);
+          grid->Tree1(Child) = sim.rank;
+          if (level + 2 < sim.levelMax)
+            for (int i0 = 0; i0 < 2; i0++)
+              for (int i1 = 0; i1 < 2; i1++)
+                grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
+        }
     }
     grid->dealloc_many(dealloc_IDs);
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
