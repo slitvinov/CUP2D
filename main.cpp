@@ -2427,7 +2427,6 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
         (dx * dy) * dudxdy);
 }
 template <typename Element> struct BlockLab {
-  Synchronizer<Grid> *sync;
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
@@ -2450,7 +2449,6 @@ template <typename Element> struct BlockLab {
     return m[nm[0] * y + x];
   }
   void prepare(Grid *grid, const StencilInfo &stencil) {
-    sync = grid->Synchronizers.find(stencil)->second;
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -2473,7 +2471,8 @@ template <typename Element> struct BlockLab {
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
-  void load(Grid *grid, BlockInfo &info, bool applybc) {
+  void load(Grid *grid, Synchronizer<Grid> *sync, BlockInfo &info,
+            bool applybc) {
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -3570,7 +3569,7 @@ struct Adaptation {
       BlockInfo &parent = grid->get(level, Z);
       parent.state = Leave;
       if (basic_refinement == false)
-        lab.load(grid, parent, true);
+        lab.load(grid, Synch, parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -3827,7 +3826,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(g, *I, true);
+      lab.load(g, &Synch, *I, true);
       kernel(lab, *I);
     }
     while (done == false) {
@@ -3836,7 +3835,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(g, *I, true);
+        lab.load(g, &Synch, *I, true);
         kernel(lab, *I);
       }
 #pragma omp single
@@ -3880,8 +3879,8 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
     for (int i = 0; i < Ninner; i++) {
       BlockInfo &I = *avail0[i];
       BlockInfo &I2 = *avail02[i];
-      lab.load(&grid, I, true);
-      lab2.load(&grid2, I2, true);
+      lab.load(&grid, &Synch, I, true);
+      lab2.load(&grid2, &Synch2, I2, true);
       kernel(lab, lab2, I, I2);
       ready[I.id] = true;
     }
@@ -3901,8 +3900,8 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
     for (int i = 0; i < Nhalo; i++) {
       BlockInfo &I = *avail1[i];
       BlockInfo &I2 = *avail12[i];
-      lab.load(&grid, I, true);
-      lab2.load(&grid2, I2, true);
+      lab.load(&grid, &Synch, I, true);
+      lab2.load(&grid2, &Synch2, I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
