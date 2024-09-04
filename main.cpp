@@ -2679,26 +2679,26 @@ template <typename Element> struct BlockLab {
     if (applybc)
       _apply_bc(info, false);
   }
-  bool UseCoarseStencil0(const BlockInfo &a, const int *infoNei_index) {
-    if (a.level == 0 || (!use_averages))
+  bool UseCoarseStencil0(const BlockInfo &info, const int *infoNei_index) {
+    if (info.level == 0 || (!use_averages))
       return false;
     int imin[3];
     int imax[3];
-    const int aux = 1 << a.level;
+    const int aux = 1 << info.level;
     const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
     for (int d = 0; d < 3; d++) {
-      imin[d] = (a.index[d] < infoNei_index[d]) ? 0 : -1;
-      imax[d] = (a.index[d] > infoNei_index[d]) ? 0 : +1;
+      imin[d] = (info.index[d] < infoNei_index[d]) ? 0 : -1;
+      imax[d] = (info.index[d] > infoNei_index[d]) ? 0 : +1;
       if (periodic0[d]) {
-        if (a.index[d] == 0 && infoNei_index[d] == blocks[d])
+        if (info.index[d] == 0 && infoNei_index[d] == blocks[d])
           imin[d] = -1;
-        if (infoNei_index[d] == 0 && a.index[d] == blocks[d])
+        if (infoNei_index[d] == 0 && info.index[d] == blocks[d])
           imax[d] = +1;
       } else {
-        if (a.index[d] == 0 && infoNei_index[d] == 0)
+        if (info.index[d] == 0 && infoNei_index[d] == 0)
           imin[d] = 0;
-        if (a.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
+        if (info.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
           imax[d] = 0;
       }
     }
