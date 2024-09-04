@@ -977,7 +977,6 @@ struct DuplicatesManager {
 template <typename TGrid> struct Synchronizer {
   bool use_averages;
   const int dim;
-  const int NC;
   std::set<int> Neighbors;
   std::unordered_map<int, MPI_Request *> mapofrequests;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
@@ -1001,7 +1000,7 @@ template <typename TGrid> struct Synchronizer {
   Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
                int dim)
       : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1), NC(dim) {
+        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1) {
     grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
@@ -1459,8 +1458,8 @@ template <typename TGrid> struct Synchronizer {
           }
         }
       }
-      send_buffer[r].resize(send_buffer_size[r] * NC);
-      recv_buffer[r].resize(recv_buffer_size[r] * NC);
+      send_buffer[r].resize(send_buffer_size[r] * dim);
+      recv_buffer[r].resize(recv_buffer_size[r] * dim);
       send_packinfos[r].clear();
       ToBeAveragedDown[r].clear();
       for (int i = 0; i < (int)send_interfaces[r].size(); i++) {
@@ -1476,7 +1475,7 @@ template <typename TGrid> struct Synchronizer {
             int V = (range.ex - range.sx) * (range.ey - range.sy) *
                     (range.ez - range.sz);
             ToBeAveragedDown[r].push_back(i);
-            ToBeAveragedDown[r].push_back(f.dis + V * NC);
+            ToBeAveragedDown[r].push_back(f.dis + V * dim);
           }
         } else {
           ToBeAveragedDown[r].push_back(i);
@@ -1525,7 +1524,7 @@ template <typename TGrid> struct Synchronizer {
       if (recv_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
         mapofrequests[r] = &requests.back();
-        MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * NC, MPI_Real, r,
+        MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * dim, MPI_Real, r,
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
     for (int r = 0; r < sim.size; r++)
@@ -1568,7 +1567,7 @@ template <typename TGrid> struct Synchronizer {
                   const int XX =
                       2 * (ix - s[0]) + s[0] + std::max(code[0], 0) * _BS_ / 2 -
                       code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-                  for (int c = 0; c < NC; c++) {
+                  for (int c = 0; c < dim; c++) {
                     int comp = c;
                     dst[pos] =
                         0.25 *
@@ -1606,7 +1605,7 @@ template <typename TGrid> struct Synchronizer {
                                      ? 2 * (ix - code[0] * _BS_) +
                                            std::min(0, code[0]) * _BS_
                                      : ix;
-                  for (int c = 0; c < NC; c++) {
+                  for (int c = 0; c < dim; c++) {
                     int comp = c;
                     dst[pos] =
                         0.25 *
@@ -1631,7 +1630,7 @@ template <typename TGrid> struct Synchronizer {
     for (auto r : Neighbors)
       if (send_buffer_size[r] > 0) {
         requests.resize(requests.size() + 1);
-        MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * NC, MPI_Real, r,
+        MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * dim, MPI_Real, r,
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
   }
