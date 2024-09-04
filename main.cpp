@@ -992,9 +992,9 @@ template <typename TGrid> struct Synchronizer {
   StencilManager SM;
   TGrid *grid;
   std::vector<BlockInfo *> dummy_vector;
-  const StencilInfo Cstencil{-1, -1, 2, 2, true};
+  const StencilInfo Cstencil0{-1, -1, 2, 2, true};
   Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
-      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil) {
+      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil0) {
     grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
@@ -1536,10 +1536,10 @@ template <typename TGrid> struct Synchronizer {
             if (f.CoarseStencil) {
               Real *dst = send_buffer[r].data() + d;
               const BlockInfo *const info = f.infos[0];
-              const int eC[3] = {(stencil.ex) / 2 + Cstencil.ex,
-                                 (stencil.ey) / 2 + Cstencil.ey, 1};
-              const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
-                                 (stencil.sy - 1) / 2 + Cstencil.sy,
+              const int eC[3] = {(stencil.ex) / 2 + 2,
+                                 (stencil.ey) / 2 + 2, 1};
+              const int sC[3] = {(stencil.sx - 1) / 2 - 1,
+                                 (stencil.sy - 1) / 2 - 1,
                                  (0 - 1) / 2 + 0};
               const int s[3] = {
                   code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
@@ -2589,8 +2589,8 @@ template <typename Element> struct BlockLab {
                            unpack.lx, unpack.ly, unpack.lz, nm[0], nm[1]);
           if (unpack.CoarseVersionOffset >= 0) {
             const int offset[3] = {
-                (sync->stencil.sx - 1) / 2 + sync->Cstencil.sx,
-                (sync->stencil.sy - 1) / 2 + sync->Cstencil.sy,
+                (sync->stencil.sx - 1) / 2 - 1,
+                (sync->stencil.sy - 1) / 2 - 1,
                 (0 - 1) / 2 + 0};
             const int sC[3] = {
                 code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
@@ -2612,8 +2612,8 @@ template <typename Element> struct BlockLab {
                 L[1], L[2], nc[0], nc[1]);
           }
         } else if (unpack.level < info.level) {
-          const int offset[3] = {(sync->stencil.sx - 1) / 2 + sync->Cstencil.sx,
-                                 (sync->stencil.sy - 1) / 2 + sync->Cstencil.sy,
+          const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
+                                 (sync->stencil.sy - 1) / 2 - 1,
                                  (0 - 1) / 2 + 0};
           const int sC[3] = {
               code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
