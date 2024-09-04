@@ -618,8 +618,8 @@ struct StencilInfo {
   int ey;
   bool tensorial;
   StencilInfo() {}
-  StencilInfo(int _sx, int _sy, int _ex, int _ey, bool _tensorial)
-      : sx(_sx), sy(_sy), ex(_ex), ey(_ey), tensorial(_tensorial) {}
+  StencilInfo(int sx, int sy, int ex, int ey, bool tensorial)
+      : sx(sx), sy(sy), ex(ex), ey(ey), tensorial(tensorial) {}
   StencilInfo(const StencilInfo &c) = default;
   bool operator<(StencilInfo s) const {
     int me[] = {sx, sy, ex, ey, tensorial};
