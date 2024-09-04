@@ -20,11 +20,9 @@ struct KernelComputeForces {
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
-      Real vel_norm =
-          std::sqrt(shape->u * shape->u + shape->v * shape->v);
-      Real vel_unit[2] = {
-          vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
-          vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
+      Real vel_norm = std::sqrt(shape->u * shape->u + shape->v * shape->v);
+      Real vel_unit[2] = {vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
+                          vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
       Real NUoH = sim.nu / info.h;
       ObstacleBlock *O = OBLOCK[info.id];
       if (O == nullptr)
@@ -62,55 +60,75 @@ struct KernelComputeForces {
         }
         int sx = normX > 0 ? +1 : -1;
         int sy = normY > 0 ? +1 : -1;
+	const int d = 0;
+        const Vector *l00 = &l(x, y);
+        const Vector *l01 = &l(x + sx, y);
+        const Vector *l02 = &l(x + 2 * sx, y);
+        const Vector *l03 = &l(x + 3 * sx, y);
+        const Vector *l04 = &l(x + 4 * sx, y);
+        const Vector *l05 = &l(x + 5 * sx, y);
+        const Vector *l06 = &l(x, y + sy);
+        const Vector *l07 = &l(x, y + 2 * sy);
+        const Vector *l08 = &l(x, y + 3 * sy);
+        const Vector *l09 = &l(x, y + 4 * sy);
+        const Vector *l10 = &l(x, y + 5 * sy);
+        const Vector *l11 = &l(x - 1, y);
+        const Vector *l12 = &l(x + 1, y);
+        const Vector *l13 = &l(x, y - 1);
+        const Vector *l14 = &l(x, y + 1);
+        const Vector *l15 = &l(x + 2 * sx, y + sy);
+        const Vector *l16 = &l(x + 2 * sx, y + 2 * sy);
+        const Vector *l17 = &l(x + sx, y + sy);
+        const Vector *l18 = &l(x + sx, y + 2 * sy);
+        const Vector *l19 = &l(ix, iy);
         Vector dveldx;
-        if (inrange(x + 5 * sx))
-          dveldx = sx * (c0 * l(x, y) + c1 * l(x + sx, y) +
-                         c2 * l(x + 2 * sx, y) + c3 * l(x + 3 * sx, y) +
-                         c4 * l(x + 4 * sx, y) + c5 * l(x + 5 * sx, y));
-        else if (inrange(x + 2 * sx))
-          dveldx = sx * (-1.5 * l(x, y) + 2.0 * l(x + sx, y) -
-                         0.5 * l(x + 2 * sx, y));
-        else
-          dveldx = sx * (l(x + sx, y) - l(x, y));
         Vector dveldy;
-        if (inrange(y + 5 * sy))
-          dveldy = sy * (c0 * l(x, y) + c1 * l(x, y + sy) +
-                         c2 * l(x, y + 2 * sy) + c3 * l(x, y + 3 * sy) +
-                         c4 * l(x, y + 4 * sy) + c5 * l(x, y + 5 * sy));
-        else if (inrange(y + 2 * sy))
-          dveldy = sy * (-1.5 * l(x, y) + 2.0 * l(x, y + sy) -
-                         0.5 * l(x, y + 2 * sy));
+        if (inrange(x + 5 * sx))
+          dveldx =
+              sx * (c0 * (*(l00 + d)) + c1 * (*(l01 + d)) + c2 * (*(l02 + d)) +
+                    c3 * (*(l03 + d)) + c4 * (*(l04 + d)) + c5 * (*(l05 + d)));
+        else if (inrange(x + 2 * sx))
+          dveldx = sx * (-1.5 * (*(l00 + d)) + 2.0 * (*(l01 + d)) -
+                         0.5 * (*(l02 + d)));
         else
-          dveldy = sx * (l(x, y + sy) - l(x, y));
-        Vector dveldx2 = l(x - 1, y) - 2.0 * l(x, y) + l(x + 1, y);
-        Vector dveldy2 = l(x, y - 1) - 2.0 * l(x, y) + l(x, y + 1);
+          dveldx = sx * ((*(l01 + d)) - (*(l00 + d)));
+        if (inrange(y + 5 * sy))
+          dveldy =
+              sy * (c0 * (*(l00 + d)) + c1 * (*(l06 + d)) + c2 * (*(l07 + d)) +
+                    c3 * (*(l08 + d)) + c4 * (*(l09 + d)) + c5 * (*(l10 + d)));
+        else if (inrange(y + 2 * sy))
+          dveldy = sy * (-1.5 * (*(l00 + d)) + 2.0 * (*(l06 + d)) -
+                         0.5 * (*(l07 + d)));
+        else
+          dveldy = sx * ((*(l06 + d)) - (*(l00 + d)));
+        Vector dveldx2 = (*(l11 + d)) - 2.0 * (*(l00 + d)) + (*(l12 + d));
+        Vector dveldy2 = (*(l13 + d)) - 2.0 * (*(l00 + d)) + (*(l14 + d));
         Vector dveldxdy;
         if (inrange(x + 2 * sx) && inrange(y + 2 * sy))
-          dveldxdy =
-              sx * sy *
-              (-0.5 * (-1.5 * l(x + 2 * sx, y) + 2 * l(x + 2 * sx, y + sy) -
-                       0.5 * l(x + 2 * sx, y + 2 * sy)) +
-               2 * (-1.5 * l(x + sx, y) + 2 * l(x + sx, y + sy) -
-                    0.5 * l(x + sx, y + 2 * sy)) -
-               1.5 * (-1.5 * l(x, y) + 2 * l(x, y + sy) -
-                      0.5 * l(x, y + 2 * sy)));
+          dveldxdy = sx * sy *
+                     (-0.5 * (-1.5 * (*(l02 + d)) + 2 * (*(l15 + d)) -
+                              0.5 * (*(l16 + d))) +
+                      2 * (-1.5 * (*(l01 + d)) + 2 * (*(l17 + d)) -
+                           0.5 * (*(l18 + d))) -
+                      1.5 * (-1.5 * (*(l00 + d)) + 2 * (*(l06 + d)) -
+                             0.5 * (*(l07 + d))));
         else
-          dveldxdy = sx * sy * (l(x + sx, y + sy) - l(x + sx, y)) -
-                     (l(x, y + sy) - l(x, y));
+          dveldxdy = sx * sy * ((*(l17 + d)) - (*(l01 + d))) -
+                     ((*(l06 + d)) - (*(l00 + d)));
         DuDx = dveldx.u[0] + dveldx2.u[0] * (ix - x) + dveldxdy.u[0] * (iy - y);
         DvDx = dveldx.u[1] + dveldx2.u[1] * (ix - x) + dveldxdy.u[1] * (iy - y);
         DuDy = dveldy.u[0] + dveldy2.u[0] * (iy - y) + dveldxdy.u[0] * (ix - x);
         DvDy = dveldy.u[1] + dveldy2.u[1] * (iy - y) + dveldxdy.u[1] * (ix - x);
         Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
-                   fXP = -P[iy][ix] * normX;
+             fXP = -P[iy][ix] * normX;
         Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
-                   fYP = -P[iy][ix] * normY;
+             fYP = -P[iy][ix] * normY;
         Real fXT = fXV + fXP, fYT = fYV + fYP;
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
         O->p_s[k] = P[iy][ix];
-        O->u_s[k] = l(ix, iy).u[0];
-        O->v_s[k] = l(ix, iy).u[1];
+        O->u_s[k] = (*(l19 + d)).u[0];
+        O->v_s[k] = (*(l19 + d)).u[1];
         O->nx_s[k] = dx;
         O->ny_s[k] = dy;
         O->omega_s[k] = (DvDx - DuDy) / info.h;
