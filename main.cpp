@@ -4151,7 +4151,6 @@ static struct {
       {&pold, &pold_amr, 1},
   };
 } var;
-typedef Real CHI_MAT[_BS_][_BS_];
 typedef Real UDEFMAT[_BS_][_BS_][2];
 struct surface_data {
   int ix, iy;
@@ -4828,8 +4827,8 @@ struct PutChiOnGrid {
       Real h = info.h;
       Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.id];
-      CHI_MAT &X = o.chi;
-      const CHI_MAT &sdf = o.dist;
+      ScalarBlock &X = o.chi;
+      const ScalarBlock &sdf = o.dist;
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
@@ -5408,7 +5407,7 @@ static void ongrid(Real dt) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
-      const CHI_MAT &CHI = pos->chi;
+      const ScalarBlock &CHI = pos->chi;
       const UDEFMAT &UDEF = pos->udef;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
@@ -6854,7 +6853,7 @@ int main(int argc, char **argv) {
       if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
         continue;
       UDEFMAT &udef = OBLOCK[var.tmpV->infos[i].id]->udef;
-      CHI_MAT &chi = OBLOCK[var.tmpV->infos[i].id]->chi;
+      ScalarBlock &chi = OBLOCK[var.tmpV->infos[i].id]->chi;
       auto &UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
       ScalarBlock &CHI = *(ScalarBlock *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
@@ -6964,7 +6963,7 @@ int main(int argc, char **argv) {
           const Real hsq = velInfo[i].h * velInfo[i].h;
           if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
-          const CHI_MAT &chi = OBLOCK[velInfo[i].id]->chi;
+          const ScalarBlock &chi = OBLOCK[velInfo[i].id]->chi;
           const UDEFMAT &udef = OBLOCK[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
@@ -7067,8 +7066,8 @@ int main(int argc, char **argv) {
               continue;
             const auto &iSDF = iBlocks[k]->dist;
             const auto &jSDF = jBlocks[k]->dist;
-            const CHI_MAT &iChi = iBlocks[k]->chi;
-            const CHI_MAT &jChi = jBlocks[k]->chi;
+            const ScalarBlock &iChi = iBlocks[k]->chi;
+            const ScalarBlock &jChi = jBlocks[k]->chi;
             const UDEFMAT &iUDEF = iBlocks[k]->udef;
             const UDEFMAT &jUDEF = jBlocks[k]->udef;
             for (int iy = 0; iy < _BS_; ++iy)
@@ -7266,7 +7265,7 @@ int main(int argc, char **argv) {
           Real omega_s = shape->omega;
           Real Cx = shape->centerOfMass[0];
           Real Cy = shape->centerOfMass[1];
-          CHI_MAT &X = o->chi;
+          ScalarBlock &X = o->chi;
           UDEFMAT &UDEF = o->udef;
           ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].block;
           VectorBlock &V = *(VectorBlock *)velInfo[i].block;
@@ -7304,7 +7303,7 @@ int main(int argc, char **argv) {
           if (OBLOCK[tmpVInfo[i].id] == nullptr)
             continue;
           UDEFMAT &udef = OBLOCK[tmpVInfo[i].id]->udef;
-          CHI_MAT &chi = OBLOCK[tmpVInfo[i].id]->chi;
+          ScalarBlock &chi = OBLOCK[tmpVInfo[i].id]->chi;
           auto &UDEF = *(VectorBlock *)tmpVInfo[i].block;
           ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
