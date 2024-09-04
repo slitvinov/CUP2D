@@ -12,11 +12,10 @@ struct KernelComputeForces {
   const Real c5 = 1. / 5.;
   bool inrange(const int i) const { return (i >= small && i < bigg); }
   const std::vector<BlockInfo> &presInfo = var.pres->infos;
-  void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
+  void operator()(VectorLab &l, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
     const int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real *uchi = (Real *)chi.m;
-    VectorLab &V = lab;
     ScalarBlock &P = *(ScalarBlock *)presInfo[info.id].block;
     for (const auto &shape : sim.shapes) {
       const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -61,7 +60,6 @@ struct KernelComputeForces {
           if (uchi[nm * y0 + x0] < 0.01)
             break;
         }
-        const auto &l = lab;
         const int sx = normX > 0 ? +1 : -1;
         const int sy = normY > 0 ? +1 : -1;
         Vector dveldx;
@@ -111,8 +109,8 @@ struct KernelComputeForces {
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
         O->p_s[k] = P[iy][ix];
-        O->u_s[k] = V(ix, iy).u[0];
-        O->v_s[k] = V(ix, iy).u[1];
+        O->u_s[k] = l(ix, iy).u[0];
+        O->v_s[k] = l(ix, iy).u[1];
         O->nx_s[k] = dx;
         O->ny_s[k] = dy;
         O->omega_s[k] = (DvDx - DuDy) / info.h;
