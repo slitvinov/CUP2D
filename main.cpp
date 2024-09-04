@@ -1636,7 +1636,7 @@ template <typename TGrid> struct Synchronizer {
   }
   void fetch(const BlockInfo &info, const unsigned int Length[3],
              const unsigned int CLength[3], Real *m,
-             Real *coarseBlock) {
+             Real *c) {
     const int id = info.halo_id;
     if (id < 0)
       return;
@@ -1670,7 +1670,7 @@ template <typename TGrid> struct Synchronizer {
               code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
               code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
               code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-          Real *dst1 = coarseBlock +
+          Real *dst1 = c +
                        ((sC[2] - offset[2]) * CLength[0] * CLength[1] +
                         (sC[1] - offset[1]) * CLength[0] + sC[0] - offset[0]) *
                            dim;
@@ -1693,7 +1693,7 @@ template <typename TGrid> struct Synchronizer {
             code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
             code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
             code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-        Real *dst = coarseBlock +
+        Real *dst = c +
                     ((sC[2] - offset[2]) * CLength[0] * CLength[1] + sC[0] -
                      offset[0] + (sC[1] - offset[1]) * CLength[0]) *
                         dim;
