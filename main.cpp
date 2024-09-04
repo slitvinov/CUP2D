@@ -6757,23 +6757,39 @@ struct pressure_rhs1 {
     }
     if (faceXm != nullptr) {
       int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy)
+      for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int im1 = ip0 - 1;
         faceXm[iy] = lab(ix - 1, iy) - lab(ix, iy);
+      }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy)
+      for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
         faceXp[iy] = lab(ix + 1, iy) - lab(ix, iy);
+      }
     }
     if (faceYm != nullptr) {
       int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jm1 = jp0 - 1;
         faceYm[ix] = lab(ix, iy - 1) - lab(ix, iy);
+      }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jp1 = jp0 + 1;
         faceYp[ix] = lab(ix, iy + 1) - lab(ix, iy);
+      }
     }
   }
 };
