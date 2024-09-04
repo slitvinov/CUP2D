@@ -2449,7 +2449,7 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
         (dx * dy) * dudxdy);
 }
 template <typename Element> struct BlockLab {
-  Synchronizer<Grid> *refSynchronizerMPI;
+  Synchronizer<Grid> *sync;
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
@@ -2472,7 +2472,7 @@ template <typename Element> struct BlockLab {
     return m[nm[0] * y + x];
   }
   void prepare(Grid *grid, const StencilInfo &stencil) {
-    refSynchronizerMPI = grid->Synchronizers.find(stencil)->second;
+    sync = grid->Synchronizers.find(stencil)->second;
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -2570,40 +2570,40 @@ template <typename Element> struct BlockLab {
       post_load(grid, info, applybc);
     const int id = info.halo_id;
     if (id >= 0) {
-      UnPackInfo *unpacks = refSynchronizerMPI->myunpacks[id].data();
-      for (size_t jj = 0; jj < refSynchronizerMPI->myunpacks[id].size(); jj++) {
+      UnPackInfo *unpacks = sync->myunpacks[id].data();
+      for (size_t jj = 0; jj < sync->myunpacks[id].size(); jj++) {
         const UnPackInfo &unpack = unpacks[jj];
         const int code[3] = {unpack.icode % 3 - 1, (unpack.icode / 3) % 3 - 1,
                              (unpack.icode / 9) % 3 - 1};
         const int otherrank = unpack.rank;
         const int s[3] = {
-            code[0] < 1 ? (code[0] < 0 ? refSynchronizerMPI->stencil.sx : 0)
+            code[0] < 1 ? (code[0] < 0 ? sync->stencil.sx : 0)
                         : _BS_,
-            code[1] < 1 ? (code[1] < 0 ? refSynchronizerMPI->stencil.sy : 0)
+            code[1] < 1 ? (code[1] < 0 ? sync->stencil.sy : 0)
                         : _BS_,
             code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                        : _BS_ + refSynchronizerMPI->stencil.ex - 1,
+                        : _BS_ + sync->stencil.ex - 1,
             code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                        : _BS_ + refSynchronizerMPI->stencil.ey - 1,
+                        : _BS_ + sync->stencil.ey - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack.level == info.level) {
           Real *dst =
               (Real *)m + ((s[2] - 0) * nm[0] * nm[1] +
-                           (s[1] - refSynchronizerMPI->stencil.sy) * nm[0] +
-                           s[0] - refSynchronizerMPI->stencil.sx) *
+                           (s[1] - sync->stencil.sy) * nm[0] +
+                           s[0] - sync->stencil.sx) *
                               dim;
           unpack_subregion(
-              &refSynchronizerMPI->recv_buffer[otherrank][unpack.offset],
+              &sync->recv_buffer[otherrank][unpack.offset],
               &dst[0], dim, unpack.srcxstart, unpack.srcystart,
               unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0, unpack.lx,
               unpack.ly, unpack.lz, nm[0], nm[1]);
           if (unpack.CoarseVersionOffset >= 0) {
-            const int offset[3] = {(refSynchronizerMPI->stencil.sx - 1) / 2 +
-                                       refSynchronizerMPI->Cstencil.sx,
-                                   (refSynchronizerMPI->stencil.sy - 1) / 2 +
-                                       refSynchronizerMPI->Cstencil.sy,
+            const int offset[3] = {(sync->stencil.sx - 1) / 2 +
+                                       sync->Cstencil.sx,
+                                   (sync->stencil.sy - 1) / 2 +
+                                       sync->Cstencil.sy,
                                    (0 - 1) / 2 + 0};
             const int sC[3] = {
                 code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
@@ -2614,10 +2614,10 @@ template <typename Element> struct BlockLab {
                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                 dim;
             int L[3];
-            refSynchronizerMPI->SM.CoarseStencilLength(
+            sync->SM.CoarseStencilLength(
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
             unpack_subregion(
-                &refSynchronizerMPI
+                &sync
                      ->recv_buffer[otherrank]
                                   [unpack.offset + unpack.CoarseVersionOffset],
                 &dst1[0], dim, unpack.CoarseVersionsrcxstart,
@@ -2626,10 +2626,10 @@ template <typename Element> struct BlockLab {
                 L[1], L[2], nc[0], nc[1]);
           }
         } else if (unpack.level < info.level) {
-          const int offset[3] = {(refSynchronizerMPI->stencil.sx - 1) / 2 +
-                                     refSynchronizerMPI->Cstencil.sx,
-                                 (refSynchronizerMPI->stencil.sy - 1) / 2 +
-                                     refSynchronizerMPI->Cstencil.sy,
+          const int offset[3] = {(sync->stencil.sx - 1) / 2 +
+                                     sync->Cstencil.sx,
+                                 (sync->stencil.sy - 1) / 2 +
+                                     sync->Cstencil.sy,
                                  (0 - 1) / 2 + 0};
           const int sC[3] = {
               code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
@@ -2639,7 +2639,7 @@ template <typename Element> struct BlockLab {
                                    offset[0] + (sC[1] - offset[1]) * nc[0]) *
                                       dim;
           unpack_subregion(
-              &refSynchronizerMPI->recv_buffer[otherrank][unpack.offset],
+              &sync->recv_buffer[otherrank][unpack.offset],
               &dst[0], dim, unpack.srcxstart, unpack.srcystart,
               unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0, unpack.lx,
               unpack.ly, unpack.lz, nc[0], nc[1]);
@@ -2677,16 +2677,16 @@ template <typename Element> struct BlockLab {
               ((abs(code[2]) * (s[2] - 0) +
                 (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
                    nm[0] * nm[1] +
-               (abs(code[1]) * (s[1] - refSynchronizerMPI->stencil.sy) +
-                (1 - abs(code[1])) * (-refSynchronizerMPI->stencil.sy +
+               (abs(code[1]) * (s[1] - sync->stencil.sy) +
+                (1 - abs(code[1])) * (-sync->stencil.sy +
                                       aux1 * (e[1] - s[1]) / 2)) *
                    nm[0] +
-               abs(code[0]) * (s[0] - refSynchronizerMPI->stencil.sx) +
-               (1 - abs(code[0])) * (-refSynchronizerMPI->stencil.sx +
+               abs(code[0]) * (s[0] - sync->stencil.sx) +
+               (1 - abs(code[0])) * (-sync->stencil.sx +
                                      (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
           unpack_subregion(
-              &refSynchronizerMPI->recv_buffer[otherrank][unpack.offset],
+              &sync->recv_buffer[otherrank][unpack.offset],
               &dst[0], dim, unpack.srcxstart, unpack.srcystart,
               unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0, unpack.lx,
               unpack.ly, unpack.lz, nm[0], nm[1]);
