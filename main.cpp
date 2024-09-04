@@ -6728,10 +6728,15 @@ struct pressure_rhs1 {
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
     ScalarBlock &TMP = *(ScalarBlock *)var.tmp->infos[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix)
-        TMP[iy][ix] -= (((lab(ix - 1, iy) + lab(ix + 1, iy)) +
-                         (lab(ix, iy - 1) + lab(ix, iy + 1))) -
-                        4.0 * lab(ix, iy));
+      for (int ix = 0; ix < _BS_; ++ix) {
+	int ip0 = ix;
+	int jp0 = iy;
+	int ip1 = ip0 + 1;
+	int jp1 = jp0 + 1;
+	int im1 = ip0 - 1;
+	int jm1 = jp0 - 1;
+        TMP[iy][ix] -= lab(im1, jp0) + lab(ip1, jp0) + lab(ip0, jm1) + lab(ip0, jp1) - 4.0 * lab(ip0, jp0);
+      }
     BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info.id].auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
