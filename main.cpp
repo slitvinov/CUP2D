@@ -3390,19 +3390,19 @@ struct Adaptation {
     movedBlocks = (temp >= 1);
     grid->FillPos();
   }
-  void Balance_Global(Grid *grid, std::vector<long long> &all_b) {
+  void Balance_Global(Grid *grid, std::vector<long long> &block_distribution) {
     std::vector<BlockInfo> SortedInfos = grid->infos;
     std::sort(SortedInfos.begin(), SortedInfos.end());
     long long total_load = 0;
     for (int r = 0; r < sim.size; r++)
-      total_load += all_b[r];
+      total_load += block_distribution[r];
     long long my_load = total_load / sim.size;
     if (sim.rank < (total_load % sim.size))
       my_load += 1;
     std::vector<long long> index_start(sim.size);
     index_start[0] = 0;
     for (int r = 1; r < sim.size; r++)
-      index_start[r] = index_start[r - 1] + all_b[r - 1];
+      index_start[r] = index_start[r - 1] + block_distribution[r - 1];
     long long ideal_index = (total_load / sim.size) * sim.rank;
     ideal_index += (sim.rank < (total_load % sim.size))
                        ? sim.rank
@@ -3415,7 +3415,7 @@ struct Adaptation {
           long long a1 = ideal_index;
           long long a2 = ideal_index + my_load - 1;
           long long b1 = index_start[r];
-          long long b2 = index_start[r] + all_b[r] - 1;
+          long long b2 = index_start[r] + block_distribution[r] - 1;
           long long c1 = std::max(a1, b1);
           long long c2 = std::min(a2, b2);
           if (c2 - c1 + 1 > 0)
@@ -3431,7 +3431,7 @@ struct Adaptation {
           long long a1 = other_ideal_index;
           long long a2 = other_ideal_index + other_load - 1;
           long long b1 = index_start[sim.rank];
-          long long b2 = index_start[sim.rank] + all_b[sim.rank] - 1;
+          long long b2 = index_start[sim.rank] + block_distribution[sim.rank] - 1;
           long long c1 = std::max(a1, b1);
           long long c2 = std::min(a2, b2);
           if (c2 - c1 + 1 > 0)
