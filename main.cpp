@@ -5983,6 +5983,8 @@ struct KernelComputeForces {
   const std::vector<BlockInfo> &presInfo = var.pres->infos;
   void operator()(VectorLab &lab, ScalarLab &chi, const BlockInfo &info,
                   const BlockInfo &info2) const {
+    const int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    const Real *uchi = (Real *)chi.m;
     VectorLab &V = lab;
     ScalarBlock &P = *(ScalarBlock *)presInfo[info.id].block;
     for (const auto &shape : sim.shapes) {
@@ -6023,7 +6025,9 @@ struct KernelComputeForces {
             continue;
           x = ix + dxi;
           y = iy + dyi;
-          if (chi(x, y) < 0.01)
+          int x0 = x - stencil.sx;
+          int y0 = y - stencil.sy;
+          if (uchi[nm * y0 + x0] < 0.01)
             break;
         }
         const auto &l = lab;
