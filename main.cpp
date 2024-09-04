@@ -822,7 +822,6 @@ template <typename TGrid> struct Synchronizer {
   TGrid *grid;
   std::vector<BlockInfo *> dummy_vector;
   const StencilInfo stencil;
-  const StencilInfo Cstencil{-1, -1, 2, 2, true};
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
@@ -839,10 +838,9 @@ template <typename TGrid> struct Synchronizer {
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
     ToBeAveragedDown.resize(sim.size);
-    const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
-                       (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
-    const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
-                       stencil.ey / 2 + Cstencil.ey, 1 / 2 + 1};
+    const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                       (0 - 1) / 2 + 0};
+    const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
@@ -915,19 +913,16 @@ template <typename TGrid> struct Synchronizer {
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
         const int s[3] = {
-            code[0] < 1
-                ? (code[0] < 0 ? ((stencil.sx - 1) / 2 + Cstencil.sx) : 0)
-                : _BS_ / 2,
-            code[1] < 1
-                ? (code[1] < 0 ? ((stencil.sy - 1) / 2 + Cstencil.sy) : 0)
-                : _BS_ / 2,
+            code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
+                        : _BS_ / 2,
+            code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
+                        : _BS_ / 2,
             code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
-        const int e[3] = {
-            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                        : _BS_ / 2 + stencil.ex / 2 + Cstencil.ex - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                        : _BS_ / 2 + stencil.ey / 2 + Cstencil.ey - 1,
-            code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
+        const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + stencil.ex / 2 + 1,
+                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + stencil.ey / 2 + 1,
+                          code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
         const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
                              (f.infos[1]->index[1] + code[1]) % 2,
                              (f.infos[1]->index[2] + code[2]) % 2};
