@@ -1635,7 +1635,7 @@ template <typename TGrid> struct Synchronizer {
       }
   }
   void fetch(const BlockInfo &info, const unsigned int Length[3],
-             const unsigned int CLength[3], Real *cacheBlock,
+             const unsigned int CLength[3], Real *m,
              Real *coarseBlock) {
     const int id = info.halo_id;
     if (id < 0)
@@ -1655,7 +1655,7 @@ template <typename TGrid> struct Synchronizer {
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
       if (unpack.level == info.level) {
         Real *dst =
-            cacheBlock + ((s[2] - 0) * Length[0] * Length[1] +
+            m + ((s[2] - 0) * Length[0] * Length[1] +
                           (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
                              dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
@@ -1731,7 +1731,7 @@ template <typename TGrid> struct Synchronizer {
         }
         const int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
         Real *dst =
-            cacheBlock +
+            m +
             ((abs(code[2]) * (s[2] - 0) +
               (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
                  Length[0] * Length[1] +
