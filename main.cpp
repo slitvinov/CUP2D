@@ -992,15 +992,13 @@ template <typename TGrid> struct Synchronizer {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
-  StencilInfo Cstencil;
   StencilInfo stencil;
   StencilManager SM;
   TGrid *grid;
   std::vector<BlockInfo *> dummy_vector;
-  Synchronizer(StencilInfo a_stencil, StencilInfo a_Cstencil, TGrid *_grid,
-               int dim)
-      : dim(dim), stencil(a_stencil), Cstencil(a_Cstencil),
-        SM(a_stencil, a_Cstencil, _BS_, _BS_, 1) {
+  const StencilInfo Cstencil{-1, -1, 2, 2, true};
+  Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
+      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil, _BS_, _BS_, 1) {
     grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
@@ -2330,12 +2328,11 @@ struct Grid {
     return true;
   }
   Synchronizer<Grid> *sync1(const StencilInfo &stencil) {
-    StencilInfo Cstencil(-1, -1, 2, 2, true);
     Synchronizer<Grid> *queryresult = nullptr;
     typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
         itSynchronizerMPI = Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      queryresult = new Synchronizer<Grid>(stencil, Cstencil, this, dim);
+      queryresult = new Synchronizer<Grid>(stencil, this, dim);
       queryresult->_Setup();
       Synchronizers[stencil] = queryresult;
     } else {
