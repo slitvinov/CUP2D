@@ -6420,7 +6420,6 @@ struct PoissonSolver {
   }
 };
 struct pressureCorrectionKernel {
-  pressureCorrectionKernel(){};
   const StencilInfo stencil{-1, -1, 2, 2, false};
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
