@@ -4827,7 +4827,6 @@ struct PutChiOnGrid {
       Real h = info.h;
       Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info.id];
-      ScalarBlock &X = o.chi;
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
@@ -4841,7 +4840,7 @@ struct PutChiOnGrid {
           int xm = x0 - 1;
           int ym = y0 - 1;
           if (o.dist[iy][ix] > +h || o.dist[iy][ix] < -h) {
-            X[iy][ix] = o.dist[iy][ix] > 0 ? 1 : 0;
+            o.chi[iy][ix] = o.dist[iy][ix] > 0 ? 1 : 0;
           } else {
             Real distPx = *(um + nm * y0 + xp);
             Real distMx = *(um + nm * y0 + xm);
@@ -4856,16 +4855,16 @@ struct PutChiOnGrid {
             Real gradUX = distPx - distMx;
             Real gradUY = distPy - distMy;
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-            X[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
+            o.chi[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI[iy][ix] = std::max(CHI[iy][ix], X[iy][ix]);
-          if (X[iy][ix] > 0) {
+          CHI[iy][ix] = std::max(CHI[iy][ix], o.chi[iy][ix]);
+          if (o.chi[iy][ix] > 0) {
             Real p[2];
             p[0] = info.origin[0] + info.h * (ix + 0.5);
             p[1] = info.origin[1] + info.h * (iy + 0.5);
-            o.COM_x += X[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
-            o.COM_y += X[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
-            o.Mass += X[iy][ix] * h2;
+            o.COM_x += o.chi[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
+            o.COM_y += o.chi[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
+            o.Mass += o.chi[iy][ix] * h2;
           }
         }
     }
