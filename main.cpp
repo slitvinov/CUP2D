@@ -721,13 +721,11 @@ struct StencilManager {
   const StencilInfo stencil;
   const StencilInfo Cstencil;
   int nX;
-  int nY;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX,
-                 int a_nY)
-      : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX), nY(a_nY) {
+  StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil, int a_nX)
+      : stencil(a_stencil), Cstencil(a_Cstencil), nX(a_nX) {
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                        (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
@@ -737,29 +735,29 @@ struct StencilManager {
                            (icode / 9) % 3 - 1};
       Range &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? nX + stencil.sx : 0) : 0;
-      range0.sy = code[1] < 1 ? (code[1] < 0 ? nY + stencil.sy : 0) : 0;
+      range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
       range0.sz = code[2] < 1 ? (code[2] < 0 ? 1 : 0) : 0;
       range0.ex = code[0] < 1 ? nX : stencil.ex - 1;
-      range0.ey = code[1] < 1 ? nY : stencil.ey - 1;
+      range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
       range0.ez = code[2] < 1 ? 1 : 0;
       sLength[3 * icode + 0] = range0.ex - range0.sx;
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
       Range &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? nX + 2 * stencil.sx : 0) : 0;
-      range1.sy = code[1] < 1 ? (code[1] < 0 ? nY + 2 * stencil.sy : 0) : 0;
+      range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
       range1.sz = code[2] < 1 ? (code[2] < 0 ? 1 : 0) : 0;
       range1.ex = code[0] < 1 ? nX : 2 * (stencil.ex - 1);
-      range1.ey = code[1] < 1 ? nY : 2 * (stencil.ey - 1);
+      range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
       range1.ez = code[2] < 1 ? 1 : 0;
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
       Range &range2 = AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? nX / 2 + sC[0] : 0) : 0;
-      range2.sy = code[1] < 1 ? (code[1] < 0 ? nY / 2 + sC[1] : 0) : 0;
+      range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
       range2.ex = code[0] < 1 ? nX / 2 : eC[0] - 1;
-      range2.ey = code[1] < 1 ? nY / 2 : eC[1] - 1;
+      range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
       range2.sz = 0;
       range2.ez = 1;
       sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
@@ -809,13 +807,13 @@ struct StencilManager {
                 : nX / 2,
             code[1] < 1
                 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 + Cstencil.sy) : 0)
-                : nY / 2,
+                : _BS_ / 2,
             code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
         const int e[3] = {
             code[0] < 1 ? (code[0] < 0 ? 0 : nX / 2)
                         : nX / 2 + stencil.ex / 2 + Cstencil.ex - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : nY / 2)
-                        : nY / 2 + stencil.ey / 2 + Cstencil.ey - 1,
+            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                        : _BS_ / 2 + stencil.ey / 2 + Cstencil.ey - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
         const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
                              (f.infos[1]->index[1] + code[1]) % 2,
@@ -842,16 +840,16 @@ struct StencilManager {
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
-        Coarse_Range.sy = s[1] + std::max(code[1], 0) * nY / 2 +
-                          (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
-                          CoarseEdge[1] * code[1] * nY / 2;
+        Coarse_Range.sy = s[1] + std::max(code[1], 0) * _BS_ / 2 +
+                          (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
+                          CoarseEdge[1] * code[1] * _BS_ / 2;
         Coarse_Range.sz = 0;
         Coarse_Range.ex = e[0] + std::max(code[0], 0) * nX / 2 +
                           (1 - abs(code[0])) * base[0] * nX / 2 - code[0] * nX +
                           CoarseEdge[0] * code[0] * nX / 2;
-        Coarse_Range.ey = e[1] + std::max(code[1], 0) * nY / 2 +
-                          (1 - abs(code[1])) * base[1] * nY / 2 - code[1] * nY +
-                          CoarseEdge[1] * code[1] * nY / 2;
+        Coarse_Range.ey = e[1] + std::max(code[1], 0) * _BS_ / 2 +
+                          (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
+                          CoarseEdge[1] * code[1] * _BS_ / 2;
         Coarse_Range.ez = 1;
         return Coarse_Range;
       }
@@ -997,7 +995,7 @@ template <typename TGrid> struct Synchronizer {
   std::vector<BlockInfo *> dummy_vector;
   const StencilInfo Cstencil{-1, -1, 2, 2, true};
   Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
-      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil, _BS_, _BS_) {
+      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil, _BS_) {
     grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
