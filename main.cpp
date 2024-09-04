@@ -1056,7 +1056,7 @@ template <typename TGrid> struct Synchronizer {
       }
     return retval;
   }
-  void _Setup() {
+  void Setup() {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -2314,7 +2314,7 @@ struct Grid {
         itSynchronizerMPI = Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       queryresult = new Synchronizer<Grid>(stencil, this, dim);
-      queryresult->_Setup();
+      queryresult->Setup();
       Synchronizers[stencil] = queryresult;
     } else {
       queryresult = itSynchronizerMPI->second;
@@ -3813,7 +3813,7 @@ struct Adaptation {
       grid->UpdateBlockInfoAll_States(false);
       auto it = grid->Synchronizers.begin();
       while (it != grid->Synchronizers.end()) {
-        (*it->second)._Setup();
+        (*it->second).Setup();
         it++;
       }
     }
@@ -6737,7 +6737,7 @@ int main(int argc, char **argv) {
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
     for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
-      (*it->second)._Setup();
+      (*it->second).Setup();
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
