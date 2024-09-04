@@ -1635,7 +1635,7 @@ template <typename TGrid> struct Synchronizer {
       }
   }
   void fetch(const BlockInfo &info, const unsigned int nm[3],
-             const unsigned int CLength[3], Real *m,
+             const unsigned int nc[3], Real *m,
              Real *c) {
     const int id = info.halo_id;
     if (id < 0)
@@ -1671,8 +1671,8 @@ template <typename TGrid> struct Synchronizer {
               code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
               code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
           Real *dst1 = c +
-                       ((sC[2] - offset[2]) * CLength[0] * CLength[1] +
-                        (sC[1] - offset[1]) * CLength[0] + sC[0] - offset[0]) *
+                       ((sC[2] - offset[2]) * nc[0] * nc[1] +
+                        (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                            dim;
           int L[3];
           SM.CoarseStencilLength(
@@ -1683,7 +1683,7 @@ template <typename TGrid> struct Synchronizer {
                            unpack.CoarseVersionsrcystart,
                            unpack.CoarseVersionsrczstart,
                            unpack.CoarseVersionLX, unpack.CoarseVersionLY, 0, 0,
-                           0, L[0], L[1], L[2], CLength[0], CLength[1]);
+                           0, L[0], L[1], L[2], nc[0], nc[1]);
         }
       } else if (unpack.level < info.level) {
         const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
@@ -1694,13 +1694,13 @@ template <typename TGrid> struct Synchronizer {
             code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
             code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
         Real *dst = c +
-                    ((sC[2] - offset[2]) * CLength[0] * CLength[1] + sC[0] -
-                     offset[0] + (sC[1] - offset[1]) * CLength[0]) *
+                    ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
+                     offset[0] + (sC[1] - offset[1]) * nc[0]) *
                         dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
                          unpack.srcxstart, unpack.srcystart, unpack.srczstart,
                          unpack.LX, unpack.LY, 0, 0, 0, unpack.lx, unpack.ly,
-                         unpack.lz, CLength[0], CLength[1]);
+                         unpack.lz, nc[0], nc[1]);
       } else {
         int B;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
