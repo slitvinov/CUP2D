@@ -3286,148 +3286,144 @@ struct Adaptation {
   void Balance_Diffusion(Grid *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
-    {
-      long long max_b = block_distribution[0];
-      long long min_b = block_distribution[0];
-      for (auto &b : block_distribution) {
-        max_b = std::max(max_b, b);
-        min_b = std::min(min_b, b);
-      }
-      const double ratio = static_cast<double>(max_b) / min_b;
-      if (ratio > 1.01 || min_b == 0) {
-        std::vector<BlockInfo> SortedInfos = grid->infos;
-        std::sort(SortedInfos.begin(), SortedInfos.end());
-        long long total_load = 0;
-        for (int r = 0; r < sim.size; r++)
-          total_load += block_distribution[r];
-        long long my_load = total_load / sim.size;
-        if (sim.rank < (total_load % sim.size))
-          my_load += 1;
-        std::vector<long long> index_start(sim.size);
-        index_start[0] = 0;
-        for (int r = 1; r < sim.size; r++)
-          index_start[r] = index_start[r - 1] + block_distribution[r - 1];
-        long long ideal_index = (total_load / sim.size) * sim.rank;
-        ideal_index += (sim.rank < (total_load % sim.size))
-                           ? sim.rank
-                           : (total_load % sim.size);
-        std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
-        std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
-        for (int r = 0; r < sim.size; r++)
-          if (sim.rank != r) {
-            {
-              long long a1 = ideal_index;
-              long long a2 = ideal_index + my_load - 1;
-              long long b1 = index_start[r];
-              long long b2 = index_start[r] + block_distribution[r] - 1;
-              long long c1 = std::max(a1, b1);
-              long long c2 = std::min(a2, b2);
-              if (c2 - c1 + 1 > 0)
-                recv_blocks[r].resize(c2 - c1 + 1);
-            }
-            {
-              long long other_ideal_index = (total_load / sim.size) * r;
-              other_ideal_index +=
-                  (r < (total_load % sim.size)) ? r : (total_load % sim.size);
-              long long other_load = total_load / sim.size;
-              if (r < (total_load % sim.size))
-                other_load += 1;
-              long long a1 = other_ideal_index;
-              long long a2 = other_ideal_index + other_load - 1;
-              long long b1 = index_start[sim.rank];
-              long long b2 =
-                  index_start[sim.rank] + block_distribution[sim.rank] - 1;
-              long long c1 = std::max(a1, b1);
-              long long c2 = std::min(a2, b2);
-              if (c2 - c1 + 1 > 0)
-                send_blocks[r].resize(c2 - c1 + 1);
-            }
+    long long max_b = block_distribution[0];
+    long long min_b = block_distribution[0];
+    for (auto &b : block_distribution) {
+      max_b = std::max(max_b, b);
+      min_b = std::min(min_b, b);
+    }
+    const double ratio = static_cast<double>(max_b) / min_b;
+    if (ratio > 1.01 || min_b == 0) {
+      std::vector<BlockInfo> SortedInfos = grid->infos;
+      std::sort(SortedInfos.begin(), SortedInfos.end());
+      long long total_load = 0;
+      for (int r = 0; r < sim.size; r++)
+        total_load += block_distribution[r];
+      long long my_load = total_load / sim.size;
+      if (sim.rank < (total_load % sim.size))
+        my_load += 1;
+      std::vector<long long> index_start(sim.size);
+      index_start[0] = 0;
+      for (int r = 1; r < sim.size; r++)
+        index_start[r] = index_start[r - 1] + block_distribution[r - 1];
+      long long ideal_index = (total_load / sim.size) * sim.rank;
+      ideal_index += (sim.rank < (total_load % sim.size))
+                         ? sim.rank
+                         : (total_load % sim.size);
+      std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+      std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
+      for (int r = 0; r < sim.size; r++)
+        if (sim.rank != r) {
+          {
+            long long a1 = ideal_index;
+            long long a2 = ideal_index + my_load - 1;
+            long long b1 = index_start[r];
+            long long b2 = index_start[r] + block_distribution[r] - 1;
+            long long c1 = std::max(a1, b1);
+            long long c2 = std::min(a2, b2);
+            if (c2 - c1 + 1 > 0)
+              recv_blocks[r].resize(c2 - c1 + 1);
           }
-        int tag = 12345;
-        std::vector<MPI_Request> requests;
-        for (int r = 0; r < sim.size; r++)
-          if (recv_blocks[r].size() != 0) {
-            MPI_Request req{};
-            requests.push_back(req);
-            MPI_Irecv(recv_blocks[r].data(),
-                      recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                      MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+          {
+            long long other_ideal_index = (total_load / sim.size) * r;
+            other_ideal_index +=
+                (r < (total_load % sim.size)) ? r : (total_load % sim.size);
+            long long other_load = total_load / sim.size;
+            if (r < (total_load % sim.size))
+              other_load += 1;
+            long long a1 = other_ideal_index;
+            long long a2 = other_ideal_index + other_load - 1;
+            long long b1 = index_start[sim.rank];
+            long long b2 =
+                index_start[sim.rank] + block_distribution[sim.rank] - 1;
+            long long c1 = std::max(a1, b1);
+            long long c2 = std::min(a2, b2);
+            if (c2 - c1 + 1 > 0)
+              send_blocks[r].resize(c2 - c1 + 1);
           }
-        long long counter_S = 0;
-        long long counter_E = 0;
-        for (int r = 0; r < sim.rank; r++)
-          if (send_blocks[r].size() != 0) {
+        }
+      int tag = 12345;
+      std::vector<MPI_Request> requests;
+      for (int r = 0; r < sim.size; r++)
+        if (recv_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Irecv(recv_blocks[r].data(),
+                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      long long counter_S = 0;
+      long long counter_E = 0;
+      for (int r = 0; r < sim.rank; r++)
+        if (send_blocks[r].size() != 0) {
+          for (size_t i = 0; i < send_blocks[r].size(); i++) {
+            BlockInfo *info = &SortedInfos[counter_S + i];
+            MPI_Block *x = &send_blocks[r][i];
+            x->mn[0] = info->level;
+            x->mn[1] = info->Z;
+            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          }
+          counter_S += send_blocks[r].size();
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Isend(send_blocks[r].data(),
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      for (int r = sim.size - 1; r > sim.rank; r--)
+        if (send_blocks[r].size() != 0) {
+          for (size_t i = 0; i < send_blocks[r].size(); i++) {
+            BlockInfo *info =
+                &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+            MPI_Block *x = &send_blocks[r][i];
+            x->mn[0] = info->level;
+            x->mn[1] = info->Z;
+            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          }
+          counter_E += send_blocks[r].size();
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Isend(send_blocks[r].data(),
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      movedBlocks = true;
+      std::vector<long long> deallocIDs;
+      counter_S = 0;
+      counter_E = 0;
+      for (int r = 0; r < sim.size; r++)
+        if (send_blocks[r].size() != 0) {
+          if (r < sim.rank) {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              BlockInfo *info = &SortedInfos[counter_S + i];
-              MPI_Block *x = &send_blocks[r][i];
-              x->mn[0] = info->level;
-              x->mn[1] = info->Z;
-              std::memcpy(x->data, info->block,
-                          _BS_ * _BS_ * dim * sizeof(Real));
+              BlockInfo &info = SortedInfos[counter_S + i];
+              deallocIDs.push_back(info.id2);
+              grid->Tree0(info.level, info.Z) = r;
             }
             counter_S += send_blocks[r].size();
-            MPI_Request req{};
-            requests.push_back(req);
-            MPI_Isend(send_blocks[r].data(),
-                      send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                      MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
-          }
-        for (int r = sim.size - 1; r > sim.rank; r--)
-          if (send_blocks[r].size() != 0) {
+          } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              BlockInfo *info =
-                  &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
-              MPI_Block *x = &send_blocks[r][i];
-              x->mn[0] = info->level;
-              x->mn[1] = info->Z;
-              std::memcpy(x->data, info->block,
-                          _BS_ * _BS_ * dim * sizeof(Real));
+              BlockInfo &info =
+                  SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+              deallocIDs.push_back(info.id2);
+              grid->Tree0(info.level, info.Z) = r;
             }
             counter_E += send_blocks[r].size();
-            MPI_Request req{};
-            requests.push_back(req);
-            MPI_Isend(send_blocks[r].data(),
-                      send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                      MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
           }
-        movedBlocks = true;
-        std::vector<long long> deallocIDs;
-        counter_S = 0;
-        counter_E = 0;
-        for (int r = 0; r < sim.size; r++)
-          if (send_blocks[r].size() != 0) {
-            if (r < sim.rank) {
-              for (size_t i = 0; i < send_blocks[r].size(); i++) {
-                BlockInfo &info = SortedInfos[counter_S + i];
-                deallocIDs.push_back(info.id2);
-                grid->Tree0(info.level, info.Z) = r;
-              }
-              counter_S += send_blocks[r].size();
-            } else {
-              for (size_t i = 0; i < send_blocks[r].size(); i++) {
-                BlockInfo &info =
-                    SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
-                deallocIDs.push_back(info.id2);
-                grid->Tree0(info.level, info.Z) = r;
-              }
-              counter_E += send_blocks[r].size();
-            }
-          }
-        grid->dealloc_many(deallocIDs);
-        MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-#pragma omp parallel
-        {
-          for (int r = 0; r < sim.size; r++)
-            if (recv_blocks[r].size() != 0) {
-#pragma omp for
-              for (size_t i = 0; i < recv_blocks[r].size(); i++)
-                AddBlock(grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
-                         recv_blocks[r][i].data);
-            }
         }
-        grid->FillPos();
-        return;
+      grid->dealloc_many(deallocIDs);
+      MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+#pragma omp parallel
+      {
+        for (int r = 0; r < sim.size; r++)
+          if (recv_blocks[r].size() != 0) {
+#pragma omp for
+            for (size_t i = 0; i < recv_blocks[r].size(); i++)
+              AddBlock(grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
+                       recv_blocks[r][i].data);
+          }
       }
+      grid->FillPos();
+      return;
     }
     const int right = (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
     const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
