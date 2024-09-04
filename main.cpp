@@ -1634,7 +1634,7 @@ template <typename TGrid> struct Synchronizer {
                   timestamp, MPI_COMM_WORLD, &requests.back());
       }
   }
-  void fetch(const BlockInfo &info, const unsigned int Length[3],
+  void fetch(const BlockInfo &info, const unsigned int nm[3],
              const unsigned int CLength[3], Real *m,
              Real *c) {
     const int id = info.halo_id;
@@ -1655,13 +1655,13 @@ template <typename TGrid> struct Synchronizer {
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
       if (unpack.level == info.level) {
         Real *dst =
-            m + ((s[2] - 0) * Length[0] * Length[1] +
-                          (s[1] - stencil.sy) * Length[0] + s[0] - stencil.sx) *
+            m + ((s[2] - 0) * nm[0] * nm[1] +
+                          (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                              dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
                          unpack.srcxstart, unpack.srcystart, unpack.srczstart,
                          unpack.LX, unpack.LY, 0, 0, 0, unpack.lx, unpack.ly,
-                         unpack.lz, Length[0], Length[1]);
+                         unpack.lz, nm[0], nm[1]);
         if (unpack.CoarseVersionOffset >= 0) {
           const int offset[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                                  (stencil.sy - 1) / 2 + Cstencil.sy,
@@ -1734,17 +1734,17 @@ template <typename TGrid> struct Synchronizer {
             m +
             ((abs(code[2]) * (s[2] - 0) +
               (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
-                 Length[0] * Length[1] +
+                 nm[0] * nm[1] +
              (abs(code[1]) * (s[1] - stencil.sy) +
               (1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
-                 Length[0] +
+                 nm[0] +
              abs(code[0]) * (s[0] - stencil.sx) +
              (1 - abs(code[0])) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                 dim;
         unpack_subregion(&recv_buffer[otherrank][unpack.offset], &dst[0], dim,
                          unpack.srcxstart, unpack.srcystart, unpack.srczstart,
                          unpack.LX, unpack.LY, 0, 0, 0, unpack.lx, unpack.ly,
-                         unpack.lz, Length[0], Length[1]);
+                         unpack.lz, nm[0], nm[1]);
       }
     }
   }
