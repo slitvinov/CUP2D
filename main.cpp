@@ -6726,16 +6726,23 @@ struct pressure_rhs1 {
   pressure_rhs1() {}
   StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
+    Real *um = (Real *)lab.m;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
     ScalarBlock &TMP = *(ScalarBlock *)var.tmp->infos[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-	int ip0 = ix;
-	int jp0 = iy;
-	int ip1 = ip0 + 1;
-	int jp1 = jp0 + 1;
-	int im1 = ip0 - 1;
-	int jm1 = jp0 - 1;
-        TMP[iy][ix] -= lab(im1, jp0) + lab(ip1, jp0) + lab(ip0, jm1) + lab(ip0, jp1) - 4.0 * lab(ip0, jp0);
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
+        int jp1 = jp0 + 1;
+        int im1 = ip0 - 1;
+        int jm1 = jp0 - 1;
+        Real *l0 = um + nm * jp0 + ip0;
+        Real *l1 = um + nm * jp0 + im1;
+        Real *l2 = um + nm * jp0 + ip1;
+        Real *l3 = um + nm * jm1 + ip0;
+        Real *l4 = um + nm * jp1 + ip0;
+        TMP[iy][ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
       }
     BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info.id].auxiliary);
     Real *faceXm = nullptr;
