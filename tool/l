@@ -1,0 +1,21 @@
+#!/usr/bin/awk -f
+{
+
+    s = s sep $0
+    sep = "\n"
+}
+
+END {
+    cnt = 0
+    while (match(s, /l[(][^)]*[)]/, a)) {
+	arg = a[0]
+	if (!(arg in map)) {
+	    map[arg] = cnt++
+	    printf "Vector *l%02d = &%s;\n", map[arg], arg | "cat >&2"
+	}
+	rep = sprintf("(*(l%02d + d))", map[arg])
+	printf "%s%s", substr(s, 1, RSTART - 1), rep
+	s = substr(s, RSTART + RLENGTH)
+    }
+    printf "%s\n", s
+}
