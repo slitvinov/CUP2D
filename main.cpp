@@ -4816,7 +4816,6 @@ struct AreaSegment {
   }
 };
 struct PutChiOnGrid {
-  PutChiOnGrid(){};
   StencilInfo stencil{-1, -1, 2, 2, false};
   std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const BlockInfo &info) const {
