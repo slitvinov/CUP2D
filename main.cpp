@@ -5970,12 +5970,9 @@ struct KernelAdvectDiffuse {
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  KernelComputeForces(){};
   StencilInfo stencil{small, small, big, big, true};
   StencilInfo stencil2{small, small, big, big, true};
   const int bigg = _BS_ + big - 1;
-  const int stencil_start[3] = {small, small, small},
-            stencil_end[3] = {big, big, big};
   const Real c0 = -137. / 60.;
   const Real c1 = 5.;
   const Real c2 = -5.;
