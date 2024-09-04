@@ -719,12 +719,12 @@ struct UnPackInfo {
 };
 struct StencilManager {
   const StencilInfo stencil;
-  const StencilInfo Cstencil;
+  const StencilInfo Cstencil{-1, -1, 2, 2, true};
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  StencilManager(StencilInfo a_stencil, StencilInfo a_Cstencil)
-      : stencil(a_stencil), Cstencil(a_Cstencil) {
+  StencilManager(StencilInfo a_stencil)
+      : stencil(a_stencil) {
     const int sC[3] = {(stencil.sx - 1) / 2 + Cstencil.sx,
                        (stencil.sy - 1) / 2 + Cstencil.sy, (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + Cstencil.ex,
@@ -992,9 +992,8 @@ template <typename TGrid> struct Synchronizer {
   StencilManager SM;
   TGrid *grid;
   std::vector<BlockInfo *> dummy_vector;
-  const StencilInfo Cstencil0{-1, -1, 2, 2, true};
   Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
-      : dim(dim), stencil(a_stencil), SM(a_stencil, Cstencil0) {
+      : dim(dim), stencil(a_stencil), SM(a_stencil) {
     grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
