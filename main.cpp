@@ -3993,10 +3993,13 @@ static struct {
     int dim;
     bool basic;
   } F[7] = {
-      {&chi, &chi_amr, 1, false},   {&pold, &pold_amr, 1, false},
-      {&pres, &pres_amr, 1, false}, {&tmp, &tmp_amr, 1, false},
-      {&tmpV, &tmpV_amr, 2, true},  {&vel, &vel_amr, 2, false},
-      {&vold, &vold_amr, 2, false},
+    {&tmp, &tmp_amr, 1, false},
+    {&chi, &chi_amr, 1, false},
+    {&vel, &vel_amr, 2, false},
+    {&vold, &vold_amr, 2, false},
+    {&pres, &pres_amr, 1, false}, 
+    {&pold, &pold_amr, 1, false},
+    {&tmpV, &tmpV_amr, 2, true},  
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
