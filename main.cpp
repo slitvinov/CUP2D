@@ -3452,10 +3452,8 @@ static struct {
     int dim;
     bool basic;
   } F[7] = {
-      {&tmp, 1, false},   {&chi, 1, false},
-      {&vel, 2, false},   {&vold,2, false},
-      {&pres, 1, false}, {&pold, 1, false},
-      {&tmpV, 2, true},
+      {&tmp, 1, false},  {&chi, 1, false},  {&vel, 2, false}, {&vold, 2, false},
+      {&pres, 1, false}, {&pold, 1, false}, {&tmpV, 2, true},
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -5557,8 +5555,8 @@ static void adapt() {
           if (recv_blocks[r].size() != 0) {
 #pragma omp for
             for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(dim, g, recv_blocks[r][i].mn[0],
-                       recv_blocks[r][i].mn[1], recv_blocks[r][i].data);
+              AddBlock(dim, g, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
+                       recv_blocks[r][i].data);
           }
       }
       g->FillPos();
