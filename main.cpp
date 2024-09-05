@@ -2634,7 +2634,232 @@ struct BlockLab {
     }
     if (applybc)
       _apply_bc(info, true);
-    CoarseFineInterpolation(grid, info);
+    Real *um = (Real *)m;
+    Real *uc = (Real *)c;
+    int aux = 1 << info.level;
+    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    int xskip = info.index[0] == 0 ? -1 : 1;
+    int yskip = info.index[1] == 0 ? -1 : 1;
+
+    for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
+      int icode = coarsened_nei_codes[ii];
+      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+        continue;
+      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
+      if (code[2] != 0)
+        continue;
+      if (code[0] == xskip && xskin)
+        continue;
+      if (code[1] == yskip && yskin)
+        continue;
+      if (!istensorial && !use_averages &&
+          abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
+        continue;
+      int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_,
+                  code[2] < 1 ? (code[2] < 0 ? start[2] : 0) : 1};
+      int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
+                  code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
+      int sC[3] = {
+          code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
+          code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2),
+          code[2] < 1 ? (code[2] < 0 ? ((start[2] - 1) / 2) : 0) : 1};
+      int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+      if (!bytes)
+        continue;
+      if (use_averages) {
+        for (int iy = s[1]; iy < e[1]; iy += 1) {
+          int YY =
+              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
+              sC[1];
+          for (int ix = s[0]; ix < e[0]; ix += 1) {
+            int XX =
+                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
+                sC[0];
+            Real *Test[3][3];
+            for (int i = 0; i < 3; i++)
+              for (int j = 0; j < 3; j++) {
+                int i0 =
+                    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
+                Test[i][j] = uc + dim * i0;
+              }
+            int i1 = ix - start[0] + nm[0] * (iy - start[1]);
+            for (int d = 0; d < dim; d++)
+              TestInterp(
+                  Test, um + dim * i1 + d,
+                  abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
+                      2,
+                  abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
+                      2);
+          }
+        }
+      }
+      if (abs(code[0]) + abs(code[1]) == 1) {
+        for (int iy = s[1]; iy < e[1]; iy += 2) {
+          int YY =
+              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
+              sC[1] - offset[1];
+          int y =
+              abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
+          int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
+          double dy = 0.25 * (2 * y - 1);
+          for (int ix = s[0]; ix < e[0]; ix += 2) {
+            int XX =
+                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
+                sC[0] - offset[0];
+            int x =
+                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
+            int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
+            double dx = 0.25 * (2 * x - 1);
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+              continue;
+            int i0 = XX + nc[0] * (YY + 2);
+            int i1 = XX + nc[0] * (YY);
+            int i2 = XX + nc[0] * (YY + 1);
+            int i3 = XX + nc[0] * (YY - 2);
+            int i4 = XX + nc[0] * (YY - 1);
+            int i5 = XX + 2 + nc[0] * (YY);
+            int i6 = XX + 1 + nc[0] * (YY);
+            int i7 = XX - 1 + nc[0] * (YY);
+            int i8 = XX - 2 + nc[0] * (YY);
+            int j0 = ix - start[0] + nm[0] * (iy - start[1]);
+            int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
+            int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
+            int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
+            for (int d = 0; d < dim; d++) {
+              if (code[0] != 0) {
+                Real dudy, dudy2;
+                if (YY + offset[1] == 0) {
+                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) +
+                         2.0 * uc[dim * i2 + d];
+                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i2 + d];
+                } else if (YY + offset[1] == (_BS_ / 2) - 1) {
+                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) -
+                         2.0 * uc[dim * i4 + d];
+                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i4 + d];
+                } else {
+                  dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
+                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) -
+                          2.0 * uc[dim * i1 + d];
+                }
+                um[dim * j0 + d] =
+                    uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  um[dim * j1 + d] =
+                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  um[dim * j2 + d] =
+                      uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  um[dim * j3 + d] =
+                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+              } else {
+                Real dudx, dudx2;
+                if (XX + offset[0] == 0) {
+                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) +
+                         2.0 * uc[dim * i6 + d];
+                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i6 + d];
+                } else if (XX + offset[0] == (_BS_ / 2) - 1) {
+                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) -
+                         2.0 * uc[dim * i7 + d];
+                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) -
+                          2.0 * uc[dim * i7 + d];
+                } else {
+                  dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
+                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) -
+                          2.0 * uc[dim * i1 + d];
+                }
+                um[dim * j0 + d] =
+                    uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  um[dim * j1 + d] =
+                      uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  um[dim * j2 + d] =
+                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  um[dim * j3 + d] =
+                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+              }
+            }
+          }
+        }
+        for (int iy = s[1]; iy < e[1]; iy += 1) {
+          for (int ix = s[0]; ix < e[0]; ix += 1) {
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+              continue;
+            int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
+            int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
+            int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
+            int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
+            int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
+            int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
+            int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
+            int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
+            int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
+            int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
+            int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
+            int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
+            int k12 = ix - start[0] + nm[0] * (iy - start[1]);
+            int x =
+                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
+            int y =
+                abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
+            for (int d = 0; d < dim; d++) {
+              Real *a = um + dim * k12 + d;
+              if (code[0] == 0 && code[1] == 1) {
+                if (y == 0) {
+                  Real *b = um + dim * k0 + d;
+                  Real *c = um + dim * k1 + d;
+                  LI(a, b, c);
+                } else if (y == 1) {
+                  Real *b = um + dim * k1 + d;
+                  Real *c = um + dim * k11 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[0] == 0 && code[1] == -1) {
+                if (y == 1) {
+                  Real *b = um + dim * k2 + d;
+                  Real *c = um + dim * k3 + d;
+                  LI(a, b, c);
+                } else if (y == 0) {
+                  Real *b = um + dim * k3 + d;
+                  Real *c = um + dim * k4 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == 1) {
+                if (x == 0) {
+                  Real *b = um + dim * k5 + d;
+                  Real *c = um + dim * k6 + d;
+                  LI(a, b, c);
+                } else if (x == 1) {
+                  Real *b = um + dim * k6 + d;
+                  Real *c = um + dim * k7 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == -1) {
+                if (x == 1) {
+                  Real *b = um + dim * k8 + d;
+                  Real *c = um + dim * k9 + d;
+                  LI(a, b, c);
+                } else if (x == 0) {
+                  Real *b = um + dim * k9 + d;
+                  Real *c = um + dim * k10 + d;
+                  LE(a, b, c);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if (applybc)
       _apply_bc(info, false);
   }
@@ -2957,234 +3182,6 @@ struct BlockLab {
         for (int d = 0; d < dim; d++)
           *(p1 + dim * ee + d) =
               (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
-      }
-    }
-  }
-  void CoarseFineInterpolation(Grid *grid, const BlockInfo &info) {
-    Real *um = (Real *)m;
-    Real *uc = (Real *)c;
-    int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
-
-    for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
-      int icode = coarsened_nei_codes[ii];
-      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-        continue;
-      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-      if (code[2] != 0)
-        continue;
-      if (code[0] == xskip && xskin)
-        continue;
-      if (code[1] == yskip && yskin)
-        continue;
-      if (!istensorial && !use_averages &&
-          abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
-        continue;
-      int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_,
-                  code[2] < 1 ? (code[2] < 0 ? start[2] : 0) : 1};
-      int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
-                  code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
-      int sC[3] = {
-          code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
-          code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2),
-          code[2] < 1 ? (code[2] < 0 ? ((start[2] - 1) / 2) : 0) : 1};
-      int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-      if (!bytes)
-        continue;
-      if (use_averages) {
-        for (int iy = s[1]; iy < e[1]; iy += 1) {
-          int YY =
-              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
-              sC[1];
-          for (int ix = s[0]; ix < e[0]; ix += 1) {
-            int XX =
-                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
-                sC[0];
-            Real *Test[3][3];
-            for (int i = 0; i < 3; i++)
-              for (int j = 0; j < 3; j++) {
-                int i0 =
-                    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
-                Test[i][j] = uc + dim * i0;
-              }
-            int i1 = ix - start[0] + nm[0] * (iy - start[1]);
-            for (int d = 0; d < dim; d++)
-              TestInterp(
-                  Test, um + dim * i1 + d,
-                  abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
-                      2,
-                  abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
-                      2);
-          }
-        }
-      }
-      if (abs(code[0]) + abs(code[1]) == 1) {
-        for (int iy = s[1]; iy < e[1]; iy += 2) {
-          int YY =
-              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
-              sC[1] - offset[1];
-          int y =
-              abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-          int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
-          double dy = 0.25 * (2 * y - 1);
-          for (int ix = s[0]; ix < e[0]; ix += 2) {
-            int XX =
-                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
-                sC[0] - offset[0];
-            int x =
-                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
-            int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
-            double dx = 0.25 * (2 * x - 1);
-            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
-              continue;
-            int i0 = XX + nc[0] * (YY + 2);
-            int i1 = XX + nc[0] * (YY);
-            int i2 = XX + nc[0] * (YY + 1);
-            int i3 = XX + nc[0] * (YY - 2);
-            int i4 = XX + nc[0] * (YY - 1);
-            int i5 = XX + 2 + nc[0] * (YY);
-            int i6 = XX + 1 + nc[0] * (YY);
-            int i7 = XX - 1 + nc[0] * (YY);
-            int i8 = XX - 2 + nc[0] * (YY);
-            int j0 = ix - start[0] + nm[0] * (iy - start[1]);
-            int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
-            int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
-            int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
-            for (int d = 0; d < dim; d++) {
-              if (code[0] != 0) {
-                Real dudy, dudy2;
-                if (YY + offset[1] == 0) {
-                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) +
-                         2.0 * uc[dim * i2 + d];
-                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i2 + d];
-                } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) -
-                         2.0 * uc[dim * i4 + d];
-                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i4 + d];
-                } else {
-                  dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
-                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) -
-                          2.0 * uc[dim * i1 + d];
-                }
-                um[dim * j0 + d] =
-                    uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] =
-                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] =
-                      uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                    iy + iyp < e[1])
-                  um[dim * j3 + d] =
-                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-              } else {
-                Real dudx, dudx2;
-                if (XX + offset[0] == 0) {
-                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) +
-                         2.0 * uc[dim * i6 + d];
-                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i6 + d];
-                } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) -
-                         2.0 * uc[dim * i7 + d];
-                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i7 + d];
-                } else {
-                  dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
-                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) -
-                          2.0 * uc[dim * i1 + d];
-                }
-                um[dim * j0 + d] =
-                    uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] =
-                      uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] =
-                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                    iy + iyp < e[1])
-                  um[dim * j3 + d] =
-                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
-              }
-            }
-          }
-        }
-        for (int iy = s[1]; iy < e[1]; iy += 1) {
-          for (int ix = s[0]; ix < e[0]; ix += 1) {
-            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
-              continue;
-            int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
-            int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
-            int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
-            int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
-            int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
-            int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
-            int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
-            int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
-            int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
-            int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
-            int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
-            int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
-            int k12 = ix - start[0] + nm[0] * (iy - start[1]);
-            int x =
-                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
-            int y =
-                abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-            for (int d = 0; d < dim; d++) {
-              Real *a = um + dim * k12 + d;
-              if (code[0] == 0 && code[1] == 1) {
-                if (y == 0) {
-                  Real *b = um + dim * k0 + d;
-                  Real *c = um + dim * k1 + d;
-                  LI(a, b, c);
-                } else if (y == 1) {
-                  Real *b = um + dim * k1 + d;
-                  Real *c = um + dim * k11 + d;
-                  LE(a, b, c);
-                }
-              } else if (code[0] == 0 && code[1] == -1) {
-                if (y == 1) {
-                  Real *b = um + dim * k2 + d;
-                  Real *c = um + dim * k3 + d;
-                  LI(a, b, c);
-                } else if (y == 0) {
-                  Real *b = um + dim * k3 + d;
-                  Real *c = um + dim * k4 + d;
-                  LE(a, b, c);
-                }
-              } else if (code[1] == 0 && code[0] == 1) {
-                if (x == 0) {
-                  Real *b = um + dim * k5 + d;
-                  Real *c = um + dim * k6 + d;
-                  LI(a, b, c);
-                } else if (x == 1) {
-                  Real *b = um + dim * k6 + d;
-                  Real *c = um + dim * k7 + d;
-                  LE(a, b, c);
-                }
-              } else if (code[1] == 0 && code[0] == -1) {
-                if (x == 1) {
-                  Real *b = um + dim * k8 + d;
-                  Real *c = um + dim * k9 + d;
-                  LI(a, b, c);
-                } else if (x == 0) {
-                  Real *b = um + dim * k9 + d;
-                  Real *c = um + dim * k10 + d;
-                  LE(a, b, c);
-                }
-              }
-            }
-          }
-        }
       }
     }
   }
