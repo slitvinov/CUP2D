@@ -1061,7 +1061,9 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  template <typename TGrid> void Setup(TGrid *grid0, std::unordered_map<long long, int> *Octree, std::unordered_map<long long, BlockInfo *> *BlockInfoAll, std::vector<BlockInfo> *infos) {
+  void Setup(std::unordered_map<long long, int> *Octree,
+             std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+             std::vector<BlockInfo> *infos) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -1102,12 +1104,12 @@ struct Synchronizer {
         if (code[1] == yskip && yskin)
           continue;
         int &infoNeiTree =
-	  Treef(Octree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            Treef(Octree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
-          BlockInfo &infoNei =
-	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+                                    info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
@@ -1119,14 +1121,15 @@ struct Synchronizer {
           DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
-          BlockInfo &infoNei =
-	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank = Treef(Octree, info.level - 1, infoNei.Zparent);
+          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+                                    info.Znei[1 + code[0]][1 + code[1]]);
+          int infoNeiCoarserrank =
+              Treef(Octree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
-	      getf(BlockInfoAll, infoNei.level - 1, infoNei.Zparent);
+                getf(BlockInfoAll, infoNei.level - 1, infoNei.Zparent);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             int Bmax[3] = {sim.bpdx << (info.level - 1),
@@ -1179,8 +1182,8 @@ struct Synchronizer {
             }
           }
         } else if (infoNeiTree == -1) {
-          BlockInfo &infoNei =
-	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+                                    info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -1201,7 +1204,8 @@ struct Synchronizer {
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
-              BlockInfo &infoNeiFiner = getf(BlockInfoAll, info.level + 1, nFine);
+              BlockInfo &infoNeiFiner =
+                  getf(BlockInfoAll, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
@@ -1284,7 +1288,8 @@ struct Synchronizer {
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((Treef(Octree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
+                  if ((Treef(Octree, a->level, a->Znei[1 + i0][1 + i1])) ==
+                      -2) {
                     retval = true;
                     break;
                   }
@@ -2286,7 +2291,7 @@ struct Grid {
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
-      s->Setup(this, &Octree, &BlockInfoAll, &infos);
+      s->Setup(&Octree, &BlockInfoAll, &infos);
       Synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
@@ -5660,7 +5665,7 @@ static void adapt() {
       g->UpdateBlockInfoAll_States(false);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
-        (*it->second).Setup(g, &g->Octree, &g->BlockInfoAll, &g->infos);
+        (*it->second).Setup(&g->Octree, &g->BlockInfoAll, &g->infos);
         it++;
       }
     }
@@ -6835,7 +6840,7 @@ int main(int argc, char **argv) {
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
     for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
-      (*it->second).Setup(g, &g->Octree, &g->BlockInfoAll, &g->infos);
+      (*it->second).Setup(&g->Octree, &g->BlockInfoAll, &g->infos);
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
