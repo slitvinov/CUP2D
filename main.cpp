@@ -2664,22 +2664,14 @@ template <typename Element> struct BlockLab {
     int imin[3];
     int imax[3];
     const int aux = 1 << info.level;
-    const bool periodic0[3] = {sim.bcx == periodic, sim.bcy == periodic, false};
     const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (info.index[d] < infoNei_index[d]) ? 0 : -1;
       imax[d] = (info.index[d] > infoNei_index[d]) ? 0 : +1;
-      if (periodic0[d]) {
-        if (info.index[d] == 0 && infoNei_index[d] == blocks[d])
-          imin[d] = -1;
-        if (infoNei_index[d] == 0 && info.index[d] == blocks[d])
-          imax[d] = +1;
-      } else {
-        if (info.index[d] == 0 && infoNei_index[d] == 0)
-          imin[d] = 0;
-        if (info.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
-          imax[d] = 0;
-      }
+      if (info.index[d] == 0 && infoNei_index[d] == 0)
+	imin[d] = 0;
+      if (info.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
+	imax[d] = 0;
     }
     for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
       for (int i2 = imin[2]; i2 <= imax[2]; i2++)
