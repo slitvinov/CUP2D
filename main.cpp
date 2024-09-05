@@ -6631,6 +6631,7 @@ struct pressure_rhs {
       for (int iy = 0; iy < _BS_; ++iy) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
+        int im1 = ip0 - 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
         faceXm[iy] =
@@ -6643,6 +6644,7 @@ struct pressure_rhs {
       for (int iy = 0; iy < _BS_; ++iy) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
         faceXp[iy] =
@@ -6655,6 +6657,7 @@ struct pressure_rhs {
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
+        int jm1 = jp0 - 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
         faceYm[ix] =
@@ -6667,6 +6670,7 @@ struct pressure_rhs {
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
+        int jp1 = jp0 + 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
         faceYp[ix] =
