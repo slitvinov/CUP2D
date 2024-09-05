@@ -6501,11 +6501,11 @@ struct pressureCorrectionKernel {
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
-    VectorBlock &tmpV = *(VectorBlock *)tmpVInfo[info.id].block;
+    Real *tmpV = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        tmpV[iy][ix].u[0] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
-        tmpV[iy][ix].u[1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
+        tmpV[2 * (_BS_ * iy + ix)] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
+        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
