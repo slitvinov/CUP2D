@@ -6597,23 +6597,23 @@ struct pressure_rhs {
     Real *CHI = (Real *)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix; // - stencil.sx;
-        int jp0 = iy; // - stencil.sy;
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
         int im1 = ip0 - 1;
         int jp1 = jp0 + 1;
         int jm1 = jp0 - 1;
-        Real v0 = velLab(ip1, jp0).u[0];
-        Real v1 = velLab(im1, jp0).u[0];
-        Real v2 = velLab(ip0, jp1).u[1];
-        Real v3 = velLab(ip0, jm1).u[1];
-        Real u0 = uDefLab(ip1, jp0).u[0];
-        Real u1 = uDefLab(im1, jp0).u[0];
-        Real u2 = uDefLab(ip0, jp1).u[1];
-        Real u3 = uDefLab(ip0, jm1).u[1];
+        Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+        Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
+        Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
+        Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
+        Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
+        Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
         TMP[_BS_ * iy + ix] =
-            facDiv * (v0 - v1 + v2 - v3) -
-            facDiv * CHI[_BS_ * iy + ix] * (u0 - u1 + u2 - u3);
+            facDiv * (*v0 - *v1 + *v2 - *v3) -
+            facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
       }
     BlockCase *tempCase = (BlockCase *)(tmpInfo[info.id].auxiliary);
     Real *faceXm = nullptr;
