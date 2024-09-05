@@ -6512,9 +6512,12 @@ struct pressureCorrectionKernel {
         int jp1 = jp0 + 1;
         int im1 = ip0 - 1;
         int jm1 = jp0 - 1;
-        Real *p0 = um + nm * jp0 + ip0;
-        tmpV[2 * (_BS_ * iy + ix)] = pFac * (P(ip1, jp0) - P(im1, jp0));
-        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (P(ip0, jp1) - P(ip0, jm1));
+	Real p0 = P(ip1, jp0);
+	Real p1 = P(im1, jp0);
+	Real p2 = P(ip0, jp1);
+	Real p3 = P(ip0, jm1);
+        tmpV[2 * (_BS_ * iy + ix)] = pFac * (p0 - p1);
+        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (p2 - p3);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
