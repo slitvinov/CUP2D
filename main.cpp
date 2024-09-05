@@ -5683,15 +5683,6 @@ static void adapt() {
     (*var.F[i].a)->Adapt((*var.F[i].g), lab, var.F[i].basic);
     delete lab;
   }
-  /*
-  BlockLab *lab;
-  lab = new ScalarLab(1), var.tmp_amr->Adapt(var.tmp, lab, false), delete lab;
-  lab = new ScalarLab(1), var.chi_amr->Adapt(var.chi, lab, false), delete lab;
-  lab = new VectorLab(2), var.vel_amr->Adapt(var.vel, lab, false), delete lab;
-  lab = new VectorLab(2), var.vold_amr->Adapt(var.vold, lab, false), delete lab;
-  lab = new ScalarLab(1), var.pres_amr->Adapt(var.pres, lab, false), delete lab;
-  lab = new ScalarLab(1), var.pold_amr->Adapt(var.pold, lab, false), delete lab;
-  lab = new VectorLab(2), var.tmpV_amr->Adapt(var.tmpV, lab, true), delete lab; */
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
