@@ -5283,25 +5283,26 @@ static void ongrid(Real dt) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
-      const ScalarBlock &CHI = pos->chi;
-      const UDEFMAT &UDEF = pos->udef;
+      Real *CHI = (Real*)pos->chi;
+      Real *UDEF = (Real*)pos->udef;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-          if (CHI[iy][ix] <= 0)
+	  int j = _BS_ * iy + ix;
+          if (CHI[j] <= 0)
             continue;
           Real p[2];
           p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
           p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
-          const Real chi = CHI[iy][ix] * hsq;
+          const Real chi = CHI[j] * hsq;
           p[0] -= shape->centerOfMass[0];
           p[1] -= shape->centerOfMass[1];
           _x += chi * p[0];
           _y += chi * p[1];
           _m += chi;
           _j += chi * (p[0] * p[0] + p[1] * p[1]);
-          _u += chi * UDEF[iy][ix][0];
-          _v += chi * UDEF[iy][ix][1];
-          _a += chi * (p[0] * UDEF[iy][ix][1] - p[1] * UDEF[iy][ix][0]);
+          _u += chi * UDEF[2 * j + 0];
+          _v += chi * UDEF[2 * j + 1];
+          _a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
         }
     }
     Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
