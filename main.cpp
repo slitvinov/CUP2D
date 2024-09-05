@@ -1661,7 +1661,13 @@ struct Grid {
   std::vector<std::vector<Face>> send_faces;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
-  Grid(int dim) : dim(dim) {}
+  bool movedBlocks;
+  StencilInfo stencil;
+  bool CallValidStates;
+  bool boundary_needed;
+  bool basic_refinement;
+  std::vector<long long> dealloc_IDs;
+  Grid(int dim) : dim(dim), movedBlocks(false) {}
   void FillCase(Face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -3208,16 +3214,6 @@ struct MPI_Block {
   long long mn[2];
   uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
 };
-struct Adaptation {
-  bool movedBlocks;
-  const int dim;
-  StencilInfo stencil;
-  bool CallValidStates;
-  bool boundary_needed;
-  bool basic_refinement;
-  std::vector<long long> dealloc_IDs;
-  Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-};
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer<Grid> &Synch = *(g->sync1(kernel.stencil));
@@ -3451,18 +3447,15 @@ struct Skin {
 };
 static struct {
   Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
-  Adaptation *tmp_amr, *chi_amr, *pres_amr, *pold_amr, *vel_amr, *vold_amr,
-      *tmpV_amr;
   struct {
     Grid **g;
-    Adaptation **a;
     int dim;
     bool basic;
   } F[7] = {
-      {&tmp, &tmp_amr, 1, false},   {&chi, &chi_amr, 1, false},
-      {&vel, &vel_amr, 2, false},   {&vold, &vold_amr, 2, false},
-      {&pres, &pres_amr, 1, false}, {&pold, &pold_amr, 1, false},
-      {&tmpV, &tmpV_amr, 2, true},
+      {&tmp, 1, false},   {&chi, 1, false},
+      {&vel, 2, false},   {&vold,2, false},
+      {&pres, 1, false}, {&pold, 1, false},
+      {&tmpV, 2, true},
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -4621,7 +4614,6 @@ static void ongrid(Real dt) {
               }
             }
           }
-          Adaptation *a = (*var.F[i].a);
           org[0] = info.origin[0] + info.h * 0.5;
           org[1] = info.origin[1] + info.h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
@@ -4883,9 +4875,9 @@ struct GradChiOnTmp {
 static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel, 2);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
-  var.tmp_amr->boundary_needed = true;
-  Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp_amr->stencil);
-  var.tmp_amr->CallValidStates = false;
+  var.tmp->boundary_needed = true;
+  Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp->stencil);
+  var.tmp->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
   int tmp;
@@ -4920,7 +4912,7 @@ static void adapt() {
         if (info.state != Leave) {
 #pragma omp critical
           {
-            var.tmp_amr->CallValidStates = true;
+            var.tmp->CallValidStates = true;
             if (!Reduction) {
               tmp = 1;
               Reduction = true;
@@ -4937,15 +4929,15 @@ static void adapt() {
                 MPI_STATUSES_IGNORE);
   }
   if (!Reduction) {
-    tmp = var.tmp_amr->CallValidStates ? 1 : 0;
+    tmp = var.tmp->CallValidStates ? 1 : 0;
     Reduction = true;
     MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &Reduction_req);
   }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
-  var.tmp_amr->CallValidStates = (tmp > 0);
+  var.tmp->CallValidStates = (tmp > 0);
   var.tmp->boundary = *halo;
-  if (var.tmp_amr->CallValidStates) {
+  if (var.tmp->CallValidStates) {
     int levelMin = 0;
     std::vector<BlockInfo> &I = var.tmp->infos;
 #pragma omp parallel for
@@ -5139,7 +5131,7 @@ static void adapt() {
 
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     BlockLab *lab;
-    Grid *grid = (*var.F[i].g);
+    Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     if (dim == 1) {
@@ -5147,16 +5139,15 @@ static void adapt() {
     } else {
       lab = new VectorLab(2);
     }
-    Adaptation *a = *var.F[i].a;
-    a->basic_refinement = basic;
+    g->basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
-      Synch = grid->sync1(a->stencil);
+      Synch = g->sync1(g->stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
-      grid->boundary = Synch->halo_blocks;
-      if (a->boundary_needed)
-        grid->UpdateBoundary();
+      g->boundary = Synch->halo_blocks;
+      if (g->boundary_needed)
+        g->UpdateBoundary();
     }
     int r = 0;
     int c = 0;
@@ -5164,7 +5155,7 @@ static void adapt() {
     std::vector<int> m_ref;
     std::vector<long long> n_com;
     std::vector<long long> n_ref;
-    std::vector<BlockInfo> &I = grid->infos;
+    std::vector<BlockInfo> &I = g->infos;
     long long blocks_after = I.size();
     for (auto &info : I) {
       if (info.state == Refine) {
@@ -5191,16 +5182,16 @@ static void adapt() {
                    &requests[0]);
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
-    a->dealloc_IDs.clear();
+    g->dealloc_IDs.clear();
     if (Synch != nullptr)
-      lab->prepare(grid, Synch->stencil);
+      lab->prepare(g, Synch->stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
-      BlockInfo &parent = grid->get(level, Z);
+      BlockInfo &parent = g->get(level, Z);
       parent.state = Leave;
-      if (a->basic_refinement == false)
-        lab->load(grid, Synch, parent, true);
+      if (g->basic_refinement == false)
+        lab->load(g, Synch, parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -5209,13 +5200,13 @@ static void adapt() {
         for (int i = 0; i < 2; i++) {
           const long long nc =
               getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          BlockInfo &Child = grid->get(level + 1, nc);
+          BlockInfo &Child = g->get(level + 1, nc);
           Child.state = Leave;
-          grid->_alloc(level + 1, nc);
-          grid->Tree0(level + 1, nc) = -2;
+          g->_alloc(level + 1, nc);
+          g->Tree0(level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child.block;
         }
-      if (a->basic_refinement == false) {
+      if (g->basic_refinement == false) {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
@@ -5273,35 +5264,35 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { a->dealloc_IDs.push_back(grid->get(level, Z).id2); }
-      BlockInfo &parent = grid->get(level, Z);
-      grid->Tree1(parent) = -1;
+      { g->dealloc_IDs.push_back(g->get(level, Z).id2); }
+      BlockInfo &parent = g->get(level, Z);
+      g->Tree1(parent) = -1;
       parent.state = Leave;
       int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc =
               getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          BlockInfo &Child = grid->get(level + 1, nc);
-          grid->Tree1(Child) = sim.rank;
+          BlockInfo &Child = g->get(level + 1, nc);
+          g->Tree1(Child) = sim.rank;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
+                g->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
         }
     }
-    grid->dealloc_many(a->dealloc_IDs);
+    g->dealloc_many(g->dealloc_IDs);
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
       const long long nBlock =
           getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const BlockInfo &base = grid->get(b.level, nBlock);
-      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
+      const BlockInfo &base = g->get(b.level, nBlock);
+      if (!(g->Tree1(base) >= 0) || base.state != Compress)
         continue;
-      const BlockInfo &bCopy = grid->get(b.level, b.Z);
-      const int baserank = grid->Tree0(b.level, nBlock);
-      const int brank = grid->Tree0(b.level, b.Z);
+      const BlockInfo &bCopy = g->get(b.level, b.Z);
+      const int baserank = g->Tree0(b.level, nBlock);
+      const int brank = g->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           MPI_Block x;
@@ -5310,7 +5301,7 @@ static void adapt() {
           std::memcpy(&x.data[0], bCopy.block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
-          grid->Tree0(b.level, b.Z) = baserank;
+          g->Tree0(b.level, b.Z) = baserank;
         }
       } else {
         for (int j = 0; j < 2; j++)
@@ -5319,14 +5310,14 @@ static void adapt() {
                 getZforward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
-            BlockInfo &temp = grid->get(b.level, n);
-            const int temprank = grid->Tree0(b.level, n);
+            BlockInfo &temp = g->get(b.level, n);
+            const int temprank = g->Tree0(b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
               x.mn[0] = bCopy.level;
               x.mn[1] = bCopy.Z;
               recv_blocks[temprank].push_back(x);
-              grid->Tree0(b.level, n) = baserank;
+              g->Tree0(b.level, n) = baserank;
             }
           }
       }
@@ -5351,29 +5342,29 @@ static void adapt() {
       }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
-        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
+        g->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
+        g->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
     if (requests0.size() != 0) {
-      a->movedBlocks = true;
+      g->movedBlocks = true;
       MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
     }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
-        grid->_alloc(level, Z);
-        BlockInfo &info = grid->get(level, Z);
+        g->_alloc(level, Z);
+        BlockInfo &info = g->get(level, Z);
         std::memcpy(info.block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
 
-    a->dealloc_IDs.clear();
+    g->dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
       const long long Z = n_com[i];
       assert(level > 0);
-      BlockInfo &info = grid->get(level, Z);
+      BlockInfo &info = g->get(level, Z);
       assert(info.state == Compress);
       void *Blocks[4];
       for (int J = 0; J < 2; J++)
@@ -5381,11 +5372,11 @@ static void adapt() {
           const int blk = J * 2 + I;
           const long long n =
               getZforward(level, info.index[0] + I, info.index[1] + J);
-          Blocks[blk] = (grid->get(level, n)).block;
+          Blocks[blk] = (g->get(level, n)).block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
-      if (a->basic_refinement == false)
+      if (g->basic_refinement == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = (Real *)Blocks[J * 2 + I];
@@ -5405,35 +5396,35 @@ static void adapt() {
           }
       const long long np =
           getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
-      BlockInfo &parent = grid->get(level - 1, np);
-      grid->Tree0(parent.level, parent.Z) = sim.rank;
+      BlockInfo &parent = g->get(level - 1, np);
+      g->Tree0(parent.level, parent.Z) = sim.rank;
       parent.block = info.block;
       parent.state = Leave;
       if (level - 2 >= 0)
-        grid->Tree0(level - 2, parent.Zparent) = -1;
+        g->Tree0(level - 2, parent.Zparent) = -1;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
               getZforward(level, info.index[0] + I, info.index[1] + J);
           if (I + J == 0) {
-            for (size_t j = 0; j < grid->infos.size(); j++)
-              if (level == grid->infos[j].level && n == grid->infos[j].Z) {
-                BlockInfo &correct_info = grid->get(level - 1, np);
+            for (size_t j = 0; j < g->infos.size(); j++)
+              if (level == g->infos[j].level && n == g->infos[j].Z) {
+                BlockInfo &correct_info = g->get(level - 1, np);
                 correct_info.state = Leave;
-                grid->infos[j] = correct_info;
+                g->infos[j] = correct_info;
                 break;
               }
           } else {
 #pragma omp critical
-            { a->dealloc_IDs.push_back(grid->get(level, n).id2); }
+            { g->dealloc_IDs.push_back(g->get(level, n).id2); }
           }
-          grid->Tree0(level, n) = -2;
-          grid->get(level, n).state = Leave;
+          g->Tree0(level, n) = -2;
+          g->get(level, n).state = Leave;
         }
     }
-    grid->dealloc_many(a->dealloc_IDs);
+    g->dealloc_many(g->dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    a->movedBlocks = false;
+    g->movedBlocks = false;
     long long max_b = block_distribution[0];
     long long min_b = block_distribution[0];
     for (auto &b : block_distribution) {
@@ -5442,7 +5433,7 @@ static void adapt() {
     }
     const double ratio = static_cast<double>(max_b) / min_b;
     if (ratio > 1.01 || min_b == 0) {
-      std::vector<BlockInfo> SortedInfos = grid->infos;
+      std::vector<BlockInfo> SortedInfos = g->infos;
       std::sort(SortedInfos.begin(), SortedInfos.end());
       long long total_load = 0;
       for (int r = 0; r < sim.size; r++)
@@ -5535,7 +5526,7 @@ static void adapt() {
                     send_blocks[r].size() * sizeof(send_blocks[r][0]),
                     MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
         }
-      a->movedBlocks = true;
+      g->movedBlocks = true;
       std::vector<long long> deallocIDs;
       counter_S = 0;
       counter_E = 0;
@@ -5545,7 +5536,7 @@ static void adapt() {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
               BlockInfo &info = SortedInfos[counter_S + i];
               deallocIDs.push_back(info.id2);
-              grid->Tree0(info.level, info.Z) = r;
+              g->Tree0(info.level, info.Z) = r;
             }
             counter_S += send_blocks[r].size();
           } else {
@@ -5553,12 +5544,12 @@ static void adapt() {
               BlockInfo &info =
                   SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
               deallocIDs.push_back(info.id2);
-              grid->Tree0(info.level, info.Z) = r;
+              g->Tree0(info.level, info.Z) = r;
             }
             counter_E += send_blocks[r].size();
           }
         }
-      grid->dealloc_many(deallocIDs);
+      g->dealloc_many(deallocIDs);
       MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 #pragma omp parallel
       {
@@ -5566,16 +5557,16 @@ static void adapt() {
           if (recv_blocks[r].size() != 0) {
 #pragma omp for
             for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(dim, grid, recv_blocks[r][i].mn[0],
+              AddBlock(dim, g, recv_blocks[r][i].mn[0],
                        recv_blocks[r][i].mn[1], recv_blocks[r][i].data);
           }
       }
-      grid->FillPos();
+      g->FillPos();
     } else {
       const int right =
           (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
       const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
-      const int my_blocks = grid->infos.size();
+      const int my_blocks = g->infos.size();
       int right_blocks, left_blocks;
       MPI_Request reqs[4];
       MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
@@ -5589,7 +5580,7 @@ static void adapt() {
           (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
       const int flux_right =
           (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-      std::vector<BlockInfo> SortedInfos = grid->infos;
+      std::vector<BlockInfo> SortedInfos = g->infos;
       if (flux_right != 0 || flux_left != 0)
         std::sort(SortedInfos.begin(), SortedInfos.end());
       std::vector<MPI_Block> send_left;
@@ -5641,37 +5632,37 @@ static void adapt() {
       }
       for (int i = 0; i < flux_right; i++) {
         BlockInfo &info = SortedInfos[my_blocks - i - 1];
-        grid->_dealloc(info.level, info.Z);
-        grid->Tree0(info.level, info.Z) = right;
+        g->_dealloc(info.level, info.Z);
+        g->Tree0(info.level, info.Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
         BlockInfo &info = SortedInfos[i];
-        grid->_dealloc(info.level, info.Z);
-        grid->Tree0(info.level, info.Z) = left;
+        g->_dealloc(info.level, info.Z);
+        g->Tree0(info.level, info.Z) = left;
       }
       if (request.size() != 0) {
-        a->movedBlocks = true;
+        g->movedBlocks = true;
         MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
       }
-      int temp = a->movedBlocks ? 1 : 0;
+      int temp = g->movedBlocks ? 1 : 0;
       MPI_Request request_reduction;
       MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                      &request_reduction);
       for (int i = 0; i < -flux_left; i++)
-        AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1],
+        AddBlock(dim, g, recv_left[i].mn[0], recv_left[i].mn[1],
                  recv_left[i].data);
       for (int i = 0; i < -flux_right; i++)
-        AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
+        AddBlock(dim, g, recv_right[i].mn[0], recv_right[i].mn[1],
                  recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
-      a->movedBlocks = (temp >= 1);
-      grid->FillPos();
+      g->movedBlocks = (temp >= 1);
+      g->FillPos();
     }
-    if (result[0] > 0 || result[1] > 0 || a->movedBlocks) {
-      grid->UpdateFluxCorrection = true;
-      grid->UpdateBlockInfoAll_States(false);
-      auto it = grid->Synchronizers.begin();
-      while (it != grid->Synchronizers.end()) {
+    if (result[0] > 0 || result[1] > 0 || g->movedBlocks) {
+      g->UpdateFluxCorrection = true;
+      g->UpdateBlockInfoAll_States(false);
+      auto it = g->Synchronizers.begin();
+      while (it != g->Synchronizers.end()) {
         (*it->second).Setup();
         it++;
       }
@@ -6914,13 +6905,13 @@ int main(int argc, char **argv) {
       memset((*var.F[i].g)->infos[j].block, 0,
              var.F[i].dim * _BS_ * _BS_ * sizeof(Real));
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    Adaptation *a = *var.F[i].a = new Adaptation(var.F[i].dim);
-    a->boundary_needed = false;
-    a->stencil.sx = -1;
-    a->stencil.sy = -1;
-    a->stencil.ex = 2;
-    a->stencil.ey = 2;
-    a->stencil.tensorial = true;
+    Grid *g = *var.F[i].g;
+    g->boundary_needed = false;
+    g->stencil.sx = -1;
+    g->stencil.sy = -1;
+    g->stencil.ex = 2;
+    g->stencil.ey = 2;
+    g->stencil.tensorial = true;
   }
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
