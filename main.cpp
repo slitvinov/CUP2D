@@ -4706,17 +4706,20 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      ScalarBlock &CHI = *(ScalarBlock *)chiInfo[info.id].block;
+      Real *CHI = (Real *)chiInfo[info.id].block;
+      Real *chi = (Real *)o.chi;
+      Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
+          int j = _BS_ * iy + ix;
           int x0 = ix - stencil.sx;
           int y0 = iy - stencil.sy;
           int xp = x0 + 1;
           int yp = y0 + 1;
           int xm = x0 - 1;
           int ym = y0 - 1;
-          if (o.dist[iy][ix] > +h || o.dist[iy][ix] < -h) {
-            o.chi[iy][ix] = o.dist[iy][ix] > 0 ? 1 : 0;
+          if (dist[j] > +h || dist[j] < -h) {
+            chi[j] = dist[j] > 0 ? 1 : 0;
           } else {
             Real distPx = *(um + nm * y0 + xp);
             Real distMx = *(um + nm * y0 + xm);
@@ -4731,16 +4734,16 @@ struct PutChiOnGrid {
             Real gradUX = distPx - distMx;
             Real gradUY = distPy - distMy;
             Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-            o.chi[iy][ix] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
+            chi[j] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
-          CHI[iy][ix] = std::max(CHI[iy][ix], o.chi[iy][ix]);
-          if (o.chi[iy][ix] > 0) {
+          CHI[j] = std::max(CHI[j], chi[j]);
+          if (o.chi[j] > 0) {
             Real p[2];
             p[0] = info.origin[0] + info.h * (ix + 0.5);
             p[1] = info.origin[1] + info.h * (iy + 0.5);
-            o.COM_x += o.chi[iy][ix] * h2 * (p[0] - shape->centerOfMass[0]);
-            o.COM_y += o.chi[iy][ix] * h2 * (p[1] - shape->centerOfMass[1]);
-            o.Mass += o.chi[iy][ix] * h2;
+            o.COM_x += chi[j] * h2 * (p[0] - shape->centerOfMass[0]);
+            o.COM_y += chi[j] * h2 * (p[1] - shape->centerOfMass[1]);
+            o.Mass += chi[j] * h2;
           }
         }
     }
