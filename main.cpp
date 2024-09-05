@@ -2264,19 +2264,19 @@ struct Grid {
     return true;
   }
   Synchronizer *sync1(const StencilInfo &stencil) {
-    Synchronizer *queryresult = nullptr;
+    Synchronizer *s = nullptr;
     typename std::map<StencilInfo, Synchronizer *>::iterator itSynchronizerMPI =
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      queryresult = new Synchronizer(stencil, dim);
-      queryresult->Setup(this);
-      Synchronizers[stencil] = queryresult;
+      s = new Synchronizer(stencil, dim);
+      s->Setup(this);
+      Synchronizers[stencil] = s;
     } else {
-      queryresult = itSynchronizerMPI->second;
+      s = itSynchronizerMPI->second;
     }
-    queryresult->sync0(this);
+    s->sync0(this);
     timestamp = (timestamp + 1) % 32768;
-    return queryresult;
+    return s;
   }
   int &Tree0(const int m, const long long n) {
     const long long aux = sim.levels[m] + n;
