@@ -6590,16 +6590,27 @@ struct pressure_rhs {
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
-    Real *TMP = (Real*)tmpInfo[info.id].block;
-    Real *CHI = (Real*)chiInfo[info.id].block;
+    Real *TMP = (Real *)tmpInfo[info.id].block;
+    Real *CHI = (Real *)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix; // - stencil.sx;
+        int jp0 = iy; // - stencil.sy;
+        int ip1 = ip0 + 1;
+        int im1 = ip0 - 1;
+        int jp1 = jp0 + 1;
+        int jm1 = jp0 - 1;
+        Real v0 = velLab(ix + 1, iy).u[0];
+        Real v1 = velLab(ix - 1, iy).u[0];
+        Real v2 = velLab(ix, iy + 1).u[1];
+        Real v3 = velLab(ix, iy - 1).u[1];
+        Real u0 = uDefLab(ix + 1, iy).u[0];
+        Real u1 = uDefLab(ix - 1, iy).u[0];
+        Real u2 = uDefLab(ix, iy + 1).u[1];
+        Real u3 = uDefLab(ix, iy - 1).u[1];
         TMP[_BS_ * iy + ix] =
-            facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
-                      (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP[_BS_ * iy + ix] += -facDiv * CHI[_BS_ * iy + ix] *
-                       ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
-                        (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
+            facDiv * ((v0 - v1) + (v2 - v3)) -
+            facDiv * CHI[_BS_ * iy + ix] * ((u0 - u1) + (u2 - u3));
       }
     BlockCase *tempCase = (BlockCase *)(tmpInfo[info.id].auxiliary);
     Real *faceXm = nullptr;
