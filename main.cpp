@@ -993,7 +993,7 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  template <typename TGrid> void Setup(TGrid *grid) {
+  template <typename TGrid> void Setup(TGrid *grid, std::unordered_map<long long, int> *Octree, std::unordered_map<long long, BlockInfo *> *BlockInfoAll, std::vector<BlockInfo> *infos) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -2286,7 +2286,7 @@ struct Grid {
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
-      s->Setup(this);
+      s->Setup(this, &Octree, &BlockInfoAll, &infos);
       Synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
@@ -5660,7 +5660,7 @@ static void adapt() {
       g->UpdateBlockInfoAll_States(false);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
-        (*it->second).Setup(g);
+        (*it->second).Setup(g, &g->Octree, &g->BlockInfoAll, &g->infos);
         it++;
       }
     }
@@ -6835,7 +6835,7 @@ int main(int argc, char **argv) {
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
     for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
-      (*it->second).Setup(g);
+      (*it->second).Setup(g, &g->Octree, &g->BlockInfoAll, &g->infos);
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
