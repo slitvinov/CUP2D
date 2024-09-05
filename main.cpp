@@ -6537,7 +6537,8 @@ struct pressureCorrectionKernel {
         int jp0 = iy - stencil.sy;
         int im1 = ip0 - 1;
         Real *p0 = um + nm * jp0 + ip0;
-        faceXm[iy].u[0] = pFac * (P(ix - 1, iy) + *p0);
+        Real *p1 = um + nm * jp0 + im1;
+        faceXm[iy].u[0] = pFac * (*p1 + *p0);
         faceXm[iy].u[1] = 0;
       }
     }
@@ -6548,7 +6549,8 @@ struct pressureCorrectionKernel {
         int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
         Real *p0 = um + nm * jp0 + ip0;
-        faceXp[iy].u[0] = -pFac * (P(ix + 1, iy) + *p0);
+        Real *p1 = um + nm * jp0 + ip1;
+        faceXp[iy].u[0] = -pFac * (*p1 + *p0);
         faceXp[iy].u[1] = 0;
       }
     }
@@ -6559,8 +6561,9 @@ struct pressureCorrectionKernel {
         int jp0 = iy - stencil.sy;
         int jm1 = jp0 - 1;
         Real *p0 = um + nm * jp0 + ip0;
+        Real *p1 = um + nm * jm1 + ip0;
         faceYm[ix].u[0] = 0;
-        faceYm[ix].u[1] = pFac * (P(ix, iy - 1) + *p0);
+        faceYm[ix].u[1] = pFac * (*p1 + *p0);
       }
     }
     if (faceYp != nullptr) {
@@ -6570,8 +6573,9 @@ struct pressureCorrectionKernel {
         int jp0 = iy - stencil.sy;
         int jp1 = jp0 + 1;
         Real *p0 = um + nm * jp0 + ip0;
+        Real *p1 = um + nm * jp1 + ip0;
         faceYp[ix].u[0] = 0;
-        faceYp[ix].u[1] = -pFac * (P(ix, iy + 1) + *p0);
+        faceYp[ix].u[1] = -pFac * (*p1 + *p0);
       }
     }
   }
