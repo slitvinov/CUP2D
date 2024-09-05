@@ -2379,11 +2379,11 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
        (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
         (dx * dy) * dudxdy);
 }
-template <typename Element> struct BlockLab {
+struct BlockLab {
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
-  Element *m, *c;
+  void *m, *c;
   std::array<void *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   const int dim;
@@ -2407,14 +2407,14 @@ template <typename Element> struct BlockLab {
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
-    m = (Element *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
+    m = malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
-    c = (Element *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
+    c = malloc(nc[0] * nc[1] * dim * sizeof(Real));
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
@@ -3874,8 +3874,8 @@ struct Vector {
   }
 };
 typedef Real ScalarBlock[_BS_][_BS_];
-struct VectorLab : public BlockLab<Vector> {
-  VectorLab(int dim) : BlockLab<Vector>(dim) {}
+struct VectorLab : public BlockLab {
+  VectorLab(int dim) : BlockLab(dim) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
@@ -3955,7 +3955,7 @@ struct VectorLab : public BlockLab<Vector> {
     }
   }
 };
-struct ScalarLab : public BlockLab<Real> {
+struct ScalarLab : public BlockLab {
   ScalarLab(int dim) : BlockLab(dim){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
@@ -3978,7 +3978,7 @@ struct ScalarLab : public BlockLab<Real> {
       bsize[0] = _BS_ / 2;
       bsize[1] = _BS_ / 2;
     }
-    auto *const cb = coarse ? this->c : this->m;
+    Real *cb = coarse ? (Real *)this->c : (Real *)this->m;
     const unsigned int *n = coarse ? this->nc : this->nm;
     int s[2];
     int e[2];
@@ -4801,7 +4801,7 @@ static void ongrid(Real dt) {
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
-    for (int j = 0; j < _BS_ * _BS_; j++)  {
+    for (int j = 0; j < _BS_ * _BS_; j++) {
       *((Real *)chiInfo[i].block + j) = 0;
       *((Real *)tmpInfo[i].block + j) = -1;
     }
@@ -5283,11 +5283,11 @@ static void ongrid(Real dt) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
       if (pos == nullptr)
         continue;
-      Real *CHI = (Real*)pos->chi;
-      Real *UDEF = (Real*)pos->udef;
+      Real *CHI = (Real *)pos->chi;
+      Real *UDEF = (Real *)pos->udef;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
-	  int j = _BS_ * iy + ix;
+          int j = _BS_ * iy + ix;
           if (CHI[j] <= 0)
             continue;
           Real p[2];
@@ -5424,7 +5424,7 @@ struct GradChiOnTmp {
     int offset = (info.level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *um = lab.m;
+    Real *um = (Real *)lab.m;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
