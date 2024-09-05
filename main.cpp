@@ -6500,6 +6500,8 @@ struct pressureCorrectionKernel {
   const StencilInfo stencil{-1, -1, 2, 2, false};
   const std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const BlockInfo &info) const {
+    Real *um = (Real *)P.m;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info.h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
