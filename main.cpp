@@ -3210,13 +3210,13 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z, ui
     grid->Tree0(level - 1, nf) = -1;
   }
 }
+struct MPI_Block {
+  long long mn[2];
+  uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
+};
 struct Adaptation {
   bool movedBlocks;
   const int dim;
-  struct MPI_Block {
-    long long mn[2];
-    uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
-  };
   StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
