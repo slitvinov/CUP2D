@@ -3881,6 +3881,8 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
+    Real *um = (Real*)um;
+    Real *uc = (Real*)uc;
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
