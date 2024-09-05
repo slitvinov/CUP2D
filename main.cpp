@@ -1574,22 +1574,23 @@ struct Synchronizer {
       }
   }
 };
-static int &Treef(std::unordered_map<long long, int> *Octree, int m, long long n) {
-    const long long aux = sim.levels[m] + n;
-    const auto retval = Octree->find(aux);
-    if (retval == Octree->end()) {
+static int &Treef(std::unordered_map<long long, int> *Octree, int m,
+                  long long n) {
+  const long long aux = sim.levels[m] + n;
+  const auto retval = Octree->find(aux);
+  if (retval == Octree->end()) {
 #pragma omp critical
-      {
-        const auto retval1 = Octree->find(aux);
-        if (retval1 == Octree->end()) {
-          (*Octree)[aux] = -3;
-        }
+    {
+      const auto retval1 = Octree->find(aux);
+      if (retval1 == Octree->end()) {
+        (*Octree)[aux] = -3;
       }
-      return Treef(Octree, m, n);
-    } else {
-      return retval->second;
     }
+    return Treef(Octree, m, n);
+  } else {
+    return retval->second;
   }
+}
 static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
                        int m, long long n) {
   const long long aux = sim.levels[m] + n;
@@ -2294,9 +2295,7 @@ struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
-  int &Tree0(const int m, const long long n) {
-    return Treef(&Octree, m, n);
-  }
+  int &Tree0(const int m, const long long n) { return Treef(&Octree, m, n); }
   int &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = get(level, Z);
