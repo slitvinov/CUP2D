@@ -3789,8 +3789,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
               MPI_STATUSES_IGNORE);
 }
-template <typename Kernel, typename Element1, typename LabMPI,
-          typename Element2, typename LabMPI2>
+template <typename Kernel, typename LabMPI, typename LabMPI2>
 static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
                      int dim2) {
   Synchronizer<Grid> &Synch = *grid.sync1(kernel.stencil);
@@ -3847,32 +3846,6 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
     }
   }
 }
-struct Vector {
-  Real u[2];
-  Vector() { u[0] = u[1] = 0; }
-  Vector &operator*=(const Real a) {
-    u[0] *= a;
-    u[1] *= a;
-    return *this;
-  }
-  Vector &operator+=(const Vector &rhs) {
-    u[0] += rhs.u[0];
-    u[1] += rhs.u[1];
-    return *this;
-  }
-  Vector &operator-=(const Vector &rhs) {
-    u[0] -= rhs.u[0];
-    u[1] -= rhs.u[1];
-    return *this;
-  }
-  friend Vector operator*(const Real a, Vector el) { return (el *= a); }
-  friend Vector operator+(Vector lhs, const Vector &rhs) {
-    return (lhs += rhs);
-  }
-  friend Vector operator-(Vector lhs, const Vector &rhs) {
-    return (lhs -= rhs);
-  }
-};
 typedef Real ScalarBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab {
   VectorLab(int dim) : BlockLab(dim) {}
@@ -5256,7 +5229,7 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
-  computeB<ComputeSurfaceNormals, Real, ScalarLab, Real, ScalarLab>(
+  computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(
       ComputeSurfaceNormals(), *var.chi, 1, *var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -7420,7 +7393,7 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->prepare0(var.tmp);
-      computeB<pressure_rhs, Vector, VectorLab, Vector, VectorLab>(
+      computeB<pressure_rhs, VectorLab, VectorLab>(
           pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
       var.tmp->FillBlockCases(var.tmpV);
       std::vector<BlockInfo> &presInfo = var.pres->infos;
@@ -7475,7 +7448,7 @@ int main(int argc, char **argv) {
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] += tmpV[j] * ih2;
       }
-      computeB<KernelComputeForces, Vector, VectorLab, Real, ScalarLab>(
+      computeB<KernelComputeForces, VectorLab, ScalarLab>(
           KernelComputeForces(), *var.vel, 2, *var.chi, 1);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
