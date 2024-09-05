@@ -6962,25 +6962,22 @@ int main(int argc, char **argv) {
       Real *UDEF = (Real *)var.tmpV->infos[i].block;
       Real *CHI = (Real *)var.chi->infos[i].block;
       for (int j = 0; j < _BS_ * _BS_; j++) {
-          if (chi[j] < CHI[j])
-            continue;
-          UDEF[2 * j] += udef[2 * j];
-          UDEF[2 * j + 1] += udef[2 * j + 1];
-        }
+        if (chi[j] < CHI[j])
+          continue;
+        UDEF[2 * j] += udef[2 * j];
+        UDEF[2 * j + 1] += udef[2 * j + 1];
+      }
     }
   }
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < velInfo.size(); i++) {
-    VectorBlock &UF = *(VectorBlock *)velInfo[i].block;
-    VectorBlock &US = *(VectorBlock *)var.tmpV->infos[i].block;
-    ScalarBlock &X = *(ScalarBlock *)var.chi->infos[i].block;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        UF[iy][ix].u[0] =
-            UF[iy][ix].u[0] * (1 - X[iy][ix]) + US[iy][ix].u[0] * X[iy][ix];
-        UF[iy][ix].u[1] =
-            UF[iy][ix].u[1] * (1 - X[iy][ix]) + US[iy][ix].u[1] * X[iy][ix];
-      }
+    Real *UF = (Real *)velInfo[i].block;
+    Real *US = (Real *)var.tmpV->infos[i].block;
+    Real *X = (Real *)var.chi->infos[i].block;
+    for (int j = 0; j < _BS_ * _BS_; j++) {
+      UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
+      UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
+    }
   }
   while (1) {
     if (sim.rank == 0 && sim.step % 5 == 0)
