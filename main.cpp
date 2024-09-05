@@ -3874,7 +3874,6 @@ struct Vector {
   }
 };
 typedef Real ScalarBlock[_BS_][_BS_];
-typedef Vector VectorBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab<Vector> {
   VectorLab(int dim) : BlockLab<Vector>(dim) {}
   VectorLab(const VectorLab &) = delete;
