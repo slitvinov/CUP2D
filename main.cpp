@@ -6590,14 +6590,14 @@ struct pressure_rhs {
                   const BlockInfo &) const {
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
-    ScalarBlock &TMP = *(ScalarBlock *)tmpInfo[info.id].block;
-    ScalarBlock &CHI = *(ScalarBlock *)chiInfo[info.id].block;
+    Real *TMP = (Real*)tmpInfo[info.id].block;
+    Real *CHI = (Real*)chiInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        TMP[iy][ix] =
+        TMP[_BS_ * iy + ix] =
             facDiv * ((velLab(ix + 1, iy).u[0] - velLab(ix - 1, iy).u[0]) +
                       (velLab(ix, iy + 1).u[1] - velLab(ix, iy - 1).u[1]));
-        TMP[iy][ix] += -facDiv * CHI[iy][ix] *
+        TMP[_BS_ * iy + ix] += -facDiv * CHI[_BS_ * iy + ix] *
                        ((uDefLab(ix + 1, iy).u[0] - uDefLab(ix - 1, iy).u[0]) +
                         (uDefLab(ix, iy + 1).u[1] - uDefLab(ix, iy - 1).u[1]));
       }
@@ -6616,7 +6616,7 @@ struct pressure_rhs {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXm[iy] += -(facDiv * CHI[iy][ix]) *
+        faceXm[iy] += -(facDiv * CHI[_BS_ * iy + ix]) *
                       (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -6624,7 +6624,7 @@ struct pressure_rhs {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
         faceXp[iy] = -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXp[iy] -= -(facDiv * CHI[iy][ix]) *
+        faceXp[iy] -= -(facDiv * CHI[_BS_ * iy + ix]) *
                       (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
@@ -6632,7 +6632,7 @@ struct pressure_rhs {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
-        faceYm[ix] += -(facDiv * CHI[iy][ix]) *
+        faceYm[ix] += -(facDiv * CHI[_BS_ * iy + ix]) *
                       (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
@@ -6640,7 +6640,7 @@ struct pressure_rhs {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
         faceYp[ix] = -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
-        faceYp[ix] -= -(facDiv * CHI[iy][ix]) *
+        faceYp[ix] -= -(facDiv * CHI[_BS_ * iy + ix]) *
                       (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
