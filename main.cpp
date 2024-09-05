@@ -1524,13 +1524,12 @@ struct Synchronizer {
       }
     }
   }
-  template <typename TGrid> void sync0(TGrid *grid) {
+  void sync0(int timestamp) {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
       it++;
     }
-    const int timestamp = grid->timestamp;
     mapofrequests.clear();
     requests.clear();
     requests.reserve(2 * sim.size);
@@ -2296,7 +2295,7 @@ struct Grid {
     } else {
       s = itSynchronizerMPI->second;
     }
-    s->sync0(this);
+    s->sync0(timestamp);
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
