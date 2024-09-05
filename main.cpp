@@ -6588,6 +6588,9 @@ struct pressure_rhs {
   const std::vector<BlockInfo> &chiInfo = var.chi->infos;
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const BlockInfo &info,
                   const BlockInfo &) const {
+    Real *vm = (Real *)velLab.m;
+    Real *um = (Real *)uDefLab.m;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info.h;
     const Real facDiv = 0.5 * h / sim.dt;
     Real *TMP = (Real *)tmpInfo[info.id].block;
@@ -6600,17 +6603,17 @@ struct pressure_rhs {
         int im1 = ip0 - 1;
         int jp1 = jp0 + 1;
         int jm1 = jp0 - 1;
-        Real v0 = velLab(ix + 1, iy).u[0];
-        Real v1 = velLab(ix - 1, iy).u[0];
-        Real v2 = velLab(ix, iy + 1).u[1];
-        Real v3 = velLab(ix, iy - 1).u[1];
-        Real u0 = uDefLab(ix + 1, iy).u[0];
-        Real u1 = uDefLab(ix - 1, iy).u[0];
-        Real u2 = uDefLab(ix, iy + 1).u[1];
-        Real u3 = uDefLab(ix, iy - 1).u[1];
+        Real v0 = velLab(ip1, jp0).u[0];
+        Real v1 = velLab(im1, jp0).u[0];
+        Real v2 = velLab(ip0, jp1).u[1];
+        Real v3 = velLab(ip0, jm1).u[1];
+        Real u0 = uDefLab(ip1, jp0).u[0];
+        Real u1 = uDefLab(im1, jp0).u[0];
+        Real u2 = uDefLab(ip0, jp1).u[1];
+        Real u3 = uDefLab(ip0, jm1).u[1];
         TMP[_BS_ * iy + ix] =
-            facDiv * ((v0 - v1) + (v2 - v3)) -
-            facDiv * CHI[_BS_ * iy + ix] * ((u0 - u1) + (u2 - u3));
+            facDiv * (v0 - v1 + v2 - v3) -
+            facDiv * CHI[_BS_ * iy + ix] * (u0 - u1 + u2 - u3);
       }
     BlockCase *tempCase = (BlockCase *)(tmpInfo[info.id].auxiliary);
     Real *faceXm = nullptr;
