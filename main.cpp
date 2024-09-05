@@ -2280,16 +2280,7 @@ struct Grid {
     intersection[0] = intersect[0][1] - intersect[0][0] > 0.0;
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
     intersection[2] = true;
-    const bool isperiodic[2] = {sim.bcx == periodic, sim.bcy == periodic};
     for (int d = 0; d < 2; d++) {
-      if (isperiodic[d]) {
-        if (h2[d] > sim.extents[d])
-          intersection[d] = std::min(h1[d], h2[d] - sim.extents[d]) -
-                            std::max(l1[d], l2[d] - sim.extents[d]);
-        else if (h1[d] > sim.extents[d])
-          intersection[d] = std::min(h2[d], h1[d] - sim.extents[d]) -
-                            std::max(l2[d], l1[d] - sim.extents[d]);
-      }
       if (!intersection[d])
         return false;
     }
