@@ -26,5 +26,4 @@ main: $O
 	$(NVCC) -c $< $(NVCCFLAGS) -Xcompiler '$(FLAGS)'
 clean:
 	rm -f main $O
-main.o: kernel.h
 
