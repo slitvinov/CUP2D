@@ -6837,8 +6837,7 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
-    for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
-      (*it->second).Setup(&g->Octree, &g->BlockInfoAll, &g->infos);
+    assert(g->Synchronizers.size() == 0);
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
