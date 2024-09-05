@@ -921,20 +921,22 @@ template <typename TGrid> struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -1228,10 +1230,10 @@ template <typename TGrid> struct Synchronizer {
               for (int d = 0; d < 2; d++) {
                 imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
                 imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
-		if (a->index[d] == 0 && b->index[d] == 0)
-		  imin[d] = 0;
-		if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
-		  imax[d] = 0;
+                if (a->index[d] == 0 && b->index[d] == 0)
+                  imin[d] = 0;
+                if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
+                  imax[d] = 0;
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
@@ -2669,9 +2671,9 @@ template <typename Element> struct BlockLab {
       imin[d] = (info.index[d] < infoNei_index[d]) ? 0 : -1;
       imax[d] = (info.index[d] > infoNei_index[d]) ? 0 : +1;
       if (info.index[d] == 0 && infoNei_index[d] == 0)
-	imin[d] = 0;
+        imin[d] = 0;
       if (info.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
-	imax[d] = 0;
+        imax[d] = 0;
     }
     for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
       for (int i2 = imin[2]; i2 <= imax[2]; i2++)
@@ -2884,20 +2886,22 @@ template <typename Element> struct BlockLab {
     int base[2] = {(info.index[0] + code[0]) % 2,
                    (info.index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3897,7 +3901,8 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab(int dim) : BlockLab<Vector>(dim) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
-  template <int dir, int side> void applyBCface(bool wall, bool coarse = false) {
+  template <int dir, int side>
+  void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -3951,31 +3956,23 @@ struct VectorLab : public BlockLab<Vector> {
   }
   void _apply_bc(BlockInfo &info, bool coarse) override {
     if (!coarse) {
-      if (sim.bcx != periodic) {
-        if (info.index[0] == 0)
-          this->template applyBCface<0, 0>(sim.bcx == wall);
-        if (info.index[0] == this->NX - 1)
-          this->template applyBCface<0, 1>(sim.bcx == wall);
-      }
-      if (sim.bcy != periodic) {
-        if (info.index[1] == 0)
-          this->template applyBCface<1, 0>(sim.bcy == wall);
-        if (info.index[1] == this->NY - 1)
-          this->template applyBCface<1, 1>(sim.bcy == wall);
-      }
+      if (info.index[0] == 0)
+        this->template applyBCface<0, 0>(sim.bcx == wall);
+      if (info.index[0] == this->NX - 1)
+        this->template applyBCface<0, 1>(sim.bcx == wall);
+      if (info.index[1] == 0)
+        this->template applyBCface<1, 0>(sim.bcy == wall);
+      if (info.index[1] == this->NY - 1)
+        this->template applyBCface<1, 1>(sim.bcy == wall);
     } else {
-      if (sim.bcx != periodic) {
-        if (info.index[0] == 0)
-          this->template applyBCface<0, 0>(sim.bcx == wall, coarse);
-        if (info.index[0] == this->NX - 1)
-          this->template applyBCface<0, 1>(sim.bcx == wall, coarse);
-      }
-      if (sim.bcy != periodic) {
-        if (info.index[1] == 0)
-          this->template applyBCface<1, 0>(sim.bcy == wall, coarse);
-        if (info.index[1] == this->NY - 1)
-          this->template applyBCface<1, 1>(sim.bcy == wall, coarse);
-      }
+      if (info.index[0] == 0)
+        this->template applyBCface<0, 0>(sim.bcx == wall, coarse);
+      if (info.index[0] == this->NX - 1)
+        this->template applyBCface<0, 1>(sim.bcx == wall, coarse);
+      if (info.index[1] == 0)
+        this->template applyBCface<1, 0>(sim.bcy == wall, coarse);
+      if (info.index[1] == this->NY - 1)
+        this->template applyBCface<1, 1>(sim.bcy == wall, coarse);
     }
   }
 };
