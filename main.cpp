@@ -2300,7 +2300,7 @@ struct Grid {
     return s;
   }
   int &Tree0(const int m, const long long n) { return Treef(&Octree, m, n); }
-  int &Tree1(const BlockInfo &info) { return Tree0(info.level, info.Z); }
+  int &Tree1(const BlockInfo &info) { return Treef(&Octree, info.level, info.Z); }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = get(level, Z);
     new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
