@@ -350,10 +350,11 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  struct SpaceCurve *space_curve;
-  std::vector<Shape *> shapes;
   std::vector<int> bCollisionID;
   enum BCflag bcx, bcy;
+  std::vector<long long> levels;
+  std::vector<Shape *> shapes;
+  struct SpaceCurve *space_curve;
 } sim;
 struct SpaceCurve {
   int BX;
@@ -606,7 +607,6 @@ struct BlockInfo {
   bool operator<(const BlockInfo &other) const { return id2 < other.id2; }
 };
 struct BlockCase {
-  BlockCase(){};
   uint8_t *d[4];
   int level;
   long long Z;
@@ -674,8 +674,8 @@ struct Range {
       return false;
     int V = (ez - sz) * (ey - sy) * (ex - sx);
     int Vr = (r.ez - r.sz) * (r.ey - r.sy) * (r.ex - r.sx);
-    return (sx <= r.sx && r.ex <= ex) && (sy <= r.sy && r.ey <= ey) &&
-           (sz <= r.sz && r.ez <= ez) && (Vr < V);
+    return sx <= r.sx && r.ex <= ex && sy <= r.sy && r.ey <= ey && sz <= r.sz &&
+           r.ez <= ez && Vr < V;
   }
   void Remove(const Range &other) {
     size_t s = removedIndices.size();
@@ -1603,8 +1603,8 @@ template <typename TGrid> struct Synchronizer {
   }
 };
 static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-                       std::vector<long long> *level_base, int m, long long n) {
-  const long long aux = (*level_base)[m] + n;
+                       int m, long long n) {
+  const long long aux = sim.levels[m] + n;
   const auto retval = BlockInfoAll->find(aux);
   if (retval != BlockInfoAll->end()) {
     return *retval->second;
@@ -1650,28 +1650,28 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
         (*BlockInfoAll)[aux] = dumm;
       }
     }
-    return getf(BlockInfoAll, level_base, m, n);
+    return getf(BlockInfoAll, m, n);
   }
 }
+struct Face {
+  BlockInfo *infos[2];
+  int icode[2];
+  int offset;
+  Face(BlockInfo &i0, BlockInfo &i1, int a_icode0, int a_icode1) {
+    infos[0] = &i0;
+    infos[1] = &i1;
+    icode[0] = a_icode0;
+    icode[1] = a_icode1;
+  }
+  bool operator<(const Face &other) const {
+    if (infos[0]->id2 == other.infos[0]->id2) {
+      return (icode[0] < other.icode[0]);
+    } else {
+      return (infos[0]->id2 < other.infos[0]->id2);
+    }
+  }
+};
 struct Grid {
-  struct face {
-    BlockInfo *infos[2];
-    int icode[2];
-    int offset;
-    face(BlockInfo &i0, BlockInfo &i1, int a_icode0, int a_icode1) {
-      infos[0] = &i0;
-      infos[1] = &i1;
-      icode[0] = a_icode0;
-      icode[1] = a_icode1;
-    }
-    bool operator<(const face &other) const {
-      if (infos[0]->id2 == other.infos[0]->id2) {
-        return (icode[0] < other.icode[0]);
-      } else {
-        return (infos[0]->id2 < other.infos[0]->id2);
-      }
-    }
-  };
   bool UpdateFluxCorrection{true};
   const int dim;
   size_t timestamp;
@@ -1682,13 +1682,12 @@ struct Grid {
   std::vector<BlockCase *> Cases;
   std::vector<BlockInfo *> boundary;
   std::vector<BlockInfo> infos;
-  std::vector<long long> level_base;
-  std::vector<std::vector<face>> recv_faces;
-  std::vector<std::vector<face>> send_faces;
+  std::vector<std::vector<Face>> recv_faces;
+  std::vector<std::vector<Face>> send_faces;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   Grid(int dim) : dim(dim) {}
-  void FillCase(face &F) {
+  void FillCase(Face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
@@ -1733,7 +1732,7 @@ struct Grid {
       }
     }
   }
-  void FillCase_2(face &F, int codex, int codey) {
+  void FillCase_2(Face &F, int codex, int codey) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
@@ -1839,7 +1838,7 @@ struct Grid {
             int icode2 =
                 (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
             send_faces[infoNeiCoarserrank].push_back(
-                face(info, infoNeiCoarser, icode[f], icode2));
+                Face(info, infoNeiCoarser, icode[f], icode2));
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if ((*grid).Tree0(info.level,
@@ -1861,7 +1860,7 @@ struct Grid {
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
-                  face(infoNeiFiner, info, icode2, icode[f]));
+                  Face(infoNeiFiner, info, icode2, icode[f]));
               recv_buffer_size[infoNeiFinerrank] += V;
             }
           }
@@ -1902,7 +1901,7 @@ struct Grid {
       recv_buffer[r].resize(recv_buffer_size[r] * dim);
       int offset = 0;
       for (int k = 0; k < (int)recv_faces[r].size(); k++) {
-        face &f = recv_faces[r][k];
+        Face &f = recv_faces[r][k];
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
         int V =
@@ -1916,7 +1915,7 @@ struct Grid {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
-        face &f = send_faces[r][k];
+        Face &f = send_faces[r][k];
         BlockInfo &info = *(f.infos[0]);
         auto search = Map.find({(long long)info.level, info.Z});
         assert(search != Map.end());
@@ -2312,7 +2311,7 @@ struct Grid {
     return queryresult;
   }
   int &Tree0(const int m, const long long n) {
-    const long long aux = level_base[m] + n;
+    const long long aux = sim.levels[m] + n;
     const auto retval = Octree.find(aux);
     if (retval == Octree.end()) {
 #pragma omp critical
@@ -2377,13 +2376,11 @@ struct Grid {
     return avail(m, n);
   }
   BlockInfo &get0(int m, long long n) {
-    const auto retval = BlockInfoAll.find(level_base[m] + n);
+    const auto retval = BlockInfoAll.find(sim.levels[m] + n);
     assert(retval != BlockInfoAll.end());
     return *retval->second;
   }
-  BlockInfo &get(int m, long long n) {
-    return getf(&BlockInfoAll, &level_base, m, n);
-  }
+  BlockInfo &get(int m, long long n) { return getf(&BlockInfoAll, m, n); }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -3926,8 +3923,7 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab(int dim) : BlockLab<Vector>(dim) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
-  template <int dir, int side>
-  void applyBCface(bool wall, bool coarse = false) {
+  template <int dir, int side> void applyBCface(bool wall, bool coarse = false) {
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -3939,28 +3935,17 @@ struct VectorLab : public BlockLab<Vector> {
                       : _BS_ + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
                       : _BS_ + stenEnd[1] - 1;
-      if (!wall)
-        for (int iy = s[1]; iy < e[1]; iy++)
-          for (int ix = s[0]; ix < e[0]; ix++) {
-            const int x =
-                (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
-            const int y =
-                (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[1 - A] =
-                (-1.0) * m[x + nm[0] * (y)].u[1 - A];
-            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[A] =
-                m[x + nm[0] * (y)].u[A];
-          }
-      else
-        for (int iy = s[1]; iy < e[1]; iy++)
-          for (int ix = s[0]; ix < e[0]; ix++) {
-            const int x =
-                (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
-            const int y =
-                (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-            m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])] =
-                (-1.0) * m[x + nm[0] * (y)];
-          }
+      for (int iy = s[1]; iy < e[1]; iy++)
+        for (int ix = s[0]; ix < e[0]; ix++) {
+          const int x =
+              (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
+          const int y =
+              (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
+          m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[1 - A] =
+              (-1.0) * m[x + nm[0] * (y)].u[1 - A];
+          m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[A] =
+              m[x + nm[0] * (y)].u[A];
+        }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
                          (this->end[1]) / 2 + 1 + (2) - 1,
@@ -3977,28 +3962,17 @@ struct VectorLab : public BlockLab<Vector> {
                       : _BS_ / 2 + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
                       : _BS_ / 2 + stenEnd[1] - 1;
-      if (!wall)
-        for (int iy = s[1]; iy < e[1]; iy++)
-          for (int ix = s[0]; ix < e[0]; ix++) {
-            const int x =
-                (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
-            const int y =
-                (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[1 - A] =
-                (-1.0) * c[x + nc[0] * (y)].u[1 - A];
-            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[A] =
-                c[x + nc[0] * (y)].u[A];
-          }
-      else
-        for (int iy = s[1]; iy < e[1]; iy++)
-          for (int ix = s[0]; ix < e[0]; ix++) {
-            const int x =
-                (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
-            const int y =
-                (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-            c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])] =
-                (-1.0) * c[x + nc[0] * (y)];
-          }
+      for (int iy = s[1]; iy < e[1]; iy++)
+        for (int ix = s[0]; ix < e[0]; ix++) {
+          const int x =
+              (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
+          const int y =
+              (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
+          c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[1 - A] =
+              (-1.0) * c[x + nc[0] * (y)].u[1 - A];
+          c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[A] =
+              c[x + nc[0] * (y)].u[A];
+        }
     }
   }
   void _apply_bc(BlockInfo &info, bool coarse) override {
@@ -5734,28 +5708,25 @@ static void adapt() {
   }
   struct {
     std::unordered_map<long long, BlockInfo *> *BlockInfoAll;
-    std::vector<long long> *level_base;
     std::vector<BlockInfo> &I2;
   } args[] = {
-      {&var.chi->BlockInfoAll, &var.chi->level_base, var.chi->infos},
-      {&var.pres->BlockInfoAll, &var.pres->level_base, var.pres->infos},
-      {&var.pold->BlockInfoAll, &var.pold->level_base, var.pold->infos},
-      {&var.vel->BlockInfoAll, &var.vel->level_base, var.vel->infos},
-      {&var.vold->BlockInfoAll, &var.vold->level_base, var.vold->infos},
-      {&var.tmpV->BlockInfoAll, &var.tmpV->level_base, var.tmpV->infos},
+      {&var.chi->BlockInfoAll, var.chi->infos},
+      {&var.pres->BlockInfoAll, var.pres->infos},
+      {&var.pold->BlockInfoAll, var.pold->infos},
+      {&var.vel->BlockInfoAll, var.vel->infos},
+      {&var.vold->BlockInfoAll, var.vold->infos},
+      {&var.tmpV->BlockInfoAll, var.tmpV->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
       BlockInfo &ary0 = args[iarg].I2[i1];
-      BlockInfo &info = getf(args[iarg].BlockInfoAll, args[iarg].level_base,
-                             ary0.level, ary0.Z);
+      BlockInfo &info = getf(args[iarg].BlockInfoAll, ary0.level, ary0.Z);
       for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
           const long long n = getZforward(info.level, i, j);
-          BlockInfo &infoNei = getf(args[iarg].BlockInfoAll,
-                                    args[iarg].level_base, info.level, n);
+          BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info.level, n);
           infoNei.state = Leave;
         }
       info.state = Leave;
@@ -5765,16 +5736,14 @@ static void adapt() {
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       const BlockInfo &info1 = var.tmp->infos[i];
       BlockInfo &info2 = args[iarg].I2[i];
-      BlockInfo &info3 = getf(args[iarg].BlockInfoAll, args[iarg].level_base,
-                              info2.level, info2.Z);
+      BlockInfo &info3 = getf(args[iarg].BlockInfoAll, info2.level, info2.Z);
       info2.state = info1.state;
       info3.state = info1.state;
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
         const long long n = getZforward(info2.level, i2, j2);
-        BlockInfo &infoNei = getf(args[iarg].BlockInfoAll,
-                                  args[iarg].level_base, info2.level, n);
+        BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info2.level, n);
         infoNei.state = Compress;
       }
     }
@@ -6677,29 +6646,29 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
+  sim.levels.push_back(sim.bpdx * sim.bpdy * 2);
+  for (int m = 1; m < sim.levelMax; m++)
+    sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
+                         << (m + 1));
+  const long long total_blocks =
+      sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
+  long long my_blocks = total_blocks / sim.size;
+  if ((long long)sim.rank < total_blocks % sim.size)
+    my_blocks++;
+  long long n_start = sim.rank * (total_blocks / sim.size);
+  if (total_blocks % sim.size > 0) {
+    if ((long long)sim.rank < total_blocks % sim.size)
+      n_start += sim.rank;
+    else
+      n_start += total_blocks % sim.size;
+  }
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
-    g->level_base.push_back(sim.bpdx * sim.bpdy * 2);
-    for (int m = 1; m < sim.levelMax; m++)
-      g->level_base.push_back(g->level_base[m - 1] + sim.bpdx * sim.bpdy * 1
-                              << (m + 1));
-    const long long total_blocks =
-        sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
-    long long my_blocks = total_blocks / sim.size;
-    if ((long long)sim.rank < total_blocks % sim.size)
-      my_blocks++;
-    long long n_start = sim.rank * (total_blocks / sim.size);
-    if (total_blocks % sim.size > 0) {
-      if ((long long)sim.rank < total_blocks % sim.size)
-        n_start += sim.rank;
-      else
-        n_start += total_blocks % sim.size;
-    }
     for (size_t i = 0; i < my_blocks; i++) {
       BlockInfo &new_info = g->get(sim.levelStart, n_start + i);
       new_info.block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(new_info);
-      g->Octree[g->level_base[sim.levelStart] + n_start + i] = sim.rank;
+      g->Octree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
       sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
@@ -6707,12 +6676,12 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
                 getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            g->Octree[g->level_base[sim.levelStart + 1] + nc] = -2;
+            g->Octree[sim.levels[sim.levelStart + 1] + nc] = -2;
           }
       if (sim.levelStart > 0) {
         const long long nf =
             getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        g->Octree[g->level_base[sim.levelStart - 1] + nf] = -1;
+        g->Octree[sim.levels[sim.levelStart - 1] + nf] = -1;
       }
     }
     g->FillPos();
