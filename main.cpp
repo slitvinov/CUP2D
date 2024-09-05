@@ -794,15 +794,13 @@ template <typename TGrid> struct Synchronizer {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
-  TGrid *grid;
   std::vector<BlockInfo *> dummy_vector;
   const StencilInfo stencil;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(StencilInfo a_stencil, TGrid *_grid, int dim)
+  Synchronizer(StencilInfo a_stencil, int dim)
       : dim(dim), stencil(a_stencil) {
-    grid = _grid;
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
     send_interfaces.resize(sim.size);
@@ -996,7 +994,7 @@ template <typename TGrid> struct Synchronizer {
     }
     return dummy_vector;
   }
-  void Setup() {
+  void Setup(TGrid *grid) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -1454,7 +1452,7 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   }
-  void sync0() {
+  void sync0(TGrid *grid) {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
@@ -2271,13 +2269,13 @@ struct Grid {
     typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
         itSynchronizerMPI = Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      queryresult = new Synchronizer<Grid>(stencil, this, dim);
-      queryresult->Setup();
+      queryresult = new Synchronizer<Grid>(stencil, dim);
+      queryresult->Setup(this);
       Synchronizers[stencil] = queryresult;
     } else {
       queryresult = itSynchronizerMPI->second;
     }
-    queryresult->sync0();
+    queryresult->sync0(this);
     timestamp = (timestamp + 1) % 32768;
     return queryresult;
   }
@@ -5662,7 +5660,7 @@ static void adapt() {
       g->UpdateBlockInfoAll_States(false);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
-        (*it->second).Setup();
+        (*it->second).Setup(g);
         it++;
       }
     }
@@ -6837,7 +6835,7 @@ int main(int argc, char **argv) {
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
     for (auto it = g->Synchronizers.begin(); it != g->Synchronizers.end(); ++it)
-      (*it->second).Setup();
+      (*it->second).Setup(g);
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
