@@ -776,7 +776,7 @@ struct DuplicatesManager {
     sizes[r]++;
   }
 };
-template <typename TGrid> struct Synchronizer {
+struct Synchronizer {
   bool use_averages;
   const int dim;
   std::set<int> Neighbors;
@@ -799,8 +799,7 @@ template <typename TGrid> struct Synchronizer {
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(StencilInfo a_stencil, int dim)
-      : dim(dim), stencil(a_stencil) {
+  Synchronizer(StencilInfo a_stencil, int dim) : dim(dim), stencil(a_stencil) {
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
     send_interfaces.resize(sim.size);
@@ -994,7 +993,7 @@ template <typename TGrid> struct Synchronizer {
     }
     return dummy_vector;
   }
-  void Setup(TGrid *grid) {
+  template <typename TGrid> void Setup(TGrid *grid) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -1452,7 +1451,7 @@ template <typename TGrid> struct Synchronizer {
       }
     }
   }
-  void sync0(TGrid *grid) {
+  template <typename TGrid> void sync0(TGrid *grid) {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
@@ -1649,7 +1648,7 @@ struct Grid {
   const int dim;
   size_t timestamp;
   std::map<std::array<long long, 2>, BlockCase *> Map;
-  std::map<StencilInfo, Synchronizer<Grid> *> Synchronizers;
+  std::map<StencilInfo, Synchronizer *> Synchronizers;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
   std::unordered_map<long long, int> Octree;
   std::vector<BlockCase *> Cases;
@@ -2264,12 +2263,12 @@ struct Grid {
     }
     return true;
   }
-  Synchronizer<Grid> *sync1(const StencilInfo &stencil) {
-    Synchronizer<Grid> *queryresult = nullptr;
-    typename std::map<StencilInfo, Synchronizer<Grid> *>::iterator
-        itSynchronizerMPI = Synchronizers.find(stencil);
+  Synchronizer *sync1(const StencilInfo &stencil) {
+    Synchronizer *queryresult = nullptr;
+    typename std::map<StencilInfo, Synchronizer *>::iterator itSynchronizerMPI =
+        Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      queryresult = new Synchronizer<Grid>(stencil, dim);
+      queryresult = new Synchronizer(stencil, dim);
       queryresult->Setup(this);
       Synchronizers[stencil] = queryresult;
     } else {
@@ -2419,8 +2418,7 @@ struct BlockLab {
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
-  void load(Grid *grid, Synchronizer<Grid> *sync, BlockInfo &info,
-            bool applybc) {
+  void load(Grid *grid, Synchronizer *sync, BlockInfo &info, bool applybc) {
     const int aux = 1 << info.level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -3213,7 +3211,7 @@ struct MPI_Block {
 };
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  Synchronizer<Grid> &Synch = *(g->sync1(kernel.stencil));
+  Synchronizer &Synch = *(g->sync1(kernel.stencil));
   std::vector<BlockInfo *> *inner = &Synch.inner_blocks;
   std::vector<BlockInfo *> *halo_next;
   bool done = false;
@@ -3248,14 +3246,14 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 template <typename Kernel, typename LabMPI, typename LabMPI2>
 static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
                      int dim2) {
-  Synchronizer<Grid> &Synch = *grid.sync1(kernel.stencil);
+  Synchronizer &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
   kernel2.stencil.ex = kernel2.stencil2.ex;
   kernel2.stencil.ey = kernel2.stencil2.ey;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
-  Synchronizer<Grid> &Synch2 = *grid2.sync1(kernel2.stencil);
+  Synchronizer &Synch2 = *grid2.sync1(kernel2.stencil);
   const StencilInfo &stencil = Synch.stencil;
   const StencilInfo &stencil2 = Synch2.stencil;
   std::vector<BlockInfo> &blk = grid.infos;
@@ -4872,7 +4870,7 @@ static void adapt() {
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp->boundary_needed = true;
   StencilInfo stencil{-1, -1, 2, 2, true};
-  Synchronizer<Grid> *Synch = var.tmp->sync1(stencil);
+  Synchronizer *Synch = var.tmp->sync1(stencil);
   var.tmp->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -5136,7 +5134,7 @@ static void adapt() {
       lab = new VectorLab(2);
     }
     g->basic_refinement = basic;
-    Synchronizer<Grid> *Synch = nullptr;
+    Synchronizer *Synch = nullptr;
     if (basic == false) {
       StencilInfo stencil{-1, -1, 2, 2, true};
       Synch = g->sync1(stencil);
