@@ -3221,7 +3221,7 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-  template <typename TLab> void Adapt(Grid *grid, TLab &&lab, bool basic) {
+  void Adapt(Grid *grid, BlockLab *lab, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
@@ -5677,7 +5677,7 @@ static void adapt() {
     } else {
       lab = new VectorLab(2);
     }
-    (*var.F[i].a)->Adapt(var.F[i].g, lab, var.F[i].basic);
+    (*var.F[i].a)->Adapt((*var.F[i].g), lab, var.F[i].basic);
     delete lab;
   }
   /*
