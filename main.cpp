@@ -905,22 +905,20 @@ template <typename TGrid> struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -3089,22 +3087,20 @@ struct BlockLab {
     int base[2] = {(info.index[0] + code[0]) % 2,
                    (info.index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3221,536 +3217,7 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-  void Adapt(Grid *grid, BlockLab *lab, bool basic) {
-    basic_refinement = basic;
-    Synchronizer<Grid> *Synch = nullptr;
-    if (basic == false) {
-      Synch = grid->sync1(stencil);
-      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
-                  MPI_STATUSES_IGNORE);
-      grid->boundary = Synch->halo_blocks;
-      if (boundary_needed)
-        grid->UpdateBoundary();
-    }
-    int r = 0;
-    int c = 0;
-    std::vector<int> m_com;
-    std::vector<int> m_ref;
-    std::vector<long long> n_com;
-    std::vector<long long> n_ref;
-    std::vector<BlockInfo> &I = grid->infos;
-    long long blocks_after = I.size();
-    for (auto &info : I) {
-      if (info.state == Refine) {
-        m_ref.push_back(info.level);
-        n_ref.push_back(info.Z);
-        blocks_after += (1 << 2) - 1;
-        r++;
-      } else if (info.state == Compress && info.index[0] % 2 == 0 &&
-                 info.index[1] % 2 == 0 && info.index[2] % 2 == 0) {
-        m_com.push_back(info.level);
-        n_com.push_back(info.Z);
-        c++;
-      } else if (info.state == Compress) {
-        blocks_after--;
-      }
-    }
-    MPI_Request requests[2];
-    int temp[2] = {r, c};
-    int result[2];
-    int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    std::vector<long long> block_distribution(size);
-    MPI_Iallreduce(&temp, &result, 2, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                   &requests[0]);
-    MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
-                   1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
-    dealloc_IDs.clear();
-    if (Synch != nullptr)
-      lab->prepare(grid, Synch->stencil);
-    for (size_t i = 0; i < m_ref.size(); i++) {
-      const int level = m_ref[i];
-      const long long Z = n_ref[i];
-      BlockInfo &parent = grid->get(level, Z);
-      parent.state = Leave;
-      if (basic_refinement == false)
-        lab->load(grid, Synch, parent, true);
-      const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-      assert(parent.block != NULL);
-      assert(level <= sim.levelMax - 1);
-      void *Blocks[4];
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          const long long nc =
-              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          BlockInfo &Child = grid->get(level + 1, nc);
-          Child.state = Leave;
-          grid->_alloc(level + 1, nc);
-          grid->Tree0(level + 1, nc) = -2;
-          Blocks[j * 2 + i] = Child.block;
-        }
-      if (basic_refinement == false) {
-        int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
-        int offsetX[2] = {0, _BS_ / 2};
-        int offsetY[2] = {0, _BS_ / 2};
-        Real *um = (Real *)lab->m;
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            void *bb = Blocks[J * 2 + I];
-            Real *b = (Real *)bb;
-            memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
-            for (int j = 0; j < _BS_; j += 2)
-              for (int i = 0; i < _BS_; i += 2) {
-                int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
-                int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
-                int im = i0 - 1;
-                int ip = i0 + 1;
-                int jm = j0 - 1;
-                int jp = j0 + 1;
-                int o0 = _BS_ * j + i;
-                int o1 = _BS_ * j + i + 1;
-                int o2 = _BS_ * (j + 1) + i;
-                int o3 = _BS_ * (j + 1) + i + 1;
-                for (int d = 0; d < dim; d++) {
-                  Real l00 = um[dim * (nm * j0 + i0) + d];
-                  Real l0p = um[dim * (nm * jp + i0) + d];
-                  Real lm0 = um[dim * (nm * j0 + im) + d];
-                  Real lmm = um[dim * (nm * jm + im) + d];
-                  Real lmp = um[dim * (nm * jp + im) + d];
-                  Real lp0 = um[dim * (nm * j0 + ip) + d];
-                  Real lpm = um[dim * (nm * jm + ip) + d];
-                  Real lpp = um[dim * (nm * jp + ip) + d];
-                  Real l0m = um[dim * (nm * jm + i0) + d];
-                  Real x = 0.5 * (lp0 - lm0);
-                  Real y = 0.5 * (l0p - l0m);
-                  Real x2 = (lp0 + lm0) - 2.0 * l00;
-                  Real y2 = (l0p + l0m) - 2.0 * l00;
-                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                  b[dim * o0 + d] =
-                      (l00 + (-0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[dim * o1 + d] =
-                      (l00 + (+0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o2 + d] =
-                      (l00 + (-0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o3 + d] =
-                      (l00 + (+0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                }
-              }
-          }
-      }
-    }
-    for (size_t i = 0; i < m_ref.size(); i++) {
-      const int level = m_ref[i];
-      const long long Z = n_ref[i];
-#pragma omp critical
-      { dealloc_IDs.push_back(grid->get(level, Z).id2); }
-      BlockInfo &parent = grid->get(level, Z);
-      grid->Tree1(parent) = -1;
-      parent.state = Leave;
-      int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          const long long nc =
-              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          BlockInfo &Child = grid->get(level + 1, nc);
-          grid->Tree1(Child) = sim.rank;
-          if (level + 2 < sim.levelMax)
-            for (int i0 = 0; i0 < 2; i0++)
-              for (int i1 = 0; i1 < 2; i1++)
-                grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
-        }
-    }
-    grid->dealloc_many(dealloc_IDs);
-    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
-    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
-    for (auto &b : I) {
-      const long long nBlock =
-          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const BlockInfo &base = grid->get(b.level, nBlock);
-      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
-        continue;
-      const BlockInfo &bCopy = grid->get(b.level, b.Z);
-      const int baserank = grid->Tree0(b.level, nBlock);
-      const int brank = grid->Tree0(b.level, b.Z);
-      if (b.Z != nBlock) {
-        if (baserank != sim.rank && brank == sim.rank) {
-          MPI_Block x;
-          x.mn[0] = bCopy.level;
-          x.mn[1] = bCopy.Z;
-          std::memcpy(&x.data[0], bCopy.block,
-                      _BS_ * _BS_ * dim * sizeof(Real));
-          send_blocks[baserank].push_back(x);
-          grid->Tree0(b.level, b.Z) = baserank;
-        }
-      } else {
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            const long long n =
-                getZforward(b.level, b.index[0] + i, b.index[1] + j);
-            if (n == nBlock)
-              continue;
-            BlockInfo &temp = grid->get(b.level, n);
-            const int temprank = grid->Tree0(b.level, n);
-            if (temprank != sim.rank) {
-              MPI_Block x;
-              x.mn[0] = bCopy.level;
-              x.mn[1] = bCopy.Z;
-              recv_blocks[temprank].push_back(x);
-              grid->Tree0(b.level, n) = baserank;
-            }
-          }
-      }
-    }
-    std::vector<MPI_Request> requests0;
-    for (int r = 0; r < sim.size; r++)
-      if (r != sim.rank) {
-        if (recv_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Irecv(&recv_blocks[r][0],
-                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-        if (send_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Isend(&send_blocks[r][0],
-                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-      }
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
-        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
-      }
-    if (requests0.size() != 0) {
-      movedBlocks = true;
-      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
-    }
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
-        const int level = (int)recv_blocks[r][i].mn[0];
-        const long long Z = recv_blocks[r][i].mn[1];
-        grid->_alloc(level, Z);
-        BlockInfo &info = grid->get(level, Z);
-        std::memcpy(info.block, recv_blocks[r][i].data,
-                    _BS_ * _BS_ * dim * sizeof(Real));
-      }
-
-    dealloc_IDs.clear();
-    for (size_t i = 0; i < m_com.size(); i++) {
-      const int level = m_com[i];
-      const long long Z = n_com[i];
-      assert(level > 0);
-      BlockInfo &info = grid->get(level, Z);
-      assert(info.state == Compress);
-      void *Blocks[4];
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          const int blk = J * 2 + I;
-          const long long n =
-              getZforward(level, info.index[0] + I, info.index[1] + J);
-          Blocks[blk] = (grid->get(level, n)).block;
-        }
-      const int offsetX[2] = {0, _BS_ / 2};
-      const int offsetY[2] = {0, _BS_ / 2};
-      if (basic_refinement == false)
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            Real *b = (Real *)Blocks[J * 2 + I];
-            for (int j = 0; j < _BS_; j += 2)
-              for (int i = 0; i < _BS_; i += 2) {
-                int i00 = _BS_ * j + i;
-                int i01 = _BS_ * (j + 1) + i;
-                int i10 = _BS_ * j + i + 1;
-                int i11 = _BS_ * (j + 1) + i + 1;
-                int o = _BS_ * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
-                for (int d = 0; d < dim; d++)
-                  ((Real *)Blocks[0])[dim * o + d] =
-                      (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
-                       b[dim * i11 + d]) /
-                      4;
-              }
-          }
-      const long long np =
-          getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
-      BlockInfo &parent = grid->get(level - 1, np);
-      grid->Tree0(parent.level, parent.Z) = sim.rank;
-      parent.block = info.block;
-      parent.state = Leave;
-      if (level - 2 >= 0)
-        grid->Tree0(level - 2, parent.Zparent) = -1;
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          const long long n =
-              getZforward(level, info.index[0] + I, info.index[1] + J);
-          if (I + J == 0) {
-            for (size_t j = 0; j < grid->infos.size(); j++)
-              if (level == grid->infos[j].level && n == grid->infos[j].Z) {
-                BlockInfo &correct_info = grid->get(level - 1, np);
-                correct_info.state = Leave;
-                grid->infos[j] = correct_info;
-                break;
-              }
-          } else {
-#pragma omp critical
-            { dealloc_IDs.push_back(grid->get(level, n).id2); }
-          }
-          grid->Tree0(level, n) = -2;
-          grid->get(level, n).state = Leave;
-        }
-    }
-    grid->dealloc_many(dealloc_IDs);
-    MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    movedBlocks = false;
-    long long max_b = block_distribution[0];
-    long long min_b = block_distribution[0];
-    for (auto &b : block_distribution) {
-      max_b = std::max(max_b, b);
-      min_b = std::min(min_b, b);
-    }
-    const double ratio = static_cast<double>(max_b) / min_b;
-    if (ratio > 1.01 || min_b == 0) {
-      std::vector<BlockInfo> SortedInfos = grid->infos;
-      std::sort(SortedInfos.begin(), SortedInfos.end());
-      long long total_load = 0;
-      for (int r = 0; r < sim.size; r++)
-        total_load += block_distribution[r];
-      long long my_load = total_load / sim.size;
-      if (sim.rank < (total_load % sim.size))
-        my_load += 1;
-      std::vector<long long> index_start(sim.size);
-      index_start[0] = 0;
-      for (int r = 1; r < sim.size; r++)
-        index_start[r] = index_start[r - 1] + block_distribution[r - 1];
-      long long ideal_index = (total_load / sim.size) * sim.rank;
-      ideal_index += (sim.rank < (total_load % sim.size))
-                         ? sim.rank
-                         : (total_load % sim.size);
-      std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
-      std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
-      for (int r = 0; r < sim.size; r++)
-        if (sim.rank != r) {
-          {
-            long long a1 = ideal_index;
-            long long a2 = ideal_index + my_load - 1;
-            long long b1 = index_start[r];
-            long long b2 = index_start[r] + block_distribution[r] - 1;
-            long long c1 = std::max(a1, b1);
-            long long c2 = std::min(a2, b2);
-            if (c2 - c1 + 1 > 0)
-              recv_blocks[r].resize(c2 - c1 + 1);
-          }
-          {
-            long long other_ideal_index = (total_load / sim.size) * r;
-            other_ideal_index +=
-                (r < (total_load % sim.size)) ? r : (total_load % sim.size);
-            long long other_load = total_load / sim.size;
-            if (r < (total_load % sim.size))
-              other_load += 1;
-            long long a1 = other_ideal_index;
-            long long a2 = other_ideal_index + other_load - 1;
-            long long b1 = index_start[sim.rank];
-            long long b2 =
-                index_start[sim.rank] + block_distribution[sim.rank] - 1;
-            long long c1 = std::max(a1, b1);
-            long long c2 = std::min(a2, b2);
-            if (c2 - c1 + 1 > 0)
-              send_blocks[r].resize(c2 - c1 + 1);
-          }
-        }
-      int tag = 12345;
-      std::vector<MPI_Request> requests;
-      for (int r = 0; r < sim.size; r++)
-        if (recv_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests.push_back(req);
-          MPI_Irecv(recv_blocks[r].data(),
-                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
-        }
-      long long counter_S = 0;
-      long long counter_E = 0;
-      for (int r = 0; r < sim.rank; r++)
-        if (send_blocks[r].size() != 0) {
-          for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            BlockInfo *info = &SortedInfos[counter_S + i];
-            MPI_Block *x = &send_blocks[r][i];
-            x->mn[0] = info->level;
-            x->mn[1] = info->Z;
-            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-          }
-          counter_S += send_blocks[r].size();
-          MPI_Request req{};
-          requests.push_back(req);
-          MPI_Isend(send_blocks[r].data(),
-                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
-        }
-      for (int r = sim.size - 1; r > sim.rank; r--)
-        if (send_blocks[r].size() != 0) {
-          for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            BlockInfo *info =
-                &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
-            MPI_Block *x = &send_blocks[r][i];
-            x->mn[0] = info->level;
-            x->mn[1] = info->Z;
-            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-          }
-          counter_E += send_blocks[r].size();
-          MPI_Request req{};
-          requests.push_back(req);
-          MPI_Isend(send_blocks[r].data(),
-                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
-        }
-      movedBlocks = true;
-      std::vector<long long> deallocIDs;
-      counter_S = 0;
-      counter_E = 0;
-      for (int r = 0; r < sim.size; r++)
-        if (send_blocks[r].size() != 0) {
-          if (r < sim.rank) {
-            for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              BlockInfo &info = SortedInfos[counter_S + i];
-              deallocIDs.push_back(info.id2);
-              grid->Tree0(info.level, info.Z) = r;
-            }
-            counter_S += send_blocks[r].size();
-          } else {
-            for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              BlockInfo &info =
-                  SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
-              deallocIDs.push_back(info.id2);
-              grid->Tree0(info.level, info.Z) = r;
-            }
-            counter_E += send_blocks[r].size();
-          }
-        }
-      grid->dealloc_many(deallocIDs);
-      MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-#pragma omp parallel
-      {
-        for (int r = 0; r < sim.size; r++)
-          if (recv_blocks[r].size() != 0) {
-#pragma omp for
-            for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(dim, grid, recv_blocks[r][i].mn[0],
-                       recv_blocks[r][i].mn[1], recv_blocks[r][i].data);
-          }
-      }
-      grid->FillPos();
-    } else {
-      const int right =
-          (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
-      const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
-      const int my_blocks = grid->infos.size();
-      int right_blocks, left_blocks;
-      MPI_Request reqs[4];
-      MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
-      MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD,
-                &reqs[1]);
-      MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD, &reqs[2]);
-      MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
-      MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
-      const int nu = 4;
-      const int flux_left =
-          (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
-      const int flux_right =
-          (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-      std::vector<BlockInfo> SortedInfos = grid->infos;
-      if (flux_right != 0 || flux_left != 0)
-        std::sort(SortedInfos.begin(), SortedInfos.end());
-      std::vector<MPI_Block> send_left;
-      std::vector<MPI_Block> recv_left;
-      std::vector<MPI_Block> send_right;
-      std::vector<MPI_Block> recv_right;
-      std::vector<MPI_Request> request;
-      if (flux_left > 0) {
-        send_left.resize(flux_left);
-#pragma omp parallel for schedule(runtime)
-        for (int i = 0; i < flux_left; i++) {
-          BlockInfo *info = &SortedInfos[i];
-          MPI_Block *x = &send_left[i];
-          x->mn[0] = info->level;
-          x->mn[1] = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-        }
-        MPI_Request req{};
-        request.push_back(req);
-        MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
-                  MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
-      } else if (flux_left < 0) {
-        recv_left.resize(abs(flux_left));
-        MPI_Request req{};
-        request.push_back(req);
-        MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
-                  MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
-      }
-      if (flux_right > 0) {
-        send_right.resize(flux_right);
-#pragma omp parallel for schedule(runtime)
-        for (int i = 0; i < flux_right; i++) {
-          BlockInfo *info = &SortedInfos[my_blocks - i - 1];
-          MPI_Block *x = &send_right[i];
-          x->mn[0] = info->level;
-          x->mn[1] = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-        }
-        MPI_Request req{};
-        request.push_back(req);
-        MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
-                  MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
-      } else if (flux_right < 0) {
-        recv_right.resize(abs(flux_right));
-        MPI_Request req{};
-        request.push_back(req);
-        MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
-                  MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
-      }
-      for (int i = 0; i < flux_right; i++) {
-        BlockInfo &info = SortedInfos[my_blocks - i - 1];
-        grid->_dealloc(info.level, info.Z);
-        grid->Tree0(info.level, info.Z) = right;
-      }
-      for (int i = 0; i < flux_left; i++) {
-        BlockInfo &info = SortedInfos[i];
-        grid->_dealloc(info.level, info.Z);
-        grid->Tree0(info.level, info.Z) = left;
-      }
-      if (request.size() != 0) {
-        movedBlocks = true;
-        MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
-      }
-      int temp = movedBlocks ? 1 : 0;
-      MPI_Request request_reduction;
-      MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                     &request_reduction);
-      for (int i = 0; i < -flux_left; i++)
-        AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1],
-                 recv_left[i].data);
-      for (int i = 0; i < -flux_right; i++)
-        AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
-                 recv_right[i].data);
-      MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
-      movedBlocks = (temp >= 1);
-      grid->FillPos();
-    }
-    if (result[0] > 0 || result[1] > 0 || movedBlocks) {
-      grid->UpdateFluxCorrection = true;
-      grid->UpdateBlockInfoAll_States(false);
-      auto it = grid->Synchronizers.begin();
-      while (it != grid->Synchronizers.end()) {
-        (*it->second).Setup();
-        it++;
-      }
-    }
-  }
+  void Adapt(Grid *grid, BlockLab *lab, bool basic) {}
 };
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
@@ -3993,13 +3460,10 @@ static struct {
     int dim;
     bool basic;
   } F[7] = {
-    {&tmp, &tmp_amr, 1, false},
-    {&chi, &chi_amr, 1, false},
-    {&vel, &vel_amr, 2, false},
-    {&vold, &vold_amr, 2, false},
-    {&pres, &pres_amr, 1, false}, 
-    {&pold, &pold_amr, 1, false},
-    {&tmpV, &tmpV_amr, 2, true},  
+      {&tmp, &tmp_amr, 1, false},   {&chi, &chi_amr, 1, false},
+      {&vel, &vel_amr, 2, false},   {&vold, &vold_amr, 2, false},
+      {&pres, &pres_amr, 1, false}, {&pold, &pold_amr, 1, false},
+      {&tmpV, &tmpV_amr, 2, true},
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -5158,6 +4622,7 @@ static void ongrid(Real dt) {
               }
             }
           }
+          Adaptation *a = (*var.F[i].a);
           org[0] = info.origin[0] + info.h * 0.5;
           org[1] = info.origin[1] + info.h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
@@ -5677,12 +5142,541 @@ static void adapt() {
     BlockLab *lab;
     Grid *grid = (*var.F[i].g);
     bool basic = var.F[i].basic;
-    if (var.F[i].dim == 1) {
+    int dim = var.F[i].dim;
+    if (dim == 1) {
       lab = new ScalarLab(1);
     } else {
       lab = new VectorLab(2);
     }
-    (*var.F[i].a)->Adapt(grid, lab, basic);
+    Adaptation *a = *var.F[i].a;
+    a->basic_refinement = basic;
+    Synchronizer<Grid> *Synch = nullptr;
+    if (basic == false) {
+      Synch = grid->sync1(a->stencil);
+      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+                  MPI_STATUSES_IGNORE);
+      grid->boundary = Synch->halo_blocks;
+      if (a->boundary_needed)
+        grid->UpdateBoundary();
+    }
+    int r = 0;
+    int c = 0;
+    std::vector<int> m_com;
+    std::vector<int> m_ref;
+    std::vector<long long> n_com;
+    std::vector<long long> n_ref;
+    std::vector<BlockInfo> &I = grid->infos;
+    long long blocks_after = I.size();
+    for (auto &info : I) {
+      if (info.state == Refine) {
+        m_ref.push_back(info.level);
+        n_ref.push_back(info.Z);
+        blocks_after += (1 << 2) - 1;
+        r++;
+      } else if (info.state == Compress && info.index[0] % 2 == 0 &&
+                 info.index[1] % 2 == 0 && info.index[2] % 2 == 0) {
+        m_com.push_back(info.level);
+        n_com.push_back(info.Z);
+        c++;
+      } else if (info.state == Compress) {
+        blocks_after--;
+      }
+    }
+    MPI_Request requests[2];
+    int temp[2] = {r, c};
+    int result[2];
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    std::vector<long long> block_distribution(size);
+    MPI_Iallreduce(&temp, &result, 2, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+                   &requests[0]);
+    MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
+                   1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
+    a->dealloc_IDs.clear();
+    if (Synch != nullptr)
+      lab->prepare(grid, Synch->stencil);
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      const int level = m_ref[i];
+      const long long Z = n_ref[i];
+      BlockInfo &parent = grid->get(level, Z);
+      parent.state = Leave;
+      if (a->basic_refinement == false)
+        lab->load(grid, Synch, parent, true);
+      const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+      assert(parent.block != NULL);
+      assert(level <= sim.levelMax - 1);
+      void *Blocks[4];
+      for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+          const long long nc =
+              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          BlockInfo &Child = grid->get(level + 1, nc);
+          Child.state = Leave;
+          grid->_alloc(level + 1, nc);
+          grid->Tree0(level + 1, nc) = -2;
+          Blocks[j * 2 + i] = Child.block;
+        }
+      if (a->basic_refinement == false) {
+        int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
+        int offsetX[2] = {0, _BS_ / 2};
+        int offsetY[2] = {0, _BS_ / 2};
+        Real *um = (Real *)lab->m;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            void *bb = Blocks[J * 2 + I];
+            Real *b = (Real *)bb;
+            memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
+            for (int j = 0; j < _BS_; j += 2)
+              for (int i = 0; i < _BS_; i += 2) {
+                int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
+                int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
+                int im = i0 - 1;
+                int ip = i0 + 1;
+                int jm = j0 - 1;
+                int jp = j0 + 1;
+                int o0 = _BS_ * j + i;
+                int o1 = _BS_ * j + i + 1;
+                int o2 = _BS_ * (j + 1) + i;
+                int o3 = _BS_ * (j + 1) + i + 1;
+                for (int d = 0; d < dim; d++) {
+                  Real l00 = um[dim * (nm * j0 + i0) + d];
+                  Real l0p = um[dim * (nm * jp + i0) + d];
+                  Real lm0 = um[dim * (nm * j0 + im) + d];
+                  Real lmm = um[dim * (nm * jm + im) + d];
+                  Real lmp = um[dim * (nm * jp + im) + d];
+                  Real lp0 = um[dim * (nm * j0 + ip) + d];
+                  Real lpm = um[dim * (nm * jm + ip) + d];
+                  Real lpp = um[dim * (nm * jp + ip) + d];
+                  Real l0m = um[dim * (nm * jm + i0) + d];
+                  Real x = 0.5 * (lp0 - lm0);
+                  Real y = 0.5 * (l0p - l0m);
+                  Real x2 = (lp0 + lm0) - 2.0 * l00;
+                  Real y2 = (l0p + l0m) - 2.0 * l00;
+                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                  b[dim * o0 + d] =
+                      (l00 + (-0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[dim * o1 + d] =
+                      (l00 + (+0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o2 + d] =
+                      (l00 + (-0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o3 + d] =
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                }
+              }
+          }
+      }
+    }
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      const int level = m_ref[i];
+      const long long Z = n_ref[i];
+#pragma omp critical
+      { a->dealloc_IDs.push_back(grid->get(level, Z).id2); }
+      BlockInfo &parent = grid->get(level, Z);
+      grid->Tree1(parent) = -1;
+      parent.state = Leave;
+      int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+      for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+          const long long nc =
+              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          BlockInfo &Child = grid->get(level + 1, nc);
+          grid->Tree1(Child) = sim.rank;
+          if (level + 2 < sim.levelMax)
+            for (int i0 = 0; i0 < 2; i0++)
+              for (int i1 = 0; i1 < 2; i1++)
+                grid->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
+        }
+    }
+    grid->dealloc_many(a->dealloc_IDs);
+    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
+    for (auto &b : I) {
+      const long long nBlock =
+          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
+      const BlockInfo &base = grid->get(b.level, nBlock);
+      if (!(grid->Tree1(base) >= 0) || base.state != Compress)
+        continue;
+      const BlockInfo &bCopy = grid->get(b.level, b.Z);
+      const int baserank = grid->Tree0(b.level, nBlock);
+      const int brank = grid->Tree0(b.level, b.Z);
+      if (b.Z != nBlock) {
+        if (baserank != sim.rank && brank == sim.rank) {
+          MPI_Block x;
+          x.mn[0] = bCopy.level;
+          x.mn[1] = bCopy.Z;
+          std::memcpy(&x.data[0], bCopy.block,
+                      _BS_ * _BS_ * dim * sizeof(Real));
+          send_blocks[baserank].push_back(x);
+          grid->Tree0(b.level, b.Z) = baserank;
+        }
+      } else {
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            const long long n =
+                getZforward(b.level, b.index[0] + i, b.index[1] + j);
+            if (n == nBlock)
+              continue;
+            BlockInfo &temp = grid->get(b.level, n);
+            const int temprank = grid->Tree0(b.level, n);
+            if (temprank != sim.rank) {
+              MPI_Block x;
+              x.mn[0] = bCopy.level;
+              x.mn[1] = bCopy.Z;
+              recv_blocks[temprank].push_back(x);
+              grid->Tree0(b.level, n) = baserank;
+            }
+          }
+      }
+    }
+    std::vector<MPI_Request> requests0;
+    for (int r = 0; r < sim.size; r++)
+      if (r != sim.rank) {
+        if (recv_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests0.push_back(req);
+          MPI_Irecv(&recv_blocks[r][0],
+                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
+        }
+        if (send_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests0.push_back(req);
+          MPI_Isend(&send_blocks[r][0],
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
+        }
+      }
+    for (int r = 0; r < sim.size; r++)
+      for (int i = 0; i < (int)send_blocks[r].size(); i++) {
+        grid->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
+        grid->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
+      }
+    if (requests0.size() != 0) {
+      a->movedBlocks = true;
+      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
+    }
+    for (int r = 0; r < sim.size; r++)
+      for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
+        const int level = (int)recv_blocks[r][i].mn[0];
+        const long long Z = recv_blocks[r][i].mn[1];
+        grid->_alloc(level, Z);
+        BlockInfo &info = grid->get(level, Z);
+        std::memcpy(info.block, recv_blocks[r][i].data,
+                    _BS_ * _BS_ * dim * sizeof(Real));
+      }
+
+    a->dealloc_IDs.clear();
+    for (size_t i = 0; i < m_com.size(); i++) {
+      const int level = m_com[i];
+      const long long Z = n_com[i];
+      assert(level > 0);
+      BlockInfo &info = grid->get(level, Z);
+      assert(info.state == Compress);
+      void *Blocks[4];
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          const int blk = J * 2 + I;
+          const long long n =
+              getZforward(level, info.index[0] + I, info.index[1] + J);
+          Blocks[blk] = (grid->get(level, n)).block;
+        }
+      const int offsetX[2] = {0, _BS_ / 2};
+      const int offsetY[2] = {0, _BS_ / 2};
+      if (a->basic_refinement == false)
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *b = (Real *)Blocks[J * 2 + I];
+            for (int j = 0; j < _BS_; j += 2)
+              for (int i = 0; i < _BS_; i += 2) {
+                int i00 = _BS_ * j + i;
+                int i01 = _BS_ * (j + 1) + i;
+                int i10 = _BS_ * j + i + 1;
+                int i11 = _BS_ * (j + 1) + i + 1;
+                int o = _BS_ * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+                for (int d = 0; d < dim; d++)
+                  ((Real *)Blocks[0])[dim * o + d] =
+                      (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
+                       b[dim * i11 + d]) /
+                      4;
+              }
+          }
+      const long long np =
+          getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
+      BlockInfo &parent = grid->get(level - 1, np);
+      grid->Tree0(parent.level, parent.Z) = sim.rank;
+      parent.block = info.block;
+      parent.state = Leave;
+      if (level - 2 >= 0)
+        grid->Tree0(level - 2, parent.Zparent) = -1;
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          const long long n =
+              getZforward(level, info.index[0] + I, info.index[1] + J);
+          if (I + J == 0) {
+            for (size_t j = 0; j < grid->infos.size(); j++)
+              if (level == grid->infos[j].level && n == grid->infos[j].Z) {
+                BlockInfo &correct_info = grid->get(level - 1, np);
+                correct_info.state = Leave;
+                grid->infos[j] = correct_info;
+                break;
+              }
+          } else {
+#pragma omp critical
+            { a->dealloc_IDs.push_back(grid->get(level, n).id2); }
+          }
+          grid->Tree0(level, n) = -2;
+          grid->get(level, n).state = Leave;
+        }
+    }
+    grid->dealloc_many(a->dealloc_IDs);
+    MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
+    a->movedBlocks = false;
+    long long max_b = block_distribution[0];
+    long long min_b = block_distribution[0];
+    for (auto &b : block_distribution) {
+      max_b = std::max(max_b, b);
+      min_b = std::min(min_b, b);
+    }
+    const double ratio = static_cast<double>(max_b) / min_b;
+    if (ratio > 1.01 || min_b == 0) {
+      std::vector<BlockInfo> SortedInfos = grid->infos;
+      std::sort(SortedInfos.begin(), SortedInfos.end());
+      long long total_load = 0;
+      for (int r = 0; r < sim.size; r++)
+        total_load += block_distribution[r];
+      long long my_load = total_load / sim.size;
+      if (sim.rank < (total_load % sim.size))
+        my_load += 1;
+      std::vector<long long> index_start(sim.size);
+      index_start[0] = 0;
+      for (int r = 1; r < sim.size; r++)
+        index_start[r] = index_start[r - 1] + block_distribution[r - 1];
+      long long ideal_index = (total_load / sim.size) * sim.rank;
+      ideal_index += (sim.rank < (total_load % sim.size))
+                         ? sim.rank
+                         : (total_load % sim.size);
+      std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
+      std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
+      for (int r = 0; r < sim.size; r++)
+        if (sim.rank != r) {
+          {
+            long long a1 = ideal_index;
+            long long a2 = ideal_index + my_load - 1;
+            long long b1 = index_start[r];
+            long long b2 = index_start[r] + block_distribution[r] - 1;
+            long long c1 = std::max(a1, b1);
+            long long c2 = std::min(a2, b2);
+            if (c2 - c1 + 1 > 0)
+              recv_blocks[r].resize(c2 - c1 + 1);
+          }
+          {
+            long long other_ideal_index = (total_load / sim.size) * r;
+            other_ideal_index +=
+                (r < (total_load % sim.size)) ? r : (total_load % sim.size);
+            long long other_load = total_load / sim.size;
+            if (r < (total_load % sim.size))
+              other_load += 1;
+            long long a1 = other_ideal_index;
+            long long a2 = other_ideal_index + other_load - 1;
+            long long b1 = index_start[sim.rank];
+            long long b2 =
+                index_start[sim.rank] + block_distribution[sim.rank] - 1;
+            long long c1 = std::max(a1, b1);
+            long long c2 = std::min(a2, b2);
+            if (c2 - c1 + 1 > 0)
+              send_blocks[r].resize(c2 - c1 + 1);
+          }
+        }
+      int tag = 12345;
+      std::vector<MPI_Request> requests;
+      for (int r = 0; r < sim.size; r++)
+        if (recv_blocks[r].size() != 0) {
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Irecv(recv_blocks[r].data(),
+                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      long long counter_S = 0;
+      long long counter_E = 0;
+      for (int r = 0; r < sim.rank; r++)
+        if (send_blocks[r].size() != 0) {
+          for (size_t i = 0; i < send_blocks[r].size(); i++) {
+            BlockInfo *info = &SortedInfos[counter_S + i];
+            MPI_Block *x = &send_blocks[r][i];
+            x->mn[0] = info->level;
+            x->mn[1] = info->Z;
+            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          }
+          counter_S += send_blocks[r].size();
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Isend(send_blocks[r].data(),
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      for (int r = sim.size - 1; r > sim.rank; r--)
+        if (send_blocks[r].size() != 0) {
+          for (size_t i = 0; i < send_blocks[r].size(); i++) {
+            BlockInfo *info =
+                &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+            MPI_Block *x = &send_blocks[r][i];
+            x->mn[0] = info->level;
+            x->mn[1] = info->Z;
+            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          }
+          counter_E += send_blocks[r].size();
+          MPI_Request req{};
+          requests.push_back(req);
+          MPI_Isend(send_blocks[r].data(),
+                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
+                    MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
+        }
+      a->movedBlocks = true;
+      std::vector<long long> deallocIDs;
+      counter_S = 0;
+      counter_E = 0;
+      for (int r = 0; r < sim.size; r++)
+        if (send_blocks[r].size() != 0) {
+          if (r < sim.rank) {
+            for (size_t i = 0; i < send_blocks[r].size(); i++) {
+              BlockInfo &info = SortedInfos[counter_S + i];
+              deallocIDs.push_back(info.id2);
+              grid->Tree0(info.level, info.Z) = r;
+            }
+            counter_S += send_blocks[r].size();
+          } else {
+            for (size_t i = 0; i < send_blocks[r].size(); i++) {
+              BlockInfo &info =
+                  SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+              deallocIDs.push_back(info.id2);
+              grid->Tree0(info.level, info.Z) = r;
+            }
+            counter_E += send_blocks[r].size();
+          }
+        }
+      grid->dealloc_many(deallocIDs);
+      MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+#pragma omp parallel
+      {
+        for (int r = 0; r < sim.size; r++)
+          if (recv_blocks[r].size() != 0) {
+#pragma omp for
+            for (size_t i = 0; i < recv_blocks[r].size(); i++)
+              AddBlock(dim, grid, recv_blocks[r][i].mn[0],
+                       recv_blocks[r][i].mn[1], recv_blocks[r][i].data);
+          }
+      }
+      grid->FillPos();
+    } else {
+      const int right =
+          (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
+      const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
+      const int my_blocks = grid->infos.size();
+      int right_blocks, left_blocks;
+      MPI_Request reqs[4];
+      MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
+      MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD,
+                &reqs[1]);
+      MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD, &reqs[2]);
+      MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
+      MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
+      const int nu = 4;
+      const int flux_left =
+          (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
+      const int flux_right =
+          (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
+      std::vector<BlockInfo> SortedInfos = grid->infos;
+      if (flux_right != 0 || flux_left != 0)
+        std::sort(SortedInfos.begin(), SortedInfos.end());
+      std::vector<MPI_Block> send_left;
+      std::vector<MPI_Block> recv_left;
+      std::vector<MPI_Block> send_right;
+      std::vector<MPI_Block> recv_right;
+      std::vector<MPI_Request> request;
+      if (flux_left > 0) {
+        send_left.resize(flux_left);
+#pragma omp parallel for schedule(runtime)
+        for (int i = 0; i < flux_left; i++) {
+          BlockInfo *info = &SortedInfos[i];
+          MPI_Block *x = &send_left[i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+        }
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
+                  MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
+      } else if (flux_left < 0) {
+        recv_left.resize(abs(flux_left));
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
+                  MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
+      }
+      if (flux_right > 0) {
+        send_right.resize(flux_right);
+#pragma omp parallel for schedule(runtime)
+        for (int i = 0; i < flux_right; i++) {
+          BlockInfo *info = &SortedInfos[my_blocks - i - 1];
+          MPI_Block *x = &send_right[i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+        }
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
+                  MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
+      } else if (flux_right < 0) {
+        recv_right.resize(abs(flux_right));
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
+                  MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
+      }
+      for (int i = 0; i < flux_right; i++) {
+        BlockInfo &info = SortedInfos[my_blocks - i - 1];
+        grid->_dealloc(info.level, info.Z);
+        grid->Tree0(info.level, info.Z) = right;
+      }
+      for (int i = 0; i < flux_left; i++) {
+        BlockInfo &info = SortedInfos[i];
+        grid->_dealloc(info.level, info.Z);
+        grid->Tree0(info.level, info.Z) = left;
+      }
+      if (request.size() != 0) {
+        a->movedBlocks = true;
+        MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
+      }
+      int temp = a->movedBlocks ? 1 : 0;
+      MPI_Request request_reduction;
+      MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+                     &request_reduction);
+      for (int i = 0; i < -flux_left; i++)
+        AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1],
+                 recv_left[i].data);
+      for (int i = 0; i < -flux_right; i++)
+        AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
+                 recv_right[i].data);
+      MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
+      a->movedBlocks = (temp >= 1);
+      grid->FillPos();
+    }
+    if (result[0] > 0 || result[1] > 0 || a->movedBlocks) {
+      grid->UpdateFluxCorrection = true;
+      grid->UpdateBlockInfoAll_States(false);
+      auto it = grid->Synchronizers.begin();
+      while (it != grid->Synchronizers.end()) {
+        (*it->second).Setup();
+        it++;
+      }
+    }
     delete lab;
   }
 }
