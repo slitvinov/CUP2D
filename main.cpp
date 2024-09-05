@@ -5670,6 +5670,7 @@ static void adapt() {
     }
   }
 
+  /*
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     BlockLab *lab;
     if (var.F[i].dim == 1) {
@@ -5679,15 +5680,16 @@ static void adapt() {
     }
     (*var.F[i].a)->Adapt((*var.F[i].g), lab, var.F[i].basic);
     delete lab;
-  }
-  /*
-  var.tmp_amr->Adapt<ScalarLab>(var.tmp, ScalarLab(1), false);
-  var.chi_amr->Adapt<ScalarLab>(var.chi, ScalarLab(1), false);
-  var.vel_amr->Adapt<VectorLab>(var.vel, VectorLab(2), false);
-  var.vold_amr->Adapt<VectorLab>(var.vold, VectorLab(2), false);
-  var.pres_amr->Adapt<ScalarLab>(var.pres, ScalarLab(1), false);
-  var.pold_amr->Adapt<ScalarLab>(var.pold, ScalarLab(1), false);
-  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, VectorLab(2), true); */
+    } */
+
+  BlockLab *lab;
+  lab = new ScalarLab(1), var.tmp_amr->Adapt(var.tmp, lab, false), delete lab;
+  lab = new ScalarLab(1), var.chi_amr->Adapt(var.chi, lab, false), delete lab;
+  lab = new VectorLab(2), var.vel_amr->Adapt(var.vel, lab, false), delete lab;
+  lab = new VectorLab(2), var.vold_amr->Adapt(var.vold, lab, false), delete lab;
+  lab = new ScalarLab(1), var.pres_amr->Adapt(var.pres, lab, false), delete lab;
+  lab = new ScalarLab(1), var.pold_amr->Adapt(var.pold, lab, false), delete lab;
+  lab = new VectorLab(1), var.tmpV_amr->Adapt(var.tmpV, lab, true), delete lab;
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
