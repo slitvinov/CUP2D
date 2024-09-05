@@ -4017,18 +4017,14 @@ struct ScalarLab : public BlockLab<Real> {
                        stenBeg[1])];
   }
   virtual void _apply_bc(BlockInfo &info, bool coarse) override {
-    if (sim.bcx != periodic) {
-      if (info.index[0] == 0)
-        Neumann2D<0, 0>(coarse);
-      if (info.index[0] == this->NX - 1)
-        Neumann2D<0, 1>(coarse);
-    }
-    if (sim.bcy != periodic) {
-      if (info.index[1] == 0)
-        Neumann2D<1, 0>(coarse);
-      if (info.index[1] == this->NY - 1)
-        Neumann2D<1, 1>(coarse);
-    }
+    if (info.index[0] == 0)
+      Neumann2D<0, 0>(coarse);
+    if (info.index[0] == this->NX - 1)
+      Neumann2D<0, 1>(coarse);
+    if (info.index[1] == 0)
+      Neumann2D<1, 0>(coarse);
+    if (info.index[1] == this->NY - 1)
+      Neumann2D<1, 1>(coarse);
   }
 };
 struct Skin {
