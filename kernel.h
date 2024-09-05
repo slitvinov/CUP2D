@@ -17,7 +17,7 @@ struct KernelComputeForces {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     Real *uchi = (Real *)chi.m;
     Real *um = (Real *)l.m;
-    ScalarBlock &P = *(ScalarBlock *)presInfo[info.id].block;
+    Real *P = (Real *)presInfo[info.id].block;
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
@@ -125,13 +125,13 @@ struct KernelComputeForces {
         DuDy = dveldy[0] + dveldy2[0] * (iy - y) + dveldxdy[0] * (ix - x);
         DvDy = dveldy[1] + dveldy2[1] * (iy - y) + dveldxdy[1] * (ix - x);
         Real fXV = NUoH * DuDx * normX + NUoH * DuDy * normY,
-             fXP = -P[iy][ix] * normX;
+             fXP = -P[_BS_ * iy + ix] * normX;
         Real fYV = NUoH * DvDx * normX + NUoH * DvDy * normY,
-             fYP = -P[iy][ix] * normY;
+             fYP = -P[_BS_ * iy + ix] * normY;
         Real fXT = fXV + fXP, fYT = fYV + fYP;
         O->x_s[k] = p[0];
         O->y_s[k] = p[1];
-        O->p_s[k] = P[iy][ix];
+        O->p_s[k] = P[_BS_ * iy + ix];
         O->u_s[k] = *(l19 + 0);
         O->v_s[k] = *(l19 + 1);
         O->nx_s[k] = dx;
@@ -139,8 +139,8 @@ struct KernelComputeForces {
         O->omega_s[k] = (DvDx - DuDy) / info.h;
         O->uDef_s[k] = O->udef[iy][ix][0];
         O->vDef_s[k] = O->udef[iy][ix][1];
-        O->fX_s[k] = -P[iy][ix] * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
-        O->fY_s[k] = -P[iy][ix] * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
+        O->fX_s[k] = -P[_BS_ * iy + ix] * dx + NUoH * DuDx * dx + NUoH * DuDy * dy;
+        O->fY_s[k] = -P[_BS_ * iy + ix] * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
         O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->perimeter += std::sqrt(normX * normX + normY * normY);
