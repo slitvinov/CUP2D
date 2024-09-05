@@ -3267,14 +3267,14 @@ struct Adaptation {
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     dealloc_IDs.clear();
     if (Synch != nullptr)
-      lab.prepare(grid, Synch->stencil);
+      lab->prepare(grid, Synch->stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
       BlockInfo &parent = grid->get(level, Z);
       parent.state = Leave;
       if (basic_refinement == false)
-        lab.load(grid, Synch, parent, true);
+        lab->load(grid, Synch, parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -3293,7 +3293,7 @@ struct Adaptation {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
-        Real *um = (Real *)lab.m;
+        Real *um = (Real *)lab->m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             void *bb = Blocks[J * 2 + I];
@@ -3991,10 +3991,15 @@ static struct {
     Grid **g;
     Adaptation **a;
     int dim;
+    bool basic;
   } F[7] = {
-      {&chi, &chi_amr, 1},   {&vel, &vel_amr, 2},   {&vold, &vold_amr, 2},
-      {&pres, &pres_amr, 1}, {&tmpV, &tmpV_amr, 2}, {&tmp, &tmp_amr, 1},
-      {&pold, &pold_amr, 1},
+	    {&chi, &chi_amr, 1, false},
+	    {&pold, &pold_amr, 1, false},
+	    {&pres, &pres_amr, 1, false},
+	    {&tmp, &tmp_amr, 1, false},
+	    {&tmpV, &tmpV_amr, 2, true},
+	    {&vel, &vel_amr, 2, false},
+	    {&vold, &vold_amr, 2, false},
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -5667,13 +5672,27 @@ static void adapt() {
       }
     }
   }
+
+  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+    BlockLab *lab;
+    int dim;
+    dim = var.F[i].dim;
+    if (dim == 1) {
+      lab = new ScalarLab(1);
+    } else {
+      lab = new VectorLab(2);
+    }
+    (*var.F[i].a)->Adapt(var.tmp, lab, var.F[i].basic);
+    delete lab;
+  }
+  /*
   var.tmp_amr->Adapt<ScalarLab>(var.tmp, ScalarLab(1), false);
   var.chi_amr->Adapt<ScalarLab>(var.chi, ScalarLab(1), false);
   var.vel_amr->Adapt<VectorLab>(var.vel, VectorLab(2), false);
   var.vold_amr->Adapt<VectorLab>(var.vold, VectorLab(2), false);
   var.pres_amr->Adapt<ScalarLab>(var.pres, ScalarLab(1), false);
   var.pold_amr->Adapt<ScalarLab>(var.pold, ScalarLab(1), false);
-  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, VectorLab(2), true);
+  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, VectorLab(2), true); */
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
