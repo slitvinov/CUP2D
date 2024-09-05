@@ -3217,7 +3217,6 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-  void Adapt(Grid *grid, BlockLab *lab, bool basic) {}
 };
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
