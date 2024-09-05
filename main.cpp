@@ -5620,9 +5620,9 @@ static void adapt() {
               continue;
             int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
                            (icode / 9) % 3 - 1};
-            if (sim.bcx != periodic && code[0] == xskip && xskin)
+            if (code[0] == xskip && xskin)
               continue;
-            if (sim.bcy != periodic && code[1] == yskip && yskin)
+            if (code[1] == yskip && yskin)
               continue;
             if (code[2] != 0)
               continue;
