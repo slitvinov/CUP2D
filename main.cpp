@@ -6629,33 +6629,33 @@ struct pressure_rhs {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXm[iy] += -(facDiv * CHI[_BS_ * iy + ix]) *
-                      (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
+        faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]) -
+                     (facDiv * CHI[_BS_ * iy + ix]) *
+                         (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
-        faceXp[iy] = -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]);
-        faceXp[iy] -= -(facDiv * CHI[_BS_ * iy + ix]) *
-                      (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
+        faceXp[iy] = -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]) +
+                     (facDiv * CHI[_BS_ * iy + ix]) *
+                         (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
       }
     }
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]);
-        faceYm[ix] += -(facDiv * CHI[_BS_ * iy + ix]) *
-                      (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
+        faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]) -
+                     (facDiv * CHI[_BS_ * iy + ix]) *
+                         (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
-        faceYp[ix] = -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]);
-        faceYp[ix] -= -(facDiv * CHI[_BS_ * iy + ix]) *
-                      (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
+        faceYp[ix] = -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]) +
+                     (facDiv * CHI[_BS_ * iy + ix]) *
+                         (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
       }
     }
   }
