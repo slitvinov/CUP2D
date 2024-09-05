@@ -7064,12 +7064,12 @@ int main(int argc, char **argv) {
           const Real hsq = velInfo[i].h * velInfo[i].h;
           if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
-          const Real *chi = (Real*)OBLOCK[velInfo[i].id]->chi;
-          const Real *udef = (Real*)OBLOCK[velInfo[i].id]->udef;
+          const Real *chi = (Real *)OBLOCK[velInfo[i].id]->chi;
+          const Real *udef = (Real *)OBLOCK[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-	      int j = _BS_ * iy + ix;
+              int j = _BS_ * iy + ix;
               if (chi[j] <= 0)
                 continue;
               const Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
@@ -7367,26 +7367,27 @@ int main(int argc, char **argv) {
           Real omega_s = shape->omega;
           Real Cx = shape->centerOfMass[0];
           Real Cy = shape->centerOfMass[1];
-          ScalarBlock &X = o->chi;
-          UDEFMAT &UDEF = o->udef;
-          ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].block;
-          VectorBlock &V = *(VectorBlock *)velInfo[i].block;
+          Real *X = (Real *)o->chi;
+          Real *UDEF = (Real *)o->udef;
+          Real *CHI = (Real *)chiInfo[i].block;
+          Real *V = (Real *)velInfo[i].block;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              if (CHI[iy][ix] > X[iy][ix])
+              int j = _BS_ * iy + ix;
+              if (CHI[j] > X[j])
                 continue;
-              if (X[iy][ix] <= 0)
+              if (X[j] <= 0)
                 continue;
               Real p[2];
               p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
               p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
               p[0] -= Cx;
               p[1] -= Cy;
-              Real alpha = X[iy][ix] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
-              Real US = u_s - omega_s * p[1] + UDEF[iy][ix][0];
-              Real VS = v_s + omega_s * p[0] + UDEF[iy][ix][1];
-              V[iy][ix].u[0] = alpha * V[iy][ix].u[0] + (1 - alpha) * US;
-              V[iy][ix].u[1] = alpha * V[iy][ix].u[1] + (1 - alpha) * VS;
+              Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
+              Real US = u_s - omega_s * p[1] + UDEF[2 * j + 0];
+              Real VS = v_s + omega_s * p[0] + UDEF[2 * j + 1];
+              V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
+              V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
             }
         }
       std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
