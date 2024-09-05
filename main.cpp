@@ -7392,32 +7392,28 @@ int main(int argc, char **argv) {
         }
       std::vector<BlockInfo> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
-        for (size_t y = 0; y < _BS_; y++)
-          for (size_t x = 0; x < _BS_; x++) {
-            (*(VectorBlock *)tmpVInfo[i].block)[y][x].u[0] = 0;
-            (*(VectorBlock *)tmpVInfo[i].block)[y][x].u[1] = 0;
-          }
-      }
+      for (size_t i = 0; i < Nblocks; i++)
+        memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
       for (auto &shape : sim.shapes) {
         std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
         for (size_t i = 0; i < Nblocks; i++) {
           if (OBLOCK[tmpVInfo[i].id] == nullptr)
             continue;
-          UDEFMAT &udef = OBLOCK[tmpVInfo[i].id]->udef;
-          ScalarBlock &chi = OBLOCK[tmpVInfo[i].id]->chi;
-          auto &UDEF = *(VectorBlock *)tmpVInfo[i].block;
-          ScalarBlock &CHI = *(ScalarBlock *)chiInfo[i].block;
+          Real *udef = (Real *)OBLOCK[tmpVInfo[i].id]->udef;
+          Real *chi = (Real *)OBLOCK[tmpVInfo[i].id]->chi;
+          Real *UDEF = (Real *)tmpVInfo[i].block;
+          Real *CHI = (Real *)chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
-              if (chi[iy][ix] < CHI[iy][ix])
+              int j = _BS_ * iy + ix;
+              if (chi[j] < CHI[j])
                 continue;
               Real p[2];
               p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
               p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5);
-              UDEF[iy][ix].u[0] += udef[iy][ix][0];
-              UDEF[iy][ix].u[1] += udef[iy][ix][1];
+              UDEF[2 * j + 0] += udef[2 * j + 0];
+              UDEF[2 * j + 1] += udef[2 * j + 1];
             }
         }
       }
