@@ -6961,12 +6961,11 @@ int main(int argc, char **argv) {
       Real *chi = (Real *)OBLOCK[var.tmpV->infos[i].id]->chi;
       Real *UDEF = (Real *)var.tmpV->infos[i].block;
       Real *CHI = (Real *)var.chi->infos[i].block;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[_BS_ * iy + ix] < CHI[_BS_ * iy + ix])
+      for (int j = 0; j < _BS_ * _BS_; j++) {
+          if (chi[j] < CHI[j])
             continue;
-          UDEF[2 * (_BS_ * iy + ix) + 0] += udef[2 * (_BS_ * iy + ix) + 0];
-          UDEF[2 * (_BS_ * iy + ix) + 1] += udef[2 * (_BS_ * iy + ix) + 1];
+          UDEF[2 * j] += udef[2 * j];
+          UDEF[2 * j + 1] += udef[2 * j + 1];
         }
     }
   }
