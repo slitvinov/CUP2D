@@ -6634,6 +6634,8 @@ struct pressure_rhs {
         int im1 = ip0 - 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
         faceXm[iy] =
             facDiv * (velLab(ix - 1, iy).u[0] + *v0) -
             (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix - 1, iy).u[0] + *u0);
@@ -6647,6 +6649,8 @@ struct pressure_rhs {
         int ip1 = ip0 + 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
         faceXp[iy] =
             -facDiv * (velLab(ix + 1, iy).u[0] + *v0) +
             (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix + 1, iy).u[0] + *u0);
@@ -6660,6 +6664,8 @@ struct pressure_rhs {
         int jm1 = jp0 - 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
+        Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
         faceYm[ix] =
             facDiv * (velLab(ix, iy - 1).u[1] + *v0) -
             (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix, iy - 1).u[1] + *u0);
@@ -6673,6 +6679,8 @@ struct pressure_rhs {
         int jp1 = jp0 + 1;
         Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
+        Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
         faceYp[ix] =
             -facDiv * (velLab(ix, iy + 1).u[1] + *v0) +
             (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix, iy + 1).u[1] + *u0);
