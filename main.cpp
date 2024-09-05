@@ -2471,9 +2471,9 @@ template <typename Element> struct BlockLab {
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-      if (sim.bcx != periodic && code[0] == xskip && xskin)
+      if (code[0] == xskip && xskin)
         continue;
-      if (sim.bcy != periodic && code[1] == yskip && yskin)
+      if (code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
           grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
