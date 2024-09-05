@@ -302,21 +302,6 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-enum BCflag { freespace, periodic, wall };
-static const struct {
-  enum BCflag val;
-  const char *key;
-} bc_table[] = {
-    {freespace, "freespace"}, {wall, "wall"}, {periodic, "periodic"}};
-static BCflag bc_flag(const char *key) {
-  size_t i;
-  for (i = 0; i < sizeof bc_table / sizeof *bc_table; i++)
-    if (strcmp(bc_table[i].key, key) == 0)
-      return bc_table[i].val;
-  fprintf(stderr, "main: error: unknown boundary '%s'\n", key);
-  MPI_Abort(MPI_COMM_WORLD, 1);
-  return periodic;
-}
 struct Shape;
 struct SpaceCurve;
 static struct {
@@ -351,7 +336,6 @@ static struct {
   Real Rtol;
   Real time = 0;
   std::vector<int> bCollisionID;
-  enum BCflag bcx, bcy;
   std::vector<long long> levels;
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
@@ -6594,10 +6578,6 @@ int main(int argc, char **argv) {
   sim.lambda = parser("-lambda").asDouble(1e7);
   sim.dlm = parser("-dlm").asDouble(0);
   sim.nu = parser("-nu").asDouble(1e-2);
-  std::string BC_x = parser("-BC_x").asString("freespace");
-  std::string BC_y = parser("-BC_y").asString("freespace");
-  sim.bcx = bc_flag(BC_x.c_str());
-  sim.bcy = bc_flag(BC_x.c_str());
   sim.PoissonTol = parser("-poissonTol").asDouble(1e-6);
   sim.PoissonTolRel = parser("-poissonTolRel").asDouble(0);
   sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt(30);
