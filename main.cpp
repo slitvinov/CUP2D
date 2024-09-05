@@ -776,6 +776,74 @@ struct DuplicatesManager {
     sizes[r]++;
   }
 };
+static int &Treef(std::unordered_map<long long, int> *Octree, int m,
+                  long long n) {
+  const long long aux = sim.levels[m] + n;
+  const auto retval = Octree->find(aux);
+  if (retval == Octree->end()) {
+#pragma omp critical
+    {
+      const auto retval1 = Octree->find(aux);
+      if (retval1 == Octree->end()) {
+        (*Octree)[aux] = -3;
+      }
+    }
+    return Treef(Octree, m, n);
+  } else {
+    return retval->second;
+  }
+}
+static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+                       int m, long long n) {
+  const long long aux = sim.levels[m] + n;
+  const auto retval = BlockInfoAll->find(aux);
+  if (retval != BlockInfoAll->end()) {
+    return *retval->second;
+  } else {
+#pragma omp critical
+    {
+      const auto retval1 = BlockInfoAll->find(aux);
+      if (retval1 == BlockInfoAll->end()) {
+        BlockInfo *dumm = new BlockInfo;
+        dumm->level = m;
+        dumm->h = sim.h0 / (1 << dumm->level);
+        int i, j;
+        sim.space_curve->inverse(n, m, i, j);
+        dumm->origin[0] = i * _BS_ * dumm->h;
+        dumm->origin[1] = j * _BS_ * dumm->h;
+        dumm->Z = n;
+        dumm->state = Leave;
+        dumm->changed2 = true;
+        dumm->auxiliary = nullptr;
+        const int TwoPower = 1 << dumm->level;
+        sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
+                                 dumm->index[1]);
+        dumm->index[2] = 0;
+        const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
+        for (int i = -1; i < 2; i++)
+          for (int j = -1; j < 2; j++)
+            dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
+                dumm->level, (dumm->index[0] + i) % Bmax[0],
+                (dumm->index[1] + j) % Bmax[1]);
+        for (int i = 0; i < 2; i++)
+          for (int j = 0; j < 2; j++)
+            dumm->Zchild[i][j] = sim.space_curve->forward(
+                dumm->level + 1, 2 * dumm->index[0] + i,
+                2 * dumm->index[1] + j);
+        dumm->Zparent =
+            (dumm->level == 0)
+                ? 0
+                : sim.space_curve->forward(dumm->level - 1,
+                                           (dumm->index[0] / 2) % Bmax[0],
+                                           (dumm->index[1] / 2) % Bmax[1]);
+        dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
+        dumm->id = dumm->id2;
+        (*BlockInfoAll)[aux] = dumm;
+      }
+    }
+    return getf(BlockInfoAll, m, n);
+  }
+}
 struct Synchronizer {
   bool use_averages;
   const int dim;
@@ -993,7 +1061,7 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  template <typename TGrid> void Setup(TGrid *grid, std::unordered_map<long long, int> *Octree, std::unordered_map<long long, BlockInfo *> *BlockInfoAll, std::vector<BlockInfo> *infos) {
+  template <typename TGrid> void Setup(TGrid *grid0, std::unordered_map<long long, int> *Octree, std::unordered_map<long long, BlockInfo *> *BlockInfoAll, std::vector<BlockInfo> *infos) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
@@ -1011,7 +1079,7 @@ struct Synchronizer {
       myunpacks[i].clear();
     myunpacks.clear();
     std::vector<Range> compass[27];
-    for (BlockInfo &info : grid->infos) {
+    for (BlockInfo &info : *infos) {
       info.halo_id = -1;
       bool xskin =
           info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
@@ -1034,12 +1102,12 @@ struct Synchronizer {
         if (code[1] == yskip && yskin)
           continue;
         int &infoNeiTree =
-            grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+	  Treef(Octree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
           BlockInfo &infoNei =
-              grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
@@ -1052,13 +1120,13 @@ struct Synchronizer {
         } else if (infoNeiTree == -2) {
           Coarsened = true;
           BlockInfo &infoNei =
-              grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank = grid->Tree0(info.level - 1, infoNei.Zparent);
+	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          int infoNeiCoarserrank = Treef(Octree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
-                grid->get(infoNei.level - 1, infoNei.Zparent);
+	      getf(BlockInfoAll, infoNei.level - 1, infoNei.Zparent);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             int Bmax[3] = {sim.bpdx << (info.level - 1),
@@ -1112,7 +1180,7 @@ struct Synchronizer {
           }
         } else if (infoNeiTree == -1) {
           BlockInfo &infoNei =
-              grid->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+	    getf(BlockInfoAll, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -1129,11 +1197,11 @@ struct Synchronizer {
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            int infoNeiFinerrank = grid->Tree0(info.level + 1, nFine);
+            int infoNeiFinerrank = Treef(Octree, info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
-              BlockInfo &infoNeiFiner = grid->get(info.level + 1, nFine);
+              BlockInfo &infoNeiFiner = getf(BlockInfoAll, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
@@ -1216,7 +1284,7 @@ struct Synchronizer {
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((grid->Tree0(a->level, a->Znei[1 + i0][1 + i1])) == -2) {
+                  if ((Treef(Octree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
                     retval = true;
                     break;
                   }
@@ -1275,7 +1343,7 @@ struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      grid->get(info.level, info.Z).halo_id = info.halo_id;
+      getf(BlockInfoAll, info.level, info.Z).halo_id = info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
@@ -1574,74 +1642,6 @@ struct Synchronizer {
       }
   }
 };
-static int &Treef(std::unordered_map<long long, int> *Octree, int m,
-                  long long n) {
-  const long long aux = sim.levels[m] + n;
-  const auto retval = Octree->find(aux);
-  if (retval == Octree->end()) {
-#pragma omp critical
-    {
-      const auto retval1 = Octree->find(aux);
-      if (retval1 == Octree->end()) {
-        (*Octree)[aux] = -3;
-      }
-    }
-    return Treef(Octree, m, n);
-  } else {
-    return retval->second;
-  }
-}
-static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-                       int m, long long n) {
-  const long long aux = sim.levels[m] + n;
-  const auto retval = BlockInfoAll->find(aux);
-  if (retval != BlockInfoAll->end()) {
-    return *retval->second;
-  } else {
-#pragma omp critical
-    {
-      const auto retval1 = BlockInfoAll->find(aux);
-      if (retval1 == BlockInfoAll->end()) {
-        BlockInfo *dumm = new BlockInfo;
-        dumm->level = m;
-        dumm->h = sim.h0 / (1 << dumm->level);
-        int i, j;
-        sim.space_curve->inverse(n, m, i, j);
-        dumm->origin[0] = i * _BS_ * dumm->h;
-        dumm->origin[1] = j * _BS_ * dumm->h;
-        dumm->Z = n;
-        dumm->state = Leave;
-        dumm->changed2 = true;
-        dumm->auxiliary = nullptr;
-        const int TwoPower = 1 << dumm->level;
-        sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
-                                 dumm->index[1]);
-        dumm->index[2] = 0;
-        const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
-        for (int i = -1; i < 2; i++)
-          for (int j = -1; j < 2; j++)
-            dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                dumm->level, (dumm->index[0] + i) % Bmax[0],
-                (dumm->index[1] + j) % Bmax[1]);
-        for (int i = 0; i < 2; i++)
-          for (int j = 0; j < 2; j++)
-            dumm->Zchild[i][j] = sim.space_curve->forward(
-                dumm->level + 1, 2 * dumm->index[0] + i,
-                2 * dumm->index[1] + j);
-        dumm->Zparent =
-            (dumm->level == 0)
-                ? 0
-                : sim.space_curve->forward(dumm->level - 1,
-                                           (dumm->index[0] / 2) % Bmax[0],
-                                           (dumm->index[1] / 2) % Bmax[1]);
-        dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
-        dumm->id = dumm->id2;
-        (*BlockInfoAll)[aux] = dumm;
-      }
-    }
-    return getf(BlockInfoAll, m, n);
-  }
-}
 struct Face {
   BlockInfo *infos[2];
   int icode[2];
