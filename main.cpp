@@ -3902,8 +3902,8 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
 	  int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
 	  int i1 = x + nm[0] * (y);
-          um[2 * i0 + 1 - A] = - m[i1].u[1 - A];
-          um[2 * i0 + A] = m[i1].u[A];
+          um[2 * i0 + 1 - A] = - um[2 * i1 + 1 - A];
+          um[2 * i0 + A] = um[2 * i1 + A];
         }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
@@ -3929,8 +3929,8 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
 	  int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
 	  int i1 = x + nc[0] * (y);
-          uc[2 * i0 + 1 - A] = - c[i1].u[1 - A];
-          uc[2 * i0 + A] = c[i1].u[A];
+          uc[2 * i0 + 1 - A] = - uc[2 * i1 + 1 - A];
+          uc[2 * i0 + A] = uc[2 * i1 + A];
         }
     }
   }
