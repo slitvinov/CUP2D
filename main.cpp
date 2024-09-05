@@ -4737,7 +4737,7 @@ struct PutChiOnGrid {
             chi[j] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
           }
           CHI[j] = std::max(CHI[j], chi[j]);
-          if (o.chi[j] > 0) {
+          if (chi[j] > 0) {
             Real p[2];
             p[0] = info.origin[0] + info.h * (ix + 0.5);
             p[1] = info.origin[1] + info.h * (iy + 0.5);
