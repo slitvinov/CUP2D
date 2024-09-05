@@ -3192,7 +3192,8 @@ struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-static void AddBlock(int dim, Grid *grid, const int level, const long long Z, uint8_t *data) {
+static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
+                     uint8_t *data) {
   grid->_alloc(level, Z);
   BlockInfo &info = grid->get(level, Z);
   memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
@@ -3201,9 +3202,9 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z, ui
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
-	const long long nc =
-	  getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-	grid->Tree0(level + 1, nc) = -2;
+        const long long nc =
+            getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+        grid->Tree0(level + 1, nc) = -2;
       }
   if (level > 0) {
     const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
@@ -3358,99 +3359,103 @@ struct Adaptation {
           if (recv_blocks[r].size() != 0) {
 #pragma omp for
             for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(dim, grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
-                       recv_blocks[r][i].data);
+              AddBlock(dim, grid, recv_blocks[r][i].mn[0],
+                       recv_blocks[r][i].mn[1], recv_blocks[r][i].data);
           }
       }
       grid->FillPos();
     } else {
-      const int right = (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
+      const int right =
+          (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
       const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
       const int my_blocks = grid->infos.size();
       int right_blocks, left_blocks;
       MPI_Request reqs[4];
       MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
-      MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD, &reqs[1]);
+      MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD,
+                &reqs[1]);
       MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD, &reqs[2]);
       MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
       MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
       const int nu = 4;
-      const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
+      const int flux_left =
+          (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
       const int flux_right =
-        (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
+          (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
       std::vector<BlockInfo> SortedInfos = grid->infos;
       if (flux_right != 0 || flux_left != 0)
-	std::sort(SortedInfos.begin(), SortedInfos.end());
+        std::sort(SortedInfos.begin(), SortedInfos.end());
       std::vector<MPI_Block> send_left;
       std::vector<MPI_Block> recv_left;
       std::vector<MPI_Block> send_right;
       std::vector<MPI_Block> recv_right;
       std::vector<MPI_Request> request;
       if (flux_left > 0) {
-	send_left.resize(flux_left);
+        send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
-	for (int i = 0; i < flux_left; i++) {
-	  BlockInfo *info = &SortedInfos[i];
-	  MPI_Block *x = &send_left[i];
-	  x->mn[0] = info->level;
-	  x->mn[1] = info->Z;
-	  std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-	}
-	MPI_Request req{};
-	request.push_back(req);
-	MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
-		  MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
+        for (int i = 0; i < flux_left; i++) {
+          BlockInfo *info = &SortedInfos[i];
+          MPI_Block *x = &send_left[i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+        }
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
+                  MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
       } else if (flux_left < 0) {
-	recv_left.resize(abs(flux_left));
-	MPI_Request req{};
-	request.push_back(req);
-	MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
-		  MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
+        recv_left.resize(abs(flux_left));
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
+                  MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
       }
       if (flux_right > 0) {
-	send_right.resize(flux_right);
+        send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
-	for (int i = 0; i < flux_right; i++) {
-	  BlockInfo *info = &SortedInfos[my_blocks - i - 1];
-	  MPI_Block *x = &send_right[i];
-	  x->mn[0] = info->level;
-	  x->mn[1] = info->Z;
-	  std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-	}
-	MPI_Request req{};
-	request.push_back(req);
-	MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
-		  MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
+        for (int i = 0; i < flux_right; i++) {
+          BlockInfo *info = &SortedInfos[my_blocks - i - 1];
+          MPI_Block *x = &send_right[i];
+          x->mn[0] = info->level;
+          x->mn[1] = info->Z;
+          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+        }
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
+                  MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
       } else if (flux_right < 0) {
-	recv_right.resize(abs(flux_right));
-	MPI_Request req{};
-	request.push_back(req);
-	MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
-		  MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
+        recv_right.resize(abs(flux_right));
+        MPI_Request req{};
+        request.push_back(req);
+        MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
+                  MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
       }
       for (int i = 0; i < flux_right; i++) {
-	BlockInfo &info = SortedInfos[my_blocks - i - 1];
-	grid->_dealloc(info.level, info.Z);
-	grid->Tree0(info.level, info.Z) = right;
+        BlockInfo &info = SortedInfos[my_blocks - i - 1];
+        grid->_dealloc(info.level, info.Z);
+        grid->Tree0(info.level, info.Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
-	BlockInfo &info = SortedInfos[i];
-	grid->_dealloc(info.level, info.Z);
-	grid->Tree0(info.level, info.Z) = left;
+        BlockInfo &info = SortedInfos[i];
+        grid->_dealloc(info.level, info.Z);
+        grid->Tree0(info.level, info.Z) = left;
       }
       if (request.size() != 0) {
-	movedBlocks = true;
-	MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
+        movedBlocks = true;
+        MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
       }
       int temp = movedBlocks ? 1 : 0;
       MPI_Request request_reduction;
       MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-		     &request_reduction);
+                     &request_reduction);
       for (int i = 0; i < -flux_left; i++)
-	AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
+        AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1],
+                 recv_left[i].data);
       for (int i = 0; i < -flux_right; i++)
-	AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
-		 recv_right[i].data);
+        AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
+                 recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
       movedBlocks = (temp >= 1);
       grid->FillPos();
@@ -7393,8 +7398,8 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->prepare0(var.tmp);
-      computeB<pressure_rhs, VectorLab, VectorLab>(
-          pressure_rhs(), *var.vel, 2, *var.tmpV, 2);
+      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel, 2,
+                                                   *var.tmpV, 2);
       var.tmp->FillBlockCases(var.tmpV);
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
