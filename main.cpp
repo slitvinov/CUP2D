@@ -1224,23 +1224,14 @@ template <typename TGrid> struct Synchronizer {
               int imin[2];
               int imax[2];
               const int aux = 1 << a->level;
-              const bool periodic0[2] = {sim.bcx == periodic,
-                                         sim.bcy == periodic};
               const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
               for (int d = 0; d < 2; d++) {
                 imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
                 imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
-                if (periodic0[d]) {
-                  if (a->index[d] == 0 && b->index[d] == blocks[d])
-                    imin[d] = -1;
-                  if (b->index[d] == 0 && a->index[d] == blocks[d])
-                    imax[d] = +1;
-                } else {
-                  if (a->index[d] == 0 && b->index[d] == 0)
-                    imin[d] = 0;
-                  if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
-                    imax[d] = 0;
-                }
+		if (a->index[d] == 0 && b->index[d] == 0)
+		  imin[d] = 0;
+		if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
+		  imax[d] = 0;
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
