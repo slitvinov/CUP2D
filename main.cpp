@@ -3957,22 +3957,22 @@ struct VectorLab : public BlockLab<Vector> {
   void _apply_bc(BlockInfo &info, bool coarse) override {
     if (!coarse) {
       if (info.index[0] == 0)
-        this->template applyBCface<0, 0>(sim.bcx == wall);
+        this->template applyBCface<0, 0>(false);
       if (info.index[0] == this->NX - 1)
-        this->template applyBCface<0, 1>(sim.bcx == wall);
+        this->template applyBCface<0, 1>(false);
       if (info.index[1] == 0)
-        this->template applyBCface<1, 0>(sim.bcy == wall);
+        this->template applyBCface<1, 0>(false);
       if (info.index[1] == this->NY - 1)
-        this->template applyBCface<1, 1>(sim.bcy == wall);
+        this->template applyBCface<1, 1>(false);
     } else {
       if (info.index[0] == 0)
-        this->template applyBCface<0, 0>(sim.bcx == wall, coarse);
+        this->template applyBCface<0, 0>(false, coarse);
       if (info.index[0] == this->NX - 1)
-        this->template applyBCface<0, 1>(sim.bcx == wall, coarse);
+        this->template applyBCface<0, 1>(false, coarse);
       if (info.index[1] == 0)
-        this->template applyBCface<1, 0>(sim.bcy == wall, coarse);
+        this->template applyBCface<1, 0>(false, coarse);
       if (info.index[1] == this->NY - 1)
-        this->template applyBCface<1, 1>(sim.bcy == wall, coarse);
+        this->template applyBCface<1, 1>(false, coarse);
     }
   }
 };
