@@ -6629,6 +6629,8 @@ struct pressure_rhs {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
         faceXm[iy] = facDiv * (velLab(ix - 1, iy).u[0] + velLab(ix, iy).u[0]) -
                      (facDiv * CHI[_BS_ * iy + ix]) *
                          (uDefLab(ix - 1, iy).u[0] + uDefLab(ix, iy).u[0]);
@@ -6637,6 +6639,8 @@ struct pressure_rhs {
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
         faceXp[iy] = -facDiv * (velLab(ix + 1, iy).u[0] + velLab(ix, iy).u[0]) +
                      (facDiv * CHI[_BS_ * iy + ix]) *
                          (uDefLab(ix + 1, iy).u[0] + uDefLab(ix, iy).u[0]);
@@ -6645,6 +6649,8 @@ struct pressure_rhs {
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
         faceYm[ix] = facDiv * (velLab(ix, iy - 1).u[1] + velLab(ix, iy).u[1]) -
                      (facDiv * CHI[_BS_ * iy + ix]) *
                          (uDefLab(ix, iy - 1).u[1] + uDefLab(ix, iy).u[1]);
@@ -6653,6 +6659,8 @@ struct pressure_rhs {
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
         faceYp[ix] = -facDiv * (velLab(ix, iy + 1).u[1] + velLab(ix, iy).u[1]) +
                      (facDiv * CHI[_BS_ * iy + ix]) *
                          (uDefLab(ix, iy + 1).u[1] + uDefLab(ix, iy).u[1]);
