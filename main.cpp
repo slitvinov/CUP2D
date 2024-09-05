@@ -6506,8 +6506,15 @@ struct pressureCorrectionKernel {
     Real *tmpV = (Real *)tmpVInfo[info.id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
-        tmpV[2 * (_BS_ * iy + ix)] = pFac * (P(ix + 1, iy) - P(ix - 1, iy));
-        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (P(ix, iy + 1) - P(ix, iy - 1));
+        int ip0 = ix;// - stencil.sx;
+        int jp0 = iy;// - stencil.sy;
+        int ip1 = ip0 + 1;
+        int jp1 = jp0 + 1;
+        int im1 = ip0 - 1;
+        int jm1 = jp0 - 1;
+        Real *p0 = um + nm * jp0 + ip0;
+        tmpV[2 * (_BS_ * iy + ix)] = pFac * (P(ip1, jp0) - P(im1, jp0));
+        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (P(ip0, jp1) - P(ip0, jm1));
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
     Vector *faceXm = nullptr;
