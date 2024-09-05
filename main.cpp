@@ -4801,11 +4801,10 @@ static void ongrid(Real dt) {
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
-    for (int x = 0; x < _BS_; x++)
-      for (int y = 0; y < _BS_; y++) {
-        (*(ScalarBlock *)chiInfo[i].block)[x][y] = 0;
-        (*(ScalarBlock *)tmpInfo[i].block)[x][y] = -1;
-      }
+    for (int j = 0; j < _BS_ * _BS_; j++)  {
+      *((Real *)chiInfo[i].block + j) = 0;
+      *((Real *)tmpInfo[i].block + j) = -1;
+    }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
