@@ -3223,7 +3223,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   bool done = false;
 #pragma omp parallel
   {
-    Lab lab(dim);
+    Lab lab;
     lab.prepare(g, kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
@@ -3250,8 +3250,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename LabMPI, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
-                     int dim2) {
+static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
   Synchronizer &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -3271,8 +3270,8 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
   std::vector<BlockInfo *> avail12;
 #pragma omp parallel
   {
-    LabMPI lab(dim1);
-    LabMPI2 lab2(dim2);
+    LabMPI lab;
+    LabMPI2 lab2;
     lab.prepare(&grid, stencil);
     lab2.prepare(&grid2, stencil2);
 #pragma omp for
@@ -3308,7 +3307,7 @@ static void computeB(const Kernel &kernel, Grid &grid, int dim1, Grid &grid2,
 }
 typedef Real ScalarBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab {
-  VectorLab(int dim) : BlockLab(dim) {}
+  VectorLab() : BlockLab(2) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
@@ -3389,7 +3388,7 @@ struct VectorLab : public BlockLab {
   }
 };
 struct ScalarLab : public BlockLab {
-  ScalarLab(int dim) : BlockLab(dim){};
+  ScalarLab() : BlockLab(1){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
   template <int dir, int side> void Neumann2D(bool coarse) {
@@ -4687,7 +4686,7 @@ static void ongrid(Real dt) {
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(
-      ComputeSurfaceNormals(), *var.chi, 1, *var.tmp, 1);
+      ComputeSurfaceNormals(), *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -5135,9 +5134,9 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     if (dim == 1) {
-      lab = new ScalarLab(1);
+      lab = new ScalarLab;
     } else {
-      lab = new VectorLab(2);
+      lab = new VectorLab;
     }
     g->basic_refinement = basic;
     Synchronizer *Synch = nullptr;
@@ -7381,8 +7380,8 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->prepare0(var.tmp);
-      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel, 2,
-                                                   *var.tmpV, 2);
+      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel,
+                                                   *var.tmpV);
       var.tmp->FillBlockCases(var.tmpV);
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
@@ -7437,7 +7436,7 @@ int main(int argc, char **argv) {
           V[j] += tmpV[j] * ih2;
       }
       computeB<KernelComputeForces, VectorLab, ScalarLab>(
-          KernelComputeForces(), *var.vel, 2, *var.chi, 1);
+          KernelComputeForces(), *var.vel, *var.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
