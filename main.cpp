@@ -5689,7 +5689,7 @@ static void adapt() {
   lab = new VectorLab(2), var.vold_amr->Adapt(var.vold, lab, false), delete lab;
   lab = new ScalarLab(1), var.pres_amr->Adapt(var.pres, lab, false), delete lab;
   lab = new ScalarLab(1), var.pold_amr->Adapt(var.pold, lab, false), delete lab;
-  lab = new VectorLab(1), var.tmpV_amr->Adapt(var.tmpV, lab, true), delete lab;
+  lab = new VectorLab(2), var.tmpV_amr->Adapt(var.tmpV, lab, true), delete lab;
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
