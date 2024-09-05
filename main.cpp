@@ -3925,10 +3925,10 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
           const int y =
               (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-          c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[1 - A] =
-              (-1.0) * c[x + nc[0] * (y)].u[1 - A];
-          c[ix - stenBeg[0] + nc[0] * (iy - stenBeg[1])].u[A] =
-              c[x + nc[0] * (y)].u[A];
+	  int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
+	  int i1 = x + nc[0] * (y);
+          c[i0].u[1 - A] = - c[i1].u[1 - A];
+          c[i0].u[A] = c[i1].u[A];
         }
     }
   }
