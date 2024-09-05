@@ -6520,15 +6520,15 @@ struct pressureCorrectionKernel {
         tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (*p2 - *p3);
       }
     BlockCase *tempCase = tmpVInfo[info.id].auxiliary;
-    Vector *faceXm = nullptr;
-    Vector *faceXp = nullptr;
-    Vector *faceYm = nullptr;
-    Vector *faceYp = nullptr;
+    Real *faceXm = nullptr;
+    Real *faceXp = nullptr;
+    Real *faceYm = nullptr;
+    Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Vector *)tempCase->d[0];
-      faceXp = (Vector *)tempCase->d[1];
-      faceYm = (Vector *)tempCase->d[2];
-      faceYp = (Vector *)tempCase->d[3];
+      faceXm = (Real *)tempCase->d[0];
+      faceXp = (Real *)tempCase->d[1];
+      faceYm = (Real *)tempCase->d[2];
+      faceYp = (Real *)tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6538,8 +6538,8 @@ struct pressureCorrectionKernel {
         int im1 = ip0 - 1;
         Real *p0 = um + nm * jp0 + ip0;
         Real *p1 = um + nm * jp0 + im1;
-        faceXm[iy].u[0] = pFac * (*p1 + *p0);
-        faceXm[iy].u[1] = 0;
+        faceXm[2 * iy] = pFac * (*p1 + *p0);
+        faceXm[2 * iy + 1] = 0;
       }
     }
     if (faceXp != nullptr) {
@@ -6550,8 +6550,8 @@ struct pressureCorrectionKernel {
         int ip1 = ip0 + 1;
         Real *p0 = um + nm * jp0 + ip0;
         Real *p1 = um + nm * jp0 + ip1;
-        faceXp[iy].u[0] = -pFac * (*p1 + *p0);
-        faceXp[iy].u[1] = 0;
+        faceXp[2 * iy] = -pFac * (*p1 + *p0);
+        faceXp[2 * iy + 1] = 0;
       }
     }
     if (faceYm != nullptr) {
@@ -6562,8 +6562,8 @@ struct pressureCorrectionKernel {
         int jm1 = jp0 - 1;
         Real *p0 = um + nm * jp0 + ip0;
         Real *p1 = um + nm * jm1 + ip0;
-        faceYm[ix].u[0] = 0;
-        faceYm[ix].u[1] = pFac * (*p1 + *p0);
+        faceYm[2 * ix] = 0;
+        faceYm[2 * ix + 1] = pFac * (*p1 + *p0);
       }
     }
     if (faceYp != nullptr) {
@@ -6574,8 +6574,8 @@ struct pressureCorrectionKernel {
         int jp1 = jp0 + 1;
         Real *p0 = um + nm * jp0 + ip0;
         Real *p1 = um + nm * jp1 + ip0;
-        faceYp[ix].u[0] = 0;
-        faceYp[ix].u[1] = -pFac * (*p1 + *p0);
+        faceYp[2 * ix] = 0;
+        faceYp[2 * ix + 1] = -pFac * (*p1 + *p0);
       }
     }
   }
