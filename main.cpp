@@ -2395,12 +2395,6 @@ template <typename Element> struct BlockLab {
     free(m);
     free(c);
   }
-
-  const Element &operator()(int x, int y) const {
-    x -= start[0];
-    y -= start[1];
-    return m[nm[0] * y + x];
-  }
   void prepare(Grid *grid, const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
