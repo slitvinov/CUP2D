@@ -5675,12 +5675,14 @@ static void adapt() {
 
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     BlockLab *lab;
+    Grid *grid = (*var.F[i].g);
+    bool basic = var.F[i].basic;
     if (var.F[i].dim == 1) {
       lab = new ScalarLab(1);
     } else {
       lab = new VectorLab(2);
     }
-    (*var.F[i].a)->Adapt((*var.F[i].g), lab, var.F[i].basic);
+    (*var.F[i].a)->Adapt(grid, lab, basic);
     delete lab;
   }
 }
