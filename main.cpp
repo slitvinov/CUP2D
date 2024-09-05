@@ -3993,13 +3993,10 @@ static struct {
     int dim;
     bool basic;
   } F[7] = {
-	    {&chi, &chi_amr, 1, false},
-	    {&pold, &pold_amr, 1, false},
-	    {&pres, &pres_amr, 1, false},
-	    {&tmp, &tmp_amr, 1, false},
-	    {&tmpV, &tmpV_amr, 2, true},
-	    {&vel, &vel_amr, 2, false},
-	    {&vold, &vold_amr, 2, false},
+      {&chi, &chi_amr, 1, false},   {&pold, &pold_amr, 1, false},
+      {&pres, &pres_amr, 1, false}, {&tmp, &tmp_amr, 1, false},
+      {&tmpV, &tmpV_amr, 2, true},  {&vel, &vel_amr, 2, false},
+      {&vold, &vold_amr, 2, false},
   };
 } var;
 typedef Real UDEFMAT[_BS_][_BS_][2];
@@ -5675,14 +5672,12 @@ static void adapt() {
 
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     BlockLab *lab;
-    int dim;
-    dim = var.F[i].dim;
-    if (dim == 1) {
+    if (var.F[i].dim == 1) {
       lab = new ScalarLab(1);
     } else {
       lab = new VectorLab(2);
     }
-    (*var.F[i].a)->Adapt(var.tmp, lab, var.F[i].basic);
+    (*var.F[i].a)->Adapt(var.F[i].g, lab, var.F[i].basic);
     delete lab;
   }
   /*
