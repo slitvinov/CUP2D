@@ -7060,20 +7060,21 @@ int main(int argc, char **argv) {
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
         for (size_t i = 0; i < velInfo.size(); i++) {
-          const VectorBlock &VEL = *(VectorBlock *)velInfo[i].block;
+          const Real *VEL = (Real *)velInfo[i].block;
           const Real hsq = velInfo[i].h * velInfo[i].h;
           if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
-          const ScalarBlock &chi = OBLOCK[velInfo[i].id]->chi;
-          const UDEFMAT &udef = OBLOCK[velInfo[i].id]->udef;
+          const Real *chi = (Real*)OBLOCK[velInfo[i].id]->chi;
+          const Real *udef = (Real*)OBLOCK[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              if (chi[iy][ix] <= 0)
+	      int j = _BS_ * iy + ix;
+              if (chi[j] <= 0)
                 continue;
-              const Real udiff[2] = {VEL[iy][ix].u[0] - udef[iy][ix][0],
-                                     VEL[iy][ix].u[1] - udef[iy][ix][1]};
-              const Real Xlamdt = chi[iy][ix] >= 0.5 ? lambdt : 0.0;
+              const Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
+                                     VEL[2 * j + 1] - udef[2 * j + 1]};
+              const Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
               const Real F = hsq * Xlamdt / (1 + Xlamdt);
               Real p[2];
               p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
