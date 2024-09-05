@@ -1662,7 +1662,6 @@ struct Grid {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   bool movedBlocks;
-  StencilInfo stencil;
   bool CallValidStates;
   bool boundary_needed;
   bool basic_refinement;
@@ -4874,7 +4873,8 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel, 2);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp->boundary_needed = true;
-  Synchronizer<Grid> *Synch = var.tmp->sync1(var.tmp->stencil);
+  StencilInfo stencil{-1, -1, 2, 2, true};
+  Synchronizer<Grid> *Synch = var.tmp->sync1(stencil);
   var.tmp->CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -5140,7 +5140,8 @@ static void adapt() {
     g->basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
-      Synch = g->sync1(g->stencil);
+      StencilInfo stencil{-1, -1, 2, 2, true};
+      Synch = g->sync1(stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
@@ -6905,11 +6906,6 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g;
     g->boundary_needed = false;
-    g->stencil.sx = -1;
-    g->stencil.sy = -1;
-    g->stencil.ex = 2;
-    g->stencil.ey = 2;
-    g->stencil.tensorial = true;
   }
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
