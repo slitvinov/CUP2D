@@ -2994,9 +2994,9 @@ template <typename Element> struct BlockLab {
       int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
       if (code[2] != 0)
         continue;
-      if (sim.bcx != periodic && code[0] == xskip && xskin)
+      if (code[0] == xskip && xskin)
         continue;
-      if (sim.bcy != periodic && code[1] == yskip && yskin)
+      if (code[1] == yskip && yskin)
         continue;
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
