@@ -6637,8 +6637,7 @@ struct pressure_rhs {
         Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
         Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
         faceXm[iy] =
-            facDiv * (velLab(ix - 1, iy).u[0] + *v0) -
-            (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix - 1, iy).u[0] + *u0);
+            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
       }
     }
     if (faceXp != nullptr) {
@@ -6651,9 +6650,8 @@ struct pressure_rhs {
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
         Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
         Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
-        faceXp[iy] =
-            -facDiv * (velLab(ix + 1, iy).u[0] + *v0) +
-            (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix + 1, iy).u[0] + *u0);
+        faceXp[iy] = -facDiv * (*v1 + *v0) +
+                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
       }
     }
     if (faceYm != nullptr) {
@@ -6667,8 +6665,7 @@ struct pressure_rhs {
         Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
         Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
         faceYm[ix] =
-            facDiv * (velLab(ix, iy - 1).u[1] + *v0) -
-            (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix, iy - 1).u[1] + *u0);
+            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
       }
     }
     if (faceYp != nullptr) {
@@ -6681,9 +6678,8 @@ struct pressure_rhs {
         Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
         Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
         Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
-        faceYp[ix] =
-            -facDiv * (velLab(ix, iy + 1).u[1] + *v0) +
-            (facDiv * CHI[_BS_ * iy + ix]) * (uDefLab(ix, iy + 1).u[1] + *u0);
+        faceYp[ix] = -facDiv * (*v1 + *v0) +
+                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
       }
     }
   }
