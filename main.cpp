@@ -3192,6 +3192,24 @@ struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
+static void AddBlock(int dim, Grid *grid, const int level, const long long Z, uint8_t *data) {
+  grid->_alloc(level, Z);
+  BlockInfo &info = grid->get(level, Z);
+  memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
+  int p[2];
+  sim.space_curve->inverse(Z, level, p[0], p[1]);
+  if (level < sim.levelMax - 1)
+    for (int j1 = 0; j1 < 2; j1++)
+      for (int i1 = 0; i1 < 2; i1++) {
+	const long long nc =
+	  getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+	grid->Tree0(level + 1, nc) = -2;
+      }
+  if (level > 0) {
+    const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+    grid->Tree0(level - 1, nf) = -1;
+  }
+}
 struct Adaptation {
   bool movedBlocks;
   const int dim;
@@ -3205,24 +3223,6 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-  void AddBlock(Grid *grid, const int level, const long long Z, uint8_t *data) {
-    grid->_alloc(level, Z);
-    BlockInfo &info = grid->get(level, Z);
-    memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
-    int p[2];
-    sim.space_curve->inverse(Z, level, p[0], p[1]);
-    if (level < sim.levelMax - 1)
-      for (int j1 = 0; j1 < 2; j1++)
-        for (int i1 = 0; i1 < 2; i1++) {
-          const long long nc =
-              getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-          grid->Tree0(level + 1, nc) = -2;
-        }
-    if (level > 0) {
-      const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
-      grid->Tree0(level - 1, nf) = -1;
-    }
-  }
   void Balance_Diffusion(Grid *grid,
                          std::vector<long long> &block_distribution) {
     movedBlocks = false;
@@ -3358,7 +3358,7 @@ struct Adaptation {
           if (recv_blocks[r].size() != 0) {
 #pragma omp for
             for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
+              AddBlock(dim, grid, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
                        recv_blocks[r][i].data);
           }
       }
@@ -3448,9 +3448,9 @@ struct Adaptation {
     MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &request_reduction);
     for (int i = 0; i < -flux_left; i++)
-      AddBlock(grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
+      AddBlock(dim, grid, recv_left[i].mn[0], recv_left[i].mn[1], recv_left[i].data);
     for (int i = 0; i < -flux_right; i++)
-      AddBlock(grid, recv_right[i].mn[0], recv_right[i].mn[1],
+      AddBlock(dim, grid, recv_right[i].mn[0], recv_right[i].mn[1],
                recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp >= 1);
