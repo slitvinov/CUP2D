@@ -3898,10 +3898,10 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
           const int y =
               (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-          m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[1 - A] =
-              (-1.0) * m[x + nm[0] * (y)].u[1 - A];
-          m[ix - stenBeg[0] + nm[0] * (iy - stenBeg[1])].u[A] =
-              m[x + nm[0] * (y)].u[A];
+	  int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
+	  int i1 = x + nm[0] * (y);
+          m[i0].u[1 - A] = - m[i1].u[1 - A];
+          m[i0].u[A] = m[i1].u[A];
         }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
