@@ -6533,6 +6533,9 @@ struct pressureCorrectionKernel {
     if (faceXm != nullptr) {
       int ix = 0;
       for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int im1 = ip0 - 1;
         faceXm[iy].u[0] = pFac * (P(ix - 1, iy) + P(ix, iy));
         faceXm[iy].u[1] = 0;
       }
@@ -6540,6 +6543,9 @@ struct pressureCorrectionKernel {
     if (faceXp != nullptr) {
       int ix = _BS_ - 1;
       for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
         faceXp[iy].u[0] = -pFac * (P(ix + 1, iy) + P(ix, iy));
         faceXp[iy].u[1] = 0;
       }
@@ -6547,6 +6553,9 @@ struct pressureCorrectionKernel {
     if (faceYm != nullptr) {
       int iy = 0;
       for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jm1 = jp0 - 1;
         faceYm[ix].u[0] = 0;
         faceYm[ix].u[1] = pFac * (P(ix, iy - 1) + P(ix, iy));
       }
@@ -6554,6 +6563,9 @@ struct pressureCorrectionKernel {
     if (faceYp != nullptr) {
       int iy = _BS_ - 1;
       for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jp1 = jp0 + 1;
         faceYp[ix].u[0] = 0;
         faceYp[ix].u[1] = -pFac * (P(ix, iy + 1) + P(ix, iy));
       }
