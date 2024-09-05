@@ -1720,7 +1720,7 @@ struct Grid {
         base = (0) + (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = Tree0(F.infos[0]->level, F.infos[0]->Z);
+      int r = Treef(&Octree, F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
