@@ -6291,9 +6291,6 @@ struct PoissonSolver {
       isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
       isBoundary[2] = (rhs_info.index[1] == 0);
       isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
-      std::array<bool, 2> isPeriodic;
-      isPeriodic[0] = (sim.bcx == periodic);
-      isPeriodic[1] = (sim.bcy == periodic);
       std::array<const BlockInfo *, 4> rhsNei;
       rhsNei[0] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]));
       rhsNei[1] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]));
@@ -6328,7 +6325,7 @@ struct PoissonSolver {
               if (validNei[j]) {
                 row.mapColVal(idxNei[j], 1);
                 row.mapColVal(sfc_idx, -1);
-              } else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j / 2]))
+              } else if (!isBoundary[j])
                 this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j],
                                row);
             }
