@@ -3221,7 +3221,7 @@ struct Adaptation {
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Adaptation(int dim) : dim(dim) { movedBlocks = false; }
-  template <typename TLab> void Adapt(Grid *grid, bool basic) {
+  template <typename TLab> void Adapt(Grid *grid, TLab &&lab, bool basic) {
     basic_refinement = basic;
     Synchronizer<Grid> *Synch = nullptr;
     if (basic == false) {
@@ -3266,16 +3266,15 @@ struct Adaptation {
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     dealloc_IDs.clear();
-    TLab *lab = new TLab(dim);
     if (Synch != nullptr)
-      lab->prepare(grid, Synch->stencil);
+      lab.prepare(grid, Synch->stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
       BlockInfo &parent = grid->get(level, Z);
       parent.state = Leave;
       if (basic_refinement == false)
-        lab->load(grid, Synch, parent, true);
+        lab.load(grid, Synch, parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -3294,7 +3293,7 @@ struct Adaptation {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
-        Real *um = (Real *)lab->m;
+        Real *um = (Real *)lab.m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             void *bb = Blocks[J * 2 + I];
@@ -3344,7 +3343,6 @@ struct Adaptation {
           }
       }
     }
-    delete lab;
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
@@ -5669,13 +5667,13 @@ static void adapt() {
       }
     }
   }
-  var.tmp_amr->Adapt<ScalarLab>(var.tmp, false);
-  var.chi_amr->Adapt<ScalarLab>(var.chi, false);
-  var.vel_amr->Adapt<VectorLab>(var.vel, false);
-  var.vold_amr->Adapt<VectorLab>(var.vold, false);
-  var.pres_amr->Adapt<ScalarLab>(var.pres, false);
-  var.pold_amr->Adapt<ScalarLab>(var.pold, false);
-  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, true);
+  var.tmp_amr->Adapt<ScalarLab>(var.tmp, ScalarLab(1), false);
+  var.chi_amr->Adapt<ScalarLab>(var.chi, ScalarLab(1), false);
+  var.vel_amr->Adapt<VectorLab>(var.vel, VectorLab(2), false);
+  var.vold_amr->Adapt<VectorLab>(var.vold, VectorLab(2), false);
+  var.pres_amr->Adapt<ScalarLab>(var.pres, ScalarLab(1), false);
+  var.pold_amr->Adapt<ScalarLab>(var.pold, ScalarLab(1), false);
+  var.tmpV_amr->Adapt<VectorLab>(var.tmpV, VectorLab(2), true);
 }
 struct KernelAdvectDiffuse {
   StencilInfo stencil{-3, -3, 4, 4, true};
