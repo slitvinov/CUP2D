@@ -3881,8 +3881,8 @@ struct VectorLab : public BlockLab<Vector> {
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
-    Real *um = (Real*)m;
-    Real *uc = (Real*)c;
+    Real *um = (Real *)m;
+    Real *uc = (Real *)c;
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -3900,9 +3900,9 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
           const int y =
               (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-	  int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
-	  int i1 = x + nm[0] * (y);
-          um[2 * i0 + 1 - A] = - um[2 * i1 + 1 - A];
+          int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
+          int i1 = x + nm[0] * (y);
+          um[2 * i0 + 1 - A] = -um[2 * i1 + 1 - A];
           um[2 * i0 + A] = um[2 * i1 + A];
         }
     } else {
@@ -3927,9 +3927,9 @@ struct VectorLab : public BlockLab<Vector> {
               (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
           const int y =
               (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-	  int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
-	  int i1 = x + nc[0] * (y);
-          uc[2 * i0 + 1 - A] = - uc[2 * i1 + 1 - A];
+          int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
+          int i1 = x + nc[0] * (y);
+          uc[2 * i0 + 1 - A] = -uc[2 * i1 + 1 - A];
           uc[2 * i0 + A] = uc[2 * i1 + A];
         }
     }
@@ -6957,16 +6957,16 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < velInfo.size(); i++) {
       if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
         continue;
-      UDEFMAT &udef = OBLOCK[var.tmpV->infos[i].id]->udef;
-      ScalarBlock &chi = OBLOCK[var.tmpV->infos[i].id]->chi;
-      auto &UDEF = *(VectorBlock *)var.tmpV->infos[i].block;
-      ScalarBlock &CHI = *(ScalarBlock *)var.chi->infos[i].block;
+      Real *udef = (Real *)OBLOCK[var.tmpV->infos[i].id]->udef;
+      Real *chi = (Real *)OBLOCK[var.tmpV->infos[i].id]->chi;
+      Real *UDEF = (Real *)var.tmpV->infos[i].block;
+      Real *CHI = (Real *)var.chi->infos[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          if (chi[iy][ix] < CHI[iy][ix])
+          if (chi[_BS_ * iy + ix] < CHI[_BS_ * iy + ix])
             continue;
-          UDEF[iy][ix].u[0] += udef[iy][ix][0];
-          UDEF[iy][ix].u[1] += udef[iy][ix][1];
+          UDEF[2 * (_BS_ * iy + ix) + 0] += udef[2 * (_BS_ * iy + ix) + 0];
+          UDEF[2 * (_BS_ * iy + ix) + 1] += udef[2 * (_BS_ * iy + ix) + 1];
         }
     }
   }
