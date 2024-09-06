@@ -3607,7 +3607,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
-  attr = (float *)malloc(2 * ncell * sizeof *xyz);
+  attr = (float *)malloc(2 * ncell * sizeof *attr);
   k = 0;
   l = 0;
   for (i = 0; i < nblock; i++) {
@@ -3642,8 +3642,8 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
   free(xyz);
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, offset * sizeof *attr, attr,
-                        ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(mpi_file, 2 * offset * sizeof *attr, attr,
+                        2 * ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(attr);
 }
