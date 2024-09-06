@@ -2300,7 +2300,9 @@ struct Grid {
     return s;
   }
   int &Tree0(const int m, const long long n) { return Treef(&Octree, m, n); }
-  int &Tree1(const BlockInfo &info) { return Treef(&Octree, info.level, info.Z); }
+  int &Tree1(const BlockInfo &info) {
+    return Treef(&Octree, info.level, info.Z);
+  }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = get(level, Z);
     new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
@@ -4515,9 +4517,8 @@ static void ongrid(Real dt) {
           const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
           const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
           const Real *const width = shape->width;
-          static constexpr int BS[2] = {_BS_, _BS_};
-          std::fill(o->dist[0], o->dist[0] + BS[1] * BS[0], -1);
-          std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+          std::fill(o->dist[0], o->dist[0] + _BS_ * _BS_, -1);
+          std::fill(o->chi[0], o->chi[0] + _BS_ * _BS_, 0);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
@@ -4530,9 +4531,9 @@ static void ongrid(Real dt) {
                 putfish.changeToComputationalFrame(myP);
                 const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
                                     (int)std::floor((myP[1] - org[1]) * invh)};
-                if (iap[0] + 3 <= 0 || iap[0] - 1 >= BS[0])
+                if (iap[0] + 3 <= 0 || iap[0] - 1 >= _BS_)
                   continue;
-                if (iap[1] + 3 <= 0 || iap[1] - 1 >= BS[1])
+                if (iap[1] + 3 <= 0 || iap[1] - 1 >= _BS_)
                   continue;
                 Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
                               rY[ss + 1] +
@@ -4547,9 +4548,9 @@ static void ongrid(Real dt) {
                     vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
                 putfish.changeVelocityToComputationalFrame(udef);
                 for (int sy = std::max(0, iap[1] - 2);
-                     sy < std::min(iap[1] + 4, BS[1]); ++sy)
+                     sy < std::min(iap[1] + 4, _BS_); ++sy)
                   for (int sx = std::max(0, iap[0] - 2);
-                       sx < std::min(iap[0] + 4, BS[0]); ++sx) {
+                       sx < std::min(iap[0] + 4, _BS_); ++sx) {
                     Real p[2];
                     p[0] = info.origin[0] + info.h * (sx + 0.5);
                     p[1] = info.origin[1] + info.h * (sy + 0.5);
@@ -4630,9 +4631,9 @@ static void ongrid(Real dt) {
                 xp[1] = (xp[1] - org[1]) * invh;
                 const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
                 const int iap[2] = {(int)ap[0], (int)ap[1]};
-                if (iap[0] + 2 <= 0 || iap[0] >= BS[0])
+                if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
                   continue;
-                if (iap[1] + 2 <= 0 || iap[1] >= BS[1])
+                if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
                   continue;
                 Real udef[2] = {shape->vX[ss] + offsetW * shape->vNorX[ss],
                                 shape->vY[ss] + offsetW * shape->vNorY[ss]};
@@ -4645,9 +4646,9 @@ static void ongrid(Real dt) {
                   wghts[c][1] = 1 - t[1];
                 }
                 for (int idy = std::max(0, iap[1]);
-                     idy < std::min(iap[1] + 2, BS[1]); ++idy)
+                     idy < std::min(iap[1] + 2, _BS_); ++idy)
                   for (int idx = std::max(0, iap[0]);
-                       idx < std::min(iap[0] + 2, BS[0]); ++idx) {
+                       idx < std::min(iap[0] + 2, _BS_); ++idx) {
                     const int sx = idx - iap[0], sy = idy - iap[1];
                     const Real wxwy = wghts[1][sy] * wghts[0][sx];
                     assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
@@ -4675,7 +4676,7 @@ static void ongrid(Real dt) {
               b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
               ;
             }
-          std::fill(o->chi[0], o->chi[0] + BS[1] * BS[0], 0);
+          std::fill(o->chi[0], o->chi[0] + _BS_ * _BS_, 0);
         }
       }
     }
@@ -4685,8 +4686,8 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
-  computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(
-      ComputeSurfaceNormals(), *var.chi, *var.tmp);
+  computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(ComputeSurfaceNormals(),
+                                                        *var.chi, *var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -7434,8 +7435,8 @@ int main(int argc, char **argv) {
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] += tmpV[j] * ih2;
       }
-      computeB<KernelComputeForces, VectorLab, ScalarLab>(
-          KernelComputeForces(), *var.vel, *var.chi);
+      computeB<KernelComputeForces, VectorLab, ScalarLab>(KernelComputeForces(),
+                                                          *var.vel, *var.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
