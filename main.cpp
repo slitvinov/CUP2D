@@ -2270,14 +2270,12 @@ struct Grid {
     }
   }
   bool Intersect0(double *l1, double *h1, double *l2, double *h2) {
-    const Real intersect[3][2] = {
+    const Real intersect[2][2] = {
         {std::max(l1[0], l2[0]), std::min(h1[0], h2[0])},
-        {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])},
-        {std::max(l1[2], l2[2]), std::min(h1[2], h2[2])}};
-    bool intersection[3];
+        {std::max(l1[1], l2[1]), std::min(h1[1], h2[1])}};
+    bool intersection[2];
     intersection[0] = intersect[0][1] - intersect[0][0] > 0.0;
     intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
-    intersection[2] = true;
     for (int d = 0; d < 2; d++) {
       if (!intersection[d])
         return false;
