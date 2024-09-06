@@ -970,20 +970,22 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0) ? 0
-                        : (((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = (code[1] == 0) ? 0
-                        : (((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = (code[0] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[0] % 2 == 0) &&
+                                (Cindex_true[0] > f.infos[1]->index[0])) ||
+                               ((f.infos[1]->index[0] % 2 == 1) &&
+                                (Cindex_true[0] < f.infos[1]->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = (code[1] == 0)
+                            ? 0
+                            : (((f.infos[1]->index[1] % 2 == 0) &&
+                                (Cindex_true[1] > f.infos[1]->index[1])) ||
+                               ((f.infos[1]->index[1] % 2 == 1) &&
+                                (Cindex_true[1] < f.infos[1]->index[1])))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -3094,20 +3096,22 @@ struct BlockLab {
     int base[2] = {(info.index[0] + code[0]) % 2,
                    (info.index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3589,10 +3593,11 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
             "       </DataItem>\n"
             "     </Geometry>\n"
             "       <Attribute\n"
+            "           AttributeType=\"Vector\"\n"
             "           Name=\"vort\"\n"
             "           Center=\"Cell\">\n"
             "         <DataItem\n"
-            "             Dimensions=\"%ld\"\n"
+            "             Dimensions=\"2 %ld\"\n"
             "             Format=\"Binary\">\n"
             "           %s\n"
             "         </DataItem>\n"
@@ -3605,10 +3610,9 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
-  attr = (float *)malloc(ncell * sizeof *xyz);
+  attr = (float *)malloc(2 * ncell * sizeof *xyz);
   k = 0;
   l = 0;
-  sum = 0;
   for (i = 0; i < nblock; i++) {
     BlockInfo &info = infos[i];
     Real *b = (Real *)info.block;
@@ -3629,12 +3633,10 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v1;
         xyz[k++] = u1;
         xyz[k++] = v0;
-        attr[l++] = b[j];
-        sum += b[j];
-        j++;
+        attr[l++] = b[j++];
+        attr[l++] = b[j++];
       }
   }
-  printf("main.cpp: %d: %8.3e\n", sim.rank, sum / (_BS_ * _BS_ * nblock));
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz,
@@ -6975,10 +6977,9 @@ int main(int argc, char **argv) {
       bool bDump = stepDump || timeDump;
       if (bDump) {
         sim.nextDumpTime += sim.dumpTime;
-        computeA<VectorLab>(KernelVorticity(), var.vel, 2);
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);
-        dump(sim.time, var.tmp->infos.size(), var.tmp->infos.data(), path);
+        dump(sim.time, var.vel->infos.size(), var.vel->infos.data(), path);
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
         adapt();
