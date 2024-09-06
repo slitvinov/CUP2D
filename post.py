@@ -18,10 +18,10 @@ def plot(path):
     png_path = path + ".png"
     root = xml.etree.ElementTree.parse(xdmf_path)
     time = root.find("Domain/Grid/Time").get("Value")
-    xyz = np.memmap(xyz_path, dtype)
+    xyz = np.memmap(xyz_path, dtype, "r")
     ncell = xyz.size // (2 * 4)
     assert ncell * 2 * 4 == xyz.size
-    attr = np.memmap(attr_path, dtype)
+    attr = np.memmap(attr_path, dtype, "r")
     attr = attr.reshape((ncell, -1))
     patches = []
     for i in range(ncell):
@@ -35,8 +35,8 @@ def plot(path):
     plt.axis("scaled")
     plt.axis("off")
     p = matplotlib.collections.PatchCollection(patches)
-    p.set_clim(-10, 10)
-    p.set_array(attr[:, 0])
+    color = np.sum(attr**2, 1)
+    p.set_array(color)
     plt.gca().add_collection(p)
     plt.tight_layout()
     plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
