@@ -6841,7 +6841,6 @@ int main(int argc, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     g->timestamp = 0;
   }
-  std::vector<BlockInfo> &velInfo = var.vel->infos;
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -6898,6 +6897,7 @@ int main(int argc, char **argv) {
     }
   }
   PoissonSolver pressureSolver;
+  std::vector<BlockInfo> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
     for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
