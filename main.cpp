@@ -805,26 +805,22 @@ static void fill(BlockInfo *b, int m, long long Z) {
   b->changed2 = true;
   b->auxiliary = nullptr;
   const int TwoPower = 1 << b->level;
-  sim.space_curve->inverse(b->Z, b->level, b->index[0],
-			   b->index[1]);
+  sim.space_curve->inverse(b->Z, b->level, b->index[0], b->index[1]);
   b->index[2] = 0;
   const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
   for (int i = -1; i < 2; i++)
     for (int j = -1; j < 2; j++)
       b->Znei[i + 1][j + 1] = sim.space_curve->forward(
-							  b->level, (b->index[0] + i) % Bmax[0],
-							  (b->index[1] + j) % Bmax[1]);
+          b->level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++)
       b->Zchild[i][j] = sim.space_curve->forward(
-						    b->level + 1, 2 * b->index[0] + i,
-						    2 * b->index[1] + j);
+          b->level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
   b->Zparent =
-    (b->level == 0)
-    ? 0
-    : sim.space_curve->forward(b->level - 1,
-			       (b->index[0] / 2) % Bmax[0],
-			       (b->index[1] / 2) % Bmax[1]);
+      (b->level == 0)
+          ? 0
+          : sim.space_curve->forward(b->level - 1, (b->index[0] / 2) % Bmax[0],
+                                     (b->index[1] / 2) % Bmax[1]);
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
@@ -840,7 +836,7 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
       const auto retval1 = BlockInfoAll->find(aux);
       if (retval1 == BlockInfoAll->end()) {
         BlockInfo *dumm = new BlockInfo;
-	fill(dumm, m, Z);
+        fill(dumm, m, Z);
         (*BlockInfoAll)[aux] = dumm;
       }
     }
@@ -6814,9 +6810,12 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
     for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = getf(&g->BlockInfoAll, sim.levelStart, n_start + i);
-      new_info.block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
-      g->infos.push_back(new_info);
+      int Z = n_start + i;
+      long long aux = sim.levels[sim.levelStart] + Z;
+      BlockInfo *info = g->BlockInfoAll[aux] = new BlockInfo;
+      fill(info, sim.levelStart, Z);
+      info->block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
+      g->infos.push_back(*info);
       g->Octree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
       sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
