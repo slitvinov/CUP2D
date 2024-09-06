@@ -3594,7 +3594,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
             "           Name=\"vort\"\n"
             "           Center=\"Cell\">\n"
             "         <DataItem\n"
-            "             Dimensions=\"2 %ld\"\n"
+            "             Dimensions=\"3 %ld\"\n"
             "             Format=\"Binary\">\n"
             "           %s\n"
             "         </DataItem>\n"
