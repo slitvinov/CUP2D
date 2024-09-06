@@ -1682,7 +1682,6 @@ struct Grid {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   bool boundary_needed;
-  bool basic_refinement;
   std::vector<long long> dealloc_IDs;
   Grid(int dim) : dim(dim) {}
   void FillCase(Face &F) {
@@ -5135,7 +5134,7 @@ static void adapt() {
     } else {
       lab = new VectorLab;
     }
-    g->basic_refinement = basic;
+    bool basic_refinement = basic;
     Synchronizer *Synch = nullptr;
     if (basic == false) {
       StencilInfo stencil{-1, -1, 2, 2, true};
@@ -5187,7 +5186,7 @@ static void adapt() {
       const long long Z = n_ref[i];
       BlockInfo &parent = g->get(level, Z);
       parent.state = Leave;
-      if (g->basic_refinement == false)
+      if (basic_refinement == false)
         lab->load(g, Synch, parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
@@ -5203,7 +5202,7 @@ static void adapt() {
           g->Tree0(level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child.block;
         }
-      if (g->basic_refinement == false) {
+      if (basic_refinement == false) {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
@@ -5373,7 +5372,7 @@ static void adapt() {
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
-      if (g->basic_refinement == false)
+      if (basic_refinement == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = (Real *)Blocks[J * 2 + I];
