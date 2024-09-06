@@ -2339,8 +2339,8 @@ struct Grid {
   void FillPos() {
     std::sort(infos.begin(), infos.end());
     for (size_t j = 0; j < infos.size(); j++) {
-      const int m = infos[j].level;
-      const long long n = infos[j].Z;
+      int m = infos[j].level;
+      long long n = infos[j].Z;
       BlockInfo &info = get(m, n);
       info.id = j;
       infos[j] = info;
