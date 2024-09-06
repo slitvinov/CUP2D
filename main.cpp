@@ -1681,11 +1681,10 @@ struct Grid {
   std::vector<std::vector<Face>> send_faces;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
-  bool movedBlocks;
   bool boundary_needed;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
-  Grid(int dim) : dim(dim), movedBlocks(false) {}
+  Grid(int dim) : dim(dim) {}
   void FillCase(Face &F) {
     BlockInfo &info = *F.infos[1];
     const int icode = F.icode[1];
@@ -4869,6 +4868,7 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
+  bool movedBlocks = false;
   computeA<VectorLab>(KernelVorticity(), var.vel, 2);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp->boundary_needed = true;
@@ -5343,7 +5343,7 @@ static void adapt() {
         g->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
     if (requests0.size() != 0) {
-      g->movedBlocks = true;
+      movedBlocks = true;
       MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
     }
     for (int r = 0; r < sim.size; r++)
@@ -5421,7 +5421,7 @@ static void adapt() {
     }
     g->dealloc_many(g->dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    g->movedBlocks = false;
+    movedBlocks = false;
     long long max_b = block_distribution[0];
     long long min_b = block_distribution[0];
     for (auto &b : block_distribution) {
@@ -5523,7 +5523,7 @@ static void adapt() {
                     send_blocks[r].size() * sizeof(send_blocks[r][0]),
                     MPI_UINT8_T, r, tag, MPI_COMM_WORLD, &requests.back());
         }
-      g->movedBlocks = true;
+      movedBlocks = true;
       std::vector<long long> deallocIDs;
       counter_S = 0;
       counter_E = 0;
@@ -5638,10 +5638,10 @@ static void adapt() {
         g->Tree0(info.level, info.Z) = left;
       }
       if (request.size() != 0) {
-        g->movedBlocks = true;
+        movedBlocks = true;
         MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
       }
-      int temp = g->movedBlocks ? 1 : 0;
+      int temp = movedBlocks ? 1 : 0;
       MPI_Request request_reduction;
       MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                      &request_reduction);
@@ -5652,10 +5652,10 @@ static void adapt() {
         AddBlock(dim, g, recv_right[i].mn[0], recv_right[i].mn[1],
                  recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
-      g->movedBlocks = (temp >= 1);
+      movedBlocks = (temp >= 1);
       g->FillPos();
     }
-    if (result[0] > 0 || result[1] > 0 || g->movedBlocks) {
+    if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
       g->UpdateBlockInfoAll_States(false);
       auto it = g->Synchronizers.begin();
