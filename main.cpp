@@ -3877,17 +3877,6 @@ template <int Npoints> struct SchedulerLearnWave : Scheduler<Npoints> {
   }
 };
 struct Shape {
-  Shape(CommandlineParser &p, Real C[2])
-      : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
-        orientation(p("-angle").asDouble(0) * M_PI / 180),
-        forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-        forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
-        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
-        rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
-        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
-        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
-        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
-        vNorY(new Real[Nm]), width(new Real[Nm]) {}
   std::vector<ObstacleBlock *> obstacleBlocks;
   Real center[2];
   Real centerOfMass[2];
@@ -3965,6 +3954,17 @@ struct Shape {
   Real *vC;
   Real *rB;
   Real *vB;
+  Shape(CommandlineParser &p, Real C[2])
+      : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
+        orientation(p("-angle").asDouble(0) * M_PI / 180),
+        forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
+        forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
+        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
+        rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
+        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
+        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
+        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
+        vNorY(new Real[Nm]), width(new Real[Nm]) {}
 };
 struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
