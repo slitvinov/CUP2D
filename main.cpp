@@ -1682,7 +1682,6 @@ struct Grid {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   bool movedBlocks;
-  bool CallValidStates;
   bool boundary_needed;
   bool basic_refinement;
   std::vector<long long> dealloc_IDs;
@@ -3632,7 +3631,7 @@ static void dump(Real time, long nblock, BlockInfo *infos, char *path) {
         xyz[k++] = v0;
         attr[l++] = b[j++];
         attr[l++] = b[j++];
-	attr[l++] = 0;
+        attr[l++] = 0;
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -4875,7 +4874,7 @@ static void adapt() {
   var.tmp->boundary_needed = true;
   StencilInfo stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch = var.tmp->sync1(stencil);
-  var.tmp->CallValidStates = false;
+  bool CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
   int tmp;
@@ -4910,7 +4909,7 @@ static void adapt() {
         if (info.state != Leave) {
 #pragma omp critical
           {
-            var.tmp->CallValidStates = true;
+            CallValidStates = true;
             if (!Reduction) {
               tmp = 1;
               Reduction = true;
@@ -4927,15 +4926,14 @@ static void adapt() {
                 MPI_STATUSES_IGNORE);
   }
   if (!Reduction) {
-    tmp = var.tmp->CallValidStates ? 1 : 0;
+    tmp = CallValidStates ? 1 : 0;
     Reduction = true;
     MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &Reduction_req);
   }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
-  var.tmp->CallValidStates = (tmp > 0);
   var.tmp->boundary = *halo;
-  if (var.tmp->CallValidStates) {
+  if (tmp > 0) {
     int levelMin = 0;
     std::vector<BlockInfo> &I = var.tmp->infos;
 #pragma omp parallel for
