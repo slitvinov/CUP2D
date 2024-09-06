@@ -2868,7 +2868,7 @@ struct BlockLab {
       _apply_bc(info, false);
   }
   bool UseCoarseStencil0(const BlockInfo &info, const int *infoNei_index) {
-    if (info.level == 0 || (!use_averages))
+    if (info.level == 0 || !use_averages)
       return false;
     int imin[3];
     int imax[3];
