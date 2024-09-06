@@ -6879,7 +6879,7 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              (shape->rS[i] < sb
+              shape->rS[i] < sb
                    ? std::sqrt(2 * wh * shape->rS[i] -
                                shape->rS[i] * shape->rS[i])
                    : (shape->rS[i] < st
@@ -6887,7 +6887,7 @@ int main(int argc, char **argv) {
                                 (wh - wt) *
                                     std::pow((shape->rS[i] - sb) / (st - sb), 1)
                           : (wt * (shape->length - shape->rS[i]) /
-                             (shape->length - st))));
+                             (shape->length - st)));
       }
       sim.shapes.push_back(shape);
     }
