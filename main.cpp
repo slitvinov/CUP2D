@@ -6810,7 +6810,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
     for (size_t i = 0; i < my_blocks; i++) {
-      int Z = n_start + i;
+      long long Z = n_start + i;
       long long aux = sim.levels[sim.levelStart] + Z;
       BlockInfo *info = g->BlockInfoAll[aux] = new BlockInfo;
       fill(info, sim.levelStart, Z);
