@@ -1953,20 +1953,9 @@ struct Grid {
                     123456, MPI_COMM_WORLD, &send_requests.back());
         }
       }
-    MPI_Request me_send_request;
-    MPI_Request me_recv_request;
-    if (recv_buffer[sim.rank].size() != 0) {
-      MPI_Irecv(&recv_buffer[sim.rank][0], recv_buffer[sim.rank].size(),
-                MPI_Real, sim.rank, 123456, MPI_COMM_WORLD, &me_recv_request);
-    }
-    if (send_buffer[sim.rank].size() != 0) {
-      MPI_Isend(&send_buffer[sim.rank][0], send_buffer[sim.rank].size(),
-                MPI_Real, sim.rank, 123456, MPI_COMM_WORLD, &me_send_request);
-    }
-    if (recv_buffer[sim.rank].size() > 0)
-      MPI_Waitall(1, &me_recv_request, MPI_STATUSES_IGNORE);
-    if (send_buffer[sim.rank].size() > 0)
-      MPI_Waitall(1, &me_send_request, MPI_STATUSES_IGNORE);
+    if (recv_buffer[sim.rank].size() > 0 && send_buffer[sim.rank].size() > 0)
+      memcpy(&recv_buffer[sim.rank][0], &send_buffer[sim.rank][0],
+             send_buffer[sim.rank].size() * sizeof(Real));
     for (int index = 0; index < (int)recv_faces[sim.rank].size(); index++)
       FillCase(recv_faces[sim.rank][index]);
     if (recv_requests.size() > 0)
