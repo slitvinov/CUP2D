@@ -793,44 +793,44 @@ static int &Treef(std::unordered_map<long long, int> *Octree, int m,
     return retval->second;
   }
 }
-static void fill(BlockInfo *dumm, int m, long long n) {
-  dumm->level = m;
-  dumm->h = sim.h0 / (1 << dumm->level);
+static void fill(BlockInfo *b, int m, long long Z) {
+  b->level = m;
+  b->h = sim.h0 / (1 << b->level);
   int i, j;
-  sim.space_curve->inverse(n, m, i, j);
-  dumm->origin[0] = i * _BS_ * dumm->h;
-  dumm->origin[1] = j * _BS_ * dumm->h;
-  dumm->Z = n;
-  dumm->state = Leave;
-  dumm->changed2 = true;
-  dumm->auxiliary = nullptr;
-  const int TwoPower = 1 << dumm->level;
-  sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
-			   dumm->index[1]);
-  dumm->index[2] = 0;
+  sim.space_curve->inverse(Z, m, i, j);
+  b->origin[0] = i * _BS_ * b->h;
+  b->origin[1] = j * _BS_ * b->h;
+  b->Z = Z;
+  b->state = Leave;
+  b->changed2 = true;
+  b->auxiliary = nullptr;
+  const int TwoPower = 1 << b->level;
+  sim.space_curve->inverse(b->Z, b->level, b->index[0],
+			   b->index[1]);
+  b->index[2] = 0;
   const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
   for (int i = -1; i < 2; i++)
     for (int j = -1; j < 2; j++)
-      dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-							  dumm->level, (dumm->index[0] + i) % Bmax[0],
-							  (dumm->index[1] + j) % Bmax[1]);
+      b->Znei[i + 1][j + 1] = sim.space_curve->forward(
+							  b->level, (b->index[0] + i) % Bmax[0],
+							  (b->index[1] + j) % Bmax[1]);
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++)
-      dumm->Zchild[i][j] = sim.space_curve->forward(
-						    dumm->level + 1, 2 * dumm->index[0] + i,
-						    2 * dumm->index[1] + j);
-  dumm->Zparent =
-    (dumm->level == 0)
+      b->Zchild[i][j] = sim.space_curve->forward(
+						    b->level + 1, 2 * b->index[0] + i,
+						    2 * b->index[1] + j);
+  b->Zparent =
+    (b->level == 0)
     ? 0
-    : sim.space_curve->forward(dumm->level - 1,
-			       (dumm->index[0] / 2) % Bmax[0],
-			       (dumm->index[1] / 2) % Bmax[1]);
-  dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
-  dumm->id = dumm->id2;
+    : sim.space_curve->forward(b->level - 1,
+			       (b->index[0] / 2) % Bmax[0],
+			       (b->index[1] / 2) % Bmax[1]);
+  b->id2 = sim.space_curve->Encode(b->level, b->index);
+  b->id = b->id2;
 }
 static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-                       int m, long long n) {
-  const long long aux = sim.levels[m] + n;
+                       int m, long long Z) {
+  const long long aux = sim.levels[m] + Z;
   const auto retval = BlockInfoAll->find(aux);
   if (retval != BlockInfoAll->end()) {
     return *retval->second;
@@ -840,11 +840,11 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
       const auto retval1 = BlockInfoAll->find(aux);
       if (retval1 == BlockInfoAll->end()) {
         BlockInfo *dumm = new BlockInfo;
-	fill(dumm, m, n);
+	fill(dumm, m, Z);
         (*BlockInfoAll)[aux] = dumm;
       }
     }
-    return getf(BlockInfoAll, m, n);
+    return getf(BlockInfoAll, m, Z);
   }
 }
 struct Synchronizer {
