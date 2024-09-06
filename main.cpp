@@ -793,6 +793,41 @@ static int &Treef(std::unordered_map<long long, int> *Octree, int m,
     return retval->second;
   }
 }
+static void fill(BlockInfo *dumm, int m, long long n) {
+  dumm->level = m;
+  dumm->h = sim.h0 / (1 << dumm->level);
+  int i, j;
+  sim.space_curve->inverse(n, m, i, j);
+  dumm->origin[0] = i * _BS_ * dumm->h;
+  dumm->origin[1] = j * _BS_ * dumm->h;
+  dumm->Z = n;
+  dumm->state = Leave;
+  dumm->changed2 = true;
+  dumm->auxiliary = nullptr;
+  const int TwoPower = 1 << dumm->level;
+  sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
+			   dumm->index[1]);
+  dumm->index[2] = 0;
+  const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
+  for (int i = -1; i < 2; i++)
+    for (int j = -1; j < 2; j++)
+      dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
+							  dumm->level, (dumm->index[0] + i) % Bmax[0],
+							  (dumm->index[1] + j) % Bmax[1]);
+  for (int i = 0; i < 2; i++)
+    for (int j = 0; j < 2; j++)
+      dumm->Zchild[i][j] = sim.space_curve->forward(
+						    dumm->level + 1, 2 * dumm->index[0] + i,
+						    2 * dumm->index[1] + j);
+  dumm->Zparent =
+    (dumm->level == 0)
+    ? 0
+    : sim.space_curve->forward(dumm->level - 1,
+			       (dumm->index[0] / 2) % Bmax[0],
+			       (dumm->index[1] / 2) % Bmax[1]);
+  dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
+  dumm->id = dumm->id2;
+}
 static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
                        int m, long long n) {
   const long long aux = sim.levels[m] + n;
@@ -805,39 +840,7 @@ static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
       const auto retval1 = BlockInfoAll->find(aux);
       if (retval1 == BlockInfoAll->end()) {
         BlockInfo *dumm = new BlockInfo;
-        dumm->level = m;
-        dumm->h = sim.h0 / (1 << dumm->level);
-        int i, j;
-        sim.space_curve->inverse(n, m, i, j);
-        dumm->origin[0] = i * _BS_ * dumm->h;
-        dumm->origin[1] = j * _BS_ * dumm->h;
-        dumm->Z = n;
-        dumm->state = Leave;
-        dumm->changed2 = true;
-        dumm->auxiliary = nullptr;
-        const int TwoPower = 1 << dumm->level;
-        sim.space_curve->inverse(dumm->Z, dumm->level, dumm->index[0],
-                                 dumm->index[1]);
-        dumm->index[2] = 0;
-        const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
-        for (int i = -1; i < 2; i++)
-          for (int j = -1; j < 2; j++)
-            dumm->Znei[i + 1][j + 1] = sim.space_curve->forward(
-                dumm->level, (dumm->index[0] + i) % Bmax[0],
-                (dumm->index[1] + j) % Bmax[1]);
-        for (int i = 0; i < 2; i++)
-          for (int j = 0; j < 2; j++)
-            dumm->Zchild[i][j] = sim.space_curve->forward(
-                dumm->level + 1, 2 * dumm->index[0] + i,
-                2 * dumm->index[1] + j);
-        dumm->Zparent =
-            (dumm->level == 0)
-                ? 0
-                : sim.space_curve->forward(dumm->level - 1,
-                                           (dumm->index[0] / 2) % Bmax[0],
-                                           (dumm->index[1] / 2) % Bmax[1]);
-        dumm->id2 = sim.space_curve->Encode(dumm->level, dumm->index);
-        dumm->id = dumm->id2;
+	fill(dumm, m, n);
         (*BlockInfoAll)[aux] = dumm;
       }
     }
@@ -6811,7 +6814,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
     for (size_t i = 0; i < my_blocks; i++) {
-      BlockInfo &new_info = g->get(sim.levelStart, n_start + i);
+      BlockInfo &new_info = getf(&g->BlockInfoAll, sim.levelStart, n_start + i);
       new_info.block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(new_info);
       g->Octree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
