@@ -1770,10 +1770,10 @@ struct Grid {
       }
     }
   }
-  void prepare0(Grid *grid) {
-    if (grid->UpdateFluxCorrection == false)
+  void prepare0() {
+    if (UpdateFluxCorrection == false)
       return;
-    grid->UpdateFluxCorrection = false;
+    UpdateFluxCorrection = false;
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
     send_faces.resize(sim.size);
@@ -1789,12 +1789,12 @@ struct Grid {
         free(Cases[i]->d[j]);
     Cases.clear();
     Map.clear();
-    std::vector<BlockInfo> &BB = grid->infos;
+    std::vector<BlockInfo> &BB = infos;
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : BB) {
-      (*grid).get(info.level, info.Z).auxiliary = nullptr;
+      get(info.level, info.Z).auxiliary = nullptr;
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
@@ -1815,8 +1815,7 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        if (!((*grid).Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
-              0)) {
+        if (!(Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >= 0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2) +
                     abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
@@ -1826,13 +1825,12 @@ struct Grid {
         L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
         L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
-        if ((*grid).Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
-            -2) {
+        if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
           BlockInfo &infoNei =
-              (*grid).get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+              get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei.Zparent;
-          BlockInfo &infoNeiCoarser = (*grid).get(info.level - 1, nCoarse);
-          const int infoNeiCoarserrank = (*grid).Tree0(info.level - 1, nCoarse);
+          BlockInfo &infoNeiCoarser = get(info.level - 1, nCoarse);
+          const int infoNeiCoarserrank = Tree0(info.level - 1, nCoarse);
           {
             int code2[3] = {-code[0], -code[1], -code[2]};
             int icode2 =
@@ -1841,10 +1839,10 @@ struct Grid {
                 Face(info, infoNeiCoarser, icode[f], icode2));
             send_buffer_size[infoNeiCoarserrank] += V;
           }
-        } else if ((*grid).Tree0(info.level,
-                                 info.Znei[1 + code[0]][1 + code[1]]) == -1) {
+        } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
+                   -1) {
           BlockInfo &infoNei =
-              (*grid).get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+              get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -1853,10 +1851,9 @@ struct Grid {
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            const int infoNeiFinerrank =
-                (*grid).Tree0(infoNei.level + 1, nFine);
+            const int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
             {
-              BlockInfo &infoNeiFiner = (*grid).get(infoNei.level + 1, nFine);
+              BlockInfo &infoNeiFiner = get(infoNei.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
@@ -1886,8 +1883,8 @@ struct Grid {
           Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
               {Cases[Cases_index]->level, Cases[Cases_index]->Z},
               Cases[Cases_index]));
-          grid->get(Cases[Cases_index]->level, Cases[Cases_index]->Z)
-              .auxiliary = Cases[Cases_index];
+          get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
+              Cases[Cases_index];
           info.auxiliary = Cases[Cases_index];
           Cases_index++;
         }
@@ -6989,7 +6986,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++)
         memcpy(var.vold->infos[i].block, velInfo[i].block,
                2 * _BS_ * _BS_ * sizeof(Real));
-      var.tmpV->prepare0(var.tmpV);
+      var.tmpV->prepare0();
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
@@ -7001,7 +6998,7 @@ int main(int argc, char **argv) {
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
-      var.tmpV->prepare0(var.tmpV);
+      var.tmpV->prepare0();
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
@@ -7377,7 +7374,7 @@ int main(int argc, char **argv) {
             }
         }
       }
-      var.tmp->prepare0(var.tmp);
+      var.tmp->prepare0();
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel,
                                                    *var.tmpV);
       var.tmp->FillBlockCases();
@@ -7393,7 +7390,7 @@ int main(int argc, char **argv) {
             PRES[iy][ix] = 0;
           }
       }
-      var.tmp->prepare0(var.tmp);
+      var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
       pressureSolver.solve(var.tmp);
@@ -7422,7 +7419,7 @@ int main(int argc, char **argv) {
         for (int j = 0; j < _BS_ * _BS_; j++)
           pres[j] += pold[j] - avg;
       }
-      var.tmpV->prepare0(var.tmpV);
+      var.tmpV->prepare0();
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
