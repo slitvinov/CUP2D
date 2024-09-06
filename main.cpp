@@ -2341,9 +2341,9 @@ struct Grid {
     for (size_t j = 0; j < infos.size(); j++) {
       const int m = infos[j].level;
       const long long n = infos[j].Z;
-      BlockInfo &correct_info = get(m, n);
-      correct_info.id = j;
-      infos[j] = correct_info;
+      BlockInfo &info = get(m, n);
+      info.id = j;
+      infos[j] = info;
       assert(Tree0(m, n) >= 0);
     }
   }
