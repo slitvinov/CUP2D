@@ -1909,7 +1909,7 @@ struct Grid {
       }
     }
   }
-  void FillBlockCases(Grid *grid) {
+  void FillBlockCases() {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
@@ -2401,7 +2401,7 @@ struct BlockLab {
     free(m);
     free(c);
   }
-  void prepare(Grid *grid, const StencilInfo &stencil) {
+  void prepare(const StencilInfo &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -2496,7 +2496,7 @@ struct BlockLab {
         }
       }
     if (sim.size == 1)
-      post_load(grid, info, applybc);
+      post_load(info, applybc);
     const int id = info.halo_id;
     if (id >= 0) {
       UnPackInfo *unpacks = sync->myunpacks[id].data();
@@ -2611,10 +2611,10 @@ struct BlockLab {
       }
     }
     if (sim.size > 1)
-      post_load(grid, info, applybc);
+      post_load(info, applybc);
   }
 
-  void post_load(Grid *grid, BlockInfo &info, bool applybc) {
+  void post_load(BlockInfo &info, bool applybc) {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
@@ -3224,7 +3224,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp parallel
   {
     Lab lab;
-    lab.prepare(g, kernel.stencil);
+    lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
       lab.load(g, &Synch, *I, true);
@@ -3272,8 +3272,8 @@ static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
   {
     LabMPI lab;
     LabMPI2 lab2;
-    lab.prepare(&grid, stencil);
-    lab2.prepare(&grid2, stencil2);
+    lab.prepare(stencil);
+    lab2.prepare(stencil2);
 #pragma omp for
     for (int i = 0; i < Ninner; i++) {
       BlockInfo &I = *avail0[i];
@@ -5183,7 +5183,7 @@ static void adapt() {
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     g->dealloc_IDs.clear();
     if (Synch != nullptr)
-      lab->prepare(g, Synch->stencil);
+      lab->prepare(Synch->stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
@@ -6991,7 +6991,7 @@ int main(int argc, char **argv) {
                2 * _BS_ * _BS_ * sizeof(Real));
       var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->FillBlockCases(var.tmpV);
+      var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = (Real *)velInfo[i].block;
@@ -7003,7 +7003,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->prepare0(var.tmpV);
       computeA<VectorLab>(Step1, var.vel, 2);
-      var.tmpV->FillBlockCases(var.tmpV);
+      var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = (Real *)velInfo[i].block;
@@ -7380,7 +7380,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0(var.tmp);
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel,
                                                    *var.tmpV);
-      var.tmp->FillBlockCases(var.tmpV);
+      var.tmp->FillBlockCases();
       std::vector<BlockInfo> &presInfo = var.pres->infos;
       std::vector<BlockInfo> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7395,7 +7395,7 @@ int main(int argc, char **argv) {
       }
       var.tmp->prepare0(var.tmp);
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      var.tmp->FillBlockCases(var.tmpV);
+      var.tmp->FillBlockCases();
       pressureSolver.solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
@@ -7424,7 +7424,7 @@ int main(int argc, char **argv) {
       }
       var.tmpV->prepare0(var.tmpV);
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-      var.tmpV->FillBlockCases(var.tmpV);
+      var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
