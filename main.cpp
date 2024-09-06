@@ -3254,7 +3254,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename LabMPI, typename LabMPI2>
-static void computeB(const Kernel &kernel, Grid &grid, Grid &grid2) {
+static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
   Synchronizer &Synch = *grid.sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
@@ -6985,13 +6985,12 @@ int main(int argc, char **argv) {
         adapt();
       ongrid(sim.dt);
       size_t Nblocks = velInfo.size();
-      KernelAdvectDiffuse Step1;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++)
         memcpy(var.vold->infos[i].block, velInfo[i].block,
                2 * _BS_ * _BS_ * sizeof(Real));
       var.tmpV->prepare0(var.tmpV);
-      computeA<VectorLab>(Step1, var.vel, 2);
+      computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -7003,7 +7002,7 @@ int main(int argc, char **argv) {
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
       var.tmpV->prepare0(var.tmpV);
-      computeA<VectorLab>(Step1, var.vel, 2);
+      computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
