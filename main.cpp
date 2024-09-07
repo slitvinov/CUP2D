@@ -2093,10 +2093,10 @@ struct Grid {
   };
   void UpdateBlockInfoAll_States(bool UpdateIDs) {
     std::vector<int> myNeighbors;
-    double low[3] = {+1e20, +1e20, +1e20};
-    double high[3] = {-1e20, -1e20, -1e20};
-    double p_low[3];
-    double p_high[3];
+    double low[2] = {+1e20, +1e20};
+    double high[2] = {-1e20, -1e20};
+    double p_low[2];
+    double p_high[2];
     for (auto &info : infos) {
       const double h2 = 2 * info.h;
       p_low[0] = info.origin[0] + info.h * 0.5;
@@ -2105,25 +2105,20 @@ struct Grid {
       p_high[1] = info.origin[1] + info.h * (_BS_ - 0.5);
       p_low[0] -= h2;
       p_low[1] -= h2;
-      p_low[2] = 0;
       p_high[0] += h2;
       p_high[1] += h2;
-      p_high[2] = 0;
       low[0] = std::min(low[0], p_low[0]);
       low[1] = std::min(low[1], p_low[1]);
-      low[2] = 0;
       high[0] = std::max(high[0], p_high[0]);
       high[1] = std::max(high[1], p_high[1]);
-      high[2] = 0;
     }
-    std::vector<double> all_boxes(sim.size * 6);
-    double my_box[6] = {low[0], low[1], low[2], high[0], high[1], high[2]};
-    MPI_Allgather(my_box, 6, MPI_DOUBLE, all_boxes.data(), 6, MPI_DOUBLE,
-                  MPI_COMM_WORLD);
+    std::vector<double> all_boxes(4 * sim.size);
+    double my_box[6] = {low[0], low[1], high[0], high[1]};
+    MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE, MPI_COMM_WORLD);
     for (int i = 0; i < sim.size; i++) {
       if (i == sim.rank)
         continue;
-      if (Intersect0(low, high, &all_boxes[i * 6], &all_boxes[i * 6 + 3]))
+      if (Intersect0(low, high, &all_boxes[i * 4], &all_boxes[i * 4 + 2]))
         myNeighbors.push_back(i);
     }
     std::vector<long long> myData;
