@@ -2114,11 +2114,15 @@ struct Grid {
     }
     std::vector<double> all_boxes(4 * sim.size);
     double my_box[4] = {low[0], low[1], high[0], high[1]};
-    MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE,
+                  MPI_COMM_WORLD);
     for (int i = 0; i < sim.size; i++) {
       if (i == sim.rank)
         continue;
-      if (Intersect0(low, high, &all_boxes[i * 4], &all_boxes[i * 4 + 2]))
+      double *l2 = &all_boxes[i * 4];
+      double *h2 = &all_boxes[i * 4 + 2];
+      if (std::max(low[0], l2[0]) > std::min(high[0], h2[0]) ||
+          std::max(low[1], l2[1]) > std::min(high[1], h2[1]))
         myNeighbors.push_back(i);
     }
     std::vector<long long> myData;
@@ -2243,19 +2247,6 @@ struct Grid {
         }
       }
     }
-  }
-  bool Intersect0(double *low, double *high, double *l2, double *h2) {
-    const Real intersect[2][2] = {
-        {std::max(low[0], l2[0]), std::min(high[0], h2[0])},
-        {std::max(low[1], l2[1]), std::min(high[1], h2[1])}};
-    bool intersection[2];
-    intersection[0] = intersect[0][1] - intersect[0][0] > 0.0;
-    intersection[1] = intersect[1][1] - intersect[1][0] > 0.0;
-    for (int d = 0; d < 2; d++) {
-      if (!intersection[d])
-        return false;
-    }
-    return true;
   }
   Synchronizer *sync1(const StencilInfo &stencil) {
     Synchronizer *s = nullptr;
@@ -3067,20 +3058,22 @@ struct BlockLab {
     int base[2] = {(info.index[0] + code[0]) % 2,
                    (info.index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info.index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info.index[0])) ||
-                       ((info.index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info.index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info.index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info.index[1])) ||
-                       ((info.index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info.index[1])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info.index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info.index[0])) ||
+                           ((info.index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info.index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info.index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info.index[1])) ||
+                           ((info.index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info.index[1])))
+                              ? 1
+                              : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -6854,12 +6847,14 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
-                                            shape->rS[i] * shape->rS[i])
-              : shape->rS[i] < st
-                  ? wh -
-                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
+              shape->rS[i] < sb
+                  ? std::sqrt(2 * wh * shape->rS[i] -
+                              shape->rS[i] * shape->rS[i])
+                  : shape->rS[i] < st
+                        ? wh - (wh - wt) *
+                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                        : wt * (shape->length - shape->rS[i]) /
+                              (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
