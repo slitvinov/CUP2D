@@ -2121,8 +2121,8 @@ struct Grid {
         continue;
       double *l2 = &all_boxes[i * 4];
       double *h2 = &all_boxes[i * 4 + 2];
-      if (std::max(low[0], l2[0]) > std::min(high[0], h2[0]) &&
-          std::max(low[1], l2[1]) > std::min(high[1], h2[1]))
+      if (std::max(low[0], l2[0]) <= std::min(high[0], h2[0]) &&
+          std::max(low[1], l2[1]) <= std::min(high[1], h2[1]))
         myNeighbors.push_back(i);
     }
     std::vector<long long> myData;
