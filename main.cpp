@@ -6795,7 +6795,7 @@ int main(int argc, char **argv) {
       fill(info, sim.levelStart, Z);
       info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(*info);
-      g->tree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
+      g->tree[aux] = sim.rank;
       int p[2];
       sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
