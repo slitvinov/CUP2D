@@ -492,7 +492,7 @@ struct SpaceCurve {
     return retval;
   }
 };
-static long long getZforward(int level, int i, int j) {
+static long long forward(int level, int i, int j) {
   return sim.space_curve->forward(level, i % (1 << level * sim.bpdx),
                                   j % (1 << level * sim.bpdy));
 }
@@ -776,19 +776,19 @@ struct DuplicatesManager {
     sizes[r]++;
   }
 };
-static int &Treef(std::unordered_map<long long, int> *Octree, int m,
+static int &Treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
   const long long aux = sim.levels[m] + n;
-  const auto retval = Octree->find(aux);
-  if (retval == Octree->end()) {
+  const auto retval = tree->find(aux);
+  if (retval == tree->end()) {
 #pragma omp critical
     {
-      const auto retval1 = Octree->find(aux);
-      if (retval1 == Octree->end()) {
-        (*Octree)[aux] = -3;
+      const auto retval1 = tree->find(aux);
+      if (retval1 == tree->end()) {
+        (*tree)[aux] = -3;
       }
     }
-    return Treef(Octree, m, n);
+    return Treef(tree, m, n);
   } else {
     return retval->second;
   }
@@ -1062,7 +1062,7 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  void Setup(std::unordered_map<long long, int> *Octree,
+  void Setup(std::unordered_map<long long, int> *tree,
              std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
              std::vector<BlockInfo> *infos) {
     DuplicatesManager DM;
@@ -1105,7 +1105,7 @@ struct Synchronizer {
         if (code[1] == yskip && yskin)
           continue;
         int &infoNeiTree =
-            Treef(Octree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            Treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
@@ -1125,7 +1125,7 @@ struct Synchronizer {
           BlockInfo &infoNei = getf(BlockInfoAll, info.level,
                                     info.Znei[1 + code[0]][1 + code[1]]);
           int infoNeiCoarserrank =
-              Treef(Octree, info.level - 1, infoNei.Zparent);
+              Treef(tree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1201,7 +1201,7 @@ struct Synchronizer {
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            int infoNeiFinerrank = Treef(Octree, info.level + 1, nFine);
+            int infoNeiFinerrank = Treef(tree, info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
@@ -1289,7 +1289,7 @@ struct Synchronizer {
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((Treef(Octree, a->level, a->Znei[1 + i0][1 + i1])) ==
+                  if ((Treef(tree, a->level, a->Znei[1 + i0][1 + i1])) ==
                       -2) {
                     retval = true;
                     break;
@@ -1672,7 +1672,7 @@ struct Grid {
   std::map<std::array<long long, 2>, BlockCase *> Map;
   std::map<StencilInfo, Synchronizer *> Synchronizers;
   std::unordered_map<long long, BlockInfo *> BlockInfoAll;
-  std::unordered_map<long long, int> Octree;
+  std::unordered_map<long long, int> tree;
   std::vector<BlockCase *> Cases;
   std::vector<BlockInfo *> boundary;
   std::vector<BlockInfo> infos;
@@ -1699,7 +1699,7 @@ struct Grid {
     for (int B = 0; B <= 1; B++) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
-          getZforward(info.level + 1,
+          forward(info.level + 1,
                       2 * info.index[0] + std::max(code[0], 0) + code[0] +
                           (B % 2) * std::max(0, 1 - abs(code[0])),
                       2 * info.index[1] + std::max(code[1], 0) + code[1] +
@@ -1718,7 +1718,7 @@ struct Grid {
         base = (0) + (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = Treef(&Octree, F.infos[0]->level, F.infos[0]->Z);
+      int r = Treef(&tree, F.infos[0]->level, F.infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
@@ -2243,11 +2243,11 @@ struct Grid {
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
               const long long nc =
-                  getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+                  forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
               Tree0(level + 1, nc) = -2;
             }
         if (level > 0) {
-          const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+          const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
           Tree0(level - 1, nf) = -1;
         }
       }
@@ -2272,7 +2272,7 @@ struct Grid {
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
-      s->Setup(&Octree, &BlockInfoAll, &infos);
+      s->Setup(&tree, &BlockInfoAll, &infos);
       Synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
@@ -2281,9 +2281,9 @@ struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
-  int &Tree0(const int m, const long long n) { return Treef(&Octree, m, n); }
+  int &Tree0(const int m, const long long n) { return Treef(&tree, m, n); }
   int &Tree1(const BlockInfo &info) {
-    return Treef(&Octree, info.level, info.Z);
+    return Treef(&tree, info.level, info.Z);
   }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = get(level, Z);
@@ -2330,7 +2330,7 @@ struct Grid {
     }
   }
   void *avail1(const int ix, const int iy, const int m) {
-    const long long n = getZforward(m, ix, iy);
+    const long long n = forward(m, ix, iy);
     return avail(m, n);
   }
   BlockInfo &get0(int m, long long n) {
@@ -3189,11 +3189,11 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
         const long long nc =
-            getZforward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
         grid->Tree0(level + 1, nc) = -2;
       }
   if (level > 0) {
-    const long long nf = getZforward(level - 1, p[0] / 2, p[1] / 2);
+    const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
     grid->Tree0(level - 1, nf) = -1;
   }
 }
@@ -4981,7 +4981,7 @@ static void adapt() {
                            (B % 2) * std::max(0, 1 - abs(code[0]));
                 int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] +
                            aux * std::max(0, 1 - abs(code[1]));
-                long long zzz = getZforward(m + 1, iNei, jNei);
+                long long zzz = forward(m + 1, iNei, jNei);
                 BlockInfo &FinerNei = var.tmp->get(m + 1, zzz);
                 State NeiState = FinerNei.state;
                 if (NeiState == Refine) {
@@ -5043,7 +5043,7 @@ static void adapt() {
              j++)
           for (int k = 2 * (info.index[2] / 2);
                k <= 2 * (info.index[2] / 2) + 1; k++) {
-            long long n = getZforward(m, i, j);
+            long long n = forward(m, i, j);
             BlockInfo &infoNei = var.tmp->get(m, n);
             if ((var.tmp->Tree1(infoNei) >= 0) == false ||
                 infoNei.state != Compress) {
@@ -5062,7 +5062,7 @@ static void adapt() {
                j <= 2 * (info.index[1] / 2) + 1; j++)
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
-              long long n = getZforward(m, i, j);
+              long long n = forward(m, i, j);
               BlockInfo &infoNei = var.tmp->get(m, n);
               if (var.tmp->Tree1(infoNei) >= 0 && infoNei.state == Compress)
                 infoNei.state = Leave;
@@ -5088,7 +5088,7 @@ static void adapt() {
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
-          const long long n = getZforward(info.level, i, j);
+          const long long n = forward(info.level, i, j);
           BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info.level, n);
           infoNei.state = Leave;
         }
@@ -5105,7 +5105,7 @@ static void adapt() {
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
-        const long long n = getZforward(info2.level, i2, j2);
+        const long long n = forward(info2.level, i2, j2);
         BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info2.level, n);
         infoNei.state = Compress;
       }
@@ -5183,7 +5183,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc =
-              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+              forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           BlockInfo &Child = g->get(level + 1, nc);
           Child.state = Leave;
           g->_alloc(level + 1, nc);
@@ -5256,7 +5256,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc =
-              getZforward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+              forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           BlockInfo &Child = g->get(level + 1, nc);
           g->Tree1(Child) = sim.rank;
           if (level + 2 < sim.levelMax)
@@ -5270,7 +5270,7 @@ static void adapt() {
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
       const long long nBlock =
-          getZforward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
+          forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
       const BlockInfo &base = g->get(b.level, nBlock);
       if (!(g->Tree1(base) >= 0) || base.state != Compress)
         continue;
@@ -5291,7 +5291,7 @@ static void adapt() {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long n =
-                getZforward(b.level, b.index[0] + i, b.index[1] + j);
+                forward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
             BlockInfo &temp = g->get(b.level, n);
@@ -5355,7 +5355,7 @@ static void adapt() {
         for (int I = 0; I < 2; I++) {
           const int blk = J * 2 + I;
           const long long n =
-              getZforward(level, info.index[0] + I, info.index[1] + J);
+              forward(level, info.index[0] + I, info.index[1] + J);
           Blocks[blk] = (g->get(level, n)).block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
@@ -5379,7 +5379,7 @@ static void adapt() {
               }
           }
       const long long np =
-          getZforward(level - 1, info.index[0] / 2, info.index[1] / 2);
+          forward(level - 1, info.index[0] / 2, info.index[1] / 2);
       BlockInfo &parent = g->get(level - 1, np);
       g->Tree0(parent.level, parent.Z) = sim.rank;
       parent.block = info.block;
@@ -5389,7 +5389,7 @@ static void adapt() {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
-              getZforward(level, info.index[0] + I, info.index[1] + J);
+              forward(level, info.index[0] + I, info.index[1] + J);
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j].level && n == g->infos[j].Z) {
@@ -5647,7 +5647,7 @@ static void adapt() {
       g->UpdateBlockInfoAll_States(false);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
-        (*it->second).Setup(&g->Octree, &g->BlockInfoAll, &g->infos);
+        (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
         it++;
       }
     }
@@ -6797,28 +6797,29 @@ int main(int argc, char **argv) {
       n_start += total_blocks % sim.size;
   }
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    Grid *g = *var.F[i].g = new Grid(var.F[i].dim);
+    int dim = var.F[i].dim;
+    Grid *g = *var.F[i].g = new Grid(dim);
     for (size_t i = 0; i < my_blocks; i++) {
       long long Z = n_start + i;
       long long aux = sim.levels[sim.levelStart] + Z;
       BlockInfo *info = g->BlockInfoAll[aux] = new BlockInfo;
       fill(info, sim.levelStart, Z);
-      info->block = malloc(g->dim * _BS_ * _BS_ * sizeof(Real));
+      info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(*info);
-      g->Octree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
+      g->tree[sim.levels[sim.levelStart] + n_start + i] = sim.rank;
       int p[2];
       sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
             const long long nc =
-                getZforward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            g->Octree[sim.levels[sim.levelStart + 1] + nc] = -2;
+                forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            g->tree[sim.levels[sim.levelStart + 1] + nc] = -2;
           }
       if (sim.levelStart > 0) {
         const long long nf =
-            getZforward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        g->Octree[sim.levels[sim.levelStart - 1] + nf] = -1;
+            forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+        g->tree[sim.levels[sim.levelStart - 1] + nf] = -1;
       }
     }
     g->FillPos();
