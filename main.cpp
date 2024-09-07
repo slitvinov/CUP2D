@@ -2113,7 +2113,7 @@ struct Grid {
       high[1] = std::max(high[1], p_high[1]);
     }
     std::vector<double> all_boxes(4 * sim.size);
-    double my_box[6] = {low[0], low[1], high[0], high[1]};
+    double my_box[4] = {low[0], low[1], high[0], high[1]};
     MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE, MPI_COMM_WORLD);
     for (int i = 0; i < sim.size; i++) {
       if (i == sim.rank)
