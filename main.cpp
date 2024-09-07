@@ -6797,7 +6797,7 @@ int main(int argc, char **argv) {
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
-      sim.space_curve->inverse(n_start + i, sim.levelStart, p[0], p[1]);
+      sim.space_curve->inverse(Z, sim.levelStart, p[0], p[1]);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
