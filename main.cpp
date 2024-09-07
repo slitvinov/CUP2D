@@ -6811,11 +6811,11 @@ int main(int argc, char **argv) {
       }
     }
     g->FillPos();
+    g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     g->UpdateBlockInfoAll_States(false);
     assert(g->Synchronizers.size() == 0);
     MPI_Barrier(MPI_COMM_WORLD);
-    g->timestamp = 0;
   }
   std::string shapeArg = parser("-shapes").asString("");
   std::stringstream descriptors(shapeArg);
