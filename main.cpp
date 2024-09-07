@@ -969,22 +969,20 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = (code[0] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[0] % 2 == 0) &&
-                                (Cindex_true[0] > f.infos[1]->index[0])) ||
-                               ((f.infos[1]->index[0] % 2 == 1) &&
-                                (Cindex_true[0] < f.infos[1]->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = (code[1] == 0)
-                            ? 0
-                            : (((f.infos[1]->index[1] % 2 == 0) &&
-                                (Cindex_true[1] > f.infos[1]->index[1])) ||
-                               ((f.infos[1]->index[1] % 2 == 1) &&
-                                (Cindex_true[1] < f.infos[1]->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = (code[0] == 0) ? 0
+                        : (((f.infos[1]->index[0] % 2 == 0) &&
+                            (Cindex_true[0] > f.infos[1]->index[0])) ||
+                           ((f.infos[1]->index[0] % 2 == 1) &&
+                            (Cindex_true[0] < f.infos[1]->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = (code[1] == 0) ? 0
+                        : (((f.infos[1]->index[1] % 2 == 0) &&
+                            (Cindex_true[1] > f.infos[1]->index[1])) ||
+                           ((f.infos[1]->index[1] % 2 == 1) &&
+                            (Cindex_true[1] < f.infos[1]->index[1])))
+                            ? 1
+                            : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -1124,8 +1122,7 @@ struct Synchronizer {
           Coarsened = true;
           BlockInfo &infoNei = getf(BlockInfoAll, info.level,
                                     info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank =
-              Treef(tree, info.level - 1, infoNei.Zparent);
+          int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1289,8 +1286,7 @@ struct Synchronizer {
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((Treef(tree, a->level, a->Znei[1 + i0][1 + i1])) ==
-                      -2) {
+                  if ((Treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
                     retval = true;
                     break;
                   }
@@ -1700,10 +1696,10 @@ struct Grid {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       const long long Z =
           forward(info.level + 1,
-                      2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                          (B % 2) * std::max(0, 1 - abs(code[0])),
-                      2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                          aux * std::max(0, 1 - abs(code[1])));
+                  2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                      (B % 2) * std::max(0, 1 - abs(code[0])),
+                  2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                      aux * std::max(0, 1 - abs(code[1])));
       if (Z != F.infos[0]->Z)
         continue;
       const int d = myFace / 2;
@@ -2282,9 +2278,7 @@ struct Grid {
     return s;
   }
   int &Tree0(const int m, const long long n) { return Treef(&tree, m, n); }
-  int &Tree1(const BlockInfo &info) {
-    return Treef(&tree, info.level, info.Z);
-  }
+  int &Tree1(const BlockInfo &info) { return Treef(&tree, info.level, info.Z); }
   void _alloc(int level, long long Z) {
     BlockInfo &new_info = get(level, Z);
     new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
@@ -3078,22 +3072,20 @@ struct BlockLab {
     int base[2] = {(info.index[0] + code[0]) % 2,
                    (info.index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info.index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info.index[0])) ||
+                       ((info.index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info.index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info.index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info.index[1])) ||
+                       ((info.index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info.index[1])))
+                        ? 1
+                        : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3188,8 +3180,7 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
-        const long long nc =
-            forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+        const long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
         grid->Tree0(level + 1, nc) = -2;
       }
   if (level > 0) {
@@ -5182,8 +5173,7 @@ static void adapt() {
       void *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          const long long nc =
-              forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           BlockInfo &Child = g->get(level + 1, nc);
           Child.state = Leave;
           g->_alloc(level + 1, nc);
@@ -5255,8 +5245,7 @@ static void adapt() {
       int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          const long long nc =
-              forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           BlockInfo &Child = g->get(level + 1, nc);
           g->Tree1(Child) = sim.rank;
           if (level + 2 < sim.levelMax)
@@ -6812,14 +6801,13 @@ int main(int argc, char **argv) {
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
-            const long long nc =
+            long long n =
                 forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            g->tree[sim.levels[sim.levelStart + 1] + nc] = -2;
+            g->tree[sim.levels[sim.levelStart + 1] + n] = -2;
           }
       if (sim.levelStart > 0) {
-        const long long nf =
-            forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        g->tree[sim.levels[sim.levelStart - 1] + nf] = -1;
+        long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+        g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
       }
     }
     g->FillPos();
@@ -6871,14 +6859,12 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb
-                  ? std::sqrt(2 * wh * shape->rS[i] -
-                              shape->rS[i] * shape->rS[i])
-                  : shape->rS[i] < st
-                        ? wh - (wh - wt) *
-                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                        : wt * (shape->length - shape->rS[i]) /
-                              (shape->length - st);
+              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
+                                            shape->rS[i] * shape->rS[i])
+              : shape->rS[i] < st
+                  ? wh -
+                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
