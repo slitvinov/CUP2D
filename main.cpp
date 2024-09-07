@@ -817,7 +817,7 @@ static void fill(BlockInfo *b, int m, long long Z) {
       b->Zchild[i][j] = sim.space_curve->forward(
           b->level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
   b->Zparent =
-      (b->level == 0)
+      b->level == 0
           ? 0
           : sim.space_curve->forward(b->level - 1, (b->index[0] / 2) % Bmax[0],
                                      (b->index[1] / 2) % Bmax[1]);
