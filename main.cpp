@@ -2135,6 +2135,8 @@ struct Grid {
       bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
+      assert(xskip);
+      assert(yskip);
 
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
