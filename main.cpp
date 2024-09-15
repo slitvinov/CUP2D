@@ -1813,6 +1813,16 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
     }
   }
 }
+static void fill_pos(std::vector<BlockInfo> *infos, std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
+  std::sort(infos->begin(), infos->end());
+  for (size_t j = 0; j < infos->size(); j++) {
+    int m = (*infos)[j].level;
+    long long n = (*infos)[j].Z;
+    BlockInfo &info = getf(BlockInfoAll, m, n);
+    info.id = j;
+    (*infos)[j] = info;
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2292,17 +2302,6 @@ struct Grid {
     infos.erase(std::remove_if(infos.begin(), infos.end(),
                                [](const BlockInfo &x) { return x.changed2; }),
                 infos.end());
-  }
-  void FillPos() {
-    std::sort(infos.begin(), infos.end());
-    for (size_t j = 0; j < infos.size(); j++) {
-      int m = infos[j].level;
-      long long n = infos[j].Z;
-      BlockInfo &info = get(m, n);
-      info.id = j;
-      infos[j] = info;
-      assert(Tree0(m, n) >= 0);
-    }
   }
   void *avail1(const int ix, const int iy, const int m) {
     const long long n = forward(m, ix, iy);
@@ -5517,7 +5516,7 @@ static void adapt() {
                        recv_blocks[r][i].data);
           }
       }
-      g->FillPos();
+      fill_pos(&g->infos, &g->BlockInfoAll);
     } else {
       const int right =
           (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
@@ -5612,7 +5611,7 @@ static void adapt() {
                  recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
       movedBlocks = (temp >= 1);
-      g->FillPos();
+      fill_pos(&g->infos, &g->BlockInfoAll);
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
@@ -6794,7 +6793,7 @@ int main(int argc, char **argv) {
         g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
       }
     }
-    g->FillPos();
+    fill_pos(&g->infos, &g->BlockInfoAll);
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree, g->timestamp);
