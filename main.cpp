@@ -5915,8 +5915,8 @@ struct Solver {
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
   Solver()
-      : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
-        YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                       &YmaxCell} {
     Nblocks_xcumsum_.resize(sim.size + 1);
     Nrows_xcumsum_.resize(sim.size + 1);
@@ -6008,7 +6008,6 @@ struct Solver {
     }
   }
   struct CellIndexer {
-    CellIndexer(const Solver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
     long long This(const Info &info, const int ix, const int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
@@ -6034,15 +6033,14 @@ struct Solver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const Info &info) const {
-      return (info.id + ps.Nblocks_xcumsum_[var.tmp->Tree1(info)]) *
+      return (info.id + sim.solver->Nblocks_xcumsum_[var.tmp->Tree1(info)]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
     static int iy_f(const int iy) { return (iy % (_BS_ / 2)) * 2; }
-    const Solver &ps;
   };
   struct EdgeCellIndexer : public CellIndexer {
-    EdgeCellIndexer(const Solver &pSolver) : CellIndexer(pSolver) {}
+    EdgeCellIndexer() : CellIndexer() {}
     virtual long long neiUnif(const Info &nei_info, const int ix,
                               const int iy) const = 0;
     virtual long long neiInward(const Info &info, const int ix,
@@ -6066,7 +6064,7 @@ struct Solver {
                              const int iy) const = 0;
   };
   struct XbaseIndexer : public EdgeCellIndexer {
-    XbaseIndexer(const Solver &pSolver) : EdgeCellIndexer(pSolver) {}
+    XbaseIndexer() : EdgeCellIndexer() {}
     double taylorSign(const int ix, const int iy) const override {
       return iy % 2 == 0 ? -1. : 1.;
     }
@@ -6082,7 +6080,7 @@ struct Solver {
     }
   };
   struct XminIndexer : public XbaseIndexer {
-    XminIndexer(const Solver &pSolver) : XbaseIndexer(pSolver) {}
+    XminIndexer() : XbaseIndexer() {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Xmax(nei_info, ix, iy);
@@ -6106,7 +6104,7 @@ struct Solver {
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
-    XmaxIndexer(const Solver &pSolver) : XbaseIndexer(pSolver) {}
+    XmaxIndexer() : XbaseIndexer() {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Xmin(nei_info, ix, iy);
@@ -6130,7 +6128,7 @@ struct Solver {
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
-    YbaseIndexer(const Solver &pSolver) : EdgeCellIndexer(pSolver) {}
+    YbaseIndexer() : EdgeCellIndexer() {}
     double taylorSign(const int ix, const int iy) const override {
       return ix % 2 == 0 ? -1. : 1.;
     }
@@ -6146,7 +6144,7 @@ struct Solver {
     }
   };
   struct YminIndexer : public YbaseIndexer {
-    YminIndexer(const Solver &pSolver) : YbaseIndexer(pSolver) {}
+    YminIndexer() : YbaseIndexer() {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Ymax(nei_info, ix, iy);
@@ -6170,7 +6168,7 @@ struct Solver {
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
-    YmaxIndexer(const Solver &pSolver) : YbaseIndexer(pSolver) {}
+    YmaxIndexer() : YbaseIndexer() {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Ymin(nei_info, ix, iy);
