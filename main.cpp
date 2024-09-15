@@ -7322,7 +7322,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
-      sim.solver->solve();
+      solve();
       Real avg = 0;
       Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
