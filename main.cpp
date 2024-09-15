@@ -6823,7 +6823,7 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-  PoissonSolver pressureSolver;
+  PoissonSolver *solver = new PoissonSolver;
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
@@ -7322,7 +7322,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
-      pressureSolver.solve(var.tmp);
+      solver->solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
