@@ -2102,15 +2102,10 @@ struct Grid {
     double p_low[2];
     double p_high[2];
     for (auto &info : infos) {
-      const double h2 = 2 * info.h;
-      p_low[0] = info.origin[0] + info.h * 0.5;
-      p_low[1] = info.origin[1] + info.h * 0.5;
-      p_high[0] = info.origin[0] + info.h * (_BS_ - 0.5);
-      p_high[1] = info.origin[1] + info.h * (_BS_ - 0.5);
-      p_low[0] -= h2;
-      p_low[1] -= h2;
-      p_high[0] += h2;
-      p_high[1] += h2;
+      p_low[0] = info.origin[0] - 1.5 * info.h;
+      p_low[1] = info.origin[1] - 1.5 * info.h;
+      p_high[0] = info.origin[0] + info.h * _BS_ + 1.5 * info.h;
+      p_high[1] = info.origin[1] + info.h * _BS_ + 1.5 * info.h;
       low[0] = std::min(low[0], p_low[0]);
       low[1] = std::min(low[1], p_low[1]);
       high[0] = std::max(high[0], p_high[0]);
