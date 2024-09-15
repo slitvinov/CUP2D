@@ -304,6 +304,7 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
 }
 struct Shape;
 struct SpaceCurve;
+struct Solver;
 static struct {
   bool bAdaptChiGradient;
   int AdaptSteps{20};
@@ -339,6 +340,7 @@ static struct {
   std::vector<long long> levels;
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
+  struct Solver *solver;
 } sim;
 struct SpaceCurve {
   int BX;
@@ -6823,7 +6825,7 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-  Solver *solver = new Solver;
+  sim.solver = new Solver;
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
@@ -7322,7 +7324,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
-      solver->solve(var.tmp);
+      sim.solver->solve(var.tmp);
       Real avg = 0;
       Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
