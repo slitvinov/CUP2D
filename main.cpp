@@ -2143,13 +2143,13 @@ struct Grid {
             int &infoNeiTree = Treef(&tree, infoNei.level, infoNei.Z);
             if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
               myflag = true;
-              break;
+	      goto end;
             } else if (infoNeiTree == -2) {
               long long nCoarse = infoNei.Zparent;
-              int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
+              int infoNeiCoarserrank = Treef(&tree, infoNei.level - 1, nCoarse);
               if (infoNeiCoarserrank != sim.rank) {
                 myflag = true;
-                break;
+		goto end;
               }
             } else if (infoNeiTree == -1) {
               int Bstep = 1;
@@ -2162,10 +2162,10 @@ struct Grid {
                                    (B % 2) * std::max(0, 1 - abs(x))]
                                   [std::max(-y, 0) +
                                    temp * std::max(0, 1 - abs(y))];
-                int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
+                int infoNeiFinerrank = Treef(&tree, infoNei.level + 1, nFine);
                 if (infoNeiFinerrank != sim.rank) {
                   myflag = true;
-                  break;
+		  goto end;
                 }
               }
             } else if (infoNeiTree < 0) {
@@ -2173,6 +2173,7 @@ struct Grid {
               break;
             }
           }
+    end:
       if (myflag) {
         myData.push_back(info.level);
         myData.push_back(info.Z);
