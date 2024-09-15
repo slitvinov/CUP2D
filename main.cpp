@@ -1813,7 +1813,8 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
     }
   }
 }
-static void fill_pos(std::vector<BlockInfo> *infos, std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
+static void fill_pos(std::vector<BlockInfo> *infos,
+                     std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
   std::sort(infos->begin(), infos->end());
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
