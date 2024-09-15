@@ -5916,8 +5916,7 @@ struct Solver {
   std::vector<long long> Nrows_xcumsum_;
   Solver()
       : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
-                                      &YmaxCell} {
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
     Nblocks_xcumsum_.resize(sim.size + 1);
     Nrows_xcumsum_.resize(sim.size + 1);
     std::vector<std::vector<double>> L;
@@ -5963,49 +5962,6 @@ struct Solver {
       }
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
-  }
-  void solve() {
-    const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
-    const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-    const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    if (var.pres->UpdateFluxCorrection) {
-      var.pres->UpdateFluxCorrection = false;
-      this->getMat();
-      this->getVec();
-      LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
-    } else {
-      this->getVec();
-      LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
-    }
-    std::vector<Info> &zInfo = var.pres->infos;
-    const int NB = zInfo.size();
-    const std::vector<double> &x = LocalLS_->get_x();
-    double avg = 0;
-    double avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-    for (int i = 0; i < NB; i++) {
-      ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
-      const double vv = zInfo[i].h * zInfo[i].h;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          P[iy][ix] = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
-          avg += P[iy][ix] * vv;
-          avg1 += vv;
-        }
-    }
-    double quantities[2] = {avg, avg1};
-    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
-                  MPI_COMM_WORLD);
-    avg = quantities[0];
-    avg1 = quantities[1];
-    avg = avg / avg1;
-#pragma omp parallel for
-    for (int i = 0; i < NB; i++) {
-      ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++)
-          P[iy][ix] += -avg;
-    }
   }
   struct CellIndexer {
     ~CellIndexer() = default;
@@ -6469,6 +6425,50 @@ struct pressureCorrectionKernel {
     }
   }
 };
+static void solve() {
+  const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+  const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+  const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+  if (var.pres->UpdateFluxCorrection) {
+    var.pres->UpdateFluxCorrection = false;
+    sim.solver->getMat();
+    sim.solver->getVec();
+    sim.solver->LocalLS_->solveWithUpdate(max_error, max_rel_error,
+                                          max_restarts);
+  } else {
+    sim.solver->getVec();
+    sim.solver->LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+  }
+  std::vector<Info> &zInfo = var.pres->infos;
+  const int NB = zInfo.size();
+  const std::vector<double> &x = sim.solver->LocalLS_->get_x();
+  double avg = 0;
+  double avg1 = 0;
+#pragma omp parallel for reduction(+ : avg, avg1)
+  for (int i = 0; i < NB; i++) {
+    ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
+    const double vv = zInfo[i].h * zInfo[i].h;
+    for (int iy = 0; iy < _BS_; iy++)
+      for (int ix = 0; ix < _BS_; ix++) {
+        P[iy][ix] = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
+        avg += P[iy][ix] * vv;
+        avg1 += vv;
+      }
+  }
+  double quantities[2] = {avg, avg1};
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
+                MPI_COMM_WORLD);
+  avg = quantities[0];
+  avg1 = quantities[1];
+  avg = avg / avg1;
+#pragma omp parallel for
+  for (int i = 0; i < NB; i++) {
+    ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
+    for (int iy = 0; iy < _BS_; iy++)
+      for (int ix = 0; ix < _BS_; ix++)
+        P[iy][ix] += -avg;
+  }
+}
 struct pressure_rhs {
   pressure_rhs(){};
   StencilInfo stencil{-1, -1, 2, 2, false};
