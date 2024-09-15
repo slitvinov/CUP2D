@@ -1716,7 +1716,7 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
             }
           } else if (infoNeiTree < 0) {
             myflag = true;
-            break;
+            goto end;
           }
         }
   end:
