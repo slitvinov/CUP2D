@@ -656,10 +656,9 @@ struct Range {
   bool contains(Range &r) const {
     if (avg_down != r.avg_down)
       return false;
-    int V = (ez - sz) * (ey - sy) * (ex - sx);
-    int Vr = (r.ez - r.sz) * (r.ey - r.sy) * (r.ex - r.sx);
-    return sx <= r.sx && r.ex <= ex && sy <= r.sy && r.ey <= ey && sz <= r.sz &&
-           r.ez <= ez && Vr < V;
+    int V = (ey - sy) * (ex - sx);
+    int Vr = (r.ey - r.sy) * (r.ex - r.sx);
+    return sx <= r.sx && r.ex <= ex && sy <= r.sy && r.ey <= ey && Vr < V;
   }
   void Remove(const Range &other) {
     size_t s = removedIndices.size();
