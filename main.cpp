@@ -1804,7 +1804,7 @@ static void fill_pos(std::vector<Info> *infos,
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
     long long n = (*infos)[j].Z;
-    Info &info = getf(all, m, n);
+    Info &info = get0(all, m, n);
     info.id = j;
     (*infos)[j] = info;
   }
