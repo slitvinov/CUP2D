@@ -1669,34 +1669,6 @@ static void
 update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
               std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
               std::unordered_map<long long, int> *tree) {
-  std::vector<int> myNeighbors;
-  double low[2] = {+1e20, +1e20};
-  double high[2] = {-1e20, -1e20};
-  double p_low[2];
-  double p_high[2];
-  for (auto &info : *infos) {
-    p_low[0] = info.origin[0] - 1.5 * info.h;
-    p_low[1] = info.origin[1] - 1.5 * info.h;
-    p_high[0] = info.origin[0] + info.h * _BS_ + 1.5 * info.h;
-    p_high[1] = info.origin[1] + info.h * _BS_ + 1.5 * info.h;
-    low[0] = std::min(low[0], p_low[0]);
-    low[1] = std::min(low[1], p_low[1]);
-    high[0] = std::max(high[0], p_high[0]);
-    high[1] = std::max(high[1], p_high[1]);
-  }
-  std::vector<double> all_boxes(4 * sim.size);
-  double my_box[4] = {low[0], low[1], high[0], high[1]};
-  MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE,
-                MPI_COMM_WORLD);
-  for (int i = 0; i < sim.size; i++) {
-    if (i == sim.rank)
-      continue;
-    double *l2 = &all_boxes[i * 4];
-    double *h2 = &all_boxes[i * 4 + 2];
-    if (std::max(low[0], l2[0]) <= std::min(high[0], h2[0]) &&
-        std::max(low[1], l2[1]) <= std::min(high[1], h2[1]))
-      myNeighbors.push_back(i);
-  }
   std::vector<long long> myData;
   for (auto &info : *infos) {
     bool myflag = false;
@@ -1755,6 +1727,27 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
         myData.push_back(info.id);
     }
   }
+  std::vector<int> myNeighbors;
+  double *boxes;
+  double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
+  for (auto &info : *infos) {
+    box[0] = std::min(box[0], info.origin[0] - 1.5 * info.h);
+    box[1] = std::min(box[1], info.origin[1] - 1.5 * info.h);
+    box[2] = std::max(box[2], info.origin[0] + info.h * _BS_ + 1.5 * info.h);
+    box[3] = std::max(box[3], info.origin[1] + info.h * _BS_ + 1.5 * info.h);
+  }
+  boxes = (double *)malloc(sim.size * sizeof box);
+  MPI_Allgather(box, 4, MPI_DOUBLE, boxes, 4, MPI_DOUBLE, MPI_COMM_WORLD);
+  for (int i = 0; i < sim.size; i++) {
+    if (i == sim.rank)
+      continue;
+    double *l2 = &boxes[i * 4];
+    double *h2 = &boxes[i * 4 + 2];
+    if (std::max(box[0], l2[0]) <= std::min(box[2], h2[0]) &&
+        std::max(box[1], l2[1]) <= std::min(box[3], h2[1]))
+      myNeighbors.push_back(i);
+  }
+  free(boxes);
   std::vector<std::vector<long long>> recv_buffer(myNeighbors.size());
   std::vector<std::vector<long long>> send_buffer(myNeighbors.size());
   std::vector<int> recv_size(myNeighbors.size());
@@ -1791,13 +1784,12 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
   int increment = UpdateIDs ? 3 : 2;
   for (auto r : myNeighbors) {
     kk++;
-    for (size_t index__ = 0; index__ < recv_buffer[kk].size();
-         index__ += increment) {
-      int level = (int)recv_buffer[kk][index__];
-      long long Z = recv_buffer[kk][index__ + 1];
+    for (size_t index = 0; index < recv_buffer[kk].size(); index += increment) {
+      int level = (int)recv_buffer[kk][index];
+      long long Z = recv_buffer[kk][index + 1];
       Treef(tree, level, Z) = r;
       if (UpdateIDs)
-        getf(BlockInfoAll, level, Z).id = recv_buffer[kk][index__ + 2];
+        getf(BlockInfoAll, level, Z).id = recv_buffer[kk][index + 2];
       int p[2];
       sim.space_curve->inverse(Z, level, p[0], p[1]);
       if (level < sim.levelMax - 1)
@@ -6316,7 +6308,8 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll, &var.tmp->tree);
+    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll,
+                  &var.tmp->tree);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
