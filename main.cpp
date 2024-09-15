@@ -2132,7 +2132,6 @@ struct Grid {
       bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
-
       for (int x = -1; x < 2; x++)
         for (int y = -1; y < 2; y++)
           if (x != 0 || y != 0) {
@@ -2215,13 +2214,13 @@ struct Grid {
     }
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
     kk = -1;
-    const int increment = UpdateIDs ? 3 : 2;
+    int increment = UpdateIDs ? 3 : 2;
     for (auto r : myNeighbors) {
       kk++;
       for (size_t index__ = 0; index__ < recv_buffer[kk].size();
            index__ += increment) {
-        const int level = (int)recv_buffer[kk][index__];
-        const long long Z = recv_buffer[kk][index__ + 1];
+        int level = (int)recv_buffer[kk][index__];
+        long long Z = recv_buffer[kk][index__ + 1];
         Tree0(level, Z) = r;
         if (UpdateIDs)
           get(level, Z).id = recv_buffer[kk][index__ + 2];
@@ -2230,12 +2229,11 @@ struct Grid {
         if (level < sim.levelMax - 1)
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
-              const long long nc =
-                  forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+              long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
               Tree0(level + 1, nc) = -2;
             }
         if (level > 0) {
-          const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
+          long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
           Tree0(level - 1, nf) = -1;
         }
       }
