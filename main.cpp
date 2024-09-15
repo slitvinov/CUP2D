@@ -5978,12 +5978,12 @@ struct Solver {
       LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
     std::vector<Info> &zInfo = var.pres->infos;
-    const int Nblocks = zInfo.size();
+    const int N = zInfo.size();
     const std::vector<double> &x = LocalLS_->get_x();
     double avg = 0;
     double avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
-    for (int i = 0; i < Nblocks; i++) {
+    for (int i = 0; i < N; i++) {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
       const double vv = zInfo[i].h * zInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
@@ -6000,7 +6000,7 @@ struct Solver {
     avg1 = quantities[1];
     avg = avg / avg1;
 #pragma omp parallel for
-    for (int i = 0; i < Nblocks; i++) {
+    for (int i = 0; i < N; i++) {
       ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++)
