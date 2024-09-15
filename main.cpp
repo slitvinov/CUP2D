@@ -824,23 +824,23 @@ static void fill(BlockInfo *b, int m, long long Z) {
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
-static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+static BlockInfo &getf(std::unordered_map<long long, BlockInfo *> *all,
                        int m, long long Z) {
   const long long aux = sim.levels[m] + Z;
-  const auto retval = BlockInfoAll->find(aux);
-  if (retval != BlockInfoAll->end()) {
+  const auto retval = all->find(aux);
+  if (retval != all->end()) {
     return *retval->second;
   } else {
 #pragma omp critical
     {
-      const auto retval1 = BlockInfoAll->find(aux);
-      if (retval1 == BlockInfoAll->end()) {
+      const auto retval1 = all->find(aux);
+      if (retval1 == all->end()) {
         BlockInfo *dumm = new BlockInfo;
         fill(dumm, m, Z);
-        (*BlockInfoAll)[aux] = dumm;
+        (*all)[aux] = dumm;
       }
     }
-    return getf(BlockInfoAll, m, Z);
+    return getf(all, m, Z);
   }
 }
 struct Synchronizer {
@@ -1063,7 +1063,7 @@ struct Synchronizer {
     return dummy_vector;
   }
   void Setup(std::unordered_map<long long, int> *tree,
-             std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+             std::unordered_map<long long, BlockInfo *> *all,
              std::vector<BlockInfo> *infos) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
@@ -1111,7 +1111,7 @@ struct Synchronizer {
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
-          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+          BlockInfo &infoNei = getf(all, info.level,
                                     info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
@@ -1124,14 +1124,14 @@ struct Synchronizer {
           DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
-          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+          BlockInfo &infoNei = getf(all, info.level,
                                     info.Znei[1 + code[0]][1 + code[1]]);
           int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
             BlockInfo &infoNeiCoarser =
-                getf(BlockInfoAll, infoNei.level - 1, infoNei.Zparent);
+                getf(all, infoNei.level - 1, infoNei.Zparent);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             int Bmax[3] = {sim.bpdx << (info.level - 1),
@@ -1184,7 +1184,7 @@ struct Synchronizer {
             }
           }
         } else if (infoNeiTree == -1) {
-          BlockInfo &infoNei = getf(BlockInfoAll, info.level,
+          BlockInfo &infoNei = getf(all, info.level,
                                     info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
@@ -1207,7 +1207,7 @@ struct Synchronizer {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
               BlockInfo &infoNeiFiner =
-                  getf(BlockInfoAll, info.level + 1, nFine);
+                  getf(all, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
@@ -1349,7 +1349,7 @@ struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      getf(BlockInfoAll, info.level, info.Z).halo_id = info.halo_id;
+      getf(all, info.level, info.Z).halo_id = info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
@@ -1667,7 +1667,7 @@ struct Face {
 };
 static void
 update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
-              std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+              std::unordered_map<long long, BlockInfo *> *all,
               std::unordered_map<long long, int> *tree) {
   std::vector<long long> myData;
   for (auto &info : *infos) {
@@ -1685,7 +1685,7 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
           if (y == yskip && yskin)
             continue;
           BlockInfo &infoNei =
-              getf(BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
+              getf(all, info.level, info.Znei[1 + x][1 + y]);
           int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
           if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
             myflag = true;
@@ -1789,7 +1789,7 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
       long long Z = recv_buffer[kk][index + 1];
       Treef(tree, level, Z) = r;
       if (UpdateIDs)
-        getf(BlockInfoAll, level, Z).id = recv_buffer[kk][index + 2];
+        getf(all, level, Z).id = recv_buffer[kk][index + 2];
       int p[2];
       sim.space_curve->inverse(Z, level, p[0], p[1]);
       if (level < sim.levelMax - 1)
@@ -1806,12 +1806,12 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
   }
 }
 static void fill_pos(std::vector<BlockInfo> *infos,
-                     std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
+                     std::unordered_map<long long, BlockInfo *> *all) {
   std::sort(infos->begin(), infos->end());
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
     long long n = (*infos)[j].Z;
-    BlockInfo &info = getf(BlockInfoAll, m, n);
+    BlockInfo &info = getf(all, m, n);
     info.id = j;
     (*infos)[j] = info;
   }
@@ -1822,7 +1822,7 @@ struct Grid {
   size_t timestamp;
   std::map<std::array<long long, 2>, BlockCase *> Map;
   std::map<StencilInfo, Synchronizer *> Synchronizers;
-  std::unordered_map<long long, BlockInfo *> BlockInfoAll;
+  std::unordered_map<long long, BlockInfo *> all;
   std::unordered_map<long long, int> tree;
   std::vector<BlockCase *> Cases;
   std::vector<BlockInfo *> boundary;
@@ -2252,7 +2252,7 @@ struct Grid {
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
-      s->Setup(&tree, &BlockInfoAll, &infos);
+      s->Setup(&tree, &all, &infos);
       Synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
@@ -2301,11 +2301,11 @@ struct Grid {
     return avail(m, n);
   }
   BlockInfo &get0(int m, long long n) {
-    const auto retval = BlockInfoAll.find(sim.levels[m] + n);
-    assert(retval != BlockInfoAll.end());
+    const auto retval = all.find(sim.levels[m] + n);
+    assert(retval != all.end());
     return *retval->second;
   }
-  BlockInfo &get(int m, long long n) { return getf(&BlockInfoAll, m, n); }
+  BlockInfo &get(int m, long long n) { return getf(&all, m, n); }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -5036,26 +5036,26 @@ static void adapt() {
     }
   }
   struct {
-    std::unordered_map<long long, BlockInfo *> *BlockInfoAll;
+    std::unordered_map<long long, BlockInfo *> *all;
     std::vector<BlockInfo> &I2;
   } args[] = {
-      {&var.chi->BlockInfoAll, var.chi->infos},
-      {&var.pres->BlockInfoAll, var.pres->infos},
-      {&var.pold->BlockInfoAll, var.pold->infos},
-      {&var.vel->BlockInfoAll, var.vel->infos},
-      {&var.vold->BlockInfoAll, var.vold->infos},
-      {&var.tmpV->BlockInfoAll, var.tmpV->infos},
+      {&var.chi->all, var.chi->infos},
+      {&var.pres->all, var.pres->infos},
+      {&var.pold->all, var.pold->infos},
+      {&var.vel->all, var.vel->infos},
+      {&var.vold->all, var.vold->infos},
+      {&var.tmpV->all, var.tmpV->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
       BlockInfo &ary0 = args[iarg].I2[i1];
-      BlockInfo &info = getf(args[iarg].BlockInfoAll, ary0.level, ary0.Z);
+      BlockInfo &info = getf(args[iarg].all, ary0.level, ary0.Z);
       for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
            i++)
         for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
              j++) {
           const long long n = forward(info.level, i, j);
-          BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info.level, n);
+          BlockInfo &infoNei = getf(args[iarg].all, info.level, n);
           infoNei.state = Leave;
         }
       info.state = Leave;
@@ -5065,14 +5065,14 @@ static void adapt() {
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       const BlockInfo &info1 = var.tmp->infos[i];
       BlockInfo &info2 = args[iarg].I2[i];
-      BlockInfo &info3 = getf(args[iarg].BlockInfoAll, info2.level, info2.Z);
+      BlockInfo &info3 = getf(args[iarg].all, info2.level, info2.Z);
       info2.state = info1.state;
       info3.state = info1.state;
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
         const long long n = forward(info2.level, i2, j2);
-        BlockInfo &infoNei = getf(args[iarg].BlockInfoAll, info2.level, n);
+        BlockInfo &infoNei = getf(args[iarg].all, info2.level, n);
         infoNei.state = Compress;
       }
     }
@@ -5509,7 +5509,7 @@ static void adapt() {
                        recv_blocks[r][i].data);
           }
       }
-      fill_pos(&g->infos, &g->BlockInfoAll);
+      fill_pos(&g->infos, &g->all);
     } else {
       const int right =
           (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
@@ -5604,14 +5604,14 @@ static void adapt() {
                  recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
       movedBlocks = (temp >= 1);
-      fill_pos(&g->infos, &g->BlockInfoAll);
+      fill_pos(&g->infos, &g->all);
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree);
+      update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
-        (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
+        (*it->second).Setup(&g->tree, &g->all, &g->infos);
         it++;
       }
     }
@@ -6308,7 +6308,7 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll,
+    update_blocks(true, &var.tmp->infos, &var.tmp->all,
                   &var.tmp->tree);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
@@ -6767,7 +6767,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < my_blocks; i++) {
       long long Z = n_start + i;
       long long aux = sim.levels[sim.levelStart] + Z;
-      BlockInfo *info = g->BlockInfoAll[aux] = new BlockInfo;
+      BlockInfo *info = g->all[aux] = new BlockInfo;
       fill(info, sim.levelStart, Z);
       info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(*info);
@@ -6786,10 +6786,10 @@ int main(int argc, char **argv) {
         g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
       }
     }
-    fill_pos(&g->infos, &g->BlockInfoAll);
+    fill_pos(&g->infos, &g->all);
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree);
+    update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::string shapeArg = parser("-shapes").asString("");
