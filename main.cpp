@@ -1665,6 +1665,154 @@ struct Face {
     }
   }
 };
+static void UpdateBlockInfoAll_States(
+    bool UpdateIDs, std::vector<BlockInfo> *infos,
+    std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+    std::unordered_map<long long, int> *tree, size_t timestamp) {
+  std::vector<int> myNeighbors;
+  double low[2] = {+1e20, +1e20};
+  double high[2] = {-1e20, -1e20};
+  double p_low[2];
+  double p_high[2];
+  for (auto &info : *infos) {
+    p_low[0] = info.origin[0] - 1.5 * info.h;
+    p_low[1] = info.origin[1] - 1.5 * info.h;
+    p_high[0] = info.origin[0] + info.h * _BS_ + 1.5 * info.h;
+    p_high[1] = info.origin[1] + info.h * _BS_ + 1.5 * info.h;
+    low[0] = std::min(low[0], p_low[0]);
+    low[1] = std::min(low[1], p_low[1]);
+    high[0] = std::max(high[0], p_high[0]);
+    high[1] = std::max(high[1], p_high[1]);
+  }
+  std::vector<double> all_boxes(4 * sim.size);
+  double my_box[4] = {low[0], low[1], high[0], high[1]};
+  MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE,
+                MPI_COMM_WORLD);
+  for (int i = 0; i < sim.size; i++) {
+    if (i == sim.rank)
+      continue;
+    double *l2 = &all_boxes[i * 4];
+    double *h2 = &all_boxes[i * 4 + 2];
+    if (std::max(low[0], l2[0]) <= std::min(high[0], h2[0]) &&
+        std::max(low[1], l2[1]) <= std::min(high[1], h2[1]))
+      myNeighbors.push_back(i);
+  }
+  std::vector<long long> myData;
+  for (auto &info : *infos) {
+    bool myflag = false;
+    int aux = 1 << info.level;
+    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    int xskip = info.index[0] == 0 ? -1 : 1;
+    int yskip = info.index[1] == 0 ? -1 : 1;
+    for (int x = -1; x < 2; x++)
+      for (int y = -1; y < 2; y++)
+        if (x != 0 || y != 0) {
+          if (x == xskip && xskin)
+            continue;
+          if (y == yskip && yskin)
+            continue;
+          BlockInfo &infoNei =
+              getf(BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
+          int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
+          if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
+            myflag = true;
+            goto end;
+          } else if (infoNeiTree == -2) {
+            long long nCoarse = infoNei.Zparent;
+            int infoNeiCoarserrank = Treef(tree, infoNei.level - 1, nCoarse);
+            if (infoNeiCoarserrank != sim.rank) {
+              myflag = true;
+              goto end;
+            }
+          } else if (infoNeiTree == -1) {
+            int Bstep = 1;
+            if ((abs(x) + abs(y) == 2))
+              Bstep = 3;
+            for (int B = 0; B <= 3; B += Bstep) {
+              int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
+              long long nFine =
+                  infoNei
+                      .Zchild[std::max(-x, 0) +
+                              (B % 2) * std::max(0, 1 - abs(x))]
+                             [std::max(-y, 0) + temp * std::max(0, 1 - abs(y))];
+              int infoNeiFinerrank = Treef(tree, infoNei.level + 1, nFine);
+              if (infoNeiFinerrank != sim.rank) {
+                myflag = true;
+                goto end;
+              }
+            }
+          } else if (infoNeiTree < 0) {
+            myflag = true;
+            break;
+          }
+        }
+  end:
+    if (myflag) {
+      myData.push_back(info.level);
+      myData.push_back(info.Z);
+      if (UpdateIDs)
+        myData.push_back(info.id);
+    }
+  }
+  std::vector<std::vector<long long>> recv_buffer(myNeighbors.size());
+  std::vector<std::vector<long long>> send_buffer(myNeighbors.size());
+  std::vector<int> recv_size(myNeighbors.size());
+  std::vector<MPI_Request> size_requests(2 * myNeighbors.size());
+  int mysize = (int)myData.size();
+  int kk = 0;
+  for (auto r : myNeighbors) {
+    MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
+              &size_requests[2 * kk]);
+    MPI_Isend(&mysize, 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
+              &size_requests[2 * kk + 1]);
+    kk++;
+  }
+  kk = 0;
+  for (size_t j = 0; j < myNeighbors.size(); j++) {
+    send_buffer[kk].resize(myData.size());
+    for (size_t i = 0; i < myData.size(); i++)
+      send_buffer[kk][i] = myData[i];
+    kk++;
+  }
+  MPI_Waitall(size_requests.size(), size_requests.data(), MPI_STATUSES_IGNORE);
+  std::vector<MPI_Request> requests(2 * myNeighbors.size());
+  kk = 0;
+  for (auto r : myNeighbors) {
+    recv_buffer[kk].resize(recv_size[kk]);
+    MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG, r,
+              timestamp, MPI_COMM_WORLD, &requests[2 * kk]);
+    MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG, r,
+              timestamp, MPI_COMM_WORLD, &requests[2 * kk + 1]);
+    kk++;
+  }
+  MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+  kk = -1;
+  int increment = UpdateIDs ? 3 : 2;
+  for (auto r : myNeighbors) {
+    kk++;
+    for (size_t index__ = 0; index__ < recv_buffer[kk].size();
+         index__ += increment) {
+      int level = (int)recv_buffer[kk][index__];
+      long long Z = recv_buffer[kk][index__ + 1];
+      Treef(tree, level, Z) = r;
+      if (UpdateIDs)
+        getf(BlockInfoAll, level, Z).id = recv_buffer[kk][index__ + 2];
+      int p[2];
+      sim.space_curve->inverse(Z, level, p[0], p[1]);
+      if (level < sim.levelMax - 1)
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+            Treef(tree, level + 1, nc) = -2;
+          }
+      if (level > 0) {
+        long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
+        Treef(tree, level - 1, nf) = -1;
+      }
+    }
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2095,155 +2243,6 @@ struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  void UpdateBlockInfoAll_States(
-      bool UpdateIDs, std::vector<BlockInfo> *infos,
-      std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-      std::unordered_map<long long, int> *tree, size_t timestamp) {
-    std::vector<int> myNeighbors;
-    double low[2] = {+1e20, +1e20};
-    double high[2] = {-1e20, -1e20};
-    double p_low[2];
-    double p_high[2];
-    for (auto &info : *infos) {
-      p_low[0] = info.origin[0] - 1.5 * info.h;
-      p_low[1] = info.origin[1] - 1.5 * info.h;
-      p_high[0] = info.origin[0] + info.h * _BS_ + 1.5 * info.h;
-      p_high[1] = info.origin[1] + info.h * _BS_ + 1.5 * info.h;
-      low[0] = std::min(low[0], p_low[0]);
-      low[1] = std::min(low[1], p_low[1]);
-      high[0] = std::max(high[0], p_high[0]);
-      high[1] = std::max(high[1], p_high[1]);
-    }
-    std::vector<double> all_boxes(4 * sim.size);
-    double my_box[4] = {low[0], low[1], high[0], high[1]};
-    MPI_Allgather(my_box, 4, MPI_DOUBLE, all_boxes.data(), 4, MPI_DOUBLE,
-                  MPI_COMM_WORLD);
-    for (int i = 0; i < sim.size; i++) {
-      if (i == sim.rank)
-        continue;
-      double *l2 = &all_boxes[i * 4];
-      double *h2 = &all_boxes[i * 4 + 2];
-      if (std::max(low[0], l2[0]) <= std::min(high[0], h2[0]) &&
-          std::max(low[1], l2[1]) <= std::min(high[1], h2[1]))
-        myNeighbors.push_back(i);
-    }
-    std::vector<long long> myData;
-    for (auto &info : *infos) {
-      bool myflag = false;
-      int aux = 1 << info.level;
-      bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-      bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      int xskip = info.index[0] == 0 ? -1 : 1;
-      int yskip = info.index[1] == 0 ? -1 : 1;
-      for (int x = -1; x < 2; x++)
-        for (int y = -1; y < 2; y++)
-          if (x != 0 || y != 0) {
-            if (x == xskip && xskin)
-              continue;
-            if (y == yskip && yskin)
-              continue;
-            BlockInfo &infoNei =
-                getf(BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
-            int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
-            if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-              myflag = true;
-              goto end;
-            } else if (infoNeiTree == -2) {
-              long long nCoarse = infoNei.Zparent;
-              int infoNeiCoarserrank = Treef(tree, infoNei.level - 1, nCoarse);
-              if (infoNeiCoarserrank != sim.rank) {
-                myflag = true;
-                goto end;
-              }
-            } else if (infoNeiTree == -1) {
-              int Bstep = 1;
-              if ((abs(x) + abs(y) == 2))
-                Bstep = 3;
-              for (int B = 0; B <= 3; B += Bstep) {
-                int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
-                long long nFine =
-                    infoNei.Zchild[std::max(-x, 0) +
-                                   (B % 2) * std::max(0, 1 - abs(x))]
-                                  [std::max(-y, 0) +
-                                   temp * std::max(0, 1 - abs(y))];
-                int infoNeiFinerrank = Treef(tree, infoNei.level + 1, nFine);
-                if (infoNeiFinerrank != sim.rank) {
-                  myflag = true;
-                  goto end;
-                }
-              }
-            } else if (infoNeiTree < 0) {
-              myflag = true;
-              break;
-            }
-          }
-    end:
-      if (myflag) {
-        myData.push_back(info.level);
-        myData.push_back(info.Z);
-        if (UpdateIDs)
-          myData.push_back(info.id);
-      }
-    }
-    std::vector<std::vector<long long>> recv_buffer(myNeighbors.size());
-    std::vector<std::vector<long long>> send_buffer(myNeighbors.size());
-    std::vector<int> recv_size(myNeighbors.size());
-    std::vector<MPI_Request> size_requests(2 * myNeighbors.size());
-    int mysize = (int)myData.size();
-    int kk = 0;
-    for (auto r : myNeighbors) {
-      MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
-                &size_requests[2 * kk]);
-      MPI_Isend(&mysize, 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
-                &size_requests[2 * kk + 1]);
-      kk++;
-    }
-    kk = 0;
-    for (size_t j = 0; j < myNeighbors.size(); j++) {
-      send_buffer[kk].resize(myData.size());
-      for (size_t i = 0; i < myData.size(); i++)
-        send_buffer[kk][i] = myData[i];
-      kk++;
-    }
-    MPI_Waitall(size_requests.size(), size_requests.data(),
-                MPI_STATUSES_IGNORE);
-    std::vector<MPI_Request> requests(2 * myNeighbors.size());
-    kk = 0;
-    for (auto r : myNeighbors) {
-      recv_buffer[kk].resize(recv_size[kk]);
-      MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG,
-                r, timestamp, MPI_COMM_WORLD, &requests[2 * kk]);
-      MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG,
-                r, timestamp, MPI_COMM_WORLD, &requests[2 * kk + 1]);
-      kk++;
-    }
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-    kk = -1;
-    int increment = UpdateIDs ? 3 : 2;
-    for (auto r : myNeighbors) {
-      kk++;
-      for (size_t index__ = 0; index__ < recv_buffer[kk].size();
-           index__ += increment) {
-        int level = (int)recv_buffer[kk][index__];
-        long long Z = recv_buffer[kk][index__ + 1];
-        Treef(tree, level, Z) = r;
-        if (UpdateIDs)
-          get(level, Z).id = recv_buffer[kk][index__ + 2];
-        int p[2];
-        sim.space_curve->inverse(Z, level, p[0], p[1]);
-        if (level < sim.levelMax - 1)
-          for (int j = 0; j < 2; j++)
-            for (int i = 0; i < 2; i++) {
-              long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              Treef(tree, level + 1, nc) = -2;
-            }
-        if (level > 0) {
-          long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-          Treef(tree, level - 1, nf) = -1;
-        }
-      }
-    }
-  }
   Synchronizer *sync1(const StencilInfo &stencil) {
     Synchronizer *s = nullptr;
     typename std::map<StencilInfo, Synchronizer *>::iterator itSynchronizerMPI =
@@ -5617,8 +5616,8 @@ static void adapt() {
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
-                                   g->timestamp);
+      UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
+                                g->timestamp);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
@@ -6318,9 +6317,8 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    var.tmp->UpdateBlockInfoAll_States(true, &var.tmp->infos,
-                                       &var.tmp->BlockInfoAll, &var.tmp->tree,
-                                       var.tmp->timestamp);
+    UpdateBlockInfoAll_States(true, &var.tmp->infos, &var.tmp->BlockInfoAll,
+                              &var.tmp->tree, var.tmp->timestamp);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
@@ -6800,8 +6798,8 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
-                                 g->timestamp);
+    UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
+                              g->timestamp);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::string shapeArg = parser("-shapes").asString("");
