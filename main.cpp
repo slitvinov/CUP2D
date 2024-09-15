@@ -1668,7 +1668,7 @@ struct Face {
 static void
 update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
               std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-              std::unordered_map<long long, int> *tree, size_t timestamp) {
+              std::unordered_map<long long, int> *tree) {
   std::vector<int> myNeighbors;
   double low[2] = {+1e20, +1e20};
   double high[2] = {-1e20, -1e20};
@@ -1762,9 +1762,9 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
   int mysize = (int)myData.size();
   int kk = 0;
   for (auto r : myNeighbors) {
-    MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
+    MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, 0, MPI_COMM_WORLD,
               &size_requests[2 * kk]);
-    MPI_Isend(&mysize, 1, MPI_INT, r, timestamp, MPI_COMM_WORLD,
+    MPI_Isend(&mysize, 1, MPI_INT, r, 0, MPI_COMM_WORLD,
               &size_requests[2 * kk + 1]);
     kk++;
   }
@@ -1781,9 +1781,9 @@ update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
   for (auto r : myNeighbors) {
     recv_buffer[kk].resize(recv_size[kk]);
     MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG, r,
-              timestamp, MPI_COMM_WORLD, &requests[2 * kk]);
+              0, MPI_COMM_WORLD, &requests[2 * kk]);
     MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG, r,
-              timestamp, MPI_COMM_WORLD, &requests[2 * kk + 1]);
+              0, MPI_COMM_WORLD, &requests[2 * kk + 1]);
     kk++;
   }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -5616,7 +5616,7 @@ static void adapt() {
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree, g->timestamp);
+      update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
@@ -6316,8 +6316,7 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll, &var.tmp->tree,
-                  var.tmp->timestamp);
+    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll, &var.tmp->tree);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
@@ -6797,7 +6796,7 @@ int main(int argc, char **argv) {
     fill_pos(&g->infos, &g->BlockInfoAll);
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree, g->timestamp);
+    update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::string shapeArg = parser("-shapes").asString("");
