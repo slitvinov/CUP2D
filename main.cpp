@@ -5964,7 +5964,7 @@ struct Solver {
     LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
                                                  sim.bMeanConstraint, P_inv);
   }
-  void solve(const Grid *input) {
+  void solve() {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7322,7 +7322,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
-      sim.solver->solve(var.tmp);
+      sim.solver->solve();
       Real avg = 0;
       Real avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
