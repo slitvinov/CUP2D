@@ -1665,10 +1665,10 @@ struct Face {
     }
   }
 };
-static void UpdateBlockInfoAll_States(
-    bool UpdateIDs, std::vector<BlockInfo> *infos,
-    std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
-    std::unordered_map<long long, int> *tree, size_t timestamp) {
+static void
+update_blocks(bool UpdateIDs, std::vector<BlockInfo> *infos,
+              std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+              std::unordered_map<long long, int> *tree, size_t timestamp) {
   std::vector<int> myNeighbors;
   double low[2] = {+1e20, +1e20};
   double high[2] = {-1e20, -1e20};
@@ -5616,8 +5616,7 @@ static void adapt() {
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
-                                g->timestamp);
+      update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree, g->timestamp);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
@@ -6317,8 +6316,8 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    UpdateBlockInfoAll_States(true, &var.tmp->infos, &var.tmp->BlockInfoAll,
-                              &var.tmp->tree, var.tmp->timestamp);
+    update_blocks(true, &var.tmp->infos, &var.tmp->BlockInfoAll, &var.tmp->tree,
+                  var.tmp->timestamp);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
@@ -6798,8 +6797,7 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
-                              g->timestamp);
+    update_blocks(false, &g->infos, &g->BlockInfoAll, &g->tree, g->timestamp);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::string shapeArg = parser("-shapes").asString("");
