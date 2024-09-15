@@ -822,6 +822,12 @@ static void fill(Info *b, int m, long long Z) {
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
+static Info &get0(std::unordered_map<long long, Info *> *all, int m,
+                  long long Z) {
+  const auto retval = all->find(sim.levels[m] + Z);
+  assert(retval != all->end());
+  return *retval->second;
+}
 static Info &getf(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   const long long aux = sim.levels[m] + Z;
