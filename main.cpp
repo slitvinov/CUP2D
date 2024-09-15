@@ -619,8 +619,7 @@ struct Interface {
   bool CoarseStencil;
   bool ToBeKept;
   int dis;
-  Interface(Info &i0, Info &i1, const int a_icode0,
-            const int a_icode1) {
+  Interface(Info &i0, Info &i1, const int a_icode0, const int a_icode1) {
     infos[0] = &i0;
     infos[1] = &i1;
     icode[0] = a_icode0;
@@ -647,10 +646,10 @@ struct Range {
   int index;
   int sx;
   int sy;
-  int sz;
+  const int sz = 0;
   int ex;
   int ey;
-  int ez;
+  const int ez = 1;
   bool needed{true};
   bool avg_down{true};
   bool contains(Range &r) const {
@@ -823,8 +822,8 @@ static void fill(Info *b, int m, long long Z) {
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
-static Info &getf(std::unordered_map<long long, Info *> *all,
-                       int m, long long Z) {
+static Info &getf(std::unordered_map<long long, Info *> *all, int m,
+                  long long Z) {
   const long long aux = sim.levels[m] + Z;
   const auto retval = all->find(aux);
   if (retval != all->end()) {
@@ -885,20 +884,16 @@ struct Synchronizer {
       Range &range0 = AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
-      range0.sz = code[2] < 1 ? (code[2] < 0 ? 1 : 0) : 0;
       range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
       range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
-      range0.ez = code[2] < 1 ? 1 : 0;
       sLength[3 * icode + 0] = range0.ex - range0.sx;
       sLength[3 * icode + 1] = range0.ey - range0.sy;
       sLength[3 * icode + 2] = range0.ez - range0.sz;
       Range &range1 = AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
-      range1.sz = code[2] < 1 ? (code[2] < 0 ? 1 : 0) : 0;
       range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
       range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
-      range1.ez = code[2] < 1 ? 1 : 0;
       sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
       sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
       sLength[3 * (icode + 27) + 2] = 1;
@@ -907,8 +902,6 @@ struct Synchronizer {
       range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
       range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
       range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
-      range2.sz = 0;
-      range2.ez = 1;
       sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
       sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
@@ -991,14 +984,12 @@ struct Synchronizer {
         Coarse_Range.sy = s[1] + std::max(code[1], 0) * _BS_ / 2 +
                           (1 - abs(code[1])) * base[1] * _BS_ / 2 -
                           code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
-        Coarse_Range.sz = 0;
         Coarse_Range.ex = e[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                           code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
         Coarse_Range.ey = e[1] + std::max(code[1], 0) * _BS_ / 2 +
                           (1 - abs(code[1])) * base[1] * _BS_ / 2 -
                           code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
-        Coarse_Range.ez = 1;
         return Coarse_Range;
       }
     }
@@ -1110,8 +1101,8 @@ struct Synchronizer {
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
-          Info &infoNei = getf(all, info.level,
-                                    info.Znei[1 + code[0]][1 + code[1]]);
+          Info &infoNei =
+              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
               {info, infoNei, icode, icode2});
@@ -1123,8 +1114,8 @@ struct Synchronizer {
           DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
-          Info &infoNei = getf(all, info.level,
-                                    info.Znei[1 + code[0]][1 + code[1]]);
+          Info &infoNei =
+              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei.Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
@@ -1183,8 +1174,8 @@ struct Synchronizer {
             }
           }
         } else if (infoNeiTree == -1) {
-          Info &infoNei = getf(all, info.level,
-                                    info.Znei[1 + code[0]][1 + code[1]]);
+          Info &infoNei =
+              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
             Bstep = 3;
@@ -1205,8 +1196,7 @@ struct Synchronizer {
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
-              Info &infoNeiFiner =
-                  getf(all, info.level + 1, nFine);
+              Info &infoNeiFiner = getf(all, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
@@ -1664,10 +1654,9 @@ struct Face {
     }
   }
 };
-static void
-update_blocks(bool UpdateIDs, std::vector<Info> *infos,
-              std::unordered_map<long long, Info *> *all,
-              std::unordered_map<long long, int> *tree) {
+static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
+                          std::unordered_map<long long, Info *> *all,
+                          std::unordered_map<long long, int> *tree) {
   std::vector<long long> myData;
   for (auto &info : *infos) {
     bool myflag = false;
@@ -1683,8 +1672,7 @@ update_blocks(bool UpdateIDs, std::vector<Info> *infos,
             continue;
           if (y == yskip && yskin)
             continue;
-          Info &infoNei =
-              getf(all, info.level, info.Znei[1 + x][1 + y]);
+          Info &infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
           int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
           if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
             myflag = true;
@@ -1972,8 +1960,7 @@ struct Grid {
         L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
         if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
-          Info &infoNei =
-              get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei.Zparent;
           Info &infoNeiCoarser = get(info.level - 1, nCoarse);
           const int infoNeiCoarserrank = Tree0(info.level - 1, nCoarse);
@@ -1987,8 +1974,7 @@ struct Grid {
           }
         } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
                    -1) {
-          Info &infoNei =
-              get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -2152,8 +2138,7 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        Info &infoNei =
-            get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei.state != Refine || clean)
@@ -2843,9 +2828,8 @@ struct BlockLab {
           }
     return false;
   }
-  void SameLevelExchange(Grid *grid, const Info &info,
-                         const int *const code, const int *const s,
-                         const int *const e) {
+  void SameLevelExchange(Grid *grid, const Info &info, const int *const code,
+                         const int *const s, const int *const e) {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
@@ -2890,9 +2874,8 @@ struct BlockLab {
       memcpy(p, q, bytes);
     }
   }
-  void FineToCoarseExchange(Grid *grid, const Info &info,
-                            const int *const code, const int *const s,
-                            const int *const e) {
+  void FineToCoarseExchange(Grid *grid, const Info &info, const int *const code,
+                            const int *const s, const int *const e) {
     Real *um = (Real *)m;
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
@@ -3021,8 +3004,7 @@ struct BlockLab {
       }
     }
   }
-  void CoarseFineExchange(Grid *grid, const Info &info,
-                          const int *const code) {
+  void CoarseFineExchange(Grid *grid, const Info &info, const int *const code) {
     Real *uc = (Real *)c;
     int infoNei_index[2] = {(info.index[0] + code[0] + NX) % NX,
                             (info.index[1] + code[1] + NY) % NY};
@@ -3935,8 +3917,8 @@ struct ComputeSurfaceNormals {
   ComputeSurfaceNormals(){};
   StencilInfo stencil{-1, -1, 2, 2, false};
   StencilInfo stencil2{-1, -1, 2, 2, false};
-  void operator()(ScalarLab &labChi, ScalarLab &labSDF,
-                  const Info &infoChi, const Info &infoSDF) const {
+  void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info &infoChi,
+                  const Info &infoSDF) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     Real *um0 = (Real *)labChi.m;
     Real *um1 = (Real *)labSDF.m;
@@ -5038,12 +5020,9 @@ static void adapt() {
     std::unordered_map<long long, Info *> *all;
     std::vector<Info> &I2;
   } args[] = {
-      {&var.chi->all, var.chi->infos},
-      {&var.pres->all, var.pres->infos},
-      {&var.pold->all, var.pold->infos},
-      {&var.vel->all, var.vel->infos},
-      {&var.vold->all, var.vold->infos},
-      {&var.tmpV->all, var.tmpV->infos},
+      {&var.chi->all, var.chi->infos},   {&var.pres->all, var.pres->infos},
+      {&var.pold->all, var.pold->infos}, {&var.vel->all, var.vel->infos},
+      {&var.vold->all, var.vold->infos}, {&var.tmpV->all, var.tmpV->infos},
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
@@ -5459,8 +5438,7 @@ static void adapt() {
       for (int r = sim.size - 1; r > sim.rank; r--)
         if (send_blocks[r].size() != 0) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            Info *info =
-                &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+            Info *info = &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
             MPI_Block *x = &send_blocks[r][i];
             x->mn[0] = info->level;
             x->mn[1] = info->Z;
@@ -6068,10 +6046,10 @@ struct PoissonSolver {
     virtual int iy_c(const Info &info, const int iy) const {
       return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + _BS_ / 2;
     }
-    virtual long long neiFine1(const Info &nei_info, const int ix,
-                               const int iy, const int offset = 0) const = 0;
-    virtual long long neiFine2(const Info &nei_info, const int ix,
-                               const int iy, const int offset = 0) const = 0;
+    virtual long long neiFine1(const Info &nei_info, const int ix, const int iy,
+                               const int offset = 0) const = 0;
+    virtual long long neiFine2(const Info &nei_info, const int ix, const int iy,
+                               const int offset = 0) const = 0;
     virtual bool isBD(const int ix, const int iy) const = 0;
     virtual bool isFD(const int ix, const int iy) const = 0;
     virtual long long Nei(const Info &info, const int ix, const int iy,
@@ -6105,9 +6083,7 @@ struct PoissonSolver {
                         const int iy) const override {
       return This(info, ix + 1, iy);
     }
-    int ix_c(const Info &info, const int ix) const override {
-      return _BS_ - 1;
-    }
+    int ix_c(const Info &info, const int ix) const override { return _BS_ - 1; }
     long long neiFine1(const Info &nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -6171,9 +6147,7 @@ struct PoissonSolver {
                         const int iy) const override {
       return This(info, ix, iy + 1);
     }
-    int iy_c(const Info &info, const int iy) const override {
-      return _BS_ - 1;
-    }
+    int iy_c(const Info &info, const int iy) const override { return _BS_ - 1; }
     long long neiFine1(const Info &nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -6278,8 +6252,7 @@ struct PoissonSolver {
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
-      const Info &rhsNei_c =
-          var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
+      const Info &rhsNei_c = var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
       const int ix_c = indexer.ix_c(rhs_info, ix);
       const int iy_c = indexer.iy_c(rhs_info, iy);
       const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
@@ -6307,8 +6280,7 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    update_blocks(true, &var.tmp->infos, &var.tmp->all,
-                  &var.tmp->tree);
+    update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
     std::vector<Info> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
