@@ -2231,11 +2231,11 @@ struct Grid {
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
               long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              Tree0(level + 1, nc) = -2;
+              Treef(&tree, level + 1, nc) = -2;
             }
         if (level > 0) {
           long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-          Tree0(level - 1, nf) = -1;
+          Treef(&tree, level - 1, nf) = -1;
         }
       }
     }
