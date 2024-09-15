@@ -969,20 +969,22 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f.infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : ((f.infos[1]->index[0] % 2 == 0) &&
-                            (Cindex_true[0] > f.infos[1]->index[0])) ||
-                           ((f.infos[1]->index[0] % 2 == 1) &&
-                            (Cindex_true[0] < f.infos[1]->index[0]))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : ((f.infos[1]->index[1] % 2 == 0) &&
-                            (Cindex_true[1] > f.infos[1]->index[1])) ||
-                           ((f.infos[1]->index[1] % 2 == 1) &&
-                            (Cindex_true[1] < f.infos[1]->index[1]))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = code[0] == 0
+                            ? 0
+                            : ((f.infos[1]->index[0] % 2 == 0) &&
+                               (Cindex_true[0] > f.infos[1]->index[0])) ||
+                                      ((f.infos[1]->index[0] % 2 == 1) &&
+                                       (Cindex_true[0] < f.infos[1]->index[0]))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = code[1] == 0
+                            ? 0
+                            : ((f.infos[1]->index[1] % 2 == 0) &&
+                               (Cindex_true[1] > f.infos[1]->index[1])) ||
+                                      ((f.infos[1]->index[1] % 2 == 1) &&
+                                       (Cindex_true[1] < f.infos[1]->index[1]))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
