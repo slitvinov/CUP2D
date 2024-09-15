@@ -1088,6 +1088,8 @@ struct Synchronizer {
           info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
+      assert(xskip);
+      assert(yskip);
 
       bool isInner = true;
       std::vector<int> ToBeChecked;
