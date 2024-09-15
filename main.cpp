@@ -2137,56 +2137,48 @@ struct Grid {
       bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
       int xskip = info.index[0] == 0 ? -1 : 1;
       int yskip = info.index[1] == 0 ? -1 : 1;
-      assert(xskip);
-      assert(yskip);
 
-      for (int icode = 0; icode < 27; icode++) {
-        if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-          continue;
-        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-        if (code[0] == xskip && xskin)
-          continue;
-        if (code[1] == yskip && yskin)
-          continue;
-        if (code[2] != 0)
-          continue;
-        BlockInfo &infoNei =
-            get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-        int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
-        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-          myflag = true;
-          break;
-        } else if (infoNeiTree == -2) {
-          long long nCoarse = infoNei.Zparent;
-          int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
-          if (infoNeiCoarserrank != sim.rank) {
-            myflag = true;
-            break;
-          }
-        } else if (infoNeiTree == -1) {
-          int Bstep = 1;
-          if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3;
-          else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4;
-          for (int B = 0; B <= 3; B += Bstep) {
-            int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            long long nFine =
-                infoNei.Zchild[std::max(-code[0], 0) +
-                               (B % 2) * std::max(0, 1 - abs(code[0]))]
-                              [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))];
-            int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
-            if (infoNeiFinerrank != sim.rank) {
+      for (int x = -1; x < 2; x++)
+        for (int y = -1; y < 2; y++)
+          if (x != 0 || y != 0) {
+            if (x == xskip && xskin)
+              continue;
+            if (y == yskip && yskin)
+              continue;
+            BlockInfo &infoNei = get(info.level, info.Znei[1 + x][1 + y]);
+            int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
+            if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
+              myflag = true;
+              break;
+            } else if (infoNeiTree == -2) {
+              long long nCoarse = infoNei.Zparent;
+              int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
+              if (infoNeiCoarserrank != sim.rank) {
+                myflag = true;
+                break;
+              }
+            } else if (infoNeiTree == -1) {
+              int Bstep = 1;
+              if ((abs(x) + abs(y) == 2))
+                Bstep = 3;
+              for (int B = 0; B <= 3; B += Bstep) {
+                int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
+                long long nFine =
+                    infoNei.Zchild[std::max(-x, 0) +
+                                   (B % 2) * std::max(0, 1 - abs(x))]
+                                  [std::max(-y, 0) +
+                                   temp * std::max(0, 1 - abs(y))];
+                int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
+                if (infoNeiFinerrank != sim.rank) {
+                  myflag = true;
+                  break;
+                }
+              }
+            } else if (infoNeiTree < 0) {
               myflag = true;
               break;
             }
           }
-        } else if (infoNeiTree < 0) {
-          myflag = true;
-          break;
-        }
-      }
       if (myflag) {
         myData.push_back(info.level);
         myData.push_back(info.Z);
