@@ -2140,7 +2140,7 @@ struct Grid {
             if (y == yskip && yskin)
               continue;
             BlockInfo &infoNei = getf(&BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
-            int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
+            int &infoNeiTree = Treef(&tree, infoNei.level, infoNei.Z);
             if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
               myflag = true;
               break;
