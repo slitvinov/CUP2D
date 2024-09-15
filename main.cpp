@@ -2095,13 +2095,15 @@ struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  void UpdateBlockInfoAll_States(bool UpdateIDs) {
+  void UpdateBlockInfoAll_States(
+      bool UpdateIDs, std::vector<BlockInfo> *infos,
+      std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
     std::vector<int> myNeighbors;
     double low[2] = {+1e20, +1e20};
     double high[2] = {-1e20, -1e20};
     double p_low[2];
     double p_high[2];
-    for (auto &info : infos) {
+    for (auto &info : *infos) {
       p_low[0] = info.origin[0] - 1.5 * info.h;
       p_low[1] = info.origin[1] - 1.5 * info.h;
       p_high[0] = info.origin[0] + info.h * _BS_ + 1.5 * info.h;
@@ -2125,7 +2127,7 @@ struct Grid {
         myNeighbors.push_back(i);
     }
     std::vector<long long> myData;
-    for (auto &info : infos) {
+    for (auto &info : *infos) {
       bool myflag = false;
       int aux = 1 << info.level;
       bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
@@ -2139,17 +2141,18 @@ struct Grid {
               continue;
             if (y == yskip && yskin)
               continue;
-            BlockInfo &infoNei = getf(&BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
+            BlockInfo &infoNei =
+                getf(BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
             int &infoNeiTree = Treef(&tree, infoNei.level, infoNei.Z);
             if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
               myflag = true;
-	      goto end;
+              goto end;
             } else if (infoNeiTree == -2) {
               long long nCoarse = infoNei.Zparent;
               int infoNeiCoarserrank = Treef(&tree, infoNei.level - 1, nCoarse);
               if (infoNeiCoarserrank != sim.rank) {
                 myflag = true;
-		goto end;
+                goto end;
               }
             } else if (infoNeiTree == -1) {
               int Bstep = 1;
@@ -2165,7 +2168,7 @@ struct Grid {
                 int infoNeiFinerrank = Treef(&tree, infoNei.level + 1, nFine);
                 if (infoNeiFinerrank != sim.rank) {
                   myflag = true;
-		  goto end;
+                  goto end;
                 }
               }
             } else if (infoNeiTree < 0) {
@@ -5613,7 +5616,7 @@ static void adapt() {
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      g->UpdateBlockInfoAll_States(false);
+      g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
@@ -6313,7 +6316,8 @@ struct PoissonSolver {
     }
   }
   void getMat() {
-    var.tmp->UpdateBlockInfoAll_States(true);
+    var.tmp->UpdateBlockInfoAll_States(true, &var.tmp->infos,
+                                       &var.tmp->BlockInfoAll);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
@@ -6793,7 +6797,7 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    g->UpdateBlockInfoAll_States(false);
+    g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll);
     assert(g->Synchronizers.size() == 0);
     MPI_Barrier(MPI_COMM_WORLD);
   }
