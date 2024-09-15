@@ -2097,7 +2097,8 @@ struct Grid {
   };
   void UpdateBlockInfoAll_States(
       bool UpdateIDs, std::vector<BlockInfo> *infos,
-      std::unordered_map<long long, BlockInfo *> *BlockInfoAll) {
+      std::unordered_map<long long, BlockInfo *> *BlockInfoAll,
+      std::unordered_map<long long, int> *tree, size_t timestamp) {
     std::vector<int> myNeighbors;
     double low[2] = {+1e20, +1e20};
     double high[2] = {-1e20, -1e20};
@@ -2143,13 +2144,13 @@ struct Grid {
               continue;
             BlockInfo &infoNei =
                 getf(BlockInfoAll, info.level, info.Znei[1 + x][1 + y]);
-            int &infoNeiTree = Treef(&tree, infoNei.level, infoNei.Z);
+            int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
             if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
               myflag = true;
               goto end;
             } else if (infoNeiTree == -2) {
               long long nCoarse = infoNei.Zparent;
-              int infoNeiCoarserrank = Treef(&tree, infoNei.level - 1, nCoarse);
+              int infoNeiCoarserrank = Treef(tree, infoNei.level - 1, nCoarse);
               if (infoNeiCoarserrank != sim.rank) {
                 myflag = true;
                 goto end;
@@ -2165,7 +2166,7 @@ struct Grid {
                                    (B % 2) * std::max(0, 1 - abs(x))]
                                   [std::max(-y, 0) +
                                    temp * std::max(0, 1 - abs(y))];
-                int infoNeiFinerrank = Treef(&tree, infoNei.level + 1, nFine);
+                int infoNeiFinerrank = Treef(tree, infoNei.level + 1, nFine);
                 if (infoNeiFinerrank != sim.rank) {
                   myflag = true;
                   goto end;
@@ -2225,7 +2226,7 @@ struct Grid {
            index__ += increment) {
         int level = (int)recv_buffer[kk][index__];
         long long Z = recv_buffer[kk][index__ + 1];
-        Tree0(level, Z) = r;
+        Treef(tree, level, Z) = r;
         if (UpdateIDs)
           get(level, Z).id = recv_buffer[kk][index__ + 2];
         int p[2];
@@ -2234,11 +2235,11 @@ struct Grid {
           for (int j = 0; j < 2; j++)
             for (int i = 0; i < 2; i++) {
               long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-              Treef(&tree, level + 1, nc) = -2;
+              Treef(tree, level + 1, nc) = -2;
             }
         if (level > 0) {
           long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-          Treef(&tree, level - 1, nf) = -1;
+          Treef(tree, level - 1, nf) = -1;
         }
       }
     }
@@ -5616,7 +5617,8 @@ static void adapt() {
     }
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
-      g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll);
+      g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
+                                   g->timestamp);
       auto it = g->Synchronizers.begin();
       while (it != g->Synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->BlockInfoAll, &g->infos);
@@ -6317,7 +6319,8 @@ struct PoissonSolver {
   }
   void getMat() {
     var.tmp->UpdateBlockInfoAll_States(true, &var.tmp->infos,
-                                       &var.tmp->BlockInfoAll);
+                                       &var.tmp->BlockInfoAll, &var.tmp->tree,
+                                       var.tmp->timestamp);
     std::vector<BlockInfo> &RhsInfo = var.tmp->infos;
     const int Nblocks = RhsInfo.size();
     const int N = _BS_ * _BS_ * Nblocks;
@@ -6797,8 +6800,8 @@ int main(int argc, char **argv) {
     g->FillPos();
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll);
-    assert(g->Synchronizers.size() == 0);
+    g->UpdateBlockInfoAll_States(false, &g->infos, &g->BlockInfoAll, &g->tree,
+                                 g->timestamp);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::string shapeArg = parser("-shapes").asString("");
