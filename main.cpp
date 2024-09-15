@@ -5907,12 +5907,12 @@ struct KernelComputeForces {
     }
   }
 };
-struct PoissonSolver {
+struct Solver {
   struct EdgeCellIndexer;
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
   std::vector<long long> Nblocks_xcumsum_;
   std::vector<long long> Nrows_xcumsum_;
-  PoissonSolver()
+  Solver()
       : GenericCell(*this), XminCell(*this), XmaxCell(*this), YminCell(*this),
         YmaxCell(*this), edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                       &YmaxCell} {
@@ -6006,7 +6006,7 @@ struct PoissonSolver {
     }
   }
   struct CellIndexer {
-    CellIndexer(const PoissonSolver &pSolver) : ps(pSolver) {}
+    CellIndexer(const Solver &pSolver) : ps(pSolver) {}
     ~CellIndexer() = default;
     long long This(const Info &info, const int ix, const int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
@@ -6037,10 +6037,10 @@ struct PoissonSolver {
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
     static int iy_f(const int iy) { return (iy % (_BS_ / 2)) * 2; }
-    const PoissonSolver &ps;
+    const Solver &ps;
   };
   struct EdgeCellIndexer : public CellIndexer {
-    EdgeCellIndexer(const PoissonSolver &pSolver) : CellIndexer(pSolver) {}
+    EdgeCellIndexer(const Solver &pSolver) : CellIndexer(pSolver) {}
     virtual long long neiUnif(const Info &nei_info, const int ix,
                               const int iy) const = 0;
     virtual long long neiInward(const Info &info, const int ix,
@@ -6064,7 +6064,7 @@ struct PoissonSolver {
                              const int iy) const = 0;
   };
   struct XbaseIndexer : public EdgeCellIndexer {
-    XbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
+    XbaseIndexer(const Solver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return iy % 2 == 0 ? -1. : 1.;
     }
@@ -6080,7 +6080,7 @@ struct PoissonSolver {
     }
   };
   struct XminIndexer : public XbaseIndexer {
-    XminIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
+    XminIndexer(const Solver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Xmax(nei_info, ix, iy);
@@ -6104,7 +6104,7 @@ struct PoissonSolver {
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
-    XmaxIndexer(const PoissonSolver &pSolver) : XbaseIndexer(pSolver) {}
+    XmaxIndexer(const Solver &pSolver) : XbaseIndexer(pSolver) {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Xmin(nei_info, ix, iy);
@@ -6128,7 +6128,7 @@ struct PoissonSolver {
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
-    YbaseIndexer(const PoissonSolver &pSolver) : EdgeCellIndexer(pSolver) {}
+    YbaseIndexer(const Solver &pSolver) : EdgeCellIndexer(pSolver) {}
     double taylorSign(const int ix, const int iy) const override {
       return ix % 2 == 0 ? -1. : 1.;
     }
@@ -6144,7 +6144,7 @@ struct PoissonSolver {
     }
   };
   struct YminIndexer : public YbaseIndexer {
-    YminIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
+    YminIndexer(const Solver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Ymax(nei_info, ix, iy);
@@ -6168,7 +6168,7 @@ struct PoissonSolver {
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
-    YmaxIndexer(const PoissonSolver &pSolver) : YbaseIndexer(pSolver) {}
+    YmaxIndexer(const Solver &pSolver) : YbaseIndexer(pSolver) {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
       return Ymin(nei_info, ix, iy);
@@ -6823,7 +6823,7 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-  PoissonSolver *solver = new PoissonSolver;
+  Solver *solver = new Solver;
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
