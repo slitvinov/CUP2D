@@ -4842,15 +4842,15 @@ static void adapt() {
     std::vector<Info> &I = var.tmp->infos;
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
-      Info &info = I[j];
-      if ((info.state == Refine && info.level == sim.levelMax - 1) ||
-          (info.state == Compress && info.level == levelMin)) {
-        info.state = Leave;
-        (var.tmp->get(info.level, info.Z))->state = Leave;
+      Info *info = &I[j];
+      if ((info->state == Refine && info->level == sim.levelMax - 1) ||
+          (info->state == Compress && info->level == levelMin)) {
+        info->state = Leave;
+        (var.tmp->get(info->level, info->Z))->state = Leave;
       }
-      if (info.state != Leave) {
-        info.changed2 = true;
-        (var.tmp->get(info.level, info.Z))->changed2 = info.changed2;
+      if (info->state != Leave) {
+        info->changed2 = true;
+        (var.tmp->get(info->level, info->Z))->changed2 = info->changed2;
       }
     }
     bool clean_boundary = true;
