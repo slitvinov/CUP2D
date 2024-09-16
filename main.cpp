@@ -5427,16 +5427,16 @@ static void adapt() {
         if (send_blocks[r].size() != 0) {
           if (r < sim.rank) {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info &info = g->infos[counter_S + i];
-              deallocIDs.push_back(info.id2);
-              g->Tree0(info.level, info.Z) = r;
+              Info *info = &g->infos[counter_S + i];
+              deallocIDs.push_back(info->id2);
+              g->Tree0(info->level, info->Z) = r;
             }
             counter_S += send_blocks[r].size();
           } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info &info = g->infos[g->infos.size() - 1 - (counter_E + i)];
-              deallocIDs.push_back(info.id2);
-              g->Tree0(info.level, info.Z) = r;
+              Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
+              deallocIDs.push_back(info->id2);
+              g->Tree0(info->level, info->Z) = r;
             }
             counter_E += send_blocks[r].size();
           }
@@ -5522,14 +5522,14 @@ static void adapt() {
                   MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
       }
       for (int i = 0; i < flux_right; i++) {
-        Info &info = g->infos[my_blocks - i - 1];
-        g->_dealloc(info.level, info.Z);
-        g->Tree0(info.level, info.Z) = right;
+        Info *info = &g->infos[my_blocks - i - 1];
+        g->_dealloc(info->level, info->Z);
+        g->Tree0(info->level, info->Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
-        Info &info = g->infos[i];
-        g->_dealloc(info.level, info.Z);
-        g->Tree0(info.level, info.Z) = left;
+        Info *info = &g->infos[i];
+        g->_dealloc(info->level, info->Z);
+        g->Tree0(info->level, info->Z) = left;
       }
       if (request.size() != 0) {
         movedBlocks = true;
