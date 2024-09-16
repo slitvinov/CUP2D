@@ -4404,14 +4404,14 @@ static void ongrid(Real dt) {
         if (pos not_eq nullptr) {
           ObstacleBlock *const block = shape->obstacleBlocks[tmpInfo[i].id];
           assert(block not_eq nullptr);
-          const Info &info = tmpInfo[i];
+          const Info *info = &tmpInfo[i];
           ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
           ObstacleBlock *const o = block;
           const std::vector<AreaSegment *> &v = *pos;
           Real org[2];
-          org[0] = info.origin[0] + info.h * 0.5;
-          org[1] = info.origin[1] + info.h * 0.5;
-          const Real h = info.h, invh = 1.0 / info.h;
+          org[0] = info->origin[0] + info->h * 0.5;
+          org[1] = info->origin[1] + info->h * 0.5;
+          const Real h = info->h, invh = 1.0 / info->h;
           const Real *const rX = shape->rX, *const norX = shape->norX;
           const Real *const rY = shape->rY, *const norY = shape->norY;
           const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
@@ -4452,8 +4452,8 @@ static void ongrid(Real dt) {
                   for (int sx = std::max(0, iap[0] - 2);
                        sx < std::min(iap[0] + 4, _BS_); ++sx) {
                     Real p[2];
-                    p[0] = info.origin[0] + info.h * (sx + 0.5);
-                    p[1] = info.origin[1] + info.h * (sy + 0.5);
+                    p[0] = info->origin[0] + info->h * (sx + 0.5);
+                    p[1] = info->origin[1] + info->h * (sy + 0.5);
                     const Real dist0 = dist(p, myP);
                     const Real distP = dist(p, pP);
                     const Real distM = dist(p, pM);
@@ -4513,8 +4513,8 @@ static void ongrid(Real dt) {
               }
             }
           }
-          org[0] = info.origin[0] + info.h * 0.5;
-          org[1] = info.origin[1] + info.h * 0.5;
+          org[0] = info->origin[0] + info->h * 0.5;
+          org[1] = info->origin[1] + info->h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
