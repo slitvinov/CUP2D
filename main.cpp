@@ -6111,22 +6111,22 @@ struct Solver {
              {indexer.Nei(info, ix, iy, 1), 1. / 32.},
              {indexer.This(info, ix, iy), -1. / 16.}}};
   }
-  void interpolate(const Info &info_c, int ix_c, int iy_c,
-                   const Info &info_f, long long fine_close_idx,
+  void interpolate(const Info *info_c, int ix_c, int iy_c,
+                   const Info *info_f, long long fine_close_idx,
                    long long fine_far_idx, double signInt,
                    double signTaylor, const EdgeCellIndexer &indexer,
                    SpRowInfo &row) const {
-    int rank_c = var.tmp->Tree1(&info_c);
-    int rank_f = var.tmp->Tree1(&info_f);
+    int rank_c = var.tmp->Tree1(info_c);
+    int rank_f = var.tmp->Tree1(info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
-    row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
+    row.mapColVal(rank_c, indexer.This(*info_c, ix_c, iy_c), tf);
     std::array<std::pair<long long, double>, 3> D;
-    D = D1(info_c, indexer, ix_c, iy_c);
+    D = D1(*info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
-    D = D2(info_c, indexer, ix_c, iy_c);
+    D = D2(*info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
@@ -6145,7 +6145,7 @@ struct Solver {
       int iy_c = indexer.iy_c(rhs_info, iy);
       long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
       double signTaylor = indexer.taylorSign(ix, iy);
-      interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
+      interpolate(&rhsNei_c, ix_c, iy_c, &rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(&rhsNei) == -1) {
@@ -6155,12 +6155,12 @@ struct Solver {
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+      interpolate(&rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   -1., indexer, row);
       fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
       fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+      interpolate(&rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   1., indexer, row);
     } else {
       throw std::runtime_error(
