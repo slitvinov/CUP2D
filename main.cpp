@@ -913,7 +913,7 @@ struct Synchronizer {
       L[2] = sLength[3 * (icode + 2 * 27) + 2];
     }
   }
-  Range &DetermineStencil(const Interface &f, bool CoarseVersion = false) {
+  Range &DetermineStencil(const Interface &f, bool CoarseVersion) {
     if (CoarseVersion) {
       AllStencils[f.icode[1] + 2 * 27].needed = true;
       return AllStencils[f.icode[1] + 2 * 27];
@@ -992,8 +992,8 @@ struct Synchronizer {
       sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
       sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
     } else {
-      Range &range = DetermineStencil(f);
-      Range &range_dup = DetermineStencil(f_dup);
+      Range &range = DetermineStencil(f, false);
+      Range &range_dup = DetermineStencil(f_dup, false);
       sx = range_dup.sx - range.sx;
       sy = range_dup.sy - range.sy;
       sz = range_dup.sz - range.sz;
@@ -1286,7 +1286,7 @@ struct Synchronizer {
               compass[i].clear();
             for (size_t i = 0; i < DM.sizes[r]; i++) {
               compass[f[i + DM.positions[r]].icode[0]].push_back(
-                  DetermineStencil(f[i + DM.positions[r]]));
+								 DetermineStencil(f[i + DM.positions[r]], false));
               compass[f[i + DM.positions[r]].icode[0]].back().index =
                   i + DM.positions[r];
               compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
@@ -1351,7 +1351,7 @@ struct Synchronizer {
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
         for (size_t i = start; i < finish; i++) {
-          compass[f[i].icode[0]].push_back(DetermineStencil(f[i]));
+          compass[f[i].icode[0]].push_back(DetermineStencil(f[i], false));
           compass[f[i].icode[0]].back().index = i;
           compass[f[i].icode[0]].back().avg_down =
               (f[i].infos[0]->level > f[i].infos[1]->level);
@@ -1456,7 +1456,7 @@ struct Synchronizer {
         if (!f.ToBeKept)
           continue;
         if (f.infos[0]->level <= f.infos[1]->level) {
-          Range &range = DetermineStencil(f);
+          Range &range = DetermineStencil(f, false);
           send_packinfos[r].push_back(
               {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
