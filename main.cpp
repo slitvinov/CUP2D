@@ -4364,22 +4364,22 @@ static void ongrid(Real dt) {
     shape->obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
-      const Info &info = tmpInfo[i];
+      const Info *info = &tmpInfo[i];
       Real pStart[2], pEnd[2];
-      pStart[0] = info.origin[0] + info.h * 0.5;
-      pStart[1] = info.origin[1] + info.h * 0.5;
-      pEnd[0] = info.origin[0] + info.h * (_BS_ - 0.5);
-      pEnd[1] = info.origin[1] + info.h * (_BS_ - 0.5);
+      pStart[0] = info->origin[0] + info->h * 0.5;
+      pStart[1] = info->origin[1] + info->h * 0.5;
+      pEnd[0] = info->origin[0] + info->h * (_BS_ - 0.5);
+      pEnd[1] = info->origin[1] + info->h * (_BS_ - 0.5);
       for (size_t s = 0; s < vSegments.size(); ++s)
         if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-          if (segmentsPerBlock[info.id] == nullptr)
-            segmentsPerBlock[info.id] = new std::vector<AreaSegment *>(0);
-          segmentsPerBlock[info.id]->push_back(vSegments[s]);
+          if (segmentsPerBlock[info->id] == nullptr)
+            segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
+          segmentsPerBlock[info->id]->push_back(vSegments[s]);
         }
-      if (segmentsPerBlock[info.id] not_eq nullptr) {
+      if (segmentsPerBlock[info->id] not_eq nullptr) {
         ObstacleBlock *const block = new ObstacleBlock();
         assert(block not_eq nullptr);
-        shape->obstacleBlocks[info.id] = block;
+        shape->obstacleBlocks[info->id] = block;
         block->clear_surface();
         std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
         std::fill(block->chi[0], block->chi[0] + _BS_ * _BS_, 0);
