@@ -2344,13 +2344,13 @@ struct BlockLab {
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
-  void load(Grid *grid, Synchronizer *sync, Info &info, bool applybc) {
-    const int aux = 1 << info.level;
+  void load(Grid *grid, Synchronizer *sync, Info *info, bool applybc) {
+    const int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    Real *p = (Real *)info.block;
+    Real *p = (Real *)info->block;
     Real *u = (Real *)m;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       Real *q = u + dim * iy * nm[0] - dim * start[0];
@@ -2364,10 +2364,10 @@ struct BlockLab {
           p += dim * _BS_;
     }
     coarsened = false;
-    bool xskin = info.index[0] == 0 || info.index[0] == NX - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == NY - 1;
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
+    bool xskin = info->index[0] == 0 || info->index[0] == NX - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == NY - 1;
+    int xskip = info->index[0] == 0 ? -1 : 1;
+    int yskip = info->index[1] == 0 ? -1 : 1;
     int icodes[8];
     int k = 0;
     coarsened_nei_codes_size = 0;
@@ -2381,12 +2381,12 @@ struct BlockLab {
       if (code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
-          grid->Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          grid->Tree0(info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        CoarseFineExchange(grid, info, code);
+        CoarseFineExchange(grid, *info, code);
       }
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
@@ -2399,25 +2399,25 @@ struct BlockLab {
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
       if (TreeNei >= 0)
-        SameLevelExchange(grid, info, code, s, e);
+        SameLevelExchange(grid, *info, code, s, e);
       else if (TreeNei == -1)
-        FineToCoarseExchange(grid, info, code, s, e);
+        FineToCoarseExchange(grid, *info, code, s, e);
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
         int icode = icodes[i];
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-        int infoNei_index[3] = {(info.index[0] + code[0] + NX) % NX,
-                                (info.index[1] + code[1] + NY) % NY,
-                                (info.index[2] + code[2] + NZ) % NZ};
-        if (UseCoarseStencil0(info, infoNei_index)) {
+        int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
+                                (info->index[1] + code[1] + NY) % NY,
+                                (info->index[2] + code[2] + NZ) % NZ};
+        if (UseCoarseStencil0(*info, infoNei_index)) {
           FillCoarseVersion(code);
           coarsened = true;
         }
       }
     if (sim.size == 1)
-      post_load(info, applybc);
-    const int id = info.halo_id;
+      post_load(*info, applybc);
+    const int id = info->halo_id;
     if (id >= 0) {
       UnPackInfo *unpacks = sync->myunpacks[id].data();
       for (size_t jj = 0; jj < sync->myunpacks[id].size(); jj++) {
@@ -2434,7 +2434,7 @@ struct BlockLab {
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
                                       : _BS_ + sync->stencil.ey - 1,
                           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
-        if (unpack.level == info.level) {
+        if (unpack.level == info->level) {
           Real *dst = (Real *)m + ((s[2] - 0) * nm[0] * nm[1] +
                                    (s[1] - sync->stencil.sy) * nm[0] + s[0] -
                                    sync->stencil.sx) *
@@ -2466,7 +2466,7 @@ struct BlockLab {
                 unpack.CoarseVersionLX, unpack.CoarseVersionLY, 0, 0, 0, L[0],
                 L[1], L[2], nc[0], nc[1]);
           }
-        } else if (unpack.level < info.level) {
+        } else if (unpack.level < info->level) {
           const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
                                  (sync->stencil.sy - 1) / 2 - 1,
                                  (0 - 1) / 2 + 0};
@@ -2488,24 +2488,24 @@ struct BlockLab {
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
             int t;
             if (code[0] == 0)
-              t = unpack.index_0 - 2 * info.index[0];
+              t = unpack.index_0 - 2 * info->index[0];
             else if (code[1] == 0)
-              t = unpack.index_1 - 2 * info.index[1];
+              t = unpack.index_1 - 2 * info->index[1];
             else
-              t = unpack.index_2 - 2 * info.index[2];
+              t = unpack.index_2 - 2 * info->index[2];
             assert(t == 0 || t == 1);
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
             if (abs(code[0]) == 1) {
-              Bmod = unpack.index_1 - 2 * info.index[1];
-              Bdiv = unpack.index_2 - 2 * info.index[2];
+              Bmod = unpack.index_1 - 2 * info->index[1];
+              Bdiv = unpack.index_2 - 2 * info->index[2];
             } else if (abs(code[1]) == 1) {
-              Bmod = unpack.index_0 - 2 * info.index[0];
-              Bdiv = unpack.index_2 - 2 * info.index[2];
+              Bmod = unpack.index_0 - 2 * info->index[0];
+              Bdiv = unpack.index_2 - 2 * info->index[2];
             } else {
-              Bmod = unpack.index_0 - 2 * info.index[0];
-              Bdiv = unpack.index_1 - 2 * info.index[1];
+              Bmod = unpack.index_0 - 2 * info->index[0];
+              Bdiv = unpack.index_1 - 2 * info->index[1];
             }
             B = 2 * Bdiv + Bmod;
           }
@@ -2531,7 +2531,7 @@ struct BlockLab {
       }
     }
     if (sim.size > 1)
-      post_load(info, applybc);
+      post_load(*info, applybc);
   }
 
   void post_load(Info &info, bool applybc) {
@@ -3145,7 +3145,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(g, &Synch, *I, true);
+      lab.load(g, &Synch, I, true);
       kernel(lab, *I);
     }
     while (done == false) {
@@ -3154,7 +3154,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(g, &Synch, *I, true);
+        lab.load(g, &Synch, I, true);
         kernel(lab, *I);
       }
 #pragma omp single
@@ -3194,12 +3194,12 @@ static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
     lab2.prepare(stencil2);
 #pragma omp for
     for (int i = 0; i < Ninner; i++) {
-      Info &I = *avail0[i];
-      Info &I2 = *avail02[i];
+      Info *I = avail0[i];
+      Info *I2 = avail02[i];
       lab.load(&grid, &Synch, I, true);
       lab2.load(&grid2, &Synch2, I2, true);
-      kernel(lab, lab2, I, I2);
-      ready[I.id] = true;
+      kernel(lab, lab2, *I, *I2);
+      ready[I->id] = true;
     }
 #pragma omp master
     {
@@ -3215,11 +3215,11 @@ static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
     const int Nhalo = avail1.size();
 #pragma omp for
     for (int i = 0; i < Nhalo; i++) {
-      Info &I = *avail1[i];
-      Info &I2 = *avail12[i];
+      Info *I = avail1[i];
+      Info *I2 = avail12[i];
       lab.load(&grid, &Synch, I, true);
       lab2.load(&grid2, &Synch2, I2, true);
-      kernel(lab, lab2, I, I2);
+      kernel(lab, lab2, *I, *I2);
     }
   }
 }
@@ -5104,7 +5104,7 @@ static void adapt() {
       Info &parent = g->get(level, Z);
       parent.state = Leave;
       if (basic_refinement == false)
-        lab->load(g, Synch, parent, true);
+        lab->load(g, Synch, &parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
       assert(level <= sim.levelMax - 1);
