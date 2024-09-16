@@ -2231,7 +2231,7 @@ struct Grid {
     return s;
   }
   int &Tree0(const int m, const long long n) { return Treef(&tree, m, n); }
-  int &Tree1(const Info &info) { return Treef(&tree, info.level, info.Z); }
+  int &Tree1(const Info *info) { return Treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info &new_info = get(level, Z);
     new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
@@ -4956,7 +4956,7 @@ static void adapt() {
               continue;
             Info &infoNei =
                 var.tmp->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-            if (var.tmp->Tree1(infoNei) >= 0 && infoNei.state == Refine) {
+            if (var.tmp->Tree1(&infoNei) >= 0 && infoNei.state == Refine) {
               info.state = Leave;
               (var.tmp->get(info.level, info.Z)).state = Leave;
               break;
@@ -4977,7 +4977,7 @@ static void adapt() {
                k <= 2 * (info.index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
             Info &infoNei = var.tmp->get(m, n);
-            if ((var.tmp->Tree1(infoNei) >= 0) == false ||
+            if ((var.tmp->Tree1(&infoNei) >= 0) == false ||
                 infoNei.state != Compress) {
               found = true;
               if (info.state == Compress) {
@@ -4996,7 +4996,7 @@ static void adapt() {
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = forward(m, i, j);
               Info &infoNei = var.tmp->get(m, n);
-              if (var.tmp->Tree1(infoNei) >= 0 && infoNei.state == Compress)
+              if (var.tmp->Tree1(&infoNei) >= 0 && infoNei.state == Compress)
                 infoNei.state = Leave;
             }
     }
@@ -5178,14 +5178,14 @@ static void adapt() {
 #pragma omp critical
       { g->dealloc_IDs.push_back(g->get(level, Z).id2); }
       Info &parent = g->get(level, Z);
-      g->Tree1(parent) = -1;
+      g->Tree1(&parent) = -1;
       parent.state = Leave;
       int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info &Child = g->get(level + 1, nc);
-          g->Tree1(Child) = sim.rank;
+          g->Tree1(&Child) = sim.rank;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
@@ -5199,7 +5199,7 @@ static void adapt() {
       const long long nBlock =
           forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
       const Info &base = g->get(b.level, nBlock);
-      if (!(g->Tree1(base) >= 0) || base.state != Compress)
+      if (!(g->Tree1(&base) >= 0) || base.state != Compress)
         continue;
       const Info &bCopy = g->get(b.level, b.Z);
       const int baserank = g->Tree0(b.level, nBlock);
@@ -5916,7 +5916,7 @@ struct Solver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const Info &info) const {
-      return (info.id + sim.solver->Nblocks_xcumsum_[var.tmp->Tree1(info)]) *
+      return (info.id + sim.solver->Nblocks_xcumsum_[var.tmp->Tree1(&info)]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
@@ -6117,8 +6117,8 @@ struct Solver {
                    const long long fine_far_idx, const double signInt,
                    const double signTaylor, const EdgeCellIndexer &indexer,
                    SpRowInfo &row) const {
-    const int rank_c = var.tmp->Tree1(info_c);
-    const int rank_f = var.tmp->Tree1(info_f);
+    const int rank_c = var.tmp->Tree1(&info_c);
+    const int rank_f = var.tmp->Tree1(&info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
@@ -6135,12 +6135,12 @@ struct Solver {
                 const Info &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
     long long sfc_idx = indexer.This(rhs_info, ix, iy);
-    if (var.tmp->Tree1(rhsNei) >= 0) {
-      int nei_rank = var.tmp->Tree1(rhsNei);
+    if (var.tmp->Tree1(&rhsNei) >= 0) {
+      int nei_rank = var.tmp->Tree1(&rhsNei);
       long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei) == -2) {
+    } else if (var.tmp->Tree1(&rhsNei) == -2) {
       Info &rhsNei_c = var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
       int ix_c = indexer.ix_c(rhs_info, ix);
       int iy_c = indexer.iy_c(rhs_info, iy);
@@ -6149,10 +6149,10 @@ struct Solver {
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei) == -1) {
+    } else if (var.tmp->Tree1(&rhsNei) == -1) {
       Info &rhsNei_f =
           var.tmp->get(rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-      int nei_rank = var.tmp->Tree1(rhsNei_f);
+      int nei_rank = var.tmp->Tree1(&rhsNei_f);
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -7239,8 +7239,8 @@ int main(int argc, char **argv) {
                 idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
                 idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
                 idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
-                SpRowInfo row(var.tmp->Tree1(rhs_info), sfc_idx, 8);
-                for (int j(0); j < 4; j++) {
+                SpRowInfo row(var.tmp->Tree1(&rhs_info), sfc_idx, 8);
+                for (int j = 0; j < 4; j++) {
                   if (validNei[j]) {
                     row.mapColVal(idxNei[j], 1);
                     row.mapColVal(sfc_idx, -1);
