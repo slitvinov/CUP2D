@@ -598,9 +598,9 @@ struct Interface {
   bool CoarseStencil;
   bool ToBeKept;
   int dis;
-  Interface(Info &i0, Info &i1, const int a_icode0, const int a_icode1) {
-    infos[0] = &i0;
-    infos[1] = &i1;
+  Interface(Info *i0, Info *i1, int a_icode0, int a_icode1) {
+    infos[0] = i0;
+    infos[1] = i1;
     icode[0] = a_icode0;
     icode[1] = a_icode1;
     CoarseStencil = false;
@@ -1090,9 +1090,9 @@ struct Synchronizer {
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
-              {info, infoNei, icode, icode2});
+              {&info, &infoNei, icode, icode2});
           recv_interfaces[infoNeiTree].push_back(
-              {infoNei, info, icode2, icode});
+              {&infoNei, &info, icode2, icode});
           ToBeChecked.push_back(infoNeiTree);
           ToBeChecked.push_back((int)send_interfaces[infoNeiTree].size() - 1);
           ToBeChecked.push_back((int)recv_interfaces[infoNeiTree].size() - 1);
@@ -1119,9 +1119,9 @@ struct Synchronizer {
                 info.index[1] / 2 == test_idx[1] &&
                 info.index[2] / 2 == test_idx[2]) {
               send_interfaces[infoNeiCoarserrank].push_back(
-                  {info, infoNeiCoarser, icode, icode2});
+                  {&info, &infoNeiCoarser, icode, icode2});
               recv_interfaces[infoNeiCoarserrank].push_back(
-                  {infoNeiCoarser, info, icode2, icode});
+                  {&infoNeiCoarser, &info, icode2, icode});
               DM.Add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
@@ -1148,13 +1148,13 @@ struct Synchronizer {
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, info, icode2, icode3});
+                      {&infoNeiCoarser, &info, icode2, icode3});
                 if (code4[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, info, icode2, icode4});
+                      {&infoNeiCoarser, &info, icode2, icode4});
                 if (code5[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, info, icode2, icode5});
+                      {&infoNeiCoarser, &info, icode2, icode5});
               }
             }
           }
@@ -1185,9 +1185,9 @@ struct Synchronizer {
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
-                  {info, infoNeiFiner, icode, icode2});
+                  {&info, &infoNeiFiner, icode, icode2});
               recv_interfaces[infoNeiFinerrank].push_back(
-                  {infoNeiFiner, info, icode2, icode});
+                  {&infoNeiFiner, &info, icode2, icode});
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
               if (Bstep == 1) {
@@ -1214,19 +1214,19 @@ struct Synchronizer {
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(info, infoNeiFiner, icode, icode3));
+                      Interface(&info, &infoNeiFiner, icode, icode3));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code4[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(info, infoNeiFiner, icode, icode4));
+                      Interface(&info, &infoNeiFiner, icode, icode4));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code5[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(info, infoNeiFiner, icode, icode5));
+                      Interface(&info, &infoNeiFiner, icode, icode5));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
