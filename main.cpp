@@ -7243,9 +7243,10 @@ int main(int argc, char **argv) {
                   if (validNei[j]) {
                     row.mapColVal(idxNei[j], 1);
                     row.mapColVal(sfc_idx, -1);
-                  } else if (!isBoundary[j])
+                  } else if (!isBoundary[j]) {
                     sim.solver->makeFlux(rhs_info, ix, iy, *rhsNei[j],
                                          *sim.solver->edgeIndexers[j], row);
+		  }
                 }
                 sim.solver->LocalLS_->cooPushBackRow(row);
               }
