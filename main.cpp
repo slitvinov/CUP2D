@@ -5344,8 +5344,7 @@ static void adapt() {
     }
     const double ratio = static_cast<double>(max_b) / min_b;
     if (ratio > 1.01 || min_b == 0) {
-      std::vector<Info> SortedInfos = g->infos;
-      std::sort(SortedInfos.begin(), SortedInfos.end());
+      std::sort(g->infos.begin(), g->infos.end());
       long long total_load = 0;
       for (int r = 0; r < sim.size; r++)
         total_load += block_distribution[r];
@@ -5407,7 +5406,7 @@ static void adapt() {
       for (int r = 0; r < sim.rank; r++)
         if (send_blocks[r].size() != 0) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            Info *info = &SortedInfos[counter_S + i];
+            Info *info = &g->infos[counter_S + i];
             MPI_Block *x = &send_blocks[r][i];
             x->mn[0] = info->level;
             x->mn[1] = info->Z;
@@ -5423,7 +5422,7 @@ static void adapt() {
       for (int r = sim.size - 1; r > sim.rank; r--)
         if (send_blocks[r].size() != 0) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            Info *info = &SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+            Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
             MPI_Block *x = &send_blocks[r][i];
             x->mn[0] = info->level;
             x->mn[1] = info->Z;
@@ -5444,7 +5443,7 @@ static void adapt() {
         if (send_blocks[r].size() != 0) {
           if (r < sim.rank) {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info &info = SortedInfos[counter_S + i];
+              Info &info = g->infos[counter_S + i];
               deallocIDs.push_back(info.id2);
               g->Tree0(info.level, info.Z) = r;
             }
@@ -5452,7 +5451,7 @@ static void adapt() {
           } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
               Info &info =
-                  SortedInfos[SortedInfos.size() - 1 - (counter_E + i)];
+                  g->infos[g->infos.size() - 1 - (counter_E + i)];
               deallocIDs.push_back(info.id2);
               g->Tree0(info.level, info.Z) = r;
             }
