@@ -6698,6 +6698,7 @@ int main(int argc, char **argv) {
   sim.levelMax = parser("-levelMax").asInt();
   sim.Rtol = parser("-Rtol").asDouble();
   sim.Ctol = parser("-Ctol").asDouble();
+  parser.unset_strict_mode();
   sim.AdaptSteps = parser("-AdaptSteps").asInt(20);
   sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt(1);
   sim.levelStart = parser("-levelStart").asInt(-1);
