@@ -1793,24 +1793,25 @@ struct Grid {
   std::vector<long long> dealloc_IDs;
   Grid(int dim) : dim(dim) {}
   void FillCase(Face *F) {
-    Info &info = *F->infos[1];
+    Info *info = F->infos[1];
     int icode = F->icode[1];
     int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
     int myFace = abs(code[0]) * std::max(0, code[0]) +
                  abs(code[1]) * (std::max(0, code[1]) + 2) +
                  abs(code[2]) * (std::max(0, code[2]) + 4);
-    std::array<long long, 2> temp = {(long long)info.level, info.Z};
+    std::array<long long, 2> temp = {(long long)info->level, info->Z};
     auto search = Map.find(temp);
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      long long Z = forward(info.level + 1,
-                            2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                                (B % 2) * std::max(0, 1 - abs(code[0])),
-                            2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                                aux * std::max(0, 1 - abs(code[1])));
+      long long Z =
+          forward(info->level + 1,
+                  2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                      (B % 2) * std::max(0, 1 - abs(code[0])),
+                  2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                      aux * std::max(0, 1 - abs(code[1])));
       if (Z != F->infos[0]->Z)
         continue;
       int d = myFace / 2;
