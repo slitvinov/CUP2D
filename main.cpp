@@ -2014,8 +2014,8 @@ struct Grid {
       int displacement = 0;
       for (int k = 0; k < (int)send_faces[r].size(); k++) {
         Face &f = send_faces[r][k];
-        Info &info = *(f.infos[0]);
-        auto search = Map.find({(long long)info.level, info.Z});
+        Info *info = f.infos[0];
+        auto search = Map.find({(long long)info->level, info->Z});
         assert(search != Map.end());
         BlockCase &FineCase = (*search->second);
         int icode = f.icode[0];
