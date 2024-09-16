@@ -5030,16 +5030,9 @@ static void adapt() {
   }
 
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    BlockLab *lab;
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
-    if (dim == 1) {
-      lab = new ScalarLab;
-    } else {
-      lab = new VectorLab;
-    }
-    bool basic_refinement = basic;
     Synchronizer *Synch = nullptr;
     if (basic == false) {
       StencilInfo stencil{-1, -1, 2, 2, true};
@@ -5084,6 +5077,12 @@ static void adapt() {
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     g->dealloc_IDs.clear();
+    BlockLab *lab;
+    if (dim == 1) {
+      lab = new ScalarLab;
+    } else {
+      lab = new VectorLab;
+    }
     if (Synch != nullptr)
       lab->prepare(Synch->stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
@@ -5091,7 +5090,7 @@ static void adapt() {
       const long long Z = n_ref[i];
       Info &parent = g->get(level, Z);
       parent.state = Leave;
-      if (basic_refinement == false)
+      if (basic == false)
         lab->load(g, Synch, &parent, true);
       const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
       assert(parent.block != NULL);
@@ -5106,7 +5105,7 @@ static void adapt() {
           g->Tree0(level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child.block;
         }
-      if (basic_refinement == false) {
+      if (basic == false) {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
@@ -5275,7 +5274,7 @@ static void adapt() {
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
-      if (basic_refinement == false)
+      if (basic == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = (Real *)Blocks[J * 2 + I];
