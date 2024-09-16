@@ -5893,53 +5893,7 @@ struct Solver {
   std::vector<long long> Nrows_xcumsum_;
   Solver()
       : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {
-    Nblocks_xcumsum_.resize(sim.size + 1);
-    Nrows_xcumsum_.resize(sim.size + 1);
-    std::vector<std::vector<double>> L;
-    std::vector<std::vector<double>> L_inv;
-    L.resize((_BS_ * _BS_));
-    L_inv.resize((_BS_ * _BS_));
-    for (int i(0); i < (_BS_ * _BS_); i++) {
-      L[i].resize(i + 1);
-      L_inv[i].resize(i + 1);
-      for (int j(0); j <= i; j++) {
-        L_inv[i][j] = (i == j) ? 1. : 0.;
-      }
-    }
-    for (int i(0); i < (_BS_ * _BS_); i++) {
-      double s1 = 0;
-      for (int k(0); k <= i - 1; k++)
-        s1 += L[i][k] * L[i][k];
-      L[i][i] = sqrt(getA_local(i, i) - s1);
-      for (int j(i + 1); j < (_BS_ * _BS_); j++) {
-        double s2 = 0;
-        for (int k(0); k <= i - 1; k++)
-          s2 += L[i][k] * L[j][k];
-        L[j][i] = (getA_local(j, i) - s2) / L[i][i];
-      }
-    }
-    for (int br(0); br < (_BS_ * _BS_); br++) {
-      const double bsf = 1. / L[br][br];
-      for (int c(0); c <= br; c++)
-        L_inv[br][c] *= bsf;
-      for (int wr(br + 1); wr < (_BS_ * _BS_); wr++) {
-        const double wsf = L[wr][br];
-        for (int c(0); c <= br; c++)
-          L_inv[wr][c] -= (wsf * L_inv[br][c]);
-      }
-    }
-    std::vector<double> P_inv((_BS_ * _BS_) * (_BS_ * _BS_));
-    for (int i(0); i < (_BS_ * _BS_); i++)
-      for (int j(0); j < (_BS_ * _BS_); j++) {
-        double aux = 0.;
-        for (int k(0); k < (_BS_ * _BS_); k++)
-          aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
-        P_inv[i * (_BS_ * _BS_) + j] = -aux;
-      }
-    LocalLS_ = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_,
-                                                 sim.bMeanConstraint, P_inv);
-  }
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info &info, const int ix, const int iy) const {
@@ -6749,7 +6703,54 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
+
   sim.solver = new Solver;
+  sim.solver->Nblocks_xcumsum_.resize(sim.size + 1);
+  sim.solver->Nrows_xcumsum_.resize(sim.size + 1);
+  std::vector<std::vector<double>> L;
+  std::vector<std::vector<double>> L_inv;
+  L.resize((_BS_ * _BS_));
+  L_inv.resize((_BS_ * _BS_));
+  for (int i(0); i < (_BS_ * _BS_); i++) {
+    L[i].resize(i + 1);
+    L_inv[i].resize(i + 1);
+    for (int j(0); j <= i; j++) {
+      L_inv[i][j] = (i == j) ? 1. : 0.;
+    }
+  }
+  for (int i(0); i < (_BS_ * _BS_); i++) {
+    double s1 = 0;
+    for (int k(0); k <= i - 1; k++)
+      s1 += L[i][k] * L[i][k];
+    L[i][i] = sqrt(getA_local(i, i) - s1);
+    for (int j(i + 1); j < (_BS_ * _BS_); j++) {
+      double s2 = 0;
+      for (int k(0); k <= i - 1; k++)
+        s2 += L[i][k] * L[j][k];
+      L[j][i] = (getA_local(j, i) - s2) / L[i][i];
+    }
+  }
+  for (int br(0); br < (_BS_ * _BS_); br++) {
+    const double bsf = 1. / L[br][br];
+    for (int c(0); c <= br; c++)
+      L_inv[br][c] *= bsf;
+    for (int wr(br + 1); wr < (_BS_ * _BS_); wr++) {
+      const double wsf = L[wr][br];
+      for (int c(0); c <= br; c++)
+        L_inv[wr][c] -= (wsf * L_inv[br][c]);
+    }
+  }
+  std::vector<double> P_inv((_BS_ * _BS_) * (_BS_ * _BS_));
+  for (int i(0); i < (_BS_ * _BS_); i++)
+    for (int j(0); j < (_BS_ * _BS_); j++) {
+      double aux = 0.;
+      for (int k(0); k < (_BS_ * _BS_); k++)
+        aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
+      P_inv[i * (_BS_ * _BS_) + j] = -aux;
+    }
+  sim.solver->LocalLS_ = std::make_unique<LocalSpMatDnVec>(
+      MPI_COMM_WORLD, _BS_ * _BS_, sim.bMeanConstraint, P_inv);
+
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
