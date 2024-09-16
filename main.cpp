@@ -7292,9 +7292,13 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
+      Real avg;
+      Real avg1;
+      Real quantities[2];
       solve();
-      Real avg = 0;
-      Real avg1 = 0;
+
+      avg = 0;
+      avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
       for (size_t i = 0; i < Nblocks; i++) {
         ScalarBlock &P = *(ScalarBlock *)presInfo[i].block;
@@ -7305,7 +7309,8 @@ int main(int argc, char **argv) {
             avg1 += vv;
           }
       }
-      Real quantities[2] = {avg, avg1};
+      quantities[0] = avg;
+      quantities[1] = avg1;
       MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
                     MPI_COMM_WORLD);
       avg = quantities[0];
