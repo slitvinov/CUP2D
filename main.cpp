@@ -1837,7 +1837,7 @@ struct Grid {
     }
   }
   void FillCase_2(Face *F, int codex, int codey) {
-    Info &info = *F->infos[1];
+    Info *info = F->infos[1];
     const int icode = F->icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
     if (abs(code[0]) != codex)
@@ -1846,12 +1846,12 @@ struct Grid {
       return;
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2);
-    std::array<long long, 2> temp = {(long long)info.level, info.Z};
+    std::array<long long, 2> temp = {(long long)info->level, info->Z};
     auto search = Map.find(temp);
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
-    Real *block = (Real *)info.block;
+    Real *block = (Real *)info->block;
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
