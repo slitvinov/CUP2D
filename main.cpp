@@ -1461,8 +1461,7 @@ struct Synchronizer {
               {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
           if (f.CoarseStencil) {
-            int V = (range.ex - range.sx) * (range.ey - range.sy) *
-                    (range.ez - range.sz);
+            int V = (range.ex - range.sx) * (range.ey - range.sy);
             ToBeAveragedDown[r].push_back(i);
             ToBeAveragedDown[r].push_back(f.dis + V * dim);
           }
