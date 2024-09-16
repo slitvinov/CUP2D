@@ -2558,7 +2558,7 @@ struct BlockLab {
       }
     }
     if (applybc)
-      _apply_bc(*info, true);
+      _apply_bc(info, true);
     Real *um = (Real *)m;
     Real *uc = (Real *)c;
     int aux = 1 << info->level;
@@ -2786,7 +2786,7 @@ struct BlockLab {
       }
     }
     if (applybc)
-      _apply_bc(*info, false);
+      _apply_bc(info, false);
   }
   bool UseCoarseStencil0(const Info &info, const int *infoNei_index) {
     if (info.level == 0 || !use_averages)
@@ -3107,7 +3107,7 @@ struct BlockLab {
       }
     }
   }
-  virtual void _apply_bc(Info &info, bool coarse) {}
+  virtual void _apply_bc(Info *info, bool coarse) {}
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
@@ -3283,24 +3283,24 @@ struct VectorLab : public BlockLab {
         }
     }
   }
-  void _apply_bc(Info &info, bool coarse) override {
+  void _apply_bc(Info *info, bool coarse) override {
     if (!coarse) {
-      if (info.index[0] == 0)
+      if (info->index[0] == 0)
         this->template applyBCface<0, 0>(false);
-      if (info.index[0] == this->NX - 1)
+      if (info->index[0] == this->NX - 1)
         this->template applyBCface<0, 1>(false);
-      if (info.index[1] == 0)
+      if (info->index[1] == 0)
         this->template applyBCface<1, 0>(false);
-      if (info.index[1] == this->NY - 1)
+      if (info->index[1] == this->NY - 1)
         this->template applyBCface<1, 1>(false);
     } else {
-      if (info.index[0] == 0)
+      if (info->index[0] == 0)
         this->template applyBCface<0, 0>(false, coarse);
-      if (info.index[0] == this->NX - 1)
+      if (info->index[0] == this->NX - 1)
         this->template applyBCface<0, 1>(false, coarse);
-      if (info.index[1] == 0)
+      if (info->index[1] == 0)
         this->template applyBCface<1, 0>(false, coarse);
-      if (info.index[1] == this->NY - 1)
+      if (info->index[1] == this->NY - 1)
         this->template applyBCface<1, 1>(false, coarse);
     }
   }
@@ -3345,14 +3345,14 @@ struct ScalarLab : public BlockLab {
                n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                        stenBeg[1])];
   }
-  virtual void _apply_bc(Info &info, bool coarse) override {
-    if (info.index[0] == 0)
+  virtual void _apply_bc(Info *info, bool coarse) override {
+    if (info->index[0] == 0)
       Neumann2D<0, 0>(coarse);
-    if (info.index[0] == this->NX - 1)
+    if (info->index[0] == this->NX - 1)
       Neumann2D<0, 1>(coarse);
-    if (info.index[1] == 0)
+    if (info->index[1] == 0)
       Neumann2D<1, 0>(coarse);
-    if (info.index[1] == this->NY - 1)
+    if (info->index[1] == this->NY - 1)
       Neumann2D<1, 1>(coarse);
   }
 };
