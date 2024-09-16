@@ -5034,8 +5034,8 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     Synchronizer *Synch = nullptr;
+    const StencilInfo stencil{-1, -1, 2, 2, true};
     if (basic == false) {
-      StencilInfo stencil{-1, -1, 2, 2, true};
       Synch = g->sync1(stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
@@ -5084,7 +5084,7 @@ static void adapt() {
       lab = new VectorLab;
     }
     if (Synch != nullptr)
-      lab->prepare(Synch->stencil);
+      lab->prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
