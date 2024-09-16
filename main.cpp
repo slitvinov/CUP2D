@@ -7166,13 +7166,9 @@ int main(int argc, char **argv) {
       std::vector<Info> &poldInfo = var.pold->infos;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        ScalarBlock &PRES = *(ScalarBlock *)presInfo[i].block;
-        ScalarBlock &POLD = *(ScalarBlock *)poldInfo[i].block;
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            POLD[iy][ix] = PRES[iy][ix];
-            PRES[iy][ix] = 0;
-          }
+        memcpy(poldInfo[i].block, presInfo[i].block,
+               _BS_ * _BS_ * sizeof(Real));
+        memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
       }
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
