@@ -5471,9 +5471,8 @@ static void adapt() {
           (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
       const int flux_right =
           (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-      std::vector<Info> SortedInfos = g->infos;
       if (flux_right != 0 || flux_left != 0)
-        std::sort(SortedInfos.begin(), SortedInfos.end());
+        std::sort(g->infos.begin(), g->infos.end());
       std::vector<MPI_Block> send_left;
       std::vector<MPI_Block> recv_left;
       std::vector<MPI_Block> send_right;
@@ -5483,7 +5482,7 @@ static void adapt() {
         send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
         for (int i = 0; i < flux_left; i++) {
-          Info *info = &SortedInfos[i];
+          Info *info = &g->infos[i];
           MPI_Block *x = &send_left[i];
           x->mn[0] = info->level;
           x->mn[1] = info->Z;
@@ -5504,7 +5503,7 @@ static void adapt() {
         send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
         for (int i = 0; i < flux_right; i++) {
-          Info *info = &SortedInfos[my_blocks - i - 1];
+          Info *info = &g->infos[my_blocks - i - 1];
           MPI_Block *x = &send_right[i];
           x->mn[0] = info->level;
           x->mn[1] = info->Z;
@@ -5522,12 +5521,12 @@ static void adapt() {
                   MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
       }
       for (int i = 0; i < flux_right; i++) {
-        Info &info = SortedInfos[my_blocks - i - 1];
+        Info &info = g->infos[my_blocks - i - 1];
         g->_dealloc(info.level, info.Z);
         g->Tree0(info.level, info.Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
-        Info &info = SortedInfos[i];
+        Info &info = g->infos[i];
         g->_dealloc(info.level, info.Z);
         g->Tree0(info.level, info.Z) = left;
       }
