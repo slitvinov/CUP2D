@@ -4918,15 +4918,15 @@ static void adapt() {
       if (m == levelMin)
         break;
       for (size_t j = 0; j < I.size(); j++) {
-        Info &info = I[j];
-        if (info.level == m && info.state == Compress) {
-          int aux = 1 << info.level;
+        Info *info = &I[j];
+        if (info->level == m && info->state == Compress) {
+          int aux = 1 << info->level;
           bool xskin =
-              info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+              info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
           bool yskin =
-              info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-          int xskip = info.index[0] == 0 ? -1 : 1;
-          int yskip = info.index[1] == 0 ? -1 : 1;
+              info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+          int xskip = info->index[0] == 0 ? -1 : 1;
+          int yskip = info->index[1] == 0 ? -1 : 1;
 
           for (int icode = 0; icode < 27; icode++) {
             if (icode == 1 * 1 + 3 * 1 + 9 * 1)
@@ -4940,10 +4940,10 @@ static void adapt() {
             if (code[2] != 0)
               continue;
             Info *infoNei =
-                var.tmp->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+                var.tmp->get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
             if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Refine) {
-              info.state = Leave;
-              (var.tmp->get(info.level, info.Z))->state = Leave;
+              info->state = Leave;
+              (var.tmp->get(info->level, info->Z))->state = Leave;
               break;
             }
           }
