@@ -1625,9 +1625,9 @@ struct Face {
   Info *infos[2];
   int icode[2];
   int offset;
-  Face(Info &i0, Info &i1, int a_icode0, int a_icode1) {
-    infos[0] = &i0;
-    infos[1] = &i1;
+  Face(Info *i0, Info *i1, int a_icode0, int a_icode1) {
+    infos[0] = i0;
+    infos[1] = i1;
     icode[0] = a_icode0;
     icode[1] = a_icode1;
   }
@@ -1954,7 +1954,7 @@ struct Grid {
             int icode2 =
                 (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
             send_faces[infoNeiCoarserrank].push_back(
-                Face(info, infoNeiCoarser, icode[f], icode2));
+                Face(&info, &infoNeiCoarser, icode[f], icode2));
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
@@ -1974,7 +1974,7 @@ struct Grid {
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
-                  Face(infoNeiFiner, info, icode2, icode[f]));
+                  Face(&infoNeiFiner, &info, icode2, icode[f]));
               recv_buffer_size[infoNeiFinerrank] += V;
             }
           }
