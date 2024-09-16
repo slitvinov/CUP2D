@@ -6130,7 +6130,7 @@ struct Solver {
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
-  void makeFlux(const Info &rhs_info, const int ix, const int iy,
+  void makeFlux(const Info &rhs_info, int ix, int iy,
                 const Info &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
     long long sfc_idx = indexer.This(rhs_info, ix, iy);
