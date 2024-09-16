@@ -1566,14 +1566,12 @@ struct Synchronizer {
             } else {
               Real *dst = send_buffer[r].data() + d;
               const Info *const info = f.infos[0];
-              int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
-                          code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-              int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
+              int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
+              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
                                       : _BS_ + stencil.ex - 1,
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                      : _BS_ + stencil.ey - 1,
-                          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : -1};
+                                      : _BS_ + stencil.ey - 1};
               Real *src = (Real *)(*info).block;
               int xStep = (code[0] == 0) ? 2 : 1;
               int yStep = (code[1] == 0) ? 2 : 1;
