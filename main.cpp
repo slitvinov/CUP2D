@@ -4951,34 +4951,34 @@ static void adapt() {
       }
     }
     for (size_t jjj = 0; jjj < I.size(); jjj++) {
-      Info &info = I[jjj];
-      int m = info.level;
+      Info *info = &I[jjj];
+      int m = info->level;
       bool found = false;
-      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+      for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
            i++)
-        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
+        for (int j = 2 * (info->index[1] / 2); j <= 2 * (info->index[1] / 2) + 1;
              j++)
-          for (int k = 2 * (info.index[2] / 2);
-               k <= 2 * (info.index[2] / 2) + 1; k++) {
+          for (int k = 2 * (info->index[2] / 2);
+               k <= 2 * (info->index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
             Info *infoNei = var.tmp->get(m, n);
             if ((var.tmp->Tree1(infoNei) >= 0) == false ||
                 infoNei->state != Compress) {
               found = true;
-              if (info.state == Compress) {
-                info.state = Leave;
-                (var.tmp->get(info.level, info.Z))->state = Leave;
+              if (info->state == Compress) {
+                info->state = Leave;
+                (var.tmp->get(info->level, info->Z))->state = Leave;
               }
               break;
             }
           }
       if (found)
-        for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+        for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
              i++)
-          for (int j = 2 * (info.index[1] / 2);
-               j <= 2 * (info.index[1] / 2) + 1; j++)
-            for (int k = 2 * (info.index[2] / 2);
-                 k <= 2 * (info.index[2] / 2) + 1; k++) {
+          for (int j = 2 * (info->index[1] / 2);
+               j <= 2 * (info->index[1] / 2) + 1; j++)
+            for (int k = 2 * (info->index[2] / 2);
+                 k <= 2 * (info->index[2] / 2) + 1; k++) {
               long long n = forward(m, i, j);
               Info *infoNei = var.tmp->get(m, n);
               if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Compress)
