@@ -532,7 +532,7 @@ struct Value {
 };
 struct CommandlineParser {
   std::map<std::string, Value> mapArguments;
-  CommandlineParser(const int argc, char **argv)  {
+  CommandlineParser(const int argc, char **argv) {
     for (int i = 1; i < argc; i++)
       if (argv[i][0] == '-') {
         std::string values = "";
