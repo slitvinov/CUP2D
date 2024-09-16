@@ -2087,15 +2087,15 @@ struct Grid {
     std::vector<Info *> &bbb = boundary;
     std::set<int> Neighbors;
     for (size_t jjj = 0; jjj < bbb.size(); jjj++) {
-      Info &info = *bbb[jjj];
+      Info *info = bbb[jjj];
       std::set<int> receivers;
-      const int aux = 1 << info.level;
+      const int aux = 1 << info->level;
       const bool xskin =
-          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+          info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
       const bool yskin =
-          info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const int xskip = info.index[0] == 0 ? -1 : 1;
-      const int yskip = info.index[1] == 0 ? -1 : 1;
+          info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+      const int xskip = info->index[0] == 0 ? -1 : 1;
+      const int yskip = info->index[1] == 0 ? -1 : 1;
 
       for (int icode = 0; icode < 27; icode++) {
         if (icode == 1 * 1 + 3 * 1 + 9 * 1)
@@ -2108,7 +2108,7 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        Info *infoNei = get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = Tree0(infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei->state != Refine || clean)
@@ -2150,14 +2150,14 @@ struct Grid {
           }
         }
       }
-      if (info.changed2 && info.state != Leave) {
-        if (info.state == Refine)
-          info.changed2 = false;
+      if (info->changed2 && info->state != Leave) {
+        if (info->state == Refine)
+          info->changed2 = false;
         std::set<int>::iterator it = receivers.begin();
         while (it != receivers.end()) {
-          int temp = (info.state == Compress) ? 1 : 2;
-          send_buffer[*it].push_back(info.level);
-          send_buffer[*it].push_back(info.Z);
+          int temp = (info->state == Compress) ? 1 : 2;
+          send_buffer[*it].push_back(info->level);
+          send_buffer[*it].push_back(info->Z);
           send_buffer[*it].push_back(temp);
           it++;
         }
