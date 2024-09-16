@@ -2386,7 +2386,7 @@ struct BlockLab {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        CoarseFineExchange(grid, *info, code);
+        CoarseFineExchange(grid, info, code);
       }
       if (!istensorial && !use_averages &&
           abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
@@ -2399,9 +2399,9 @@ struct BlockLab {
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
       if (TreeNei >= 0)
-        SameLevelExchange(grid, *info, code, s, e);
+        SameLevelExchange(grid, info, code, s, e);
       else if (TreeNei == -1)
-        FineToCoarseExchange(grid, *info, code, s, e);
+        FineToCoarseExchange(grid, info, code, s, e);
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
@@ -2410,7 +2410,7 @@ struct BlockLab {
         int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
                                 (info->index[1] + code[1] + NY) % NY,
                                 (info->index[2] + code[2] + NZ) % NZ};
-        if (UseCoarseStencil0(*info, infoNei_index)) {
+        if (UseCoarseStencil0(info, infoNei_index)) {
           FillCoarseVersion(code);
           coarsened = true;
         }
@@ -2788,19 +2788,19 @@ struct BlockLab {
     if (applybc)
       _apply_bc(info, false);
   }
-  bool UseCoarseStencil0(const Info &info, const int *infoNei_index) {
-    if (info.level == 0 || !use_averages)
+  bool UseCoarseStencil0(const Info *info, const int *infoNei_index) {
+    if (info->level == 0 || !use_averages)
       return false;
     int imin[3];
     int imax[3];
-    const int aux = 1 << info.level;
+    const int aux = 1 << info->level;
     const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
     for (int d = 0; d < 3; d++) {
-      imin[d] = (info.index[d] < infoNei_index[d]) ? 0 : -1;
-      imax[d] = (info.index[d] > infoNei_index[d]) ? 0 : +1;
-      if (info.index[d] == 0 && infoNei_index[d] == 0)
+      imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
+      imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
+      if (info->index[d] == 0 && infoNei_index[d] == 0)
         imin[d] = 0;
-      if (info.index[d] == blocks[d] && infoNei_index[d] == blocks[d])
+      if (info->index[d] == blocks[d] && infoNei_index[d] == blocks[d])
         imax[d] = 0;
     }
     for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
@@ -2813,14 +2813,14 @@ struct BlockLab {
           }
     return false;
   }
-  void SameLevelExchange(Grid *grid, const Info &info, const int *const code,
+  void SameLevelExchange(Grid *grid, const Info *info, const int *const code,
                          const int *const s, const int *const e) {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
     int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     myblocks[icode] =
-        grid->avail(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        grid->avail(info->level, info->Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
     Real *b = (Real *)myblocks[icode];
@@ -2859,7 +2859,7 @@ struct BlockLab {
       memcpy(p, q, bytes);
     }
   }
-  void FineToCoarseExchange(Grid *grid, const Info &info, const int *const code,
+  void FineToCoarseExchange(Grid *grid, const Info *info, const int *const code,
                             const int *const s, const int *const e) {
     Real *um = (Real *)m;
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
@@ -2877,11 +2877,11 @@ struct BlockLab {
     for (int B = 0; B <= 3; B += Bstep) {
       const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       Real *b = (Real *)grid->avail1(
-          2 * info.index[0] + std::max(code[0], 0) + code[0] +
+          2 * info->index[0] + std::max(code[0], 0) + code[0] +
               (B % 2) * std::max(0, 1 - abs(code[0])),
-          2 * info.index[1] + std::max(code[1], 0) + code[1] +
+          2 * info->index[1] + std::max(code[1], 0) + code[1] +
               aux * std::max(0, 1 - abs(code[1])),
-          info.level + 1);
+          info->level + 1);
       if (b == nullptr)
         continue;
       const int i =
@@ -2989,14 +2989,14 @@ struct BlockLab {
       }
     }
   }
-  void CoarseFineExchange(Grid *grid, const Info &info, const int *const code) {
+  void CoarseFineExchange(Grid *grid, const Info *info, const int *const code) {
     Real *uc = (Real *)c;
-    int infoNei_index[2] = {(info.index[0] + code[0] + NX) % NX,
-                            (info.index[1] + code[1] + NY) % NY};
-    int infoNei_index_true[2] = {(info.index[0] + code[0]),
-                                 (info.index[1] + code[1])};
+    int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
+                            (info->index[1] + code[1] + NY) % NY};
+    int infoNei_index_true[2] = {(info->index[0] + code[0]),
+                                 (info->index[1] + code[1])};
     Real *b = (Real *)grid->avail1((infoNei_index[0]) / 2,
-                                   (infoNei_index[1]) / 2, info.level - 1);
+                                   (infoNei_index[1]) / 2, info->level - 1);
     if (b == nullptr)
       return;
     int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -3008,23 +3008,23 @@ struct BlockLab {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
-    int base[2] = {(info.index[0] + code[0]) % 2,
-                   (info.index[1] + code[1]) % 2};
+    int base[2] = {(info->index[0] + code[0]) % 2,
+                   (info->index[1] + code[1]) % 2};
     int CoarseEdge[2];
     CoarseEdge[0] = (code[0] == 0)
                         ? 0
-                        : (((info.index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info.index[0])) ||
-                           ((info.index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info.index[0])))
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
                               ? 1
                               : 0;
     CoarseEdge[1] = (code[1] == 0)
                         ? 0
-                        : (((info.index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info.index[1])) ||
-                           ((info.index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info.index[1])))
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
                               ? 1
                               : 0;
     const int start[2] = {
