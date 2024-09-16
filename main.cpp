@@ -3906,10 +3906,10 @@ struct Shape {
   Real *vB;
   Shape(CommandlineParser &p, Real C[2])
       : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
-        orientation(p("-angle").asDouble(0) * M_PI / 180),
-        forcedu(-p("-xvel").asDouble(0)), forcedv(-p("-yvel").asDouble(0)),
-        forcedomega(-p("-angvel").asDouble(0)), length(p("-L").asDouble(0.1)),
-        Tperiod(p("-T").asDouble(1)), phaseShift(p("-phi").asDouble(0)),
+        orientation(p("-angle").asDouble() * M_PI / 180),
+        forcedu(-p("-xvel").asDouble()), forcedv(-p("-yvel").asDouble()),
+        forcedomega(-p("-angvel").asDouble()), length(p("-L").asDouble()),
+        Tperiod(p("-T").asDouble()), phaseShift(p("-phi").asDouble()),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
         rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
         rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
@@ -6772,10 +6772,10 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       FactoryFileLineParser p(line_stream);
-      Real center[2] = {p("-xpos").asDouble(.5 * sim.extents[0]),
-                        p("-ypos").asDouble(.5 * sim.extents[1])};
+      Real center[2] = {p("-xpos").asDouble(),
+                        p("-ypos").asDouble()};
       Shape *shape = new Shape(p, center);
-      shape->amplitudeFactor = p("-amplitudeFactor").asDouble(1.0);
+      shape->amplitudeFactor = p("-amplitudeFactor").asDouble();
       shape->rS[0] = 0;
       int k = 0;
       for (int i = 0; i < shape->Nend; ++i, k++)
