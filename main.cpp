@@ -1836,9 +1836,9 @@ struct Grid {
       }
     }
   }
-  void FillCase_2(Face &F, int codex, int codey) {
-    Info &info = *F.infos[1];
-    const int icode = F.icode[1];
+  void FillCase_2(Face *F, int codex, int codey) {
+    Info &info = *F->infos[1];
+    const int icode = F->icode[1];
     const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
     if (abs(code[0]) != codex)
       return;
@@ -2072,10 +2072,10 @@ struct Grid {
           FillCase(&recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(recv_faces[r][index], 1, 0);
+        FillCase_2(&recv_faces[r][index], 1, 0);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(recv_faces[r][index], 0, 1);
+        FillCase_2(&recv_faces[r][index], 0, 1);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
