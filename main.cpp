@@ -6134,25 +6134,25 @@ struct Solver {
   void makeFlux(const Info &rhs_info, const int ix, const int iy,
                 const Info &rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
-    const long long sfc_idx = indexer.This(rhs_info, ix, iy);
+    long long sfc_idx = indexer.This(rhs_info, ix, iy);
     if (var.tmp->Tree1(rhsNei) >= 0) {
-      const int nei_rank = var.tmp->Tree1(rhsNei);
-      const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
+      int nei_rank = var.tmp->Tree1(rhsNei);
+      long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
-      const Info &rhsNei_c = var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
-      const int ix_c = indexer.ix_c(rhs_info, ix);
-      const int iy_c = indexer.iy_c(rhs_info, iy);
-      const long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
-      const double signTaylor = indexer.taylorSign(ix, iy);
+      Info &rhsNei_c = var.tmp->get(rhs_info.level - 1, rhsNei.Zparent);
+      int ix_c = indexer.ix_c(rhs_info, ix);
+      int iy_c = indexer.iy_c(rhs_info, iy);
+      long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
+      double signTaylor = indexer.taylorSign(ix, iy);
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
-      const Info &rhsNei_f =
+      Info &rhsNei_f =
           var.tmp->get(rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy));
-      const int nei_rank = var.tmp->Tree1(rhsNei_f);
+      int nei_rank = var.tmp->Tree1(rhsNei_f);
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
