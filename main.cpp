@@ -4856,19 +4856,19 @@ static void adapt() {
     bool clean_boundary = true;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < I.size(); j++) {
-        Info &info = I[j];
-        if (info.level == m && info.state != Refine &&
-            info.level != sim.levelMax - 1) {
-          int TwoPower = 1 << info.level;
+        Info *info = &I[j];
+        if (info->level == m && info->state != Refine &&
+            info->level != sim.levelMax - 1) {
+          int TwoPower = 1 << info->level;
           bool xskin =
-              info.index[0] == 0 || info.index[0] == sim.bpdx * TwoPower - 1;
+              info->index[0] == 0 || info->index[0] == sim.bpdx * TwoPower - 1;
           bool yskin =
-              info.index[1] == 0 || info.index[1] == sim.bpdy * TwoPower - 1;
-          int xskip = info.index[0] == 0 ? -1 : 1;
-          int yskip = info.index[1] == 0 ? -1 : 1;
+              info->index[1] == 0 || info->index[1] == sim.bpdy * TwoPower - 1;
+          int xskip = info->index[0] == 0 ? -1 : 1;
+          int yskip = info->index[1] == 0 ? -1 : 1;
 
           for (int icode = 0; icode < 27; icode++) {
-            if (info.state == Refine)
+            if (info->state == Refine)
               break;
             if (icode == 1 * 1 + 3 * 1 + 9 * 1)
               continue;
@@ -4880,11 +4880,11 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            if (var.tmp->Tree0(info.level,
-                               info.Znei[1 + code[0]][1 + code[1]]) == -1) {
-              if (info.state == Compress) {
-                info.state = Leave;
-                (var.tmp->get(info.level, info.Z))->state = Leave;
+            if (var.tmp->Tree0(info->level,
+                               info->Znei[1 + code[0]][1 + code[1]]) == -1) {
+              if (info->state == Compress) {
+                info->state = Leave;
+                (var.tmp->get(info->level, info->Z))->state = Leave;
               }
               int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
               int Bstep = 1;
@@ -4894,18 +4894,18 @@ static void adapt() {
                 Bstep = 4;
               for (int B = 0; B <= 1; B += Bstep) {
                 int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-                int iNei = 2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                int iNei = 2 * info->index[0] + std::max(code[0], 0) + code[0] +
                            (B % 2) * std::max(0, 1 - abs(code[0]));
-                int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                int jNei = 2 * info->index[1] + std::max(code[1], 0) + code[1] +
                            aux * std::max(0, 1 - abs(code[1]));
                 long long zzz = forward(m + 1, iNei, jNei);
                 Info *FinerNei = var.tmp->get(m + 1, zzz);
                 State NeiState = FinerNei->state;
                 if (NeiState == Refine) {
-                  info.state = Refine;
-                  (var.tmp->get(info.level, info.Z))->state = Refine;
-                  info.changed2 = true;
-                  (var.tmp->get(info.level, info.Z))->changed2 = true;
+                  info->state = Refine;
+                  (var.tmp->get(info->level, info->Z))->state = Refine;
+                  info->changed2 = true;
+                  (var.tmp->get(info->level, info->Z))->changed2 = true;
                   break;
                 }
               }
