@@ -5899,7 +5899,6 @@ struct Solver {
     long long This(const Info &info, const int ix, const int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
-    static bool validXp(const int ix, const int iy) { return ix < _BS_ - 1; }
     static bool validYp(const int ix, const int iy) { return iy < _BS_ - 1; }
     long long Xmin(const Info &info, const int ix, const int iy,
                    const int offset = 0) const {
@@ -7233,7 +7232,7 @@ int main(int argc, char **argv) {
               } else {
                 std::array<bool, 4> validNei;
                 validNei[0] = ix > 0;
-                validNei[1] = sim.solver->GenericCell.validXp(ix, iy);
+                validNei[1] = ix < _BS_ - 1;
                 validNei[2] = iy > 0;
                 validNei[3] = sim.solver->GenericCell.validYp(ix, iy);
                 std::array<long long, 4> idxNei;
