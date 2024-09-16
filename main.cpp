@@ -1521,10 +1521,10 @@ struct Synchronizer {
         {
 #pragma omp for
           for (size_t j = 0; j < ToBeAveragedDown[r].size(); j += 2) {
-            const int i = ToBeAveragedDown[r][j];
-            const int d = ToBeAveragedDown[r][j + 1];
-            const Interface &f = send_interfaces[r][i];
-            const int code[3] = {-(f.icode[0] % 3 - 1),
+            int i = ToBeAveragedDown[r][j];
+            int d = ToBeAveragedDown[r][j + 1];
+            Interface &f = send_interfaces[r][i];
+            int code[3] = {-(f.icode[0] % 3 - 1),
                                  -((f.icode[0] / 3) % 3 - 1),
                                  -((f.icode[0] / 9) % 3 - 1)};
             if (f.CoarseStencil) {
