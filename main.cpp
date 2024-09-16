@@ -982,9 +982,9 @@ struct Synchronizer {
   void FixDuplicates(const Interface &f, const Interface &f_dup, int lx, int ly,
                      int lz, int lx_dup, int ly_dup, int lz_dup, int &sx,
                      int &sy, int &sz) {
-    const Info &receiver = *f.infos[1];
-    const Info &receiver_dup = *f_dup.infos[1];
-    if (receiver.level >= receiver_dup.level) {
+    Info *receiver = f.infos[1];
+    Info *receiver_dup = f_dup.infos[1];
+    if (receiver->level >= receiver_dup->level) {
       int icode_dup = f_dup.icode[1];
       const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
                                (icode_dup / 9) % 3 - 1};
