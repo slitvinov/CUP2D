@@ -6775,6 +6775,7 @@ int main(int argc, char **argv) {
       line_stream >> objectName;
       if (objectName.empty() or objectName[0] == '#')
         continue;
+      fprintf(stderr, "objectName: %s\n", objectName.c_str());
       FactoryFileLineParser p(line_stream);
       Real center[2] = {p("-xpos").asDouble(.5 * sim.extents[0]),
                         p("-ypos").asDouble(.5 * sim.extents[1])};
