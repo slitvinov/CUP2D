@@ -6111,13 +6111,13 @@ struct Solver {
              {indexer.Nei(info, ix, iy, 1), 1. / 32.},
              {indexer.This(info, ix, iy), -1. / 16.}}};
   }
-  void interpolate(const Info &info_c, const int ix_c, const int iy_c,
-                   const Info &info_f, const long long fine_close_idx,
-                   const long long fine_far_idx, const double signInt,
-                   const double signTaylor, const EdgeCellIndexer &indexer,
+  void interpolate(const Info &info_c, int ix_c, int iy_c,
+                   const Info &info_f, long long fine_close_idx,
+                   long long fine_far_idx, double signInt,
+                   double signTaylor, const EdgeCellIndexer &indexer,
                    SpRowInfo &row) const {
-    const int rank_c = var.tmp->Tree1(&info_c);
-    const int rank_f = var.tmp->Tree1(&info_f);
+    int rank_c = var.tmp->Tree1(&info_c);
+    int rank_f = var.tmp->Tree1(&info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
