@@ -2416,7 +2416,7 @@ struct BlockLab {
         }
       }
     if (sim.size == 1)
-      post_load(*info, applybc);
+      post_load(info, applybc);
     const int id = info->halo_id;
     if (id >= 0) {
       UnPackInfo *unpacks = sync->myunpacks[id].data();
@@ -2531,10 +2531,10 @@ struct BlockLab {
       }
     }
     if (sim.size > 1)
-      post_load(*info, applybc);
+      post_load(info, applybc);
   }
 
-  void post_load(Info &info, bool applybc) {
+  void post_load(Info *info, bool applybc) {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
@@ -2558,14 +2558,14 @@ struct BlockLab {
       }
     }
     if (applybc)
-      _apply_bc(info, true);
+      _apply_bc(*info, true);
     Real *um = (Real *)m;
     Real *uc = (Real *)c;
-    int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
+    int aux = 1 << info->level;
+    bool xskin = info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+    int xskip = info->index[0] == 0 ? -1 : 1;
+    int yskip = info->index[1] == 0 ? -1 : 1;
 
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
@@ -2786,7 +2786,7 @@ struct BlockLab {
       }
     }
     if (applybc)
-      _apply_bc(info, false);
+      _apply_bc(*info, false);
   }
   bool UseCoarseStencil0(const Info &info, const int *infoNei_index) {
     if (info.level == 0 || !use_averages)
