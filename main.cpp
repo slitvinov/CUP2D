@@ -6403,6 +6403,7 @@ struct pressureCorrectionKernel {
   }
 };
 static void solve() {
+  Real avg, avg1, quantities[2];
   const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
   const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
   const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -6419,8 +6420,9 @@ static void solve() {
   std::vector<Info> &zInfo = var.pres->infos;
   const int NB = zInfo.size();
   const std::vector<double> &x = sim.solver->LocalLS_->get_x();
-  double avg = 0;
-  double avg1 = 0;
+
+  avg = 0;
+  avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
   for (int i = 0; i < NB; i++) {
     ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
@@ -6432,8 +6434,9 @@ static void solve() {
         avg1 += vv;
       }
   }
-  double quantities[2] = {avg, avg1};
-  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_DOUBLE, MPI_SUM,
+  quantities[0] = avg;
+  quantities[1] = avg1;
+  MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
                 MPI_COMM_WORLD);
   avg = quantities[0];
   avg1 = quantities[1];
@@ -7292,9 +7295,7 @@ int main(int argc, char **argv) {
       var.tmp->prepare0();
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
-      Real avg;
-      Real avg1;
-      Real quantities[2];
+      Real avg, avg1, quantities[2];
       solve();
 
       avg = 0;
