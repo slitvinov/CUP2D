@@ -1530,29 +1530,28 @@ struct Synchronizer {
             if (f.CoarseStencil) {
               Real *dst = send_buffer[r].data() + d;
               const Info *const info = f.infos[0];
-              const int eC[3] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2, 1};
-              const int sC[3] = {(stencil.sx - 1) / 2 - 1,
-                                 (stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
-              const int s[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
-                  code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2,
-                  code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : 1 / 2};
-              const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                                            : _BS_ / 2 + eC[0] - 1,
-                                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                            : _BS_ / 2 + eC[1] - 1,
-                                code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2)
-                                            : 1 / 2 + eC[2] - 1};
+              int eC[3] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2, 1};
+              int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                           (0 - 1) / 2 + 0};
+              int s[3] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2,
+                          code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : 1 / 2};
+              int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + eC[0] - 1,
+                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + eC[1] - 1,
+                          code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2)
+                                      : 1 / 2 + eC[2] - 1};
               Real *src = (Real *)(*info).block;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy++) {
-                const int YY =
-                    2 * (iy - s[1]) + s[1] + std::max(code[1], 0) * _BS_ / 2 -
-                    code[1] * _BS_ + std::min(0, code[1]) * (e[1] - s[1]);
+                int YY = 2 * (iy - s[1]) + s[1] +
+                         std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
+                         std::min(0, code[1]) * (e[1] - s[1]);
                 for (int ix = s[0]; ix < e[0]; ix++) {
-                  const int XX =
-                      2 * (ix - s[0]) + s[0] + std::max(code[0], 0) * _BS_ / 2 -
-                      code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
+                  int XX = 2 * (ix - s[0]) + s[0] +
+                           std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
+                           std::min(0, code[0]) * (e[0] - s[0]);
                   for (int c = 0; c < dim; c++) {
                     int comp = c;
                     dst[pos] =
@@ -1568,29 +1567,26 @@ struct Synchronizer {
             } else {
               Real *dst = send_buffer[r].data() + d;
               const Info *const info = f.infos[0];
-              const int s[3] = {
-                  code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-                  code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
-                  code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-              const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                                            : _BS_ + stencil.ex - 1,
-                                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                            : _BS_ + stencil.ey - 1,
-                                code[2] < 1 ? (code[2] < 0 ? 0 : 1) : -1};
+              int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
+                          code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
+              int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
+                                      : _BS_ + stencil.ex - 1,
+                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
+                                      : _BS_ + stencil.ey - 1,
+                          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : -1};
               Real *src = (Real *)(*info).block;
-              const int xStep = (code[0] == 0) ? 2 : 1;
-              const int yStep = (code[1] == 0) ? 2 : 1;
+              int xStep = (code[0] == 0) ? 2 : 1;
+              int yStep = (code[1] == 0) ? 2 : 1;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy += yStep) {
-                const int YY = (abs(code[1]) == 1)
-                                   ? 2 * (iy - code[1] * _BS_) +
-                                         std::min(0, code[1]) * _BS_
-                                   : iy;
+                int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                                   std::min(0, code[1]) * _BS_
+                                             : iy;
                 for (int ix = s[0]; ix < e[0]; ix += xStep) {
-                  const int XX = (abs(code[0]) == 1)
-                                     ? 2 * (ix - code[0] * _BS_) +
-                                           std::min(0, code[0]) * _BS_
-                                     : ix;
+                  int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
+                                                     std::min(0, code[0]) * _BS_
+                                               : ix;
                   for (int c = 0; c < dim; c++) {
                     int comp = c;
                     dst[pos] =
@@ -5450,8 +5446,7 @@ static void adapt() {
             counter_S += send_blocks[r].size();
           } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info &info =
-                  g->infos[g->infos.size() - 1 - (counter_E + i)];
+              Info &info = g->infos[g->infos.size() - 1 - (counter_E + i)];
               deallocIDs.push_back(info.id2);
               g->Tree0(info.level, info.Z) = r;
             }
@@ -6111,11 +6106,10 @@ struct Solver {
              {indexer.Nei(info, ix, iy, 1), 1. / 32.},
              {indexer.This(info, ix, iy), -1. / 16.}}};
   }
-  void interpolate(const Info *info_c, int ix_c, int iy_c,
-                   const Info *info_f, long long fine_close_idx,
-                   long long fine_far_idx, double signInt,
-                   double signTaylor, const EdgeCellIndexer &indexer,
-                   SpRowInfo &row) const {
+  void interpolate(const Info *info_c, int ix_c, int iy_c, const Info *info_f,
+                   long long fine_close_idx, long long fine_far_idx,
+                   double signInt, double signTaylor,
+                   const EdgeCellIndexer &indexer, SpRowInfo &row) const {
     int rank_c = var.tmp->Tree1(info_c);
     int rank_f = var.tmp->Tree1(info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
@@ -6130,9 +6124,8 @@ struct Solver {
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
-  void makeFlux(const Info *rhs_info, int ix, int iy,
-                const Info *rhsNei, const EdgeCellIndexer &indexer,
-                SpRowInfo &row) const {
+  void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
+                const EdgeCellIndexer &indexer, SpRowInfo &row) const {
     long long sfc_idx = indexer.This(rhs_info, ix, iy);
     if (var.tmp->Tree1(rhsNei) >= 0) {
       int nei_rank = var.tmp->Tree1(rhsNei);
@@ -6155,13 +6148,13 @@ struct Solver {
       long long fine_close_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                  -1., indexer, row);
+      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx,
+                  -1., -1., indexer, row);
       fine_close_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 0);
       fine_far_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                  1., indexer, row);
+      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx,
+                  -1., 1., indexer, row);
     } else {
       throw std::runtime_error(
           "Neighbour doesn't exist, isn't coarser, nor finer...");
@@ -7246,7 +7239,7 @@ int main(int argc, char **argv) {
                   } else if (!isBoundary[j]) {
                     sim.solver->makeFlux(&rhs_info, ix, iy, rhsNei[j],
                                          *sim.solver->edgeIndexers[j], row);
-		  }
+                  }
                 }
                 sim.solver->LocalLS_->cooPushBackRow(row);
               }
