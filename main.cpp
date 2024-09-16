@@ -1285,7 +1285,7 @@ struct Synchronizer {
               compass[i].clear();
             for (size_t i = 0; i < DM.sizes[r]; i++) {
               compass[f[i + DM.positions[r]].icode[0]].push_back(
-								 DetermineStencil(f[i + DM.positions[r]], false));
+                  DetermineStencil(f[i + DM.positions[r]], false));
               compass[f[i + DM.positions[r]].icode[0]].back().index =
                   i + DM.positions[r];
               compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
@@ -1792,34 +1792,32 @@ struct Grid {
   bool boundary_needed;
   std::vector<long long> dealloc_IDs;
   Grid(int dim) : dim(dim) {}
-  void FillCase(Face &F) {
-    Info &info = *F.infos[1];
-    const int icode = F.icode[1];
-    const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                         (icode / 9) % 3 - 1};
-    const int myFace = abs(code[0]) * std::max(0, code[0]) +
-                       abs(code[1]) * (std::max(0, code[1]) + 2) +
-                       abs(code[2]) * (std::max(0, code[2]) + 4);
+  void FillCase(Face *F) {
+    Info &info = *F->infos[1];
+    int icode = F->icode[1];
+    int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
+    int myFace = abs(code[0]) * std::max(0, code[0]) +
+                 abs(code[1]) * (std::max(0, code[1]) + 2) +
+                 abs(code[2]) * (std::max(0, code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info.level, info.Z};
     auto search = Map.find(temp);
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
-      const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      const long long Z =
-          forward(info.level + 1,
-                  2 * info.index[0] + std::max(code[0], 0) + code[0] +
-                      (B % 2) * std::max(0, 1 - abs(code[0])),
-                  2 * info.index[1] + std::max(code[1], 0) + code[1] +
-                      aux * std::max(0, 1 - abs(code[1])));
-      if (Z != F.infos[0]->Z)
+      int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+      long long Z = forward(info.level + 1,
+                            2 * info.index[0] + std::max(code[0], 0) + code[0] +
+                                (B % 2) * std::max(0, 1 - abs(code[0])),
+                            2 * info.index[1] + std::max(code[1], 0) + code[1] +
+                                aux * std::max(0, 1 - abs(code[1])));
+      if (Z != F->infos[0]->Z)
         continue;
-      const int d = myFace / 2;
-      const int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-      const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-      const int N1 = sizes[d1];
-      const int N2 = sizes[d2];
+      int d = myFace / 2;
+      int d1 = std::max((d + 1) % 3, (d + 2) % 3);
+      int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+      int N1 = sizes[d1];
+      int N2 = sizes[d2];
       int base = 0;
       if (B == 1)
         base = (N2 / 2) + (0) * N2;
@@ -1827,12 +1825,12 @@ struct Grid {
         base = (0) + (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = Treef(&tree, F.infos[0]->level, F.infos[0]->Z);
+      int r = Treef(&tree, F->infos[0]->level, F->infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
         for (int j = 0; j < dim; j++)
-          s[j] += recv_buffer[r][F.offset + dis + j];
+          s[j] += recv_buffer[r][F->offset + dis + j];
         dis += dim;
       }
     }
@@ -2064,13 +2062,13 @@ struct Grid {
       memcpy(&recv_buffer[sim.rank][0], &send_buffer[sim.rank][0],
              send_buffer[sim.rank].size() * sizeof(Real));
     for (int index = 0; index < (int)recv_faces[sim.rank].size(); index++)
-      FillCase(recv_faces[sim.rank][index]);
+      FillCase(&recv_faces[sim.rank][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
         for (int index = 0; index < (int)recv_faces[r].size(); index++)
-          FillCase(recv_faces[r][index]);
+          FillCase(&recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)recv_faces[r].size(); index++)
         FillCase_2(recv_faces[r][index], 1, 0);
