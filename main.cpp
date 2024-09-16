@@ -1529,18 +1529,14 @@ struct Synchronizer {
             if (f.CoarseStencil) {
               Real *dst = send_buffer[r].data() + d;
               const Info *const info = f.infos[0];
-              int eC[3] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2, 1};
-              int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-                           (0 - 1) / 2 + 0};
-              int s[3] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
-                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2,
-                          code[2] < 1 ? (code[2] < 0 ? sC[2] : 0) : 1 / 2};
-              int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+              int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
+              int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
+              int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
+              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
                                       : _BS_ / 2 + eC[0] - 1,
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + eC[1] - 1,
-                          code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2)
-                                      : 1 / 2 + eC[2] - 1};
+                                      : _BS_ / 2 + eC[1] - 1};
               Real *src = (Real *)(*info).block;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy++) {
