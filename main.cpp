@@ -801,18 +801,18 @@ static void fill(Info *b, int m, long long Z) {
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
-static Info &get0(std::unordered_map<long long, Info *> *all, int m,
+static Info *get0(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   const auto retval = all->find(sim.levels[m] + Z);
   assert(retval != all->end());
-  return *retval->second;
+  return retval->second;
 }
-static Info &getf(std::unordered_map<long long, Info *> *all, int m,
+static Info *getf(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   const long long aux = sim.levels[m] + Z;
   const auto retval = all->find(aux);
   if (retval != all->end()) {
-    return *retval->second;
+    return retval->second;
   } else {
 #pragma omp critical
     {
@@ -1086,42 +1086,42 @@ struct Synchronizer {
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
-          Info &infoNei =
+          Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           send_interfaces[infoNeiTree].push_back(
-              {&info, &infoNei, icode, icode2});
+              {&info, infoNei, icode, icode2});
           recv_interfaces[infoNeiTree].push_back(
-              {&infoNei, &info, icode2, icode});
+              {infoNei, &info, icode2, icode});
           ToBeChecked.push_back(infoNeiTree);
           ToBeChecked.push_back((int)send_interfaces[infoNeiTree].size() - 1);
           ToBeChecked.push_back((int)recv_interfaces[infoNeiTree].size() - 1);
           DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
-          Info &infoNei =
+          Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei.Zparent);
+          int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei->Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
-            Info &infoNeiCoarser =
-                getf(all, infoNei.level - 1, infoNei.Zparent);
+            Info *infoNeiCoarser =
+                getf(all, infoNei->level - 1, infoNei->Zparent);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             int Bmax[3] = {sim.bpdx << (info.level - 1),
                            sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
             int test_idx[3] = {
-                (infoNeiCoarser.index[0] - code[0] + Bmax[0]) % Bmax[0],
-                (infoNeiCoarser.index[1] - code[1] + Bmax[1]) % Bmax[1],
-                (infoNeiCoarser.index[2] - code[2] + Bmax[2]) % Bmax[2]};
+                (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
+                (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
+                (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
             if (info.index[0] / 2 == test_idx[0] &&
                 info.index[1] / 2 == test_idx[1] &&
                 info.index[2] / 2 == test_idx[2]) {
               send_interfaces[infoNeiCoarserrank].push_back(
-                  {&info, &infoNeiCoarser, icode, icode2});
+                  {&info, infoNeiCoarser, icode, icode2});
               recv_interfaces[infoNeiCoarserrank].push_back(
-                  {&infoNeiCoarser, &info, icode2, icode});
+                  {infoNeiCoarser, &info, icode2, icode});
               DM.Add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
@@ -1148,18 +1148,18 @@ struct Synchronizer {
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {&infoNeiCoarser, &info, icode2, icode3});
+                      {infoNeiCoarser, &info, icode2, icode3});
                 if (code4[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {&infoNeiCoarser, &info, icode2, icode4});
+                      {infoNeiCoarser, &info, icode2, icode4});
                 if (code5[2] == 0)
                   recv_interfaces[infoNeiCoarserrank].push_back(
-                      {&infoNeiCoarser, &info, icode2, icode5});
+                      {infoNeiCoarser, &info, icode2, icode5});
               }
             }
           }
         } else if (infoNeiTree == -1) {
-          Info &infoNei =
+          Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
@@ -1173,7 +1173,7 @@ struct Synchronizer {
               continue;
             int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             long long nFine =
-                infoNei.Zchild[std::max(-code[0], 0) +
+                infoNei->Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
@@ -1181,13 +1181,13 @@ struct Synchronizer {
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
-              Info &infoNeiFiner = getf(all, info.level + 1, nFine);
+              Info *infoNeiFiner = getf(all, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               send_interfaces[infoNeiFinerrank].push_back(
-                  {&info, &infoNeiFiner, icode, icode2});
+                  {&info, infoNeiFiner, icode, icode2});
               recv_interfaces[infoNeiFinerrank].push_back(
-                  {&infoNeiFiner, &info, icode2, icode});
+                  {infoNeiFiner, &info, icode2, icode});
               DM.Add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
               if (Bstep == 1) {
@@ -1196,8 +1196,8 @@ struct Synchronizer {
                 int d2 = (d0 + 2) % 3;
                 int code3[3];
                 code3[d0] = -code[d0];
-                code3[d1] = -2 * (infoNeiFiner.index[d1] % 2) + 1;
-                code3[d2] = -2 * (infoNeiFiner.index[d2] % 2) + 1;
+                code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
+                code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
                 int icode3 =
                     (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
                 int code4[3];
@@ -1214,19 +1214,19 @@ struct Synchronizer {
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, &infoNeiFiner, icode, icode3));
+                      Interface(&info, infoNeiFiner, icode, icode3));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code4[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, &infoNeiFiner, icode, icode4));
+                      Interface(&info, infoNeiFiner, icode, icode4));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code5[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, &infoNeiFiner, icode, icode5));
+                      Interface(&info, infoNeiFiner, icode, icode5));
                   DM.Add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
@@ -1322,7 +1322,7 @@ struct Synchronizer {
             DM.sizes[r] = 0;
           }
       }
-      getf(all, info.level, info.Z).halo_id = info.halo_id;
+      getf(all, info.level, info.Z)->halo_id = info.halo_id;
     }
     myunpacks.resize(halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
@@ -1643,14 +1643,14 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
             continue;
           if (y == yskip && yskin)
             continue;
-          Info &infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
-          int &infoNeiTree = Treef(tree, infoNei.level, infoNei.Z);
+          Info *infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
+          int &infoNeiTree = Treef(tree, infoNei->level, infoNei->Z);
           if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
             myflag = true;
             goto end;
           } else if (infoNeiTree == -2) {
-            long long nCoarse = infoNei.Zparent;
-            int infoNeiCoarserrank = Treef(tree, infoNei.level - 1, nCoarse);
+            long long nCoarse = infoNei->Zparent;
+            int infoNeiCoarserrank = Treef(tree, infoNei->level - 1, nCoarse);
             if (infoNeiCoarserrank != sim.rank) {
               myflag = true;
               goto end;
@@ -1663,10 +1663,10 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
               int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
               long long nFine =
                   infoNei
-                      .Zchild[std::max(-x, 0) +
+                      ->Zchild[std::max(-x, 0) +
                               (B % 2) * std::max(0, 1 - abs(x))]
                              [std::max(-y, 0) + temp * std::max(0, 1 - abs(y))];
-              int infoNeiFinerrank = Treef(tree, infoNei.level + 1, nFine);
+              int infoNeiFinerrank = Treef(tree, infoNei->level + 1, nFine);
               if (infoNeiFinerrank != sim.rank) {
                 myflag = true;
                 goto end;
@@ -1747,7 +1747,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
       long long Z = recv_buffer[kk][index + 1];
       Treef(tree, level, Z) = r;
       if (UpdateIDs)
-        getf(all, level, Z).id = recv_buffer[kk][index + 2];
+        getf(all, level, Z)->id = recv_buffer[kk][index + 2];
       int p[2];
       sim.space_curve->inverse(Z, level, p[0], p[1]);
       if (level < sim.levelMax - 1)
@@ -1769,9 +1769,9 @@ static void fill_pos(std::vector<Info> *infos,
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
     long long n = (*infos)[j].Z;
-    Info &info = get0(all, m, n);
-    info.id = j;
-    (*infos)[j] = info;
+    Info *info = get0(all, m, n);
+    info->id = j;
+    (*infos)[j] = *info;
   }
 }
 struct Grid {
@@ -1898,7 +1898,7 @@ struct Grid {
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : BB) {
-      get(info.level, info.Z).auxiliary = nullptr;
+      get(info.level, info.Z)->auxiliary = nullptr;
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
       const bool xskin =
@@ -1930,36 +1930,36 @@ struct Grid {
         L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
         if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
-          Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          const long long nCoarse = infoNei.Zparent;
-          Info &infoNeiCoarser = get(info.level - 1, nCoarse);
+          Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          const long long nCoarse = infoNei->Zparent;
+          Info *infoNeiCoarser = get(info.level - 1, nCoarse);
           const int infoNeiCoarserrank = Tree0(info.level - 1, nCoarse);
           {
             int code2[3] = {-code[0], -code[1], -code[2]};
             int icode2 =
                 (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
             send_faces[infoNeiCoarserrank].push_back(
-                Face(&info, &infoNeiCoarser, icode[f], icode2));
+                Face(&info, infoNeiCoarser, icode[f], icode2));
             send_buffer_size[infoNeiCoarserrank] += V;
           }
         } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
                    -1) {
-          Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
-                infoNei.Zchild[std::max(-code[0], 0) +
+                infoNei->Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            const int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
+            const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
             {
-              Info &infoNeiFiner = get(infoNei.level + 1, nFine);
+              Info *infoNeiFiner = get(infoNei->level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
               recv_faces[infoNeiFinerrank].push_back(
-                  Face(&infoNeiFiner, &info, icode2, icode[f]));
+                  Face(infoNeiFiner, &info, icode2, icode[f]));
               recv_buffer_size[infoNeiFinerrank] += V;
             }
           }
@@ -1985,7 +1985,7 @@ struct Grid {
           Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
               {Cases[Cases_index]->level, Cases[Cases_index]->Z},
               Cases[Cases_index]));
-          get(Cases[Cases_index]->level, Cases[Cases_index]->Z).auxiliary =
+          get(Cases[Cases_index]->level, Cases[Cases_index]->Z)->auxiliary =
               Cases[Cases_index];
           info.auxiliary = Cases[Cases_index];
           Cases_index++;
@@ -2080,7 +2080,7 @@ struct Grid {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
   void *avail(const int m, const long long n) {
-    return (Tree0(m, n) == sim.rank) ? get(m, n).block : nullptr;
+    return (Tree0(m, n) == sim.rank) ? get(m, n)->block : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
     std::vector<std::vector<long long>> send_buffer(sim.size);
@@ -2108,21 +2108,21 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        Info &infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-        const int &infoNeiTree = Tree0(infoNei.level, infoNei.Z);
+        Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        const int &infoNeiTree = Tree0(infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-          if (infoNei.state != Refine || clean)
-            infoNei.state = Leave;
+          if (infoNei->state != Refine || clean)
+            infoNei->state = Leave;
           receivers.insert(infoNeiTree);
           Neighbors.insert(infoNeiTree);
         } else if (infoNeiTree == -2) {
-          const long long nCoarse = infoNei.Zparent;
-          Info &infoNeiCoarser = get(infoNei.level - 1, nCoarse);
-          const int infoNeiCoarserrank = Tree0(infoNei.level - 1, nCoarse);
+          const long long nCoarse = infoNei->Zparent;
+          Info *infoNeiCoarser = get(infoNei->level - 1, nCoarse);
+          const int infoNeiCoarserrank = Tree0(infoNei->level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
-            if (infoNeiCoarser.state != Refine || clean)
-              infoNeiCoarser.state = Leave;
+            if (infoNeiCoarser->state != Refine || clean)
+              infoNeiCoarser->state = Leave;
             receivers.insert(infoNeiCoarserrank);
             Neighbors.insert(infoNeiCoarserrank);
           }
@@ -2135,15 +2135,15 @@ struct Grid {
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
-                infoNei.Zchild[std::max(-code[0], 0) +
+                infoNei->Zchild[std::max(-code[0], 0) +
                                (B % 2) * std::max(0, 1 - abs(code[0]))]
                               [std::max(-code[1], 0) +
                                temp * std::max(0, 1 - abs(code[1]))];
-            Info &infoNeiFiner = get(infoNei.level + 1, nFine);
-            const int infoNeiFinerrank = Tree0(infoNei.level + 1, nFine);
+            Info *infoNeiFiner = get(infoNei->level + 1, nFine);
+            const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
-              if (infoNeiFiner.state != Refine || clean)
-                infoNeiFiner.state = Leave;
+              if (infoNeiFiner->state != Refine || clean)
+                infoNeiFiner->state = Leave;
               receivers.insert(infoNeiFinerrank);
               Neighbors.insert(infoNeiFinerrank);
             }
@@ -2196,7 +2196,7 @@ struct Grid {
         for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
           int level = recv_buffer[r][index];
           long long Z = recv_buffer[r][index + 1];
-          get(level, Z).state =
+          get(level, Z)->state =
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
@@ -2218,14 +2218,14 @@ struct Grid {
   int &Tree0(const int m, const long long n) { return Treef(&tree, m, n); }
   int &Tree1(const Info *info) { return Treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
-    Info &new_info = get(level, Z);
-    new_info.block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
+    Info *new_info = get(level, Z);
+    new_info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-    { infos.push_back(new_info); }
+    { infos.push_back(*new_info); }
     Tree0(level, Z) = sim.rank;
   }
   void _dealloc(const int m, const long long n) {
-    free(get0(m, n).block);
+    free(get0(m, n)->block);
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
         infos.erase(infos.begin() + j);
@@ -2242,7 +2242,7 @@ struct Grid {
           const int m = infos[j].level;
           const long long n = infos[j].Z;
           infos[j].changed2 = true;
-          free(get0(m, n).block);
+          free(get0(m, n)->block);
           break;
         }
       }
@@ -2254,12 +2254,12 @@ struct Grid {
     const long long n = forward(m, ix, iy);
     return avail(m, n);
   }
-  Info &get0(int m, long long n) {
+  Info *get0(int m, long long n) {
     const auto retval = all.find(sim.levels[m] + n);
     assert(retval != all.end());
-    return *retval->second;
+    return retval->second;
   }
-  Info &get(int m, long long n) { return getf(&all, m, n); }
+  Info *get(int m, long long n) { return getf(&all, m, n); }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -3099,8 +3099,8 @@ struct BlockLab {
 static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
                      uint8_t *data) {
   grid->_alloc(level, Z);
-  Info &info = grid->get(level, Z);
-  memcpy(info.block, data, _BS_ * _BS_ * dim * sizeof(Real));
+  Info *info = grid->get(level, Z);
+  memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
   sim.space_curve->inverse(Z, level, p[0], p[1]);
   if (level < sim.levelMax - 1)
@@ -4791,8 +4791,8 @@ static void adapt() {
     {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I->size(); i++) {
-        Info &info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
-        ScalarBlock &b = *(ScalarBlock *)info.block;
+        Info *info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
+        ScalarBlock &b = *(ScalarBlock *)info->block;
         double Linf = 0.0;
         for (int j = 0; j < _BS_; j++)
           for (int i = 0; i < _BS_; i++)
@@ -4809,8 +4809,8 @@ static void adapt() {
             ((*I)[i]->state == Compress) && ((*I)[i]->level == 0);
         if (maxLevel || minLevel)
           (*I)[i]->state = Leave;
-        info.state = (*I)[i]->state;
-        if (info.state != Leave) {
+        info->state = (*I)[i]->state;
+        if (info->state != Leave) {
 #pragma omp critical
           {
             CallValidStates = true;
@@ -4846,11 +4846,11 @@ static void adapt() {
       if ((info.state == Refine && info.level == sim.levelMax - 1) ||
           (info.state == Compress && info.level == levelMin)) {
         info.state = Leave;
-        (var.tmp->get(info.level, info.Z)).state = Leave;
+        (var.tmp->get(info.level, info.Z))->state = Leave;
       }
       if (info.state != Leave) {
         info.changed2 = true;
-        (var.tmp->get(info.level, info.Z)).changed2 = info.changed2;
+        (var.tmp->get(info.level, info.Z))->changed2 = info.changed2;
       }
     }
     bool clean_boundary = true;
@@ -4884,7 +4884,7 @@ static void adapt() {
                                info.Znei[1 + code[0]][1 + code[1]]) == -1) {
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp->get(info.level, info.Z)).state = Leave;
+                (var.tmp->get(info.level, info.Z))->state = Leave;
               }
               int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
               int Bstep = 1;
@@ -4899,13 +4899,13 @@ static void adapt() {
                 int jNei = 2 * info.index[1] + std::max(code[1], 0) + code[1] +
                            aux * std::max(0, 1 - abs(code[1]));
                 long long zzz = forward(m + 1, iNei, jNei);
-                Info &FinerNei = var.tmp->get(m + 1, zzz);
-                State NeiState = FinerNei.state;
+                Info *FinerNei = var.tmp->get(m + 1, zzz);
+                State NeiState = FinerNei->state;
                 if (NeiState == Refine) {
                   info.state = Refine;
-                  (var.tmp->get(info.level, info.Z)).state = Refine;
+                  (var.tmp->get(info.level, info.Z))->state = Refine;
                   info.changed2 = true;
-                  (var.tmp->get(info.level, info.Z)).changed2 = true;
+                  (var.tmp->get(info.level, info.Z))->changed2 = true;
                   break;
                 }
               }
@@ -4939,11 +4939,11 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            Info &infoNei =
+            Info *infoNei =
                 var.tmp->get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
-            if (var.tmp->Tree1(&infoNei) >= 0 && infoNei.state == Refine) {
+            if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Refine) {
               info.state = Leave;
-              (var.tmp->get(info.level, info.Z)).state = Leave;
+              (var.tmp->get(info.level, info.Z))->state = Leave;
               break;
             }
           }
@@ -4961,13 +4961,13 @@ static void adapt() {
           for (int k = 2 * (info.index[2] / 2);
                k <= 2 * (info.index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
-            Info &infoNei = var.tmp->get(m, n);
-            if ((var.tmp->Tree1(&infoNei) >= 0) == false ||
-                infoNei.state != Compress) {
+            Info *infoNei = var.tmp->get(m, n);
+            if ((var.tmp->Tree1(infoNei) >= 0) == false ||
+                infoNei->state != Compress) {
               found = true;
               if (info.state == Compress) {
                 info.state = Leave;
-                (var.tmp->get(info.level, info.Z)).state = Leave;
+                (var.tmp->get(info.level, info.Z))->state = Leave;
               }
               break;
             }
@@ -4980,9 +4980,9 @@ static void adapt() {
             for (int k = 2 * (info.index[2] / 2);
                  k <= 2 * (info.index[2] / 2) + 1; k++) {
               long long n = forward(m, i, j);
-              Info &infoNei = var.tmp->get(m, n);
-              if (var.tmp->Tree1(&infoNei) >= 0 && infoNei.state == Compress)
-                infoNei.state = Leave;
+              Info *infoNei = var.tmp->get(m, n);
+              if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Compress)
+                infoNei->state = Leave;
             }
     }
   }
@@ -4997,31 +4997,31 @@ static void adapt() {
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
       Info &ary0 = args[iarg].I2[i1];
-      Info &info = getf(args[iarg].all, ary0.level, ary0.Z);
-      for (int i = 2 * (info.index[0] / 2); i <= 2 * (info.index[0] / 2) + 1;
+      Info *info = getf(args[iarg].all, ary0.level, ary0.Z);
+      for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
            i++)
-        for (int j = 2 * (info.index[1] / 2); j <= 2 * (info.index[1] / 2) + 1;
+        for (int j = 2 * (info->index[1] / 2); j <= 2 * (info->index[1] / 2) + 1;
              j++) {
-          const long long n = forward(info.level, i, j);
-          Info &infoNei = getf(args[iarg].all, info.level, n);
-          infoNei.state = Leave;
+          const long long n = forward(info->level, i, j);
+          Info *infoNei = getf(args[iarg].all, info->level, n);
+          infoNei->state = Leave;
         }
-      info.state = Leave;
+      info->state = Leave;
       ary0.state = Leave;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       const Info &info1 = var.tmp->infos[i];
       Info &info2 = args[iarg].I2[i];
-      Info &info3 = getf(args[iarg].all, info2.level, info2.Z);
+      Info *info3 = getf(args[iarg].all, info2.level, info2.Z);
       info2.state = info1.state;
-      info3.state = info1.state;
+      info3->state = info1.state;
       if (info2.state == Compress) {
         const int i2 = 2 * (info2.index[0] / 2);
         const int j2 = 2 * (info2.index[1] / 2);
         const long long n = forward(info2.level, i2, j2);
-        Info &infoNei = getf(args[iarg].all, info2.level, n);
-        infoNei.state = Compress;
+        Info *infoNei = getf(args[iarg].all, info2.level, n);
+        infoNei->state = Compress;
       }
     }
   }
@@ -5085,22 +5085,22 @@ static void adapt() {
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
-      Info &parent = g->get(level, Z);
-      parent.state = Leave;
+      Info *parent = g->get(level, Z);
+      parent->state = Leave;
       if (basic == false)
-        lab->load(g, Synch, &parent, true);
-      const int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
-      assert(parent.block != NULL);
+        lab->load(g, Synch, parent, true);
+      const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
+      assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
       void *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info &Child = g->get(level + 1, nc);
-          Child.state = Leave;
+          Info *Child = g->get(level + 1, nc);
+          Child->state = Leave;
           g->_alloc(level + 1, nc);
           g->Tree0(level + 1, nc) = -2;
-          Blocks[j * 2 + i] = Child.block;
+          Blocks[j * 2 + i] = Child->block;
         }
       if (basic == false) {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
@@ -5160,20 +5160,20 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { g->dealloc_IDs.push_back(g->get(level, Z).id2); }
-      Info &parent = g->get(level, Z);
-      g->Tree1(&parent) = -1;
-      parent.state = Leave;
-      int p[3] = {parent.index[0], parent.index[1], parent.index[2]};
+      { g->dealloc_IDs.push_back(g->get(level, Z)->id2); }
+      Info *parent = g->get(level, Z);
+      g->Tree1(parent) = -1;
+      parent->state = Leave;
+      int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info &Child = g->get(level + 1, nc);
-          g->Tree1(&Child) = sim.rank;
+          Info *Child = g->get(level + 1, nc);
+          g->Tree1(Child) = sim.rank;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                g->Tree0(level + 2, Child.Zchild[i0][i1]) = -2;
+                g->Tree0(level + 2, Child->Zchild[i0][i1]) = -2;
         }
     }
     g->dealloc_many(g->dealloc_IDs);
@@ -5182,18 +5182,18 @@ static void adapt() {
     for (auto &b : I) {
       const long long nBlock =
           forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const Info &base = g->get(b.level, nBlock);
-      if (!(g->Tree1(&base) >= 0) || base.state != Compress)
+      const Info *base = g->get(b.level, nBlock);
+      if (!(g->Tree1(base) >= 0) || base->state != Compress)
         continue;
-      const Info &bCopy = g->get(b.level, b.Z);
+      const Info *bCopy = g->get(b.level, b.Z);
       const int baserank = g->Tree0(b.level, nBlock);
       const int brank = g->Tree0(b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           MPI_Block x;
-          x.mn[0] = bCopy.level;
-          x.mn[1] = bCopy.Z;
-          std::memcpy(&x.data[0], bCopy.block,
+          x.mn[0] = bCopy->level;
+          x.mn[1] = bCopy->Z;
+          std::memcpy(&x.data[0], bCopy->block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
           g->Tree0(b.level, b.Z) = baserank;
@@ -5205,12 +5205,12 @@ static void adapt() {
                 forward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
-            Info &temp = g->get(b.level, n);
+            Info *temp = g->get(b.level, n);
             const int temprank = g->Tree0(b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
-              x.mn[0] = bCopy.level;
-              x.mn[1] = bCopy.Z;
+              x.mn[0] = bCopy->level;
+              x.mn[1] = bCopy->Z;
               recv_blocks[temprank].push_back(x);
               g->Tree0(b.level, n) = baserank;
             }
@@ -5249,8 +5249,8 @@ static void adapt() {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
         g->_alloc(level, Z);
-        Info &info = g->get(level, Z);
-        std::memcpy(info.block, recv_blocks[r][i].data,
+        Info *info = g->get(level, Z);
+        std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
 
@@ -5259,15 +5259,15 @@ static void adapt() {
       const int level = m_com[i];
       const long long Z = n_com[i];
       assert(level > 0);
-      Info &info = g->get(level, Z);
-      assert(info.state == Compress);
+      Info *info = g->get(level, Z);
+      assert(info->state == Compress);
       void *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const int blk = J * 2 + I;
           const long long n =
-              forward(level, info.index[0] + I, info.index[1] + J);
-          Blocks[blk] = (g->get(level, n)).block;
+              forward(level, info->index[0] + I, info->index[1] + J);
+          Blocks[blk] = (g->get(level, n))->block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
@@ -5290,31 +5290,31 @@ static void adapt() {
               }
           }
       const long long np =
-          forward(level - 1, info.index[0] / 2, info.index[1] / 2);
-      Info &parent = g->get(level - 1, np);
-      g->Tree0(parent.level, parent.Z) = sim.rank;
-      parent.block = info.block;
-      parent.state = Leave;
+          forward(level - 1, info->index[0] / 2, info->index[1] / 2);
+      Info *parent = g->get(level - 1, np);
+      g->Tree0(parent->level, parent->Z) = sim.rank;
+      parent->block = info->block;
+      parent->state = Leave;
       if (level - 2 >= 0)
-        g->Tree0(level - 2, parent.Zparent) = -1;
+        g->Tree0(level - 2, parent->Zparent) = -1;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
-              forward(level, info.index[0] + I, info.index[1] + J);
+              forward(level, info->index[0] + I, info->index[1] + J);
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j].level && n == g->infos[j].Z) {
-                Info &correct_info = g->get(level - 1, np);
-                correct_info.state = Leave;
-                g->infos[j] = correct_info;
+                Info *correct_info = g->get(level - 1, np);
+                correct_info->state = Leave;
+                g->infos[j] = *correct_info;
                 break;
               }
           } else {
 #pragma omp critical
-            { g->dealloc_IDs.push_back(g->get(level, n).id2); }
+            { g->dealloc_IDs.push_back(g->get(level, n)->id2); }
           }
           g->Tree0(level, n) = -2;
-          g->get(level, n).state = Leave;
+          g->get(level, n)->state = Leave;
         }
     }
     g->dealloc_many(g->dealloc_IDs);
@@ -6121,27 +6121,27 @@ struct Solver {
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
-      Info &rhsNei_c = var.tmp->get(rhs_info->level - 1, rhsNei->Zparent);
+      Info *rhsNei_c = var.tmp->get(rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer.ix_c(rhs_info, ix);
       int iy_c = indexer.iy_c(rhs_info, iy);
       long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
       double signTaylor = indexer.taylorSign(ix, iy);
-      interpolate(&rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
+      interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
-      Info &rhsNei_f =
+      Info *rhsNei_f =
           var.tmp->get(rhs_info->level + 1, indexer.Zchild(rhsNei, ix, iy));
-      int nei_rank = var.tmp->Tree1(&rhsNei_f);
-      long long fine_close_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 0);
-      long long fine_far_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 1);
+      int nei_rank = var.tmp->Tree1(rhsNei_f);
+      long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
+      long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx,
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx,
                   -1., -1., indexer, row);
-      fine_close_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 0);
-      fine_far_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 1);
+      fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
+      fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx,
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx,
                   -1., 1., indexer, row);
     } else {
       throw std::runtime_error(
@@ -7186,10 +7186,10 @@ int main(int argc, char **argv) {
           isBoundary[2] = (rhs_info.index[1] == 0);
           isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
           std::array<const Info *, 4> rhsNei;
-          rhsNei[0] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]));
-          rhsNei[1] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]));
-          rhsNei[2] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]));
-          rhsNei[3] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]));
+          rhsNei[0] = var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]);
+          rhsNei[1] = var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]);
+          rhsNei[2] = var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]);
+          rhsNei[3] = var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]);
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
               const long long sfc_idx =
