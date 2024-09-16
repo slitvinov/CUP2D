@@ -508,25 +508,13 @@ struct Value {
       content = rhs.content;
     return *this;
   }
-  double asDouble(double def = 0) {
-    if (content == "") {
-      std::ostringstream sbuf;
-      sbuf << def;
-      content = sbuf.str();
-    }
+  double asDouble() {
     return (double)atof(content.c_str());
   }
   int asInt(int def = 0) {
-    if (content == "") {
-      std::ostringstream sbuf;
-      sbuf << def;
-      content = sbuf.str();
-    }
     return atoi(content.c_str());
   }
-  std::string asString(const std::string &def) {
-    if (content == "")
-      content = def;
+  std::string asString() {
     return content;
   }
 };
@@ -6762,7 +6750,7 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  std::string shapeArg = parser("-shapes").asString("");
+  std::string shapeArg = parser("-shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
   while (std::getline(descriptors, lines)) {
