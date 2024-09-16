@@ -1893,11 +1893,10 @@ struct Grid {
         free(Cases[i]->d[j]);
     Cases.clear();
     Map.clear();
-    std::vector<Info> &BB = infos;
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
-    for (auto &info : BB) {
+    for (auto &info : infos) {
       get(info.level, info.Z)->auxiliary = nullptr;
       info.auxiliary = nullptr;
       const int aux = 1 << info.level;
@@ -1977,7 +1976,7 @@ struct Grid {
     }
     size_t Cases_index = 0;
     if (Cases.size() > 0)
-      for (auto &info : BB) {
+      for (auto &info : infos) {
         if (Cases_index == Cases.size())
           break;
         if (Cases[Cases_index]->level == info.level &&
