@@ -531,11 +531,8 @@ struct Value {
   }
 };
 struct CommandlineParser {
-  bool bStrictMode;
   std::map<std::string, Value> mapArguments;
-  void set_strict_mode() { bStrictMode = true; }
-  void unset_strict_mode() { bStrictMode = false; }
-  CommandlineParser(const int argc, char **argv) : bStrictMode(false) {
+  CommandlineParser(const int argc, char **argv)  {
     for (int i = 1; i < argc; i++)
       if (argv[i][0] == '-') {
         std::string values = "";
@@ -571,11 +568,9 @@ struct CommandlineParser {
   Value &operator()(std::string key) {
     if (key[0] == '-')
       key.erase(0, 1);
-    if (bStrictMode) {
-      if (mapArguments.find(key) == mapArguments.end()) {
-        printf("runtime %s is not set\n", key.data());
-        abort();
-      }
+    if (mapArguments.find(key) == mapArguments.end()) {
+      fprintf(stderr, "runtime %s is not set\n", key.data());
+      abort();
     }
     return mapArguments[key];
   }
@@ -6692,7 +6687,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
   }
 #endif
-  parser.set_strict_mode();
   sim.bpdx = parser("-bpdx").asInt();
   sim.bpdy = parser("-bpdy").asInt();
   sim.levelMax = parser("-levelMax").asInt();
