@@ -1101,7 +1101,8 @@ struct Synchronizer {
           Coarsened = true;
           Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank = Treef(tree, info.level - 1, infoNei->Zparent);
+          int infoNeiCoarserrank =
+              Treef(tree, info.level - 1, infoNei->Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1174,9 +1175,9 @@ struct Synchronizer {
             int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             long long nFine =
                 infoNei->Zchild[std::max(-code[0], 0) +
-                               (B % 2) * std::max(0, 1 - abs(code[0]))]
-                              [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))];
+                                (B % 2) * std::max(0, 1 - abs(code[0]))]
+                               [std::max(-code[1], 0) +
+                                temp * std::max(0, 1 - abs(code[1]))];
             int infoNeiFinerrank = Treef(tree, info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
@@ -1662,10 +1663,10 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
             for (int B = 0; B <= 3; B += Bstep) {
               int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
               long long nFine =
-                  infoNei
-                      ->Zchild[std::max(-x, 0) +
-                              (B % 2) * std::max(0, 1 - abs(x))]
-                             [std::max(-y, 0) + temp * std::max(0, 1 - abs(y))];
+                  infoNei->Zchild[std::max(-x, 0) +
+                                  (B % 2) * std::max(0, 1 - abs(x))]
+                                 [std::max(-y, 0) +
+                                  temp * std::max(0, 1 - abs(y))];
               int infoNeiFinerrank = Treef(tree, infoNei->level + 1, nFine);
               if (infoNeiFinerrank != sim.rank) {
                 myflag = true;
@@ -1949,9 +1950,9 @@ struct Grid {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
                 infoNei->Zchild[std::max(-code[0], 0) +
-                               (B % 2) * std::max(0, 1 - abs(code[0]))]
-                              [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))];
+                                (B % 2) * std::max(0, 1 - abs(code[0]))]
+                               [std::max(-code[1], 0) +
+                                temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
             {
               Info *infoNeiFiner = get(infoNei->level + 1, nFine);
@@ -2135,9 +2136,9 @@ struct Grid {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
             const long long nFine =
                 infoNei->Zchild[std::max(-code[0], 0) +
-                               (B % 2) * std::max(0, 1 - abs(code[0]))]
-                              [std::max(-code[1], 0) +
-                               temp * std::max(0, 1 - abs(code[1]))];
+                                (B % 2) * std::max(0, 1 - abs(code[0]))]
+                               [std::max(-code[1], 0) +
+                                temp * std::max(0, 1 - abs(code[1]))];
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
             const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
@@ -3512,15 +3513,15 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   k = 0;
   l = 0;
   for (i = 0; i < nblock; i++) {
-    Info &info = infos[i];
-    Real *b = (Real *)info.block;
+    Info *info = &infos[i];
+    Real *b = (Real *)info->block;
     j = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
-        h = sim.h0 / (1 << info.level);
-        u0 = info.origin[0] + h * x;
-        v0 = info.origin[1] + h * y;
+        h = sim.h0 / (1 << info->level);
+        u0 = info->origin[0] + h * x;
+        v0 = info->origin[1] + h * y;
         u1 = u0 + h;
         v1 = v0 + h;
         xyz[k++] = u0;
@@ -4995,31 +4996,31 @@ static void adapt() {
   };
   for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
-      Info &ary0 = args[iarg].I2[i1];
-      Info *info = getf(args[iarg].all, ary0.level, ary0.Z);
+      Info *ary0 = &args[iarg].I2[i1];
+      Info *info = getf(args[iarg].all, ary0->level, ary0->Z);
       for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
            i++)
-        for (int j = 2 * (info->index[1] / 2); j <= 2 * (info->index[1] / 2) + 1;
-             j++) {
+        for (int j = 2 * (info->index[1] / 2);
+             j <= 2 * (info->index[1] / 2) + 1; j++) {
           const long long n = forward(info->level, i, j);
           Info *infoNei = getf(args[iarg].all, info->level, n);
           infoNei->state = Leave;
         }
       info->state = Leave;
-      ary0.state = Leave;
+      ary0->state = Leave;
     }
 #pragma omp parallel for
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
-      const Info &info1 = var.tmp->infos[i];
-      Info &info2 = args[iarg].I2[i];
-      Info *info3 = getf(args[iarg].all, info2.level, info2.Z);
-      info2.state = info1.state;
-      info3->state = info1.state;
-      if (info2.state == Compress) {
-        const int i2 = 2 * (info2.index[0] / 2);
-        const int j2 = 2 * (info2.index[1] / 2);
-        const long long n = forward(info2.level, i2, j2);
-        Info *infoNei = getf(args[iarg].all, info2.level, n);
+      const Info *info1 = &var.tmp->infos[i];
+      Info *info2 = &args[iarg].I2[i];
+      Info *info3 = getf(args[iarg].all, info2->level, info2->Z);
+      info2->state = info1->state;
+      info3->state = info1->state;
+      if (info2->state == Compress) {
+        const int i2 = 2 * (info2->index[0] / 2);
+        const int j2 = 2 * (info2->index[1] / 2);
+        const long long n = forward(info2->level, i2, j2);
+        Info *infoNei = getf(args[iarg].all, info2->level, n);
         infoNei->state = Compress;
       }
     }
@@ -6134,13 +6135,13 @@ struct Solver {
       long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx,
-                  -1., -1., indexer, row);
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+                  -1., indexer, row);
       fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
       fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
-      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx,
-                  -1., 1., indexer, row);
+      interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+                  1., indexer, row);
     } else {
       throw std::runtime_error(
           "Neighbour doesn't exist, isn't coarser, nor finer...");
