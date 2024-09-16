@@ -1279,7 +1279,6 @@ struct Synchronizer {
             std::vector<Interface> &f = send_interfaces[r];
             int &total_size = send_buffer_size[r];
             bool skip_needed = false;
-            const int nc = dim;
             std::sort(f.begin() + DM.positions[r],
                       f.begin() + DM.sizes[r] + DM.positions[r]);
             for (int i = 0; i < sizeof compass / sizeof *compass; i++)
@@ -1314,9 +1313,9 @@ struct Synchronizer {
                 CoarseStencilLength(f[k].icode[1], Lc);
                 const int Vc = Lc[0] * Lc[1] * Lc[2];
                 total_size += Vc;
-                offsets[r] += Vc * nc;
+                offsets[r] += Vc * dim;
               }
-              offsets[r] += V * nc;
+              offsets[r] += V * dim;
               for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++)
                 f[i->removedIndices[kk]].dis = f[k].dis;
             }
