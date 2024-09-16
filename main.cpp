@@ -6172,78 +6172,6 @@ struct Solver {
           "Neighbour doesn't exist, isn't coarser, nor finer...");
     }
   }
-  void getMat() {
-    update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
-    std::vector<Info> &RhsInfo = var.tmp->infos;
-    const int Nblocks = RhsInfo.size();
-    const int N = _BS_ * _BS_ * Nblocks;
-    LocalLS_->reserve(N);
-    const long long Nblocks_long = Nblocks;
-    MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1,
-                  MPI_LONG_LONG, MPI_COMM_WORLD);
-    for (int i(Nblocks_xcumsum_.size() - 1); i > 0; i--) {
-      Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i - 1];
-    }
-    Nblocks_xcumsum_[0] = 0;
-    Nrows_xcumsum_[0] = 0;
-    for (size_t i(1); i < Nblocks_xcumsum_.size(); i++) {
-      Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i - 1];
-      Nrows_xcumsum_[i] = (_BS_ * _BS_) * Nblocks_xcumsum_[i];
-    }
-    for (int i = 0; i < Nblocks; i++) {
-      const Info &rhs_info = RhsInfo[i];
-      const int aux = 1 << rhs_info.level;
-      const int MAX_X_BLOCKS = sim.bpdx * aux - 1;
-      const int MAX_Y_BLOCKS = sim.bpdy * aux - 1;
-      std::array<bool, 4> isBoundary;
-      isBoundary[0] = (rhs_info.index[0] == 0);
-      isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
-      isBoundary[2] = (rhs_info.index[1] == 0);
-      isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
-      std::array<const Info *, 4> rhsNei;
-      rhsNei[0] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]));
-      rhsNei[1] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]));
-      rhsNei[2] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]));
-      rhsNei[3] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]));
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          const long long sfc_idx = GenericCell.This(rhs_info, ix, iy);
-          if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
-            LocalLS_->cooPushBackVal(1, sfc_idx,
-                                     GenericCell.This(rhs_info, ix, iy - 1));
-            LocalLS_->cooPushBackVal(1, sfc_idx,
-                                     GenericCell.This(rhs_info, ix - 1, iy));
-            LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
-            LocalLS_->cooPushBackVal(1, sfc_idx,
-                                     GenericCell.This(rhs_info, ix + 1, iy));
-            LocalLS_->cooPushBackVal(1, sfc_idx,
-                                     GenericCell.This(rhs_info, ix, iy + 1));
-          } else {
-            std::array<bool, 4> validNei;
-            validNei[0] = GenericCell.validXm(ix, iy);
-            validNei[1] = GenericCell.validXp(ix, iy);
-            validNei[2] = GenericCell.validYm(ix, iy);
-            validNei[3] = GenericCell.validYp(ix, iy);
-            std::array<long long, 4> idxNei;
-            idxNei[0] = GenericCell.This(rhs_info, ix - 1, iy);
-            idxNei[1] = GenericCell.This(rhs_info, ix + 1, iy);
-            idxNei[2] = GenericCell.This(rhs_info, ix, iy - 1);
-            idxNei[3] = GenericCell.This(rhs_info, ix, iy + 1);
-            SpRowInfo row(var.tmp->Tree1(rhs_info), sfc_idx, 8);
-            for (int j(0); j < 4; j++) {
-              if (validNei[j]) {
-                row.mapColVal(idxNei[j], 1);
-                row.mapColVal(sfc_idx, -1);
-              } else if (!isBoundary[j])
-                this->makeFlux(rhs_info, ix, iy, *rhsNei[j], *edgeIndexers[j],
-                               row);
-            }
-            LocalLS_->cooPushBackRow(row);
-          }
-        }
-    }
-    LocalLS_->make(Nrows_xcumsum_);
-  }
   void getVec() {
     std::vector<Info> &RhsInfo = var.tmp->infos;
     std::vector<Info> &zInfo = var.pres->infos;
@@ -7254,7 +7182,85 @@ int main(int argc, char **argv) {
       const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
       if (var.pres->UpdateFluxCorrection) {
         var.pres->UpdateFluxCorrection = false;
-        sim.solver->getMat();
+
+        update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
+        std::vector<Info> &RhsInfo = var.tmp->infos;
+        const int Nblocks = RhsInfo.size();
+        const int N = _BS_ * _BS_ * Nblocks;
+        sim.solver->LocalLS_->reserve(N);
+        const long long Nblocks_long = Nblocks;
+        MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG,
+                      sim.solver->Nblocks_xcumsum_.data(), 1, MPI_LONG_LONG,
+                      MPI_COMM_WORLD);
+        for (int i(sim.solver->Nblocks_xcumsum_.size() - 1); i > 0; i--) {
+          sim.solver->Nblocks_xcumsum_[i] = sim.solver->Nblocks_xcumsum_[i - 1];
+        }
+        sim.solver->Nblocks_xcumsum_[0] = 0;
+        sim.solver->Nrows_xcumsum_[0] = 0;
+        for (size_t i(1); i < sim.solver->Nblocks_xcumsum_.size(); i++) {
+          sim.solver->Nblocks_xcumsum_[i] +=
+              sim.solver->Nblocks_xcumsum_[i - 1];
+          sim.solver->Nrows_xcumsum_[i] =
+              (_BS_ * _BS_) * sim.solver->Nblocks_xcumsum_[i];
+        }
+        for (int i = 0; i < Nblocks; i++) {
+          const Info &rhs_info = RhsInfo[i];
+          const int aux = 1 << rhs_info.level;
+          const int MAX_X_BLOCKS = sim.bpdx * aux - 1;
+          const int MAX_Y_BLOCKS = sim.bpdy * aux - 1;
+          std::array<bool, 4> isBoundary;
+          isBoundary[0] = (rhs_info.index[0] == 0);
+          isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
+          isBoundary[2] = (rhs_info.index[1] == 0);
+          isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
+          std::array<const Info *, 4> rhsNei;
+          rhsNei[0] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]));
+          rhsNei[1] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]));
+          rhsNei[2] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]));
+          rhsNei[3] = &(var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]));
+          for (int iy = 0; iy < _BS_; iy++)
+            for (int ix = 0; ix < _BS_; ix++) {
+              const long long sfc_idx =
+                  sim.solver->GenericCell.This(rhs_info, ix, iy);
+              if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
+                sim.solver->LocalLS_->cooPushBackVal(
+                    1, sfc_idx,
+                    sim.solver->GenericCell.This(rhs_info, ix, iy - 1));
+                sim.solver->LocalLS_->cooPushBackVal(
+                    1, sfc_idx,
+                    sim.solver->GenericCell.This(rhs_info, ix - 1, iy));
+                sim.solver->LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
+                sim.solver->LocalLS_->cooPushBackVal(
+                    1, sfc_idx,
+                    sim.solver->GenericCell.This(rhs_info, ix + 1, iy));
+                sim.solver->LocalLS_->cooPushBackVal(
+                    1, sfc_idx,
+                    sim.solver->GenericCell.This(rhs_info, ix, iy + 1));
+              } else {
+                std::array<bool, 4> validNei;
+                validNei[0] = sim.solver->GenericCell.validXm(ix, iy);
+                validNei[1] = sim.solver->GenericCell.validXp(ix, iy);
+                validNei[2] = sim.solver->GenericCell.validYm(ix, iy);
+                validNei[3] = sim.solver->GenericCell.validYp(ix, iy);
+                std::array<long long, 4> idxNei;
+                idxNei[0] = sim.solver->GenericCell.This(rhs_info, ix - 1, iy);
+                idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
+                idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
+                idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
+                SpRowInfo row(var.tmp->Tree1(rhs_info), sfc_idx, 8);
+                for (int j(0); j < 4; j++) {
+                  if (validNei[j]) {
+                    row.mapColVal(idxNei[j], 1);
+                    row.mapColVal(sfc_idx, -1);
+                  } else if (!isBoundary[j])
+                    sim.solver->makeFlux(rhs_info, ix, iy, *rhsNei[j],
+                                         *sim.solver->edgeIndexers[j], row);
+                }
+                sim.solver->LocalLS_->cooPushBackRow(row);
+              }
+            }
+        }
+        sim.solver->LocalLS_->make(sim.solver->Nrows_xcumsum_);
         sim.solver->getVec();
         sim.solver->LocalLS_->solveWithUpdate(max_error, max_rel_error,
                                               max_restarts);
