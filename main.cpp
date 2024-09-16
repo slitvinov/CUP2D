@@ -5895,27 +5895,27 @@ struct Solver {
         YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
-    long long This(const Info &info, const int ix, const int iy) const {
+    long long This(const Info *info, const int ix, const int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
-    long long Xmin(const Info &info, const int ix, const int iy,
+    long long Xmin(const Info *info, const int ix, const int iy,
                    const int offset) const {
       return blockOffset(info) + (long long)(iy * _BS_ + offset);
     }
-    long long Xmax(const Info &info, const int ix, const int iy,
+    long long Xmax(const Info *info, const int ix, const int iy,
                    const int offset = 0) const {
       return blockOffset(info) + (long long)(iy * _BS_ + (_BS_ - 1 - offset));
     }
-    long long Ymin(const Info &info, const int ix, const int iy,
+    long long Ymin(const Info *info, const int ix, const int iy,
                    const int offset = 0) const {
       return blockOffset(info) + (long long)(offset * _BS_ + ix);
     }
-    long long Ymax(const Info &info, const int ix, const int iy,
+    long long Ymax(const Info *info, const int ix, const int iy,
                    const int offset = 0) const {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
-    long long blockOffset(const Info &info) const {
-      return (info.id + sim.solver->Nblocks_xcumsum_[var.tmp->Tree1(&info)]) *
+    long long blockOffset(const Info *info) const {
+      return (info->id + sim.solver->Nblocks_xcumsum_[var.tmp->Tree1(info)]) *
              (_BS_ * _BS_);
     }
     static int ix_f(const int ix) { return (ix % (_BS_ / 2)) * 2; }
@@ -5923,26 +5923,26 @@ struct Solver {
   };
   struct EdgeCellIndexer : public CellIndexer {
     EdgeCellIndexer() : CellIndexer() {}
-    virtual long long neiUnif(const Info &nei_info, const int ix,
+    virtual long long neiUnif(const Info *nei_info, const int ix,
                               const int iy) const = 0;
-    virtual long long neiInward(const Info &info, const int ix,
+    virtual long long neiInward(const Info *info, const int ix,
                                 const int iy) const = 0;
     virtual double taylorSign(const int ix, const int iy) const = 0;
-    virtual int ix_c(const Info &info, const int ix) const {
-      return info.index[0] % 2 == 0 ? ix / 2 : ix / 2 + _BS_ / 2;
+    virtual int ix_c(const Info *info, const int ix) const {
+      return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + _BS_ / 2;
     }
-    virtual int iy_c(const Info &info, const int iy) const {
-      return info.index[1] % 2 == 0 ? iy / 2 : iy / 2 + _BS_ / 2;
+    virtual int iy_c(const Info *info, const int iy) const {
+      return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + _BS_ / 2;
     }
-    virtual long long neiFine1(const Info &nei_info, const int ix, const int iy,
+    virtual long long neiFine1(const Info *nei_info, const int ix, const int iy,
                                const int offset = 0) const = 0;
-    virtual long long neiFine2(const Info &nei_info, const int ix, const int iy,
+    virtual long long neiFine2(const Info *nei_info, const int ix, const int iy,
                                const int offset = 0) const = 0;
     virtual bool isBD(const int ix, const int iy) const = 0;
     virtual bool isFD(const int ix, const int iy) const = 0;
-    virtual long long Nei(const Info &info, const int ix, const int iy,
+    virtual long long Nei(const Info *info, const int ix, const int iy,
                           const int dist) const = 0;
-    virtual long long Zchild(const Info &nei_info, const int ix,
+    virtual long long Zchild(const Info *nei_info, const int ix,
                              const int iy) const = 0;
   };
   struct XbaseIndexer : public EdgeCellIndexer {
@@ -5956,57 +5956,57 @@ struct Solver {
     bool isFD(const int ix, const int iy) const override {
       return iy == 0 || iy == _BS_ / 2;
     }
-    long long Nei(const Info &info, const int ix, const int iy,
+    long long Nei(const Info *info, const int ix, const int iy,
                   const int dist) const override {
       return This(info, ix, iy + dist);
     }
   };
   struct XminIndexer : public XbaseIndexer {
     XminIndexer() : XbaseIndexer() {}
-    long long neiUnif(const Info &nei_info, const int ix,
+    long long neiUnif(const Info *nei_info, const int ix,
                       const int iy) const override {
       return Xmax(nei_info, ix, iy);
     }
-    long long neiInward(const Info &info, const int ix,
+    long long neiInward(const Info *info, const int ix,
                         const int iy) const override {
       return This(info, ix + 1, iy);
     }
-    int ix_c(const Info &info, const int ix) const override { return _BS_ - 1; }
-    long long neiFine1(const Info &nei_info, const int ix, const int iy,
+    int ix_c(const Info *info, const int ix) const override { return _BS_ - 1; }
+    long long neiFine1(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const Info &nei_info, const int ix, const int iy,
+    long long neiFine2(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
-    long long Zchild(const Info &nei_info, const int ix,
+    long long Zchild(const Info *nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[1][int(iy >= _BS_ / 2)];
+      return nei_info->Zchild[1][int(iy >= _BS_ / 2)];
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
     XmaxIndexer() : XbaseIndexer() {}
-    long long neiUnif(const Info &nei_info, const int ix,
+    long long neiUnif(const Info *nei_info, const int ix,
                       const int iy) const override {
       return Xmin(nei_info, ix, iy, 0);
     }
-    long long neiInward(const Info &info, const int ix,
+    long long neiInward(const Info *info, const int ix,
                         const int iy) const override {
       return This(info, ix - 1, iy);
     }
-    int ix_c(const Info &info, const int ix) const override { return 0; }
-    long long neiFine1(const Info &nei_info, const int ix, const int iy,
+    int ix_c(const Info *info, const int ix) const override { return 0; }
+    long long neiFine1(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const Info &nei_info, const int ix, const int iy,
+    long long neiFine2(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
-    long long Zchild(const Info &nei_info, const int ix,
+    long long Zchild(const Info *nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[0][int(iy >= _BS_ / 2)];
+      return nei_info->Zchild[0][int(iy >= _BS_ / 2)];
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
@@ -6020,57 +6020,57 @@ struct Solver {
     bool isFD(const int ix, const int iy) const override {
       return ix == 0 || ix == _BS_ / 2;
     }
-    long long Nei(const Info &info, const int ix, const int iy,
+    long long Nei(const Info *info, const int ix, const int iy,
                   const int dist) const override {
       return This(info, ix + dist, iy);
     }
   };
   struct YminIndexer : public YbaseIndexer {
     YminIndexer() : YbaseIndexer() {}
-    long long neiUnif(const Info &nei_info, const int ix,
+    long long neiUnif(const Info *nei_info, const int ix,
                       const int iy) const override {
       return Ymax(nei_info, ix, iy);
     }
-    long long neiInward(const Info &info, const int ix,
+    long long neiInward(const Info *info, const int ix,
                         const int iy) const override {
       return This(info, ix, iy + 1);
     }
-    int iy_c(const Info &info, const int iy) const override { return _BS_ - 1; }
-    long long neiFine1(const Info &nei_info, const int ix, const int iy,
+    int iy_c(const Info *info, const int iy) const override { return _BS_ - 1; }
+    long long neiFine1(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const Info &nei_info, const int ix, const int iy,
+    long long neiFine2(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
-    long long Zchild(const Info &nei_info, const int ix,
+    long long Zchild(const Info *nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= _BS_ / 2)][1];
+      return nei_info->Zchild[int(ix >= _BS_ / 2)][1];
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
     YmaxIndexer() : YbaseIndexer() {}
-    long long neiUnif(const Info &nei_info, const int ix,
+    long long neiUnif(const Info *nei_info, const int ix,
                       const int iy) const override {
       return Ymin(nei_info, ix, iy);
     }
-    long long neiInward(const Info &info, const int ix,
+    long long neiInward(const Info *info, const int ix,
                         const int iy) const override {
       return This(info, ix, iy - 1);
     }
-    int iy_c(const Info &info, const int iy) const override { return 0; }
-    long long neiFine1(const Info &nei_info, const int ix, const int iy,
+    int iy_c(const Info *info, const int iy) const override { return 0; }
+    long long neiFine1(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
     }
-    long long neiFine2(const Info &nei_info, const int ix, const int iy,
+    long long neiFine2(const Info *nei_info, const int ix, const int iy,
                        const int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
-    long long Zchild(const Info &nei_info, const int ix,
+    long long Zchild(const Info *nei_info, const int ix,
                      const int iy) const override {
-      return nei_info.Zchild[int(ix >= _BS_ / 2)][0];
+      return nei_info->Zchild[int(ix >= _BS_ / 2)][0];
     }
   };
   CellIndexer GenericCell;
@@ -6079,7 +6079,7 @@ struct Solver {
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
-  std::array<std::pair<long long, double>, 3> D1(const Info &info,
+  std::array<std::pair<long long, double>, 3> D1(const Info *info,
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
@@ -6095,7 +6095,7 @@ struct Solver {
              {indexer.Nei(info, ix, iy, 1), 1. / 8.},
              {indexer.This(info, ix, iy), 0.}}};
   }
-  std::array<std::pair<long long, double>, 3> D2(const Info &info,
+  std::array<std::pair<long long, double>, 3> D2(const Info *info,
                                                  const EdgeCellIndexer &indexer,
                                                  const int ix,
                                                  const int iy) const {
@@ -6121,44 +6121,44 @@ struct Solver {
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
-    row.mapColVal(rank_c, indexer.This(*info_c, ix_c, iy_c), tf);
+    row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
     std::array<std::pair<long long, double>, 3> D;
-    D = D1(*info_c, indexer, ix_c, iy_c);
+    D = D1(info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
-    D = D2(*info_c, indexer, ix_c, iy_c);
+    D = D2(info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
   void makeFlux(const Info *rhs_info, int ix, int iy,
                 const Info *rhsNei, const EdgeCellIndexer &indexer,
                 SpRowInfo &row) const {
-    long long sfc_idx = indexer.This(*rhs_info, ix, iy);
+    long long sfc_idx = indexer.This(rhs_info, ix, iy);
     if (var.tmp->Tree1(rhsNei) >= 0) {
       int nei_rank = var.tmp->Tree1(rhsNei);
-      long long nei_idx = indexer.neiUnif(*rhsNei, ix, iy);
+      long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
       Info &rhsNei_c = var.tmp->get(rhs_info->level - 1, rhsNei->Zparent);
-      int ix_c = indexer.ix_c(*rhs_info, ix);
-      int iy_c = indexer.iy_c(*rhs_info, iy);
-      long long inward_idx = indexer.neiInward(*rhs_info, ix, iy);
+      int ix_c = indexer.ix_c(rhs_info, ix);
+      int iy_c = indexer.iy_c(rhs_info, iy);
+      long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
       double signTaylor = indexer.taylorSign(ix, iy);
       interpolate(&rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
       Info &rhsNei_f =
-          var.tmp->get(rhs_info->level + 1, indexer.Zchild(*rhsNei, ix, iy));
+          var.tmp->get(rhs_info->level + 1, indexer.Zchild(rhsNei, ix, iy));
       int nei_rank = var.tmp->Tree1(&rhsNei_f);
-      long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
-      long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
+      long long fine_close_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 0);
+      long long fine_far_idx = indexer.neiFine1(&rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
       interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   -1., indexer, row);
-      fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
-      fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
+      fine_close_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 0);
+      fine_far_idx = indexer.neiFine2(&rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
       interpolate(rhs_info, ix, iy, &rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   1., indexer, row);
@@ -6183,7 +6183,7 @@ struct Solver {
       h2[i] = RhsInfo[i].h * RhsInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-          const long long sfc_loc = GenericCell.This(rhs_info, ix, iy) + shift;
+          const long long sfc_loc = GenericCell.This(&rhs_info, ix, iy) + shift;
           if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
               rhs_info.index[1] == 0 && rhs_info.index[2] == 0 && ix == 0 &&
               iy == 0)
@@ -7212,21 +7212,21 @@ int main(int argc, char **argv) {
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
               const long long sfc_idx =
-                  sim.solver->GenericCell.This(rhs_info, ix, iy);
+                  sim.solver->GenericCell.This(&rhs_info, ix, iy);
               if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
                 sim.solver->LocalLS_->cooPushBackVal(
                     1, sfc_idx,
-                    sim.solver->GenericCell.This(rhs_info, ix, iy - 1));
+                    sim.solver->GenericCell.This(&rhs_info, ix, iy - 1));
                 sim.solver->LocalLS_->cooPushBackVal(
                     1, sfc_idx,
-                    sim.solver->GenericCell.This(rhs_info, ix - 1, iy));
+                    sim.solver->GenericCell.This(&rhs_info, ix - 1, iy));
                 sim.solver->LocalLS_->cooPushBackVal(-4, sfc_idx, sfc_idx);
                 sim.solver->LocalLS_->cooPushBackVal(
                     1, sfc_idx,
-                    sim.solver->GenericCell.This(rhs_info, ix + 1, iy));
+                    sim.solver->GenericCell.This(&rhs_info, ix + 1, iy));
                 sim.solver->LocalLS_->cooPushBackVal(
                     1, sfc_idx,
-                    sim.solver->GenericCell.This(rhs_info, ix, iy + 1));
+                    sim.solver->GenericCell.This(&rhs_info, ix, iy + 1));
               } else {
                 std::array<bool, 4> validNei;
                 validNei[0] = ix > 0;
@@ -7234,10 +7234,10 @@ int main(int argc, char **argv) {
                 validNei[2] = iy > 0;
                 validNei[3] = iy < _BS_ - 1;
                 std::array<long long, 4> idxNei;
-                idxNei[0] = sim.solver->GenericCell.This(rhs_info, ix - 1, iy);
-                idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
-                idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
-                idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
+                idxNei[0] = sim.solver->GenericCell.This(&rhs_info, ix - 1, iy);
+                idxNei[1] = sim.solver->GenericCell.This(&rhs_info, ix + 1, iy);
+                idxNei[2] = sim.solver->GenericCell.This(&rhs_info, ix, iy - 1);
+                idxNei[3] = sim.solver->GenericCell.This(&rhs_info, ix, iy + 1);
                 SpRowInfo row(var.tmp->Tree1(&rhs_info), sfc_idx, 8);
                 for (int j = 0; j < 4; j++) {
                   if (validNei[j]) {
