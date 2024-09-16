@@ -1346,7 +1346,6 @@ struct Synchronizer {
         int &total_size = recv_buffer_size[r];
         const int otherrank = r;
         bool skip_needed = false;
-        const int nc = dim;
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
         for (size_t i = start; i < finish; i++) {
@@ -1399,12 +1398,12 @@ struct Synchronizer {
             CoarseStencilLength(f[k].icode[1], Lc);
             Vc = Lc[0] * Lc[1] * Lc[2];
             total_size += Vc;
-            offsets_recv[otherrank] += Vc * nc;
-            info.CoarseVersionOffset = V * nc;
+            offsets_recv[otherrank] += Vc * dim;
+            info.CoarseVersionOffset = V * dim;
             info.CoarseVersionLX = Lc[0];
             info.CoarseVersionLY = Lc[1];
           }
-          offsets_recv[otherrank] += V * nc;
+          offsets_recv[otherrank] += V * dim;
           myunpacks[f[k].infos[1]->halo_id].push_back(info);
           for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
             const int remEl1 = i->removedIndices[kk];
