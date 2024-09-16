@@ -5900,7 +5900,7 @@ struct Solver {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
     long long Xmin(const Info &info, const int ix, const int iy,
-                   const int offset = 0) const {
+                   const int offset) const {
       return blockOffset(info) + (long long)(iy * _BS_ + offset);
     }
     long long Xmax(const Info &info, const int ix, const int iy,
@@ -5990,7 +5990,7 @@ struct Solver {
     XmaxIndexer() : XbaseIndexer() {}
     long long neiUnif(const Info &nei_info, const int ix,
                       const int iy) const override {
-      return Xmin(nei_info, ix, iy);
+      return Xmin(nei_info, ix, iy, 0);
     }
     long long neiInward(const Info &info, const int ix,
                         const int iy) const override {
