@@ -24,6 +24,6 @@ $main \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-       	       	 stefanfish L=0.2 T=1 xpos=1.8 ypos=0.8 angle=0 angvel=0 xvel=0 yvel=0 phi=0 amplitudeFactor=1
-                 stefanfish L=0.2 T=1 xpos=1.6 ypos=0.8 angle=180 angle=0 xvel=0 yvel=0 phi=0 amplitudeFactor=1
+       	       	 stefanfish amplitudeFactor=1 angle=0 angvel=0 L=0.2 phi=0 T=1 xpos=1.8 xvel=0 ypos=0.8 yvel=0
+                 stefanfish amplitudeFactor=1 angle=0 angle=180 L=0.2 phi=0 T=1 xpos=1.6 xvel=0 ypos=0.8 yvel=0
 '
