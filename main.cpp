@@ -508,15 +508,9 @@ struct Value {
       content = rhs.content;
     return *this;
   }
-  double asDouble() {
-    return (double)atof(content.c_str());
-  }
-  int asInt(int def = 0) {
-    return atoi(content.c_str());
-  }
-  std::string asString() {
-    return content;
-  }
+  double asDouble() { return (double)atof(content.c_str()); }
+  int asInt() { return atoi(content.c_str()); }
+  std::string asString() { return content; }
 };
 struct CommandlineParser {
   std::map<std::string, Value> mapArguments;
@@ -6760,8 +6754,7 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       FactoryFileLineParser p(line_stream);
-      Real center[2] = {p("-xpos").asDouble(),
-                        p("-ypos").asDouble()};
+      Real center[2] = {p("-xpos").asDouble(), p("-ypos").asDouble()};
       Shape *shape = new Shape(p, center);
       shape->amplitudeFactor = p("-amplitudeFactor").asDouble();
       shape->rS[0] = 0;
