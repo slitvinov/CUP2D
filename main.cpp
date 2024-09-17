@@ -3793,15 +3793,15 @@ struct Shape {
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
-  Real theta_internal = 0, angvel_internal = 0;
+  Real theta_internal = 0;
+  Real angvel_internal = 0;
   Real length, h;
   Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  Real dSmid_tgt = sim.minH / std::sqrt(2);
-  Real dSrefine_tgt = 0.125 * sim.minH;
-  int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
+  int Nmid = (int)std::ceil(length * fracMid / (sim.minH / std::sqrt(2)) / 8) * 8;
   Real dSmid = length * fracMid / Nmid;
-  int Nend =
-      (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
+  int Nend = (int)std::ceil(fracRefined * length * 2 /
+                            (dSmid + 0.125 * sim.minH) / 4) *
+             4;
   Real dSref = fracRefined * length * 2 / Nend - dSmid;
   int Nm = Nmid + 2 * Nend + 1;
   Real *rS;
@@ -3817,8 +3817,6 @@ struct Shape {
   Real linMom[2], area, angMom;
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
   Real periodPIDval = 1;
   Real periodPIDdif = 0;
   Real time0 = 0;
@@ -4142,11 +4140,11 @@ static void ongrid(Real dt) {
     for (int i = 0; i < shape->Nm; ++i) {
       const Real arg = arg0 - 2 * M_PI * shape->rS[i] / shape->length;
       shape->rK[i] =
-          shape->rC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac);
+          shape->rC[i] * (std::sin(arg) + shape->rB[i]);
       shape->vK[i] =
-          shape->vC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac) +
+          shape->vC[i] * (std::sin(arg) + shape->rB[i]) +
           shape->rC[i] *
-              (std::cos(arg) * darg + shape->vB[i] + shape->curv_PID_dif);
+              (std::cos(arg) * darg + shape->vB[i]);
     }
     if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
                shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
