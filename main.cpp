@@ -3780,13 +3780,11 @@ struct Shape {
   Real centerOfMass[2];
   Real orientation;
   Real d_gm[2] = {0, 0};
-  const Real forcedu;
-  const Real forcedv;
   const Real forcedomega;
   Real M = 0;
   Real J = 0;
-  Real u = forcedu;
-  Real v = forcedv;
+  Real u;
+  Real v;
   Real omega = forcedomega;
   Real appliedForceX = 0;
   Real appliedForceY = 0;
@@ -3853,8 +3851,7 @@ struct Shape {
   Real *rB;
   Real *vB;
   Shape(CommandlineParser &p)
-      : forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
-        forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
+      : forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
         Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
@@ -6539,6 +6536,8 @@ int main(int argc, char **argv) {
       shape->center[0] = shape->centerOfMass[0] = p("xpos").asDouble();
       shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
+      shape->u = 0;
+      shape->v = 0;
       shape->rK = new Real[shape->Nm];
       shape->vK = new Real[shape->Nm];
       shape->rC = new Real[shape->Nm];

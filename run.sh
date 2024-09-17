@@ -24,6 +24,6 @@ $main \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  amplitudeFactor=1 angle=0 angvel=0 L=0.2 phi=0 T=1 xpos=1.8 xvel=0 ypos=0.8 yvel=0
-  amplitudeFactor=1 angle=180 angvel=0 L=0.2 phi=0 T=1 xpos=1.6 xvel=0 ypos=0.8 yvel=0
+  amplitudeFactor=1 angle=0 angvel=0 L=0.2 phi=0 T=1 xpos=1.8 ypos=0.8
+  amplitudeFactor=1 angle=180 angvel=0 L=0.2 phi=0 T=1 xpos=1.6 ypos=0.8
 '
