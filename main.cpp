@@ -2217,10 +2217,10 @@ struct Grid {
     for (size_t i = 0; i < dealloc_IDs.size(); i++)
       for (size_t j = 0; j < infos.size(); j++) {
         if (infos[j].id2 == dealloc_IDs[i]) {
-          const int m = infos[j].level;
-          const long long n = infos[j].Z;
           infos[j].changed2 = true;
-          free(get0(m, n)->block);
+	  auto retval = all.find(sim.levels[infos[j].level] + infos[j].Z);
+	  assert(retval != all.end());
+	  free(retval->second->block);
           break;
         }
       }
