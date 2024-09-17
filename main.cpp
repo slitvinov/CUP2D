@@ -2199,7 +2199,7 @@ struct Grid {
   void dealloc(const int m, const long long n) {
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
-	free(infos[j].block);
+        free(infos[j].block);
         infos.erase(infos.begin() + j);
         return;
       }
@@ -2212,7 +2212,7 @@ struct Grid {
       for (size_t j = 0; j < infos.size(); j++) {
         if (infos[j].id2 == ids[i]) {
           infos[j].changed2 = true;
-	  free(infos[j].block);
+          free(infos[j].block);
           break;
         }
       }
@@ -4715,14 +4715,11 @@ static void adapt() {
         Info *info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
         Real *b = info->block;
         double Linf = 0.0;
-	for (int j = 0; j < _BS_ * _BS_; j++)
-	  Linf = std::max(Linf, std::fabs(b[j]));
-        if (Linf > sim.Rtol)
-          (*I)[i]->state = Refine;
-        else if (Linf < sim.Ctol)
-          (*I)[i]->state = Compress;
-        else
-          (*I)[i]->state = Leave;
+        for (int j = 0; j < _BS_ * _BS_; j++)
+          Linf = std::max(Linf, std::fabs(b[j]));
+        (*I)[i]->state = Linf > sim.Rtol   ? Refine
+                         : Linf < sim.Ctol ? Compress
+                                           : Leave;
         const bool maxLevel =
             ((*I)[i]->state == Refine) && ((*I)[i]->level == sim.levelMax - 1);
         const bool minLevel =
