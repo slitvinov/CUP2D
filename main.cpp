@@ -4763,7 +4763,7 @@ static void adapt() {
       if ((info->state == Refine && info->level == sim.levelMax - 1) ||
           (info->state == Compress && info->level == levelMin)) {
         info->state = Leave;
-        (var.tmp->get(info->level, info->Z))->state = Leave;
+        var.tmp->get(info->level, info->Z)->state = Leave;
       }
       if (info->state != Leave) {
         info->changed2 = true;
