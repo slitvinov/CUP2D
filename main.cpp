@@ -1436,8 +1436,8 @@ struct Synchronizer {
         if (f->infos[0]->level <= f->infos[1]->level) {
           Range &range = DetermineStencil(f, false);
           send_packinfos[r].push_back(
-              {f->infos[0]->block, &send_buffer[r][f->dis], range.sx,
-               range.sy, range.sz, range.ex, range.ey, range.ez});
+              {f->infos[0]->block, &send_buffer[r][f->dis], range.sx, range.sy,
+               range.sz, range.ex, range.ey, range.ez});
           if (f->CoarseStencil) {
             int V = (range.ex - range.sx) * (range.ey - range.sy);
             ToBeAveragedDown[r].push_back(i);
@@ -1950,7 +1950,7 @@ struct Grid {
         c->level = info.level;
         c->Z = info.Z;
         for (int i = 0; i < 4; i++)
-          c->d[i] = storeFace[i] ? (Real*)malloc(_BS_ * dim * sizeof(Real))
+          c->d[i] = storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real))
                                  : nullptr;
         Cases.push_back(c);
       }
@@ -2199,7 +2199,7 @@ struct Grid {
   int &Tree1(const Info *info) { return Treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info *new_info = get(level, Z);
-    new_info->block = (Real*)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+    new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(*new_info); }
     Tree0(level, Z) = sim.rank;
@@ -2275,7 +2275,7 @@ struct BlockLab {
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Real *m, *c;
-  std::array<Real*, 27> myblocks;
+  std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   const int dim;
   BlockLab(int dim) : dim(dim) {
@@ -2298,14 +2298,14 @@ struct BlockLab {
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
-    m = (Real*)malloc(nm[0] * nm[1] * dim * sizeof(Real));
+    m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
-    c = (Real*)malloc(nc[0] * nc[1] * dim * sizeof(Real));
+    c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
@@ -2513,19 +2513,15 @@ struct BlockLab {
           int i11 = ix + 1 + nm[0] * (iy + 1);
           int j00 = i - offset[0] + nc[0] * (j - offset[1]);
           for (int d = 0; d < dim; d++) {
-            Real *uc = (Real *)c;
-            Real *um = (Real *)m;
-            uc[dim * j00 + d] = (um[dim * i01 + d] + um[dim * i00 + d] +
-                                 um[dim * i10 + d] + um[dim * i11 + d]) /
-                                4;
+            c[dim * j00 + d] = (m[dim * i01 + d] + m[dim * i00 + d] +
+                                m[dim * i10 + d] + m[dim * i11 + d]) /
+                               4;
           }
         }
       }
     }
     if (applybc)
       _apply_bc(info, true);
-    Real *um = (Real *)m;
-    Real *uc = (Real *)c;
     int aux = 1 << info->level;
     bool xskin = info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
     bool yskin = info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
@@ -2573,12 +2569,12 @@ struct BlockLab {
               for (int j = 0; j < 3; j++) {
                 int i0 =
                     XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
-                Test[i][j] = uc + dim * i0;
+                Test[i][j] = c + dim * i0;
               }
             int i1 = ix - start[0] + nm[0] * (iy - start[1]);
             for (int d = 0; d < dim; d++)
               TestInterp(
-                  Test, um + dim * i1 + d,
+                  Test, m + dim * i1 + d,
                   abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
                       2,
                   abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
@@ -2622,61 +2618,61 @@ struct BlockLab {
               if (code[0] != 0) {
                 Real dudy, dudy2;
                 if (YY + offset[1] == 0) {
-                  dudy = (-0.5 * uc[dim * i0 + d] - 1.5 * uc[dim * i1 + d]) +
-                         2.0 * uc[dim * i2 + d];
-                  dudy2 = (uc[dim * i0 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i2 + d];
+                  dudy = (-0.5 * c[dim * i0 + d] - 1.5 * c[dim * i1 + d]) +
+                         2.0 * c[dim * i2 + d];
+                  dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i2 + d];
                 } else if (YY + offset[1] == (_BS_ / 2) - 1) {
-                  dudy = (0.5 * uc[dim * i3 + d] + 1.5 * uc[dim * i1 + d]) -
-                         2.0 * uc[dim * i4 + d];
-                  dudy2 = (uc[dim * i3 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i4 + d];
+                  dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
+                         2.0 * c[dim * i4 + d];
+                  dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i4 + d];
                 } else {
-                  dudy = 0.5 * (uc[dim * i2 + d] - uc[dim * i4 + d]);
-                  dudy2 = (uc[dim * i2 + d] + uc[dim * i4 + d]) -
-                          2.0 * uc[dim * i1 + d];
+                  dudy = 0.5 * (c[dim * i2 + d] - c[dim * i4 + d]);
+                  dudy2 = (c[dim * i2 + d] + c[dim * i4 + d]) -
+                          2.0 * c[dim * i1 + d];
                 }
-                um[dim * j0 + d] =
-                    uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                m[dim * j0 + d] =
+                    c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] =
-                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[dim * j1 + d] =
+                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] =
-                      uc[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[dim * j2 + d] =
+                      c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  um[dim * j3 + d] =
-                      uc[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                  m[dim * j3 + d] =
+                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
                 Real dudx, dudx2;
                 if (XX + offset[0] == 0) {
-                  dudx = (-0.5 * uc[dim * i5 + d] - 1.5 * uc[dim * i1 + d]) +
-                         2.0 * uc[dim * i6 + d];
-                  dudx2 = (uc[dim * i5 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i6 + d];
+                  dudx = (-0.5 * c[dim * i5 + d] - 1.5 * c[dim * i1 + d]) +
+                         2.0 * c[dim * i6 + d];
+                  dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i6 + d];
                 } else if (XX + offset[0] == (_BS_ / 2) - 1) {
-                  dudx = (0.5 * uc[dim * i8 + d] + 1.5 * uc[dim * i1 + d]) -
-                         2.0 * uc[dim * i7 + d];
-                  dudx2 = (uc[dim * i8 + d] + uc[dim * i1 + d]) -
-                          2.0 * uc[dim * i7 + d];
+                  dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
+                         2.0 * c[dim * i7 + d];
+                  dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i7 + d];
                 } else {
-                  dudx = 0.5 * (uc[dim * i6 + d] - uc[dim * i7 + d]);
-                  dudx2 = (uc[dim * i6 + d] + uc[dim * i7 + d]) -
-                          2.0 * uc[dim * i1 + d];
+                  dudx = 0.5 * (c[dim * i6 + d] - c[dim * i7 + d]);
+                  dudx2 = (c[dim * i6 + d] + c[dim * i7 + d]) -
+                          2.0 * c[dim * i1 + d];
                 }
-                um[dim * j0 + d] =
-                    uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                m[dim * j0 + d] =
+                    c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  um[dim * j1 + d] =
-                      uc[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[dim * j1 + d] =
+                      c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  um[dim * j2 + d] =
-                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[dim * j2 + d] =
+                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
                 if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
                     iy + iyp < e[1])
-                  um[dim * j3 + d] =
-                      uc[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                  m[dim * j3 + d] =
+                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
               }
             }
           }
@@ -2703,45 +2699,45 @@ struct BlockLab {
             int y =
                 abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
             for (int d = 0; d < dim; d++) {
-              Real *a = um + dim * k12 + d;
+              Real *a = m + dim * k12 + d;
               if (code[0] == 0 && code[1] == 1) {
                 if (y == 0) {
-                  Real *b = um + dim * k0 + d;
-                  Real *c = um + dim * k1 + d;
+                  Real *b = m + dim * k0 + d;
+                  Real *c = m + dim * k1 + d;
                   LI(a, b, c);
                 } else if (y == 1) {
-                  Real *b = um + dim * k1 + d;
-                  Real *c = um + dim * k11 + d;
+                  Real *b = m + dim * k1 + d;
+                  Real *c = m + dim * k11 + d;
                   LE(a, b, c);
                 }
               } else if (code[0] == 0 && code[1] == -1) {
                 if (y == 1) {
-                  Real *b = um + dim * k2 + d;
-                  Real *c = um + dim * k3 + d;
+                  Real *b = m + dim * k2 + d;
+                  Real *c = m + dim * k3 + d;
                   LI(a, b, c);
                 } else if (y == 0) {
-                  Real *b = um + dim * k3 + d;
-                  Real *c = um + dim * k4 + d;
+                  Real *b = m + dim * k3 + d;
+                  Real *c = m + dim * k4 + d;
                   LE(a, b, c);
                 }
               } else if (code[1] == 0 && code[0] == 1) {
                 if (x == 0) {
-                  Real *b = um + dim * k5 + d;
-                  Real *c = um + dim * k6 + d;
+                  Real *b = m + dim * k5 + d;
+                  Real *c = m + dim * k6 + d;
                   LI(a, b, c);
                 } else if (x == 1) {
-                  Real *b = um + dim * k6 + d;
-                  Real *c = um + dim * k7 + d;
+                  Real *b = m + dim * k6 + d;
+                  Real *c = m + dim * k7 + d;
                   LE(a, b, c);
                 }
               } else if (code[1] == 0 && code[0] == -1) {
                 if (x == 1) {
-                  Real *b = um + dim * k8 + d;
-                  Real *c = um + dim * k9 + d;
+                  Real *b = m + dim * k8 + d;
+                  Real *c = m + dim * k9 + d;
                   LI(a, b, c);
                 } else if (x == 0) {
-                  Real *b = um + dim * k9 + d;
-                  Real *c = um + dim * k10 + d;
+                  Real *b = m + dim * k9 + d;
+                  Real *c = m + dim * k10 + d;
                   LE(a, b, c);
                 }
               }
@@ -2789,7 +2785,6 @@ struct BlockLab {
     if (myblocks[icode] == nullptr)
       return;
     Real *b = myblocks[icode];
-    Real *um = m;
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -2802,10 +2797,10 @@ struct BlockLab {
       int y1 = iy + 1 - code[1] * _BS_;
       int y2 = iy + 2 - code[1] * _BS_;
       int y3 = iy + 3 - code[1] * _BS_;
-      Real *p0 = &um[dim * i0];
-      Real *p1 = &um[dim * i1];
-      Real *p2 = &um[dim * i2];
-      Real *p3 = &um[dim * i3];
+      Real *p0 = &m[dim * i0];
+      Real *p1 = &m[dim * i1];
+      Real *p2 = &m[dim * i2];
+      Real *p3 = &m[dim * i3];
       Real *q0 = &b[dim * (_BS_ * y0 + x0)];
       Real *q1 = &b[dim * (_BS_ * y1 + x0)];
       Real *q2 = &b[dim * (_BS_ * y2 + x0)];
@@ -2819,14 +2814,13 @@ struct BlockLab {
       int i0 = i + (iy - start[1]) * nm[0];
       int x0 = s[0] - code[0] * _BS_;
       int y0 = iy - code[1] * _BS_;
-      Real *p = &um[dim * i0];
+      Real *p = &m[dim * i0];
       Real *q = &b[dim * (_BS_ * y0 + x0)];
       memcpy(p, q, bytes);
     }
   }
   void FineToCoarseExchange(Grid *grid, const Info *info, const int *const code,
                             const int *const s, const int *const e) {
-    Real *um = (Real *)m;
     const int bytes = (abs(code[0]) * (e[0] - s[0]) +
                        (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
                       dim * sizeof(Real);
@@ -2887,10 +2881,10 @@ struct BlockLab {
         int z1 = y1 + 1;
         int z2 = y2 + 1;
         int z3 = y3 + 1;
-        Real *p0 = um + dim * k0;
-        Real *p1 = um + dim * k1;
-        Real *p2 = um + dim * k2;
-        Real *p3 = um + dim * k3;
+        Real *p0 = m + dim * k0;
+        Real *p1 = m + dim * k1;
+        Real *p2 = m + dim * k2;
+        Real *p3 = m + dim * k3;
         Real *q00 = b + dim * (_BS_ * y0 + x);
         Real *q10 = b + dim * (_BS_ * z0 + x);
         Real *q01 = b + dim * (_BS_ * y1 + x);
@@ -2937,7 +2931,7 @@ struct BlockLab {
                     ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
                     : iy;
         int z = y + 1;
-        Real *p = um + dim * k;
+        Real *p = m + dim * k;
         Real *q0 = b + dim * (_BS_ * y + x);
         Real *q1 = b + dim * (_BS_ * z + x);
         for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
@@ -2955,7 +2949,6 @@ struct BlockLab {
     }
   }
   void CoarseFineExchange(Grid *grid, const Info *info, const int *const code) {
-    Real *uc = (Real *)c;
     int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
                             (info->index[1] + code[1] + NY) % NY};
     int infoNei_index_true[2] = {(info->index[0] + code[0]),
@@ -3009,10 +3002,10 @@ struct BlockLab {
       int y2 = iy + 2 + start[1];
       int y3 = iy + 3 + start[1];
       int x = s[0] + start[0];
-      Real *p0 = uc + dim * i0;
-      Real *p1 = uc + dim * i1;
-      Real *p2 = uc + dim * i2;
-      Real *p3 = uc + dim * i3;
+      Real *p0 = c + dim * i0;
+      Real *p1 = c + dim * i1;
+      Real *p2 = c + dim * i2;
+      Real *p3 = c + dim * i3;
       Real *q0 = b + dim * (_BS_ * y0 + x);
       Real *q1 = b + dim * (_BS_ * y1 + x);
       Real *q2 = b + dim * (_BS_ * y2 + x);
@@ -3026,13 +3019,12 @@ struct BlockLab {
       int i0 = i + (iy - offset[1]) * nc[0];
       int y0 = iy + start[1];
       int x = s[0] + start[0];
-      Real *p = uc + dim * i0;
+      Real *p = c + dim * i0;
       Real *q = b + dim * (_BS_ * y0 + x);
       memcpy(p, q, bytes);
     }
   }
   void FillCoarseVersion(const int *const code) {
-    Real *uc = (Real *)c;
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
@@ -3054,7 +3046,7 @@ struct BlockLab {
     int x = start[0];
     for (int iy = s[1]; iy < e[1]; iy++) {
       int i0 = i + (iy - offset[1]) * nc[0];
-      Real *p1 = uc + dim * i0;
+      Real *p1 = c + dim * i0;
       int y0 = 2 * (iy - s[1]) + start[1];
       int y1 = y0 + 1;
       Real *q0 = b + dim * (_BS_ * y0 + x);
@@ -3193,8 +3185,6 @@ struct VectorLab : public BlockLab {
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
   void applyBCface(bool wall, bool coarse = false) {
-    Real *um = (Real *)m;
-    Real *uc = (Real *)c;
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -3214,8 +3204,8 @@ struct VectorLab : public BlockLab {
               (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
           int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
           int i1 = x + nm[0] * (y);
-          um[2 * i0 + 1 - A] = -um[2 * i1 + 1 - A];
-          um[2 * i0 + A] = um[2 * i1 + A];
+          m[2 * i0 + 1 - A] = -m[2 * i1 + 1 - A];
+          m[2 * i0 + A] = m[2 * i1 + A];
         }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
@@ -3241,8 +3231,8 @@ struct VectorLab : public BlockLab {
               (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
           int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
           int i1 = x + nc[0] * (y);
-          uc[2 * i0 + 1 - A] = -uc[2 * i1 + 1 - A];
-          uc[2 * i0 + A] = uc[2 * i1 + A];
+          c[2 * i0 + 1 - A] = -c[2 * i1 + 1 - A];
+          c[2 * i0 + A] = c[2 * i1 + A];
         }
     }
   }
@@ -3794,7 +3784,8 @@ struct Shape {
   Real angvel_internal = 0;
   Real length, h;
   Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  int Nmid = (int)std::ceil(length * fracMid / (sim.minH / std::sqrt(2)) / 8) * 8;
+  int Nmid =
+      (int)std::ceil(length * fracMid / (sim.minH / std::sqrt(2)) / 8) * 8;
   Real dSmid = length * fracMid / Nmid;
   int Nend = (int)std::ceil(fracRefined * length * 2 /
                             (dSmid + 0.125 * sim.minH) / 4) *
@@ -3987,8 +3978,8 @@ struct PutChiOnGrid {
       o.COM_y = 0;
       o.Mass = 0;
       Real *CHI = chiInfo[info->id].block;
-      Real *chi = (Real*)o.chi;
-      Real *dist = (Real*)o.dist;
+      Real *chi = (Real *)o.chi;
+      Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           int j = _BS_ * iy + ix;
@@ -4136,12 +4127,9 @@ static void ongrid(Real dt) {
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real arg = arg0 - 2 * M_PI * shape->rS[i] / shape->length;
-      shape->rK[i] =
-          shape->rC[i] * (std::sin(arg) + shape->rB[i]);
-      shape->vK[i] =
-          shape->vC[i] * (std::sin(arg) + shape->rB[i]) +
-          shape->rC[i] *
-              (std::cos(arg) * darg + shape->vB[i]);
+      shape->rK[i] = shape->rC[i] * (std::sin(arg) + shape->rB[i]);
+      shape->vK[i] = shape->vC[i] * (std::sin(arg) + shape->rB[i]) +
+                     shape->rC[i] * (std::cos(arg) * darg + shape->vB[i]);
     }
     if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
                shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
@@ -4204,11 +4192,10 @@ static void ongrid(Real dt) {
                           ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
       Real fac1 = 2 * shape->width[i];
-      Real fac2 =
-          2 * std::pow(shape->width[i], 3) *
-          (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
-           dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
-          3;
+      Real fac2 = 2 * std::pow(shape->width[i], 3) *
+                  (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
+                   dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
+                  3;
       Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
       Real tmp_M =
           (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
@@ -6114,7 +6101,7 @@ struct Solver {
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_loc = GenericCell.This(&rhs_info, ix, iy) + shift;
-	  b[sfc_loc] = rhs[iy][ix];
+          b[sfc_loc] = rhs[iy][ix];
           x[sfc_loc] = p[iy][ix];
         }
     }
@@ -6469,7 +6456,7 @@ int main(int argc, char **argv) {
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
-      info->block = (Real*)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+      info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
@@ -6605,8 +6592,8 @@ int main(int argc, char **argv) {
         aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * (_BS_ * _BS_) + j] = -aux;
     }
-  sim.solver->LocalLS_ = std::make_unique<LocalSpMatDnVec>(
-      MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
+  sim.solver->LocalLS_ =
+      std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
