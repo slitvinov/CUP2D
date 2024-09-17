@@ -309,7 +309,6 @@ static struct {
   int AdaptSteps;
   int bpdx;
   int bpdy;
-  int dumpFreq;
   int levelMax;
   int levelStart;
   int maxPoissonIterations;
@@ -6410,7 +6409,6 @@ int main(int argc, char **argv) {
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
-  sim.dumpFreq = parser("fdump").asInt();
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
@@ -6652,10 +6650,7 @@ int main(int argc, char **argv) {
     }
     bool done = false;
     if (!done || sim.dt > 2e-16) {
-      bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
-      bool stepDump = sim.dumpFreq > 0 && (sim.step % sim.dumpFreq) == 0;
-      bool bDump = stepDump || timeDump;
-      if (bDump) {
+      if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
         sim.nextDumpTime += sim.dumpTime;
         char path[FILENAME_MAX];
         snprintf(path, sizeof path, "vort.%08d", sim.step);

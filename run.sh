@@ -7,7 +7,6 @@ $main \
 -Ctol 1 \
 -dt 0 \
 -extent 4 \
--fdump 0 \
 -lambda 1e7 \
 -levelMax 8 \
 -levelStart 5 \
