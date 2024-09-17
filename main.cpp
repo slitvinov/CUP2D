@@ -1455,7 +1455,7 @@ struct Synchronizer {
       }
     }
     mapofHaloBlockGroups.clear();
-    for (auto &info : halo_blocks) {
+    for (auto info : halo_blocks) {
       int id = info->halo_id;
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
