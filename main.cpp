@@ -6579,32 +6579,32 @@ int main(int argc, char **argv) {
   std::vector<std::vector<double>> L_inv;
   L.resize((_BS_ * _BS_));
   L_inv.resize((_BS_ * _BS_));
-  for (int i(0); i < (_BS_ * _BS_); i++) {
+  for (int i = 0; i < (_BS_ * _BS_); i++) {
     L[i].resize(i + 1);
     L_inv[i].resize(i + 1);
     for (int j(0); j <= i; j++) {
       L_inv[i][j] = (i == j) ? 1. : 0.;
     }
   }
-  for (int i(0); i < (_BS_ * _BS_); i++) {
+  for (int i = 0; i < (_BS_ * _BS_); i++) {
     double s1 = 0;
-    for (int k(0); k <= i - 1; k++)
+    for (int k = 0; k <= i - 1; k++)
       s1 += L[i][k] * L[i][k];
     L[i][i] = sqrt(getA_local(i, i) - s1);
-    for (int j(i + 1); j < (_BS_ * _BS_); j++) {
+    for (int j = i + 1; j < (_BS_ * _BS_); j++) {
       double s2 = 0;
-      for (int k(0); k <= i - 1; k++)
+      for (int k = 0; k <= i - 1; k++)
         s2 += L[i][k] * L[j][k];
       L[j][i] = (getA_local(j, i) - s2) / L[i][i];
     }
   }
-  for (int br(0); br < (_BS_ * _BS_); br++) {
+  for (int br = 0; br < (_BS_ * _BS_); br++) {
     const double bsf = 1. / L[br][br];
-    for (int c(0); c <= br; c++)
+    for (int c = 0; c <= br; c++)
       L_inv[br][c] *= bsf;
-    for (int wr(br + 1); wr < (_BS_ * _BS_); wr++) {
+    for (int wr = br + 1; wr < (_BS_ * _BS_); wr++) {
       const double wsf = L[wr][br];
-      for (int c(0); c <= br; c++)
+      for (int c = 0; c <= br; c++)
         L_inv[wr][c] -= (wsf * L_inv[br][c]);
     }
   }
