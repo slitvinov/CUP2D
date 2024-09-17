@@ -930,22 +930,20 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = code[0] == 0
-                            ? 0
-                            : ((f->infos[1]->index[0] % 2 == 0) &&
-                               (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                      ((f->infos[1]->index[0] % 2 == 1) &&
-                                       (Cindex_true[0] < f->infos[1]->index[0]))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = code[1] == 0
-                            ? 0
-                            : ((f->infos[1]->index[1] % 2 == 0) &&
-                               (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                      ((f->infos[1]->index[1] % 2 == 1) &&
-                                       (Cindex_true[1] < f->infos[1]->index[1]))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : ((f->infos[1]->index[0] % 2 == 0) &&
+                           (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                ((f->infos[1]->index[0] % 2 == 1) &&
+                                 (Cindex_true[0] < f->infos[1]->index[0]))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : ((f->infos[1]->index[1] % 2 == 0) &&
+                           (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                ((f->infos[1]->index[1] % 2 == 1) &&
+                                 (Cindex_true[1] < f->infos[1]->index[1]))
+                            ? 1
+                            : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -2429,8 +2427,8 @@ struct BlockLab {
             sync->CoarseStencilLength(
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
             unpack_subregion(
-                &sync->recv_buffer[otherrank]
-                                  [unpack->offset + unpack->CoarseVersionOffset],
+                &sync->recv_buffer[otherrank][unpack->offset +
+                                              unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
                 unpack->CoarseVersionsrcystart, unpack->CoarseVersionsrczstart,
                 unpack->CoarseVersionLX, unpack->CoarseVersionLY, 0, 0, 0, L[0],
@@ -2981,22 +2979,20 @@ struct BlockLab {
     int base[2] = {(info->index[0] + code[0]) % 2,
                    (info->index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info->index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info->index[0])) ||
-                           ((info->index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info->index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info->index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info->index[1])) ||
-                           ((info->index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info->index[1])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = (code[0] == 0) ? 0
+                    : (((info->index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info->index[0])) ||
+                       ((info->index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info->index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = (code[1] == 0) ? 0
+                    : (((info->index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info->index[1])) ||
+                       ((info->index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info->index[1])))
+                        ? 1
+                        : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -3861,12 +3857,7 @@ struct Shape {
         orientation(p("angle").asDouble() * M_PI / 180),
         forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
         forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
-        Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()),
-        rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
-        rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
-        rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
-        norX(new Real[Nm]), norY(new Real[Nm]), vNorX(new Real[Nm]),
-        vNorY(new Real[Nm]), width(new Real[Nm]) {}
+        Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
   StencilInfo stencil{-1, -1, 2, 2, false};
@@ -4662,10 +4653,12 @@ static void ongrid(Real dt) {
         {std::sin(shape->orientation), std::cos(shape->orientation)}};
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->upperSkin.n; ++i) {
-      rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i], &shape->upperSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
+               &shape->upperSkin.ySurf[i]);
       shape->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->upperSkin.ySurf[i] += shape->centerOfMass[1];
-      rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i], &shape->lowerSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
+               &shape->lowerSkin.ySurf[i]);
       shape->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->lowerSkin.ySurf[i] += shape->centerOfMass[1];
     }
@@ -6435,8 +6428,7 @@ static std::string trim(std::string str) {
   return str.substr(i, j - i);
 }
 struct LineParser : public CommandlineParser {
-  LineParser(std::istringstream &is_line)
-      : CommandlineParser(0, NULL) {
+  LineParser(std::istringstream &is_line) : CommandlineParser(0, NULL) {
     std::string key, value;
     while (std::getline(is_line, key, '=')) {
       if (std::getline(is_line, value, ' ')) {
@@ -6546,6 +6538,22 @@ int main(int argc, char **argv) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
       Shape *shape = new Shape(p, p("xpos").asDouble(), p("ypos").asDouble());
+      shape->rK = new Real[shape->Nm];
+      shape->vK = new Real[shape->Nm];
+      shape->rC = new Real[shape->Nm];
+      shape->vC = new Real[shape->Nm];
+      shape->rB = new Real[shape->Nm];
+      shape->vB = new Real[shape->Nm];
+      shape->rS = new Real[shape->Nm];
+      shape->rX = new Real[shape->Nm];
+      shape->rY = new Real[shape->Nm];
+      shape->vX = new Real[shape->Nm];
+      shape->vY = new Real[shape->Nm];
+      shape->norX = new Real[shape->Nm];
+      shape->norY = new Real[shape->Nm];
+      shape->vNorX = new Real[shape->Nm];
+      shape->vNorY = new Real[shape->Nm];
+      shape->width = new Real[shape->Nm];
       shape->amplitudeFactor = p("amplitudeFactor").asDouble();
       shape->rS[0] = 0;
       int k = 0;
@@ -6571,14 +6579,12 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb
-                  ? std::sqrt(2 * wh * shape->rS[i] -
-                              shape->rS[i] * shape->rS[i])
-                  : shape->rS[i] < st
-                        ? wh - (wh - wt) *
-                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                        : wt * (shape->length - shape->rS[i]) /
-                              (shape->length - st);
+              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
+                                            shape->rS[i] * shape->rS[i])
+              : shape->rS[i] < st
+                  ? wh -
+                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
