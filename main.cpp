@@ -2390,10 +2390,10 @@ struct BlockLab {
     if (id >= 0) {
       UnPackInfo *unpacks = sync->myunpacks[id].data();
       for (size_t jj = 0; jj < sync->myunpacks[id].size(); jj++) {
-        const UnPackInfo &unpack = unpacks[jj];
-        const int code[3] = {unpack.icode % 3 - 1, (unpack.icode / 3) % 3 - 1,
-                             (unpack.icode / 9) % 3 - 1};
-        const int otherrank = unpack.rank;
+        const UnPackInfo *unpack = &unpacks[jj];
+        const int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
+                             (unpack->icode / 9) % 3 - 1};
+        const int otherrank = unpack->rank;
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? sync->stencil.sx : 0) : _BS_,
             code[1] < 1 ? (code[1] < 0 ? sync->stencil.sy : 0) : _BS_,
@@ -2403,16 +2403,16 @@ struct BlockLab {
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
                                       : _BS_ + sync->stencil.ey - 1,
                           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
-        if (unpack.level == info->level) {
+        if (unpack->level == info->level) {
           Real *dst = (Real *)m + ((s[2] - 0) * nm[0] * nm[1] +
                                    (s[1] - sync->stencil.sy) * nm[0] + s[0] -
                                    sync->stencil.sx) *
                                       dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack.offset],
-                           &dst[0], dim, unpack.srcxstart, unpack.srcystart,
-                           unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0,
-                           unpack.lx, unpack.ly, unpack.lz, nm[0], nm[1]);
-          if (unpack.CoarseVersionOffset >= 0) {
+          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
+                           unpack->lx, unpack->ly, unpack->lz, nm[0], nm[1]);
+          if (unpack->CoarseVersionOffset >= 0) {
             const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
                                    (sync->stencil.sy - 1) / 2 - 1,
                                    (0 - 1) / 2 + 0};
@@ -2429,13 +2429,13 @@ struct BlockLab {
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
             unpack_subregion(
                 &sync->recv_buffer[otherrank]
-                                  [unpack.offset + unpack.CoarseVersionOffset],
-                &dst1[0], dim, unpack.CoarseVersionsrcxstart,
-                unpack.CoarseVersionsrcystart, unpack.CoarseVersionsrczstart,
-                unpack.CoarseVersionLX, unpack.CoarseVersionLY, 0, 0, 0, L[0],
+                                  [unpack->offset + unpack->CoarseVersionOffset],
+                &dst1[0], dim, unpack->CoarseVersionsrcxstart,
+                unpack->CoarseVersionsrcystart, unpack->CoarseVersionsrczstart,
+                unpack->CoarseVersionLX, unpack->CoarseVersionLY, 0, 0, 0, L[0],
                 L[1], L[2], nc[0], nc[1]);
           }
-        } else if (unpack.level < info->level) {
+        } else if (unpack->level < info->level) {
           const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
                                  (sync->stencil.sy - 1) / 2 - 1,
                                  (0 - 1) / 2 + 0};
@@ -2446,10 +2446,10 @@ struct BlockLab {
           Real *dst = (Real *)c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                                    offset[0] + (sC[1] - offset[1]) * nc[0]) *
                                       dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack.offset],
-                           &dst[0], dim, unpack.srcxstart, unpack.srcystart,
-                           unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0,
-                           unpack.lx, unpack.ly, unpack.lz, nc[0], nc[1]);
+          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
+                           unpack->lx, unpack->ly, unpack->lz, nc[0], nc[1]);
         } else {
           int B;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
@@ -2457,24 +2457,24 @@ struct BlockLab {
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
             int t;
             if (code[0] == 0)
-              t = unpack.index_0 - 2 * info->index[0];
+              t = unpack->index_0 - 2 * info->index[0];
             else if (code[1] == 0)
-              t = unpack.index_1 - 2 * info->index[1];
+              t = unpack->index_1 - 2 * info->index[1];
             else
-              t = unpack.index_2 - 2 * info->index[2];
+              t = unpack->index_2 - 2 * info->index[2];
             assert(t == 0 || t == 1);
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
             if (abs(code[0]) == 1) {
-              Bmod = unpack.index_1 - 2 * info->index[1];
-              Bdiv = unpack.index_2 - 2 * info->index[2];
+              Bmod = unpack->index_1 - 2 * info->index[1];
+              Bdiv = unpack->index_2 - 2 * info->index[2];
             } else if (abs(code[1]) == 1) {
-              Bmod = unpack.index_0 - 2 * info->index[0];
-              Bdiv = unpack.index_2 - 2 * info->index[2];
+              Bmod = unpack->index_0 - 2 * info->index[0];
+              Bdiv = unpack->index_2 - 2 * info->index[2];
             } else {
-              Bmod = unpack.index_0 - 2 * info->index[0];
-              Bdiv = unpack.index_1 - 2 * info->index[1];
+              Bmod = unpack->index_0 - 2 * info->index[0];
+              Bdiv = unpack->index_1 - 2 * info->index[1];
             }
             B = 2 * Bdiv + Bmod;
           }
@@ -2492,10 +2492,10 @@ struct BlockLab {
                (1 - abs(code[0])) *
                    (-sync->stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack.offset],
-                           &dst[0], dim, unpack.srcxstart, unpack.srcystart,
-                           unpack.srczstart, unpack.LX, unpack.LY, 0, 0, 0,
-                           unpack.lx, unpack.ly, unpack.lz, nm[0], nm[1]);
+          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
+                           unpack->lx, unpack->ly, unpack->lz, nm[0], nm[1]);
         }
       }
     }
