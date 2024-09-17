@@ -6608,9 +6608,9 @@ int main(int argc, char **argv) {
         L_inv[wr][c] -= (wsf * L_inv[br][c]);
     }
   }
-  std::vector<double> P_inv((_BS_ * _BS_) * (_BS_ * _BS_));
-  for (int i(0); i < (_BS_ * _BS_); i++)
-    for (int j(0); j < (_BS_ * _BS_); j++) {
+  std::vector<double> P_inv(_BS_ * _BS_ * _BS_ * _BS_);
+  for (int i = 0; i < (_BS_ * _BS_); i++)
+    for (int j = 0; j < (_BS_ * _BS_); j++) {
       double aux = 0.;
       for (int k(0); k < (_BS_ * _BS_); k++)
         aux += (i <= k && j <= k) ? L_inv[k][i] * L_inv[k][j] : 0.;
