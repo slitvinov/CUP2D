@@ -1460,8 +1460,8 @@ struct Synchronizer {
       UnPackInfo *unpacks = myunpacks[id].data();
       std::set<int> ranks;
       for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
-        UnPackInfo &unpack = unpacks[jj];
-        ranks.insert(unpack.rank);
+        UnPackInfo *unpack = &unpacks[jj];
+        ranks.insert(unpack->rank);
       }
       std::string set_ID;
       for (auto r : ranks) {
