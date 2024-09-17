@@ -3793,7 +3793,6 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  const Real Tperiod;
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
@@ -3829,7 +3828,7 @@ struct Shape {
   Real lastTact = 0;
   Real lastCurv = 0;
   Real oldrCurv = 0;
-  Real periodPIDval = Tperiod;
+  Real periodPIDval = 1;
   Real periodPIDdif = 0;
   bool TperiodPID = false;
   Real time0 = 0;
@@ -3839,18 +3838,17 @@ struct Shape {
   SchedulerVector<6> curvatureScheduler;
   SchedulerLearnWave<7> rlBendingScheduler;
   SchedulerScalar periodScheduler;
-  Real current_period = Tperiod;
-  Real next_period = Tperiod;
-  Real transition_start = 0.0;
-  Real transition_duration = 0.1 * Tperiod;
+  Real current_period = 1;
+  Real next_period = 1;
+  const Real transition_start = 0.0;
+  Real transition_duration = 0.1;
   Real *rK;
   Real *vK;
   Real *rC;
   Real *vC;
   Real *rB;
   Real *vB;
-  Shape(CommandlineParser &p)
-      : length(p("L").asDouble()), Tperiod(p("T").asDouble()) {}
+  Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
   StencilInfo stencil{-1, -1, 2, 2, false};
@@ -4138,7 +4136,7 @@ static void ongrid(Real dt) {
         0.01 * curvatureValues[2], 0.01 * curvatureValues[3],
         0.01 * curvatureValues[4], 0.01 * curvatureValues[5],
     };
-    shape->curvatureScheduler.transition(0, 0, shape->Tperiod, curvatureZeros,
+    shape->curvatureScheduler.transition(0, 0, 1, curvatureZeros,
                                          curvatureValues);
     shape->curvatureScheduler.gimmeValues(sim.time, curvaturePoints, shape->Nm,
                                           shape->rS, shape->rC, shape->vC);

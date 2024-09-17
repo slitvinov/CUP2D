@@ -24,6 +24,6 @@ $main \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  angle=0 L=0.2 phi=0 T=1 xpos=1.8 ypos=0.8
-  angle=180 L=0.2 phi=0 T=1 xpos=1.6 ypos=0.8
+  angle=0 L=0.2 phi=0 xpos=1.8 ypos=0.8
+  angle=180 L=0.2 phi=0 xpos=1.6 ypos=0.8
 '
