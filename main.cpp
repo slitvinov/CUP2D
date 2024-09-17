@@ -434,7 +434,7 @@ struct SpaceCurve {
       const int J = j / aux;
       const int c2_a[2] = {i - I * aux, j - J * aux};
       retval = AxestoTranspose(c2_a, l);
-      retval += IJ_to_index(I, J) * aux * aux;
+      retval += Zsave[0][J * BX + I] * aux * aux;
     } else {
       const int c2_a[2] = {i, j};
       retval = AxestoTranspose(c2_a, l + base_level);
@@ -454,19 +454,11 @@ struct SpaceCurve {
       TransposetoAxes(Zloc, X, l);
       long long index = Z / (aux * aux);
       int I, J;
-      index_to_IJ(index, I, J);
+      I = i_inverse[0][index];
+      J = j_inverse[0][index];
       *i = X[0] + I * aux;
       *j = X[1] + J * aux;
     }
-    return;
-  }
-  long long IJ_to_index(int I, int J) const {
-    long long index = Zsave[0][J * BX + I];
-    return index;
-  }
-  void index_to_IJ(long long index, int &I, int &J) const {
-    I = i_inverse[0][index];
-    J = j_inverse[0][index];
     return;
   }
   long long Encode(int level, int index[2]) {
