@@ -29,10 +29,10 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static Real dist(Real a[2], Real b[2]) {
   return std::pow(a[0] - b[0], 2) + std::pow(a[1] - b[1], 2);
 }
-static void rotate2D(const Real Rmatrix2D[2][2], Real &x, Real &y) {
-  Real p[2] = {x, y};
-  x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-  y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
+static void rotate2D(const Real Rmatrix2D[2][2], Real *x, Real *y) {
+  Real p[2] = {*x, *y};
+  *x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
+  *y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
 }
 static Real dds(int i, int m, Real *a, Real *b) {
   if (i == 0)
@@ -4282,8 +4282,8 @@ static void ongrid(Real dt) {
     for (int i = 0; i < shape->Nm; ++i) {
       shape->vX[i] += shape->angvel_internal * shape->rY[i];
       shape->vY[i] -= shape->angvel_internal * shape->rX[i];
-      rotate2D(Rmatrix2D, shape->rX[i], shape->rY[i]);
-      rotate2D(Rmatrix2D, shape->vX[i], shape->vY[i]);
+      rotate2D(Rmatrix2D, &shape->rX[i], &shape->rY[i]);
+      rotate2D(Rmatrix2D, &shape->vX[i], &shape->vY[i]);
     }
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm - 1; i++) {
@@ -4309,12 +4309,12 @@ static void ongrid(Real dt) {
       for (size_t i = 0; i < shape->upperSkin.n; ++i) {
         shape->upperSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->upperSkin.ySurf[i] -= shape->CoM_internal[1];
-        rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i],
-                 shape->upperSkin.ySurf[i]);
+        rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
+                 &shape->upperSkin.ySurf[i]);
         shape->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
         shape->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
-        rotate2D(Rmatrix2D, shape->lowerSkin.xSurf[i],
-                 shape->lowerSkin.ySurf[i]);
+        rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
+                 &shape->lowerSkin.ySurf[i]);
       }
     }
     const int Nsegments = (shape->Nm - 1) / 8;
@@ -4671,10 +4671,10 @@ static void ongrid(Real dt) {
         {std::sin(shape->orientation), std::cos(shape->orientation)}};
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->upperSkin.n; ++i) {
-      rotate2D(Rmatrix2D, shape->upperSkin.xSurf[i], shape->upperSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i], &shape->upperSkin.ySurf[i]);
       shape->upperSkin.xSurf[i] += shape->centerOfMass[0];
       shape->upperSkin.ySurf[i] += shape->centerOfMass[1];
-      rotate2D(Rmatrix2D, shape->lowerSkin.xSurf[i], shape->lowerSkin.ySurf[i]);
+      rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i], &shape->lowerSkin.ySurf[i]);
       shape->lowerSkin.xSurf[i] += shape->centerOfMass[0];
       shape->lowerSkin.ySurf[i] += shape->centerOfMass[1];
     }
@@ -4683,8 +4683,8 @@ static void ongrid(Real dt) {
           {std::cos(shape->orientation), -std::sin(shape->orientation)},
           {std::sin(shape->orientation), std::cos(shape->orientation)}};
       for (int i = 0; i < shape->Nm; ++i) {
-        rotate2D(Rmatrix2D, shape->rX[i], shape->rY[i]);
-        rotate2D(Rmatrix2D, shape->norX[i], shape->norY[i]);
+        rotate2D(Rmatrix2D, &shape->rX[i], &shape->rY[i]);
+        rotate2D(Rmatrix2D, &shape->norX[i], &shape->norY[i]);
         shape->rX[i] += shape->centerOfMass[0];
         shape->rY[i] += shape->centerOfMass[1];
       }
