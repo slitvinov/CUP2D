@@ -502,13 +502,7 @@ struct Value {
   std::string content;
   Value() = default;
   Value(const std::string &content_) : content(content_) {}
-  Value(const Value &c) = default;
-  Value &operator=(const Value &rhs) {
-    if (this != &rhs)
-      content = rhs.content;
-    return *this;
-  }
-  double asDouble() { return (double)atof(content.c_str()); }
+  Real asDouble() { return (Real)atof(content.c_str()); }
   int asInt() { return atoi(content.c_str()); }
   std::string asString() { return content; }
 };
