@@ -3855,8 +3855,8 @@ struct Shape {
   Real *vC;
   Real *rB;
   Real *vB;
-  Shape(CommandlineParser &p, Real C[2])
-      : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
+  Shape(CommandlineParser &p, Real x, Real y)
+      : center{x, y}, centerOfMass{x, y},
         orientation(p("angle").asDouble() * M_PI / 180),
         forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
         forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
@@ -6545,8 +6545,7 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
-      Real center[2] = {p("xpos").asDouble(), p("ypos").asDouble()};
-      Shape *shape = new Shape(p, center);
+      Shape *shape = new Shape(p, p("xpos").asDouble(), p("ypos").asDouble());
       shape->amplitudeFactor = p("amplitudeFactor").asDouble();
       shape->rS[0] = 0;
       int k = 0;
