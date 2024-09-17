@@ -6852,29 +6852,29 @@ int main(int argc, char **argv) {
           if (i == j)
             continue;
           auto &coll = collisions[i];
-          const auto &iBlocks = shapes[i]->obstacleBlocks;
-          const Real iU0 = shapes[i]->u;
-          const Real iU1 = shapes[i]->v;
-          const Real iomega2 = shapes[i]->omega;
-          const Real iCx = shapes[i]->centerOfMass[0];
-          const Real iCy = shapes[i]->centerOfMass[1];
-          const auto &jBlocks = shapes[j]->obstacleBlocks;
-          const Real jU0 = shapes[j]->u;
-          const Real jU1 = shapes[j]->v;
-          const Real jomega2 = shapes[j]->omega;
-          const Real jCx = shapes[j]->centerOfMass[0];
-          const Real jCy = shapes[j]->centerOfMass[1];
+          auto &iBlocks = shapes[i]->obstacleBlocks;
+          Real iU0 = shapes[i]->u;
+          Real iU1 = shapes[i]->v;
+          Real iomega2 = shapes[i]->omega;
+          Real iCx = shapes[i]->centerOfMass[0];
+          Real iCy = shapes[i]->centerOfMass[1];
+          auto &jBlocks = shapes[j]->obstacleBlocks;
+          Real jU0 = shapes[j]->u;
+          Real jU1 = shapes[j]->v;
+          Real jomega2 = shapes[j]->omega;
+          Real jCx = shapes[j]->centerOfMass[0];
+          Real jCy = shapes[j]->centerOfMass[1];
           assert(iBlocks.size() == jBlocks.size());
           const size_t nBlocks = iBlocks.size();
           for (size_t k = 0; k < nBlocks; ++k) {
             if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
               continue;
-            const auto &iSDF = iBlocks[k]->dist;
-            const auto &jSDF = jBlocks[k]->dist;
-            const ScalarBlock &iChi = iBlocks[k]->chi;
-            const ScalarBlock &jChi = jBlocks[k]->chi;
-            const UDEFMAT &iUDEF = iBlocks[k]->udef;
-            const UDEFMAT &jUDEF = jBlocks[k]->udef;
+            auto &iSDF = iBlocks[k]->dist;
+            auto &jSDF = jBlocks[k]->dist;
+            ScalarBlock &iChi = iBlocks[k]->chi;
+            ScalarBlock &jChi = jBlocks[k]->chi;
+            UDEFMAT &iUDEF = iBlocks[k]->udef;
+            UDEFMAT &jUDEF = jBlocks[k]->udef;
             for (int iy = 0; iy < _BS_; ++iy)
               for (int ix = 0; ix < _BS_; ++ix) {
                 if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
