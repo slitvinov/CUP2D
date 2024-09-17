@@ -534,9 +534,8 @@ struct CommandlineParser {
       }
   }
   Value &operator()(std::string key) {
-    assert(key[0] != '-');
     if (mapArguments.find(key) == mapArguments.end()) {
-      fprintf(stderr, "runtime %s is not set\n", key.data());
+      fprintf(stderr, "main.cpp: runtime %s is not set\n", key.data());
       abort();
     }
     return mapArguments[key];
