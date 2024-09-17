@@ -306,7 +306,6 @@ struct Shape;
 struct SpaceCurve;
 struct Solver;
 static struct {
-  bool bAdaptChiGradient;
   int AdaptSteps;
   int bpdx;
   int bpdy;
@@ -4704,7 +4703,7 @@ struct GradChiOnTmp {
   void operator()(ScalarLab &lab, const Info *info) const {
     auto &TMP = *(ScalarBlock *)tmpInfo[info->id].block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-    Real threshold = sim.bAdaptChiGradient ? 0.9 : 1e4;
+    Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     Real *um = (Real *)lab.m;
     for (int y = -offset; y < _BS_ + offset; ++y)
@@ -6428,7 +6427,6 @@ int main(int argc, char **argv) {
   sim.Rtol = parser("Rtol").asDouble();
   sim.Ctol = parser("Ctol").asDouble();
   sim.AdaptSteps = parser("AdaptSteps").asInt();
-  sim.bAdaptChiGradient = parser("bAdaptChiGradient").asInt();
   sim.levelStart = parser("levelStart").asInt();
   Real extent = parser("extent").asDouble();
   sim.dt = parser("dt").asDouble();
