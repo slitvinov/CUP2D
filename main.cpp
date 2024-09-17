@@ -6434,8 +6434,8 @@ static std::string trim(std::string str) {
     j--;
   return str.substr(i, j - i);
 }
-struct FactoryFileLineParser : public CommandlineParser {
-  FactoryFileLineParser(std::istringstream &is_line)
+struct LineParser : public CommandlineParser {
+  LineParser(std::istringstream &is_line)
       : CommandlineParser(0, NULL) {
     std::string key, value;
     while (std::getline(is_line, key, '=')) {
@@ -6544,7 +6544,7 @@ int main(int argc, char **argv) {
     std::string line;
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
-      FactoryFileLineParser p(line_stream);
+      LineParser p(line_stream);
       Real center[2] = {p("xpos").asDouble(), p("ypos").asDouble()};
       Shape *shape = new Shape(p, center);
       shape->amplitudeFactor = p("amplitudeFactor").asDouble();
