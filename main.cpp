@@ -4713,11 +4713,10 @@ static void adapt() {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I->size(); i++) {
         Info *info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
-        ScalarBlock &b = *(ScalarBlock *)info->block;
+        Real *b = info->block;
         double Linf = 0.0;
-        for (int j = 0; j < _BS_; j++)
-          for (int i = 0; i < _BS_; i++)
-            Linf = std::max(Linf, std::fabs(b[j][i]));
+	for (int j = 0; j < _BS_ * _BS_; j++)
+	  Linf = std::max(Linf, std::fabs(b[j]));
         if (Linf > sim.Rtol)
           (*I)[i]->state = Refine;
         else if (Linf < sim.Ctol)
