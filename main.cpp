@@ -781,7 +781,7 @@ static void fill(Info *b, int level, long long Z) {
   b->id2 = sim.space_curve->Encode(b->level, b->index);
   b->id = b->id2;
 }
-static Info *get0(std::unordered_map<long long, Info *> *all, int m,
+static Info *get00(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   const auto retval = all->find(sim.levels[m] + Z);
   assert(retval != all->end());
@@ -1749,7 +1749,7 @@ static void fill_pos(std::vector<Info> *infos,
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
     long long n = (*infos)[j].Z;
-    Info *info = get0(all, m, n);
+    Info *info = get00(all, m, n);
     info->id = j;
     (*infos)[j] = *info;
   }
