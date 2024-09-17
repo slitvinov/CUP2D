@@ -546,12 +546,12 @@ struct Info {
   enum State state;
   int index[3], level;
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
-  void *block{nullptr};
+  Real *block;
   BlockCase *auxiliary;
   bool operator<(const Info &other) const { return id2 < other.id2; }
 };
 struct BlockCase {
-  uint8_t *d[4];
+  Real *d[4];
   int level;
   long long Z;
 };
@@ -1436,7 +1436,7 @@ struct Synchronizer {
         if (f->infos[0]->level <= f->infos[1]->level) {
           Range &range = DetermineStencil(f, false);
           send_packinfos[r].push_back(
-              {(Real *)f->infos[0]->block, &send_buffer[r][f->dis], range.sx,
+              {f->infos[0]->block, &send_buffer[r][f->dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
           if (f->CoarseStencil) {
             int V = (range.ex - range.sx) * (range.ey - range.sy);
@@ -1514,7 +1514,7 @@ struct Synchronizer {
                                       : _BS_ / 2 + eC[0] - 1,
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
                                       : _BS_ / 2 + eC[1] - 1};
-              Real *src = (Real *)(*info).block;
+              Real *src = (*info).block;
               int pos = 0;
               for (int iy = s[1]; iy < e[1]; iy++) {
                 int YY = 2 * (iy - s[1]) + s[1] +
@@ -1545,7 +1545,7 @@ struct Synchronizer {
                                       : _BS_ + stencil.ex - 1,
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
                                       : _BS_ + stencil.ey - 1};
-              Real *src = (Real *)(*info).block;
+              Real *src = (*info).block;
               int xStep = (code[0] == 0) ? 2 : 1;
               int yStep = (code[1] == 0) ? 2 : 1;
               int pos = 0;
@@ -1832,7 +1832,7 @@ struct Grid {
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = (Real *)CoarseCase.d[myFace];
-    Real *block = (Real *)info->block;
+    Real *block = info->block;
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
     const int N2 = sizes[d2];
@@ -1950,7 +1950,7 @@ struct Grid {
         c->level = info.level;
         c->Z = info.Z;
         for (int i = 0; i < 4; i++)
-          c->d[i] = storeFace[i] ? (uint8_t *)malloc(_BS_ * dim * sizeof(Real))
+          c->d[i] = storeFace[i] ? (Real*)malloc(_BS_ * dim * sizeof(Real))
                                  : nullptr;
         Cases.push_back(c);
       }
@@ -2059,7 +2059,7 @@ struct Grid {
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
-  void *avail(const int m, const long long n) {
+  Real *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? get(m, n)->block : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
@@ -2199,7 +2199,7 @@ struct Grid {
   int &Tree1(const Info *info) { return Treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info *new_info = get(level, Z);
-    new_info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
+    new_info->block = (Real*)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(*new_info); }
     Tree0(level, Z) = sim.rank;
@@ -2274,8 +2274,8 @@ struct BlockLab {
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
   unsigned int nm[2], nc[2];
-  void *m, *c;
-  std::array<void *, 27> myblocks;
+  Real *m, *c;
+  std::array<Real*, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   const int dim;
   BlockLab(int dim) : dim(dim) {
@@ -2298,14 +2298,14 @@ struct BlockLab {
     nm[0] = _BS_ + end[0] - start[0] - 1;
     nm[1] = _BS_ + end[1] - start[1] - 1;
     free(m);
-    m = malloc(nm[0] * nm[1] * dim * sizeof(Real));
+    m = (Real*)malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (start[0] - 1) / 2 - 1;
     offset[1] = (start[1] - 1) / 2 - 1;
     offset[2] = (start[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
-    c = malloc(nc[0] * nc[1] * dim * sizeof(Real));
+    c = (Real*)malloc(nc[0] * nc[1] * dim * sizeof(Real));
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
@@ -2315,8 +2315,8 @@ struct BlockLab {
     NY = sim.bpdy * aux;
     NZ = 1 * aux;
     assert(m != NULL);
-    Real *p = (Real *)info->block;
-    Real *u = (Real *)m;
+    Real *p = info->block;
+    Real *u = m;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       Real *q = u + dim * iy * nm[0] - dim * start[0];
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
@@ -2788,8 +2788,8 @@ struct BlockLab {
         grid->avail(info->level, info->Znei[1 + code[0]][1 + code[1]]);
     if (myblocks[icode] == nullptr)
       return;
-    Real *b = (Real *)myblocks[icode];
-    Real *um = (Real *)m;
+    Real *b = myblocks[icode];
+    Real *um = m;
     int i = s[0] - start[0];
     int mod = (e[1] - s[1]) % 4;
     for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -3036,7 +3036,7 @@ struct BlockLab {
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
-    Real *b = (Real *)myblocks[icode];
+    Real *b = myblocks[icode];
     int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
     int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
@@ -3408,7 +3408,7 @@ struct KernelVorticity {
   void operator()(VectorLab &lab, const Info *info) const {
     Real *um = (Real *)lab.m;
     const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
-    Real *TMP = (Real *)tmpInfo[info->id].block;
+    Real *TMP = tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
@@ -3492,7 +3492,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   l = 0;
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
-    Real *b = (Real *)info->block;
+    Real *b = info->block;
     j = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
@@ -3986,9 +3986,9 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      Real *CHI = (Real *)chiInfo[info->id].block;
-      Real *chi = (Real *)o.chi;
-      Real *dist = (Real *)o.dist;
+      Real *CHI = chiInfo[info->id].block;
+      Real *chi = (Real*)o.chi;
+      Real *dist = (Real*)o.dist;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           int j = _BS_ * iy + ix;
@@ -4082,8 +4082,8 @@ static void ongrid(Real dt) {
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
     for (int j = 0; j < _BS_ * _BS_; j++) {
-      *((Real *)chiInfo[i].block + j) = 0;
-      *((Real *)tmpInfo[i].block + j) = -1;
+      *(chiInfo[i].block + j) = 0;
+      *(tmpInfo[i].block + j) = -1;
     }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -6469,7 +6469,7 @@ int main(int argc, char **argv) {
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
-      info->block = malloc(dim * _BS_ * _BS_ * sizeof(Real));
+      info->block = (Real*)malloc(dim * _BS_ * _BS_ * sizeof(Real));
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
