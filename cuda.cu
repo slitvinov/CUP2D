@@ -592,19 +592,19 @@ void LocalSpMatDnVec::cooPushBackVal(const double val, const long long row,
   loc_cooColA_long_.push_back(col);
 }
 void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row) {
-  for (const auto &[col_idx, val] : row.loc_colval_) {
-    loc_cooValA_.push_back(val);
+  for (const auto &i : row.loc_colval_) {
+    loc_cooValA_.push_back(i.second);
     loc_cooRowA_long_.push_back(row.idx_);
-    loc_cooColA_long_.push_back(col_idx);
+    loc_cooColA_long_.push_back(i.first);
   }
   if (!row.neirank_cols_.empty()) {
-    for (const auto &[col_idx, val] : row.bd_colval_) {
-      bd_cooValA_.push_back(val);
+    for (const auto &i : row.bd_colval_) {
+      bd_cooValA_.push_back(i.second);
       bd_cooRowA_long_.push_back(row.idx_);
-      bd_cooColA_long_.push_back(col_idx);
+      bd_cooColA_long_.push_back(i.first);
     }
-    for (const auto &[rank, col_idx] : row.neirank_cols_) {
-      bd_recv_set_[rank].insert(col_idx);
+    for (const auto &i : row.neirank_cols_) {
+      bd_recv_set_[i.first].insert(i.second);
     }
   }
 }
