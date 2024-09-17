@@ -3780,12 +3780,11 @@ struct Shape {
   Real centerOfMass[2];
   Real orientation;
   Real d_gm[2] = {0, 0};
-  const Real forcedomega;
   Real M = 0;
   Real J = 0;
   Real u;
   Real v;
-  Real omega = forcedomega;
+  Real omega;
   Real appliedForceX = 0;
   Real appliedForceY = 0;
   Real appliedTorque = 0;
@@ -3794,7 +3793,8 @@ struct Shape {
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
        PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0, Pthrust = 0, Pdrag = 0, EffPDef = 0, EffPDefBnd = 0;
-  const Real Tperiod, phaseShift;
+  const Real Tperiod;
+  Real phaseShift;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0, angvel_internal = 0;
@@ -3851,8 +3851,7 @@ struct Shape {
   Real *rB;
   Real *vB;
   Shape(CommandlineParser &p)
-      : forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
-        Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()) {}
+      : length(p("L").asDouble()), Tperiod(p("T").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
   StencilInfo stencil{-1, -1, 2, 2, false};
@@ -6536,6 +6535,8 @@ int main(int argc, char **argv) {
       shape->center[0] = shape->centerOfMass[0] = p("xpos").asDouble();
       shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
+      shape->omega = 0;
+      shape->phaseShift = 0;
       shape->u = 0;
       shape->v = 0;
       shape->rK = new Real[shape->Nm];
