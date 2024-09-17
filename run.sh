@@ -2,7 +2,6 @@
 $main \
 -AdaptSteps 20 \
 -bAdaptChiGradient 0 \
--bMeanConstraint 0 \
 -bpdx 2 \
 -bpdy 1 \
 -CFL 0.5 \

@@ -308,7 +308,6 @@ struct Solver;
 static struct {
   bool bAdaptChiGradient;
   int AdaptSteps;
-  int bMeanConstraint;
   int bpdx;
   int bpdy;
   int dumpFreq;
@@ -6117,12 +6116,7 @@ struct Solver {
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           const long long sfc_loc = GenericCell.This(&rhs_info, ix, iy) + shift;
-          if (sim.bMeanConstraint && rhs_info.index[0] == 0 &&
-              rhs_info.index[1] == 0 && rhs_info.index[2] == 0 && ix == 0 &&
-              iy == 0)
-            b[sfc_loc] = 0.;
-          else
-            b[sfc_loc] = rhs[iy][ix];
+	  b[sfc_loc] = rhs[iy][ix];
           x[sfc_loc] = p[iy][ix];
         }
     }
@@ -6448,7 +6442,6 @@ int main(int argc, char **argv) {
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
-  sim.bMeanConstraint = parser("bMeanConstraint").asInt();
   sim.dumpFreq = parser("fdump").asInt();
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
@@ -6617,7 +6610,7 @@ int main(int argc, char **argv) {
       P_inv[i * (_BS_ * _BS_) + j] = -aux;
     }
   sim.solver->LocalLS_ = std::make_unique<LocalSpMatDnVec>(
-      MPI_COMM_WORLD, _BS_ * _BS_, sim.bMeanConstraint, P_inv);
+      MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
