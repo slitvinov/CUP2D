@@ -1,7 +1,7 @@
 d=/capstor/scratch/cscs/lisergey/CUP2D
 ssh todi '
 . /etc/profile
-d='$d' 
+d='$d'
 rm -rf "${d?not set}" &&
    git clone git@github.com:slitvinov/CUP2D "$d" &&
    cd "$d" &&
