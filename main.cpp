@@ -3821,7 +3821,6 @@ struct Shape {
   Real linMom[2], area, angMom;
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
-  Real amplitudeFactor;
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;
   Real avgDeltaY = 0;
@@ -4156,13 +4155,12 @@ static void ongrid(Real dt) {
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real arg = arg0 - 2 * M_PI * shape->rS[i] / shape->length;
-      shape->rK[i] = shape->amplitudeFactor * shape->rC[i] *
-                     (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac);
+      shape->rK[i] =
+          shape->rC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac);
       shape->vK[i] =
-          shape->amplitudeFactor *
-          (shape->vC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac) +
-           shape->rC[i] *
-               (std::cos(arg) * darg + shape->vB[i] + shape->curv_PID_dif));
+          shape->vC[i] * (std::sin(arg) + shape->rB[i] + shape->curv_PID_fac) +
+          shape->rC[i] *
+              (std::cos(arg) * darg + shape->vB[i] + shape->curv_PID_dif);
     }
     if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
                shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
@@ -6555,7 +6553,6 @@ int main(int argc, char **argv) {
       shape->vNorX = new Real[shape->Nm];
       shape->vNorY = new Real[shape->Nm];
       shape->width = new Real[shape->Nm];
-      shape->amplitudeFactor = p("amplitudeFactor").asDouble();
       shape->rS[0] = 0;
       int k = 0;
       for (int i = 0; i < shape->Nend; ++i, k++)
