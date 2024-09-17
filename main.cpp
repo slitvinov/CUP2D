@@ -759,8 +759,8 @@ static void fill(Info *b, int m, long long Z) {
   b->h = sim.h0 / (1 << b->level);
   int i, j;
   sim.space_curve->inverse(Z, m, &i, &j);
-  b->origin[0] = i * _BS_ * b->h;
-  b->origin[1] = j * _BS_ * b->h;
+  b->origin[0] = i * _BS_ * sim.h0 / (1 << b->level);
+  b->origin[1] = j * _BS_ * sim.h0 / (1 << b->level);
   b->Z = Z;
   b->state = Leave;
   b->changed2 = true;
@@ -1674,10 +1674,11 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   double *boxes;
   double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
   for (auto &info : *infos) {
-    box[0] = std::min(box[0], info.origin[0] - 1.5 * info.h);
-    box[1] = std::min(box[1], info.origin[1] - 1.5 * info.h);
-    box[2] = std::max(box[2], info.origin[0] + info.h * _BS_ + 1.5 * info.h);
-    box[3] = std::max(box[3], info.origin[1] + info.h * _BS_ + 1.5 * info.h);
+    double h = sim.h0 / (1 << info.level);
+    box[0] = std::min(box[0], info.origin[0] - 1.5 * h);
+    box[1] = std::min(box[1], info.origin[1] - 1.5 * h);
+    box[2] = std::max(box[2], info.origin[0] + h * _BS_ + 1.5 * h);
+    box[3] = std::max(box[3], info.origin[1] + h * _BS_ + 1.5 * h);
   }
   boxes = (double *)malloc(sim.size * sizeof box);
   MPI_Allgather(box, 4, MPI_DOUBLE, boxes, 4, MPI_DOUBLE, MPI_COMM_WORLD);
@@ -3413,7 +3414,7 @@ struct KernelVorticity {
   const StencilInfo stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const Info *info) const {
     Real *um = (Real *)lab.m;
-    const Real i2h = 0.5 / info->h;
+    const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
     Real *TMP = (Real *)tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
@@ -3879,7 +3880,7 @@ struct ComputeSurfaceNormals {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi->id] == nullptr)
         continue;
-      Real h = infoChi->h;
+      Real h = sim.h0 / (1 << infoChi->level);
       ObstacleBlock &o = *OBLOCK[infoChi->id];
       Real i2h = 0.5 / h;
       Real fac = 0.5 * h;
@@ -4014,7 +4015,7 @@ struct PutChiOnGrid {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[info->id] == nullptr)
         continue;
-      Real h = info->h;
+      Real h = sim.h0 / (1 << info->level);
       Real h2 = h * h;
       ObstacleBlock &o = *OBLOCK[info->id];
       o.COM_x = 0;
