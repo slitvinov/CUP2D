@@ -3146,21 +3146,21 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename LabMPI, typename LabMPI2>
-static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
-  Synchronizer &Synch = *grid.sync1(kernel.stencil);
+static void computeB(const Kernel &&kernel, Grid *grid, Grid *grid2) {
+  Synchronizer *Synch = grid->sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
   kernel2.stencil.ex = kernel2.stencil2.ex;
   kernel2.stencil.ey = kernel2.stencil2.ey;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
-  Synchronizer &Synch2 = *grid2.sync1(kernel2.stencil);
-  const StencilInfo &stencil = Synch.stencil;
-  const StencilInfo &stencil2 = Synch2.stencil;
-  std::vector<Info> &blk = grid.infos;
+  Synchronizer *Synch2 = grid2->sync1(kernel2.stencil);
+  const StencilInfo &stencil = Synch->stencil;
+  const StencilInfo &stencil2 = Synch2->stencil;
+  std::vector<Info> &blk = grid->infos;
   std::vector<bool> ready(blk.size(), false);
-  std::vector<Info *> &avail0 = Synch.inner_blocks;
-  std::vector<Info *> &avail02 = Synch2.inner_blocks;
+  std::vector<Info *> &avail0 = Synch->inner_blocks;
+  std::vector<Info *> &avail02 = Synch2->inner_blocks;
   const int Ninner = avail0.size();
   std::vector<Info *> avail1;
   std::vector<Info *> avail12;
@@ -3174,20 +3174,20 @@ static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(&grid, &Synch, I, true);
-      lab2.load(&grid2, &Synch2, I2, true);
+      lab.load(grid, Synch, I, true);
+      lab2.load(grid2, Synch2, I2, true);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
 #pragma omp master
     {
-      MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
+      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
-      avail1 = Synch.halo_blocks;
+      avail1 = Synch->halo_blocks;
 
-      MPI_Waitall(Synch2.requests.size(), Synch2.requests.data(),
+      MPI_Waitall(Synch2->requests.size(), Synch2->requests.data(),
                   MPI_STATUSES_IGNORE);
-      avail12 = Synch2.halo_blocks;
+      avail12 = Synch2->halo_blocks;
     }
 #pragma omp barrier
     const int Nhalo = avail1.size();
@@ -3195,8 +3195,8 @@ static void computeB(const Kernel &&kernel, Grid &grid, Grid &grid2) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(&grid, &Synch, I, true);
-      lab2.load(&grid2, &Synch2, I2, true);
+      lab.load(grid, Synch, I, true);
+      lab2.load(grid2, Synch2, I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -4580,7 +4580,7 @@ static void ongrid(Real dt) {
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(ComputeSurfaceNormals(),
-                                                        *var.chi, *var.tmp);
+                                                        var.chi, var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
@@ -4949,8 +4949,8 @@ static void adapt() {
       bool found = false;
       for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
            i++)
-        for (int j = 2 * (info->index[1] / 2); j <= 2 * (info->index[1] / 2) + 1;
-             j++)
+        for (int j = 2 * (info->index[1] / 2);
+             j <= 2 * (info->index[1] / 2) + 1; j++)
           for (int k = 2 * (info->index[2] / 2);
                k <= 2 * (info->index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
@@ -4966,8 +4966,8 @@ static void adapt() {
             }
           }
       if (found)
-        for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
-             i++)
+        for (int i = 2 * (info->index[0] / 2);
+             i <= 2 * (info->index[0] / 2) + 1; i++)
           for (int j = 2 * (info->index[1] / 2);
                j <= 2 * (info->index[1] / 2) + 1; j++)
             for (int k = 2 * (info->index[2] / 2);
@@ -7121,8 +7121,8 @@ int main(int argc, char **argv) {
         }
       }
       var.tmp->prepare0();
-      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), *var.vel,
-                                                   *var.tmpV);
+      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel,
+                                                   var.tmpV);
       var.tmp->FillBlockCases();
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
@@ -7298,7 +7298,7 @@ int main(int argc, char **argv) {
           V[j] += tmpV[j] * ih2;
       }
       computeB<KernelComputeForces, VectorLab, ScalarLab>(KernelComputeForces(),
-                                                          *var.vel, *var.chi);
+                                                          var.vel, var.chi);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
