@@ -314,7 +314,6 @@ static struct {
   int levelStart;
   int maxPoissonIterations;
   int maxPoissonRestarts;
-  int nsteps;
   int rank;
   int size;
   int step = 0;
@@ -6431,7 +6430,6 @@ int main(int argc, char **argv) {
   Real extent = parser("extent").asDouble();
   sim.dt = parser("dt").asDouble();
   sim.CFL = parser("CFL").asDouble();
-  sim.nsteps = parser("nsteps").asInt();
   sim.endTime = parser("tend").asDouble();
   sim.lambda = parser("lambda").asDouble();
   sim.dlm = parser("dlm").asDouble();
@@ -7367,9 +7365,7 @@ int main(int argc, char **argv) {
       sim.step++;
     }
     if (!done) {
-      bool timeEnd = sim.endTime > 0 && sim.time >= sim.endTime;
-      bool stepEnd = sim.nsteps > 0 && sim.step >= sim.nsteps;
-      done = timeEnd || stepEnd;
+      done = sim.endTime > 0 && sim.time >= sim.endTime;
     }
     if (done)
       break;
