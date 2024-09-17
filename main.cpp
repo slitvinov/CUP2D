@@ -3785,9 +3785,6 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real appliedForceX = 0;
-  Real appliedForceY = 0;
-  Real appliedTorque = 0;
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
   Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
   Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
