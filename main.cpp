@@ -3852,10 +3852,8 @@ struct Shape {
   Real *vC;
   Real *rB;
   Real *vB;
-  Shape(CommandlineParser &p, Real x, Real y)
-      : center{x, y}, centerOfMass{x, y},
-        orientation(p("angle").asDouble() * M_PI / 180),
-        forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
+  Shape(CommandlineParser &p)
+      : forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
         forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
         Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()) {}
 };
@@ -6537,7 +6535,10 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
-      Shape *shape = new Shape(p, p("xpos").asDouble(), p("ypos").asDouble());
+      Shape *shape = new Shape(p);
+      shape->center[0] = shape->centerOfMass[0] = p("xpos").asDouble();
+      shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
+      shape->orientation = p("angle").asDouble() * M_PI / 180;
       shape->rK = new Real[shape->Nm];
       shape->vK = new Real[shape->Nm];
       shape->rC = new Real[shape->Nm];
