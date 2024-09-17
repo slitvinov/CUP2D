@@ -6582,7 +6582,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < (_BS_ * _BS_); i++) {
     L[i].resize(i + 1);
     L_inv[i].resize(i + 1);
-    for (int j(0); j <= i; j++) {
+    for (int j = 0; j <= i; j++) {
       L_inv[i][j] = (i == j) ? 1. : 0.;
     }
   }
