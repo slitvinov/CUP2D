@@ -441,12 +441,12 @@ struct SpaceCurve {
     }
     return retval;
   }
-  void inverse(long long Z, int l, int &i, int &j) const {
+  void inverse(long long Z, int l, int *i, int *j) const {
     if (isRegular) {
       int X[2] = {0, 0};
       TransposetoAxes(Z, X, l + base_level);
-      i = X[0];
-      j = X[1];
+      *i = X[0];
+      *j = X[1];
     } else {
       int aux = 1 << l;
       long long Zloc = Z % (aux * aux);
@@ -455,8 +455,8 @@ struct SpaceCurve {
       long long index = Z / (aux * aux);
       int I, J;
       index_to_IJ(index, I, J);
-      i = X[0] + I * aux;
-      j = X[1] + J * aux;
+      *i = X[0] + I * aux;
+      *j = X[1] + J * aux;
     }
     return;
   }
@@ -486,7 +486,7 @@ struct SpaceCurve {
       Zc -= Zc % 4;
       retval += Zc;
       int ix1, iy1;
-      inverse(Zc, l, ix1, iy1);
+      inverse(Zc, l, &ix1, &iy1);
       ix = 2 * ix1;
       iy = 2 * iy1;
     }
@@ -767,7 +767,7 @@ static void fill(Info *b, int m, long long Z) {
   b->level = m;
   b->h = sim.h0 / (1 << b->level);
   int i, j;
-  sim.space_curve->inverse(Z, m, i, j);
+  sim.space_curve->inverse(Z, m, &i, &j);
   b->origin[0] = i * _BS_ * b->h;
   b->origin[1] = j * _BS_ * b->h;
   b->Z = Z;
@@ -775,7 +775,7 @@ static void fill(Info *b, int m, long long Z) {
   b->changed2 = true;
   b->auxiliary = nullptr;
   const int TwoPower = 1 << b->level;
-  sim.space_curve->inverse(b->Z, b->level, b->index[0], b->index[1]);
+  sim.space_curve->inverse(b->Z, b->level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
   const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
   for (int i = -1; i < 2; i++)
@@ -1743,7 +1743,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
       if (UpdateIDs)
         getf(all, level, Z)->id = recv_buffer[kk][index + 2];
       int p[2];
-      sim.space_curve->inverse(Z, level, p[0], p[1]);
+      sim.space_curve->inverse(Z, level, &p[0], &p[1]);
       if (level < sim.levelMax - 1)
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
@@ -3095,7 +3095,7 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
   Info *info = grid->get(level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
-  sim.space_curve->inverse(Z, level, p[0], p[1]);
+  sim.space_curve->inverse(Z, level, &p[0], &p[1]);
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
@@ -6525,7 +6525,7 @@ int main(int argc, char **argv) {
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
-      sim.space_curve->inverse(Z, sim.levelStart, p[0], p[1]);
+      sim.space_curve->inverse(Z, sim.levelStart, &p[0], &p[1]);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
