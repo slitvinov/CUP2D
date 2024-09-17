@@ -897,21 +897,21 @@ struct Synchronizer {
       L[2] = sLength[3 * (icode + 2 * 27) + 2];
     }
   }
-  Range &DetermineStencil(const Interface &f, bool CoarseVersion) {
+  Range &DetermineStencil(const Interface *f, bool CoarseVersion) {
     if (CoarseVersion) {
-      AllStencils[f.icode[1] + 2 * 27].needed = true;
-      return AllStencils[f.icode[1] + 2 * 27];
+      AllStencils[f->icode[1] + 2 * 27].needed = true;
+      return AllStencils[f->icode[1] + 2 * 27];
     } else {
-      if (f.infos[0]->level == f.infos[1]->level) {
-        AllStencils[f.icode[1]].needed = true;
-        return AllStencils[f.icode[1]];
-      } else if (f.infos[0]->level > f.infos[1]->level) {
-        AllStencils[f.icode[1] + 27].needed = true;
-        return AllStencils[f.icode[1] + 27];
+      if (f->infos[0]->level == f->infos[1]->level) {
+        AllStencils[f->icode[1]].needed = true;
+        return AllStencils[f->icode[1]];
+      } else if (f->infos[0]->level > f->infos[1]->level) {
+        AllStencils[f->icode[1] + 27].needed = true;
+        return AllStencils[f->icode[1] + 27];
       } else {
         Coarse_Range.needed = true;
-        const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
-                             (f.icode[1] / 9) % 3 - 1};
+        const int code[3] = {f->icode[1] % 3 - 1, (f->icode[1] / 3) % 3 - 1,
+                             (f->icode[1] / 9) % 3 - 1};
         const int s[3] = {
             code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
                         : _BS_ / 2,
@@ -923,27 +923,27 @@ struct Synchronizer {
                           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
                                       : _BS_ / 2 + stencil.ey / 2 + 1,
                           code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
-        const int base[3] = {(f.infos[1]->index[0] + code[0]) % 2,
-                             (f.infos[1]->index[1] + code[1]) % 2,
-                             (f.infos[1]->index[2] + code[2]) % 2};
+        const int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
+                             (f->infos[1]->index[1] + code[1]) % 2,
+                             (f->infos[1]->index[2] + code[2]) % 2};
         int Cindex_true[3];
         for (int d = 0; d < 3; d++)
-          Cindex_true[d] = f.infos[1]->index[d] + code[d];
+          Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[3];
         CoarseEdge[0] = code[0] == 0
                             ? 0
-                            : ((f.infos[1]->index[0] % 2 == 0) &&
-                               (Cindex_true[0] > f.infos[1]->index[0])) ||
-                                      ((f.infos[1]->index[0] % 2 == 1) &&
-                                       (Cindex_true[0] < f.infos[1]->index[0]))
+                            : ((f->infos[1]->index[0] % 2 == 0) &&
+                               (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                      ((f->infos[1]->index[0] % 2 == 1) &&
+                                       (Cindex_true[0] < f->infos[1]->index[0]))
                                   ? 1
                                   : 0;
         CoarseEdge[1] = code[1] == 0
                             ? 0
-                            : ((f.infos[1]->index[1] % 2 == 0) &&
-                               (Cindex_true[1] > f.infos[1]->index[1])) ||
-                                      ((f.infos[1]->index[1] % 2 == 1) &&
-                                       (Cindex_true[1] < f.infos[1]->index[1]))
+                            : ((f->infos[1]->index[1] % 2 == 0) &&
+                               (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                      ((f->infos[1]->index[1] % 2 == 1) &&
+                                       (Cindex_true[1] < f->infos[1]->index[1]))
                                   ? 1
                                   : 0;
         CoarseEdge[2] = 0;
@@ -963,13 +963,13 @@ struct Synchronizer {
       }
     }
   }
-  void FixDuplicates(const Interface &f, const Interface &f_dup, int lx, int ly,
+  void FixDuplicates(const Interface *f, const Interface *f_dup, int lx, int ly,
                      int lz, int lx_dup, int ly_dup, int lz_dup, int &sx,
                      int &sy, int &sz) {
-    Info *receiver = f.infos[1];
-    Info *receiver_dup = f_dup.infos[1];
+    Info *receiver = f->infos[1];
+    Info *receiver_dup = f_dup->infos[1];
     if (receiver->level >= receiver_dup->level) {
-      int icode_dup = f_dup.icode[1];
+      int icode_dup = f_dup->icode[1];
       const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
                                (icode_dup / 9) % 3 - 1};
       sx = (lx == lx_dup || code_dup[0] != -1) ? 0 : lx - lx_dup;
@@ -983,10 +983,10 @@ struct Synchronizer {
       sz = range_dup.sz - range.sz;
     }
   }
-  void FixDuplicates2(const Interface &f, const Interface &f_dup, int &sx,
+  void FixDuplicates2(const Interface *f, const Interface *f_dup, int &sx,
                       int &sy, int &sz) {
-    if (f.infos[0]->level != f.infos[1]->level ||
-        f_dup.infos[0]->level != f_dup.infos[1]->level)
+    if (f->infos[0]->level != f->infos[1]->level ||
+        f_dup->infos[0]->level != f_dup->infos[1]->level)
       return;
     Range &range = DetermineStencil(f, true);
     Range &range_dup = DetermineStencil(f_dup, true);
@@ -1270,7 +1270,7 @@ struct Synchronizer {
               compass[i].clear();
             for (size_t i = 0; i < DM.sizes[r]; i++) {
               compass[f[i + DM.positions[r]].icode[0]].push_back(
-                  DetermineStencil(f[i + DM.positions[r]], false));
+                  DetermineStencil(&f[i + DM.positions[r]], false));
               compass[f[i + DM.positions[r]].icode[0]].back().index =
                   i + DM.positions[r];
               compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
@@ -1334,7 +1334,7 @@ struct Synchronizer {
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
         for (size_t i = start; i < finish; i++) {
-          compass[f[i].icode[0]].push_back(DetermineStencil(f[i], false));
+          compass[f[i].icode[0]].push_back(DetermineStencil(&f[i], false));
           compass[f[i].icode[0]].back().index = i;
           compass[f[i].icode[0]].back().avg_down =
               (f[i].infos[0]->level > f[i].infos[1]->level);
@@ -1396,13 +1396,13 @@ struct Synchronizer {
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            FixDuplicates(f[k], f[remEl1], info.lx, info.ly, info.lz, L[0],
+            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, info.lz, L[0],
                           L[1], L[2], srcx, srcy, srcz);
             int Csrcx = 0;
             int Csrcy = 0;
             int Csrcz = 0;
             if (f[k].CoarseStencil)
-              FixDuplicates2(f[k], f[remEl1], Csrcx, Csrcy, Csrcz);
+              FixDuplicates2(&f[k], &f[remEl1], Csrcx, Csrcy, Csrcz);
             myunpacks[f[remEl1].infos[1]->halo_id].push_back(
                 {info.offset,
                  L[0],
@@ -1435,22 +1435,22 @@ struct Synchronizer {
       send_packinfos[r].clear();
       ToBeAveragedDown[r].clear();
       for (int i = 0; i < (int)send_interfaces[r].size(); i++) {
-        Interface &f = send_interfaces[r][i];
-        if (!f.ToBeKept)
+        Interface *f = &send_interfaces[r][i];
+        if (!f->ToBeKept)
           continue;
-        if (f.infos[0]->level <= f.infos[1]->level) {
+        if (f->infos[0]->level <= f->infos[1]->level) {
           Range &range = DetermineStencil(f, false);
           send_packinfos[r].push_back(
-              {(Real *)f.infos[0]->block, &send_buffer[r][f.dis], range.sx,
+              {(Real *)f->infos[0]->block, &send_buffer[r][f->dis], range.sx,
                range.sy, range.sz, range.ex, range.ey, range.ez});
-          if (f.CoarseStencil) {
+          if (f->CoarseStencil) {
             int V = (range.ex - range.sx) * (range.ey - range.sy);
             ToBeAveragedDown[r].push_back(i);
-            ToBeAveragedDown[r].push_back(f.dis + V * dim);
+            ToBeAveragedDown[r].push_back(f->dis + V * dim);
           }
         } else {
           ToBeAveragedDown[r].push_back(i);
-          ToBeAveragedDown[r].push_back(f.dis);
+          ToBeAveragedDown[r].push_back(f->dis);
         }
       }
     }
