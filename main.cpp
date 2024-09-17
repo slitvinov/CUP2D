@@ -319,7 +319,6 @@ static struct {
   int step = 0;
   Real CFL;
   Real Ctol;
-  Real dlm;
   Real dt;
   Real dumpTime;
   Real endTime;
@@ -6419,7 +6418,6 @@ int main(int argc, char **argv) {
   sim.CFL = parser("CFL").asDouble();
   sim.endTime = parser("tend").asDouble();
   sim.lambda = parser("lambda").asDouble();
-  sim.dlm = parser("dlm").asDouble();
   sim.nu = parser("nu").asDouble();
   sim.PoissonTol = parser("poissonTol").asDouble();
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
@@ -6665,8 +6663,6 @@ int main(int argc, char **argv) {
       fflush(0);
       abort();
     }
-    if (sim.dlm > 0)
-      sim.lambda = sim.dlm / sim.dt;
     bool done = false;
     if (!done || sim.dt > 2e-16) {
       bool timeDump = sim.dumpTime > 0 && sim.time >= sim.nextDumpTime;
