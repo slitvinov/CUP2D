@@ -1664,7 +1664,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
         myData.push_back(info.id);
     }
   }
-  std::vector<int> myNeighbors;
+  std::vector<int> neighbors;
   double *boxes;
   double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
   for (auto &info : *infos) {
@@ -1683,16 +1683,16 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     double *h2 = &boxes[i * 4 + 2];
     if (std::max(box[0], l2[0]) <= std::min(box[2], h2[0]) &&
         std::max(box[1], l2[1]) <= std::min(box[3], h2[1]))
-      myNeighbors.push_back(i);
+      neighbors.push_back(i);
   }
   free(boxes);
-  std::vector<std::vector<long long>> recv_buffer(myNeighbors.size());
-  std::vector<std::vector<long long>> send_buffer(myNeighbors.size());
-  std::vector<int> recv_size(myNeighbors.size());
-  std::vector<MPI_Request> size_requests(2 * myNeighbors.size());
+  std::vector<std::vector<long long>> recv_buffer(neighbors.size());
+  std::vector<std::vector<long long>> send_buffer(neighbors.size());
+  std::vector<int> recv_size(neighbors.size());
+  std::vector<MPI_Request> size_requests(2 * neighbors.size());
   int mysize = (int)myData.size();
   int kk = 0;
-  for (auto r : myNeighbors) {
+  for (auto r : neighbors) {
     MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, 0, MPI_COMM_WORLD,
               &size_requests[2 * kk]);
     MPI_Isend(&mysize, 1, MPI_INT, r, 0, MPI_COMM_WORLD,
@@ -1700,16 +1700,16 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     kk++;
   }
   kk = 0;
-  for (size_t j = 0; j < myNeighbors.size(); j++) {
+  for (size_t j = 0; j < neighbors.size(); j++) {
     send_buffer[kk].resize(myData.size());
     for (size_t i = 0; i < myData.size(); i++)
       send_buffer[kk][i] = myData[i];
     kk++;
   }
   MPI_Waitall(size_requests.size(), size_requests.data(), MPI_STATUSES_IGNORE);
-  std::vector<MPI_Request> requests(2 * myNeighbors.size());
+  std::vector<MPI_Request> requests(2 * neighbors.size());
   kk = 0;
-  for (auto r : myNeighbors) {
+  for (auto r : neighbors) {
     recv_buffer[kk].resize(recv_size[kk]);
     MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG, r,
               0, MPI_COMM_WORLD, &requests[2 * kk]);
@@ -1720,7 +1720,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
   kk = -1;
   int increment = UpdateIDs ? 3 : 2;
-  for (auto r : myNeighbors) {
+  for (auto r : neighbors) {
     kk++;
     for (size_t index = 0; index < recv_buffer[kk].size(); index += increment) {
       int level = (int)recv_buffer[kk][index];
