@@ -2220,6 +2220,7 @@ struct Grid {
           infos[j].changed2 = true;
 	  auto retval = all.find(sim.levels[infos[j].level] + infos[j].Z);
 	  assert(retval != all.end());
+	  assert(retval->second->block == infos[j].block);
 	  free(retval->second->block);
           break;
         }
