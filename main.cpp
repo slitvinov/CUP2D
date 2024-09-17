@@ -307,7 +307,7 @@ struct SpaceCurve;
 struct Solver;
 static struct {
   bool bAdaptChiGradient;
-  int AdaptSteps{20};
+  int AdaptSteps;
   int bMeanConstraint;
   int bpdx;
   int bpdy;
