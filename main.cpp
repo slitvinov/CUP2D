@@ -2211,17 +2211,14 @@ struct Grid {
       }
     }
   }
-  void dealloc_many(const std::vector<long long> &dealloc_IDs) {
+  void dealloc_many(const std::vector<long long> &ids) {
     for (size_t j = 0; j < infos.size(); j++)
       infos[j].changed2 = false;
-    for (size_t i = 0; i < dealloc_IDs.size(); i++)
+    for (size_t i = 0; i < ids.size(); i++)
       for (size_t j = 0; j < infos.size(); j++) {
-        if (infos[j].id2 == dealloc_IDs[i]) {
+        if (infos[j].id2 == ids[i]) {
           infos[j].changed2 = true;
-	  auto retval = all.find(sim.levels[infos[j].level] + infos[j].Z);
-	  assert(retval != all.end());
-	  assert(retval->second->block == infos[j].block);
-	  free(retval->second->block);
+	  free(infos[j].block);
           break;
         }
       }
