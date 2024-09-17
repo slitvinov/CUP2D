@@ -3823,7 +3823,6 @@ struct Shape {
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;
   Real avgDeltaY = 0;
-  Real avgDangle = 0;
   Real avgAngVel = 0;
   Real lastTact = 0;
   Real lastCurv = 0;
