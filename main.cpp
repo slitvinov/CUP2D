@@ -2202,10 +2202,10 @@ struct Grid {
     { infos.push_back(*new_info); }
     Tree0(level, Z) = sim.rank;
   }
-  void _dealloc(const int m, const long long n) {
-    free(get0(m, n)->block);
+  void dealloc(const int m, const long long n) {
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
+	free(infos[j].block);
         infos.erase(infos.begin() + j);
         return;
       }
@@ -5170,7 +5170,7 @@ static void adapt() {
       }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        g->_dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
+        g->dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
         g->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
     if (requests0.size() != 0) {
@@ -5456,12 +5456,12 @@ static void adapt() {
       }
       for (int i = 0; i < flux_right; i++) {
         Info *info = &g->infos[my_blocks - i - 1];
-        g->_dealloc(info->level, info->Z);
+        g->dealloc(info->level, info->Z);
         g->Tree0(info->level, info->Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
         Info *info = &g->infos[i];
-        g->_dealloc(info->level, info->Z);
+        g->dealloc(info->level, info->Z);
         g->Tree0(info->level, info->Z) = left;
       }
       if (request.size() != 0) {
