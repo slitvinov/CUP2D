@@ -1770,7 +1770,6 @@ struct Grid {
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   bool boundary_needed;
-  std::vector<long long> dealloc_IDs;
   Grid(int dim) : dim(dim) {}
   void FillCase(Face *F) {
     Info *info = F->infos[1];
@@ -5009,7 +5008,7 @@ static void adapt() {
                    &requests[0]);
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
-    g->dealloc_IDs.clear();
+    std::vector<long long> dealloc_IDs;
     BlockLab *lab;
     if (dim == 1) {
       lab = new ScalarLab;
@@ -5096,7 +5095,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { g->dealloc_IDs.push_back(g->get(level, Z)->id2); }
+      { dealloc_IDs.push_back(g->get(level, Z)->id2); }
       Info *parent = g->get(level, Z);
       g->Tree1(parent) = -1;
       parent->state = Leave;
@@ -5112,7 +5111,7 @@ static void adapt() {
                 g->Tree0(level + 2, Child->Zchild[i0][i1]) = -2;
         }
     }
-    g->dealloc_many(g->dealloc_IDs);
+    g->dealloc_many(dealloc_IDs);
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
@@ -5190,7 +5189,7 @@ static void adapt() {
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
 
-    g->dealloc_IDs.clear();
+    dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
       const long long Z = n_com[i];
@@ -5247,13 +5246,13 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { g->dealloc_IDs.push_back(g->get(level, n)->id2); }
+            { dealloc_IDs.push_back(g->get(level, n)->id2); }
           }
           g->Tree0(level, n) = -2;
           g->get(level, n)->state = Leave;
         }
     }
-    g->dealloc_many(g->dealloc_IDs);
+    g->dealloc_many(dealloc_IDs);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
     movedBlocks = false;
     long long max_b = block_distribution[0];
