@@ -4206,14 +4206,14 @@ static void ongrid(Real dt) {
                    : ((i == shape->Nm - 1)
                           ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
-      const Real fac1 = 2 * shape->width[i];
-      const Real fac2 =
+      Real fac1 = 2 * shape->width[i];
+      Real fac2 =
           2 * std::pow(shape->width[i], 3) *
           (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
            dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
           3;
-      const Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
-      const Real tmp_M =
+      Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
+      Real tmp_M =
           (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
           (shape->rX[i] * shape->vNorY[i] - shape->rY[i] * shape->vNorX[i] +
            shape->vY[i] * shape->norX[i] - shape->vX[i] * shape->norY[i]) *
@@ -4221,7 +4221,7 @@ static void ongrid(Real dt) {
           (shape->norX[i] * shape->vNorY[i] -
            shape->norY[i] * shape->vNorX[i]) *
               fac3;
-      const Real tmp_J =
+      Real tmp_J =
           (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
           2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
               fac2 +
