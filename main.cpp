@@ -542,8 +542,7 @@ struct CommandlineParser {
       }
   }
   Value &operator()(std::string key) {
-    if (key[0] == '-')
-      key.erase(0, 1);
+    assert(key[0] != '-');
     if (mapArguments.find(key) == mapArguments.end()) {
       fprintf(stderr, "runtime %s is not set\n", key.data());
       abort();
@@ -3867,10 +3866,10 @@ struct Shape {
   Real *vB;
   Shape(CommandlineParser &p, Real C[2])
       : center{C[0], C[1]}, centerOfMass{C[0], C[1]},
-        orientation(p("-angle").asDouble() * M_PI / 180),
-        forcedu(-p("-xvel").asDouble()), forcedv(-p("-yvel").asDouble()),
-        forcedomega(-p("-angvel").asDouble()), length(p("-L").asDouble()),
-        Tperiod(p("-T").asDouble()), phaseShift(p("-phi").asDouble()),
+        orientation(p("angle").asDouble() * M_PI / 180),
+        forcedu(-p("xvel").asDouble()), forcedv(-p("yvel").asDouble()),
+        forcedomega(-p("angvel").asDouble()), length(p("L").asDouble()),
+        Tperiod(p("T").asDouble()), phaseShift(p("phi").asDouble()),
         rK(new Real[Nm]), vK(new Real[Nm]), rC(new Real[Nm]), vC(new Real[Nm]),
         rB(new Real[Nm]), vB(new Real[Nm]), rS(new Real[Nm]), rX(new Real[Nm]),
         rY(new Real[Nm]), vX(new Real[Nm]), vY(new Real[Nm]),
@@ -6470,29 +6469,29 @@ int main(int argc, char **argv) {
       fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
   }
 #endif
-  sim.bpdx = parser("-bpdx").asInt();
-  sim.bpdy = parser("-bpdy").asInt();
-  sim.levelMax = parser("-levelMax").asInt();
-  sim.Rtol = parser("-Rtol").asDouble();
-  sim.Ctol = parser("-Ctol").asDouble();
-  sim.AdaptSteps = parser("-AdaptSteps").asInt();
-  sim.bAdaptChiGradient = parser("-bAdaptChiGradient").asInt();
-  sim.levelStart = parser("-levelStart").asInt();
-  Real extent = parser("-extent").asDouble();
-  sim.dt = parser("-dt").asDouble();
-  sim.CFL = parser("-CFL").asDouble();
-  sim.nsteps = parser("-nsteps").asInt();
-  sim.endTime = parser("-tend").asDouble();
-  sim.lambda = parser("-lambda").asDouble();
-  sim.dlm = parser("-dlm").asDouble();
-  sim.nu = parser("-nu").asDouble();
-  sim.PoissonTol = parser("-poissonTol").asDouble();
-  sim.PoissonTolRel = parser("-poissonTolRel").asDouble();
-  sim.maxPoissonRestarts = parser("-maxPoissonRestarts").asInt();
-  sim.maxPoissonIterations = parser("-maxPoissonIterations").asInt();
-  sim.bMeanConstraint = parser("-bMeanConstraint").asInt();
-  sim.dumpFreq = parser("-fdump").asInt();
-  sim.dumpTime = parser("-tdump").asDouble();
+  sim.bpdx = parser("bpdx").asInt();
+  sim.bpdy = parser("bpdy").asInt();
+  sim.levelMax = parser("levelMax").asInt();
+  sim.Rtol = parser("Rtol").asDouble();
+  sim.Ctol = parser("Ctol").asDouble();
+  sim.AdaptSteps = parser("AdaptSteps").asInt();
+  sim.bAdaptChiGradient = parser("bAdaptChiGradient").asInt();
+  sim.levelStart = parser("levelStart").asInt();
+  Real extent = parser("extent").asDouble();
+  sim.dt = parser("dt").asDouble();
+  sim.CFL = parser("CFL").asDouble();
+  sim.nsteps = parser("nsteps").asInt();
+  sim.endTime = parser("tend").asDouble();
+  sim.lambda = parser("lambda").asDouble();
+  sim.dlm = parser("dlm").asDouble();
+  sim.nu = parser("nu").asDouble();
+  sim.PoissonTol = parser("poissonTol").asDouble();
+  sim.PoissonTolRel = parser("poissonTolRel").asDouble();
+  sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
+  sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
+  sim.bMeanConstraint = parser("bMeanConstraint").asInt();
+  sim.dumpFreq = parser("fdump").asInt();
+  sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
@@ -6545,7 +6544,7 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  std::string shapeArg = parser("-shapes").asString();
+  std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
   while (std::getline(descriptors, lines)) {
@@ -6555,9 +6554,9 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       FactoryFileLineParser p(line_stream);
-      Real center[2] = {p("-xpos").asDouble(), p("-ypos").asDouble()};
+      Real center[2] = {p("xpos").asDouble(), p("ypos").asDouble()};
       Shape *shape = new Shape(p, center);
-      shape->amplitudeFactor = p("-amplitudeFactor").asDouble();
+      shape->amplitudeFactor = p("amplitudeFactor").asDouble();
       shape->rS[0] = 0;
       int k = 0;
       for (int i = 0; i < shape->Nend; ++i, k++)
