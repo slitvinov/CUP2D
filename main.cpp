@@ -3822,15 +3822,10 @@ struct Shape {
   Skin lowerSkin = Skin(Nm);
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;
-  Real lastTact = 0;
-  Real lastCurv = 0;
-  Real oldrCurv = 0;
   Real periodPIDval = 1;
   Real periodPIDdif = 0;
   Real time0 = 0;
   Real timeshift = 0;
-  Real lastTime = 0;
-  Real lastAvel = 0;
   SchedulerVector<6> curvatureScheduler;
   SchedulerLearnWave<7> rlBendingScheduler;
   SchedulerScalar periodScheduler;
