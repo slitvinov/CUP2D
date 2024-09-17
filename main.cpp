@@ -750,21 +750,21 @@ static int &Treef(std::unordered_map<long long, int> *tree, int m,
     return retval->second;
   }
 }
-static void fill(Info *b, int m, long long Z) {
-  b->level = m;
+static void fill(Info *b, int level, long long Z) {
+  b->level = level;
   b->h = sim.h0 / (1 << b->level);
   int i, j;
-  sim.space_curve->inverse(Z, m, &i, &j);
+  sim.space_curve->inverse(Z, level, &i, &j);
   b->origin[0] = i * _BS_ * sim.h0 / (1 << b->level);
   b->origin[1] = j * _BS_ * sim.h0 / (1 << b->level);
   b->Z = Z;
   b->state = Leave;
   b->changed2 = true;
   b->auxiliary = nullptr;
-  const int TwoPower = 1 << b->level;
+  int aux = 1 << b->level;
   sim.space_curve->inverse(b->Z, b->level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
-  const int Bmax[2] = {sim.bpdx * TwoPower, sim.bpdy * TwoPower};
+  const int Bmax[2] = {sim.bpdx * aux, sim.bpdy * aux};
   for (int i = -1; i < 2; i++)
     for (int j = -1; j < 2; j++)
       b->Znei[i + 1][j + 1] = sim.space_curve->forward(
