@@ -6442,16 +6442,15 @@ struct pressure_rhs1 {
     }
   }
 };
+static std::string trim(std::string str) {
+  size_t i = 0, j = str.length();
+  while (i < j && isspace(str[i]))
+    i++;
+  while (j > i && isspace(str[j - 1]))
+    j--;
+  return str.substr(i, j - i);
+}
 struct FactoryFileLineParser : public CommandlineParser {
-  std::string trim(std::string str) {
-    size_t i = 0, j = str.length();
-    while (i < j && isspace(str[i]))
-      i++;
-    while (j > i && isspace(str[j - 1])) {
-        j--;
-    }
-    return str.substr(i, j - i);
-  }
   FactoryFileLineParser(std::istringstream &is_line)
       : CommandlineParser(0, NULL) {
     std::string key, value;
