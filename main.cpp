@@ -3868,7 +3868,6 @@ struct Shape {
         vNorY(new Real[Nm]), width(new Real[Nm]) {}
 };
 struct ComputeSurfaceNormals {
-  ComputeSurfaceNormals(){};
   StencilInfo stencil{-1, -1, 2, 2, false};
   StencilInfo stencil2{-1, -1, 2, 2, false};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info *infoChi,
