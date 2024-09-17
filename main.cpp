@@ -3830,7 +3830,6 @@ struct Shape {
   Real oldrCurv = 0;
   Real periodPIDval = 1;
   Real periodPIDdif = 0;
-  bool TperiodPID = false;
   Real time0 = 0;
   Real timeshift = 0;
   Real lastTime = 0;
