@@ -4706,7 +4706,6 @@ static void adapt() {
   int tmp;
   std::vector<Info *> *halo = &Synch->halo_blocks;
   std::vector<Info *> *infos[2] = {&Synch->inner_blocks, halo};
-  typedef Real ScalarBlock[_BS_][_BS_];
   for (int iii = 0;; iii++) {
     std::vector<Info *> *I = infos[iii];
 #pragma omp parallel
