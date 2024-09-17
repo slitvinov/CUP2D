@@ -4721,9 +4721,9 @@ static void adapt() {
                          : Linf < sim.Ctol ? Compress
                                            : Leave;
         const bool maxLevel =
-            ((*I)[i]->state == Refine) && ((*I)[i]->level == sim.levelMax - 1);
+            (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel =
-            ((*I)[i]->state == Compress) && ((*I)[i]->level == 0);
+            (*I)[i]->state == Compress && (*I)[i]->level == 0;
         if (maxLevel || minLevel)
           (*I)[i]->state = Leave;
         info->state = (*I)[i]->state;
