@@ -3113,8 +3113,8 @@ struct MPI_Block {
 };
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  Synchronizer &Synch = *(g->sync1(kernel.stencil));
-  std::vector<Info *> *inner = &Synch.inner_blocks;
+  Synchronizer *Synch = g->sync1(kernel.stencil);
+  std::vector<Info *> *inner = &Synch->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
 #pragma omp parallel
@@ -3123,16 +3123,16 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(g, &Synch, I, true);
+      lab.load(g, Synch, I, true);
       kernel(lab, I);
     }
     while (done == false) {
 #pragma omp master
-      halo_next = &Synch.avail_next();
+      halo_next = &Synch->avail_next();
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(g, &Synch, I, true);
+        lab.load(g, Synch, I, true);
         kernel(lab, I);
       }
 #pragma omp single
@@ -3142,7 +3142,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
       }
     }
   }
-  MPI_Waitall(Synch.requests.size(), Synch.requests.data(),
+  MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename LabMPI, typename LabMPI2>
