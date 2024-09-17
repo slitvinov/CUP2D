@@ -2230,11 +2230,6 @@ struct Grid {
     const long long n = forward(m, ix, iy);
     return avail(m, n);
   }
-  Info *get0(int m, long long n) {
-    const auto retval = all.find(sim.levels[m] + n);
-    assert(retval != all.end());
-    return retval->second;
-  }
   Info *get(int m, long long n) { return getf(&all, m, n); }
 };
 
