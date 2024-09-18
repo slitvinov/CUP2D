@@ -2257,7 +2257,7 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
 }
 struct BlockLab {
   bool coarsened, istensorial, use_averages;
-  int coarsened_nei_codes_size, end[3], NX, NY, NZ, offset[3], start[3];
+  int coarsened_nei_codes_size, end[3], NX, NY, offset[3], start[3];
   unsigned int nm[2], nc[2];
   Real *m, *c;
   std::array<Real *, 27> myblocks;
@@ -2298,7 +2298,6 @@ struct BlockLab {
     const int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
-    NZ = 1 * aux;
     assert(m != NULL);
     Real *p = info->block;
     Real *u = m;
@@ -2359,7 +2358,7 @@ struct BlockLab {
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
         int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
                                 (info->index[1] + code[1] + NY) % NY,
-                                (info->index[2] + code[2] + NZ) % NZ};
+                                (info->index[2] + code[2] + aux) % aux};
         if (UseCoarseStencil0(info, infoNei_index)) {
           FillCoarseVersion(code);
           coarsened = true;
