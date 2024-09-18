@@ -5460,10 +5460,8 @@ struct KernelAdvectDiffuse {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    assert(afac == 0);
-    assert(dfac == 0);
-    Real *TMP = (Real *)tmpVInfo[info->id].block;
-    Real *um = (Real *)lab.m;
+    Real *TMP = tmpVInfo[info->id].block;
+    Real *um = lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -6346,7 +6344,6 @@ int main(int argc, char **argv) {
   sim.AdaptSteps = parser("AdaptSteps").asInt();
   sim.levelStart = parser("levelStart").asInt();
   Real extent = parser("extent").asDouble();
-  sim.dt = parser("dt").asDouble();
   sim.CFL = parser("CFL").asDouble();
   sim.endTime = parser("tend").asDouble();
   sim.lambda = parser("lambda").asDouble();
@@ -6586,11 +6583,9 @@ int main(int argc, char **argv) {
         umax = std::max(umax, std::fabs(vel[j]));
     }
     MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
-    if (CFL > 0) {
-      Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
-      Real dtAdvection = h / (umax + 1e-8);
-      sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    }
+    Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
+    Real dtAdvection = h / (umax + 1e-8);
+    sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     if (sim.dt <= 0) {
       std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
       fflush(0);

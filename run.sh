@@ -5,7 +5,6 @@ $main \
 -bpdy 1 \
 -CFL 0.5 \
 -Ctol 1 \
--dt 0 \
 -extent 4 \
 -lambda 1e7 \
 -levelMax 8 \
