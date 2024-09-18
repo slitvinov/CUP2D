@@ -2516,16 +2516,14 @@ struct BlockLab {
         continue;
       if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
         continue;
-      int s[2] = {
-        code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-        code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_
-      } int e[2] = {
-        code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-        code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1
-      } int sC[2] = {
-        code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
-        code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2)
-      } int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+      int s[2] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_};
+      int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1};
+      int sC[2] = {
+          code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
+          code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2)};
+      int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
       if (use_averages) {
