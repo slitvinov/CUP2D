@@ -21,4 +21,5 @@ $main \
 -shapes '
   angle=0 L=0.2 xpos=1.8 ypos=0.8
   angle=180 L=0.2 xpos=1.6 ypos=0.8
+  angle=180 L=0.2 xpos=1.6 ypos=0.2
 '
