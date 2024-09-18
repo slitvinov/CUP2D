@@ -553,14 +553,14 @@ struct BlockCase {
   int level;
   long long Z;
 };
-struct StencilInfo {
+struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
-  StencilInfo() {}
-  StencilInfo(int sx, int sy, int ex, int ey, bool tensorial)
+  Stencil() {}
+  Stencil(int sx, int sy, int ex, int ey, bool tensorial)
       : sx(sx), sy(sy), ex(ex), ey(ey), tensorial(tensorial) {}
-  StencilInfo(const StencilInfo &c) = default;
-  bool operator<(StencilInfo s) const {
+  Stencil(const Stencil &c) = default;
+  bool operator<(Stencil s) const {
     int me[] = {sx, sy, ex, ey, tensorial};
     int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
     for (int i = 0; i < sizeof me / sizeof *me; ++i)
@@ -818,11 +818,11 @@ struct Synchronizer {
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
   std::vector<Info *> dummy_vector;
-  const StencilInfo stencil;
+  const Stencil stencil;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(StencilInfo a_stencil, int dim) : dim(dim), stencil(a_stencil) {
+  Synchronizer(Stencil a_stencil, int dim) : dim(dim), stencil(a_stencil) {
     use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                     0 < -2 || stencil.ex > 3 || stencil.ey > 3);
     send_interfaces.resize(sim.size);
@@ -1753,7 +1753,7 @@ struct Grid {
   const int dim;
   size_t timestamp;
   std::map<std::array<long long, 2>, BlockCase *> Map;
-  std::map<StencilInfo, Synchronizer *> Synchronizers;
+  std::map<Stencil, Synchronizer *> Synchronizers;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
   std::vector<BlockCase *> Cases;
@@ -2172,9 +2172,9 @@ struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  Synchronizer *sync1(const StencilInfo &stencil) {
+  Synchronizer *sync1(const Stencil &stencil) {
     Synchronizer *s = nullptr;
-    typename std::map<StencilInfo, Synchronizer *>::iterator itSynchronizerMPI =
+    typename std::map<Stencil, Synchronizer *>::iterator itSynchronizerMPI =
         Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
@@ -2271,7 +2271,7 @@ struct BlockLab {
     free(m);
     free(c);
   }
-  void prepare(const StencilInfo &stencil) {
+  void prepare(const Stencil &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
     start[0] = stencil.sx;
@@ -3117,8 +3117,8 @@ static void computeB(const Kernel &&kernel, Grid *grid, Grid *grid2) {
   kernel2.stencil.ey = kernel2.stencil2.ey;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   Synchronizer *Synch2 = grid2->sync1(kernel2.stencil);
-  const StencilInfo &stencil = Synch->stencil;
-  const StencilInfo &stencil2 = Synch2->stencil;
+  const Stencil &stencil = Synch->stencil;
+  const Stencil &stencil2 = Synch2->stencil;
   std::vector<Info> &blk = grid->infos;
   std::vector<bool> ready(blk.size(), false);
   std::vector<Info *> &avail0 = Synch->inner_blocks;
@@ -3379,7 +3379,7 @@ struct ObstacleBlock {
 };
 struct KernelVorticity {
   const std::vector<Info> &tmpInfo = var.tmp->infos;
-  const StencilInfo stencil{-1, -1, 2, 2, false};
+  const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const Info *info) const {
     Real *um = (Real *)lab.m;
     const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
@@ -3810,8 +3810,8 @@ struct Shape {
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
-  StencilInfo stencil{-1, -1, 2, 2, false};
-  StencilInfo stencil2{-1, -1, 2, 2, false};
+  Stencil stencil{-1, -1, 2, 2, false};
+  Stencil stencil2{-1, -1, 2, 2, false};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info *infoChi,
                   const Info *infoSDF) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3947,7 +3947,7 @@ struct AreaSegment {
   }
 };
 struct PutChiOnGrid {
-  StencilInfo stencil{-1, -1, 2, 2, false};
+  Stencil stencil{-1, -1, 2, 2, false};
   std::vector<Info> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const Info *info) const {
     Real *um = (Real *)lab.m;
@@ -4669,7 +4669,7 @@ static void ongrid(Real dt) {
 }
 struct GradChiOnTmp {
   GradChiOnTmp() {}
-  const StencilInfo stencil{-4, -4, 5, 5, true};
+  const Stencil stencil{-4, -4, 5, 5, true};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab &lab, const Info *info) const {
     auto &TMP = *(ScalarBlock *)tmpInfo[info->id].block;
@@ -4698,7 +4698,7 @@ static void adapt() {
   computeA<VectorLab>(KernelVorticity(), var.vel, 2);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp->boundary_needed = true;
-  StencilInfo stencil{-1, -1, 2, 2, true};
+  Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch = var.tmp->sync1(stencil);
   bool CallValidStates = false;
   bool Reduction = false;
@@ -4948,7 +4948,7 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     Synchronizer *Synch = nullptr;
-    const StencilInfo stencil{-1, -1, 2, 2, true};
+    const Stencil stencil{-1, -1, 2, 2, true};
     if (basic == false) {
       Synch = g->sync1(stencil);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
@@ -5479,7 +5479,7 @@ static void adapt() {
   }
 }
 struct KernelAdvectDiffuse {
-  StencilInfo stencil{-3, -3, 4, 4, true};
+  Stencil stencil{-3, -3, 4, 4, true};
   std::vector<Info> &tmpVInfo = var.tmpV->infos;
   void operator()(VectorLab &lab, Info *info) {
     Real h = info->h;
@@ -5613,8 +5613,8 @@ struct KernelAdvectDiffuse {
 struct KernelComputeForces {
   const int big = 5;
   const int small = -4;
-  StencilInfo stencil{small, small, big, big, true};
-  StencilInfo stencil2{small, small, big, big, true};
+  Stencil stencil{small, small, big, big, true};
+  Stencil stencil2{small, small, big, big, true};
   const int bigg = _BS_ + big - 1;
   const Real c0 = -137. / 60.;
   const Real c1 = 5.;
@@ -6088,7 +6088,7 @@ struct Solver {
   }
 };
 struct pressureCorrectionKernel {
-  const StencilInfo stencil{-1, -1, 2, 2, false};
+  const Stencil stencil{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const Info *info) const {
     Real *um = (Real *)P.m;
@@ -6173,8 +6173,8 @@ struct pressureCorrectionKernel {
 };
 struct pressure_rhs {
   pressure_rhs(){};
-  StencilInfo stencil{-1, -1, 2, 2, false};
-  StencilInfo stencil2{-1, -1, 2, 2, false};
+  Stencil stencil{-1, -1, 2, 2, false};
+  Stencil stencil2{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   const std::vector<Info> &chiInfo = var.chi->infos;
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
@@ -6277,7 +6277,7 @@ struct pressure_rhs {
 };
 struct pressure_rhs1 {
   pressure_rhs1() {}
-  StencilInfo stencil{-1, -1, 2, 2, false};
+  Stencil stencil{-1, -1, 2, 2, false};
   void operator()(ScalarLab &lab, const Info *info) const {
     Real *um = (Real *)lab.m;
     Real *TMP = (Real *)var.tmp->infos[info->id].block;
