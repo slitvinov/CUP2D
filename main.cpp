@@ -5460,6 +5460,8 @@ struct KernelAdvectDiffuse {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
+    assert(afac == 0);
+    assert(dfac == 0);
     Real *TMP = (Real *)tmpVInfo[info->id].block;
     Real *um = (Real *)lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
