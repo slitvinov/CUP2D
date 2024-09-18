@@ -1832,13 +1832,11 @@ struct Grid {
     for (auto &info : infos) {
       get(info.level, info.Z)->auxiliary = nullptr;
       info.auxiliary = nullptr;
-      const int aux = 1 << info.level;
-      const bool xskin =
-          info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-      const bool yskin =
-          info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      const int xskip = info.index[0] == 0 ? -1 : 1;
-      const int yskip = info.index[1] == 0 ? -1 : 1;
+      int aux = 1 << info.level;
+      bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+      bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+      int xskip = info.index[0] == 0 ? -1 : 1;
+      int yskip = info.index[1] == 0 ? -1 : 1;
 
       bool storeFace[4] = {false, false, false, false};
       bool stored = false;
