@@ -4781,11 +4781,11 @@ static void adapt() {
                       -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
-                      (var.tmp->get(info->level, info->Z))->state = Leave;
+                      var.tmp->get(info->level, info->Z)->state = Leave;
                     }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
-                      int aux = (abs(x) == 1) ? (B % 2) : (B / 2);
+                      int aux = abs(x) == 1 ? B % 2 : B / 2;
                       int iNei = 2 * info->index[0] + std::max(x, 0) + x +
                                  (B % 2) * std::max(0, 1 - abs(x));
                       int jNei = 2 * info->index[1] + std::max(y, 0) + y +
