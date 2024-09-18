@@ -876,7 +876,7 @@ struct Synchronizer {
         int Cindex_true[3];
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
-        int CoarseEdge[3];
+        int CoarseEdge[2];
         CoarseEdge[0] = code[0] == 0
                             ? 0
                             : ((f->infos[1]->index[0] % 2 == 0) &&
@@ -893,7 +893,6 @@ struct Synchronizer {
                                        (Cindex_true[1] < f->infos[1]->index[1]))
                                   ? 1
                                   : 0;
-        CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                           code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -4789,7 +4788,7 @@ static void adapt() {
                 info->state = Leave;
                 (var.tmp->get(info->level, info->Z))->state = Leave;
               }
-              int tmp = abs(code[0]) + abs(code[1]) + abs(code[2]);
+              int tmp = abs(code[0]) + abs(code[1]);
               int Bstep = 1;
               if (tmp == 2)
                 Bstep = 3;
