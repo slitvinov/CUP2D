@@ -489,7 +489,7 @@ struct Value {
   std::string content;
   Value() = default;
   Value(const std::string &content_) : content(content_) {}
-  Real asDouble() { return (Real)atof(content.c_str()); }
+  Real asDouble() { return atof(content.c_str()); }
   int asInt() { return atoi(content.c_str()); }
   std::string asString() { return content; }
 };
@@ -1735,7 +1735,7 @@ struct Grid {
     auto search = Map.find(temp);
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
-    Real *CoarseFace = (Real *)CoarseCase.d[myFace];
+    Real *CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
       int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
       long long Z =
@@ -1782,7 +1782,7 @@ struct Grid {
     auto search = Map.find(temp);
     assert(search != Map.end());
     BlockCase &CoarseCase = (*search->second);
-    Real *CoarseFace = (Real *)CoarseCase.d[myFace];
+    Real *CoarseFace = CoarseCase.d[myFace];
     Real *block = info->block;
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -1947,7 +1947,7 @@ struct Grid {
         int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2);
-        Real *FineFace = (Real *)FineCase.d[myFace];
+        Real *FineFace = FineCase.d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
@@ -2375,7 +2375,7 @@ struct BlockLab {
                                       : _BS_ + sync->stencil.ey - 1,
                           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
-          Real *dst = (Real *)m + ((s[2] - 0) * nm[0] * nm[1] +
+          Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
                                    (s[1] - sync->stencil.sy) * nm[0] + s[0] -
                                    sync->stencil.sx) *
                                       dim;
@@ -2392,7 +2392,7 @@ struct BlockLab {
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
                 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
             Real *dst1 =
-                (Real *)c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
+                c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                 dim;
             int L[3];
@@ -2414,7 +2414,7 @@ struct BlockLab {
               code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
               code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
               code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-          Real *dst = (Real *)c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
+          Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                                    offset[0] + (sC[1] - offset[1]) * nc[0]) *
                                       dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
@@ -2451,7 +2451,7 @@ struct BlockLab {
           }
           const int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
           Real *dst =
-              (Real *)m +
+              m +
               ((abs(code[2]) * (s[2] - 0) +
                 (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
                    nm[0] * nm[1] +
@@ -3253,7 +3253,7 @@ struct ScalarLab : public BlockLab {
       bsize[0] = _BS_ / 2;
       bsize[1] = _BS_ / 2;
     }
-    Real *cb = coarse ? (Real *)this->c : (Real *)this->m;
+    Real *cb = coarse ? this->c : this->m;
     const unsigned int *n = coarse ? this->nc : this->nm;
     int s[2];
     int e[2];
@@ -3368,7 +3368,7 @@ struct KernelVorticity {
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab &lab, const Info *info) const {
-    Real *um = (Real *)lab.m;
+    Real *um = lab.m;
     const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
     Real *TMP = tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3802,8 +3802,8 @@ struct ComputeSurfaceNormals {
   void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info *infoChi,
                   const Info *infoSDF) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *um0 = (Real *)labChi.m;
-    Real *um1 = (Real *)labSDF.m;
+    Real *um0 = labChi.m;
+    Real *um1 = labSDF.m;
     for (const auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi->id] == nullptr)
@@ -3937,7 +3937,7 @@ struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   std::vector<Info> &chiInfo = var.chi->infos;
   void operator()(ScalarLab &lab, const Info *info) const {
-    Real *um = (Real *)lab.m;
+    Real *um = lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
