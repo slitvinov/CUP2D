@@ -1851,8 +1851,7 @@ struct Grid {
           continue;
         if (!(Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >= 0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
-                    abs(code[1]) * (std::max(0, code[1]) + 2) +
-                    abs(code[2]) * (std::max(0, code[2]) + 4)] = true;
+                    abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
           stored = true;
         }
         int L[3];
@@ -1864,14 +1863,11 @@ struct Grid {
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = get(info.level - 1, nCoarse);
           const int infoNeiCoarserrank = Tree0(info.level - 1, nCoarse);
-          {
-            int code2[3] = {-code[0], -code[1], -code[2]};
-            int icode2 =
-                (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
-            send_faces[infoNeiCoarserrank].push_back(
-                Face(&info, infoNeiCoarser, icode[f], icode2));
-            send_buffer_size[infoNeiCoarserrank] += V;
-          }
+          int code2[3] = {-code[0], -code[1], -code[2]};
+          int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
+          send_faces[infoNeiCoarserrank].push_back(
+              Face(&info, infoNeiCoarser, icode[f], icode2));
+          send_buffer_size[infoNeiCoarserrank] += V;
         } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
                    -1) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
@@ -1884,14 +1880,12 @@ struct Grid {
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
-            {
-              Info *infoNeiFiner = get(infoNei->level + 1, nFine);
-              int icode2 =
-                  (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-              recv_faces[infoNeiFinerrank].push_back(
-                  Face(infoNeiFiner, &info, icode2, icode[f]));
-              recv_buffer_size[infoNeiFinerrank] += V;
-            }
+            Info *infoNeiFiner = get(infoNei->level + 1, nFine);
+            int icode2 =
+                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+            recv_faces[infoNeiFinerrank].push_back(
+                Face(infoNeiFiner, &info, icode2, icode[f]));
+            recv_buffer_size[infoNeiFinerrank] += V;
           }
         }
       }
