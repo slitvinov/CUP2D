@@ -2172,14 +2172,14 @@ struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  Synchronizer *sync1(const Stencil &stencil) {
+  Synchronizer *sync1(const Stencil &sten) {
     Synchronizer *s = nullptr;
     typename std::map<Stencil, Synchronizer *>::iterator itSynchronizerMPI =
-        Synchronizers.find(stencil);
+        Synchronizers.find(sten);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      s = new Synchronizer(stencil, dim);
+      s = new Synchronizer(sten, dim);
       s->Setup(&tree, &all, &infos);
-      Synchronizers[stencil] = s;
+      Synchronizers[sten] = s;
     } else {
       s = itSynchronizerMPI->second;
     }
