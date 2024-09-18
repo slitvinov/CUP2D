@@ -6586,11 +6586,6 @@ int main(int argc, char **argv) {
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
     Real dtAdvection = h / (umax + 1e-8);
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    if (sim.dt <= 0) {
-      std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
-      fflush(0);
-      abort();
-    }
     bool done = false;
     if (!done || sim.dt > 2e-16) {
       if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
