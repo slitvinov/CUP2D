@@ -5233,9 +5233,9 @@ static void adapt() {
       for (int r = 1; r < sim.size; r++)
         index_start[r] = index_start[r - 1] + block_distribution[r - 1];
       long long ideal_index = (total_load / sim.size) * sim.rank;
-      ideal_index += (sim.rank < (total_load % sim.size))
+      ideal_index += sim.rank < (total_load % sim.size)
                          ? sim.rank
-                         : (total_load % sim.size);
+                         : total_load % sim.size;
       std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
       std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
       for (int r = 0; r < sim.size; r++)
