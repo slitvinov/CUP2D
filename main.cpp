@@ -2173,9 +2173,8 @@ struct Grid {
         }
   };
   Synchronizer *sync1(const Stencil &sten) {
-    Synchronizer *s = nullptr;
-    typename std::map<Stencil, Synchronizer *>::iterator itSynchronizerMPI =
-        Synchronizers.find(sten);
+    Synchronizer *s;
+    auto itSynchronizerMPI = Synchronizers.find(sten);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(sten, dim);
       s->Setup(&tree, &all, &infos);
