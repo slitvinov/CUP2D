@@ -822,7 +822,7 @@ struct Synchronizer {
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(Stencil a_stencil, int dim) : dim(dim), stencil(a_stencil) {}
+  Synchronizer(Stencil stencil, int dim) : dim(dim), stencil(stencil) {}
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
