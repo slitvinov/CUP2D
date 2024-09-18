@@ -823,13 +823,13 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil, int dim) : dim(dim), stencil(stencil) {}
-  void CoarseStencilLength(const int icode, int *L) const {
+  void CoarseStencilLength(int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
     L[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
-  void DetermineStencilLength(const int level_sender, const int level_receiver,
-                              const int icode, int *L) {
+  void DetermineStencilLength(int level_sender, int level_receiver, int icode,
+                              int *L) {
     if (level_sender == level_receiver) {
       L[0] = sLength[3 * icode + 0];
       L[1] = sLength[3 * icode + 1];
@@ -865,14 +865,14 @@ struct Synchronizer {
             code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
                         : _BS_ / 2,
             code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
-        const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + stencil.ex / 2 + 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + stencil.ey / 2 + 1,
-                          code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
-        const int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
-                             (f->infos[1]->index[1] + code[1]) % 2,
-                             (f->infos[1]->index[2] + code[2]) % 2};
+        int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                : _BS_ / 2 + stencil.ex / 2 + 1,
+                    code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                : _BS_ / 2 + stencil.ey / 2 + 1,
+                    code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
+        int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
+                       (f->infos[1]->index[1] + code[1]) % 2,
+                       (f->infos[1]->index[2] + code[2]) % 2};
         int Cindex_true[3];
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
@@ -1183,8 +1183,8 @@ struct Synchronizer {
             if (!(a->level == 0 || !use_averages)) {
               int imin[2];
               int imax[2];
-              const int aux = 1 << a->level;
-              const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
+              int aux = 1 << a->level;
+              int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
               for (int d = 0; d < 2; d++) {
                 imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
                 imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
@@ -1275,7 +1275,7 @@ struct Synchronizer {
         counter = j;
         std::vector<Interface> &f = recv_interfaces[r];
         int &total_size = recv_buffer_size[r];
-        const int otherrank = r;
+        int otherrank = r;
         bool skip_needed = false;
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
@@ -1337,7 +1337,7 @@ struct Synchronizer {
           offsets_recv[otherrank] += V * dim;
           myunpacks[f[k].infos[1]->halo_id].push_back(info);
           for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
-            const int remEl1 = i->removed[kk];
+            int remEl1 = i->removed[kk];
             DetermineStencilLength(f[remEl1].infos[0]->level,
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
