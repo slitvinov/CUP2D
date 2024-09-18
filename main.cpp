@@ -6547,8 +6547,8 @@ int main(int argc, char **argv) {
         continue;
       Real *udef = (Real *)OBLOCK[var.tmpV->infos[i].id]->udef;
       Real *chi = (Real *)OBLOCK[var.tmpV->infos[i].id]->chi;
-      Real *UDEF = (Real *)var.tmpV->infos[i].block;
-      Real *CHI = (Real *)var.chi->infos[i].block;
+      Real *UDEF = var.tmpV->infos[i].block;
+      Real *CHI = var.chi->infos[i].block;
       for (int j = 0; j < _BS_ * _BS_; j++) {
         if (chi[j] < CHI[j])
           continue;
@@ -6560,8 +6560,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < velInfo.size(); i++) {
     Real *UF = (Real *)velInfo[i].block;
-    Real *US = (Real *)var.tmpV->infos[i].block;
-    Real *X = (Real *)var.chi->infos[i].block;
+    Real *US = var.tmpV->infos[i].block;
+    Real *X = var.chi->infos[i].block;
     for (int j = 0; j < _BS_ * _BS_; j++) {
       UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
@@ -6616,8 +6616,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = (Real *)velInfo[i].block;
-        Real *Vold = (Real *)var.vold->infos[i].block;
-        Real *tmpV = (Real *)var.tmpV->infos[i].block;
+        Real *Vold = var.vold->infos[i].block;
+        Real *tmpV = var.tmpV->infos[i].block;
         Real ih2 = 0.5 / (velInfo[i].h * velInfo[i].h);
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
@@ -6627,9 +6627,9 @@ int main(int argc, char **argv) {
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        Real *V = (Real *)velInfo[i].block;
-        Real *Vold = (Real *)var.vold->infos[i].block;
-        Real *tmpV = (Real *)var.tmpV->infos[i].block;
+        Real *V = velInfo[i].block;
+        Real *Vold = var.vold->infos[i].block;
+        Real *tmpV = var.tmpV->infos[i].block;
         Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
@@ -6641,7 +6641,7 @@ int main(int argc, char **argv) {
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
         for (size_t i = 0; i < velInfo.size(); i++) {
-          const Real *VEL = (Real *)velInfo[i].block;
+          const Real *VEL = velInfo[i].block;
           const Real hsq = velInfo[i].h * velInfo[i].h;
           if (OBLOCK[velInfo[i].id] == nullptr)
             continue;
@@ -6950,8 +6950,8 @@ int main(int argc, char **argv) {
           Real Cy = shape->centerOfMass[1];
           Real *X = (Real *)o->chi;
           Real *UDEF = (Real *)o->udef;
-          Real *CHI = (Real *)chiInfo[i].block;
-          Real *V = (Real *)velInfo[i].block;
+          Real *CHI = chiInfo[i].block;
+          Real *V = velInfo[i].block;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               int j = _BS_ * iy + ix;
@@ -7167,8 +7167,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-        Real *V = (Real *)velInfo[i].block;
-        Real *tmpV = (Real *)tmpVInfo[i].block;
+        Real *V = velInfo[i].block;
+        Real *tmpV = tmpVInfo[i].block;
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] += tmpV[j] * ih2;
       }
