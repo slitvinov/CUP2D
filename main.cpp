@@ -877,22 +877,20 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0
-                            ? 0
-                            : ((f->infos[1]->index[0] % 2 == 0) &&
-                               (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                      ((f->infos[1]->index[0] % 2 == 1) &&
-                                       (Cindex_true[0] < f->infos[1]->index[0]))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = code[1] == 0
-                            ? 0
-                            : ((f->infos[1]->index[1] % 2 == 0) &&
-                               (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                      ((f->infos[1]->index[1] % 2 == 1) &&
-                                       (Cindex_true[1] < f->infos[1]->index[1]))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : ((f->infos[1]->index[0] % 2 == 0) &&
+                           (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                ((f->infos[1]->index[0] % 2 == 1) &&
+                                 (Cindex_true[0] < f->infos[1]->index[0]))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : ((f->infos[1]->index[1] % 2 == 0) &&
+                           (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                ((f->infos[1]->index[1] % 2 == 1) &&
+                                 (Cindex_true[1] < f->infos[1]->index[1]))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                           code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -2376,9 +2374,9 @@ struct BlockLab {
                           code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
           Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
-                                   (s[1] - sync->stencil.sy) * nm[0] + s[0] -
-                                   sync->stencil.sx) *
-                                      dim;
+                           (s[1] - sync->stencil.sy) * nm[0] + s[0] -
+                           sync->stencil.sx) *
+                              dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
@@ -2391,10 +2389,9 @@ struct BlockLab {
                 code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
                 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
                 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-            Real *dst1 =
-                c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
-                             (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
-                                dim;
+            Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
+                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
+                                 dim;
             int L[3];
             sync->CoarseStencilLength(
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
@@ -2415,8 +2412,8 @@ struct BlockLab {
               code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
               code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
           Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
-                                   offset[0] + (sC[1] - offset[1]) * nc[0]) *
-                                      dim;
+                           offset[0] + (sC[1] - offset[1]) * nc[0]) *
+                              dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
@@ -2451,18 +2448,17 @@ struct BlockLab {
           }
           const int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
           Real *dst =
-              m +
-              ((abs(code[2]) * (s[2] - 0) +
-                (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
-                   nm[0] * nm[1] +
-               (abs(code[1]) * (s[1] - sync->stencil.sy) +
-                (1 - abs(code[1])) *
-                    (-sync->stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
-                   nm[0] +
-               abs(code[0]) * (s[0] - sync->stencil.sx) +
-               (1 - abs(code[0])) *
-                   (-sync->stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
-                  dim;
+              m + ((abs(code[2]) * (s[2] - 0) +
+                    (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
+                       nm[0] * nm[1] +
+                   (abs(code[1]) * (s[1] - sync->stencil.sy) +
+                    (1 - abs(code[1])) *
+                        (-sync->stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
+                       nm[0] +
+                   abs(code[0]) * (s[0] - sync->stencil.sx) +
+                   (1 - abs(code[0])) *
+                       (-sync->stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
+                      dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->srczstart, unpack->LX, unpack->LY, 0, 0, 0,
@@ -2939,22 +2935,20 @@ struct BlockLab {
     int base[2] = {(info->index[0] + code[0]) % 2,
                    (info->index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0)
-                        ? 0
-                        : (((info->index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info->index[0])) ||
-                           ((info->index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info->index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = (code[1] == 0)
-                        ? 0
-                        : (((info->index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info->index[1])) ||
-                           ((info->index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info->index[1])))
-                              ? 1
-                              : 0;
+    CoarseEdge[0] = code[0] == 0 ? 0
+                    : (((info->index[0] % 2 == 0) &&
+                        (infoNei_index_true[0] > info->index[0])) ||
+                       ((info->index[0] % 2 == 1) &&
+                        (infoNei_index_true[0] < info->index[0])))
+                        ? 1
+                        : 0;
+    CoarseEdge[1] = code[1] == 0 ? 0
+                    : (((info->index[1] % 2 == 0) &&
+                        (infoNei_index_true[1] > info->index[1])) ||
+                       ((info->index[1] % 2 == 1) &&
+                        (infoNei_index_true[1] < info->index[1])))
+                        ? 1
+                        : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4704,8 +4698,9 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state =
-            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
+        (*I)[i]->state = Linf > sim.Rtol   ? Refine
+                         : Linf < sim.Ctol ? Compress
+                                           : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -4985,7 +4980,7 @@ static void adapt() {
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
-      void *Blocks[4];
+      Real *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
@@ -5002,9 +4997,8 @@ static void adapt() {
         Real *um = lab->m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            void *bb = Blocks[J * 2 + I];
-            Real *b = (Real *)bb;
-            memset(bb, 0, dim * _BS_ * _BS_ * sizeof(Real));
+            Real *b = Blocks[J * 2 + I];
+            memset(b, 0, dim * _BS_ * _BS_ * sizeof(Real));
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
                 int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
@@ -5154,7 +5148,7 @@ static void adapt() {
       assert(level > 0);
       Info *info = g->get(level, Z);
       assert(info->state == Compress);
-      void *Blocks[4];
+      Real *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const int blk = J * 2 + I;
@@ -5167,7 +5161,7 @@ static void adapt() {
       if (basic == false)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *b = (Real *)Blocks[J * 2 + I];
+            Real *b = Blocks[J * 2 + I];
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
                 int i00 = _BS_ * j + i;
@@ -6463,14 +6457,12 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb
-                  ? std::sqrt(2 * wh * shape->rS[i] -
-                              shape->rS[i] * shape->rS[i])
-                  : shape->rS[i] < st
-                        ? wh - (wh - wt) *
-                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                        : wt * (shape->length - shape->rS[i]) /
-                              (shape->length - st);
+              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
+                                            shape->rS[i] * shape->rS[i])
+              : shape->rS[i] < st
+                  ? wh -
+                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
@@ -6519,9 +6511,9 @@ int main(int argc, char **argv) {
       for (int k(0); k < _BS_ * _BS_; k++)
         aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * _BS_ * _BS_ + j] = -aux;
-    }
-  ;
-  sim.solver->mat = std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
+    };
+  sim.solver->mat =
+      std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
