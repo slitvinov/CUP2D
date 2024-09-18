@@ -1855,8 +1855,8 @@ struct Grid {
           stored = true;
         }
         int L[3];
-        L[0] = (code[0] == 0) ? _BS_ / 2 : 1;
-        L[1] = (code[1] == 0) ? _BS_ / 2 : 1;
+        L[0] = code[0] == 0 ? _BS_ / 2 : 1;
+        L[1] = code[1] == 0 ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
         if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
@@ -2503,7 +2503,6 @@ struct BlockLab {
     bool yskin = info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
     int xskip = info->index[0] == 0 ? -1 : 1;
     int yskip = info->index[1] == 0 ? -1 : 1;
-
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
