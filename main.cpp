@@ -822,18 +822,7 @@ struct Synchronizer {
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(Stencil a_stencil, int dim) : dim(dim), stencil(a_stencil) {
-    use_averages = (stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-                    0 < -2 || stencil.ex > 3 || stencil.ey > 3);
-    send_interfaces.resize(sim.size);
-    recv_interfaces.resize(sim.size);
-    send_packinfos.resize(sim.size);
-    send_buffer_size.resize(sim.size);
-    recv_buffer_size.resize(sim.size);
-    send_buffer.resize(sim.size);
-    recv_buffer.resize(sim.size);
-    ToBeAveragedDown.resize(sim.size);
-  }
+  Synchronizer(Stencil a_stencil, int dim) : dim(dim), stencil(a_stencil) {}
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
@@ -2148,6 +2137,16 @@ struct Grid {
     auto itSynchronizerMPI = Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
+      s->use_averages = stencil.tensorial || stencil.sx < -2 ||
+                        stencil.sy < -2 || stencil.ex > 3 || stencil.ey > 3;
+      s->send_interfaces.resize(sim.size);
+      s->recv_interfaces.resize(sim.size);
+      s->send_packinfos.resize(sim.size);
+      s->send_buffer_size.resize(sim.size);
+      s->recv_buffer_size.resize(sim.size);
+      s->send_buffer.resize(sim.size);
+      s->recv_buffer.resize(sim.size);
+      s->ToBeAveragedDown.resize(sim.size);
       const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                          (0 - 1) / 2 + 0};
       const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
