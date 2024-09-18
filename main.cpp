@@ -4770,49 +4770,40 @@ static void adapt() {
           int yskip = info->index[1] == 0 ? -1 : 1;
 
           if (info->state != Refine)
-            for (int icode = 0; icode < 27; icode++) {
-              if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-                continue;
-              int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
-              if (code[0] == xskip && xskin)
-                continue;
-              if (code[1] == yskip && yskin)
-                continue;
-              if (code[2] != 0)
-                continue;
-              if (var.tmp->Tree0(info->level,
-                                 info->Znei[1 + code[0]][1 + code[1]]) == -1) {
-                if (info->state == Compress) {
-                  info->state = Leave;
-                  (var.tmp->get(info->level, info->Z))->state = Leave;
-                }
-                int tmp = abs(code[0]) + abs(code[1]);
-                int Bstep = 1;
-                if (tmp == 2)
-                  Bstep = 3;
-                else if (tmp == 3)
-                  Bstep = 4;
-                for (int B = 0; B <= 1; B += Bstep) {
-                  int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-                  int iNei = 2 * info->index[0] + std::max(code[0], 0) +
-                             code[0] + (B % 2) * std::max(0, 1 - abs(code[0]));
-                  int jNei = 2 * info->index[1] + std::max(code[1], 0) +
-                             code[1] + aux * std::max(0, 1 - abs(code[1]));
-                  long long zzz = forward(m + 1, iNei, jNei);
-                  Info *FinerNei = var.tmp->get(m + 1, zzz);
-                  State NeiState = FinerNei->state;
-                  if (NeiState == Refine) {
-                    info->state = Refine;
-                    (var.tmp->get(info->level, info->Z))->state = Refine;
-                    info->changed2 = true;
-                    (var.tmp->get(info->level, info->Z))->changed2 = true;
-                    break;
+            for (int x = -1; x < 2; x++)
+              for (int y = -1; y < 2; y++)
+                if (x != 0 || y != 0) {
+                  if (x == xskip && xskin)
+                    continue;
+                  if (y == yskip && yskin)
+                    continue;
+                  if (var.tmp->Tree0(info->level, info->Znei[1 + x][1 + y]) ==
+                      -1) {
+                    if (info->state == Compress) {
+                      info->state = Leave;
+                      (var.tmp->get(info->level, info->Z))->state = Leave;
+                    }
+                    int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
+                    for (int B = 0; B <= 1; B += Bstep) {
+                      int aux = (abs(x) == 1) ? (B % 2) : (B / 2);
+                      int iNei = 2 * info->index[0] + std::max(x, 0) + x +
+                                 (B % 2) * std::max(0, 1 - abs(x));
+                      int jNei = 2 * info->index[1] + std::max(y, 0) + y +
+                                 aux * std::max(0, 1 - abs(y));
+                      long long zzz = forward(m + 1, iNei, jNei);
+                      Info *FinerNei = var.tmp->get(m + 1, zzz);
+                      State NeiState = FinerNei->state;
+                      if (NeiState == Refine) {
+                        info->state = Refine;
+                        (var.tmp->get(info->level, info->Z))->state = Refine;
+                        info->changed2 = true;
+                        (var.tmp->get(info->level, info->Z))->changed2 = true;
+                        goto end;
+                      }
+                    }
                   }
                 }
-              }
-            }
-	end: ;
+        end:;
         }
       }
       var.tmp->UpdateBoundary(clean_boundary);
