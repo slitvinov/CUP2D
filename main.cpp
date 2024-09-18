@@ -3094,7 +3094,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
               MPI_STATUSES_IGNORE);
 }
-template <typename Kernel, typename LabMPI, typename LabMPI2>
+template <typename Kernel, typename Lab, typename Lab2>
 static void computeB(const Kernel &&kernel, Grid *grid, Grid *grid2) {
   Synchronizer *Synch = grid->sync1(kernel.stencil);
   Kernel kernel2 = kernel;
@@ -3115,8 +3115,8 @@ static void computeB(const Kernel &&kernel, Grid *grid, Grid *grid2) {
   std::vector<Info *> avail12;
 #pragma omp parallel
   {
-    LabMPI lab;
-    LabMPI2 lab2;
+    Lab lab;
+    Lab2 lab2;
     lab.prepare(stencil);
     lab2.prepare(stencil2);
 #pragma omp for
