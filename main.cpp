@@ -617,11 +617,11 @@ struct Range {
     int Vr = (r->ey - r->sy) * (r->ex - r->sx);
     return sx <= r->sx && r->ex <= ex && sy <= r->sy && r->ey <= ey && Vr < V;
   }
-  void remove(const Range &other) {
+  void remove(const Range *other) {
     size_t s = removed.size();
-    removed.resize(s + other.removed.size());
-    for (size_t i = 0; i < other.removed.size(); i++)
-      removed[s + i] = other.removed[i];
+    removed.resize(s + other->removed.size());
+    for (size_t i = 0; i < other->removed.size(); i++)
+      removed[s + i] = other->removed[i];
   }
 };
 struct UnPackInfo {
@@ -687,7 +687,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
             if (me[j2].needed && me[j2].contains(&me[j1])) {
               me[j1].needed = false;
               me[j2].removed.push_back(me[j1].index);
-              me[j2].remove(me[j1]);
+              me[j2].remove(&me[j1]);
               v.push_back(me[j1].index);
               break;
             }
@@ -714,7 +714,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
                   if (m.needed && m.contains(&o)) {
                     o.needed = false;
                     m.removed.push_back(o.index);
-                    m.remove(o);
+                    m.remove(&o);
                     v.push_back(o.index);
                     break;
                   }
@@ -4722,8 +4722,7 @@ static void adapt() {
                                            : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
-        const bool minLevel =
-            (*I)[i]->state == Compress && (*I)[i]->level == 0;
+        const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
         if (maxLevel || minLevel)
           (*I)[i]->state = Leave;
         info->state = (*I)[i]->state;
