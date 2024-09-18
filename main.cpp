@@ -833,37 +833,6 @@ struct Synchronizer {
     send_buffer.resize(sim.size);
     recv_buffer.resize(sim.size);
     ToBeAveragedDown.resize(sim.size);
-    const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-                       (0 - 1) / 2 + 0};
-    const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
-    for (int icode = 0; icode < 27; icode++) {
-      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                           (icode / 9) % 3 - 1};
-      Range &range0 = AllStencils[icode];
-      range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
-      range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
-      range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
-      range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
-      sLength[3 * icode + 0] = range0.ex - range0.sx;
-      sLength[3 * icode + 1] = range0.ey - range0.sy;
-      sLength[3 * icode + 2] = range0.ez - range0.sz;
-      Range &range1 = AllStencils[icode + 27];
-      range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
-      range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
-      range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
-      range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
-      sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
-      sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
-      sLength[3 * (icode + 27) + 2] = 1;
-      Range &range2 = AllStencils[icode + 2 * 27];
-      range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
-      range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
-      range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
-      range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
-      sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
-      sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
-      sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
-    }
   }
   void CoarseStencilLength(const int icode, int *L) const {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
@@ -919,20 +888,22 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[3];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : ((f->infos[1]->index[0] % 2 == 0) &&
-                           (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                ((f->infos[1]->index[0] % 2 == 1) &&
-                                 (Cindex_true[0] < f->infos[1]->index[0]))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : ((f->infos[1]->index[1] % 2 == 0) &&
-                           (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                ((f->infos[1]->index[1] % 2 == 1) &&
-                                 (Cindex_true[1] < f->infos[1]->index[1]))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = code[0] == 0
+                            ? 0
+                            : ((f->infos[1]->index[0] % 2 == 0) &&
+                               (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                      ((f->infos[1]->index[0] % 2 == 1) &&
+                                       (Cindex_true[0] < f->infos[1]->index[0]))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = code[1] == 0
+                            ? 0
+                            : ((f->infos[1]->index[1] % 2 == 0) &&
+                               (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                      ((f->infos[1]->index[1] % 2 == 1) &&
+                                       (Cindex_true[1] < f->infos[1]->index[1]))
+                                  ? 1
+                                  : 0;
         CoarseEdge[2] = 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
@@ -2172,13 +2143,44 @@ struct Grid {
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
-  Synchronizer *sync1(const Stencil &sten) {
+  Synchronizer *sync1(const Stencil &stencil) {
     Synchronizer *s;
-    auto itSynchronizerMPI = Synchronizers.find(sten);
+    auto itSynchronizerMPI = Synchronizers.find(stencil);
     if (itSynchronizerMPI == Synchronizers.end()) {
-      s = new Synchronizer(sten, dim);
+      s = new Synchronizer(stencil, dim);
+      const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                         (0 - 1) / 2 + 0};
+      const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
+      for (int icode = 0; icode < 27; icode++) {
+        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                             (icode / 9) % 3 - 1};
+        Range &range0 = s->AllStencils[icode];
+        range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
+        range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
+        range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
+        range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
+        s->sLength[3 * icode + 0] = range0.ex - range0.sx;
+        s->sLength[3 * icode + 1] = range0.ey - range0.sy;
+        s->sLength[3 * icode + 2] = range0.ez - range0.sz;
+        Range &range1 = s->AllStencils[icode + 27];
+        range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
+        range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
+        range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
+        range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
+        s->sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
+        s->sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
+        s->sLength[3 * (icode + 27) + 2] = 1;
+        Range &range2 = s->AllStencils[icode + 2 * 27];
+        range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
+        range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
+        range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
+        range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
+        s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
+        s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
+        s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
+      }
       s->Setup(&tree, &all, &infos);
-      Synchronizers[sten] = s;
+      Synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
     }
@@ -2953,20 +2955,22 @@ struct BlockLab {
     int base[2] = {(info->index[0] + code[0]) % 2,
                    (info->index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = (code[0] == 0) ? 0
-                    : (((info->index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info->index[0])) ||
-                       ((info->index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info->index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = (code[1] == 0) ? 0
-                    : (((info->index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info->index[1])) ||
-                       ((info->index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info->index[1])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = (code[0] == 0)
+                        ? 0
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = (code[1] == 0)
+                        ? 0
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
+                              ? 1
+                              : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4716,9 +4720,8 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state = Linf > sim.Rtol   ? Refine
-                         : Linf < sim.Ctol ? Compress
-                                           : Leave;
+        (*I)[i]->state =
+            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -6513,12 +6516,14 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
-                                            shape->rS[i] * shape->rS[i])
-              : shape->rS[i] < st
-                  ? wh -
-                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
+              shape->rS[i] < sb
+                  ? std::sqrt(2 * wh * shape->rS[i] -
+                              shape->rS[i] * shape->rS[i])
+                  : shape->rS[i] < st
+                        ? wh - (wh - wt) *
+                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                        : wt * (shape->length - shape->rS[i]) /
+                              (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
