@@ -726,7 +726,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
 struct DuplicatesManager {
   std::vector<int> positions;
   std::vector<size_t> sizes;
-  void Add(int r, int index) {
+  void add(int r, int index) {
     if (sizes[r] == 0)
       positions[r] = index;
     sizes[r]++;
@@ -1067,7 +1067,7 @@ struct Synchronizer {
           ToBeChecked.push_back(infoNeiTree);
           ToBeChecked.push_back((int)send_interfaces[infoNeiTree].size() - 1);
           ToBeChecked.push_back((int)recv_interfaces[infoNeiTree].size() - 1);
-          DM.Add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
+          DM.add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
           Info *infoNei =
@@ -1094,7 +1094,7 @@ struct Synchronizer {
                   {&info, infoNeiCoarser, icode, icode2});
               recv_interfaces[infoNeiCoarserrank].push_back(
                   {infoNeiCoarser, &info, icode2, icode});
-              DM.Add(infoNeiCoarserrank,
+              DM.add(infoNeiCoarserrank,
                      (int)send_interfaces[infoNeiCoarserrank].size() - 1);
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
                 int d0 = abs(code[1] + 2 * code[2]);
@@ -1160,7 +1160,7 @@ struct Synchronizer {
                   {&info, infoNeiFiner, icode, icode2});
               recv_interfaces[infoNeiFinerrank].push_back(
                   {infoNeiFiner, &info, icode2, icode});
-              DM.Add(infoNeiFinerrank,
+              DM.add(infoNeiFinerrank,
                      (int)send_interfaces[infoNeiFinerrank].size() - 1);
               if (Bstep == 1) {
                 int d0 = abs(code[1] + 2 * code[2]);
@@ -1187,19 +1187,19 @@ struct Synchronizer {
                 if (code3[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode3));
-                  DM.Add(infoNeiFinerrank,
+                  DM.add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code4[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode4));
-                  DM.Add(infoNeiFinerrank,
+                  DM.add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
                 if (code5[2] == 0) {
                   send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode5));
-                  DM.Add(infoNeiFinerrank,
+                  DM.add(infoNeiFinerrank,
                          (int)send_interfaces[infoNeiFinerrank].size() - 1);
                 }
               }
