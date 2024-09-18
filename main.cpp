@@ -600,7 +600,7 @@ struct Interface {
   }
 };
 struct Range {
-  std::vector<int> removedIndices;
+  std::vector<int> removed;
   int index;
   int sx;
   int sy;
@@ -618,10 +618,10 @@ struct Range {
     return sx <= r->sx && r->ex <= ex && sy <= r->sy && r->ey <= ey && Vr < V;
   }
   void remove(const Range &other) {
-    size_t s = removedIndices.size();
-    removedIndices.resize(s + other.removedIndices.size());
-    for (size_t i = 0; i < other.removedIndices.size(); i++)
-      removedIndices[s + i] = other.removedIndices[i];
+    size_t s = removed.size();
+    removed.resize(s + other.removed.size());
+    for (size_t i = 0; i < other.removed.size(); i++)
+      removed[s + i] = other.removed[i];
   }
 };
 struct UnPackInfo {
@@ -686,7 +686,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
           for (size_t j2 = 0; j2 < me.size(); j2++)
             if (me[j2].needed && me[j2].contains(&me[j1])) {
               me[j1].needed = false;
-              me[j2].removedIndices.push_back(me[j1].index);
+              me[j2].removed.push_back(me[j1].index);
               me[j2].remove(me[j1]);
               v.push_back(me[j1].index);
               break;
@@ -713,7 +713,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
                   auto &m = me[k1];
                   if (m.needed && m.contains(&o)) {
                     o.needed = false;
-                    m.removedIndices.push_back(o.index);
+                    m.removed.push_back(o.index);
                     m.remove(o);
                     v.push_back(o.index);
                     break;
@@ -1288,8 +1288,8 @@ struct Synchronizer {
                 offsets[r] += Vc * dim;
               }
               offsets[r] += V * dim;
-              for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++)
-                f[i->removedIndices[kk]].dis = f[k].dis;
+              for (size_t kk = 0; kk < (*i).removed.size(); kk++)
+                f[i->removed[kk]].dis = f[k].dis;
             }
             DM.sizes[r] = 0;
           }
@@ -1377,8 +1377,8 @@ struct Synchronizer {
           }
           offsets_recv[otherrank] += V * dim;
           myunpacks[f[k].infos[1]->halo_id].push_back(info);
-          for (size_t kk = 0; kk < (*i).removedIndices.size(); kk++) {
-            const int remEl1 = i->removedIndices[kk];
+          for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
+            const int remEl1 = i->removed[kk];
             DetermineStencilLength(f[remEl1].infos[0]->level,
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
