@@ -4663,7 +4663,7 @@ struct GradChiOnTmp {
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *um = (Real *)lab.m;
+    Real *um = lab.m;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
@@ -4999,7 +4999,7 @@ static void adapt() {
         int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
-        Real *um = (Real *)lab->m;
+        Real *um = lab->m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             void *bb = Blocks[J * 2 + I];
@@ -5522,10 +5522,10 @@ struct KernelAdvectDiffuse {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real *)tempCase->d[0];
-      faceXp = (Real *)tempCase->d[1];
-      faceYm = (Real *)tempCase->d[2];
-      faceYp = (Real *)tempCase->d[3];
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -5602,9 +5602,9 @@ struct KernelComputeForces {
   void operator()(VectorLab &l, ScalarLab &chi, const Info *info,
                   const Info *info2) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *uchi = (Real *)chi.m;
-    Real *um = (Real *)l.m;
-    Real *P = (Real *)presInfo[info->id].block;
+    Real *uchi = chi.m;
+    Real *um = l.m;
+    Real *P = presInfo[info->id].block;
     for (auto &shape : sim.shapes) {
       std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
       Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
@@ -6040,10 +6040,10 @@ struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpVInfo = var.tmpV->infos;
   void operator()(ScalarLab &P, const Info *info) const {
-    Real *um = (Real *)P.m;
+    Real *um = P.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = (Real *)tmpVInfo[info->id].block;
+    Real *tmpV = tmpVInfo[info->id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix - stencil.sx;
@@ -6065,10 +6065,10 @@ struct pressureCorrectionKernel {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real *)tempCase->d[0];
-      faceXp = (Real *)tempCase->d[1];
-      faceYm = (Real *)tempCase->d[2];
-      faceYp = (Real *)tempCase->d[3];
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6128,13 +6128,13 @@ struct pressure_rhs {
   const std::vector<Info> &chiInfo = var.chi->infos;
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
                   const Info *) const {
-    Real *vm = (Real *)velLab.m;
-    Real *um = (Real *)uDefLab.m;
+    Real *vm = velLab.m;
+    Real *um = uDefLab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info->h;
     const Real facDiv = 0.5 * h / sim.dt;
-    Real *TMP = (Real *)tmpInfo[info->id].block;
-    Real *CHI = (Real *)chiInfo[info->id].block;
+    Real *TMP = tmpInfo[info->id].block;
+    Real *CHI = chiInfo[info->id].block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix - stencil.sx;
@@ -6161,10 +6161,10 @@ struct pressure_rhs {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real *)tempCase->d[0];
-      faceXp = (Real *)tempCase->d[1];
-      faceYm = (Real *)tempCase->d[2];
-      faceYp = (Real *)tempCase->d[3];
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6228,8 +6228,8 @@ struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(ScalarLab &lab, const Info *info) const {
-    Real *um = (Real *)lab.m;
-    Real *TMP = (Real *)var.tmp->infos[info->id].block;
+    Real *um = lab.m;
+    Real *TMP = var.tmp->infos[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -6252,10 +6252,10 @@ struct pressure_rhs1 {
     Real *faceYm = nullptr;
     Real *faceYp = nullptr;
     if (tempCase != nullptr) {
-      faceXm = (Real *)tempCase->d[0];
-      faceXp = (Real *)tempCase->d[1];
-      faceYm = (Real *)tempCase->d[2];
-      faceYp = (Real *)tempCase->d[3];
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
     if (faceXm != nullptr) {
       int ix = 0;
@@ -6558,7 +6558,7 @@ int main(int argc, char **argv) {
   }
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < velInfo.size(); i++) {
-    Real *UF = (Real *)velInfo[i].block;
+    Real *UF = velInfo[i].block;
     Real *US = var.tmpV->infos[i].block;
     Real *X = var.chi->infos[i].block;
     for (int j = 0; j < _BS_ * _BS_; j++) {
@@ -6578,7 +6578,7 @@ int main(int argc, char **argv) {
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < Nblocks; i++) {
-      Real *vel = (Real *)velInfo[i].block;
+      Real *vel = velInfo[i].block;
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
@@ -6607,7 +6607,7 @@ int main(int argc, char **argv) {
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        Real *V = (Real *)velInfo[i].block;
+        Real *V = velInfo[i].block;
         Real *Vold = var.vold->infos[i].block;
         Real *tmpV = var.tmpV->infos[i].block;
         Real ih2 = 0.5 / (velInfo[i].h * velInfo[i].h);
@@ -6975,8 +6975,8 @@ int main(int argc, char **argv) {
             continue;
           Real *udef = (Real *)OBLOCK[tmpVInfo[i].id]->udef;
           Real *chi = (Real *)OBLOCK[tmpVInfo[i].id]->chi;
-          Real *UDEF = (Real *)tmpVInfo[i].block;
-          Real *CHI = (Real *)chiInfo[i].block;
+          Real *UDEF = tmpVInfo[i].block;
+          Real *CHI = chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
               int j = _BS_ * iy + ix;
@@ -7148,8 +7148,8 @@ int main(int argc, char **argv) {
       avg = avg / avg1;
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++) {
-        Real *pres = (Real *)presInfo[i].block;
-        Real *pold = (Real *)poldInfo[i].block;
+        Real *pres = presInfo[i].block;
+        Real *pold = poldInfo[i].block;
         for (int j = 0; j < _BS_ * _BS_; j++)
           pres[j] += pold[j] - avg;
       }
