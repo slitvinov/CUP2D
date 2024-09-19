@@ -331,13 +331,11 @@ static struct {
   Real Rtol;
   Real time = 0;
   std::vector<int> bCollisionID;
-  std::vector<long long> levels;
+  std::vector<long long> levels, nblocks, nrows;
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
   struct Solver *solver;
   std::unique_ptr<LocalSpMatDnVec> mat;
-  std::vector<long long> nblocks;
-  std::vector<long long> nrows;
 } sim;
 struct SpaceCurve {
   int BX;
