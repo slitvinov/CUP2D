@@ -3081,7 +3081,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp for nowait
     for (const auto &I : *inner) {
       lab.load(g, Synch, I, true);
-      kernel(lab, I);
+      kernel(&lab, I);
     }
     while (done == false) {
 #pragma omp master
@@ -3090,7 +3090,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
         lab.load(g, Synch, I, true);
-        kernel(lab, I);
+        kernel(&lab, I);
       }
 #pragma omp single
       {
@@ -3374,8 +3374,8 @@ struct Obstacle {
 struct KernelVorticity {
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   const Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(VectorLab &lab, const Info *info) const {
-    Real *um = lab.m;
+  void operator()(VectorLab *lab, const Info *info) const {
+    Real *um = lab->m;
     const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
     Real *TMP = tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3943,8 +3943,8 @@ struct AreaSegment {
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   std::vector<Info> &chiInfo = var.chi->infos;
-  void operator()(ScalarLab &lab, const Info *info) const {
-    Real *um = lab.m;
+  void operator()(ScalarLab *lab, const Info *info) const {
+    Real *um = lab->m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -4664,12 +4664,12 @@ struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
-  void operator()(ScalarLab &lab, const Info *info) const {
+  void operator()(ScalarLab *lab, const Info *info) const {
     auto &TMP = *(ScalarBlock *)tmpInfo[info->id].block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *um = lab.m;
+    Real *um = lab->m;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
@@ -5461,12 +5461,12 @@ static void adapt() {
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
   std::vector<Info> &tmpVInfo = var.tmpV->infos;
-  void operator()(VectorLab &lab, Info *info) {
+  void operator()(VectorLab *lab, Info *info) {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = tmpVInfo[info->id].block;
-    Real *um = lab.m;
+    Real *um = lab->m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -6039,8 +6039,8 @@ struct Solver {
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpVInfo = var.tmpV->infos;
-  void operator()(ScalarLab &P, const Info *info) const {
-    Real *um = P.m;
+  void operator()(ScalarLab *P, const Info *info) const {
+    Real *um = P->m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = tmpVInfo[info->id].block;
@@ -6227,8 +6227,8 @@ struct pressure_rhs {
 struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(ScalarLab &lab, const Info *info) const {
-    Real *um = lab.m;
+  void operator()(ScalarLab *lab, const Info *info) const {
+    Real *um = lab->m;
     Real *TMP = var.tmp->infos[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
