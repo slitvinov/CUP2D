@@ -1710,16 +1710,16 @@ struct Buffers {
   std::vector<std::vector<Face>> send_faces;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
+  std::vector<BlockCase *> Cases;
+  std::map<std::array<long long, 2>, BlockCase *> Map;
 };
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
   size_t timestamp;
-  std::map<std::array<long long, 2>, BlockCase *> Map;
   std::map<Stencil, Synchronizer *> Synchronizers;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
-  std::vector<BlockCase *> Cases;
   std::vector<Info *> boundary;
   std::vector<Info> infos;
   bool boundary_needed;
@@ -1733,8 +1733,8 @@ struct Grid {
                  abs(code[1]) * (std::max(0, code[1]) + 2) +
                  abs(code[2]) * (std::max(0, code[2]) + 4);
     std::array<long long, 2> temp = {(long long)info->level, info->Z};
-    auto search = Map.find(temp);
-    assert(search != Map.end());
+    auto search = buf->Map.find(temp);
+    assert(search != buf->Map.end());
     BlockCase &CoarseCase = (*search->second);
     Real *CoarseFace = CoarseCase.d[myFace];
     for (int B = 0; B <= 1; B++) {
@@ -1780,8 +1780,8 @@ struct Grid {
     const int myFace = abs(code[0]) * std::max(0, code[0]) +
                        abs(code[1]) * (std::max(0, code[1]) + 2);
     std::array<long long, 2> temp = {(long long)info->level, info->Z};
-    auto search = Map.find(temp);
-    assert(search != Map.end());
+    auto search = buf->Map.find(temp);
+    assert(search != buf->Map.end());
     BlockCase *CoarseCase = search->second;
     Real *CoarseFace = CoarseCase->d[myFace];
     Real *block = info->block;
@@ -1821,11 +1821,11 @@ struct Grid {
     }
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
-    for (int i = 0; i < Cases.size(); i++)
+    for (int i = 0; i < buf->Cases.size(); i++)
       for (int j = 0; j < 4; j++)
-        free(Cases[i]->d[j]);
-    Cases.clear();
-    Map.clear();
+        free(buf->Cases[i]->d[j]);
+    buf->Cases.clear();
+    buf->Map.clear();
     std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
@@ -1899,22 +1899,22 @@ struct Grid {
         for (int i = 0; i < 4; i++)
           c->d[i] = storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real))
                                  : nullptr;
-        Cases.push_back(c);
+        buf->Cases.push_back(c);
       }
     }
     size_t Cases_index = 0;
-    if (Cases.size() > 0)
+    if (buf->Cases.size() > 0)
       for (auto &info : infos) {
-        if (Cases_index == Cases.size())
+        if (Cases_index == buf->Cases.size())
           break;
-        if (Cases[Cases_index]->level == info.level &&
-            Cases[Cases_index]->Z == info.Z) {
-          Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
-              {Cases[Cases_index]->level, Cases[Cases_index]->Z},
-              Cases[Cases_index]));
-          get(Cases[Cases_index]->level, Cases[Cases_index]->Z)->auxiliary =
-              Cases[Cases_index];
-          info.auxiliary = Cases[Cases_index];
+        if (buf->Cases[Cases_index]->level == info.level &&
+            buf->Cases[Cases_index]->Z == info.Z) {
+          buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
+              {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
+              buf->Cases[Cases_index]));
+          get(buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)->auxiliary =
+              buf->Cases[Cases_index];
+          info.auxiliary = buf->Cases[Cases_index];
           Cases_index++;
         }
       }
@@ -1943,15 +1943,15 @@ struct Grid {
       for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
         Face &f = buf->send_faces[r][k];
         Info *info = f.infos[0];
-        auto search = Map.find({(long long)info->level, info->Z});
-        assert(search != Map.end());
-        BlockCase &FineCase = (*search->second);
+        auto search = buf->Map.find({(long long)info->level, info->Z});
+        assert(search != buf->Map.end());
+        BlockCase *FineCase = search->second;
         int icode = f.icode[0];
         assert((icode / 9) % 3 - 1 == 0);
         int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
         int myFace = abs(code[0]) * std::max(0, code[0]) +
                      abs(code[1]) * (std::max(0, code[1]) + 2);
-        Real *FineFace = FineCase.d[myFace];
+        Real *FineFace = FineCase->d[myFace];
         int d = myFace / 2;
         assert(d == 0 || d == 1);
         int d2 = std::min((d + 1) % 3, (d + 2) % 3);
