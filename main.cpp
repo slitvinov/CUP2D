@@ -3534,7 +3534,7 @@ struct IF2D_Interpolation1D {
       }
       const Real h = x[khi] - x[klo];
       if (h <= 0.0) {
-        std::cout << "Interpolation points must be distinct!" << std::endl;
+	fprintf(stderr, "main.cpp: interpolation points must be distinct\n");
         abort();
       }
       const Real a = (x[khi] - (xx[j] + offset)) / h;
@@ -3720,7 +3720,7 @@ template <int Npoints> struct SchedulerLearnWave : Scheduler<Npoints> {
         }
       }
       if (bCheck) {
-        std::cout << "Ciaone2!" << std::endl;
+	fprintf(stderr, "main.cpp: Ciaone2!\n");
         abort();
       }
     }
