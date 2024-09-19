@@ -5756,7 +5756,6 @@ struct KernelComputeForces {
   }
 };
 struct Solver {
-  struct EdgeCellIndexer;
   std::unique_ptr<LocalSpMatDnVec> mat;
   std::vector<long long> nblocks;
   std::vector<long long> nrows;
