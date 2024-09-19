@@ -3299,7 +3299,6 @@ static struct {
       {&pres, 1, false}, {&pold, 1, false}, {&tmpV, 2, true},
   };
 } var;
-typedef Real UDEFMAT[_BS_][_BS_][2];
 struct surface_data {
   int ix, iy;
   Real dchidx, dchidy, delta;
@@ -6734,8 +6733,8 @@ int main(int argc, char **argv) {
             auto &jSDF = jBlocks[k]->dist;
             ScalarBlock &iChi = iBlocks[k]->chi;
             ScalarBlock &jChi = jBlocks[k]->chi;
-            UDEFMAT &iUDEF = iBlocks[k]->udef;
-            UDEFMAT &jUDEF = jBlocks[k]->udef;
+            auto &iUDEF = iBlocks[k]->udef;
+            auto &jUDEF = jBlocks[k]->udef;
             for (int iy = 0; iy < _BS_; ++iy)
               for (int ix = 0; ix < _BS_; ++ix) {
                 if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
