@@ -5926,43 +5926,43 @@ struct Solver {
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
   std::array<std::pair<long long, double>, 3>
-  D1(const Info *info, const EdgeCellIndexer &indexer, int ix, int iy) const {
-    if (indexer.isBD(ix, iy))
-      return {{{indexer.Nei(info, ix, iy, -2), 1. / 8.},
-               {indexer.Nei(info, ix, iy, -1), -1. / 2.},
-               {indexer.This(info, ix, iy), 3. / 8.}}};
-    else if (indexer.isFD(ix, iy))
-      return {{{indexer.Nei(info, ix, iy, 2), -1. / 8.},
-               {indexer.Nei(info, ix, iy, 1), 1. / 2.},
-               {indexer.This(info, ix, iy), -3. / 8.}}};
-    return {{{indexer.Nei(info, ix, iy, -1), -1. / 8.},
-             {indexer.Nei(info, ix, iy, 1), 1. / 8.},
-             {indexer.This(info, ix, iy), 0.}}};
+  D1(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) const {
+    if (indexer->isBD(ix, iy))
+      return {{{indexer->Nei(info, ix, iy, -2), 1. / 8.},
+               {indexer->Nei(info, ix, iy, -1), -1. / 2.},
+               {indexer->This(info, ix, iy), 3. / 8.}}};
+    else if (indexer->isFD(ix, iy))
+      return {{{indexer->Nei(info, ix, iy, 2), -1. / 8.},
+               {indexer->Nei(info, ix, iy, 1), 1. / 2.},
+               {indexer->This(info, ix, iy), -3. / 8.}}};
+    return {{{indexer->Nei(info, ix, iy, -1), -1. / 8.},
+             {indexer->Nei(info, ix, iy, 1), 1. / 8.},
+             {indexer->This(info, ix, iy), 0.}}};
   }
   std::array<std::pair<long long, double>, 3>
-  D2(const Info *info, const EdgeCellIndexer &indexer, int ix, int iy) const {
-    if (indexer.isBD(ix, iy))
-      return {{{indexer.Nei(info, ix, iy, -2), 1. / 32.},
-               {indexer.Nei(info, ix, iy, -1), -1. / 16.},
-               {indexer.This(info, ix, iy), 1. / 32.}}};
-    else if (indexer.isFD(ix, iy))
-      return {{{indexer.Nei(info, ix, iy, 2), 1. / 32.},
-               {indexer.Nei(info, ix, iy, 1), -1. / 16.},
-               {indexer.This(info, ix, iy), 1. / 32.}}};
-    return {{{indexer.Nei(info, ix, iy, -1), 1. / 32.},
-             {indexer.Nei(info, ix, iy, 1), 1. / 32.},
-             {indexer.This(info, ix, iy), -1. / 16.}}};
+  D2(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) const {
+    if (indexer->isBD(ix, iy))
+      return {{{indexer->Nei(info, ix, iy, -2), 1. / 32.},
+               {indexer->Nei(info, ix, iy, -1), -1. / 16.},
+               {indexer->This(info, ix, iy), 1. / 32.}}};
+    else if (indexer->isFD(ix, iy))
+      return {{{indexer->Nei(info, ix, iy, 2), 1. / 32.},
+               {indexer->Nei(info, ix, iy, 1), -1. / 16.},
+               {indexer->This(info, ix, iy), 1. / 32.}}};
+    return {{{indexer->Nei(info, ix, iy, -1), 1. / 32.},
+             {indexer->Nei(info, ix, iy, 1), 1. / 32.},
+             {indexer->This(info, ix, iy), -1. / 16.}}};
   }
   void interpolate(const Info *info_c, int ix_c, int iy_c, const Info *info_f,
                    long long fine_close_idx, long long fine_far_idx,
                    double signInt, double signTaylor,
-                   const EdgeCellIndexer &indexer, SpRowInfo &row) const {
+                   const EdgeCellIndexer *indexer, SpRowInfo &row) const {
     int rank_c = var.tmp->Tree1(info_c);
     int rank_f = var.tmp->Tree1(info_f);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
-    row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c), tf);
+    row.mapColVal(rank_c, indexer->This(info_c, ix_c, iy_c), tf);
     std::array<std::pair<long long, double>, 3> D;
     D = D1(info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
@@ -5972,33 +5972,33 @@ struct Solver {
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
-                const EdgeCellIndexer &indexer, SpRowInfo &row) const {
-    long long sfc_idx = indexer.This(rhs_info, ix, iy);
+                const EdgeCellIndexer *indexer, SpRowInfo &row) const {
+    long long sfc_idx = indexer->This(rhs_info, ix, iy);
     if (var.tmp->Tree1(rhsNei) >= 0) {
       int nei_rank = var.tmp->Tree1(rhsNei);
-      long long nei_idx = indexer.neiUnif(rhsNei, ix, iy);
+      long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
       Info *rhsNei_c = var.tmp->get(rhs_info->level - 1, rhsNei->Zparent);
-      int ix_c = indexer.ix_c(rhs_info, ix);
-      int iy_c = indexer.iy_c(rhs_info, iy);
-      long long inward_idx = indexer.neiInward(rhs_info, ix, iy);
-      double signTaylor = indexer.taylorSign(ix, iy);
+      int ix_c = indexer->ix_c(rhs_info, ix);
+      int iy_c = indexer->iy_c(rhs_info, iy);
+      long long inward_idx = indexer->neiInward(rhs_info, ix, iy);
+      double signTaylor = indexer->taylorSign(ix, iy);
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
       Info *rhsNei_f =
-          var.tmp->get(rhs_info->level + 1, indexer.Zchild(rhsNei, ix, iy));
+          var.tmp->get(rhs_info->level + 1, indexer->Zchild(rhsNei, ix, iy));
       int nei_rank = var.tmp->Tree1(rhsNei_f);
-      long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, 0);
-      long long fine_far_idx = indexer.neiFine1(rhsNei_f, ix, iy, 1);
+      long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
+      long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
       interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   -1., indexer, row);
-      fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, 0);
-      fine_far_idx = indexer.neiFine2(rhsNei_f, ix, iy, 1);
+      fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
+      fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
       interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                   1., indexer, row);
@@ -7072,7 +7072,7 @@ int main(int argc, char **argv) {
                     row.mapColVal(sfc_idx, -1);
                   } else if (!isBoundary[j]) {
                     sim.solver->makeFlux(&rhs_info, ix, iy, rhsNei[j],
-                                         *sim.solver->edgeIndexers[j], row);
+                                         sim.solver->edgeIndexers[j], row);
                   }
                 }
                 sim.solver->mat->cooPushBackRow(row);
