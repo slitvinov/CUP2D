@@ -6522,10 +6522,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
       memset((*var.F[i].g)->infos[j].block, 0,
              var.F[i].dim * _BS_ * _BS_ * sizeof(Real));
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    Grid *g = *var.F[i].g;
-    g->boundary_needed = false;
-  }
+  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
+    (*var.F[i].g)->boundary_needed = false;
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
