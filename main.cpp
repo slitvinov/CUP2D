@@ -7112,12 +7112,10 @@ int main(int argc, char **argv) {
       avg = avg / avg1;
 #pragma omp parallel for
       for (int i = 0; i < NB; i++) {
-        ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++)
-            P[iy][ix] += -avg;
+        Real *P = zInfo[i].block;
+	for (int j = 0; j < _BS_ * _BS_; j++)
+            P[j] += -avg;
       }
-
       avg = 0;
       avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
