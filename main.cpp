@@ -734,7 +734,7 @@ struct DuplicatesManager {
     sizes[r]++;
   }
 };
-static int &Treef(std::unordered_map<long long, int> *tree, int m,
+static int &treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
   const long long aux = sim.levels[m] + n;
   const auto retval = tree->find(aux);
@@ -746,7 +746,7 @@ static int &Treef(std::unordered_map<long long, int> *tree, int m,
         (*tree)[aux] = -3;
       }
     }
-    return Treef(tree, m, n);
+    return treef(tree, m, n);
   } else {
     return retval->second;
   }
@@ -1014,7 +1014,7 @@ struct Synchronizer {
         if (code[1] == yskip && yskin)
           continue;
         int &infoNeiTree =
-            Treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
           Neighbors.insert(infoNeiTree);
@@ -1034,7 +1034,7 @@ struct Synchronizer {
           Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int infoNeiCoarserrank =
-              Treef(tree, info.level - 1, infoNei->Zparent);
+              treef(tree, info.level - 1, infoNei->Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
             Neighbors.insert(infoNeiCoarserrank);
@@ -1110,7 +1110,7 @@ struct Synchronizer {
                                 (B % 2) * std::max(0, 1 - abs(code[0]))]
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
-            int infoNeiFinerrank = Treef(tree, info.level + 1, nFine);
+            int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
               Neighbors.insert(infoNeiFinerrank);
@@ -1197,7 +1197,7 @@ struct Synchronizer {
               }
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
                 for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((Treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
+                  if ((treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
                     retval = true;
                     break;
                   }
@@ -1577,13 +1577,13 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
           if (y == yskip && yskin)
             continue;
           Info *infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
-          int &infoNeiTree = Treef(tree, infoNei->level, infoNei->Z);
+          int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
           if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
             myflag = true;
             goto end;
           } else if (infoNeiTree == -2) {
             long long nCoarse = infoNei->Zparent;
-            int infoNeiCoarserrank = Treef(tree, infoNei->level - 1, nCoarse);
+            int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
             if (infoNeiCoarserrank != sim.rank) {
               myflag = true;
               goto end;
@@ -1599,7 +1599,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
                                   (B % 2) * std::max(0, 1 - abs(x))]
                                  [std::max(-y, 0) +
                                   temp * std::max(0, 1 - abs(y))];
-              int infoNeiFinerrank = Treef(tree, infoNei->level + 1, nFine);
+              int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
               if (infoNeiFinerrank != sim.rank) {
                 myflag = true;
                 goto end;
@@ -1679,7 +1679,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     for (size_t index = 0; index < recv_buffer[kk].size(); index += increment) {
       int level = (int)recv_buffer[kk][index];
       long long Z = recv_buffer[kk][index + 1];
-      Treef(tree, level, Z) = r;
+      treef(tree, level, Z) = r;
       if (UpdateIDs)
         getf(all, level, Z)->id = recv_buffer[kk][index + 2];
       int p[2];
@@ -1688,11 +1688,11 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            Treef(tree, level + 1, nc) = -2;
+            treef(tree, level + 1, nc) = -2;
           }
       if (level > 0) {
         long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-        Treef(tree, level - 1, nf) = -1;
+        treef(tree, level - 1, nf) = -1;
       }
     }
   }
@@ -1760,7 +1760,7 @@ struct Grid {
         base = (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
-      int r = Treef(&tree, F->infos[0]->level, F->infos[0]->Z);
+      int r = treef(&tree, F->infos[0]->level, F->infos[0]->Z);
       int dis = 0;
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
@@ -1850,7 +1850,7 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        if (!(Treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+        if (!(treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
               0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
@@ -1860,18 +1860,18 @@ struct Grid {
         L[0] = code[0] == 0 ? _BS_ / 2 : 1;
         L[1] = code[1] == 0 ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
-        if (Treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
+        if (treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
             -2) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = get(info.level - 1, nCoarse);
-          const int infoNeiCoarserrank = Treef(&tree, info.level - 1, nCoarse);
+          const int infoNeiCoarserrank = treef(&tree, info.level - 1, nCoarse);
           int code2[3] = {-code[0], -code[1], -code[2]};
           int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
           send_faces[infoNeiCoarserrank].push_back(
               Face(&info, infoNeiCoarser, icode[f], icode2));
           send_buffer_size[infoNeiCoarserrank] += V;
-        } else if (Treef(&tree, info.level,
+        } else if (treef(&tree, info.level,
                          info.Znei[1 + code[0]][1 + code[1]]) == -1) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
@@ -1883,7 +1883,7 @@ struct Grid {
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank =
-                Treef(&tree, infoNei->level + 1, nFine);
+                treef(&tree, infoNei->level + 1, nFine);
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
@@ -2037,7 +2037,7 @@ struct Grid {
         if (code[2] != 0)
           continue;
         Info *infoNei = get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
-        const int &infoNeiTree = Treef(&tree, infoNei->level, infoNei->Z);
+        const int &infoNeiTree = treef(&tree, infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei->state != Refine || clean)
             infoNei->state = Leave;
@@ -2047,7 +2047,7 @@ struct Grid {
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = get(infoNei->level - 1, nCoarse);
           const int infoNeiCoarserrank =
-              Treef(&tree, infoNei->level - 1, nCoarse);
+              treef(&tree, infoNei->level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
             if (infoNeiCoarser->state != Refine || clean)
@@ -2070,7 +2070,7 @@ struct Grid {
                                 temp * std::max(0, 1 - abs(code[1]))];
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
             const int infoNeiFinerrank =
-                Treef(&tree, infoNei->level + 1, nFine);
+                treef(&tree, infoNei->level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner->state != Refine || clean)
                 infoNeiFiner->state = Leave;
@@ -2185,8 +2185,8 @@ struct Grid {
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
-  int &Tree0(const int m, const long long n) { return Treef(&tree, m, n); }
-  int &Tree1(const Info *info) { return Treef(&tree, info->level, info->Z); }
+  int &Tree0(const int m, const long long n) { return treef(&tree, m, n); }
+  int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info *new_info = get(level, Z);
     new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
@@ -2328,7 +2328,7 @@ struct BlockLab {
       if (code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
-          Treef(&grid->tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          treef(&grid->tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
@@ -3054,11 +3054,11 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
         const long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-        Treef(&grid->tree, level + 1, nc) = -2;
+        treef(&grid->tree, level + 1, nc) = -2;
       }
   if (level > 0) {
     const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-    Treef(&grid->tree, level - 1, nf) = -1;
+    treef(&grid->tree, level - 1, nf) = -1;
   }
 }
 struct MPI_Block {
