@@ -3304,7 +3304,7 @@ struct surface_data {
   int ix, iy;
   Real dchidx, dchidy, delta;
 };
-struct ObstacleBlock {
+struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
   Real udef[_BS_][_BS_][2];
@@ -3333,7 +3333,7 @@ struct ObstacleBlock {
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
-  ObstacleBlock() {
+  Obstacle() {
     clear_surface();
     std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
     std::fill(chi[0], chi[0] + _BS_ * _BS_, 0);
@@ -3734,7 +3734,7 @@ template <int Npoints> struct SchedulerLearnWave : Scheduler<Npoints> {
   }
 };
 struct Shape {
-  std::vector<ObstacleBlock *> obstacleBlocks;
+  std::vector<Obstacle *> obstacleBlocks;
   Real center[2];
   Real centerOfMass[2];
   Real orientation;
@@ -3805,11 +3805,11 @@ struct ComputeSurfaceNormals {
     Real *um0 = labChi.m;
     Real *um1 = labSDF.m;
     for (const auto &shape : sim.shapes) {
-      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[infoChi->id] == nullptr)
         continue;
       Real h = sim.h0 / (1 << infoChi->level);
-      ObstacleBlock &o = *OBLOCK[infoChi->id];
+      Obstacle &o = *OBLOCK[infoChi->id];
       Real i2h = 0.5 / h;
       Real fac = 0.5 * h;
       for (int y0 = 0; y0 < _BS_; y0++)
@@ -3940,12 +3940,12 @@ struct PutChiOnGrid {
     Real *um = lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
-      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
       if (OBLOCK[info->id] == nullptr)
         continue;
       Real h = sim.h0 / (1 << info->level);
       Real h2 = h * h;
-      ObstacleBlock &o = *OBLOCK[info->id];
+      Obstacle &o = *OBLOCK[info->id];
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
@@ -4267,7 +4267,7 @@ static void ongrid(Real dt) {
     }
     const auto N = tmpInfo.size();
     std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
-    shape->obstacleBlocks = std::vector<ObstacleBlock *>(N, nullptr);
+    shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
       const Info *info = &tmpInfo[i];
@@ -4283,7 +4283,7 @@ static void ongrid(Real dt) {
           segmentsPerBlock[info->id]->push_back(vSegments[s]);
         }
       if (segmentsPerBlock[info->id] not_eq nullptr) {
-        ObstacleBlock *const block = new ObstacleBlock();
+        Obstacle *const block = new Obstacle();
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info->id] = block;
         block->clear_surface();
@@ -4308,11 +4308,11 @@ static void ongrid(Real dt) {
       for (size_t i = 0; i < tmpInfo.size(); i++) {
         const auto pos = segmentsPerBlock[tmpInfo[i].id];
         if (pos not_eq nullptr) {
-          ObstacleBlock *const block = shape->obstacleBlocks[tmpInfo[i].id];
+          Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
           assert(block not_eq nullptr);
           const Info *info = &tmpInfo[i];
           ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
-          ObstacleBlock *const o = block;
+          Obstacle *const o = block;
           const std::vector<AreaSegment *> &v = *pos;
           Real org[2];
           org[0] = info->origin[0] + info->h * 0.5;
@@ -4496,7 +4496,7 @@ static void ongrid(Real dt) {
                                                         var.chi, var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
-    const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+    const std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < OBLOCK.size(); i++) {
       if (OBLOCK[i] == nullptr)
@@ -5604,13 +5604,13 @@ struct KernelComputeForces {
     Real *um = l.m;
     Real *P = presInfo[info->id].block;
     for (auto &shape : sim.shapes) {
-      std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
       Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
       Real vel_norm = std::sqrt(shape->u * shape->u + shape->v * shape->v);
       Real vel_unit[2] = {vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
                           vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
       Real NUoH = sim.nu / info->h;
-      ObstacleBlock *O = OBLOCK[info->id];
+      Obstacle *O = OBLOCK[info->id];
       if (O == nullptr)
         continue;
       assert(O->filled);
@@ -6530,7 +6530,7 @@ int main(int argc, char **argv) {
   }
   ongrid(0.0);
   for (auto &shape : sim.shapes) {
-    std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+    std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
       if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
@@ -6618,7 +6618,7 @@ int main(int argc, char **argv) {
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
       for (const auto &shape : sim.shapes) {
-        const std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+        const std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
         const Real Cx = shape->centerOfMass[0];
         const Real Cy = shape->centerOfMass[1];
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
@@ -6922,8 +6922,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++)
         for (auto &shape : sim.shapes) {
-          std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
-          ObstacleBlock *o = OBLOCK[velInfo[i].id];
+          std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+          Obstacle *o = OBLOCK[velInfo[i].id];
           if (o == nullptr)
             continue;
           Real u_s = shape->u;
@@ -6959,7 +6959,7 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < Nblocks; i++)
         memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
       for (auto &shape : sim.shapes) {
-        std::vector<ObstacleBlock *> &OBLOCK = shape->obstacleBlocks;
+        std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
 #pragma omp parallel for
         for (size_t i = 0; i < Nblocks; i++) {
           if (OBLOCK[tmpVInfo[i].id] == nullptr)
