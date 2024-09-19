@@ -7095,12 +7095,11 @@ int main(int argc, char **argv) {
       avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
       for (int i = 0; i < NB; i++) {
-        ScalarBlock &P = *(ScalarBlock *)zInfo[i].block;
+        Real *P = zInfo[i].block;
         const double vv = zInfo[i].h * zInfo[i].h;
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++) {
-            P[iy][ix] = x[i * _BS_ * _BS_ + iy * _BS_ + ix];
-            avg += P[iy][ix] * vv;
+	for (int j = 0; j < _BS_ * _BS_; j++) {
+            P[j] = x[i * _BS_ * _BS_ + j];
+            avg += P[j] * vv;
             avg1 += vv;
           }
       }
