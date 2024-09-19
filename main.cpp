@@ -1850,7 +1850,8 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        if (!(Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) >= 0)) {
+        if (!(Treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+              0)) {
           storeFace[abs(code[0]) * std::max(0, code[0]) +
                     abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
           stored = true;
@@ -1859,18 +1860,19 @@ struct Grid {
         L[0] = code[0] == 0 ? _BS_ / 2 : 1;
         L[1] = code[1] == 0 ? _BS_ / 2 : 1;
         int V = L[0] * L[1];
-        if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
+        if (Treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
+            -2) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = get(info.level - 1, nCoarse);
-          const int infoNeiCoarserrank = Tree0(info.level - 1, nCoarse);
+          const int infoNeiCoarserrank = Treef(&tree, info.level - 1, nCoarse);
           int code2[3] = {-code[0], -code[1], -code[2]};
           int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
           send_faces[infoNeiCoarserrank].push_back(
               Face(&info, infoNeiCoarser, icode[f], icode2));
           send_buffer_size[infoNeiCoarserrank] += V;
-        } else if (Tree0(info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
-                   -1) {
+        } else if (Treef(&tree, info.level,
+                         info.Znei[1 + code[0]][1 + code[1]]) == -1) {
           Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
@@ -1880,7 +1882,8 @@ struct Grid {
                                 (B % 2) * std::max(0, 1 - abs(code[0]))]
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
-            const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
+            const int infoNeiFinerrank =
+                Treef(&tree, infoNei->level + 1, nFine);
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
@@ -2034,7 +2037,7 @@ struct Grid {
         if (code[2] != 0)
           continue;
         Info *infoNei = get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
-        const int &infoNeiTree = Tree0(infoNei->level, infoNei->Z);
+        const int &infoNeiTree = Treef(&tree, infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei->state != Refine || clean)
             infoNei->state = Leave;
@@ -2043,7 +2046,8 @@ struct Grid {
         } else if (infoNeiTree == -2) {
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = get(infoNei->level - 1, nCoarse);
-          const int infoNeiCoarserrank = Tree0(infoNei->level - 1, nCoarse);
+          const int infoNeiCoarserrank =
+              Treef(&tree, infoNei->level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
             assert(infoNeiCoarserrank >= 0);
             if (infoNeiCoarser->state != Refine || clean)
@@ -2065,7 +2069,8 @@ struct Grid {
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
-            const int infoNeiFinerrank = Tree0(infoNei->level + 1, nFine);
+            const int infoNeiFinerrank =
+                Treef(&tree, infoNei->level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               if (infoNeiFiner->state != Refine || clean)
                 infoNeiFiner->state = Leave;
@@ -2323,7 +2328,7 @@ struct BlockLab {
       if (code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
-          grid->Tree0(info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          Treef(&grid->tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
@@ -3049,11 +3054,11 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
         const long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-        grid->Tree0(level + 1, nc) = -2;
+        Treef(&grid->tree, level + 1, nc) = -2;
       }
   if (level > 0) {
     const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-    grid->Tree0(level - 1, nf) = -1;
+    Treef(&grid->tree, level - 1, nf) = -1;
   }
 }
 struct MPI_Block {
@@ -3534,7 +3539,7 @@ struct IF2D_Interpolation1D {
       }
       const Real h = x[khi] - x[klo];
       if (h <= 0.0) {
-	fprintf(stderr, "main.cpp: interpolation points must be distinct\n");
+        fprintf(stderr, "main.cpp: interpolation points must be distinct\n");
         abort();
       }
       const Real a = (x[khi] - (xx[j] + offset)) / h;
@@ -3720,7 +3725,7 @@ template <int Npoints> struct SchedulerLearnWave : Scheduler<Npoints> {
         }
       }
       if (bCheck) {
-	fprintf(stderr, "main.cpp: Ciaone2!\n");
+        fprintf(stderr, "main.cpp: Ciaone2!\n");
         abort();
       }
     }
