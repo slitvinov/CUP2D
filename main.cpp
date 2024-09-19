@@ -877,20 +877,22 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : ((f->infos[1]->index[0] % 2 == 0) &&
-                           (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                ((f->infos[1]->index[0] % 2 == 1) &&
-                                 (Cindex_true[0] < f->infos[1]->index[0]))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : ((f->infos[1]->index[1] % 2 == 0) &&
-                           (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                ((f->infos[1]->index[1] % 2 == 1) &&
-                                 (Cindex_true[1] < f->infos[1]->index[1]))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = code[0] == 0
+                            ? 0
+                            : ((f->infos[1]->index[0] % 2 == 0) &&
+                               (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                      ((f->infos[1]->index[0] % 2 == 1) &&
+                                       (Cindex_true[0] < f->infos[1]->index[0]))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = code[1] == 0
+                            ? 0
+                            : ((f->infos[1]->index[1] % 2 == 0) &&
+                               (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                      ((f->infos[1]->index[1] % 2 == 1) &&
+                                       (Cindex_true[1] < f->infos[1]->index[1]))
+                                  ? 1
+                                  : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                           code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -2935,20 +2937,22 @@ struct BlockLab {
     int base[2] = {(info->index[0] + code[0]) % 2,
                    (info->index[1] + code[1]) % 2};
     int CoarseEdge[2];
-    CoarseEdge[0] = code[0] == 0 ? 0
-                    : (((info->index[0] % 2 == 0) &&
-                        (infoNei_index_true[0] > info->index[0])) ||
-                       ((info->index[0] % 2 == 1) &&
-                        (infoNei_index_true[0] < info->index[0])))
-                        ? 1
-                        : 0;
-    CoarseEdge[1] = code[1] == 0 ? 0
-                    : (((info->index[1] % 2 == 0) &&
-                        (infoNei_index_true[1] > info->index[1])) ||
-                       ((info->index[1] % 2 == 1) &&
-                        (infoNei_index_true[1] < info->index[1])))
-                        ? 1
-                        : 0;
+    CoarseEdge[0] = code[0] == 0
+                        ? 0
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
+                              ? 1
+                              : 0;
+    CoarseEdge[1] = code[1] == 0
+                        ? 0
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
+                              ? 1
+                              : 0;
     const int start[2] = {
         std::max(code[0], 0) * _BS_ / 2 +
             (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
@@ -4698,9 +4702,8 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state = Linf > sim.Rtol   ? Refine
-                         : Linf < sim.Ctol ? Compress
-                                           : Leave;
+        (*I)[i]->state =
+            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -6457,12 +6460,14 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
-                                            shape->rS[i] * shape->rS[i])
-              : shape->rS[i] < st
-                  ? wh -
-                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
+              shape->rS[i] < sb
+                  ? std::sqrt(2 * wh * shape->rS[i] -
+                              shape->rS[i] * shape->rS[i])
+                  : shape->rS[i] < st
+                        ? wh - (wh - wt) *
+                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                        : wt * (shape->length - shape->rS[i]) /
+                              (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
@@ -7097,11 +7102,11 @@ int main(int argc, char **argv) {
       for (int i = 0; i < NB; i++) {
         Real *P = zInfo[i].block;
         const double vv = zInfo[i].h * zInfo[i].h;
-	for (int j = 0; j < _BS_ * _BS_; j++) {
-            P[j] = x[i * _BS_ * _BS_ + j];
-            avg += P[j] * vv;
-            avg1 += vv;
-          }
+        for (int j = 0; j < _BS_ * _BS_; j++) {
+          P[j] = x[i * _BS_ * _BS_ + j];
+          avg += P[j] * vv;
+          avg1 += vv;
+        }
       }
       quantities[0] = avg;
       quantities[1] = avg1;
@@ -7113,20 +7118,19 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (int i = 0; i < NB; i++) {
         Real *P = zInfo[i].block;
-	for (int j = 0; j < _BS_ * _BS_; j++)
-            P[j] += -avg;
+        for (int j = 0; j < _BS_ * _BS_; j++)
+          P[j] += -avg;
       }
       avg = 0;
       avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
       for (size_t i = 0; i < Nblocks; i++) {
-        ScalarBlock &P = *(ScalarBlock *)presInfo[i].block;
-        const Real vv = presInfo[i].h * presInfo[i].h;
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++) {
-            avg += P[iy][ix] * vv;
-            avg1 += vv;
-          }
+        Real *P = presInfo[i].block;
+        Real vv = presInfo[i].h * presInfo[i].h;
+        for (int j = 0; j < _BS_ * _BS_; j++) {
+          avg += P[j] * vv;
+          avg1 += vv;
+        }
       }
       quantities[0] = avg;
       quantities[1] = avg1;
