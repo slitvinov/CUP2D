@@ -335,7 +335,7 @@ static struct {
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
   struct Solver *solver;
-  std::unique_ptr<LocalSpMatDnVec> mat;
+  struct LocalSpMatDnVec* mat;
 } sim;
 struct SpaceCurve {
   int BX, BY, base_level;
@@ -6514,7 +6514,7 @@ int main(int argc, char **argv) {
       P_inv[i * _BS_ * _BS_ + j] = -aux;
     };
   sim.mat =
-      std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
+      new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
