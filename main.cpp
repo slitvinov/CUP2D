@@ -1692,9 +1692,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   }
 }
 
-static bool info_cmp(Info& a, Info& b) {
-  return a.id2 < b.id2;
-}
+static bool info_cmp(Info &a, Info &b) { return a.id2 < b.id2; }
 static void fill_pos(std::vector<Info> *infos,
                      std::unordered_map<long long, Info *> *all) {
   std::sort(infos->begin(), infos->end(), info_cmp);
@@ -1864,7 +1862,8 @@ struct Grid {
         int V = L[0] * L[1];
         if (treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
             -2) {
-          Info *infoNei = getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info *infoNei =
+              getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei->Zparent;
           Info *infoNeiCoarser = getf(&all, info.level - 1, nCoarse);
           const int infoNeiCoarserrank = treef(&tree, info.level - 1, nCoarse);
@@ -1875,7 +1874,8 @@ struct Grid {
           send_buffer_size[infoNeiCoarserrank] += V;
         } else if (treef(&tree, info.level,
                          info.Znei[1 + code[0]][1 + code[1]]) == -1) {
-          Info *infoNei = getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info *infoNei =
+              getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -1915,8 +1915,8 @@ struct Grid {
           buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
               {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
               buf->Cases[Cases_index]));
-          getf(&all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)->auxiliary =
-              buf->Cases[Cases_index];
+          getf(&all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
+              ->auxiliary = buf->Cases[Cases_index];
           info.auxiliary = buf->Cases[Cases_index];
           Cases_index++;
         }
@@ -2039,7 +2039,8 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        Info *infoNei = getf(&all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+        Info *infoNei =
+            getf(&all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = treef(&tree, infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei->state != Refine || clean)
@@ -6400,7 +6401,9 @@ int main(int argc, char **argv) {
         g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
       }
     }
-    fill_pos(&g->infos, &g->all);
+    std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
+    for (size_t j = 0; j < g->infos.size(); j++)
+      g->infos[j].id = j;
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     update_blocks(false, &g->infos, &g->all, &g->tree);
