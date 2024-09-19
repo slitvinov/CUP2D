@@ -6013,11 +6013,11 @@ struct Solver {
   void getVec() {
     std::vector<Info> &RhsInfo = var.tmp->infos;
     std::vector<Info> &zInfo = var.pres->infos;
-    const int Nblocks = RhsInfo.size();
+    int Nblocks = RhsInfo.size();
     std::vector<double> &x = mat->get_x();
     std::vector<double> &b = mat->get_b();
     std::vector<double> &h2 = mat->get_h2();
-    const long long shift = -nrows[sim.rank];
+    long long shift = -nrows[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       Real *rhs = RhsInfo[i].block;
@@ -6026,7 +6026,7 @@ struct Solver {
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
 	  int j = iy * _BS_ + ix;
-          const long long sfc_loc = GenericCell.This(&RhsInfo[i], ix, iy) + shift;
+          long long sfc_loc = GenericCell.This(&RhsInfo[i], ix, iy) + shift;
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
         }
