@@ -1704,6 +1704,13 @@ static void fill_pos(std::vector<Info> *infos,
     (*infos)[j] = *info;
   }
 }
+
+struct Buffers {
+  std::vector<std::vector<Face>> recv_faces;
+  std::vector<std::vector<Face>> send_faces;
+  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<std::vector<Real>> send_buffer;
+};
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1715,11 +1722,8 @@ struct Grid {
   std::vector<BlockCase *> Cases;
   std::vector<Info *> boundary;
   std::vector<Info> infos;
-  std::vector<std::vector<Face>> recv_faces;
-  std::vector<std::vector<Face>> send_faces;
-  std::vector<std::vector<Real>> recv_buffer;
-  std::vector<std::vector<Real>> send_buffer;
   bool boundary_needed;
+  struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
   void FillCase(Face *F) {
     Info *info = F->infos[1];
@@ -1760,7 +1764,7 @@ struct Grid {
       for (int i2 = 0; i2 < N2; i2 += 2) {
         Real *s = &CoarseFace[dim * (base + (i2 / 2))];
         for (int j = 0; j < dim; j++)
-          s[j] += recv_buffer[r][F->offset + dis + j];
+          s[j] += buf->recv_buffer[r][F->offset + dis + j];
         dis += dim;
       }
     }
@@ -1807,13 +1811,13 @@ struct Grid {
     if (UpdateFluxCorrection == false)
       return;
     UpdateFluxCorrection = false;
-    send_buffer.resize(sim.size);
-    recv_buffer.resize(sim.size);
-    send_faces.resize(sim.size);
-    recv_faces.resize(sim.size);
+    buf->send_buffer.resize(sim.size);
+    buf->recv_buffer.resize(sim.size);
+    buf->send_faces.resize(sim.size);
+    buf->recv_faces.resize(sim.size);
     for (int r = 0; r < sim.size; r++) {
-      send_faces[r].clear();
-      recv_faces[r].clear();
+      buf->send_faces[r].clear();
+      buf->recv_faces[r].clear();
     }
     std::vector<int> send_buffer_size(sim.size, 0);
     std::vector<int> recv_buffer_size(sim.size, 0);
@@ -1863,7 +1867,7 @@ struct Grid {
           const int infoNeiCoarserrank = treef(&tree, info.level - 1, nCoarse);
           int code2[3] = {-code[0], -code[1], -code[2]};
           int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
-          send_faces[infoNeiCoarserrank].push_back(
+          buf->send_faces[infoNeiCoarserrank].push_back(
               Face(&info, infoNeiCoarser, icode[f], icode2));
           send_buffer_size[infoNeiCoarserrank] += V;
         } else if (treef(&tree, info.level,
@@ -1882,7 +1886,7 @@ struct Grid {
             Info *infoNeiFiner = get(infoNei->level + 1, nFine);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            recv_faces[infoNeiFinerrank].push_back(
+            buf->recv_faces[infoNeiFinerrank].push_back(
                 Face(infoNeiFiner, &info, icode2, icode[f]));
             recv_buffer_size[infoNeiFinerrank] += V;
           }
@@ -1915,15 +1919,15 @@ struct Grid {
         }
       }
     for (int r = 0; r < sim.size; r++) {
-      std::sort(send_faces[r].begin(), send_faces[r].end());
-      std::sort(recv_faces[r].begin(), recv_faces[r].end());
+      std::sort(buf->send_faces[r].begin(), buf->send_faces[r].end());
+      std::sort(buf->recv_faces[r].begin(), buf->recv_faces[r].end());
     }
     for (int r = 0; r < sim.size; r++) {
-      send_buffer[r].resize(send_buffer_size[r] * dim);
-      recv_buffer[r].resize(recv_buffer_size[r] * dim);
+      buf->send_buffer[r].resize(send_buffer_size[r] * dim);
+      buf->recv_buffer[r].resize(recv_buffer_size[r] * dim);
       int offset = 0;
-      for (int k = 0; k < (int)recv_faces[r].size(); k++) {
-        Face &f = recv_faces[r][k];
+      for (int k = 0; k < (int)buf->recv_faces[r].size(); k++) {
+        Face &f = buf->recv_faces[r][k];
         const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
                              (f.icode[1] / 9) % 3 - 1};
         int V =
@@ -1936,8 +1940,8 @@ struct Grid {
   void FillBlockCases() {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
-      for (int k = 0; k < (int)send_faces[r].size(); k++) {
-        Face &f = send_faces[r][k];
+      for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
+        Face &f = buf->send_faces[r][k];
         Info *info = f.infos[0];
         auto search = Map.find({(long long)info->level, info->Z});
         assert(search != Map.end());
@@ -1957,7 +1961,7 @@ struct Grid {
           Real *b = &FineFace[dim * (i2 + 1)];
           for (d = 0; d < dim; d++) {
             Real avg = a[d] + b[d];
-            memcpy(&send_buffer[r][displacement], &avg, sizeof(Real));
+            memcpy(&buf->send_buffer[r][displacement], &avg, sizeof(Real));
             displacement++;
           }
           memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
@@ -1969,36 +1973,37 @@ struct Grid {
     std::vector<MPI_Request> recv_requests;
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank) {
-        if (recv_buffer[r].size() != 0) {
+        if (buf->recv_buffer[r].size() != 0) {
           MPI_Request req{};
           recv_requests.push_back(req);
-          MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_Real, r,
-                    123456, MPI_COMM_WORLD, &recv_requests.back());
+          MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(),
+                    MPI_Real, r, 123456, MPI_COMM_WORLD, &recv_requests.back());
         }
-        if (send_buffer[r].size() != 0) {
+        if (buf->send_buffer[r].size() != 0) {
           MPI_Request req{};
           send_requests.push_back(req);
-          MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_Real, r,
-                    123456, MPI_COMM_WORLD, &send_requests.back());
+          MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(),
+                    MPI_Real, r, 123456, MPI_COMM_WORLD, &send_requests.back());
         }
       }
-    if (recv_buffer[sim.rank].size() > 0 && send_buffer[sim.rank].size() > 0)
-      memcpy(&recv_buffer[sim.rank][0], &send_buffer[sim.rank][0],
-             send_buffer[sim.rank].size() * sizeof(Real));
-    for (int index = 0; index < (int)recv_faces[sim.rank].size(); index++)
-      FillCase(&recv_faces[sim.rank][index]);
+    if (buf->recv_buffer[sim.rank].size() > 0 &&
+        buf->send_buffer[sim.rank].size() > 0)
+      memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
+             buf->send_buffer[sim.rank].size() * sizeof(Real));
+    for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
+      FillCase(&buf->recv_faces[sim.rank][index]);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
-        for (int index = 0; index < (int)recv_faces[r].size(); index++)
-          FillCase(&recv_faces[r][index]);
+        for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+          FillCase(&buf->recv_faces[r][index]);
     for (int r = 0; r < sim.size; r++)
-      for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(&recv_faces[r][index], 1, 0);
+      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+        FillCase_2(&buf->recv_faces[r][index], 1, 0);
     for (int r = 0; r < sim.size; r++)
-      for (int index = 0; index < (int)recv_faces[r].size(); index++)
-        FillCase_2(&recv_faces[r][index], 0, 1);
+      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+        FillCase_2(&buf->recv_faces[r][index], 0, 1);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
@@ -6369,6 +6374,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid(dim);
+    g->buf = new Buffers;
     for (size_t i = 0; i < my_blocks; i++) {
       long long Z = n_start + i;
       long long aux = sim.levels[sim.levelStart] + Z;
