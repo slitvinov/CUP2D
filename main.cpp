@@ -6510,7 +6510,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < _BS_ * _BS_; i++)
     for (int j = 0; j < _BS_ * _BS_; j++) {
       double aux = 0.;
-      for (int k(0); k < _BS_ * _BS_; k++)
+      for (int k = 0; k < _BS_ * _BS_; k++)
         aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * _BS_ * _BS_ + j] = -aux;
     };
