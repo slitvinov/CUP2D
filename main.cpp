@@ -543,7 +543,6 @@ struct Info {
   long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
   Real *block;
   BlockCase *auxiliary;
-  bool operator<(const Info &other) const { return id2 < other.id2; }
 };
 struct BlockCase {
   Real *d[4];
@@ -1692,9 +1691,13 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     }
   }
 }
+
+static bool info_cmp(Info& a, Info& b) {
+  return a.id2 < b.id2;
+}
 static void fill_pos(std::vector<Info> *infos,
                      std::unordered_map<long long, Info *> *all) {
-  std::sort(infos->begin(), infos->end());
+  std::sort(infos->begin(), infos->end(), info_cmp);
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
     long long Z = (*infos)[j].Z;
@@ -5223,7 +5226,7 @@ static void adapt() {
     }
     const double ratio = static_cast<double>(max_b) / min_b;
     if (ratio > 1.01 || min_b == 0) {
-      std::sort(g->infos.begin(), g->infos.end());
+      std::sort(g->infos.begin(), g->infos.end(), info_cmp);
       long long total_load = 0;
       for (int r = 0; r < sim.size; r++)
         total_load += block_distribution[r];
@@ -5367,7 +5370,7 @@ static void adapt() {
       const int flux_right =
           (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
       if (flux_right != 0 || flux_left != 0)
-        std::sort(g->infos.begin(), g->infos.end());
+        std::sort(g->infos.begin(), g->infos.end(), info_cmp);
       std::vector<MPI_Block> send_left;
       std::vector<MPI_Block> recv_left;
       std::vector<MPI_Block> send_right;
