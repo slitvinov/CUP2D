@@ -338,13 +338,10 @@ static struct {
   std::unique_ptr<LocalSpMatDnVec> mat;
 } sim;
 struct SpaceCurve {
-  int BX;
-  int BY;
+  int BX, BY, base_level;
   bool isRegular;
-  int base_level;
   std::vector<std::vector<long long>> Zsave;
-  std::vector<std::vector<int>> i_inverse;
-  std::vector<std::vector<int>> j_inverse;
+  std::vector<std::vector<int>> i_inverse, j_inverse;
   long long AxestoTranspose(const int *X_in, int b) const {
     int x = X_in[0];
     int y = X_in[1];
