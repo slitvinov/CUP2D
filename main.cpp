@@ -335,6 +335,9 @@ static struct {
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
   struct Solver *solver;
+  std::unique_ptr<LocalSpMatDnVec> mat;
+  std::vector<long long> nblocks;
+  std::vector<long long> nrows;
 } sim;
 struct SpaceCurve {
   int BX;
@@ -5756,9 +5759,6 @@ struct KernelComputeForces {
   }
 };
 struct Solver {
-  std::unique_ptr<LocalSpMatDnVec> mat;
-  std::vector<long long> nblocks;
-  std::vector<long long> nrows;
   Solver()
       : GenericCell(), XminCell(), XmaxCell(), YminCell(),
         YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
@@ -5780,8 +5780,7 @@ struct Solver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const Info *info) const {
-      return (info->id + sim.solver->nblocks[var.tmp->Tree1(info)]) *
-             (_BS_ * _BS_);
+      return (info->id + sim.nblocks[var.tmp->Tree1(info)]) * (_BS_ * _BS_);
     }
     static int ix_f(int ix) { return (ix % (_BS_ / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (_BS_ / 2)) * 2; }
@@ -6012,10 +6011,10 @@ struct Solver {
     std::vector<Info> &RhsInfo = var.tmp->infos;
     std::vector<Info> &zInfo = var.pres->infos;
     int Nblocks = RhsInfo.size();
-    std::vector<double> &x = mat->get_x();
-    std::vector<double> &b = mat->get_b();
-    std::vector<double> &h2 = mat->get_h2();
-    long long shift = -nrows[sim.rank];
+    std::vector<double> &x = sim.mat->get_x();
+    std::vector<double> &b = sim.mat->get_b();
+    std::vector<double> &h2 = sim.mat->get_h2();
+    long long shift = -sim.nrows[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       Real *rhs = RhsInfo[i].block;
@@ -6023,7 +6022,7 @@ struct Solver {
       h2[i] = RhsInfo[i].h * RhsInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
-	  int j = iy * _BS_ + ix;
+          int j = iy * _BS_ + ix;
           long long sfc_loc = GenericCell.This(&RhsInfo[i], ix, iy) + shift;
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
@@ -6472,8 +6471,8 @@ int main(int argc, char **argv) {
   }
 
   sim.solver = new Solver;
-  sim.solver->nblocks.resize(sim.size + 1);
-  sim.solver->nrows.resize(sim.size + 1);
+  sim.nblocks.resize(sim.size + 1);
+  sim.nrows.resize(sim.size + 1);
   std::vector<std::vector<double>> L;
   std::vector<std::vector<double>> L_inv;
   L.resize(_BS_ * _BS_);
@@ -6515,7 +6514,7 @@ int main(int argc, char **argv) {
         aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * _BS_ * _BS_ + j] = -aux;
     };
-  sim.solver->mat =
+  sim.mat =
       std::make_unique<LocalSpMatDnVec>(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
@@ -7010,19 +7009,18 @@ int main(int argc, char **argv) {
         std::vector<Info> &RhsInfo = var.tmp->infos;
         const int Nblocks = RhsInfo.size();
         const int N = _BS_ * _BS_ * Nblocks;
-        sim.solver->mat->reserve(N);
+        sim.mat->reserve(N);
         const long long Nblocks_long = Nblocks;
-        MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG,
-                      sim.solver->nblocks.data(), 1, MPI_LONG_LONG,
-                      MPI_COMM_WORLD);
-        for (int i(sim.solver->nblocks.size() - 1); i > 0; i--) {
-          sim.solver->nblocks[i] = sim.solver->nblocks[i - 1];
+        MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, sim.nblocks.data(), 1,
+                      MPI_LONG_LONG, MPI_COMM_WORLD);
+        for (int i(sim.nblocks.size() - 1); i > 0; i--) {
+          sim.nblocks[i] = sim.nblocks[i - 1];
         }
-        sim.solver->nblocks[0] = 0;
-        sim.solver->nrows[0] = 0;
-        for (size_t i(1); i < sim.solver->nblocks.size(); i++) {
-          sim.solver->nblocks[i] += sim.solver->nblocks[i - 1];
-          sim.solver->nrows[i] = (_BS_ * _BS_) * sim.solver->nblocks[i];
+        sim.nblocks[0] = 0;
+        sim.nrows[0] = 0;
+        for (size_t i(1); i < sim.nblocks.size(); i++) {
+          sim.nblocks[i] += sim.nblocks[i - 1];
+          sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
         }
         for (int i = 0; i < Nblocks; i++) {
           const Info &rhs_info = RhsInfo[i];
@@ -7044,17 +7042,17 @@ int main(int argc, char **argv) {
               const long long sfc_idx =
                   sim.solver->GenericCell.This(&rhs_info, ix, iy);
               if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
-                sim.solver->mat->cooPushBackVal(
+                sim.mat->cooPushBackVal(
                     1, sfc_idx,
                     sim.solver->GenericCell.This(&rhs_info, ix, iy - 1));
-                sim.solver->mat->cooPushBackVal(
+                sim.mat->cooPushBackVal(
                     1, sfc_idx,
                     sim.solver->GenericCell.This(&rhs_info, ix - 1, iy));
-                sim.solver->mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-                sim.solver->mat->cooPushBackVal(
+                sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
+                sim.mat->cooPushBackVal(
                     1, sfc_idx,
                     sim.solver->GenericCell.This(&rhs_info, ix + 1, iy));
-                sim.solver->mat->cooPushBackVal(
+                sim.mat->cooPushBackVal(
                     1, sfc_idx,
                     sim.solver->GenericCell.This(&rhs_info, ix, iy + 1));
               } else {
@@ -7078,21 +7076,20 @@ int main(int argc, char **argv) {
                                          sim.solver->edgeIndexers[j], row);
                   }
                 }
-                sim.solver->mat->cooPushBackRow(row);
+                sim.mat->cooPushBackRow(row);
               }
             }
         }
-        sim.solver->mat->make(sim.solver->nrows);
+        sim.mat->make(sim.nrows);
         sim.solver->getVec();
-        sim.solver->mat->solveWithUpdate(max_error, max_rel_error,
-                                         max_restarts);
+        sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
       } else {
         sim.solver->getVec();
-        sim.solver->mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
+        sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
       }
       std::vector<Info> &zInfo = var.pres->infos;
       const int NB = zInfo.size();
-      const std::vector<double> &x = sim.solver->mat->get_x();
+      const std::vector<double> &x = sim.mat->get_x();
       Real avg, avg1, quantities[2];
       avg = 0;
       avg1 = 0;
