@@ -335,7 +335,7 @@ static struct {
   std::vector<Shape *> shapes;
   struct SpaceCurve *space_curve;
   struct Solver *solver;
-  struct LocalSpMatDnVec* mat;
+  struct LocalSpMatDnVec *mat;
 } sim;
 struct SpaceCurve {
   int BX, BY, base_level;
@@ -3804,11 +3804,11 @@ struct ComputeSurfaceNormals {
     Real *um0 = labChi.m;
     Real *um1 = labSDF.m;
     for (const auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[infoChi->id] == nullptr)
+      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      if (oblock[infoChi->id] == nullptr)
         continue;
       Real h = sim.h0 / (1 << infoChi->level);
-      Obstacle &o = *OBLOCK[infoChi->id];
+      Obstacle &o = *oblock[infoChi->id];
       Real i2h = 0.5 / h;
       Real fac = 0.5 * h;
       for (int y0 = 0; y0 < _BS_; y0++)
@@ -3939,12 +3939,12 @@ struct PutChiOnGrid {
     Real *um = lab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
-      if (OBLOCK[info->id] == nullptr)
+      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      if (oblock[info->id] == nullptr)
         continue;
       Real h = sim.h0 / (1 << info->level);
       Real h2 = h * h;
-      Obstacle &o = *OBLOCK[info->id];
+      Obstacle &o = *oblock[info->id];
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
@@ -4495,14 +4495,14 @@ static void ongrid(Real dt) {
                                                         var.chi, var.tmp);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
-    const std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+    const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for reduction(+ : com[:3])
-    for (size_t i = 0; i < OBLOCK.size(); i++) {
-      if (OBLOCK[i] == nullptr)
+    for (size_t i = 0; i < oblock.size(); i++) {
+      if (oblock[i] == nullptr)
         continue;
-      com[0] += OBLOCK[i]->Mass;
-      com[1] += OBLOCK[i]->COM_x;
-      com[2] += OBLOCK[i]->COM_y;
+      com[0] += oblock[i]->Mass;
+      com[1] += oblock[i]->COM_x;
+      com[2] += oblock[i]->COM_y;
     }
     MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
     shape->M = com[0];
@@ -5603,13 +5603,13 @@ struct KernelComputeForces {
     Real *um = l.m;
     Real *P = presInfo[info->id].block;
     for (auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       Real Cx = shape->centerOfMass[0], Cy = shape->centerOfMass[1];
       Real vel_norm = std::sqrt(shape->u * shape->u + shape->v * shape->v);
       Real vel_unit[2] = {vel_norm > 0 ? (Real)shape->u / vel_norm : (Real)0,
                           vel_norm > 0 ? (Real)shape->v / vel_norm : (Real)0};
       Real NUoH = sim.nu / info->h;
-      Obstacle *O = OBLOCK[info->id];
+      Obstacle *O = oblock[info->id];
       if (O == nullptr)
         continue;
       assert(O->filled);
@@ -6512,8 +6512,7 @@ int main(int argc, char **argv) {
         aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
       P_inv[i * _BS_ * _BS_ + j] = -aux;
     };
-  sim.mat =
-      new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
+  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
 
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
@@ -6529,13 +6528,13 @@ int main(int argc, char **argv) {
   }
   ongrid(0.0);
   for (auto &shape : sim.shapes) {
-    std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+    std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      if (OBLOCK[var.tmpV->infos[i].id] == nullptr)
+      if (oblock[var.tmpV->infos[i].id] == nullptr)
         continue;
-      Real *udef = (Real *)OBLOCK[var.tmpV->infos[i].id]->udef;
-      Real *chi = (Real *)OBLOCK[var.tmpV->infos[i].id]->chi;
+      Real *udef = (Real *)oblock[var.tmpV->infos[i].id]->udef;
+      Real *chi = (Real *)oblock[var.tmpV->infos[i].id]->chi;
       Real *UDEF = var.tmpV->infos[i].block;
       Real *CHI = var.chi->infos[i].block;
       for (int j = 0; j < _BS_ * _BS_; j++) {
@@ -6617,7 +6616,7 @@ int main(int argc, char **argv) {
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
       for (const auto &shape : sim.shapes) {
-        const std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+        const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
         const Real Cx = shape->centerOfMass[0];
         const Real Cy = shape->centerOfMass[1];
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
@@ -6625,10 +6624,10 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < velInfo.size(); i++) {
           const Real *VEL = velInfo[i].block;
           const Real hsq = velInfo[i].h * velInfo[i].h;
-          if (OBLOCK[velInfo[i].id] == nullptr)
+          if (oblock[velInfo[i].id] == nullptr)
             continue;
-          const Real *chi = (Real *)OBLOCK[velInfo[i].id]->chi;
-          const Real *udef = (Real *)OBLOCK[velInfo[i].id]->udef;
+          const Real *chi = (Real *)oblock[velInfo[i].id]->chi;
+          const Real *udef = (Real *)oblock[velInfo[i].id]->udef;
           const Real lambdt = sim.lambda * sim.dt;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
@@ -6921,8 +6920,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
       for (size_t i = 0; i < Nblocks; i++)
         for (auto &shape : sim.shapes) {
-          std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
-          Obstacle *o = OBLOCK[velInfo[i].id];
+          std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+          Obstacle *o = oblock[velInfo[i].id];
           if (o == nullptr)
             continue;
           Real u_s = shape->u;
@@ -6958,13 +6957,13 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < Nblocks; i++)
         memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
       for (auto &shape : sim.shapes) {
-        std::vector<Obstacle *> &OBLOCK = shape->obstacleBlocks;
+        std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
         for (size_t i = 0; i < Nblocks; i++) {
-          if (OBLOCK[tmpVInfo[i].id] == nullptr)
+          if (oblock[tmpVInfo[i].id] == nullptr)
             continue;
-          Real *udef = (Real *)OBLOCK[tmpVInfo[i].id]->udef;
-          Real *chi = (Real *)OBLOCK[tmpVInfo[i].id]->chi;
+          Real *udef = (Real *)oblock[tmpVInfo[i].id]->udef;
+          Real *chi = (Real *)oblock[tmpVInfo[i].id]->chi;
           Real *UDEF = tmpVInfo[i].block;
           Real *CHI = chiInfo[i].block;
           for (int iy = 0; iy < _BS_; iy++)
