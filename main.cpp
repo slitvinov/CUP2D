@@ -1779,8 +1779,8 @@ struct Grid {
     std::array<long long, 2> temp = {(long long)info->level, info->Z};
     auto search = Map.find(temp);
     assert(search != Map.end());
-    BlockCase &CoarseCase = (*search->second);
-    Real *CoarseFace = CoarseCase.d[myFace];
+    BlockCase *CoarseCase = search->second;
+    Real *CoarseFace = CoarseCase->d[myFace];
     Real *block = info->block;
     const int d = myFace / 2;
     const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
