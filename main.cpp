@@ -6020,14 +6020,13 @@ struct Solver {
     const long long shift = -nrows[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
-      const Info &rhs_info = RhsInfo[i];
       Real *rhs = RhsInfo[i].block;
       Real *p = zInfo[i].block;
       h2[i] = RhsInfo[i].h * RhsInfo[i].h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
 	  int j = iy * _BS_ + ix;
-          const long long sfc_loc = GenericCell.This(&rhs_info, ix, iy) + shift;
+          const long long sfc_loc = GenericCell.This(&RhsInfo[i], ix, iy) + shift;
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
         }
