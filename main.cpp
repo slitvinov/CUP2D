@@ -1830,7 +1830,7 @@ struct Grid {
                                 1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                                 1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
     for (auto &info : infos) {
-      get(info.level, info.Z)->auxiliary = nullptr;
+      getf(&all, info.level, info.Z)->auxiliary = nullptr;
       info.auxiliary = nullptr;
       int aux = 1 << info.level;
       bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
@@ -1861,9 +1861,9 @@ struct Grid {
         int V = L[0] * L[1];
         if (treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
             -2) {
-          Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info *infoNei = getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           const long long nCoarse = infoNei->Zparent;
-          Info *infoNeiCoarser = get(info.level - 1, nCoarse);
+          Info *infoNeiCoarser = getf(&all, info.level - 1, nCoarse);
           const int infoNeiCoarserrank = treef(&tree, info.level - 1, nCoarse);
           int code2[3] = {-code[0], -code[1], -code[2]};
           int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
@@ -1872,7 +1872,7 @@ struct Grid {
           send_buffer_size[infoNeiCoarserrank] += V;
         } else if (treef(&tree, info.level,
                          info.Znei[1 + code[0]][1 + code[1]]) == -1) {
-          Info *infoNei = get(info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          Info *infoNei = getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int Bstep = 1;
           for (int B = 0; B <= 1; B += Bstep) {
             const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -1883,7 +1883,7 @@ struct Grid {
                                 temp * std::max(0, 1 - abs(code[1]))];
             const int infoNeiFinerrank =
                 treef(&tree, infoNei->level + 1, nFine);
-            Info *infoNeiFiner = get(infoNei->level + 1, nFine);
+            Info *infoNeiFiner = getf(&all, infoNei->level + 1, nFine);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             buf->recv_faces[infoNeiFinerrank].push_back(
@@ -1912,7 +1912,7 @@ struct Grid {
           buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
               {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
               buf->Cases[Cases_index]));
-          get(buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)->auxiliary =
+          getf(&all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)->auxiliary =
               buf->Cases[Cases_index];
           info.auxiliary = buf->Cases[Cases_index];
           Cases_index++;
@@ -2008,7 +2008,7 @@ struct Grid {
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
   Real *avail(const int m, const long long n) {
-    return (Tree0(m, n) == sim.rank) ? get(m, n)->block : nullptr;
+    return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
   void UpdateBoundary(bool clean = false) {
     std::vector<std::vector<long long>> send_buffer(sim.size);
@@ -2036,7 +2036,7 @@ struct Grid {
           continue;
         if (code[2] != 0)
           continue;
-        Info *infoNei = get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
+        Info *infoNei = getf(&all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         const int &infoNeiTree = treef(&tree, infoNei->level, infoNei->Z);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           if (infoNei->state != Refine || clean)
@@ -2045,7 +2045,7 @@ struct Grid {
           Neighbors.insert(infoNeiTree);
         } else if (infoNeiTree == -2) {
           const long long nCoarse = infoNei->Zparent;
-          Info *infoNeiCoarser = get(infoNei->level - 1, nCoarse);
+          Info *infoNeiCoarser = getf(&all, infoNei->level - 1, nCoarse);
           const int infoNeiCoarserrank =
               treef(&tree, infoNei->level - 1, nCoarse);
           if (infoNeiCoarserrank != sim.rank) {
@@ -2068,7 +2068,7 @@ struct Grid {
                                 (B % 2) * std::max(0, 1 - abs(code[0]))]
                                [std::max(-code[1], 0) +
                                 temp * std::max(0, 1 - abs(code[1]))];
-            Info *infoNeiFiner = get(infoNei->level + 1, nFine);
+            Info *infoNeiFiner = getf(&all, infoNei->level + 1, nFine);
             const int infoNeiFinerrank =
                 treef(&tree, infoNei->level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
@@ -2126,7 +2126,7 @@ struct Grid {
         for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
           int level = recv_buffer[r][index];
           long long Z = recv_buffer[r][index + 1];
-          get(level, Z)->state =
+          getf(&all, level, Z)->state =
               (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
         }
   };
@@ -2188,7 +2188,7 @@ struct Grid {
   int &Tree0(const int m, const long long n) { return treef(&tree, m, n); }
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
-    Info *new_info = get(level, Z);
+    Info *new_info = getf(&all, level, Z);
     new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(*new_info); }
@@ -3046,7 +3046,7 @@ struct BlockLab {
 static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
                      uint8_t *data) {
   grid->_alloc(level, Z);
-  Info *info = grid->get(level, Z);
+  Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
   sim.space_curve->inverse(Z, level, &p[0], &p[1]);
@@ -4702,7 +4702,7 @@ static void adapt() {
     {
 #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < I->size(); i++) {
-        Info *info = var.tmp->get((*I)[i]->level, (*I)[i]->Z);
+        Info *info = getf(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
         Real *b = info->block;
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
