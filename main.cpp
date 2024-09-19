@@ -1755,9 +1755,9 @@ struct Grid {
       int N2 = sizes[d2];
       int base = 0;
       if (B == 1)
-        base = (N2 / 2) + (0) * N2;
+        base = N2 / 2;
       else if (B == 2)
-        base = (0) + (N1 / 2) * N2;
+        base = (N1 / 2) * N2;
       else if (B == 3)
         base = (N2 / 2) + (N1 / 2) * N2;
       int r = Treef(&tree, F->infos[0]->level, F->infos[0]->Z);
@@ -3185,7 +3185,7 @@ struct VectorLab : public BlockLab {
                          (this->end[2]) / 2 + 1 + (1) - 1};
       const int sI[3] = {(this->start[0] - 1) / 2 + (-1),
                          (this->start[1] - 1) / 2 + (-1),
-                         (this->start[2] - 1) / 2 + (0)};
+                         (this->start[2] - 1) / 2};
       const int *const stenBeg = sI;
       const int *const stenEnd = eI;
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -4036,8 +4036,7 @@ static void ongrid(Real dt) {
     shape->theta_internal -= dt * shape->angvel_internal;
     if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
         shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
-      printf("[CUP2D] ABORT: Body out of domain\n");
-      fflush(0);
+      fprintf(stderr, "main.cpp: a body out of the domain\n");
       abort();
     }
   }
