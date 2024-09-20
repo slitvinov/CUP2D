@@ -2328,15 +2328,15 @@ struct BlockLab {
         CoarseFineExchange(grid, info, code);
       }
       if (!istensorial && !use_averages &&
-          abs(code[0]) + abs(code[1]) + abs(code[2]) > 1)
+          abs(code[0]) + abs(code[1]) > 1)
         continue;
       const int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
                         code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_,
-                        code[2] < 1 ? (code[2] < 0 ? start[2] : 0) : 1};
+                        0};
       const int e[3] = {
           code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
           code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
-          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1 + end[2] - 1};
+          1};
       if (TreeNei >= 0)
         SameLevelExchange(grid, info, code, s, e);
       else if (TreeNei == -1)
