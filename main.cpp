@@ -1235,6 +1235,7 @@ struct Synchronizer {
                 Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
                 Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
                 Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
+		accert(Lc[2] == 1);
                 const int Vc = Lc[0] * Lc[1] * Lc[2];
                 total_size += Vc;
                 offsets[r] += Vc * dim;
