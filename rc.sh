@@ -3,7 +3,7 @@ ssh rc '
 . /etc/profile
 d='$d' 
 rm -rf "${d?not set}" &&
-   git clone git@github.com:slitvinov/CUP2D "$d" &&
+   git clone --depth 1 git@github.com:slitvinov/CUP2D "$d" &&
    cd "$d" &&
    git checkout '${1-HEAD}' &&
    module load gcc/12.2.0-fasrc01 openmpi cuda python &&
