@@ -943,8 +943,7 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  void Setup(int dim,
-	     std::unordered_map<long long, int> *tree,
+  void Setup(int dim, std::unordered_map<long long, int> *tree,
              std::unordered_map<long long, Info *> *all,
              std::vector<Info> *infos) {
     DuplicatesManager DM;
@@ -1320,8 +1319,8 @@ struct Synchronizer {
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, 1, L[0],
-                          L[1], L[2], &srcx, &srcy, &srcz);
+            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, 1, L[0], L[1],
+                          L[2], &srcx, &srcy, &srcz);
             int Csrcx = 0;
             int Csrcy = 0;
             int Csrcz = 0;
@@ -1403,116 +1402,6 @@ struct Synchronizer {
         (retval->second).myblocks.push_back(info);
       }
     }
-  }
-  void sync0(int dim, int timestamp) {
-    auto it = mapofHaloBlockGroups.begin();
-    while (it != mapofHaloBlockGroups.end()) {
-      (it->second).ready = false;
-      it++;
-    }
-    mapofrequests.clear();
-    requests.clear();
-    requests.reserve(2 * sim.size);
-    for (auto r : Neighbors)
-      if (recv_buffer_size[r] > 0) {
-        requests.resize(requests.size() + 1);
-        mapofrequests[r] = &requests.back();
-        MPI_Irecv(&recv_buffer[r][0], recv_buffer_size[r] * dim, MPI_Real, r,
-                  timestamp, MPI_COMM_WORLD, &requests.back());
-      }
-    for (int r = 0; r < sim.size; r++)
-      if (send_buffer_size[r] != 0) {
-#pragma omp parallel
-        {
-#pragma omp for
-          for (size_t j = 0; j < ToBeAveragedDown[r].size(); j += 2) {
-            int i = ToBeAveragedDown[r][j];
-            int d = ToBeAveragedDown[r][j + 1];
-            Interface &f = send_interfaces[r][i];
-            int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
-                           -((f.icode[0] / 9) % 3 - 1)};
-            if (f.CoarseStencil) {
-              Real *dst = send_buffer[r].data() + d;
-              const Info *const info = f.infos[0];
-              int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
-              int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
-              int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
-                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
-              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + eC[0] - 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + eC[1] - 1};
-              Real *src = (*info).block;
-              int pos = 0;
-              for (int iy = s[1]; iy < e[1]; iy++) {
-                int YY = 2 * (iy - s[1]) + s[1] +
-                         std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
-                         std::min(0, code[1]) * (e[1] - s[1]);
-                for (int ix = s[0]; ix < e[0]; ix++) {
-                  int XX = 2 * (ix - s[0]) + s[0] +
-                           std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
-                           std::min(0, code[0]) * (e[0] - s[0]);
-                  for (int c = 0; c < dim; c++) {
-                    int comp = c;
-                    dst[pos] =
-                        0.25 *
-                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-                    pos++;
-                  }
-                }
-              }
-            } else {
-              Real *dst = send_buffer[r].data() + d;
-              const Info *const info = f.infos[0];
-              int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
-              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                                      : _BS_ + stencil.ex - 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                      : _BS_ + stencil.ey - 1};
-              Real *src = (*info).block;
-              int xStep = (code[0] == 0) ? 2 : 1;
-              int yStep = (code[1] == 0) ? 2 : 1;
-              int pos = 0;
-              for (int iy = s[1]; iy < e[1]; iy += yStep) {
-                int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
-                                                   std::min(0, code[1]) * _BS_
-                                             : iy;
-                for (int ix = s[0]; ix < e[0]; ix += xStep) {
-                  int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
-                                                     std::min(0, code[0]) * _BS_
-                                               : ix;
-                  for (int c = 0; c < dim; c++) {
-                    int comp = c;
-                    dst[pos] =
-                        0.25 *
-                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-                    pos++;
-                  }
-                }
-              }
-            }
-          }
-#pragma omp for
-          for (size_t i = 0; i < send_packinfos[r].size(); i++) {
-            const PackInfo &info = send_packinfos[r][i];
-            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
-                 info.ey, info.ez, _BS_, _BS_);
-          }
-        }
-      }
-    for (auto r : Neighbors)
-      if (send_buffer_size[r] > 0) {
-        requests.resize(requests.size() + 1);
-        MPI_Isend(&send_buffer[r][0], send_buffer_size[r] * dim, MPI_Real, r,
-                  timestamp, MPI_COMM_WORLD, &requests.back());
-      }
   }
 };
 struct Face {
@@ -2166,7 +2055,114 @@ struct Grid {
     } else {
       s = itSynchronizerMPI->second;
     }
-    s->sync0(dim, timestamp);
+    auto it = s->mapofHaloBlockGroups.begin();
+    while (it != s->mapofHaloBlockGroups.end()) {
+      (it->second).ready = false;
+      it++;
+    }
+    s->mapofrequests.clear();
+    s->requests.clear();
+    s->requests.reserve(2 * sim.size);
+    for (auto r : s->Neighbors)
+      if (s->recv_buffer_size[r] > 0) {
+        s->requests.resize(s->requests.size() + 1);
+        s->mapofrequests[r] = &s->requests.back();
+        MPI_Irecv(&s->recv_buffer[r][0], s->recv_buffer_size[r] * dim, MPI_Real,
+                  r, timestamp, MPI_COMM_WORLD, &s->requests.back());
+      }
+    for (int r = 0; r < sim.size; r++)
+      if (s->send_buffer_size[r] != 0) {
+#pragma omp parallel
+        {
+#pragma omp for
+          for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
+            int i = s->ToBeAveragedDown[r][j];
+            int d = s->ToBeAveragedDown[r][j + 1];
+            Interface &f = s->send_interfaces[r][i];
+            int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
+                           -((f.icode[0] / 9) % 3 - 1)};
+            if (f.CoarseStencil) {
+              Real *dst = s->send_buffer[r].data() + d;
+              const Info *const info = f.infos[0];
+              int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
+              int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
+              int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
+              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + eC[0] - 1,
+                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                      : _BS_ / 2 + eC[1] - 1};
+              Real *src = (*info).block;
+              int pos = 0;
+              for (int iy = s[1]; iy < e[1]; iy++) {
+                int YY = 2 * (iy - s[1]) + s[1] +
+                         std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
+                         std::min(0, code[1]) * (e[1] - s[1]);
+                for (int ix = s[0]; ix < e[0]; ix++) {
+                  int XX = 2 * (ix - s[0]) + s[0] +
+                           std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
+                           std::min(0, code[0]) * (e[0] - s[0]);
+                  for (int c = 0; c < dim; c++) {
+                    int comp = c;
+                    dst[pos] =
+                        0.25 *
+                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                    pos++;
+                  }
+                }
+              }
+            } else {
+              Real *dst = s->send_buffer[r].data() + d;
+              const Info *const info = f.infos[0];
+              int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
+              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
+                                      : _BS_ + stencil.ex - 1,
+                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
+                                      : _BS_ + stencil.ey - 1};
+              Real *src = (*info).block;
+              int xStep = (code[0] == 0) ? 2 : 1;
+              int yStep = (code[1] == 0) ? 2 : 1;
+              int pos = 0;
+              for (int iy = s[1]; iy < e[1]; iy += yStep) {
+                int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                                   std::min(0, code[1]) * _BS_
+                                             : iy;
+                for (int ix = s[0]; ix < e[0]; ix += xStep) {
+                  int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
+                                                     std::min(0, code[0]) * _BS_
+                                               : ix;
+                  for (int c = 0; c < dim; c++) {
+                    int comp = c;
+                    dst[pos] =
+                        0.25 *
+                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                    pos++;
+                  }
+                }
+              }
+            }
+          }
+#pragma omp for
+          for (size_t i = 0; i < s->send_packinfos[r].size(); i++) {
+            const PackInfo &info = s->send_packinfos[r][i];
+            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
+                 info.ey, info.ez, _BS_, _BS_);
+          }
+        }
+      }
+    for (auto r : s->Neighbors)
+      if (s->send_buffer_size[r] > 0) {
+        s->requests.resize(s->requests.size() + 1);
+        MPI_Isend(&s->send_buffer[r][0], s->send_buffer_size[r] * dim, MPI_Real,
+                  r, timestamp, MPI_COMM_WORLD, &s->requests.back());
+      }
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
