@@ -3072,7 +3072,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename Lab, typename Lab2>
-static void computeB(const Kernel &&kernel, Grid *grid, Grid *grid2) {
+static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
   Synchronizer *Synch = grid->sync1(kernel.stencil);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
