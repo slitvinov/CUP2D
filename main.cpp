@@ -542,7 +542,6 @@ struct BlockCase {
 struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
-  Stencil() {}
   Stencil(int sx, int sy, int ex, int ey, bool tensorial)
       : sx(sx), sy(sy), ex(ex), ey(ey), tensorial(tensorial) {}
   Stencil(const Stencil &c) = default;
