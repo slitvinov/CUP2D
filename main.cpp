@@ -84,6 +84,7 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
 static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
                              int srcystart, int srczstart, int LX, int LY,
                              int dstxend, int dstyend, int xsize, int ysize) {
+  assert(srczstart == 0);
   if (dim == 1) {
     int mod = dstxend % 4;
       for (int yd = 0; yd < dstyend; ++yd) {
