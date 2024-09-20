@@ -294,9 +294,6 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
 struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
-  Stencil(int sx, int sy, int ex, int ey, bool tensorial)
-      : sx(sx), sy(sy), ex(ex), ey(ey), tensorial(tensorial) {}
-  Stencil(const Stencil &c) = default;
   bool operator<(Stencil s) const {
     int me[] = {sx, sy, ex, ey, tensorial};
     int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
