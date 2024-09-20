@@ -2953,8 +2953,8 @@ struct BlockLab {
       return false;
     int imin[3];
     int imax[3];
-    const int aux = 1 << info->level;
-    const int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
+    int aux = 1 << info->level;
+    int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
       imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
@@ -2967,7 +2967,7 @@ struct BlockLab {
       for (int i2 = imin[2]; i2 <= imax[2]; i2++)
         for (int i1 = imin[1]; i1 <= imax[1]; i1++)
           for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-            const int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
+            int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
             if (coarsened_nei_codes[itest] == icode_test)
               return true;
           }
