@@ -1705,7 +1705,7 @@ struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
   size_t timestamp;
-  std::map<Stencil, Synchronizer *> Synchronizers;
+  std::map<Stencil, Synchronizer *> synchronizers;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
   std::vector<Info *> boundary;
@@ -2123,8 +2123,8 @@ struct Grid {
   };
   Synchronizer *sync1(const Stencil &stencil) {
     Synchronizer *s;
-    auto itSynchronizerMPI = Synchronizers.find(stencil);
-    if (itSynchronizerMPI == Synchronizers.end()) {
+    auto itSynchronizerMPI = synchronizers.find(stencil);
+    if (itSynchronizerMPI == synchronizers.end()) {
       s = new Synchronizer(stencil, dim);
       s->use_averages = stencil.tensorial || stencil.sx < -2 ||
                         stencil.sy < -2 || stencil.ex > 3 || stencil.ey > 3;
@@ -2168,7 +2168,7 @@ struct Grid {
         s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
       }
       s->Setup(&tree, &all, &infos);
-      Synchronizers[stencil] = s;
+      synchronizers[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
     }
@@ -5418,8 +5418,8 @@ static void adapt() {
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
       update_blocks(false, &g->infos, &g->all, &g->tree);
-      auto it = g->Synchronizers.begin();
-      while (it != g->Synchronizers.end()) {
+      auto it = g->synchronizers.begin();
+      while (it != g->synchronizers.end()) {
         (*it->second).Setup(&g->tree, &g->all, &g->infos);
         it++;
       }
