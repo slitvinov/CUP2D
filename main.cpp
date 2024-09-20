@@ -2313,7 +2313,7 @@ struct BlockLab {
       myblocks[icode] = nullptr;
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
-      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
+      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
       assert(code[2] == 0);
       if (code[0] == xskip && xskin)
         continue;
@@ -2404,11 +2404,11 @@ struct BlockLab {
       }
       if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
         continue;
-      const int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-                        code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
-      const int e[3] = {
-          code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1, 1};
+      int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
+      int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
+                  1};
       if (TreeNei >= 0)
         SameLevelExchange(grid, info, code, s, e);
       else if (TreeNei == -1)
@@ -2807,8 +2807,7 @@ struct BlockLab {
           }
     return false;
   }
-  void SameLevelExchange(Grid *grid, const Info *info, const int *const code,
-                         const int *const s, const int *const e) {
+  void SameLevelExchange(Grid *grid, Info *info, int *code, int *s, int *e) {
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
