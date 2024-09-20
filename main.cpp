@@ -2325,18 +2325,90 @@ struct BlockLab {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        CoarseFineExchange(grid, info, code);
+        int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
+                                (info->index[1] + code[1] + NY) % NY};
+        int infoNei_index_true[2] = {(info->index[0] + code[0]),
+                                     (info->index[1] + code[1])};
+        Real *b = (Real *)grid->avail1((infoNei_index[0]) / 2,
+                                       (infoNei_index[1]) / 2, info->level - 1);
+        if (b == nullptr)
+          continue;
+        int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+                    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
+        int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
+                                : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
+                    code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
+                                : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
+        int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int base[2] = {(info->index[0] + code[0]) % 2,
+                       (info->index[1] + code[1]) % 2};
+        int CoarseEdge[2];
+        CoarseEdge[0] = code[0] == 0
+                            ? 0
+                            : (((info->index[0] % 2 == 0) &&
+                                (infoNei_index_true[0] > info->index[0])) ||
+                               ((info->index[0] % 2 == 1) &&
+                                (infoNei_index_true[0] < info->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = code[1] == 0
+                            ? 0
+                            : (((info->index[1] % 2 == 0) &&
+                                (infoNei_index_true[1] > info->index[1])) ||
+                               ((info->index[1] % 2 == 1) &&
+                                (infoNei_index_true[1] < info->index[1])))
+                                  ? 1
+                                  : 0;
+        const int start[2] = {
+            std::max(code[0], 0) * _BS_ / 2 +
+                (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
+                CoarseEdge[0] * code[0] * _BS_ / 2,
+            std::max(code[1], 0) * _BS_ / 2 +
+                (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
+                CoarseEdge[1] * code[1] * _BS_ / 2};
+        const int i = s[0] - offset[0];
+        const int mod = (e[1] - s[1]) % 4;
+        for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+          int i0 = i + (iy + 0 - offset[1]) * nc[0];
+          int i1 = i + (iy + 1 - offset[1]) * nc[0];
+          int i2 = i + (iy + 2 - offset[1]) * nc[0];
+          int i3 = i + (iy + 3 - offset[1]) * nc[0];
+          int y0 = iy + 0 + start[1];
+          int y1 = iy + 1 + start[1];
+          int y2 = iy + 2 + start[1];
+          int y3 = iy + 3 + start[1];
+          int x = s[0] + start[0];
+          Real *p0 = c + dim * i0;
+          Real *p1 = c + dim * i1;
+          Real *p2 = c + dim * i2;
+          Real *p3 = c + dim * i3;
+          Real *q0 = b + dim * (_BS_ * y0 + x);
+          Real *q1 = b + dim * (_BS_ * y1 + x);
+          Real *q2 = b + dim * (_BS_ * y2 + x);
+          Real *q3 = b + dim * (_BS_ * y3 + x);
+          memcpy(p0, q0, bytes);
+          memcpy(p1, q1, bytes);
+          memcpy(p2, q2, bytes);
+          memcpy(p3, q3, bytes);
+        }
+        for (int iy = e[1] - mod; iy < e[1]; iy++) {
+          int i0 = i + (iy - offset[1]) * nc[0];
+          int y0 = iy + start[1];
+          int x = s[0] + start[0];
+          Real *p = c + dim * i0;
+          Real *q = b + dim * (_BS_ * y0 + x);
+          memcpy(p, q, bytes);
+        }
       }
-      if (!istensorial && !use_averages &&
-          abs(code[0]) + abs(code[1]) > 1)
+      if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
         continue;
       const int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-                        code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_,
-                        0};
+                        code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
       const int e[3] = {
           code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
-          1};
+          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1, 1};
       if (TreeNei >= 0)
         SameLevelExchange(grid, info, code, s, e);
       else if (TreeNei == -1)
@@ -2907,84 +2979,6 @@ struct BlockLab {
                 (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
         }
       }
-    }
-  }
-  void CoarseFineExchange(Grid *grid, const Info *info, const int *const code) {
-    int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
-                            (info->index[1] + code[1] + NY) % NY};
-    int infoNei_index_true[2] = {(info->index[0] + code[0]),
-                                 (info->index[1] + code[1])};
-    Real *b = (Real *)grid->avail1((infoNei_index[0]) / 2,
-                                   (infoNei_index[1]) / 2, info->level - 1);
-    if (b == nullptr)
-      return;
-    int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
-    int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
-                code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-                            : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
-    int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-    if (!bytes)
-      return;
-    int base[2] = {(info->index[0] + code[0]) % 2,
-                   (info->index[1] + code[1]) % 2};
-    int CoarseEdge[2];
-    CoarseEdge[0] = code[0] == 0
-                        ? 0
-                        : (((info->index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info->index[0])) ||
-                           ((info->index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info->index[0])))
-                              ? 1
-                              : 0;
-    CoarseEdge[1] = code[1] == 0
-                        ? 0
-                        : (((info->index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info->index[1])) ||
-                           ((info->index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info->index[1])))
-                              ? 1
-                              : 0;
-    const int start[2] = {
-        std::max(code[0], 0) * _BS_ / 2 +
-            (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
-            CoarseEdge[0] * code[0] * _BS_ / 2,
-        std::max(code[1], 0) * _BS_ / 2 +
-            (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
-            CoarseEdge[1] * code[1] * _BS_ / 2};
-    const int i = s[0] - offset[0];
-    const int mod = (e[1] - s[1]) % 4;
-    for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-      int i0 = i + (iy + 0 - offset[1]) * nc[0];
-      int i1 = i + (iy + 1 - offset[1]) * nc[0];
-      int i2 = i + (iy + 2 - offset[1]) * nc[0];
-      int i3 = i + (iy + 3 - offset[1]) * nc[0];
-      int y0 = iy + 0 + start[1];
-      int y1 = iy + 1 + start[1];
-      int y2 = iy + 2 + start[1];
-      int y3 = iy + 3 + start[1];
-      int x = s[0] + start[0];
-      Real *p0 = c + dim * i0;
-      Real *p1 = c + dim * i1;
-      Real *p2 = c + dim * i2;
-      Real *p3 = c + dim * i3;
-      Real *q0 = b + dim * (_BS_ * y0 + x);
-      Real *q1 = b + dim * (_BS_ * y1 + x);
-      Real *q2 = b + dim * (_BS_ * y2 + x);
-      Real *q3 = b + dim * (_BS_ * y3 + x);
-      memcpy(p0, q0, bytes);
-      memcpy(p1, q1, bytes);
-      memcpy(p2, q2, bytes);
-      memcpy(p3, q3, bytes);
-    }
-    for (int iy = e[1] - mod; iy < e[1]; iy++) {
-      int i0 = i + (iy - offset[1]) * nc[0];
-      int y0 = iy + start[1];
-      int x = s[0] + start[0];
-      Real *p = c + dim * i0;
-      Real *q = b + dim * (_BS_ * y0 + x);
-      memcpy(p, q, bytes);
     }
   }
   void FillCoarseVersion(const int *const code) {
