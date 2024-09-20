@@ -1320,8 +1320,6 @@ struct Synchronizer {
           if (f[k].CoarseStencil) {
             Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
             Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-            Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
-	    assert(Lc[2] == 1);
             Vc = Lc[0] * Lc[1];
             total_size += Vc;
             offsets_recv[otherrank] += Vc * dim;
