@@ -88,9 +88,7 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
     int mod = dstxend % 4;
     for (int zd = 0; zd < 1; ++zd)
       for (int yd = 0; yd < dstyend; ++yd) {
-        int offset = srcxstart +
-                           LX * (yd + srcystart +
-                                 LY * (zd + srczstart));
+        int offset = srcxstart + LX * (yd + srcystart + LY * (zd + srczstart));
         int offset_dst = xsize * (yd + ysize * zd);
         for (int xd = 0; xd < dstxend - mod; xd += 4) {
           dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
@@ -109,8 +107,7 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
           Real *dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
           Real *src =
               pack + dim * (xd + srcxstart +
-                            LX * (yd + srcystart +
-                                  LY * (zd + srczstart)));
+                            LX * (yd + srcystart + LY * (zd + srczstart)));
           for (int c = 0; c < dim; ++c)
             dst[c] = src[c];
         }
@@ -2411,8 +2408,8 @@ struct BlockLab {
                                               unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
                 unpack->CoarseVersionsrcystart, unpack->CoarseVersionsrczstart,
-                unpack->CoarseVersionLX, unpack->CoarseVersionLY, L[0],
-                L[1], nc[0], nc[1]);
+                unpack->CoarseVersionLX, unpack->CoarseVersionLY, L[0], L[1],
+                nc[0], nc[1]);
           }
         } else if (unpack->level < info->level) {
           const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
