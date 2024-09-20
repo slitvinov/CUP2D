@@ -819,10 +819,10 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil, int dim) : dim(dim), stencil(stencil) {}
-  void CoarseStencilLength(int icode, int *L) const {
-    L[0] = sLength[3 * (icode + 2 * 27) + 0];
-    L[1] = sLength[3 * (icode + 2 * 27) + 1];
-    L[2] = sLength[3 * (icode + 2 * 27) + 2];
+  void CoarseStencilLength(int icode, int *Lc) const {
+    Lc[0] = sLength[3 * (icode + 2 * 27) + 0];
+    Lc[1] = sLength[3 * (icode + 2 * 27) + 1];
+    Lc[2] = sLength[3 * (icode + 2 * 27) + 2];
   }
   void DetermineStencilLength(int level_sender, int level_receiver, int icode,
                               int *L) {
