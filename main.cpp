@@ -82,8 +82,8 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
   }
 }
 static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
-                             int srcystart, int LX, int LY, int dstxend,
-                             int dstyend, int xsize) {
+                             int srcystart, int LX, int dstxend, int dstyend,
+                             int xsize) {
   if (dim == 1) {
     int mod = dstxend % 4;
     for (int yd = 0; yd < dstyend; ++yd) {
@@ -2379,8 +2379,7 @@ struct BlockLab {
                               dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-                           unpack->LX, unpack->LY, unpack->lx, unpack->ly,
-                           nm[0]);
+                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
             const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
                                    (sync->stencil.sy - 1) / 2 - 1,
@@ -2402,8 +2401,8 @@ struct BlockLab {
                 &sync->recv_buffer[otherrank][unpack->offset +
                                               unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
-                unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX,
-                unpack->CoarseVersionLY, L[0], L[1], nc[0]);
+                unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
+                L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
           const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
@@ -2418,8 +2417,7 @@ struct BlockLab {
                               dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-                           unpack->LX, unpack->LY, unpack->lx, unpack->ly,
-                           nc[0]);
+                           unpack->LX, unpack->lx, unpack->ly, nc[0]);
         } else {
           int B;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
@@ -2463,8 +2461,7 @@ struct BlockLab {
                       dim;
           unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-                           unpack->LX, unpack->LY, unpack->lx, unpack->ly,
-                           nm[0]);
+                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
         }
       }
     }
