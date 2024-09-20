@@ -85,13 +85,13 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
                              int srcystart, int srczstart, int LX, int LY,
                              int dstxend, int dstyend, int xsize, int ysize) {
   if (dim == 1) {
-    const int mod = dstxend % 4;
+    int mod = dstxend % 4;
     for (int zd = 0; zd < 1; ++zd)
       for (int yd = 0; yd < dstyend; ++yd) {
-        const int offset = srcxstart +
+        int offset = srcxstart +
                            LX * (yd + srcystart +
                                  LY * (zd + srczstart));
-        const int offset_dst = xsize * (yd + ysize * zd);
+        int offset_dst = xsize * (yd + ysize * zd);
         for (int xd = 0; xd < dstxend - mod; xd += 4) {
           dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
           dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
@@ -106,8 +106,8 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
     for (int zd = 0; zd < 1; ++zd)
       for (int yd = 0; yd < dstyend; ++yd)
         for (int xd = 0; xd < dstxend; ++xd) {
-          Real *const dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
-          const Real *src =
+          Real *dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
+          Real *src =
               pack + dim * (xd + srcxstart +
                             LX * (yd + srcystart +
                                   LY * (zd + srczstart)));
