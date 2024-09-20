@@ -614,7 +614,6 @@ struct UnPackInfo {
   int offset;
   int lx;
   int ly;
-  int lz;
   int srcxstart;
   int srcystart;
   int srczstart;
@@ -1288,7 +1287,6 @@ struct Synchronizer {
           UnPackInfo info = {f[k].dis,
                              L[0],
                              L[1],
-                             L[2],
                              0,
                              0,
                              0,
@@ -1325,7 +1323,7 @@ struct Synchronizer {
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, info.lz, L[0],
+            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, 1, L[0],
                           L[1], L[2], &srcx, &srcy, &srcz);
             int Csrcx = 0;
             int Csrcy = 0;
@@ -1336,7 +1334,6 @@ struct Synchronizer {
                 {info.offset,
                  L[0],
                  L[1],
-                 L[2],
                  srcx,
                  srcy,
                  srcz,
