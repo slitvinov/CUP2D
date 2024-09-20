@@ -100,13 +100,12 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
         }
       }
   } else {
-    for (int zd = 0; zd < 1; ++zd)
       for (int yd = 0; yd < dstyend; ++yd)
         for (int xd = 0; xd < dstxend; ++xd) {
-          Real *dst = dstbase + dim * (xd + xsize * (yd + ysize * zd));
+          Real *dst = dstbase + dim * (xd + xsize * yd);
           Real *src =
               pack + dim * (xd + srcxstart +
-                            LX * (yd + srcystart + LY * (zd + srczstart)));
+                            LX * (yd + srcystart + LY * srczstart));
           for (int c = 0; c < dim; ++c)
             dst[c] = src[c];
         }
