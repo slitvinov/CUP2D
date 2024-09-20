@@ -819,11 +819,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil, int dim) : dim(dim), stencil(stencil) {}
-  void CoarseStencilLength(int icode, int *Lc) const {
-    Lc[0] = sLength[3 * (icode + 2 * 27) + 0];
-    Lc[1] = sLength[3 * (icode + 2 * 27) + 1];
-    Lc[2] = sLength[3 * (icode + 2 * 27) + 2];
-  }
   void DetermineStencilLength(int level_sender, int level_receiver, int icode,
                               int *L) {
     if (level_sender == level_receiver) {
@@ -1237,7 +1232,9 @@ struct Synchronizer {
               total_size += V;
               f[k].dis = offsets[r];
               if (f[k].CoarseStencil) {
-                CoarseStencilLength(f[k].icode[1], Lc);
+                Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+                Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+                Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
                 const int Vc = Lc[0] * Lc[1] * Lc[2];
                 total_size += Vc;
                 offsets[r] += Vc * dim;
@@ -1322,7 +1319,9 @@ struct Synchronizer {
                              f[k].infos[0]->index[2],
                              f[k].infos[1]->id2};
           if (f[k].CoarseStencil) {
-            CoarseStencilLength(f[k].icode[1], Lc);
+            Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+            Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+            Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
             Vc = Lc[0] * Lc[1] * Lc[2];
             total_size += Vc;
             offsets_recv[otherrank] += Vc * dim;
@@ -2406,8 +2405,11 @@ struct BlockLab {
                               (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                  dim;
             int L[3];
-            sync->CoarseStencilLength(
-                (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1), L);
+            int icode =
+                (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1);
+            L[0] = sync->sLength[3 * (icode + 2 * 27) + 0];
+            L[1] = sync->sLength[3 * (icode + 2 * 27) + 1];
+            L[2] = sync->sLength[3 * (icode + 2 * 27) + 2];
             unpack_subregion(
                 &sync->recv_buffer[otherrank][unpack->offset +
                                               unpack->CoarseVersionOffset],
