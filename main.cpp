@@ -783,7 +783,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
 }
 struct Synchronizer {
   bool use_averages;
-  const int dim;
   std::set<int> Neighbors;
   std::unordered_map<int, MPI_Request *> mapofrequests;
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
@@ -804,7 +803,7 @@ struct Synchronizer {
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
-  Synchronizer(Stencil stencil, int dim) : dim(dim), stencil(stencil) {}
+  Synchronizer(Stencil stencil) : stencil(stencil) {}
   void DetermineStencilLength(int level_sender, int level_receiver, int icode,
                               int *L) {
     if (level_sender == level_receiver) {
@@ -944,7 +943,8 @@ struct Synchronizer {
     }
     return dummy_vector;
   }
-  void Setup(std::unordered_map<long long, int> *tree,
+  void Setup(int dim,
+	     std::unordered_map<long long, int> *tree,
              std::unordered_map<long long, Info *> *all,
              std::vector<Info> *infos) {
     DuplicatesManager DM;
@@ -1404,7 +1404,7 @@ struct Synchronizer {
       }
     }
   }
-  void sync0(int timestamp) {
+  void sync0(int dim, int timestamp) {
     auto it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       (it->second).ready = false;
@@ -2119,7 +2119,7 @@ struct Grid {
     Synchronizer *s;
     auto itSynchronizerMPI = synchronizers->find(stencil);
     if (itSynchronizerMPI == synchronizers->end()) {
-      s = new Synchronizer(stencil, dim);
+      s = new Synchronizer(stencil);
       s->use_averages = stencil.tensorial || stencil.sx < -2 ||
                         stencil.sy < -2 || stencil.ex > 3 || stencil.ey > 3;
       s->send_interfaces.resize(sim.size);
@@ -2161,12 +2161,12 @@ struct Grid {
         s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
         s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
       }
-      s->Setup(&tree, &all, &infos);
+      s->Setup(dim, &tree, &all, &infos);
       (*synchronizers)[stencil] = s;
     } else {
       s = itSynchronizerMPI->second;
     }
-    s->sync0(timestamp);
+    s->sync0(dim, timestamp);
     timestamp = (timestamp + 1) % 32768;
     return s;
   }
@@ -5414,7 +5414,7 @@ static void adapt() {
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
-        (*it->second).Setup(&g->tree, &g->all, &g->infos);
+        (*it->second).Setup(dim, &g->tree, &g->all, &g->infos);
         it++;
       }
     }
