@@ -2314,7 +2314,7 @@ struct BlockLab {
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-      assert(code[2] == 0)
+      assert(code[2] == 0);
       if (code[0] == xskip && xskin)
         continue;
       if (code[1] == yskip && yskin)
