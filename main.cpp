@@ -2355,23 +2355,22 @@ struct BlockLab {
       }
     if (sim.size == 1)
       post_load(info, applybc);
-    const int id = info->halo_id;
+    int id = info->halo_id;
     if (id >= 0) {
       UnPackInfo *unpacks = sync->myunpacks[id].data();
       for (size_t jj = 0; jj < sync->myunpacks[id].size(); jj++) {
-        const UnPackInfo *unpack = &unpacks[jj];
-        const int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
-                             (unpack->icode / 9) % 3 - 1};
-        const int otherrank = unpack->rank;
-        const int s[3] = {
-            code[0] < 1 ? (code[0] < 0 ? sync->stencil.sx : 0) : _BS_,
-            code[1] < 1 ? (code[1] < 0 ? sync->stencil.sy : 0) : _BS_,
-            code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-        const int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                                      : _BS_ + sync->stencil.ex - 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                      : _BS_ + sync->stencil.ey - 1,
-                          code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
+        UnPackInfo *unpack = &unpacks[jj];
+        int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
+                       (unpack->icode / 9) % 3 - 1};
+        int otherrank = unpack->rank;
+        int s[3] = {code[0] < 1 ? (code[0] < 0 ? sync->stencil.sx : 0) : _BS_,
+                    code[1] < 1 ? (code[1] < 0 ? sync->stencil.sy : 0) : _BS_,
+                    code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
+        int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
+                                : _BS_ + sync->stencil.ex - 1,
+                    code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
+                                : _BS_ + sync->stencil.ey - 1,
+                    code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
           Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
                            (s[1] - sync->stencil.sy) * nm[0] + s[0] -
@@ -2381,13 +2380,11 @@ struct BlockLab {
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
-            const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
-                                   (sync->stencil.sy - 1) / 2 - 1,
-                                   (0 - 1) / 2 + 0};
-            const int sC[3] = {
-                code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-                code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
+            int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
+                             (sync->stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
+            int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+                         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
             Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
                               (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                  dim;
@@ -2405,13 +2402,11 @@ struct BlockLab {
                 L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
-          const int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
-                                 (sync->stencil.sy - 1) / 2 - 1,
-                                 (0 - 1) / 2 + 0};
-          const int sC[3] = {
-              code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-              code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-              code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
+          int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
+                           (sync->stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
+          int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+                       code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
           Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                            offset[0] + (sC[1] - offset[1]) * nc[0]) *
                               dim;
@@ -2446,7 +2441,7 @@ struct BlockLab {
             }
             B = 2 * Bdiv + Bmod;
           }
-          const int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
           Real *dst =
               m + ((abs(code[2]) * (s[2] - 0) +
                     (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
