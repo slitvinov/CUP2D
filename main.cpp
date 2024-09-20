@@ -2409,9 +2409,50 @@ struct BlockLab {
       int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
                   code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
                   1};
-      if (TreeNei >= 0)
-        SameLevelExchange(grid, info, code, s, e);
-      else if (TreeNei == -1)
+      if (TreeNei >= 0) {
+        int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+        myblocks[icode] =
+            grid->avail(info->level, info->Znei[1 + code[0]][1 + code[1]]);
+        if (myblocks[icode] == nullptr)
+          continue;
+        Real *b = myblocks[icode];
+        int i = s[0] - start[0];
+        int mod = (e[1] - s[1]) % 4;
+        for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+          int i0 = i + (iy - start[1]) * nm[0];
+          int i1 = i + (iy + 1 - start[1]) * nm[0];
+          int i2 = i + (iy + 2 - start[1]) * nm[0];
+          int i3 = i + (iy + 3 - start[1]) * nm[0];
+          int x0 = s[0] - code[0] * _BS_;
+          int y0 = iy - code[1] * _BS_;
+          int y1 = iy + 1 - code[1] * _BS_;
+          int y2 = iy + 2 - code[1] * _BS_;
+          int y3 = iy + 3 - code[1] * _BS_;
+          Real *p0 = &m[dim * i0];
+          Real *p1 = &m[dim * i1];
+          Real *p2 = &m[dim * i2];
+          Real *p3 = &m[dim * i3];
+          Real *q0 = &b[dim * (_BS_ * y0 + x0)];
+          Real *q1 = &b[dim * (_BS_ * y1 + x0)];
+          Real *q2 = &b[dim * (_BS_ * y2 + x0)];
+          Real *q3 = &b[dim * (_BS_ * y3 + x0)];
+          memcpy(p0, q0, bytes);
+          memcpy(p1, q1, bytes);
+          memcpy(p2, q2, bytes);
+          memcpy(p3, q3, bytes);
+        }
+        for (int iy = e[1] - mod; iy < e[1]; iy++) {
+          int i0 = i + (iy - start[1]) * nm[0];
+          int x0 = s[0] - code[0] * _BS_;
+          int y0 = iy - code[1] * _BS_;
+          Real *p = &m[dim * i0];
+          Real *q = &b[dim * (_BS_ * y0 + x0)];
+          memcpy(p, q, bytes);
+        }
+      } else if (TreeNei == -1)
         FineToCoarseExchange(grid, info, code, s, e);
     }
     if (coarsened_nei_codes_size > 0)
@@ -2806,50 +2847,6 @@ struct BlockLab {
               return true;
           }
     return false;
-  }
-  void SameLevelExchange(Grid *grid, Info *info, int *code, int *s, int *e) {
-    int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-    if (!bytes)
-      return;
-    int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
-    myblocks[icode] =
-        grid->avail(info->level, info->Znei[1 + code[0]][1 + code[1]]);
-    if (myblocks[icode] == nullptr)
-      return;
-    Real *b = myblocks[icode];
-    int i = s[0] - start[0];
-    int mod = (e[1] - s[1]) % 4;
-    for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-      int i0 = i + (iy - start[1]) * nm[0];
-      int i1 = i + (iy + 1 - start[1]) * nm[0];
-      int i2 = i + (iy + 2 - start[1]) * nm[0];
-      int i3 = i + (iy + 3 - start[1]) * nm[0];
-      int x0 = s[0] - code[0] * _BS_;
-      int y0 = iy - code[1] * _BS_;
-      int y1 = iy + 1 - code[1] * _BS_;
-      int y2 = iy + 2 - code[1] * _BS_;
-      int y3 = iy + 3 - code[1] * _BS_;
-      Real *p0 = &m[dim * i0];
-      Real *p1 = &m[dim * i1];
-      Real *p2 = &m[dim * i2];
-      Real *p3 = &m[dim * i3];
-      Real *q0 = &b[dim * (_BS_ * y0 + x0)];
-      Real *q1 = &b[dim * (_BS_ * y1 + x0)];
-      Real *q2 = &b[dim * (_BS_ * y2 + x0)];
-      Real *q3 = &b[dim * (_BS_ * y3 + x0)];
-      memcpy(p0, q0, bytes);
-      memcpy(p1, q1, bytes);
-      memcpy(p2, q2, bytes);
-      memcpy(p3, q3, bytes);
-    }
-    for (int iy = e[1] - mod; iy < e[1]; iy++) {
-      int i0 = i + (iy - start[1]) * nm[0];
-      int x0 = s[0] - code[0] * _BS_;
-      int y0 = iy - code[1] * _BS_;
-      Real *p = &m[dim * i0];
-      Real *q = &b[dim * (_BS_ * y0 + x0)];
-      memcpy(p, q, bytes);
-    }
   }
   void FineToCoarseExchange(Grid *grid, const Info *info, const int *const code,
                             const int *const s, const int *const e) {
