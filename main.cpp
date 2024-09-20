@@ -2361,15 +2361,15 @@ struct BlockLab {
                                 (infoNei_index_true[1] < info->index[1])))
                                   ? 1
                                   : 0;
-        const int start[2] = {
-            std::max(code[0], 0) * _BS_ / 2 +
-                (1 - abs(code[0])) * base[0] * _BS_ / 2 - code[0] * _BS_ +
-                CoarseEdge[0] * code[0] * _BS_ / 2,
-            std::max(code[1], 0) * _BS_ / 2 +
-                (1 - abs(code[1])) * base[1] * _BS_ / 2 - code[1] * _BS_ +
-                CoarseEdge[1] * code[1] * _BS_ / 2};
-        const int i = s[0] - offset[0];
-        const int mod = (e[1] - s[1]) % 4;
+        int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
+                            (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                            code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
+                        std::max(code[1], 0) * _BS_ / 2 +
+                            (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                            code[1] * _BS_ +
+                            CoarseEdge[1] * code[1] * _BS_ / 2};
+        int i = s[0] - offset[0];
+        int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
           int i0 = i + (iy + 0 - offset[1]) * nc[0];
           int i1 = i + (iy + 1 - offset[1]) * nc[0];
@@ -2452,8 +2452,133 @@ struct BlockLab {
           Real *q = &b[dim * (_BS_ * y0 + x0)];
           memcpy(p, q, bytes);
         }
-      } else if (TreeNei == -1)
-        FineToCoarseExchange(grid, info, code, s, e);
+      } else if (TreeNei == -1) {
+        int bytes = (abs(code[0]) * (e[0] - s[0]) +
+                     (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
+                    dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int ys = (code[1] == 0) ? 2 : 1;
+        int mod = ((e[1] - s[1]) / ys) % 4;
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 3; B += Bstep) {
+          int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          Real *b = (Real *)grid->avail1(
+              2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                  (B % 2) * std::max(0, 1 - abs(code[0])),
+              2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                  aux * std::max(0, 1 - abs(code[1])),
+              info->level + 1);
+          if (b == nullptr)
+            continue;
+          int i = abs(code[0]) * (s[0] - start[0]) +
+                  (1 - abs(code[0])) *
+                      (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
+          int x = s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
+          for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
+            int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 0 * ys;
+            int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 1 * ys;
+            int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 2 * ys;
+            int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 3 * ys;
+            int z0 = y0 + 1;
+            int z1 = y1 + 1;
+            int z2 = y2 + 1;
+            int z3 = y3 + 1;
+            Real *p0 = m + dim * k0;
+            Real *p1 = m + dim * k1;
+            Real *p2 = m + dim * k2;
+            Real *p3 = m + dim * k3;
+            Real *q00 = b + dim * (_BS_ * y0 + x);
+            Real *q10 = b + dim * (_BS_ * z0 + x);
+            Real *q01 = b + dim * (_BS_ * y1 + x);
+            Real *q11 = b + dim * (_BS_ * z1 + x);
+            Real *q02 = b + dim * (_BS_ * y2 + x);
+            Real *q12 = b + dim * (_BS_ * z2 + x);
+            Real *q03 = b + dim * (_BS_ * y3 + x);
+            Real *q13 = b + dim * (_BS_ * z3 + x);
+            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+                 ee++) {
+              Real *q000 = q00 + dim * 2 * ee;
+              Real *q001 = q00 + dim * (2 * ee + 1);
+              Real *q010 = q01 + dim * 2 * ee;
+              Real *q011 = q01 + dim * (2 * ee + 1);
+              Real *q020 = q02 + dim * 2 * ee;
+              Real *q021 = q02 + dim * (2 * ee + 1);
+              Real *q030 = q03 + dim * 2 * ee;
+              Real *q031 = q03 + dim * (2 * ee + 1);
+              Real *q110 = q11 + dim * 2 * ee;
+              Real *q111 = q11 + dim * (2 * ee + 1);
+              Real *q120 = q12 + dim * 2 * ee;
+              Real *q121 = q12 + dim * (2 * ee + 1);
+              Real *q130 = q13 + dim * 2 * ee;
+              Real *q131 = q13 + dim * (2 * ee + 1);
+              for (int d = 0; d < dim; d++) {
+                *(p0 + dim * ee + d) =
+                    (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
+                *(p1 + dim * ee + d) =
+                    (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
+                *(p2 + dim * ee + d) =
+                    (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
+                *(p3 + dim * ee + d) =
+                    (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
+              }
+            }
+          }
+          for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
+            int k = i + (abs(code[1]) * (iy - start[1]) +
+                         (1 - abs(code[1])) *
+                             (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
+                            nm[0];
+            int y = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                              std::min(0, code[1]) * _BS_
+                                        : iy;
+            int z = y + 1;
+            Real *p = m + dim * k;
+            Real *q0 = b + dim * (_BS_ * y + x);
+            Real *q1 = b + dim * (_BS_ * z + x);
+            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+                 ee++) {
+              Real *q00 = q0 + dim * 2 * ee;
+              Real *q01 = q0 + dim * (2 * ee + 1);
+              Real *q10 = q1 + dim * 2 * ee;
+              Real *q11 = q1 + dim * (2 * ee + 1);
+              for (int d = 0; d < dim; d++)
+                *(p + dim * ee + d) =
+                    (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+            }
+          }
+        }
+      }
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
@@ -2847,135 +2972,6 @@ struct BlockLab {
               return true;
           }
     return false;
-  }
-  void FineToCoarseExchange(Grid *grid, const Info *info, const int *const code,
-                            const int *const s, const int *const e) {
-    const int bytes = (abs(code[0]) * (e[0] - s[0]) +
-                       (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-                      dim * sizeof(Real);
-    if (!bytes)
-      return;
-    int ys = (code[1] == 0) ? 2 : 1;
-    int mod = ((e[1] - s[1]) / ys) % 4;
-    int Bstep = 1;
-    if ((abs(code[0]) + abs(code[1]) == 2))
-      Bstep = 3;
-    else if ((abs(code[0]) + abs(code[1]) == 3))
-      Bstep = 4;
-    for (int B = 0; B <= 3; B += Bstep) {
-      const int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      Real *b = (Real *)grid->avail1(
-          2 * info->index[0] + std::max(code[0], 0) + code[0] +
-              (B % 2) * std::max(0, 1 - abs(code[0])),
-          2 * info->index[1] + std::max(code[1], 0) + code[1] +
-              aux * std::max(0, 1 - abs(code[1])),
-          info->level + 1);
-      if (b == nullptr)
-        continue;
-      const int i =
-          abs(code[0]) * (s[0] - start[0]) +
-          (1 - abs(code[0])) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
-      const int x =
-          s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-      for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-        int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
-                      (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
-                                            aux * (e[1] - s[1]) / 2)) *
-                         nm[0];
-        int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
-                      (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
-                                            aux * (e[1] - s[1]) / 2)) *
-                         nm[0];
-        int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
-                      (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
-                                            aux * (e[1] - s[1]) / 2)) *
-                         nm[0];
-        int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
-                      (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
-                                            aux * (e[1] - s[1]) / 2)) *
-                         nm[0];
-        int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 0 * ys;
-        int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 1 * ys;
-        int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 2 * ys;
-        int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
-                                           std::min(0, code[1]) * _BS_
-                                     : iy + 3 * ys;
-        int z0 = y0 + 1;
-        int z1 = y1 + 1;
-        int z2 = y2 + 1;
-        int z3 = y3 + 1;
-        Real *p0 = m + dim * k0;
-        Real *p1 = m + dim * k1;
-        Real *p2 = m + dim * k2;
-        Real *p3 = m + dim * k3;
-        Real *q00 = b + dim * (_BS_ * y0 + x);
-        Real *q10 = b + dim * (_BS_ * z0 + x);
-        Real *q01 = b + dim * (_BS_ * y1 + x);
-        Real *q11 = b + dim * (_BS_ * z1 + x);
-        Real *q02 = b + dim * (_BS_ * y2 + x);
-        Real *q12 = b + dim * (_BS_ * z2 + x);
-        Real *q03 = b + dim * (_BS_ * y3 + x);
-        Real *q13 = b + dim * (_BS_ * z3 + x);
-        for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                               (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-             ee++) {
-          Real *q000 = q00 + dim * 2 * ee;
-          Real *q001 = q00 + dim * (2 * ee + 1);
-          Real *q010 = q01 + dim * 2 * ee;
-          Real *q011 = q01 + dim * (2 * ee + 1);
-          Real *q020 = q02 + dim * 2 * ee;
-          Real *q021 = q02 + dim * (2 * ee + 1);
-          Real *q030 = q03 + dim * 2 * ee;
-          Real *q031 = q03 + dim * (2 * ee + 1);
-          Real *q110 = q11 + dim * 2 * ee;
-          Real *q111 = q11 + dim * (2 * ee + 1);
-          Real *q120 = q12 + dim * 2 * ee;
-          Real *q121 = q12 + dim * (2 * ee + 1);
-          Real *q130 = q13 + dim * 2 * ee;
-          Real *q131 = q13 + dim * (2 * ee + 1);
-          for (int d = 0; d < dim; d++) {
-            *(p0 + dim * ee + d) =
-                (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
-            *(p1 + dim * ee + d) =
-                (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
-            *(p2 + dim * ee + d) =
-                (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
-            *(p3 + dim * ee + d) =
-                (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
-          }
-        }
-      }
-      for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-        int k = i + (abs(code[1]) * (iy - start[1]) +
-                     (1 - abs(code[1])) *
-                         (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
-                        nm[0];
-        int y = (abs(code[1]) == 1)
-                    ? 2 * (iy - code[1] * _BS_) + std::min(0, code[1]) * _BS_
-                    : iy;
-        int z = y + 1;
-        Real *p = m + dim * k;
-        Real *q0 = b + dim * (_BS_ * y + x);
-        Real *q1 = b + dim * (_BS_ * z + x);
-        for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                               (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-             ee++) {
-          Real *q00 = q0 + dim * 2 * ee;
-          Real *q01 = q0 + dim * (2 * ee + 1);
-          Real *q10 = q1 + dim * 2 * ee;
-          Real *q11 = q1 + dim * (2 * ee + 1);
-          for (int d = 0; d < dim; d++)
-            *(p + dim * ee + d) =
-                (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
-        }
-      }
-    }
   }
   void FillCoarseVersion(const int *const code) {
     const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
