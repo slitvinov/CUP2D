@@ -1223,7 +1223,7 @@ struct Synchronizer {
                 f[remEl[k]].ToBeKept = false;
             }
             int L[3] = {0, 0, 0};
-            int Lc[3] = {0, 0};
+            int Lc[2] = {0, 0};
             for (auto &i : keepEl(compass)) {
               const int k = i->index;
               DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
@@ -1288,7 +1288,7 @@ struct Synchronizer {
         for (auto &i : keepEl(compass)) {
           const int k = i->index;
           int L[3] = {0, 0, 0};
-          int Lc[3] = {0, 0, 0};
+          int Lc[2] = {0, 0};
           DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
                                  f[k].icode[1], L);
           const int V = L[0] * L[1] * L[2];
