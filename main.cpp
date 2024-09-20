@@ -1223,7 +1223,7 @@ struct Synchronizer {
                 f[remEl[k]].ToBeKept = false;
             }
             int L[3] = {0, 0, 0};
-            int Lc[3] = {0, 0, 0};
+            int Lc[3] = {0, 0};
             for (auto &i : keepEl(compass)) {
               const int k = i->index;
               DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
@@ -1234,9 +1234,7 @@ struct Synchronizer {
               if (f[k].CoarseStencil) {
                 Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
                 Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-                Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
-		assert(Lc[2] == 1);
-                int Vc = Lc[0] * Lc[1] * Lc[2];
+                int Vc = Lc[0] * Lc[1];
                 total_size += Vc;
                 offsets[r] += Vc * dim;
               }
@@ -1323,7 +1321,8 @@ struct Synchronizer {
             Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
             Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
             Lc[2] = sLength[3 * (f[k].icode[1] + 2 * 27) + 2];
-            Vc = Lc[0] * Lc[1] * Lc[2];
+	    assert(Lc[2] == 1);
+            Vc = Lc[0] * Lc[1];
             total_size += Vc;
             offsets_recv[otherrank] += Vc * dim;
             info.CoarseVersionOffset = V * dim;
