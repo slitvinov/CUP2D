@@ -2973,8 +2973,8 @@ struct BlockLab {
           }
     return false;
   }
-  void FillCoarseVersion(const int *const code) {
-    const int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+  void FillCoarseVersion(int *code) {
+    int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
     Real *b = myblocks[icode];
