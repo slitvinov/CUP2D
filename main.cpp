@@ -86,6 +86,8 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
                              int dstxstart, int dstystart, int dstzstart,
                              int dstxend, int dstyend, int dstzend, int xsize,
                              int ysize) {
+  assert(dstzstart == 0);
+  assert(dstzend == 1);
   if (dim == 1) {
     const int mod = (dstxend - dstxstart) % 4;
     for (int zd = dstzstart; zd < dstzend; ++zd)
