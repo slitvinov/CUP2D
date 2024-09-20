@@ -3025,11 +3025,11 @@ static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
-        const long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+        long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
         treef(&grid->tree, level + 1, nc) = -2;
       }
   if (level > 0) {
-    const long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
+    long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
     treef(&grid->tree, level - 1, nf) = -1;
   }
 }
