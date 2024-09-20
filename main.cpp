@@ -311,6 +311,7 @@ struct Stencil {
 struct Shape;
 struct SpaceCurve;
 struct Solver;
+struct Synchronizer;
 static struct {
   int AdaptSteps;
   int bpdx;
@@ -343,6 +344,7 @@ static struct {
   struct SpaceCurve *space_curve;
   struct Solver *solver;
   struct LocalSpMatDnVec *mat;
+  std::map<Stencil, Synchronizer *> synchronizers;
 } sim;
 struct SpaceCurve {
   int BX, BY, base_level;
