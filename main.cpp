@@ -3361,7 +3361,6 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   MPI_File mpi_file;
   FILE *xmf;
   float *xyz, *attr;
-  Real sum;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
