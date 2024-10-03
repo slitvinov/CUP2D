@@ -1,5 +1,4 @@
-: ${main=./main}
-$main \
+${main=./main} \
 -AdaptSteps 20 \
 -bpdx 2 \
 -bpdy 1 \
