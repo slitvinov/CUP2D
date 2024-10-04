@@ -6453,16 +6453,13 @@ int main(int argc, char **argv) {
   sim.solver = new Solver;
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
-  std::vector<std::vector<double>> L;
-  std::vector<std::vector<double>> L_inv;
-  L.resize(_BS_ * _BS_);
-  L_inv.resize(_BS_ * _BS_);
+  std::vector<double> L[_BS_ * _BS_];
+  std::vector<double> L_inv[_BS_ * _BS_];
   for (int i = 0; i < _BS_ * _BS_; i++) {
     L[i].resize(i + 1);
     L_inv[i].resize(i + 1);
-    for (int j = 0; j <= i; j++) {
+    for (int j = 0; j <= i; j++)
       L_inv[i][j] = i == j ? 1. : 0.;
-    }
   }
   for (int i = 0; i < _BS_ * _BS_; i++) {
     double s1 = 0;
@@ -6477,11 +6474,11 @@ int main(int argc, char **argv) {
     }
   }
   for (int br = 0; br < _BS_ * _BS_; br++) {
-    const double bsf = 1. / L[br][br];
+    double bsf = 1. / L[br][br];
     for (int c = 0; c <= br; c++)
       L_inv[br][c] *= bsf;
     for (int wr = br + 1; wr < _BS_ * _BS_; wr++) {
-      const double wsf = L[wr][br];
+      double wsf = L[wr][br];
       for (int c = 0; c <= br; c++)
         L_inv[wr][c] -= wsf * L_inv[br][c];
     }
