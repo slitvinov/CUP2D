@@ -13,4 +13,4 @@ rm -rf "${d?not set}" &&
    # ls vort.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py &&
    PYTHONNOUSERSITE= python -m gcovr --html-details cover.html
 ' &&
-rsync -avz "rc:$d"/vort* .
+rsync -avz "rc:$d"/vort* "rc:$d"/cover* .
