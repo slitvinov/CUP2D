@@ -6404,8 +6404,7 @@ int main(int argc, char **argv) {
   for (int m = 1; m < sim.levelMax; m++)
     sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
                          << (m + 1));
-  const long long total_blocks =
-      sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
+  long long total_blocks = sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
   long long my_blocks = total_blocks / sim.size;
   if ((long long)sim.rank < total_blocks % sim.size)
     my_blocks++;
