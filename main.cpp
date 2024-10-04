@@ -2149,6 +2149,15 @@ static Synchronizer *sync1(const Stencil &stencil,
   *timestamp = (*timestamp + 1) % 32768;
   return s;
 }
+static void dealloc(int m, long long n, std::vector<Info> *infos) {
+  for (size_t j = 0; j < infos->size(); j++) {
+    if ((*infos)[j].level == m && (*infos)[j].Z == n) {
+      free((*infos)[j].block);
+      infos->erase(infos->begin() + j);
+      return;
+    }
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2171,15 +2180,6 @@ struct Grid {
 #pragma omp critical
     { infos.push_back(*new_info); }
     treef(&tree, level, Z) = sim.rank;
-  }
-  void dealloc(int m, long long n) {
-    for (size_t j = 0; j < infos.size(); j++) {
-      if (infos[j].level == m && infos[j].Z == n) {
-        free(infos[j].block);
-        infos.erase(infos.begin() + j);
-        return;
-      }
-    }
   }
   void dealloc_many(std::vector<long long> &ids) {
     for (size_t j = 0; j < infos.size(); j++)
@@ -5099,7 +5099,7 @@ static void adapt() {
       }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        g->dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
+        dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1], &g->infos);
         treef(&g->tree, send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
     if (requests0.size() != 0) {
@@ -5384,12 +5384,12 @@ static void adapt() {
       }
       for (int i = 0; i < flux_right; i++) {
         Info *info = &g->infos[my_blocks - i - 1];
-        g->dealloc(info->level, info->Z);
+        dealloc(info->level, info->Z, &g->infos);
         treef(&g->tree, info->level, info->Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
         Info *info = &g->infos[i];
-        g->dealloc(info->level, info->Z);
+        dealloc(info->level, info->Z, &g->infos);
         treef(&g->tree, info->level, info->Z) = left;
       }
       if (request.size() != 0) {
