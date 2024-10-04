@@ -6383,8 +6383,8 @@ int main(int argc, char **argv) {
       std::fill(shape->vX, shape->vX + shape->Nm, 0);
       std::fill(shape->vY, shape->vY + shape->Nm, 0);
       for (int i = 0; i < shape->Nm; ++i) {
-        const Real sb = .04 * shape->length, st = .95 * shape->length,
-                   wt = .01 * shape->length, wh = .04 * shape->length;
+        Real sb = .04 * shape->length, st = .95 * shape->length,
+             wt = .01 * shape->length, wh = .04 * shape->length;
         if (shape->rS[i] < 0 or shape->rS[i] > shape->length)
           shape->width[i] = 0;
         else
