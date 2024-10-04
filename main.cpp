@@ -6400,6 +6400,48 @@ int main(int argc, char **argv) {
     }
   }
 
+  sim.solver = new Solver;
+  sim.nblocks.resize(sim.size + 1);
+  sim.nrows.resize(sim.size + 1);
+  std::vector<double> L[_BS_ * _BS_];
+  std::vector<double> L_inv[_BS_ * _BS_];
+  for (int i = 0; i < _BS_ * _BS_; i++) {
+    L[i].resize(i + 1);
+    L_inv[i].resize(i + 1);
+    for (int j = 0; j <= i; j++)
+      L_inv[i][j] = i == j ? 1. : 0.;
+  }
+  for (int i = 0; i < _BS_ * _BS_; i++) {
+    double s1 = 0;
+    for (int k = 0; k <= i - 1; k++)
+      s1 += L[i][k] * L[i][k];
+    L[i][i] = sqrt(getA_local(i, i) - s1);
+    for (int j = i + 1; j < _BS_ * _BS_; j++) {
+      double s2 = 0;
+      for (int k = 0; k <= i - 1; k++)
+        s2 += L[i][k] * L[j][k];
+      L[j][i] = (getA_local(j, i) - s2) / L[i][i];
+    }
+  }
+  for (int br = 0; br < _BS_ * _BS_; br++) {
+    double bsf = 1. / L[br][br];
+    for (int c = 0; c <= br; c++)
+      L_inv[br][c] *= bsf;
+    for (int wr = br + 1; wr < _BS_ * _BS_; wr++) {
+      double wsf = L[wr][br];
+      for (int c = 0; c <= br; c++)
+        L_inv[wr][c] -= wsf * L_inv[br][c];
+    }
+  }
+  std::vector<double> P_inv(_BS_ * _BS_ * _BS_ * _BS_);
+  for (int i = 0; i < _BS_ * _BS_; i++)
+    for (int j = 0; j < _BS_ * _BS_; j++) {
+      double aux = 0.;
+      for (int k = 0; k < _BS_ * _BS_; k++)
+        aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
+      P_inv[i * _BS_ * _BS_ + j] = -aux;
+    };
+  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
   sim.levels.push_back(sim.bpdx * sim.bpdy * 2);
   for (int m = 1; m < sim.levelMax; m++)
     sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
@@ -6450,49 +6492,6 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  sim.solver = new Solver;
-  sim.nblocks.resize(sim.size + 1);
-  sim.nrows.resize(sim.size + 1);
-  std::vector<double> L[_BS_ * _BS_];
-  std::vector<double> L_inv[_BS_ * _BS_];
-  for (int i = 0; i < _BS_ * _BS_; i++) {
-    L[i].resize(i + 1);
-    L_inv[i].resize(i + 1);
-    for (int j = 0; j <= i; j++)
-      L_inv[i][j] = i == j ? 1. : 0.;
-  }
-  for (int i = 0; i < _BS_ * _BS_; i++) {
-    double s1 = 0;
-    for (int k = 0; k <= i - 1; k++)
-      s1 += L[i][k] * L[i][k];
-    L[i][i] = sqrt(getA_local(i, i) - s1);
-    for (int j = i + 1; j < _BS_ * _BS_; j++) {
-      double s2 = 0;
-      for (int k = 0; k <= i - 1; k++)
-        s2 += L[i][k] * L[j][k];
-      L[j][i] = (getA_local(j, i) - s2) / L[i][i];
-    }
-  }
-  for (int br = 0; br < _BS_ * _BS_; br++) {
-    double bsf = 1. / L[br][br];
-    for (int c = 0; c <= br; c++)
-      L_inv[br][c] *= bsf;
-    for (int wr = br + 1; wr < _BS_ * _BS_; wr++) {
-      double wsf = L[wr][br];
-      for (int c = 0; c <= br; c++)
-        L_inv[wr][c] -= wsf * L_inv[br][c];
-    }
-  }
-  std::vector<double> P_inv(_BS_ * _BS_ * _BS_ * _BS_);
-  for (int i = 0; i < _BS_ * _BS_; i++)
-    for (int j = 0; j < _BS_ * _BS_; j++) {
-      double aux = 0.;
-      for (int k = 0; k < _BS_ * _BS_; k++)
-        aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
-      P_inv[i * _BS_ * _BS_ + j] = -aux;
-    };
-  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
-
   std::vector<Info> &velInfo = var.vel->infos;
 #pragma omp parallel for
   for (size_t j = 0; j < velInfo.size(); j++)
