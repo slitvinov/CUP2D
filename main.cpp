@@ -2277,7 +2277,7 @@ struct BlockLab {
                    end[0] > 3 || end[1] > 3;
   }
   void load(Grid *grid, Synchronizer *sync, Info *info, bool applybc) {
-    const int aux = 1 << info->level;
+    int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
     assert(m != NULL);
@@ -2939,7 +2939,7 @@ struct BlockLab {
     if (applybc)
       _apply_bc(info, false);
   }
-  bool UseCoarseStencil0(const Info *info, const int *infoNei_index) {
+  bool UseCoarseStencil0(Info *info, int *infoNei_index) {
     if (info->level == 0 || !use_averages)
       return false;
     int imin[3];
