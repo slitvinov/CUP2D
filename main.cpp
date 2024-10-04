@@ -6492,7 +6492,6 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  std::vector<Info> &velInfo = var.vel->infos;
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
     (*var.F[i].g)->boundary_needed = false;
   for (int i = 0; i < sim.levelMax; i++) {
@@ -6500,6 +6499,7 @@ int main(int argc, char **argv) {
     adapt();
   }
   ongrid(0.0);
+  std::vector<Info> &velInfo = var.vel->infos;
   for (auto &shape : sim.shapes) {
     std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
