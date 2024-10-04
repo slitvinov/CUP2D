@@ -6549,7 +6549,7 @@ int main(int argc, char **argv) {
       if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
         sim.nextDumpTime += sim.dumpTime;
         char path[FILENAME_MAX];
-        snprintf(path, sizeof path, "vort.%08d", sim.step);
+        snprintf(path, sizeof path, "vel.%08d", sim.step);
         dump(sim.time, var.vel->infos.size(), var.vel->infos.data(), path);
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
