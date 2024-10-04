@@ -6467,7 +6467,7 @@ int main(int argc, char **argv) {
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
-      info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+      info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
@@ -6493,11 +6493,6 @@ int main(int argc, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
   }
   std::vector<Info> &velInfo = var.vel->infos;
-#pragma omp parallel for
-  for (size_t j = 0; j < velInfo.size(); j++)
-    for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
-      memset((*var.F[i].g)->infos[j].block, 0,
-             var.F[i].dim * _BS_ * _BS_ * sizeof(Real));
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
     (*var.F[i].g)->boundary_needed = false;
   for (int i = 0; i < sim.levelMax; i++) {
