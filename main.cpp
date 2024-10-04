@@ -2162,16 +2162,15 @@ struct Grid {
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
   Real *avail(const int m, const long long n) {
-    return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
+    return (treef(&tree, m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
-  int &Tree0(const int m, const long long n) { return treef(&tree, m, n); }
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info *new_info = getf(&all, level, Z);
     new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
     { infos.push_back(*new_info); }
-    Tree0(level, Z) = sim.rank;
+    treef(&tree, level, Z) = sim.rank;
   }
   void dealloc(const int m, const long long n) {
     for (size_t j = 0; j < infos.size(); j++) {
@@ -4745,8 +4744,8 @@ static void adapt() {
                     continue;
                   if (y == yskip && yskin)
                     continue;
-                  if (var.tmp->Tree0(info->level, info->Znei[1 + x][1 + y]) ==
-                      -1) {
+                  if (treef(&var.tmp->tree, info->level,
+                            info->Znei[1 + x][1 + y]) == -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
                       var.tmp->get(info->level, info->Z)->state = Leave;
@@ -4962,7 +4961,7 @@ static void adapt() {
           Info *Child = g->get(level + 1, nc);
           Child->state = Leave;
           g->_alloc(level + 1, nc);
-          g->Tree0(level + 1, nc) = -2;
+          treef(&g->tree, level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child->block;
         }
       if (basic == false) {
@@ -5035,7 +5034,7 @@ static void adapt() {
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                g->Tree0(level + 2, Child->Zchild[i0][i1]) = -2;
+                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) = -2;
         }
     }
     g->dealloc_many(dealloc_IDs);
@@ -5048,8 +5047,8 @@ static void adapt() {
       if (!(g->Tree1(base) >= 0) || base->state != Compress)
         continue;
       const Info *bCopy = g->get(b.level, b.Z);
-      const int baserank = g->Tree0(b.level, nBlock);
-      const int brank = g->Tree0(b.level, b.Z);
+      const int baserank = treef(&g->tree, b.level, nBlock);
+      const int brank = treef(&g->tree, b.level, b.Z);
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           MPI_Block x;
@@ -5058,7 +5057,7 @@ static void adapt() {
           std::memcpy(&x.data[0], bCopy->block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
-          g->Tree0(b.level, b.Z) = baserank;
+          treef(&g->tree, b.level, b.Z) = baserank;
         }
       } else {
         for (int j = 0; j < 2; j++)
@@ -5068,13 +5067,13 @@ static void adapt() {
             if (n == nBlock)
               continue;
             Info *temp = g->get(b.level, n);
-            const int temprank = g->Tree0(b.level, n);
+            const int temprank = treef(&g->tree, b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
               x.mn[0] = bCopy->level;
               x.mn[1] = bCopy->Z;
               recv_blocks[temprank].push_back(x);
-              g->Tree0(b.level, n) = baserank;
+              treef(&g->tree, b.level, n) = baserank;
             }
           }
       }
@@ -5100,7 +5099,7 @@ static void adapt() {
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         g->dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]);
-        g->Tree0(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
+        treef(&g->tree, send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
       }
     if (requests0.size() != 0) {
       movedBlocks = true;
@@ -5154,11 +5153,11 @@ static void adapt() {
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = g->get(level - 1, np);
-      g->Tree0(parent->level, parent->Z) = sim.rank;
+      treef(&g->tree, parent->level, parent->Z) = sim.rank;
       parent->block = info->block;
       parent->state = Leave;
       if (level - 2 >= 0)
-        g->Tree0(level - 2, parent->Zparent) = -1;
+        treef(&g->tree, level - 2, parent->Zparent) = -1;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
@@ -5175,7 +5174,7 @@ static void adapt() {
 #pragma omp critical
             { dealloc_IDs.push_back(g->get(level, n)->id2); }
           }
-          g->Tree0(level, n) = -2;
+          treef(&g->tree, level, n) = -2;
           g->get(level, n)->state = Leave;
         }
     }
@@ -5290,14 +5289,14 @@ static void adapt() {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
               Info *info = &g->infos[counter_S + i];
               deallocIDs.push_back(info->id2);
-              g->Tree0(info->level, info->Z) = r;
+              treef(&g->tree, info->level, info->Z) = r;
             }
             counter_S += send_blocks[r].size();
           } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
               Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
               deallocIDs.push_back(info->id2);
-              g->Tree0(info->level, info->Z) = r;
+              treef(&g->tree, info->level, info->Z) = r;
             }
             counter_E += send_blocks[r].size();
           }
@@ -5385,12 +5384,12 @@ static void adapt() {
       for (int i = 0; i < flux_right; i++) {
         Info *info = &g->infos[my_blocks - i - 1];
         g->dealloc(info->level, info->Z);
-        g->Tree0(info->level, info->Z) = right;
+        treef(&g->tree, info->level, info->Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
         Info *info = &g->infos[i];
         g->dealloc(info->level, info->Z);
-        g->Tree0(info->level, info->Z) = left;
+        treef(&g->tree, info->level, info->Z) = left;
       }
       if (request.size() != 0) {
         movedBlocks = true;
