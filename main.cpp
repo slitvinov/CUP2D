@@ -1862,7 +1862,7 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   if (send_requests.size() > 0)
     MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
 }
-static void UpdateBoundary(bool clean, std::vector<Info *> *boundary,
+static void update_boundary(bool clean, std::vector<Info *> *boundary,
                            std::unordered_map<long long, Info *> *all,
                            std::unordered_map<long long, int> *tree) {
   std::vector<std::vector<long long>> send_buffer(sim.size);
@@ -4763,7 +4763,7 @@ static void adapt() {
         end:;
         }
       }
-      UpdateBoundary(clean_boundary, &var.tmp->boundary, &var.tmp->all,
+      update_boundary(clean_boundary, &var.tmp->boundary, &var.tmp->all,
                      &var.tmp->tree);
       clean_boundary = false;
       if (m == levelMin)
@@ -4889,7 +4889,7 @@ static void adapt() {
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
       if (g->boundary_needed)
-        UpdateBoundary(false, &g->boundary, &g->all, &g->tree);
+        update_boundary(false, &g->boundary, &g->all, &g->tree);
     }
     int r = 0;
     int c = 0;
