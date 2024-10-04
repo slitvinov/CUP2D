@@ -853,22 +853,20 @@ struct Synchronizer {
         for (int d = 0; d < 3; d++)
           Cindex_true[d] = f->infos[1]->index[d] + code[d];
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0
-                            ? 0
-                            : ((f->infos[1]->index[0] % 2 == 0) &&
-                               (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                      ((f->infos[1]->index[0] % 2 == 1) &&
-                                       (Cindex_true[0] < f->infos[1]->index[0]))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = code[1] == 0
-                            ? 0
-                            : ((f->infos[1]->index[1] % 2 == 0) &&
-                               (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                      ((f->infos[1]->index[1] % 2 == 1) &&
-                                       (Cindex_true[1] < f->infos[1]->index[1]))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : ((f->infos[1]->index[0] % 2 == 0) &&
+                           (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                ((f->infos[1]->index[0] % 2 == 1) &&
+                                 (Cindex_true[0] < f->infos[1]->index[0]))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : ((f->infos[1]->index[1] % 2 == 0) &&
+                           (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                ((f->infos[1]->index[1] % 2 == 1) &&
+                                 (Cindex_true[1] < f->infos[1]->index[1]))
+                            ? 1
+                            : 0;
         Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                           (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                           code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -1628,6 +1626,44 @@ static void FillCase(Face *F, Buffers *buf,
     }
   }
 }
+static void FillCase_2(Face *F, int codex, int codey, Buffers *buf, int dim) {
+  Info *info = F->infos[1];
+  const int icode = F->icode[1];
+  const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
+  if (abs(code[0]) != codex)
+    return;
+  if (abs(code[1]) != codey)
+    return;
+  const int myFace = abs(code[0]) * std::max(0, code[0]) +
+                     abs(code[1]) * (std::max(0, code[1]) + 2);
+  std::array<long long, 2> temp = {(long long)info->level, info->Z};
+  auto search = buf->Map.find(temp);
+  assert(search != buf->Map.end());
+  BlockCase *CoarseCase = search->second;
+  Real *CoarseFace = CoarseCase->d[myFace];
+  Real *block = info->block;
+  const int d = myFace / 2;
+  const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+  const int N2 = sizes[d2];
+  assert(d != 2);
+  if (d == 0) {
+    const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
+    for (int i2 = 0; i2 < N2; i2++) {
+      int k = _BS_ * i2 + j;
+      for (int d = 0; d < dim; d++)
+        block[dim * k + d] += CoarseFace[dim * i2 + d];
+      memset(&CoarseFace[i2], 0, dim * sizeof(Real));
+    }
+  } else {
+    const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
+    for (int i2 = 0; i2 < N2; i2++) {
+      int k = _BS_ * j + i2;
+      for (int d = 0; d < dim; d++)
+        block[dim * k + d] += CoarseFace[dim * i2 + d];
+      memset(&CoarseFace[i2], 0, dim * sizeof(Real));
+    }
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1640,44 +1676,6 @@ struct Grid {
   bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  void FillCase_2(Face *F, int codex, int codey) {
-    Info *info = F->infos[1];
-    const int icode = F->icode[1];
-    const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
-    if (abs(code[0]) != codex)
-      return;
-    if (abs(code[1]) != codey)
-      return;
-    const int myFace = abs(code[0]) * std::max(0, code[0]) +
-                       abs(code[1]) * (std::max(0, code[1]) + 2);
-    std::array<long long, 2> temp = {(long long)info->level, info->Z};
-    auto search = buf->Map.find(temp);
-    assert(search != buf->Map.end());
-    BlockCase *CoarseCase = search->second;
-    Real *CoarseFace = CoarseCase->d[myFace];
-    Real *block = info->block;
-    const int d = myFace / 2;
-    const int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-    const int N2 = sizes[d2];
-    assert(d != 2);
-    if (d == 0) {
-      const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
-      for (int i2 = 0; i2 < N2; i2++) {
-        int k = _BS_ * i2 + j;
-        for (int d = 0; d < dim; d++)
-          block[dim * k + d] += CoarseFace[dim * i2 + d];
-        memset(&CoarseFace[i2], 0, dim * sizeof(Real));
-      }
-    } else {
-      const int j = (myFace % 2 == 0) ? 0 : _BS_ - 1;
-      for (int i2 = 0; i2 < N2; i2++) {
-        int k = _BS_ * j + i2;
-        for (int d = 0; d < dim; d++)
-          block[dim * k + d] += CoarseFace[dim * i2 + d];
-        memset(&CoarseFace[i2], 0, dim * sizeof(Real));
-      }
-    }
-  }
   void prepare0() {
     if (UpdateFluxCorrection == false)
       return;
@@ -1873,10 +1871,10 @@ struct Grid {
           FillCase(&buf->recv_faces[r][index], buf, &tree, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        FillCase_2(&buf->recv_faces[r][index], 1, 0);
+        FillCase_2(&buf->recv_faces[r][index], 1, 0, buf, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        FillCase_2(&buf->recv_faces[r][index], 0, 1);
+        FillCase_2(&buf->recv_faces[r][index], 0, 1, buf, dim);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
@@ -2335,22 +2333,20 @@ struct BlockLab {
         int base[2] = {(info->index[0] + code[0]) % 2,
                        (info->index[1] + code[1]) % 2};
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0
-                            ? 0
-                            : (((info->index[0] % 2 == 0) &&
-                                (infoNei_index_true[0] > info->index[0])) ||
-                               ((info->index[0] % 2 == 1) &&
-                                (infoNei_index_true[0] < info->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = code[1] == 0
-                            ? 0
-                            : (((info->index[1] % 2 == 0) &&
-                                (infoNei_index_true[1] > info->index[1])) ||
-                               ((info->index[1] % 2 == 1) &&
-                                (infoNei_index_true[1] < info->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
+                            ? 1
+                            : 0;
         int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
                             (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                             code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
@@ -4668,8 +4664,9 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state =
-            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
+        (*I)[i]->state = Linf > sim.Rtol   ? Refine
+                         : Linf < sim.Ctol ? Compress
+                                           : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -6425,14 +6422,12 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb
-                  ? std::sqrt(2 * wh * shape->rS[i] -
-                              shape->rS[i] * shape->rS[i])
-                  : shape->rS[i] < st
-                        ? wh - (wh - wt) *
-                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                        : wt * (shape->length - shape->rS[i]) /
-                              (shape->length - st);
+              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
+                                            shape->rS[i] * shape->rS[i])
+              : shape->rS[i] < st
+                  ? wh -
+                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
