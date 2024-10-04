@@ -3007,7 +3007,7 @@ struct BlockLab {
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
-static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
+static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
   _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, grid->dim);
   Info *info = getf(&grid->all, level, Z);
