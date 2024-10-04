@@ -1876,7 +1876,7 @@ struct Grid {
   Real *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
-  void UpdateBoundary(bool clean = false) {
+  void UpdateBoundary(bool clean) {
     std::vector<std::vector<long long>> send_buffer(sim.size);
     std::vector<Info *> &bbb = boundary;
     std::set<int> Neighbors;
@@ -4887,7 +4887,7 @@ static void adapt() {
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
       if (g->boundary_needed)
-        g->UpdateBoundary();
+        g->UpdateBoundary(false);
     }
     int r = 0;
     int c = 0;
