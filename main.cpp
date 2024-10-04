@@ -6336,7 +6336,6 @@ int main(int argc, char **argv) {
   std::stringstream descriptors(shapeArg);
   std::string lines;
   while (std::getline(descriptors, lines)) {
-    std::replace(lines.begin(), lines.end(), '_', ' ');
     std::stringstream ss(lines);
     std::string line;
     while (std::getline(ss, line, ',')) {
