@@ -6331,57 +6331,7 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
-  sim.levels.push_back(sim.bpdx * sim.bpdy * 2);
-  for (int m = 1; m < sim.levelMax; m++)
-    sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
-                         << (m + 1));
-  const long long total_blocks =
-      sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
-  long long my_blocks = total_blocks / sim.size;
-  if ((long long)sim.rank < total_blocks % sim.size)
-    my_blocks++;
-  long long n_start = sim.rank * (total_blocks / sim.size);
-  if (total_blocks % sim.size > 0) {
-    if ((long long)sim.rank < total_blocks % sim.size)
-      n_start += sim.rank;
-    else
-      n_start += total_blocks % sim.size;
-  }
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    int dim = var.F[i].dim;
-    Grid *g = *var.F[i].g = new Grid(dim);
-    g->buf = new Buffers;
-    g->synchronizers = new std::map<Stencil, Synchronizer *>;
-    for (size_t i = 0; i < my_blocks; i++) {
-      long long Z = n_start + i;
-      long long aux = sim.levels[sim.levelStart] + Z;
-      Info *info = g->all[aux] = new Info;
-      fill(info, sim.levelStart, Z);
-      info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
-      g->infos.push_back(*info);
-      g->tree[aux] = sim.rank;
-      int p[2];
-      sim.space_curve->inverse(Z, sim.levelStart, &p[0], &p[1]);
-      if (sim.levelStart < sim.levelMax - 1)
-        for (int j1 = 0; j1 < 2; j1++)
-          for (int i1 = 0; i1 < 2; i1++) {
-            long long n =
-                forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            g->tree[sim.levels[sim.levelStart + 1] + n] = -2;
-          }
-      if (sim.levelStart > 0) {
-        long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
-      }
-    }
-    std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
-    for (size_t j = 0; j < g->infos.size(); j++)
-      g->infos[j].id = j;
-    g->timestamp = 0;
-    g->UpdateFluxCorrection = true;
-    update_blocks(false, &g->infos, &g->all, &g->tree);
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
+
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -6451,6 +6401,57 @@ int main(int argc, char **argv) {
     }
   }
 
+  sim.levels.push_back(sim.bpdx * sim.bpdy * 2);
+  for (int m = 1; m < sim.levelMax; m++)
+    sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
+                         << (m + 1));
+  const long long total_blocks =
+      sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
+  long long my_blocks = total_blocks / sim.size;
+  if ((long long)sim.rank < total_blocks % sim.size)
+    my_blocks++;
+  long long n_start = sim.rank * (total_blocks / sim.size);
+  if (total_blocks % sim.size > 0) {
+    if ((long long)sim.rank < total_blocks % sim.size)
+      n_start += sim.rank;
+    else
+      n_start += total_blocks % sim.size;
+  }
+  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+    int dim = var.F[i].dim;
+    Grid *g = *var.F[i].g = new Grid(dim);
+    g->buf = new Buffers;
+    g->synchronizers = new std::map<Stencil, Synchronizer *>;
+    for (size_t i = 0; i < my_blocks; i++) {
+      long long Z = n_start + i;
+      long long aux = sim.levels[sim.levelStart] + Z;
+      Info *info = g->all[aux] = new Info;
+      fill(info, sim.levelStart, Z);
+      info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+      g->infos.push_back(*info);
+      g->tree[aux] = sim.rank;
+      int p[2];
+      sim.space_curve->inverse(Z, sim.levelStart, &p[0], &p[1]);
+      if (sim.levelStart < sim.levelMax - 1)
+        for (int j1 = 0; j1 < 2; j1++)
+          for (int i1 = 0; i1 < 2; i1++) {
+            long long n =
+                forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            g->tree[sim.levels[sim.levelStart + 1] + n] = -2;
+          }
+      if (sim.levelStart > 0) {
+        long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+        g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
+      }
+    }
+    std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
+    for (size_t j = 0; j < g->infos.size(); j++)
+      g->infos[j].id = j;
+    g->timestamp = 0;
+    g->UpdateFluxCorrection = true;
+    update_blocks(false, &g->infos, &g->all, &g->tree);
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
   sim.solver = new Solver;
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
