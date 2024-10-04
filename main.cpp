@@ -2200,7 +2200,6 @@ struct Grid {
     const long long n = forward(m, ix, iy);
     return avail(m, n);
   }
-  Info *get(int m, long long n) { return getf(&all, m, n); }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -4715,11 +4714,11 @@ static void adapt() {
       if ((info->state == Refine && info->level == sim.levelMax - 1) ||
           (info->state == Compress && info->level == levelMin)) {
         info->state = Leave;
-        var.tmp->get(info->level, info->Z)->state = Leave;
+        getf(&var.tmp->all, info->level, info->Z)->state = Leave;
       }
       if (info->state != Leave) {
         info->changed2 = true;
-        (var.tmp->get(info->level, info->Z))->changed2 = info->changed2;
+        (getf(&var.tmp->all, info->level, info->Z))->changed2 = info->changed2;
       }
     }
     bool clean_boundary = true;
@@ -4748,7 +4747,7 @@ static void adapt() {
                             info->Znei[1 + x][1 + y]) == -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
-                      var.tmp->get(info->level, info->Z)->state = Leave;
+                      getf(&var.tmp->all, info->level, info->Z)->state = Leave;
                     }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
@@ -4758,13 +4757,15 @@ static void adapt() {
                       int jNei = 2 * info->index[1] + std::max(y, 0) + y +
                                  aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
-                      Info *FinerNei = var.tmp->get(m + 1, zzz);
+                      Info *FinerNei = getf(&var.tmp->all, m + 1, zzz);
                       State NeiState = FinerNei->state;
                       if (NeiState == Refine) {
                         info->state = Refine;
-                        var.tmp->get(info->level, info->Z)->state = Refine;
+                        getf(&var.tmp->all, info->level, info->Z)->state =
+                            Refine;
                         info->changed2 = true;
-                        var.tmp->get(info->level, info->Z)->changed2 = true;
+                        getf(&var.tmp->all, info->level, info->Z)->changed2 =
+                            true;
                         goto end;
                       }
                     }
@@ -4800,11 +4801,11 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            Info *infoNei =
-                var.tmp->get(info->level, info->Znei[1 + code[0]][1 + code[1]]);
+            Info *infoNei = getf(&var.tmp->all, info->level,
+                                 info->Znei[1 + code[0]][1 + code[1]]);
             if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Refine) {
               info->state = Leave;
-              (var.tmp->get(info->level, info->Z))->state = Leave;
+              (getf(&var.tmp->all, info->level, info->Z))->state = Leave;
               break;
             }
           }
@@ -4822,13 +4823,13 @@ static void adapt() {
           for (int k = 2 * (info->index[2] / 2);
                k <= 2 * (info->index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
-            Info *infoNei = var.tmp->get(m, n);
+            Info *infoNei = getf(&var.tmp->all, m, n);
             if ((var.tmp->Tree1(infoNei) >= 0) == false ||
                 infoNei->state != Compress) {
               found = true;
               if (info->state == Compress) {
                 info->state = Leave;
-                (var.tmp->get(info->level, info->Z))->state = Leave;
+                (getf(&var.tmp->all, info->level, info->Z))->state = Leave;
               }
               break;
             }
@@ -4841,7 +4842,7 @@ static void adapt() {
             for (int k = 2 * (info->index[2] / 2);
                  k <= 2 * (info->index[2] / 2) + 1; k++) {
               long long n = forward(m, i, j);
-              Info *infoNei = var.tmp->get(m, n);
+              Info *infoNei = getf(&var.tmp->all, m, n);
               if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Compress)
                 infoNei->state = Leave;
             }
@@ -4947,7 +4948,7 @@ static void adapt() {
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
-      Info *parent = g->get(level, Z);
+      Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
         lab->load(g, Synch, parent, true);
@@ -4958,7 +4959,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info *Child = g->get(level + 1, nc);
+          Info *Child = getf(&g->all, level + 1, nc);
           Child->state = Leave;
           g->_alloc(level + 1, nc);
           treef(&g->tree, level + 1, nc) = -2;
@@ -5021,15 +5022,15 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.push_back(g->get(level, Z)->id2); }
-      Info *parent = g->get(level, Z);
+      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
+      Info *parent = getf(&g->all, level, Z);
       g->Tree1(parent) = -1;
       parent->state = Leave;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info *Child = g->get(level + 1, nc);
+          Info *Child = getf(&g->all, level + 1, nc);
           g->Tree1(Child) = sim.rank;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
@@ -5043,10 +5044,10 @@ static void adapt() {
     for (auto &b : I) {
       const long long nBlock =
           forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const Info *base = g->get(b.level, nBlock);
+      const Info *base = getf(&g->all, b.level, nBlock);
       if (!(g->Tree1(base) >= 0) || base->state != Compress)
         continue;
-      const Info *bCopy = g->get(b.level, b.Z);
+      const Info *bCopy = getf(&g->all, b.level, b.Z);
       const int baserank = treef(&g->tree, b.level, nBlock);
       const int brank = treef(&g->tree, b.level, b.Z);
       if (b.Z != nBlock) {
@@ -5066,7 +5067,7 @@ static void adapt() {
                 forward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
-            Info *temp = g->get(b.level, n);
+            Info *temp = getf(&g->all, b.level, n);
             const int temprank = treef(&g->tree, b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
@@ -5110,7 +5111,7 @@ static void adapt() {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
         g->_alloc(level, Z);
-        Info *info = g->get(level, Z);
+        Info *info = getf(&g->all, level, Z);
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
@@ -5120,7 +5121,7 @@ static void adapt() {
       const int level = m_com[i];
       const long long Z = n_com[i];
       assert(level > 0);
-      Info *info = g->get(level, Z);
+      Info *info = getf(&g->all, level, Z);
       assert(info->state == Compress);
       Real *Blocks[4];
       for (int J = 0; J < 2; J++)
@@ -5128,7 +5129,7 @@ static void adapt() {
           const int blk = J * 2 + I;
           const long long n =
               forward(level, info->index[0] + I, info->index[1] + J);
-          Blocks[blk] = (g->get(level, n))->block;
+          Blocks[blk] = (getf(&g->all, level, n))->block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
@@ -5152,7 +5153,7 @@ static void adapt() {
           }
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
-      Info *parent = g->get(level - 1, np);
+      Info *parent = getf(&g->all, level - 1, np);
       treef(&g->tree, parent->level, parent->Z) = sim.rank;
       parent->block = info->block;
       parent->state = Leave;
@@ -5165,17 +5166,17 @@ static void adapt() {
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j].level && n == g->infos[j].Z) {
-                Info *correct_info = g->get(level - 1, np);
+                Info *correct_info = getf(&g->all, level - 1, np);
                 correct_info->state = Leave;
                 g->infos[j] = *correct_info;
                 break;
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(g->get(level, n)->id2); }
+            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
           }
           treef(&g->tree, level, n) = -2;
-          g->get(level, n)->state = Leave;
+          getf(&g->all, level, n)->state = Leave;
         }
     }
     g->dealloc_many(dealloc_IDs);
@@ -5949,7 +5950,8 @@ struct Solver {
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -2) {
-      Info *rhsNei_c = var.tmp->get(rhs_info->level - 1, rhsNei->Zparent);
+      Info *rhsNei_c =
+          getf(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
       int iy_c = indexer->iy_c(rhs_info, iy);
       long long inward_idx = indexer->neiInward(rhs_info, ix, iy);
@@ -5958,8 +5960,8 @@ struct Solver {
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
     } else if (var.tmp->Tree1(rhsNei) == -1) {
-      Info *rhsNei_f =
-          var.tmp->get(rhs_info->level + 1, indexer->Zchild(rhsNei, ix, iy));
+      Info *rhsNei_f = getf(&var.tmp->all, rhs_info->level + 1,
+                            indexer->Zchild(rhsNei, ix, iy));
       int nei_rank = var.tmp->Tree1(rhsNei_f);
       long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
@@ -7016,10 +7018,14 @@ int main(int argc, char **argv) {
           isBoundary[2] = (rhs_info.index[1] == 0);
           isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
           std::array<const Info *, 4> rhsNei;
-          rhsNei[0] = var.tmp->get(rhs_info.level, rhs_info.Znei[1 - 1][1]);
-          rhsNei[1] = var.tmp->get(rhs_info.level, rhs_info.Znei[1 + 1][1]);
-          rhsNei[2] = var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 - 1]);
-          rhsNei[3] = var.tmp->get(rhs_info.level, rhs_info.Znei[1][1 + 1]);
+          rhsNei[0] =
+              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 - 1][1]);
+          rhsNei[1] =
+              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 + 1][1]);
+          rhsNei[2] =
+              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 - 1]);
+          rhsNei[3] =
+              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 + 1]);
           for (int iy = 0; iy < _BS_; iy++)
             for (int ix = 0; ix < _BS_; ix++) {
               const long long sfc_idx =
