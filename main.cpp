@@ -1584,6 +1584,50 @@ struct Buffers {
   std::vector<BlockCase *> Cases;
   std::map<std::array<long long, 2>, BlockCase *> Map;
 };
+static void FillCase(Face *F, Buffers *buf,
+                     std::unordered_map<long long, int> *tree, int dim) {
+  Info *info = F->infos[1];
+  int icode = F->icode[1];
+  int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
+  int myFace = abs(code[0]) * std::max(0, code[0]) +
+               abs(code[1]) * (std::max(0, code[1]) + 2) +
+               abs(code[2]) * (std::max(0, code[2]) + 4);
+  std::array<long long, 2> temp = {(long long)info->level, info->Z};
+  auto search = buf->Map.find(temp);
+  assert(search != buf->Map.end());
+  BlockCase &CoarseCase = (*search->second);
+  Real *CoarseFace = CoarseCase.d[myFace];
+  for (int B = 0; B <= 1; B++) {
+    int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+    long long Z = forward(info->level + 1,
+                          2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                              (B % 2) * std::max(0, 1 - abs(code[0])),
+                          2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                              aux * std::max(0, 1 - abs(code[1])));
+    if (Z != F->infos[0]->Z)
+      continue;
+    int d = myFace / 2;
+    int d1 = std::max((d + 1) % 3, (d + 2) % 3);
+    int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+    int N1 = sizes[d1];
+    int N2 = sizes[d2];
+    int base = 0;
+    if (B == 1)
+      base = N2 / 2;
+    else if (B == 2)
+      base = (N1 / 2) * N2;
+    else if (B == 3)
+      base = (N2 / 2) + (N1 / 2) * N2;
+    int r = treef(tree, F->infos[0]->level, F->infos[0]->Z);
+    int dis = 0;
+    for (int i2 = 0; i2 < N2; i2 += 2) {
+      Real *s = &CoarseFace[dim * (base + (i2 / 2))];
+      for (int j = 0; j < dim; j++)
+        s[j] += buf->recv_buffer[r][F->offset + dis + j];
+      dis += dim;
+    }
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1596,50 +1640,6 @@ struct Grid {
   bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  void FillCase(Face *F) {
-    Info *info = F->infos[1];
-    int icode = F->icode[1];
-    int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-    int myFace = abs(code[0]) * std::max(0, code[0]) +
-                 abs(code[1]) * (std::max(0, code[1]) + 2) +
-                 abs(code[2]) * (std::max(0, code[2]) + 4);
-    std::array<long long, 2> temp = {(long long)info->level, info->Z};
-    auto search = buf->Map.find(temp);
-    assert(search != buf->Map.end());
-    BlockCase &CoarseCase = (*search->second);
-    Real *CoarseFace = CoarseCase.d[myFace];
-    for (int B = 0; B <= 1; B++) {
-      int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-      long long Z =
-          forward(info->level + 1,
-                  2 * info->index[0] + std::max(code[0], 0) + code[0] +
-                      (B % 2) * std::max(0, 1 - abs(code[0])),
-                  2 * info->index[1] + std::max(code[1], 0) + code[1] +
-                      aux * std::max(0, 1 - abs(code[1])));
-      if (Z != F->infos[0]->Z)
-        continue;
-      int d = myFace / 2;
-      int d1 = std::max((d + 1) % 3, (d + 2) % 3);
-      int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-      int N1 = sizes[d1];
-      int N2 = sizes[d2];
-      int base = 0;
-      if (B == 1)
-        base = N2 / 2;
-      else if (B == 2)
-        base = (N1 / 2) * N2;
-      else if (B == 3)
-        base = (N2 / 2) + (N1 / 2) * N2;
-      int r = treef(&tree, F->infos[0]->level, F->infos[0]->Z);
-      int dis = 0;
-      for (int i2 = 0; i2 < N2; i2 += 2) {
-        Real *s = &CoarseFace[dim * (base + (i2 / 2))];
-        for (int j = 0; j < dim; j++)
-          s[j] += buf->recv_buffer[r][F->offset + dis + j];
-        dis += dim;
-      }
-    }
-  }
   void FillCase_2(Face *F, int codex, int codey) {
     Info *info = F->infos[1];
     const int icode = F->icode[1];
@@ -1864,13 +1864,13 @@ struct Grid {
       memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
              buf->send_buffer[sim.rank].size() * sizeof(Real));
     for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
-      FillCase(&buf->recv_faces[sim.rank][index]);
+      FillCase(&buf->recv_faces[sim.rank][index], buf, &tree, dim);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
         for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-          FillCase(&buf->recv_faces[r][index]);
+          FillCase(&buf->recv_faces[r][index], buf, &tree, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
         FillCase_2(&buf->recv_faces[r][index], 1, 0);
