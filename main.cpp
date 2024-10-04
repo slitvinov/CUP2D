@@ -1791,76 +1791,198 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     }
   }
 }
-static  void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree, int dim) {
-    for (int r = 0; r < sim.size; r++) {
-      int displacement = 0;
-      for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
-        Face &f = buf->send_faces[r][k];
-        Info *info = f.infos[0];
-        auto search = buf->Map.find({(long long)info->level, info->Z});
-        assert(search != buf->Map.end());
-        BlockCase *FineCase = search->second;
-        int icode = f.icode[0];
-        assert((icode / 9) % 3 - 1 == 0);
-        int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
-        int myFace = abs(code[0]) * std::max(0, code[0]) +
-                     abs(code[1]) * (std::max(0, code[1]) + 2);
-        Real *FineFace = FineCase->d[myFace];
-        int d = myFace / 2;
-        assert(d == 0 || d == 1);
-        int d2 = std::min((d + 1) % 3, (d + 2) % 3);
-        int N2 = sizes[d2];
-        for (int i2 = 0; i2 < N2; i2 += 2) {
-          Real *a = &FineFace[dim * i2];
-          Real *b = &FineFace[dim * (i2 + 1)];
-          for (d = 0; d < dim; d++) {
-            Real avg = a[d] + b[d];
-            memcpy(&buf->send_buffer[r][displacement], &avg, sizeof(Real));
-            displacement++;
+static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
+                      int dim) {
+  for (int r = 0; r < sim.size; r++) {
+    int displacement = 0;
+    for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
+      Face &f = buf->send_faces[r][k];
+      Info *info = f.infos[0];
+      auto search = buf->Map.find({(long long)info->level, info->Z});
+      assert(search != buf->Map.end());
+      BlockCase *FineCase = search->second;
+      int icode = f.icode[0];
+      assert((icode / 9) % 3 - 1 == 0);
+      int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
+      int myFace = abs(code[0]) * std::max(0, code[0]) +
+                   abs(code[1]) * (std::max(0, code[1]) + 2);
+      Real *FineFace = FineCase->d[myFace];
+      int d = myFace / 2;
+      assert(d == 0 || d == 1);
+      int d2 = std::min((d + 1) % 3, (d + 2) % 3);
+      int N2 = sizes[d2];
+      for (int i2 = 0; i2 < N2; i2 += 2) {
+        Real *a = &FineFace[dim * i2];
+        Real *b = &FineFace[dim * (i2 + 1)];
+        for (d = 0; d < dim; d++) {
+          Real avg = a[d] + b[d];
+          memcpy(&buf->send_buffer[r][displacement], &avg, sizeof(Real));
+          displacement++;
+        }
+        memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
+        memset(&FineFace[dim * (i2 + 1)], 0, dim * sizeof(Real));
+      }
+    }
+  }
+  std::vector<MPI_Request> send_requests;
+  std::vector<MPI_Request> recv_requests;
+  for (int r = 0; r < sim.size; r++)
+    if (r != sim.rank) {
+      if (buf->recv_buffer[r].size() != 0) {
+        MPI_Request req{};
+        recv_requests.push_back(req);
+        MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(), MPI_Real,
+                  r, 123456, MPI_COMM_WORLD, &recv_requests.back());
+      }
+      if (buf->send_buffer[r].size() != 0) {
+        MPI_Request req{};
+        send_requests.push_back(req);
+        MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(), MPI_Real,
+                  r, 123456, MPI_COMM_WORLD, &send_requests.back());
+      }
+    }
+  if (buf->recv_buffer[sim.rank].size() > 0 &&
+      buf->send_buffer[sim.rank].size() > 0)
+    memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
+           buf->send_buffer[sim.rank].size() * sizeof(Real));
+  for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
+    fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
+  if (recv_requests.size() > 0)
+    MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
+  for (int r = 0; r < sim.size; r++)
+    if (r != sim.rank)
+      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+        fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
+  for (int r = 0; r < sim.size; r++)
+    for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+      fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
+  for (int r = 0; r < sim.size; r++)
+    for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
+      fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
+  if (send_requests.size() > 0)
+    MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
+}
+static void UpdateBoundary(bool clean, std::vector<Info *> *boundary,
+                           std::unordered_map<long long, Info *> *all,
+                           std::unordered_map<long long, int> *tree) {
+  std::vector<std::vector<long long>> send_buffer(sim.size);
+  std::vector<Info *> &bbb = *boundary;
+  std::set<int> Neighbors;
+  for (size_t jjj = 0; jjj < bbb.size(); jjj++) {
+    Info *info = bbb[jjj];
+    std::set<int> receivers;
+    const int aux = 1 << info->level;
+    const bool xskin =
+        info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
+    const bool yskin =
+        info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+    const int xskip = info->index[0] == 0 ? -1 : 1;
+    const int yskip = info->index[1] == 0 ? -1 : 1;
+
+    for (int icode = 0; icode < 27; icode++) {
+      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+        continue;
+      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                           (icode / 9) % 3 - 1};
+      if (code[0] == xskip && xskin)
+        continue;
+      if (code[1] == yskip && yskin)
+        continue;
+      if (code[2] != 0)
+        continue;
+      Info *infoNei =
+          getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+      const int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
+      if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
+        if (infoNei->state != Refine || clean)
+          infoNei->state = Leave;
+        receivers.insert(infoNeiTree);
+        Neighbors.insert(infoNeiTree);
+      } else if (infoNeiTree == -2) {
+        const long long nCoarse = infoNei->Zparent;
+        Info *infoNeiCoarser = getf(all, infoNei->level - 1, nCoarse);
+        const int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
+        if (infoNeiCoarserrank != sim.rank) {
+          assert(infoNeiCoarserrank >= 0);
+          if (infoNeiCoarser->state != Refine || clean)
+            infoNeiCoarser->state = Leave;
+          receivers.insert(infoNeiCoarserrank);
+          Neighbors.insert(infoNeiCoarserrank);
+        }
+      } else if (infoNeiTree == -1) {
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 1; B += Bstep) {
+          const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          const long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
+          const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+          if (infoNeiFinerrank != sim.rank) {
+            if (infoNeiFiner->state != Refine || clean)
+              infoNeiFiner->state = Leave;
+            receivers.insert(infoNeiFinerrank);
+            Neighbors.insert(infoNeiFinerrank);
           }
-          memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
-          memset(&FineFace[dim * (i2 + 1)], 0, dim * sizeof(Real));
         }
       }
     }
-    std::vector<MPI_Request> send_requests;
-    std::vector<MPI_Request> recv_requests;
-    for (int r = 0; r < sim.size; r++)
-      if (r != sim.rank) {
-        if (buf->recv_buffer[r].size() != 0) {
-          MPI_Request req{};
-          recv_requests.push_back(req);
-          MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(),
-                    MPI_Real, r, 123456, MPI_COMM_WORLD, &recv_requests.back());
-        }
-        if (buf->send_buffer[r].size() != 0) {
-          MPI_Request req{};
-          send_requests.push_back(req);
-          MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(),
-                    MPI_Real, r, 123456, MPI_COMM_WORLD, &send_requests.back());
-        }
+    if (info->changed2 && info->state != Leave) {
+      if (info->state == Refine)
+        info->changed2 = false;
+      std::set<int>::iterator it = receivers.begin();
+      while (it != receivers.end()) {
+        int temp = (info->state == Compress) ? 1 : 2;
+        send_buffer[*it].push_back(info->level);
+        send_buffer[*it].push_back(info->Z);
+        send_buffer[*it].push_back(temp);
+        it++;
       }
-    if (buf->recv_buffer[sim.rank].size() > 0 &&
-        buf->send_buffer[sim.rank].size() > 0)
-      memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
-             buf->send_buffer[sim.rank].size() * sizeof(Real));
-    for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
-      fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
-    if (recv_requests.size() > 0)
-      MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
-    for (int r = 0; r < sim.size; r++)
-      if (r != sim.rank)
-        for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-          fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
-    for (int r = 0; r < sim.size; r++)
-      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
-    for (int r = 0; r < sim.size; r++)
-      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
-    if (send_requests.size() > 0)
-      MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
+    }
   }
+  std::vector<MPI_Request> requests;
+  long long dummy = 0;
+  for (int r : Neighbors)
+    if (r != sim.rank) {
+      requests.resize(requests.size() + 1);
+      if (send_buffer[r].size() != 0)
+        MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
+                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
+      else {
+        MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
+                  &requests[requests.size() - 1]);
+      }
+    }
+  std::vector<std::vector<long long>> recv_buffer(sim.size);
+  for (int r : Neighbors)
+    if (r != sim.rank) {
+      int recv_size;
+      MPI_Status status;
+      MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
+      MPI_Get_count(&status, MPI_LONG_LONG, &recv_size);
+      if (recv_size > 0) {
+        recv_buffer[r].resize(recv_size);
+        requests.resize(requests.size() + 1);
+        MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
+                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
+      }
+    }
+  MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+  for (int r = 0; r < sim.size; r++)
+    if (recv_buffer[r].size() > 1)
+      for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
+        int level = recv_buffer[r][index];
+        long long Z = recv_buffer[r][index + 1];
+        getf(all, level, Z)->state =
+            (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
+      }
+};
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1876,127 +1998,6 @@ struct Grid {
   Real *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
-  void UpdateBoundary(bool clean) {
-    std::vector<std::vector<long long>> send_buffer(sim.size);
-    std::vector<Info *> &bbb = boundary;
-    std::set<int> Neighbors;
-    for (size_t jjj = 0; jjj < bbb.size(); jjj++) {
-      Info *info = bbb[jjj];
-      std::set<int> receivers;
-      const int aux = 1 << info->level;
-      const bool xskin =
-          info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
-      const bool yskin =
-          info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
-      const int xskip = info->index[0] == 0 ? -1 : 1;
-      const int yskip = info->index[1] == 0 ? -1 : 1;
-
-      for (int icode = 0; icode < 27; icode++) {
-        if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-          continue;
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
-        if (code[0] == xskip && xskin)
-          continue;
-        if (code[1] == yskip && yskin)
-          continue;
-        if (code[2] != 0)
-          continue;
-        Info *infoNei =
-            getf(&all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-        const int &infoNeiTree = treef(&tree, infoNei->level, infoNei->Z);
-        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-          if (infoNei->state != Refine || clean)
-            infoNei->state = Leave;
-          receivers.insert(infoNeiTree);
-          Neighbors.insert(infoNeiTree);
-        } else if (infoNeiTree == -2) {
-          const long long nCoarse = infoNei->Zparent;
-          Info *infoNeiCoarser = getf(&all, infoNei->level - 1, nCoarse);
-          const int infoNeiCoarserrank =
-              treef(&tree, infoNei->level - 1, nCoarse);
-          if (infoNeiCoarserrank != sim.rank) {
-            assert(infoNeiCoarserrank >= 0);
-            if (infoNeiCoarser->state != Refine || clean)
-              infoNeiCoarser->state = Leave;
-            receivers.insert(infoNeiCoarserrank);
-            Neighbors.insert(infoNeiCoarserrank);
-          }
-        } else if (infoNeiTree == -1) {
-          int Bstep = 1;
-          if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3;
-          else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4;
-          for (int B = 0; B <= 1; B += Bstep) {
-            const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            const long long nFine =
-                infoNei->Zchild[std::max(-code[0], 0) +
-                                (B % 2) * std::max(0, 1 - abs(code[0]))]
-                               [std::max(-code[1], 0) +
-                                temp * std::max(0, 1 - abs(code[1]))];
-            Info *infoNeiFiner = getf(&all, infoNei->level + 1, nFine);
-            const int infoNeiFinerrank =
-                treef(&tree, infoNei->level + 1, nFine);
-            if (infoNeiFinerrank != sim.rank) {
-              if (infoNeiFiner->state != Refine || clean)
-                infoNeiFiner->state = Leave;
-              receivers.insert(infoNeiFinerrank);
-              Neighbors.insert(infoNeiFinerrank);
-            }
-          }
-        }
-      }
-      if (info->changed2 && info->state != Leave) {
-        if (info->state == Refine)
-          info->changed2 = false;
-        std::set<int>::iterator it = receivers.begin();
-        while (it != receivers.end()) {
-          int temp = (info->state == Compress) ? 1 : 2;
-          send_buffer[*it].push_back(info->level);
-          send_buffer[*it].push_back(info->Z);
-          send_buffer[*it].push_back(temp);
-          it++;
-        }
-      }
-    }
-    std::vector<MPI_Request> requests;
-    long long dummy = 0;
-    for (int r : Neighbors)
-      if (r != sim.rank) {
-        requests.resize(requests.size() + 1);
-        if (send_buffer[r].size() != 0)
-          MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
-                    123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
-        else {
-          MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
-                    &requests[requests.size() - 1]);
-        }
-      }
-    std::vector<std::vector<long long>> recv_buffer(sim.size);
-    for (int r : Neighbors)
-      if (r != sim.rank) {
-        int recv_size;
-        MPI_Status status;
-        MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
-        MPI_Get_count(&status, MPI_LONG_LONG, &recv_size);
-        if (recv_size > 0) {
-          recv_buffer[r].resize(recv_size);
-          requests.resize(requests.size() + 1);
-          MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
-                    123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
-        }
-      }
-    MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-    for (int r = 0; r < sim.size; r++)
-      if (recv_buffer[r].size() > 1)
-        for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
-          int level = recv_buffer[r][index];
-          long long Z = recv_buffer[r][index + 1];
-          getf(&all, level, Z)->state =
-              (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
-        }
-  };
   Synchronizer *sync1(const Stencil &stencil) {
     Synchronizer *s;
     auto itSynchronizerMPI = synchronizers->find(stencil);
@@ -4762,7 +4763,8 @@ static void adapt() {
         end:;
         }
       }
-      var.tmp->UpdateBoundary(clean_boundary);
+      UpdateBoundary(clean_boundary, &var.tmp->boundary, &var.tmp->all,
+                     &var.tmp->tree);
       clean_boundary = false;
       if (m == levelMin)
         break;
@@ -4887,7 +4889,7 @@ static void adapt() {
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
       if (g->boundary_needed)
-        g->UpdateBoundary(false);
+        UpdateBoundary(false, &g->boundary, &g->all, &g->tree);
     }
     int r = 0;
     int c = 0;
