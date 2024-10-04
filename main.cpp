@@ -1664,6 +1664,133 @@ static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
     }
   }
 }
+static void prepare0(Buffers *buf, std::vector<Info> *infos,
+                     std::unordered_map<long long, Info *> *all,
+                     std::unordered_map<long long, int> *tree, int dim) {
+  buf->send_buffer.resize(sim.size);
+  buf->recv_buffer.resize(sim.size);
+  buf->send_faces.resize(sim.size);
+  buf->recv_faces.resize(sim.size);
+  for (int r = 0; r < sim.size; r++) {
+    buf->send_faces[r].clear();
+    buf->recv_faces[r].clear();
+  }
+  std::vector<int> send_buffer_size(sim.size, 0);
+  std::vector<int> recv_buffer_size(sim.size, 0);
+  for (int i = 0; i < buf->Cases.size(); i++)
+    for (int j = 0; j < 4; j++)
+      free(buf->Cases[i]->d[j]);
+  buf->Cases.clear();
+  buf->Map.clear();
+  std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
+                              1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
+                              1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
+  for (auto &info : *infos) {
+    getf(all, info.level, info.Z)->auxiliary = nullptr;
+    info.auxiliary = nullptr;
+    int aux = 1 << info.level;
+    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    int xskip = info.index[0] == 0 ? -1 : 1;
+    int yskip = info.index[1] == 0 ? -1 : 1;
+
+    bool storeFace[4] = {false, false, false, false};
+    bool stored = false;
+    for (int f = 0; f < 6; f++) {
+      const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
+                           (icode[f] / 9) % 3 - 1};
+      if (code[0] == xskip && xskin)
+        continue;
+      if (code[1] == yskip && yskin)
+        continue;
+      if (code[2] != 0)
+        continue;
+      if (!(treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+            0)) {
+        storeFace[abs(code[0]) * std::max(0, code[0]) +
+                  abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
+        stored = true;
+      }
+      int L[3];
+      L[0] = code[0] == 0 ? _BS_ / 2 : 1;
+      L[1] = code[1] == 0 ? _BS_ / 2 : 1;
+      int V = L[0] * L[1];
+      if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        const long long nCoarse = infoNei->Zparent;
+        Info *infoNeiCoarser = getf(all, info.level - 1, nCoarse);
+        const int infoNeiCoarserrank = treef(tree, info.level - 1, nCoarse);
+        int code2[3] = {-code[0], -code[1], -code[2]};
+        int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
+        buf->send_faces[infoNeiCoarserrank].push_back(
+            Face(&info, infoNeiCoarser, icode[f], icode2));
+        send_buffer_size[infoNeiCoarserrank] += V;
+      } else if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
+                 -1) {
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int Bstep = 1;
+        for (int B = 0; B <= 1; B += Bstep) {
+          const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          const long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+          Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
+          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+          buf->recv_faces[infoNeiFinerrank].push_back(
+              Face(infoNeiFiner, &info, icode2, icode[f]));
+          recv_buffer_size[infoNeiFinerrank] += V;
+        }
+      }
+    }
+    if (stored) {
+      BlockCase *c = new BlockCase;
+      c->level = info.level;
+      c->Z = info.Z;
+      for (int i = 0; i < 4; i++)
+        c->d[i] =
+            storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real)) : nullptr;
+      buf->Cases.push_back(c);
+    }
+  }
+  size_t Cases_index = 0;
+  if (buf->Cases.size() > 0)
+    for (auto &info : *infos) {
+      if (Cases_index == buf->Cases.size())
+        break;
+      if (buf->Cases[Cases_index]->level == info.level &&
+          buf->Cases[Cases_index]->Z == info.Z) {
+        buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
+            {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
+            buf->Cases[Cases_index]));
+        getf(all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
+            ->auxiliary = buf->Cases[Cases_index];
+        info.auxiliary = buf->Cases[Cases_index];
+        Cases_index++;
+      }
+    }
+  for (int r = 0; r < sim.size; r++) {
+    std::sort(buf->send_faces[r].begin(), buf->send_faces[r].end());
+    std::sort(buf->recv_faces[r].begin(), buf->recv_faces[r].end());
+  }
+  for (int r = 0; r < sim.size; r++) {
+    buf->send_buffer[r].resize(send_buffer_size[r] * dim);
+    buf->recv_buffer[r].resize(recv_buffer_size[r] * dim);
+    int offset = 0;
+    for (int k = 0; k < (int)buf->recv_faces[r].size(); k++) {
+      Face &f = buf->recv_faces[r][k];
+      const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
+                           (f.icode[1] / 9) % 3 - 1};
+      int V = ((code[0] == 0) ? _BS_ / 2 : 1) * ((code[1] == 0) ? _BS_ / 2 : 1);
+      f.offset = offset;
+      offset += V * dim;
+    }
+  }
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1676,138 +1803,6 @@ struct Grid {
   bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  void prepare0() {
-    if (UpdateFluxCorrection == false)
-      return;
-    UpdateFluxCorrection = false;
-    buf->send_buffer.resize(sim.size);
-    buf->recv_buffer.resize(sim.size);
-    buf->send_faces.resize(sim.size);
-    buf->recv_faces.resize(sim.size);
-    for (int r = 0; r < sim.size; r++) {
-      buf->send_faces[r].clear();
-      buf->recv_faces[r].clear();
-    }
-    std::vector<int> send_buffer_size(sim.size, 0);
-    std::vector<int> recv_buffer_size(sim.size, 0);
-    for (int i = 0; i < buf->Cases.size(); i++)
-      for (int j = 0; j < 4; j++)
-        free(buf->Cases[i]->d[j]);
-    buf->Cases.clear();
-    buf->Map.clear();
-    std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
-                                1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
-                                1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
-    for (auto &info : infos) {
-      getf(&all, info.level, info.Z)->auxiliary = nullptr;
-      info.auxiliary = nullptr;
-      int aux = 1 << info.level;
-      bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-      bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
-      int xskip = info.index[0] == 0 ? -1 : 1;
-      int yskip = info.index[1] == 0 ? -1 : 1;
-
-      bool storeFace[4] = {false, false, false, false};
-      bool stored = false;
-      for (int f = 0; f < 6; f++) {
-        const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
-                             (icode[f] / 9) % 3 - 1};
-        if (code[0] == xskip && xskin)
-          continue;
-        if (code[1] == yskip && yskin)
-          continue;
-        if (code[2] != 0)
-          continue;
-        if (!(treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
-              0)) {
-          storeFace[abs(code[0]) * std::max(0, code[0]) +
-                    abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
-          stored = true;
-        }
-        int L[3];
-        L[0] = code[0] == 0 ? _BS_ / 2 : 1;
-        L[1] = code[1] == 0 ? _BS_ / 2 : 1;
-        int V = L[0] * L[1];
-        if (treef(&tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
-            -2) {
-          Info *infoNei =
-              getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          const long long nCoarse = infoNei->Zparent;
-          Info *infoNeiCoarser = getf(&all, info.level - 1, nCoarse);
-          const int infoNeiCoarserrank = treef(&tree, info.level - 1, nCoarse);
-          int code2[3] = {-code[0], -code[1], -code[2]};
-          int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
-          buf->send_faces[infoNeiCoarserrank].push_back(
-              Face(&info, infoNeiCoarser, icode[f], icode2));
-          send_buffer_size[infoNeiCoarserrank] += V;
-        } else if (treef(&tree, info.level,
-                         info.Znei[1 + code[0]][1 + code[1]]) == -1) {
-          Info *infoNei =
-              getf(&all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int Bstep = 1;
-          for (int B = 0; B <= 1; B += Bstep) {
-            const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            const long long nFine =
-                infoNei->Zchild[std::max(-code[0], 0) +
-                                (B % 2) * std::max(0, 1 - abs(code[0]))]
-                               [std::max(-code[1], 0) +
-                                temp * std::max(0, 1 - abs(code[1]))];
-            const int infoNeiFinerrank =
-                treef(&tree, infoNei->level + 1, nFine);
-            Info *infoNeiFiner = getf(&all, infoNei->level + 1, nFine);
-            int icode2 =
-                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            buf->recv_faces[infoNeiFinerrank].push_back(
-                Face(infoNeiFiner, &info, icode2, icode[f]));
-            recv_buffer_size[infoNeiFinerrank] += V;
-          }
-        }
-      }
-      if (stored) {
-        BlockCase *c = new BlockCase;
-        c->level = info.level;
-        c->Z = info.Z;
-        for (int i = 0; i < 4; i++)
-          c->d[i] = storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real))
-                                 : nullptr;
-        buf->Cases.push_back(c);
-      }
-    }
-    size_t Cases_index = 0;
-    if (buf->Cases.size() > 0)
-      for (auto &info : infos) {
-        if (Cases_index == buf->Cases.size())
-          break;
-        if (buf->Cases[Cases_index]->level == info.level &&
-            buf->Cases[Cases_index]->Z == info.Z) {
-          buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
-              {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
-              buf->Cases[Cases_index]));
-          getf(&all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
-              ->auxiliary = buf->Cases[Cases_index];
-          info.auxiliary = buf->Cases[Cases_index];
-          Cases_index++;
-        }
-      }
-    for (int r = 0; r < sim.size; r++) {
-      std::sort(buf->send_faces[r].begin(), buf->send_faces[r].end());
-      std::sort(buf->recv_faces[r].begin(), buf->recv_faces[r].end());
-    }
-    for (int r = 0; r < sim.size; r++) {
-      buf->send_buffer[r].resize(send_buffer_size[r] * dim);
-      buf->recv_buffer[r].resize(recv_buffer_size[r] * dim);
-      int offset = 0;
-      for (int k = 0; k < (int)buf->recv_faces[r].size(); k++) {
-        Face &f = buf->recv_faces[r][k];
-        const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
-                             (f.icode[1] / 9) % 3 - 1};
-        int V =
-            ((code[0] == 0) ? _BS_ / 2 : 1) * ((code[1] == 0) ? _BS_ / 2 : 1);
-        f.offset = offset;
-        offset += V * dim;
-      }
-    }
-  }
   void FillBlockCases() {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
@@ -6555,7 +6550,11 @@ int main(int argc, char **argv) {
       for (size_t i = 0; i < velInfo.size(); i++)
         memcpy(var.vold->infos[i].block, velInfo[i].block,
                2 * _BS_ * _BS_ * sizeof(Real));
-      var.tmpV->prepare0();
+      if (var.tmpV->UpdateFluxCorrection) {
+        prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
+                 &var.tmpV->tree, var.tmpV->dim);
+        var.tmpV->UpdateFluxCorrection = false;
+      }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
@@ -6567,7 +6566,11 @@ int main(int argc, char **argv) {
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
-      var.tmpV->prepare0();
+      if (var.tmpV->UpdateFluxCorrection) {
+        prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
+                 &var.tmpV->tree, var.tmpV->dim);
+        var.tmpV->UpdateFluxCorrection = false;
+      }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
@@ -6943,7 +6946,11 @@ int main(int argc, char **argv) {
             }
         }
       }
-      var.tmp->prepare0();
+      if (var.tmp->UpdateFluxCorrection) {
+        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
+                 var.tmp->dim);
+        var.tmp->UpdateFluxCorrection = false;
+      }
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel,
                                                    var.tmpV);
       var.tmp->FillBlockCases();
@@ -6955,7 +6962,11 @@ int main(int argc, char **argv) {
                _BS_ * _BS_ * sizeof(Real));
         memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
       }
-      var.tmp->prepare0();
+      if (var.tmp->UpdateFluxCorrection) {
+        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
+                 var.tmp->dim);
+        var.tmp->UpdateFluxCorrection = false;
+      }
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
       var.tmp->FillBlockCases();
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
@@ -7100,7 +7111,11 @@ int main(int argc, char **argv) {
         for (int j = 0; j < _BS_ * _BS_; j++)
           pres[j] += pold[j] - avg;
       }
-      var.tmpV->prepare0();
+      if (var.tmp->UpdateFluxCorrection) {
+        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
+                 var.tmp->dim);
+        var.tmp->UpdateFluxCorrection = false;
+      }
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
       var.tmpV->FillBlockCases();
 #pragma omp parallel for
