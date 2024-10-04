@@ -2162,6 +2162,13 @@ static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
                    std::unordered_map<long long, Info *> *all) {
   return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
 }
+static Real *avail1(int ix, int iy, int m,
+                    std::unordered_map<long long, int> *tree,
+                    std::unordered_map<long long, Info *> *all) {
+  const long long n = forward(m, ix, iy);
+  return avail(m, n, tree, all);
+}
+
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2196,10 +2203,6 @@ struct Grid {
     infos.erase(std::remove_if(infos.begin(), infos.end(),
                                [](const Info &x) { return x.changed2; }),
                 infos.end());
-  }
-  void *avail1(int ix, int iy, int m) {
-    const long long n = forward(m, ix, iy);
-    return avail(m, n, &tree, &all);
   }
 };
 
@@ -2316,8 +2319,8 @@ struct BlockLab {
                                 (info->index[1] + code[1] + NY) % NY};
         int infoNei_index_true[2] = {(info->index[0] + code[0]),
                                      (info->index[1] + code[1])};
-        Real *b = (Real *)grid->avail1((infoNei_index[0]) / 2,
-                                       (infoNei_index[1]) / 2, info->level - 1);
+        Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
+                         info->level - 1, &grid->tree, &grid->all);
         if (b == nullptr)
           continue;
         int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -2453,12 +2456,11 @@ struct BlockLab {
           Bstep = 4;
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-          Real *b = (Real *)grid->avail1(
-              2 * info->index[0] + std::max(code[0], 0) + code[0] +
-                  (B % 2) * std::max(0, 1 - abs(code[0])),
-              2 * info->index[1] + std::max(code[1], 0) + code[1] +
-                  aux * std::max(0, 1 - abs(code[1])),
-              info->level + 1);
+          Real *b = avail1(2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                               (B % 2) * std::max(0, 1 - abs(code[0])),
+                           2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                               aux * std::max(0, 1 - abs(code[1])),
+                           info->level + 1, &grid->tree, &grid->all);
           if (b == nullptr)
             continue;
           int i = abs(code[0]) * (s[0] - start[0]) +
