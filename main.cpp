@@ -1863,8 +1863,8 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
     MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
 }
 static void update_boundary(bool clean, std::vector<Info *> *boundary,
-                           std::unordered_map<long long, Info *> *all,
-                           std::unordered_map<long long, int> *tree) {
+                            std::unordered_map<long long, Info *> *all,
+                            std::unordered_map<long long, int> *tree) {
   std::vector<std::vector<long long>> send_buffer(sim.size);
   std::vector<Info *> &bbb = *boundary;
   std::set<int> Neighbors;
@@ -1983,6 +1983,172 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
             (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
       }
 };
+static Synchronizer *sync1(const Stencil &stencil,
+                           std::map<Stencil, Synchronizer *> *synchronizers,
+                           std::unordered_map<long long, int> *tree,
+                           std::unordered_map<long long, Info *> *all,
+                           std::vector<Info> *infos, size_t *timestamp,
+                           int dim) {
+  Synchronizer *s;
+  auto itSynchronizerMPI = synchronizers->find(stencil);
+  if (itSynchronizerMPI == synchronizers->end()) {
+    s = new Synchronizer(stencil);
+    s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
+                      stencil.ex > 3 || stencil.ey > 3;
+    s->send_interfaces.resize(sim.size);
+    s->recv_interfaces.resize(sim.size);
+    s->send_packinfos.resize(sim.size);
+    s->send_buffer_size.resize(sim.size);
+    s->recv_buffer_size.resize(sim.size);
+    s->send_buffer.resize(sim.size);
+    s->recv_buffer.resize(sim.size);
+    s->ToBeAveragedDown.resize(sim.size);
+    const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                       (0 - 1) / 2 + 0};
+    const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
+    for (int icode = 0; icode < 27; icode++) {
+      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
+                           (icode / 9) % 3 - 1};
+      Range &range0 = s->AllStencils[icode];
+      range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
+      range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
+      range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
+      range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
+      s->sLength[3 * icode + 0] = range0.ex - range0.sx;
+      s->sLength[3 * icode + 1] = range0.ey - range0.sy;
+      s->sLength[3 * icode + 2] = range0.ez - range0.sz;
+      Range &range1 = s->AllStencils[icode + 27];
+      range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
+      range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
+      range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
+      range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
+      s->sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
+      s->sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
+      s->sLength[3 * (icode + 27) + 2] = 1;
+      Range &range2 = s->AllStencils[icode + 2 * 27];
+      range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
+      range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
+      range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
+      range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
+      s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
+      s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
+      s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
+    }
+    s->Setup(dim, tree, all, infos);
+    (*synchronizers)[stencil] = s;
+  } else {
+    s = itSynchronizerMPI->second;
+  }
+  auto it = s->mapofHaloBlockGroups.begin();
+  while (it != s->mapofHaloBlockGroups.end()) {
+    (it->second).ready = false;
+    it++;
+  }
+  s->mapofrequests.clear();
+  s->requests.clear();
+  s->requests.reserve(2 * sim.size);
+  for (auto r : s->Neighbors)
+    if (s->recv_buffer_size[r] > 0) {
+      s->requests.resize(s->requests.size() + 1);
+      s->mapofrequests[r] = &s->requests.back();
+      MPI_Irecv(&s->recv_buffer[r][0], s->recv_buffer_size[r] * dim, MPI_Real,
+                r, *timestamp, MPI_COMM_WORLD, &s->requests.back());
+    }
+  for (int r = 0; r < sim.size; r++)
+    if (s->send_buffer_size[r] != 0) {
+#pragma omp parallel
+      {
+#pragma omp for
+        for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
+          int i = s->ToBeAveragedDown[r][j];
+          int d = s->ToBeAveragedDown[r][j + 1];
+          Interface &f = s->send_interfaces[r][i];
+          int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
+                         -((f.icode[0] / 9) % 3 - 1)};
+          if (f.CoarseStencil) {
+            Real *dst = s->send_buffer[r].data() + d;
+            const Info *const info = f.infos[0];
+            int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
+            int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
+            int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                        code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
+            int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                    : _BS_ / 2 + eC[0] - 1,
+                        code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                    : _BS_ / 2 + eC[1] - 1};
+            Real *src = (*info).block;
+            int pos = 0;
+            for (int iy = s[1]; iy < e[1]; iy++) {
+              int YY = 2 * (iy - s[1]) + s[1] +
+                       std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
+                       std::min(0, code[1]) * (e[1] - s[1]);
+              for (int ix = s[0]; ix < e[0]; ix++) {
+                int XX = 2 * (ix - s[0]) + s[0] +
+                         std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
+                         std::min(0, code[0]) * (e[0] - s[0]);
+                for (int c = 0; c < dim; c++) {
+                  int comp = c;
+                  dst[pos] =
+                      0.25 *
+                      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                  pos++;
+                }
+              }
+            }
+          } else {
+            Real *dst = s->send_buffer[r].data() + d;
+            const Info *const info = f.infos[0];
+            int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                        code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
+            int e[2] = {
+                code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1};
+            Real *src = (*info).block;
+            int xStep = (code[0] == 0) ? 2 : 1;
+            int yStep = (code[1] == 0) ? 2 : 1;
+            int pos = 0;
+            for (int iy = s[1]; iy < e[1]; iy += yStep) {
+              int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                                 std::min(0, code[1]) * _BS_
+                                           : iy;
+              for (int ix = s[0]; ix < e[0]; ix += xStep) {
+                int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
+                                                   std::min(0, code[0]) * _BS_
+                                             : ix;
+                for (int c = 0; c < dim; c++) {
+                  int comp = c;
+                  dst[pos] =
+                      0.25 *
+                      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                  pos++;
+                }
+              }
+            }
+          }
+        }
+#pragma omp for
+        for (size_t i = 0; i < s->send_packinfos[r].size(); i++) {
+          const PackInfo &info = s->send_packinfos[r][i];
+          pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
+               info.ey, info.ez, _BS_, _BS_);
+        }
+      }
+    }
+  for (auto r : s->Neighbors)
+    if (s->send_buffer_size[r] > 0) {
+      s->requests.resize(s->requests.size() + 1);
+      MPI_Isend(&s->send_buffer[r][0], s->send_buffer_size[r] * dim, MPI_Real,
+                r, *timestamp, MPI_COMM_WORLD, &s->requests.back());
+    }
+  *timestamp = (*timestamp + 1) % 32768;
+  return s;
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -1997,168 +2163,6 @@ struct Grid {
   Grid(int dim) : dim(dim) {}
   Real *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
-  }
-  Synchronizer *sync1(const Stencil &stencil) {
-    Synchronizer *s;
-    auto itSynchronizerMPI = synchronizers->find(stencil);
-    if (itSynchronizerMPI == synchronizers->end()) {
-      s = new Synchronizer(stencil);
-      s->use_averages = stencil.tensorial || stencil.sx < -2 ||
-                        stencil.sy < -2 || stencil.ex > 3 || stencil.ey > 3;
-      s->send_interfaces.resize(sim.size);
-      s->recv_interfaces.resize(sim.size);
-      s->send_packinfos.resize(sim.size);
-      s->send_buffer_size.resize(sim.size);
-      s->recv_buffer_size.resize(sim.size);
-      s->send_buffer.resize(sim.size);
-      s->recv_buffer.resize(sim.size);
-      s->ToBeAveragedDown.resize(sim.size);
-      const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-                         (0 - 1) / 2 + 0};
-      const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
-      for (int icode = 0; icode < 27; icode++) {
-        const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                             (icode / 9) % 3 - 1};
-        Range &range0 = s->AllStencils[icode];
-        range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
-        range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
-        range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
-        range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
-        s->sLength[3 * icode + 0] = range0.ex - range0.sx;
-        s->sLength[3 * icode + 1] = range0.ey - range0.sy;
-        s->sLength[3 * icode + 2] = range0.ez - range0.sz;
-        Range &range1 = s->AllStencils[icode + 27];
-        range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
-        range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
-        range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
-        range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
-        s->sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
-        s->sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
-        s->sLength[3 * (icode + 27) + 2] = 1;
-        Range &range2 = s->AllStencils[icode + 2 * 27];
-        range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
-        range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
-        range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
-        range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
-        s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
-        s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
-        s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
-      }
-      s->Setup(dim, &tree, &all, &infos);
-      (*synchronizers)[stencil] = s;
-    } else {
-      s = itSynchronizerMPI->second;
-    }
-    auto it = s->mapofHaloBlockGroups.begin();
-    while (it != s->mapofHaloBlockGroups.end()) {
-      (it->second).ready = false;
-      it++;
-    }
-    s->mapofrequests.clear();
-    s->requests.clear();
-    s->requests.reserve(2 * sim.size);
-    for (auto r : s->Neighbors)
-      if (s->recv_buffer_size[r] > 0) {
-        s->requests.resize(s->requests.size() + 1);
-        s->mapofrequests[r] = &s->requests.back();
-        MPI_Irecv(&s->recv_buffer[r][0], s->recv_buffer_size[r] * dim, MPI_Real,
-                  r, timestamp, MPI_COMM_WORLD, &s->requests.back());
-      }
-    for (int r = 0; r < sim.size; r++)
-      if (s->send_buffer_size[r] != 0) {
-#pragma omp parallel
-        {
-#pragma omp for
-          for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
-            int i = s->ToBeAveragedDown[r][j];
-            int d = s->ToBeAveragedDown[r][j + 1];
-            Interface &f = s->send_interfaces[r][i];
-            int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
-                           -((f.icode[0] / 9) % 3 - 1)};
-            if (f.CoarseStencil) {
-              Real *dst = s->send_buffer[r].data() + d;
-              const Info *const info = f.infos[0];
-              int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
-              int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
-              int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
-                          code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
-              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + eC[0] - 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                      : _BS_ / 2 + eC[1] - 1};
-              Real *src = (*info).block;
-              int pos = 0;
-              for (int iy = s[1]; iy < e[1]; iy++) {
-                int YY = 2 * (iy - s[1]) + s[1] +
-                         std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
-                         std::min(0, code[1]) * (e[1] - s[1]);
-                for (int ix = s[0]; ix < e[0]; ix++) {
-                  int XX = 2 * (ix - s[0]) + s[0] +
-                           std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
-                           std::min(0, code[0]) * (e[0] - s[0]);
-                  for (int c = 0; c < dim; c++) {
-                    int comp = c;
-                    dst[pos] =
-                        0.25 *
-                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-                    pos++;
-                  }
-                }
-              }
-            } else {
-              Real *dst = s->send_buffer[r].data() + d;
-              const Info *const info = f.infos[0];
-              int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-                          code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
-              int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                                      : _BS_ + stencil.ex - 1,
-                          code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                      : _BS_ + stencil.ey - 1};
-              Real *src = (*info).block;
-              int xStep = (code[0] == 0) ? 2 : 1;
-              int yStep = (code[1] == 0) ? 2 : 1;
-              int pos = 0;
-              for (int iy = s[1]; iy < e[1]; iy += yStep) {
-                int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
-                                                   std::min(0, code[1]) * _BS_
-                                             : iy;
-                for (int ix = s[0]; ix < e[0]; ix += xStep) {
-                  int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
-                                                     std::min(0, code[0]) * _BS_
-                                               : ix;
-                  for (int c = 0; c < dim; c++) {
-                    int comp = c;
-                    dst[pos] =
-                        0.25 *
-                        (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-                         ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-                          (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-                    pos++;
-                  }
-                }
-              }
-            }
-          }
-#pragma omp for
-          for (size_t i = 0; i < s->send_packinfos[r].size(); i++) {
-            const PackInfo &info = s->send_packinfos[r][i];
-            pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
-                 info.ey, info.ez, _BS_, _BS_);
-          }
-        }
-      }
-    for (auto r : s->Neighbors)
-      if (s->send_buffer_size[r] > 0) {
-        s->requests.resize(s->requests.size() + 1);
-        MPI_Isend(&s->send_buffer[r][0], s->send_buffer_size[r] * dim, MPI_Real,
-                  r, timestamp, MPI_COMM_WORLD, &s->requests.back());
-      }
-    timestamp = (timestamp + 1) % 32768;
-    return s;
   }
   int &Tree0(const int m, const long long n) { return treef(&tree, m, n); }
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
@@ -3021,7 +3025,8 @@ struct MPI_Block {
 };
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  Synchronizer *Synch = g->sync1(kernel.stencil);
+  Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
+                              &g->all, &g->infos, &g->timestamp, g->dim);
   std::vector<Info *> *inner = &Synch->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
@@ -3055,14 +3060,18 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 }
 template <typename Kernel, typename Lab, typename Lab2>
 static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
-  Synchronizer *Synch = grid->sync1(kernel.stencil);
+  Synchronizer *Synch =
+      sync1(kernel.stencil, grid->synchronizers, &grid->tree, &grid->all,
+            &grid->infos, &grid->timestamp, grid->dim);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
   kernel2.stencil.ex = kernel2.stencil2.ex;
   kernel2.stencil.ey = kernel2.stencil2.ey;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
-  Synchronizer *Synch2 = grid2->sync1(kernel2.stencil);
+  Synchronizer *Synch2 =
+      sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
+            &grid2->infos, &grid2->timestamp, grid2->dim);
   const Stencil &stencil = Synch->stencil;
   const Stencil &stencil2 = Synch2->stencil;
   std::vector<Info> &blk = grid->infos;
@@ -4642,7 +4651,9 @@ static void adapt() {
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
   var.tmp->boundary_needed = true;
   Stencil stencil{-1, -1, 2, 2, true};
-  Synchronizer *Synch = var.tmp->sync1(stencil);
+  Synchronizer *Synch =
+      sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
+            &var.tmp->infos, &var.tmp->timestamp, var.tmp->dim);
   bool CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -4764,7 +4775,7 @@ static void adapt() {
         }
       }
       update_boundary(clean_boundary, &var.tmp->boundary, &var.tmp->all,
-                     &var.tmp->tree);
+                      &var.tmp->tree);
       clean_boundary = false;
       if (m == levelMin)
         break;
@@ -4884,7 +4895,8 @@ static void adapt() {
     Synchronizer *Synch = nullptr;
     const Stencil stencil{-1, -1, 2, 2, true};
     if (basic == false) {
-      Synch = g->sync1(stencil);
+      Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
+                    &g->timestamp, g->dim);
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
