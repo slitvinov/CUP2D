@@ -1791,19 +1791,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     }
   }
 }
-struct Grid {
-  bool UpdateFluxCorrection{true};
-  const int dim;
-  size_t timestamp;
-  std::map<Stencil, Synchronizer *> *synchronizers;
-  std::unordered_map<long long, Info *> all;
-  std::unordered_map<long long, int> tree;
-  std::vector<Info *> boundary;
-  std::vector<Info> infos;
-  bool boundary_needed;
-  struct Buffers *buf;
-  Grid(int dim) : dim(dim) {}
-  void FillBlockCases() {
+static  void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree, int dim) {
     for (int r = 0; r < sim.size; r++) {
       int displacement = 0;
       for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
@@ -1857,13 +1845,13 @@ struct Grid {
       memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
              buf->send_buffer[sim.rank].size() * sizeof(Real));
     for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
-      fillcase0(&buf->recv_faces[sim.rank][index], buf, &tree, dim);
+      fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
         for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-          fillcase0(&buf->recv_faces[r][index], buf, &tree, dim);
+          fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
         fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
@@ -1873,6 +1861,18 @@ struct Grid {
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
+struct Grid {
+  bool UpdateFluxCorrection{true};
+  const int dim;
+  size_t timestamp;
+  std::map<Stencil, Synchronizer *> *synchronizers;
+  std::unordered_map<long long, Info *> all;
+  std::unordered_map<long long, int> tree;
+  std::vector<Info *> boundary;
+  std::vector<Info> infos;
+  bool boundary_needed;
+  struct Buffers *buf;
+  Grid(int dim) : dim(dim) {}
   Real *avail(const int m, const long long n) {
     return (Tree0(m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
@@ -6556,7 +6556,7 @@ int main(int argc, char **argv) {
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      var.tmpV->FillBlockCases();
+      fillcases(var.tmpV->buf, &var.tmpV->tree, var.tmpV->dim);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -6572,7 +6572,7 @@ int main(int argc, char **argv) {
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      var.tmpV->FillBlockCases();
+      fillcases(var.tmpV->buf, &var.tmpV->tree, var.tmpV->dim);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -6953,7 +6953,7 @@ int main(int argc, char **argv) {
       }
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel,
                                                    var.tmpV);
-      var.tmp->FillBlockCases();
+      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -6968,7 +6968,7 @@ int main(int argc, char **argv) {
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      var.tmp->FillBlockCases();
+      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
       const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
       const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7117,7 +7117,7 @@ int main(int argc, char **argv) {
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-      var.tmpV->FillBlockCases();
+      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
