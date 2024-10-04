@@ -2276,7 +2276,9 @@ struct BlockLab {
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
-  void load(Grid *grid, Synchronizer *sync, Info *info, bool applybc) {
+  void load(std::unordered_map<long long, int> *tree,
+            std::unordered_map<long long, Info *> *all, Synchronizer *sync,
+            Info *info, bool applybc) {
     int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -2313,7 +2315,7 @@ struct BlockLab {
       if (code[1] == yskip && yskin)
         continue;
       const auto &TreeNei =
-          treef(&grid->tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
@@ -2323,7 +2325,7 @@ struct BlockLab {
         int infoNei_index_true[2] = {(info->index[0] + code[0]),
                                      (info->index[1] + code[1])};
         Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-                         info->level - 1, &grid->tree, &grid->all);
+                         info->level - 1, tree, all);
         if (b == nullptr)
           continue;
         int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -2406,8 +2408,7 @@ struct BlockLab {
           continue;
         int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
         myblocks[icode] =
-            avail(info->level, info->Znei[1 + code[0]][1 + code[1]],
-                  &grid->tree, &grid->all);
+            avail(info->level, info->Znei[1 + code[0]][1 + code[1]], tree, all);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -2463,7 +2464,7 @@ struct BlockLab {
                                (B % 2) * std::max(0, 1 - abs(code[0])),
                            2 * info->index[1] + std::max(code[1], 0) + code[1] +
                                aux * std::max(0, 1 - abs(code[1])),
-                           info->level + 1, &grid->tree, &grid->all);
+                           info->level + 1, tree, all);
           if (b == nullptr)
             continue;
           int i = abs(code[0]) * (s[0] - start[0]) +
@@ -3041,7 +3042,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(g, Synch, I, true);
+      lab.load(&g->tree, &g->all, Synch, I, true);
       kernel(&lab, I);
     }
     while (done == false) {
@@ -3050,7 +3051,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(g, Synch, I, true);
+        lab.load(&g->tree, &g->all, Synch, I, true);
         kernel(&lab, I);
       }
 #pragma omp single
@@ -3096,8 +3097,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(grid, Synch, I, true);
-      lab2.load(grid2, Synch2, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch, I, true);
+      lab2.load(&grid2->tree, &grid2->all, Synch2, I2, true);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
@@ -3117,8 +3118,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(grid, Synch, I, true);
-      lab2.load(grid2, Synch2, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch, I, true);
+      lab2.load(&grid2->tree, &grid2->all, Synch2, I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -4958,7 +4959,7 @@ static void adapt() {
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab->load(g, Synch, parent, true);
+        lab->load(&g->tree, &g->all, Synch, parent, true);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
