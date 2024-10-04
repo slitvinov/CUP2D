@@ -2158,6 +2158,10 @@ static void dealloc(int m, long long n, std::vector<Info> *infos) {
     }
   }
 }
+static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
+                   std::unordered_map<long long, Info *> *all) {
+  return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2170,9 +2174,6 @@ struct Grid {
   bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  Real *avail(int m, long long n) {
-    return (treef(&tree, m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
-  }
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
   void _alloc(int level, long long Z) {
     Info *new_info = getf(&all, level, Z);
@@ -2198,7 +2199,7 @@ struct Grid {
   }
   void *avail1(int ix, int iy, int m) {
     const long long n = forward(m, ix, iy);
-    return avail(m, n);
+    return avail(m, n, &tree, &all);
   }
 };
 
@@ -2399,7 +2400,8 @@ struct BlockLab {
           continue;
         int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
         myblocks[icode] =
-            grid->avail(info->level, info->Znei[1 + code[0]][1 + code[1]]);
+            avail(info->level, info->Znei[1 + code[0]][1 + code[1]],
+                  &grid->tree, &grid->all);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
