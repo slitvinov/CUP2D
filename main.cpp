@@ -2161,7 +2161,7 @@ struct Grid {
   bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  Real *avail(const int m, const long long n) {
+  Real *avail(int m, long long n) {
     return (treef(&tree, m, n) == sim.rank) ? getf(&all, m, n)->block : nullptr;
   }
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
@@ -2172,7 +2172,7 @@ struct Grid {
     { infos.push_back(*new_info); }
     treef(&tree, level, Z) = sim.rank;
   }
-  void dealloc(const int m, const long long n) {
+  void dealloc(int m, long long n) {
     for (size_t j = 0; j < infos.size(); j++) {
       if (infos[j].level == m && infos[j].Z == n) {
         free(infos[j].block);
@@ -2181,7 +2181,7 @@ struct Grid {
       }
     }
   }
-  void dealloc_many(const std::vector<long long> &ids) {
+  void dealloc_many(std::vector<long long> &ids) {
     for (size_t j = 0; j < infos.size(); j++)
       infos[j].changed2 = false;
     for (size_t i = 0; i < ids.size(); i++)
@@ -2196,7 +2196,7 @@ struct Grid {
                                [](const Info &x) { return x.changed2; }),
                 infos.end());
   }
-  void *avail1(const int ix, const int iy, const int m) {
+  void *avail1(int ix, int iy, int m) {
     const long long n = forward(m, ix, iy);
     return avail(m, n);
   }
