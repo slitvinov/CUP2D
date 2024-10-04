@@ -6545,8 +6545,7 @@ int main(int argc, char **argv) {
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
     Real dtAdvection = h / (umax + 1e-8);
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    bool done = false;
-    if (!done || sim.dt > 2e-16) {
+    if (sim.dt > 2e-16) {
       if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
         sim.nextDumpTime += sim.dumpTime;
         char path[FILENAME_MAX];
@@ -7217,10 +7216,7 @@ int main(int argc, char **argv) {
       sim.time += sim.dt;
       sim.step++;
     }
-    if (!done) {
-      done = sim.endTime > 0 && sim.time >= sim.endTime;
-    }
-    if (done)
+    if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
   }
   MPI_Finalize();
