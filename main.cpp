@@ -1582,8 +1582,8 @@ struct Buffers {
   std::vector<BlockCase *> Cases;
   std::map<std::array<long long, 2>, BlockCase *> Map;
 };
-static void FillCase(Face *F, Buffers *buf,
-                     std::unordered_map<long long, int> *tree, int dim) {
+static void fillcase0(Face *F, Buffers *buf,
+                      std::unordered_map<long long, int> *tree, int dim) {
   Info *info = F->infos[1];
   int icode = F->icode[1];
   int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
@@ -1626,7 +1626,7 @@ static void FillCase(Face *F, Buffers *buf,
     }
   }
 }
-static void FillCase_2(Face *F, int codex, int codey, Buffers *buf, int dim) {
+static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
   Info *info = F->infos[1];
   const int icode = F->icode[1];
   const int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
@@ -1862,19 +1862,19 @@ struct Grid {
       memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
              buf->send_buffer[sim.rank].size() * sizeof(Real));
     for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
-      FillCase(&buf->recv_faces[sim.rank][index], buf, &tree, dim);
+      fillcase0(&buf->recv_faces[sim.rank][index], buf, &tree, dim);
     if (recv_requests.size() > 0)
       MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
     for (int r = 0; r < sim.size; r++)
       if (r != sim.rank)
         for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-          FillCase(&buf->recv_faces[r][index], buf, &tree, dim);
+          fillcase0(&buf->recv_faces[r][index], buf, &tree, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        FillCase_2(&buf->recv_faces[r][index], 1, 0, buf, dim);
+        fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
     for (int r = 0; r < sim.size; r++)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        FillCase_2(&buf->recv_faces[r][index], 0, 1, buf, dim);
+        fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
     if (send_requests.size() > 0)
       MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
   }
