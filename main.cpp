@@ -2168,6 +2168,16 @@ static Real *avail1(int ix, int iy, int m,
   const long long n = forward(m, ix, iy);
   return avail(m, n, tree, all);
 }
+static void _alloc(int level, long long Z,
+                   std::unordered_map<long long, Info *> *all,
+                   std::vector<Info> *infos,
+                   std::unordered_map<long long, int> *tree, int dim) {
+  Info *new_info = getf(all, level, Z);
+  new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+#pragma omp critical
+  { infos->push_back(*new_info); }
+  treef(tree, level, Z) = sim.rank;
+}
 
 struct Grid {
   bool UpdateFluxCorrection{true};
@@ -2182,13 +2192,6 @@ struct Grid {
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
-  void _alloc(int level, long long Z) {
-    Info *new_info = getf(&all, level, Z);
-    new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
-#pragma omp critical
-    { infos.push_back(*new_info); }
-    treef(&tree, level, Z) = sim.rank;
-  }
   void dealloc_many(std::vector<long long> &ids) {
     for (size_t j = 0; j < infos.size(); j++)
       infos[j].changed2 = false;
@@ -3005,7 +3008,7 @@ struct BlockLab {
 };
 static void AddBlock(int dim, Grid *grid, const int level, const long long Z,
                      uint8_t *data) {
-  grid->_alloc(level, Z);
+  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, grid->dim);
   Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
@@ -4965,7 +4968,7 @@ static void adapt() {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info *Child = getf(&g->all, level + 1, nc);
           Child->state = Leave;
-          g->_alloc(level + 1, nc);
+          _alloc(level + 1, nc, &g->all, &g->infos, &g->tree, g->dim);
           treef(&g->tree, level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child->block;
         }
@@ -5114,7 +5117,7 @@ static void adapt() {
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].mn[0];
         const long long Z = recv_blocks[r][i].mn[1];
-        g->_alloc(level, Z);
+        _alloc(level, Z, &g->all, &g->infos, &g->tree, g->dim);
         Info *info = getf(&g->all, level, Z);
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
