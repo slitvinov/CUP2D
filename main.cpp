@@ -3986,9 +3986,6 @@ struct PutFishOnBlocks {
   }
 };
 static void ongrid(Real dt) {
-  std::vector<Info> &velInfo = var.vel->infos;
-  std::vector<Info> &tmpInfo = var.tmp->infos;
-  std::vector<Info> &chiInfo = var.chi->infos;
   for (const auto &shape : sim.shapes) {
     shape->centerOfMass[0] += dt * shape->u;
     shape->centerOfMass[1] += dt * shape->v;
@@ -4012,6 +4009,9 @@ static void ongrid(Real dt) {
       abort();
     }
   }
+  std::vector<Info> &velInfo = var.vel->infos;
+  std::vector<Info> &tmpInfo = var.tmp->infos;
+  std::vector<Info> &chiInfo = var.chi->infos;
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++)
