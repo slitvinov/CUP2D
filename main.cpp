@@ -798,6 +798,72 @@ static void DetermineStencilLength(int *sLength, int level_sender,
   }
 }
 
+static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
+                               Range &Coarse_Range, const Stencil &stencil,
+                               const Interface *f, bool CoarseVersion) {
+  if (CoarseVersion) {
+    AllStencils[f->icode[1] + 2 * 27].needed = true;
+    return AllStencils[f->icode[1] + 2 * 27];
+  } else {
+    if (f->infos[0]->level == f->infos[1]->level) {
+      AllStencils[f->icode[1]].needed = true;
+      return AllStencils[f->icode[1]];
+    } else if (f->infos[0]->level > f->infos[1]->level) {
+      AllStencils[f->icode[1] + 27].needed = true;
+      return AllStencils[f->icode[1] + 27];
+    } else {
+      Coarse_Range.needed = true;
+      const int code[3] = {f->icode[1] % 3 - 1, (f->icode[1] / 3) % 3 - 1,
+                           (f->icode[1] / 9) % 3 - 1};
+      const int s[3] = {
+          code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
+                      : _BS_ / 2,
+          code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
+                      : _BS_ / 2,
+          code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
+      int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                              : _BS_ / 2 + stencil.ex / 2 + 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                              : _BS_ / 2 + stencil.ey / 2 + 1,
+                  code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
+      int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
+                     (f->infos[1]->index[1] + code[1]) % 2,
+                     (f->infos[1]->index[2] + code[2]) % 2};
+      int Cindex_true[3];
+      for (int d = 0; d < 3; d++)
+        Cindex_true[d] = f->infos[1]->index[d] + code[d];
+      int CoarseEdge[2];
+      CoarseEdge[0] = code[0] == 0 ? 0
+                      : ((f->infos[1]->index[0] % 2 == 0) &&
+                         (Cindex_true[0] > f->infos[1]->index[0])) ||
+                              ((f->infos[1]->index[0] % 2 == 1) &&
+                               (Cindex_true[0] < f->infos[1]->index[0]))
+                          ? 1
+                          : 0;
+      CoarseEdge[1] = code[1] == 0 ? 0
+                      : ((f->infos[1]->index[1] % 2 == 0) &&
+                         (Cindex_true[1] > f->infos[1]->index[1])) ||
+                              ((f->infos[1]->index[1] % 2 == 1) &&
+                               (Cindex_true[1] < f->infos[1]->index[1]))
+                          ? 1
+                          : 0;
+      Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
+                        (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                        code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
+      Coarse_Range.sy = s[1] + std::max(code[1], 0) * _BS_ / 2 +
+                        (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                        code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
+      Coarse_Range.ex = e[0] + std::max(code[0], 0) * _BS_ / 2 +
+                        (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                        code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
+      Coarse_Range.ey = e[1] + std::max(code[1], 0) * _BS_ / 2 +
+                        (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                        code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
+      return Coarse_Range;
+    }
+  }
+}
+
 struct Synchronizer {
   bool use_averages;
   std::set<int> Neighbors;
@@ -821,69 +887,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
-  Range &DetermineStencil(const Interface *f, bool CoarseVersion) {
-    if (CoarseVersion) {
-      AllStencils[f->icode[1] + 2 * 27].needed = true;
-      return AllStencils[f->icode[1] + 2 * 27];
-    } else {
-      if (f->infos[0]->level == f->infos[1]->level) {
-        AllStencils[f->icode[1]].needed = true;
-        return AllStencils[f->icode[1]];
-      } else if (f->infos[0]->level > f->infos[1]->level) {
-        AllStencils[f->icode[1] + 27].needed = true;
-        return AllStencils[f->icode[1] + 27];
-      } else {
-        Coarse_Range.needed = true;
-        const int code[3] = {f->icode[1] % 3 - 1, (f->icode[1] / 3) % 3 - 1,
-                             (f->icode[1] / 9) % 3 - 1};
-        const int s[3] = {
-            code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
-                        : _BS_ / 2,
-            code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
-                        : _BS_ / 2,
-            code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
-        int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-                                : _BS_ / 2 + stencil.ex / 2 + 1,
-                    code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-                                : _BS_ / 2 + stencil.ey / 2 + 1,
-                    code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
-        int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
-                       (f->infos[1]->index[1] + code[1]) % 2,
-                       (f->infos[1]->index[2] + code[2]) % 2};
-        int Cindex_true[3];
-        for (int d = 0; d < 3; d++)
-          Cindex_true[d] = f->infos[1]->index[d] + code[d];
-        int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : ((f->infos[1]->index[0] % 2 == 0) &&
-                           (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                ((f->infos[1]->index[0] % 2 == 1) &&
-                                 (Cindex_true[0] < f->infos[1]->index[0]))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : ((f->infos[1]->index[1] % 2 == 0) &&
-                           (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                ((f->infos[1]->index[1] % 2 == 1) &&
-                                 (Cindex_true[1] < f->infos[1]->index[1]))
-                            ? 1
-                            : 0;
-        Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
-                          (1 - abs(code[0])) * base[0] * _BS_ / 2 -
-                          code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
-        Coarse_Range.sy = s[1] + std::max(code[1], 0) * _BS_ / 2 +
-                          (1 - abs(code[1])) * base[1] * _BS_ / 2 -
-                          code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
-        Coarse_Range.ex = e[0] + std::max(code[0], 0) * _BS_ / 2 +
-                          (1 - abs(code[0])) * base[0] * _BS_ / 2 -
-                          code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
-        Coarse_Range.ey = e[1] + std::max(code[1], 0) * _BS_ / 2 +
-                          (1 - abs(code[1])) * base[1] * _BS_ / 2 -
-                          code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
-        return Coarse_Range;
-      }
-    }
-  }
   void FixDuplicates(const Interface *f, const Interface *f_dup, int lx, int ly,
                      int lz, int lx_dup, int ly_dup, int lz_dup, int *sx,
                      int *sy, int *sz) {
@@ -897,8 +900,10 @@ struct Synchronizer {
       *sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
       *sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
     } else {
-      Range &range = DetermineStencil(f, false);
-      Range &range_dup = DetermineStencil(f_dup, false);
+      Range &range =
+          DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
+      Range &range_dup =
+          DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
       *sx = range_dup.sx - range.sx;
       *sy = range_dup.sy - range.sy;
       *sz = range_dup.sz - range.sz;
@@ -909,8 +914,10 @@ struct Synchronizer {
     if (f->infos[0]->level != f->infos[1]->level ||
         f_dup->infos[0]->level != f_dup->infos[1]->level)
       return;
-    Range &range = DetermineStencil(f, true);
-    Range &range_dup = DetermineStencil(f_dup, true);
+    Range &range =
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f, true);
+    Range &range_dup =
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, true);
     *sx = range_dup.sx - range.sx;
     *sy = range_dup.sy - range.sy;
     *sz = range_dup.sz - range.sz;
@@ -1191,7 +1198,8 @@ struct Synchronizer {
               compass[i].clear();
             for (size_t i = 0; i < DM.sizes[r]; i++) {
               compass[f[i + DM.positions[r]].icode[0]].push_back(
-                  DetermineStencil(&f[i + DM.positions[r]], false));
+                  DetermineStencil(AllStencils, Coarse_Range, stencil,
+                                   &f[i + DM.positions[r]], false));
               compass[f[i + DM.positions[r]].icode[0]].back().index =
                   i + DM.positions[r];
               compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
@@ -1256,7 +1264,8 @@ struct Synchronizer {
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
           compass[i].clear();
         for (size_t i = start; i < finish; i++) {
-          compass[f[i].icode[0]].push_back(DetermineStencil(&f[i], false));
+          compass[f[i].icode[0]].push_back(DetermineStencil(
+              AllStencils, Coarse_Range, stencil, &f[i], false));
           compass[f[i].icode[0]].back().index = i;
           compass[f[i].icode[0]].back().avg_down =
               (f[i].infos[0]->level > f[i].infos[1]->level);
@@ -1360,7 +1369,8 @@ struct Synchronizer {
         if (!f->ToBeKept)
           continue;
         if (f->infos[0]->level <= f->infos[1]->level) {
-          Range &range = DetermineStencil(f, false);
+          Range &range =
+              DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
           send_packinfos[r].push_back(
               {f->infos[0]->block, &send_buffer[r][f->dis], range.sx, range.sy,
                range.sz, range.ex, range.ey, range.ez});
