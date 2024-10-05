@@ -732,34 +732,33 @@ static int &treef(std::unordered_map<long long, int> *tree, int m,
   }
 }
 static void fill(Info *b, int level, long long Z) {
+  int i, j, aux, Bmax[2];
   b->level = level;
-  b->h = sim.h0 / (1 << b->level);
-  int i, j;
-  sim.space_curve->inverse(Z, level, &i, &j);
-  b->origin[0] = i * _BS_ * sim.h0 / (1 << b->level);
-  b->origin[1] = j * _BS_ * sim.h0 / (1 << b->level);
   b->Z = Z;
+  b->h = sim.h0 / (1 << level);
+  sim.space_curve->inverse(Z, level, &i, &j);
+  b->origin[0] = i * _BS_ * sim.h0 / (1 << level);
+  b->origin[1] = j * _BS_ * sim.h0 / (1 << level);
   b->state = Leave;
   b->changed2 = true;
   b->auxiliary = nullptr;
-  int aux = 1 << b->level;
-  sim.space_curve->inverse(b->Z, b->level, &b->index[0], &b->index[1]);
+  sim.space_curve->inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
-  const int Bmax[2] = {sim.bpdx * aux, sim.bpdy * aux};
-  for (int i = -1; i < 2; i++)
-    for (int j = -1; j < 2; j++)
-      b->Znei[i + 1][j + 1] = sim.space_curve->forward(
-          b->level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
-  for (int i = 0; i < 2; i++)
-    for (int j = 0; j < 2; j++)
-      b->Zchild[i][j] = sim.space_curve->forward(
-          b->level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
-  b->Zparent =
-      b->level == 0
-          ? 0
-          : sim.space_curve->forward(b->level - 1, (b->index[0] / 2) % Bmax[0],
-                                     (b->index[1] / 2) % Bmax[1]);
-  b->id2 = sim.space_curve->Encode(b->level, b->index);
+  Bmax[0] = sim.bpdx * 1 << level;
+  Bmax[1] = sim.bpdy * 1 << level;
+  for (i = -1; i < 2; i++)
+    for (j = -1; j < 2; j++)
+      Znei[i + 1][j + 1] = sim.space_curve->forward(
+          level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
+  for (i = 0; i < 2; i++)
+    for (j = 0; j < 2; j++)
+      Zchild[i][j] = sim.space_curve->forward(level + 1, 2 * b->index[0] + i,
+                                              2 * b->index[1] + j);
+  Zparent = level == 0 ? 0
+                       : sim.space_curve->forward(level - 1,
+                                                  (b->index[0] / 2) % Bmax[0],
+                                                  (b->index[1] / 2) % Bmax[1]);
+  b->id2 = sim.space_curve->Encode(level, b->index);
   b->id = b->id2;
 }
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
