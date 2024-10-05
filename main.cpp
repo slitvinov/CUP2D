@@ -2196,6 +2196,9 @@ static void dealloc_many(std::vector<long long> &ids,
                infos->end());
 }
 
+static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
+  return treef(tree, info->level, info->Z);
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2207,7 +2210,6 @@ struct Grid {
   std::vector<Info> infos;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
-  int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -4814,7 +4816,8 @@ static void adapt() {
               continue;
             Info *infoNei = getf(&var.tmp->all, info->level,
                                  info->Znei[1 + code[0]][1 + code[1]]);
-            if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Refine) {
+            if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
+                infoNei->state == Refine) {
               info->state = Leave;
               (getf(&var.tmp->all, info->level, info->Z))->state = Leave;
               break;
@@ -4835,7 +4838,7 @@ static void adapt() {
                k <= 2 * (info->index[2] / 2) + 1; k++) {
             long long n = forward(m, i, j);
             Info *infoNei = getf(&var.tmp->all, m, n);
-            if ((var.tmp->Tree1(infoNei) >= 0) == false ||
+            if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
                 infoNei->state != Compress) {
               found = true;
               if (info->state == Compress) {
@@ -4854,7 +4857,8 @@ static void adapt() {
                  k <= 2 * (info->index[2] / 2) + 1; k++) {
               long long n = forward(m, i, j);
               Info *infoNei = getf(&var.tmp->all, m, n);
-              if (var.tmp->Tree1(infoNei) >= 0 && infoNei->state == Compress)
+              if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
+                  infoNei->state == Compress)
                 infoNei->state = Leave;
             }
     }
@@ -5037,14 +5041,14 @@ static void adapt() {
 #pragma omp critical
       { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
       Info *parent = getf(&g->all, level, Z);
-      g->Tree1(parent) = -1;
+      Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info *Child = getf(&g->all, level + 1, nc);
-          g->Tree1(Child) = sim.rank;
+          Tree1(Child, &g->tree) = sim.rank;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
@@ -5058,7 +5062,7 @@ static void adapt() {
       const long long nBlock =
           forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
       const Info *base = getf(&g->all, b.level, nBlock);
-      if (!(g->Tree1(base) >= 0) || base->state != Compress)
+      if (!(Tree1(base, &g->tree) >= 0) || base->state != Compress)
         continue;
       const Info *bCopy = getf(&g->all, b.level, b.Z);
       const int baserank = treef(&g->tree, b.level, nBlock);
@@ -5763,7 +5767,8 @@ struct Solver {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const Info *info) const {
-      return (info->id + sim.nblocks[var.tmp->Tree1(info)]) * (_BS_ * _BS_);
+      return (info->id + sim.nblocks[Tree1(info, &var.tmp->tree)]) *
+             (_BS_ * _BS_);
     }
     static int ix_f(int ix) { return (ix % (_BS_ / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (_BS_ / 2)) * 2; }
@@ -5940,8 +5945,8 @@ struct Solver {
                    long long fine_close_idx, long long fine_far_idx,
                    double signInt, double signTaylor,
                    const EdgeCellIndexer *indexer, SpRowInfo &row) const {
-    int rank_c = var.tmp->Tree1(info_c);
-    int rank_f = var.tmp->Tree1(info_f);
+    int rank_c = Tree1(info_c, &var.tmp->tree);
+    int rank_f = Tree1(info_f, &var.tmp->tree);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
@@ -5957,12 +5962,12 @@ struct Solver {
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                 const EdgeCellIndexer *indexer, SpRowInfo &row) const {
     long long sfc_idx = indexer->This(rhs_info, ix, iy);
-    if (var.tmp->Tree1(rhsNei) >= 0) {
-      int nei_rank = var.tmp->Tree1(rhsNei);
+    if (Tree1(rhsNei, &var.tmp->tree) >= 0) {
+      int nei_rank = Tree1(rhsNei, &var.tmp->tree);
       long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei) == -2) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == -2) {
       Info *rhsNei_c =
           getf(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
@@ -5972,10 +5977,10 @@ struct Solver {
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (var.tmp->Tree1(rhsNei) == -1) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == -1) {
       Info *rhsNei_f = getf(&var.tmp->all, rhs_info->level + 1,
                             indexer->Zchild(rhsNei, ix, iy));
-      int nei_rank = var.tmp->Tree1(rhsNei_f);
+      int nei_rank = Tree1(rhsNei_f, &var.tmp->tree);
       long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -7056,7 +7061,7 @@ int main(int argc, char **argv) {
                 idxNei[1] = sim.solver->GenericCell.This(&rhs_info, ix + 1, iy);
                 idxNei[2] = sim.solver->GenericCell.This(&rhs_info, ix, iy - 1);
                 idxNei[3] = sim.solver->GenericCell.This(&rhs_info, ix, iy + 1);
-                SpRowInfo row(var.tmp->Tree1(&rhs_info), sfc_idx, 8);
+                SpRowInfo row(Tree1(&rhs_info, &var.tmp->tree), sfc_idx, 8);
                 for (int j = 0; j < 4; j++) {
                   if (validNei[j]) {
                     row.mapColVal(idxNei[j], 1);
