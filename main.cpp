@@ -781,6 +781,23 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     return getf(all, m, Z);
   }
 }
+static void DetermineStencilLength(int *sLength, int level_sender,
+                                   int level_receiver, int icode, int *L) {
+  if (level_sender == level_receiver) {
+    L[0] = sLength[3 * icode + 0];
+    L[1] = sLength[3 * icode + 1];
+    L[2] = sLength[3 * icode + 2];
+  } else if (level_sender > level_receiver) {
+    L[0] = sLength[3 * (icode + 27) + 0];
+    L[1] = sLength[3 * (icode + 27) + 1];
+    L[2] = sLength[3 * (icode + 27) + 2];
+  } else {
+    L[0] = sLength[3 * (icode + 2 * 27) + 0];
+    L[1] = sLength[3 * (icode + 2 * 27) + 1];
+    L[2] = sLength[3 * (icode + 2 * 27) + 2];
+  }
+}
+
 struct Synchronizer {
   bool use_averages;
   std::set<int> Neighbors;
@@ -804,22 +821,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
-  void DetermineStencilLength(int level_sender, int level_receiver, int icode,
-                              int *L) {
-    if (level_sender == level_receiver) {
-      L[0] = sLength[3 * icode + 0];
-      L[1] = sLength[3 * icode + 1];
-      L[2] = sLength[3 * icode + 2];
-    } else if (level_sender > level_receiver) {
-      L[0] = sLength[3 * (icode + 27) + 0];
-      L[1] = sLength[3 * (icode + 27) + 1];
-      L[2] = sLength[3 * (icode + 27) + 2];
-    } else {
-      L[0] = sLength[3 * (icode + 2 * 27) + 0];
-      L[1] = sLength[3 * (icode + 2 * 27) + 1];
-      L[2] = sLength[3 * (icode + 2 * 27) + 2];
-    }
-  }
   Range &DetermineStencil(const Interface *f, bool CoarseVersion) {
     if (CoarseVersion) {
       AllStencils[f->icode[1] + 2 * 27].needed = true;
@@ -1209,8 +1210,8 @@ struct Synchronizer {
             int Lc[2] = {0, 0};
             for (auto &i : keepEl(compass)) {
               const int k = i->index;
-              DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
-                                     f[k].icode[1], L);
+              DetermineStencilLength(sLength, f[k].infos[0]->level,
+                                     f[k].infos[1]->level, f[k].icode[1], L);
               const int V = L[0] * L[1] * L[2];
               total_size += V;
               f[k].dis = offsets[r];
@@ -1272,8 +1273,8 @@ struct Synchronizer {
           const int k = i->index;
           int L[3] = {0, 0, 0};
           int Lc[2] = {0, 0};
-          DetermineStencilLength(f[k].infos[0]->level, f[k].infos[1]->level,
-                                 f[k].icode[1], L);
+          DetermineStencilLength(sLength, f[k].infos[0]->level,
+                                 f[k].infos[1]->level, f[k].icode[1], L);
           const int V = L[0] * L[1] * L[2];
           int Vc = 0;
           total_size += V;
@@ -1313,7 +1314,7 @@ struct Synchronizer {
           myunpacks[f[k].infos[1]->halo_id].push_back(info);
           for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
             int remEl1 = i->removed[kk];
-            DetermineStencilLength(f[remEl1].infos[0]->level,
+            DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
