@@ -2179,6 +2179,23 @@ static void _alloc(int level, long long Z,
   treef(tree, level, Z) = sim.rank;
 }
 
+static void dealloc_many(std::vector<long long> &ids,
+                         std::vector<Info> *infos) {
+  for (size_t j = 0; j < infos->size(); j++)
+    (*infos)[j].changed2 = false;
+  for (size_t i = 0; i < ids.size(); i++)
+    for (size_t j = 0; j < infos->size(); j++) {
+      if ((*infos)[j].id2 == ids[i]) {
+        (*infos)[j].changed2 = true;
+        free((*infos)[j].block);
+        break;
+      }
+    }
+  infos->erase(std::remove_if(infos->begin(), infos->end(),
+                              [](const Info &x) { return x.changed2; }),
+               infos->end());
+}
+
 struct Grid {
   bool UpdateFluxCorrection{true};
   const int dim;
@@ -2191,21 +2208,6 @@ struct Grid {
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
-  void dealloc_many(std::vector<long long> &ids) {
-    for (size_t j = 0; j < infos.size(); j++)
-      infos[j].changed2 = false;
-    for (size_t i = 0; i < ids.size(); i++)
-      for (size_t j = 0; j < infos.size(); j++) {
-        if (infos[j].id2 == ids[i]) {
-          infos[j].changed2 = true;
-          free(infos[j].block);
-          break;
-        }
-      }
-    infos.erase(std::remove_if(infos.begin(), infos.end(),
-                               [](const Info &x) { return x.changed2; }),
-                infos.end());
-  }
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -5049,7 +5051,7 @@ static void adapt() {
                 treef(&g->tree, level + 2, Child->Zchild[i0][i1]) = -2;
         }
     }
-    g->dealloc_many(dealloc_IDs);
+    dealloc_many(dealloc_IDs, &g->infos);
     std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
@@ -5190,7 +5192,7 @@ static void adapt() {
           getf(&g->all, level, n)->state = Leave;
         }
     }
-    g->dealloc_many(dealloc_IDs);
+    dealloc_many(dealloc_IDs, &g->infos);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
     movedBlocks = false;
     long long max_b = block_distribution[0];
@@ -5313,7 +5315,7 @@ static void adapt() {
             counter_E += send_blocks[r].size();
           }
         }
-      g->dealloc_many(deallocIDs);
+      dealloc_many(deallocIDs, &g->infos);
       MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
 #pragma omp parallel
       {
