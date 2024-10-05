@@ -2188,7 +2188,6 @@ struct Grid {
   std::unordered_map<long long, int> tree;
   std::vector<Info *> boundary;
   std::vector<Info> infos;
-  bool boundary_needed;
   struct Buffers *buf;
   Grid(int dim) : dim(dim) {}
   int &Tree1(const Info *info) { return treef(&tree, info->level, info->Z); }
@@ -3268,9 +3267,12 @@ static struct {
     Grid **g;
     int dim;
     bool basic;
+    bool boundary_needed;
   } F[7] = {
-      {&tmp, 1, false},  {&chi, 1, false},  {&vel, 2, false}, {&vold, 2, false},
-      {&pres, 1, false}, {&pold, 1, false}, {&tmpV, 2, true},
+      {&tmp, 1, false, true},   {&chi, 1, false, false},
+      {&vel, 2, false, false},  {&vold, 2, false, false},
+      {&pres, 1, false, false}, {&pold, 1, false, false},
+      {&tmpV, 2, true, false},
   };
 } var;
 struct surface_data {
@@ -4655,7 +4657,6 @@ static void adapt() {
   bool movedBlocks = false;
   computeA<VectorLab>(KernelVorticity(), var.vel, 2);
   computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
-  var.tmp->boundary_needed = true;
   Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch =
       sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
@@ -4899,6 +4900,8 @@ static void adapt() {
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
+    bool boundary_needed = var.F[i].boundary_needed;
+    ;
     int dim = var.F[i].dim;
     Synchronizer *Synch = nullptr;
     const Stencil stencil{-1, -1, 2, 2, true};
@@ -4908,7 +4911,7 @@ static void adapt() {
       MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->halo_blocks;
-      if (g->boundary_needed)
+      if (boundary_needed)
         update_boundary(false, &g->boundary, &g->all, &g->tree);
     }
     int r = 0;
@@ -6492,8 +6495,6 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
-    (*var.F[i].g)->boundary_needed = false;
   for (int i = 0; i < sim.levelMax; i++) {
     ongrid(0.0);
     adapt();
