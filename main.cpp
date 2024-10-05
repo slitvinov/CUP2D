@@ -764,8 +764,8 @@ static void fill(Info *b, int level, long long Z) {
 }
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
-  const long long aux = sim.levels[m] + Z;
-  const auto retval = all->find(aux);
+  long long aux = sim.levels[m] + Z;
+  auto retval = all->find(aux);
   if (retval != all->end()) {
     return retval->second;
   } else {
