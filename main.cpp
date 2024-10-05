@@ -748,16 +748,17 @@ static void fill(Info *b, int level, long long Z) {
   Bmax[1] = sim.bpdy * 1 << level;
   for (i = -1; i < 2; i++)
     for (j = -1; j < 2; j++)
-      Znei[i + 1][j + 1] = sim.space_curve->forward(
+      b->Znei[i + 1][j + 1] = sim.space_curve->forward(
           level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
   for (i = 0; i < 2; i++)
     for (j = 0; j < 2; j++)
-      Zchild[i][j] = sim.space_curve->forward(level + 1, 2 * b->index[0] + i,
-                                              2 * b->index[1] + j);
-  Zparent = level == 0 ? 0
-                       : sim.space_curve->forward(level - 1,
-                                                  (b->index[0] / 2) % Bmax[0],
-                                                  (b->index[1] / 2) % Bmax[1]);
+      b->Zchild[i][j] = sim.space_curve->forward(level + 1, 2 * b->index[0] + i,
+                                                 2 * b->index[1] + j);
+  b->Zparent =
+      level == 0
+          ? 0
+          : sim.space_curve->forward(level - 1, (b->index[0] / 2) % Bmax[0],
+                                     (b->index[1] / 2) % Bmax[1]);
   b->id2 = sim.space_curve->Encode(level, b->index);
   b->id = b->id2;
 }
