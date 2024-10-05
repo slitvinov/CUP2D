@@ -716,12 +716,12 @@ struct DuplicatesManager {
 };
 static int &treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
-  const long long aux = sim.levels[m] + n;
-  const auto retval = tree->find(aux);
+  long long aux = sim.levels[m] + n;
+  auto retval = tree->find(aux);
   if (retval == tree->end()) {
 #pragma omp critical
     {
-      const auto retval1 = tree->find(aux);
+      auto retval1 = tree->find(aux);
       if (retval1 == tree->end()) {
         (*tree)[aux] = -3;
       }
