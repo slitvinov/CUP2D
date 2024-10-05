@@ -864,6 +864,31 @@ static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
   }
 }
 
+static void FixDuplicates(std::array<Range, 3 * 27> &AllStencils,
+                          Range &Coarse_Range, const Stencil &stencil,
+                          const Interface *f, const Interface *f_dup, int lx,
+                          int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
+                          int *sx, int *sy, int *sz) {
+  Info *receiver = f->infos[1];
+  Info *receiver_dup = f_dup->infos[1];
+  if (receiver->level >= receiver_dup->level) {
+    int icode_dup = f_dup->icode[1];
+    const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
+                             (icode_dup / 9) % 3 - 1};
+    *sx = (lx == lx_dup || code_dup[0] != -1) ? 0 : lx - lx_dup;
+    *sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
+    *sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
+  } else {
+    Range &range =
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
+    Range &range_dup =
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
+    *sx = range_dup.sx - range.sx;
+    *sy = range_dup.sy - range.sy;
+    *sz = range_dup.sz - range.sz;
+  }
+}
+
 struct Synchronizer {
   bool use_averages;
   std::set<int> Neighbors;
@@ -887,28 +912,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
-  void FixDuplicates(const Interface *f, const Interface *f_dup, int lx, int ly,
-                     int lz, int lx_dup, int ly_dup, int lz_dup, int *sx,
-                     int *sy, int *sz) {
-    Info *receiver = f->infos[1];
-    Info *receiver_dup = f_dup->infos[1];
-    if (receiver->level >= receiver_dup->level) {
-      int icode_dup = f_dup->icode[1];
-      const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
-                               (icode_dup / 9) % 3 - 1};
-      *sx = (lx == lx_dup || code_dup[0] != -1) ? 0 : lx - lx_dup;
-      *sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
-      *sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
-    } else {
-      Range &range =
-          DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
-      Range &range_dup =
-          DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
-      *sx = range_dup.sx - range.sx;
-      *sy = range_dup.sy - range.sy;
-      *sz = range_dup.sz - range.sz;
-    }
-  }
   void FixDuplicates2(const Interface *f, const Interface *f_dup, int *sx,
                       int *sy, int *sz) {
     if (f->infos[0]->level != f->infos[1]->level ||
@@ -1327,8 +1330,9 @@ struct Synchronizer {
                                    f[remEl1].infos[1]->level,
                                    f[remEl1].icode[1], &L[0]);
             int srcx, srcy, srcz;
-            FixDuplicates(&f[k], &f[remEl1], info.lx, info.ly, 1, L[0], L[1],
-                          L[2], &srcx, &srcy, &srcz);
+            FixDuplicates(AllStencils, Coarse_Range, stencil, &f[k], &f[remEl1],
+                          info.lx, info.ly, 1, L[0], L[1], L[2], &srcx, &srcy,
+                          &srcz);
             int Csrcx = 0;
             int Csrcy = 0;
             int Csrcz = 0;
