@@ -6569,7 +6569,7 @@ int main(int argc, char **argv) {
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.tmpV->buf, &var.tmpV->tree, var.tmpV->dim);
+      fillcases(var.tmpV->buf, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -6585,7 +6585,7 @@ int main(int argc, char **argv) {
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.tmpV->buf, &var.tmpV->tree, var.tmpV->dim);
+      fillcases(var.tmpV->buf, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -6966,7 +6966,7 @@ int main(int argc, char **argv) {
       }
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel,
                                                    var.tmpV);
-      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
+      fillcases(var.tmp->buf, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -6981,7 +6981,7 @@ int main(int argc, char **argv) {
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
+      fillcases(var.tmp->buf, &var.tmp->tree, 1);
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
       const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
       const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7134,7 +7134,7 @@ int main(int argc, char **argv) {
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-      fillcases(var.tmp->buf, &var.tmp->tree, var.tmp->dim);
+      fillcases(var.tmp->buf, &var.tmp->tree, 1);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
