@@ -904,6 +904,37 @@ static void FixDuplicates2(std::array<Range, 3 * 27> &AllStencils,
   *sz = range_dup.sz - range.sz;
 }
 
+static std::vector<Info *> &avail_next(
+    std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups,
+    std::unordered_map<int, MPI_Request *> &mapofrequests,
+    std::vector<Info *> &dummy_vector) {
+  bool done = false;
+  auto it = mapofHaloBlockGroups.begin();
+  while (done == false) {
+    done = true;
+    it = mapofHaloBlockGroups.begin();
+    while (it != mapofHaloBlockGroups.end()) {
+      if ((it->second).ready == false) {
+        std::set<int> ranks = (it->second).myranks;
+        int flag = 0;
+        for (auto r : ranks) {
+          const auto retval = mapofrequests.find(r);
+          MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+          if (flag == false)
+            break;
+        }
+        if (flag == 1) {
+          (it->second).ready = true;
+          return (it->second).myblocks;
+        }
+      }
+      done = done && (it->second).ready;
+      it++;
+    }
+  }
+  return dummy_vector;
+}
+
 struct Synchronizer {
   bool use_averages;
   std::set<int> Neighbors;
@@ -927,33 +958,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
-  std::vector<Info *> &avail_next() {
-    bool done = false;
-    auto it = mapofHaloBlockGroups.begin();
-    while (done == false) {
-      done = true;
-      it = mapofHaloBlockGroups.begin();
-      while (it != mapofHaloBlockGroups.end()) {
-        if ((it->second).ready == false) {
-          std::set<int> ranks = (it->second).myranks;
-          int flag = 0;
-          for (auto r : ranks) {
-            const auto retval = mapofrequests.find(r);
-            MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
-            if (flag == false)
-              break;
-          }
-          if (flag == 1) {
-            (it->second).ready = true;
-            return (it->second).myblocks;
-          }
-        }
-        done = done && (it->second).ready;
-        it++;
-      }
-    }
-    return dummy_vector;
-  }
   void Setup(int dim, std::unordered_map<long long, int> *tree,
              std::unordered_map<long long, Info *> *all,
              std::vector<Info> *infos) {
@@ -3068,7 +3072,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
-      halo_next = &Synch->avail_next();
+      halo_next = &avail_next(Synch->mapofHaloBlockGroups, Synch->mapofrequests,
+                              Synch->dummy_vector);
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
