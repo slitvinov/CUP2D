@@ -636,7 +636,6 @@ struct PackInfo {
   Real *pack;
   int sx;
   int sy;
-  int sz;
   int ex;
   int ey;
 };
@@ -1379,7 +1378,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
         buf->send_packinfos[r].push_back(
             {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
-             range.sy, 0, range.ex, range.ey});
+             range.sy, range.ex, range.ey});
         if (f->CoarseStencil) {
           int V = (range.ex - range.sx) * (range.ey - range.sy);
           ToBeAveragedDown[r].push_back(i);
@@ -2168,7 +2167,7 @@ static Synchronizer *sync1(const Stencil &stencil,
 #pragma omp for
         for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
           const PackInfo &info = s->buf->send_packinfos[r][i];
-          pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
+          pack(info.block, info.pack, dim, info.sx, info.sy, 0, info.ex,
                info.ey, 1, _BS_, _BS_);
         }
       }
