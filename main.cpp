@@ -833,20 +833,22 @@ static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
       for (int d = 0; d < 3; d++)
         Cindex_true[d] = f->infos[1]->index[d] + code[d];
       int CoarseEdge[2];
-      CoarseEdge[0] = code[0] == 0 ? 0
-                      : ((f->infos[1]->index[0] % 2 == 0) &&
-                         (Cindex_true[0] > f->infos[1]->index[0])) ||
-                              ((f->infos[1]->index[0] % 2 == 1) &&
-                               (Cindex_true[0] < f->infos[1]->index[0]))
-                          ? 1
-                          : 0;
-      CoarseEdge[1] = code[1] == 0 ? 0
-                      : ((f->infos[1]->index[1] % 2 == 0) &&
-                         (Cindex_true[1] > f->infos[1]->index[1])) ||
-                              ((f->infos[1]->index[1] % 2 == 1) &&
-                               (Cindex_true[1] < f->infos[1]->index[1]))
-                          ? 1
-                          : 0;
+      CoarseEdge[0] = code[0] == 0
+                          ? 0
+                          : ((f->infos[1]->index[0] % 2 == 0) &&
+                             (Cindex_true[0] > f->infos[1]->index[0])) ||
+                                    ((f->infos[1]->index[0] % 2 == 1) &&
+                                     (Cindex_true[0] < f->infos[1]->index[0]))
+                                ? 1
+                                : 0;
+      CoarseEdge[1] = code[1] == 0
+                          ? 0
+                          : ((f->infos[1]->index[1] % 2 == 0) &&
+                             (Cindex_true[1] > f->infos[1]->index[1])) ||
+                                    ((f->infos[1]->index[1] % 2 == 1) &&
+                                     (Cindex_true[1] < f->infos[1]->index[1]))
+                                ? 1
+                                : 0;
       Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                         (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                         code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -935,11 +937,8 @@ static std::vector<Info *> &avail_next(
   return dummy_vector;
 }
 
-struct Synchronizer {
-  bool use_averages;
+struct SyncBuf {
   std::set<int> Neighbors;
-  std::unordered_map<int, MPI_Request *> mapofrequests;
-  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::vector<Info *> halo_blocks;
   std::vector<Info *> inner_blocks;
   std::vector<int> recv_buffer_size;
@@ -947,36 +946,43 @@ struct Synchronizer {
   std::vector<MPI_Request> requests;
   std::vector<std::vector<Interface>> recv_interfaces;
   std::vector<std::vector<Interface>> send_interfaces;
-  std::vector<std::vector<int>> ToBeAveragedDown;
   std::vector<std::vector<PackInfo>> send_packinfos;
   std::vector<std::vector<Real>> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
+};
+
+struct Synchronizer {
+  bool use_averages;
+  std::unordered_map<int, MPI_Request *> mapofrequests;
+  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
+  std::vector<std::vector<int>> ToBeAveragedDown;
   std::vector<Info *> dummy_vector;
   const Stencil stencil;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   Range Coarse_Range;
+  struct SyncBuf *buf;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
   void Setup(int dim, std::unordered_map<long long, int> *tree,
              std::unordered_map<long long, Info *> *all,
-             std::vector<Info> *infos) {
+             std::vector<Info> *infos, struct SyncBuf *buf) {
     DuplicatesManager DM;
     std::vector<int> offsets(sim.size, 0);
     std::vector<int> offsets_recv(sim.size, 0);
     DM.positions.resize(sim.size);
     DM.sizes.resize(sim.size);
-    Neighbors.clear();
-    inner_blocks.clear();
-    halo_blocks.clear();
+    buf->Neighbors.clear();
+    buf->inner_blocks.clear();
+    buf->halo_blocks.clear();
     for (int r = 0; r < sim.size; r++) {
-      send_interfaces[r].clear();
-      recv_interfaces[r].clear();
-      send_buffer_size[r] = 0;
+      buf->send_interfaces[r].clear();
+      buf->recv_interfaces[r].clear();
+      buf->send_buffer_size[r] = 0;
     }
-    for (size_t i = 0; i < myunpacks.size(); i++)
-      myunpacks[i].clear();
-    myunpacks.clear();
+    for (size_t i = 0; i < buf->myunpacks.size(); i++)
+      buf->myunpacks[i].clear();
+    buf->myunpacks.clear();
     std::vector<Range> compass[27];
     for (Info &info : *infos) {
       info.halo_id = -1;
@@ -1006,18 +1012,21 @@ struct Synchronizer {
             treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
         if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
           isInner = false;
-          Neighbors.insert(infoNeiTree);
+          buf->Neighbors.insert(infoNeiTree);
           Info *infoNei =
               getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          send_interfaces[infoNeiTree].push_back(
+          buf->send_interfaces[infoNeiTree].push_back(
               {&info, infoNei, icode, icode2});
-          recv_interfaces[infoNeiTree].push_back(
+          buf->recv_interfaces[infoNeiTree].push_back(
               {infoNei, &info, icode2, icode});
           ToBeChecked.push_back(infoNeiTree);
-          ToBeChecked.push_back((int)send_interfaces[infoNeiTree].size() - 1);
-          ToBeChecked.push_back((int)recv_interfaces[infoNeiTree].size() - 1);
-          DM.add(infoNeiTree, (int)send_interfaces[infoNeiTree].size() - 1);
+          ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
+                                1);
+          ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
+                                1);
+          DM.add(infoNeiTree,
+                 (int)buf->send_interfaces[infoNeiTree].size() - 1);
         } else if (infoNeiTree == -2) {
           Coarsened = true;
           Info *infoNei =
@@ -1026,7 +1035,7 @@ struct Synchronizer {
               treef(tree, info.level - 1, infoNei->Zparent);
           if (infoNeiCoarserrank != sim.rank) {
             isInner = false;
-            Neighbors.insert(infoNeiCoarserrank);
+            buf->Neighbors.insert(infoNeiCoarserrank);
             Info *infoNeiCoarser =
                 getf(all, infoNei->level - 1, infoNei->Zparent);
             int icode2 =
@@ -1040,12 +1049,12 @@ struct Synchronizer {
             if (info.index[0] / 2 == test_idx[0] &&
                 info.index[1] / 2 == test_idx[1] &&
                 info.index[2] / 2 == test_idx[2]) {
-              send_interfaces[infoNeiCoarserrank].push_back(
+              buf->send_interfaces[infoNeiCoarserrank].push_back(
                   {&info, infoNeiCoarser, icode, icode2});
-              recv_interfaces[infoNeiCoarserrank].push_back(
+              buf->recv_interfaces[infoNeiCoarserrank].push_back(
                   {infoNeiCoarser, &info, icode2, icode});
               DM.add(infoNeiCoarserrank,
-                     (int)send_interfaces[infoNeiCoarserrank].size() - 1);
+                     (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
               if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
                 int d0 = abs(code[1] + 2 * code[2]);
                 int d1 = (d0 + 1) % 3;
@@ -1069,13 +1078,13 @@ struct Synchronizer {
                 int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0)
-                  recv_interfaces[infoNeiCoarserrank].push_back(
+                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, &info, icode2, icode3});
                 if (code4[2] == 0)
-                  recv_interfaces[infoNeiCoarserrank].push_back(
+                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, &info, icode2, icode4});
                 if (code5[2] == 0)
-                  recv_interfaces[infoNeiCoarserrank].push_back(
+                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
                       {infoNeiCoarser, &info, icode2, icode5});
               }
             }
@@ -1102,16 +1111,16 @@ struct Synchronizer {
             int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
             if (infoNeiFinerrank != sim.rank) {
               isInner = false;
-              Neighbors.insert(infoNeiFinerrank);
+              buf->Neighbors.insert(infoNeiFinerrank);
               Info *infoNeiFiner = getf(all, info.level + 1, nFine);
               int icode2 =
                   (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-              send_interfaces[infoNeiFinerrank].push_back(
+              buf->send_interfaces[infoNeiFinerrank].push_back(
                   {&info, infoNeiFiner, icode, icode2});
-              recv_interfaces[infoNeiFinerrank].push_back(
+              buf->recv_interfaces[infoNeiFinerrank].push_back(
                   {infoNeiFiner, &info, icode2, icode});
               DM.add(infoNeiFinerrank,
-                     (int)send_interfaces[infoNeiFinerrank].size() - 1);
+                     (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
               if (Bstep == 1) {
                 int d0 = abs(code[1] + 2 * code[2]);
                 int d1 = (d0 + 1) % 3;
@@ -1135,22 +1144,25 @@ struct Synchronizer {
                 int icode5 =
                     (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
                 if (code3[2] == 0) {
-                  send_interfaces[infoNeiFinerrank].push_back(
+                  buf->send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode3));
                   DM.add(infoNeiFinerrank,
-                         (int)send_interfaces[infoNeiFinerrank].size() - 1);
+                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
+                             1);
                 }
                 if (code4[2] == 0) {
-                  send_interfaces[infoNeiFinerrank].push_back(
+                  buf->send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode4));
                   DM.add(infoNeiFinerrank,
-                         (int)send_interfaces[infoNeiFinerrank].size() - 1);
+                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
+                             1);
                 }
                 if (code5[2] == 0) {
-                  send_interfaces[infoNeiFinerrank].push_back(
+                  buf->send_interfaces[infoNeiFinerrank].push_back(
                       Interface(&info, infoNeiFiner, icode, icode5));
                   DM.add(infoNeiFinerrank,
-                         (int)send_interfaces[infoNeiFinerrank].size() - 1);
+                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
+                             1);
                 }
               }
             }
@@ -1159,17 +1171,17 @@ struct Synchronizer {
       }
       if (isInner) {
         info.halo_id = -1;
-        inner_blocks.push_back(&info);
+        buf->inner_blocks.push_back(&info);
       } else {
-        info.halo_id = halo_blocks.size();
-        halo_blocks.push_back(&info);
+        info.halo_id = buf->halo_blocks.size();
+        buf->halo_blocks.push_back(&info);
         if (Coarsened) {
           for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
             int r = ToBeChecked[j];
             int send = ToBeChecked[j + 1];
             int recv = ToBeChecked[j + 2];
-            Info *a = send_interfaces[r][send].infos[0];
-            Info *b = send_interfaces[r][send].infos[1];
+            Info *a = buf->send_interfaces[r][send].infos[0];
+            Info *b = buf->send_interfaces[r][send].infos[1];
             bool retval = false;
             if (!(a->level == 0 || !use_averages)) {
               int imin[2];
@@ -1192,14 +1204,14 @@ struct Synchronizer {
                   }
                 }
             }
-            send_interfaces[r][send].CoarseStencil = retval;
-            recv_interfaces[r][recv].CoarseStencil = retval;
+            buf->send_interfaces[r][send].CoarseStencil = retval;
+            buf->recv_interfaces[r][recv].CoarseStencil = retval;
           }
         }
         for (int r = 0; r < sim.size; r++)
           if (DM.sizes[r] > 0) {
-            std::vector<Interface> &f = send_interfaces[r];
-            int &total_size = send_buffer_size[r];
+            std::vector<Interface> &f = buf->send_interfaces[r];
+            int &total_size = buf->send_buffer_size[r];
             bool skip_needed = false;
             std::sort(f.begin() + DM.positions[r],
                       f.begin() + DM.sizes[r] + DM.positions[r]);
@@ -1248,26 +1260,26 @@ struct Synchronizer {
       }
       getf(all, info.level, info.Z)->halo_id = info.halo_id;
     }
-    myunpacks.resize(halo_blocks.size());
+    buf->myunpacks.resize(buf->halo_blocks.size());
     for (int r = 0; r < sim.size; r++) {
-      recv_buffer_size[r] = 0;
-      std::sort(recv_interfaces[r].begin(), recv_interfaces[r].end());
+      buf->recv_buffer_size[r] = 0;
+      std::sort(buf->recv_interfaces[r].begin(), buf->recv_interfaces[r].end());
       size_t counter = 0;
-      while (counter < recv_interfaces[r].size()) {
-        long long ID = recv_interfaces[r][counter].infos[0]->id2;
+      while (counter < buf->recv_interfaces[r].size()) {
+        long long ID = buf->recv_interfaces[r][counter].infos[0]->id2;
         size_t start = counter;
         size_t finish = start + 1;
         counter++;
         size_t j;
-        for (j = counter; j < recv_interfaces[r].size(); j++) {
-          if (recv_interfaces[r][j].infos[0]->id2 == ID)
+        for (j = counter; j < buf->recv_interfaces[r].size(); j++) {
+          if (buf->recv_interfaces[r][j].infos[0]->id2 == ID)
             finish++;
           else
             break;
         }
         counter = j;
-        std::vector<Interface> &f = recv_interfaces[r];
-        int &total_size = recv_buffer_size[r];
+        std::vector<Interface> &f = buf->recv_interfaces[r];
+        int &total_size = buf->recv_buffer_size[r];
         int otherrank = r;
         bool skip_needed = false;
         for (int i = 0; i < sizeof compass / sizeof *compass; i++)
@@ -1329,7 +1341,7 @@ struct Synchronizer {
             info.CoarseVersionLY = Lc[1];
           }
           offsets_recv[otherrank] += V * dim;
-          myunpacks[f[k].infos[1]->halo_id].push_back(info);
+          buf->myunpacks[f[k].infos[1]->halo_id].push_back(info);
           for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
             int remEl1 = i->removed[kk];
             DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
@@ -1345,7 +1357,7 @@ struct Synchronizer {
             if (f[k].CoarseStencil)
               FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
                              &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
-            myunpacks[f[remEl1].infos[1]->halo_id].push_back(
+            buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
                 {info.offset,
                  L[0],
                  L[1],
@@ -1371,20 +1383,20 @@ struct Synchronizer {
           }
         }
       }
-      send_buffer[r].resize(send_buffer_size[r] * dim);
-      recv_buffer[r].resize(recv_buffer_size[r] * dim);
-      send_packinfos[r].clear();
+      buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
+      buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim);
+      buf->send_packinfos[r].clear();
       ToBeAveragedDown[r].clear();
-      for (int i = 0; i < (int)send_interfaces[r].size(); i++) {
-        Interface *f = &send_interfaces[r][i];
+      for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
+        Interface *f = &buf->send_interfaces[r][i];
         if (!f->ToBeKept)
           continue;
         if (f->infos[0]->level <= f->infos[1]->level) {
           Range &range =
               DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
-          send_packinfos[r].push_back(
-              {f->infos[0]->block, &send_buffer[r][f->dis], range.sx, range.sy,
-               range.sz, range.ex, range.ey, range.ez});
+          buf->send_packinfos[r].push_back(
+              {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
+               range.sy, range.sz, range.ex, range.ey, range.ez});
           if (f->CoarseStencil) {
             int V = (range.ex - range.sx) * (range.ey - range.sy);
             ToBeAveragedDown[r].push_back(i);
@@ -1397,11 +1409,11 @@ struct Synchronizer {
       }
     }
     mapofHaloBlockGroups.clear();
-    for (auto info : halo_blocks) {
+    for (auto info : buf->halo_blocks) {
       int id = info->halo_id;
-      UnPackInfo *unpacks = myunpacks[id].data();
+      UnPackInfo *unpacks = buf->myunpacks[id].data();
       std::set<int> ranks;
-      for (size_t jj = 0; jj < myunpacks[id].size(); jj++) {
+      for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
         UnPackInfo *unpack = &unpacks[jj];
         ranks.insert(unpack->rank);
       }
@@ -2015,15 +2027,16 @@ static Synchronizer *sync1(const Stencil &stencil,
   auto itSynchronizerMPI = synchronizers->find(stencil);
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer(stencil);
+    s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
-    s->send_interfaces.resize(sim.size);
-    s->recv_interfaces.resize(sim.size);
-    s->send_packinfos.resize(sim.size);
-    s->send_buffer_size.resize(sim.size);
-    s->recv_buffer_size.resize(sim.size);
-    s->send_buffer.resize(sim.size);
-    s->recv_buffer.resize(sim.size);
+    s->buf->send_interfaces.resize(sim.size);
+    s->buf->recv_interfaces.resize(sim.size);
+    s->buf->send_packinfos.resize(sim.size);
+    s->buf->send_buffer_size.resize(sim.size);
+    s->buf->recv_buffer_size.resize(sim.size);
+    s->buf->send_buffer.resize(sim.size);
+    s->buf->recv_buffer.resize(sim.size);
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
@@ -2056,7 +2069,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
     }
-    s->Setup(dim, tree, all, infos);
+    s->Setup(dim, tree, all, infos, s->buf);
     (*synchronizers)[stencil] = s;
   } else {
     s = itSynchronizerMPI->second;
@@ -2067,28 +2080,29 @@ static Synchronizer *sync1(const Stencil &stencil,
     it++;
   }
   s->mapofrequests.clear();
-  s->requests.clear();
-  s->requests.reserve(2 * sim.size);
-  for (auto r : s->Neighbors)
-    if (s->recv_buffer_size[r] > 0) {
-      s->requests.resize(s->requests.size() + 1);
-      s->mapofrequests[r] = &s->requests.back();
-      MPI_Irecv(&s->recv_buffer[r][0], s->recv_buffer_size[r] * dim, MPI_Real,
-                r, *timestamp, MPI_COMM_WORLD, &s->requests.back());
+  s->buf->requests.clear();
+  s->buf->requests.reserve(2 * sim.size);
+  for (auto r : s->buf->Neighbors)
+    if (s->buf->recv_buffer_size[r] > 0) {
+      s->buf->requests.resize(s->buf->requests.size() + 1);
+      s->mapofrequests[r] = &s->buf->requests.back();
+      MPI_Irecv(&s->buf->recv_buffer[r][0], s->buf->recv_buffer_size[r] * dim,
+                MPI_Real, r, *timestamp, MPI_COMM_WORLD,
+                &s->buf->requests.back());
     }
   for (int r = 0; r < sim.size; r++)
-    if (s->send_buffer_size[r] != 0) {
+    if (s->buf->send_buffer_size[r] != 0) {
 #pragma omp parallel
       {
 #pragma omp for
         for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
           int i = s->ToBeAveragedDown[r][j];
           int d = s->ToBeAveragedDown[r][j + 1];
-          Interface &f = s->send_interfaces[r][i];
+          Interface &f = s->buf->send_interfaces[r][i];
           int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
                          -((f.icode[0] / 9) % 3 - 1)};
           if (f.CoarseStencil) {
-            Real *dst = s->send_buffer[r].data() + d;
+            Real *dst = s->buf->send_buffer[r].data() + d;
             const Info *const info = f.infos[0];
             int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
             int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
@@ -2121,7 +2135,7 @@ static Synchronizer *sync1(const Stencil &stencil,
               }
             }
           } else {
-            Real *dst = s->send_buffer[r].data() + d;
+            Real *dst = s->buf->send_buffer[r].data() + d;
             const Info *const info = f.infos[0];
             int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
                         code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
@@ -2155,18 +2169,19 @@ static Synchronizer *sync1(const Stencil &stencil,
           }
         }
 #pragma omp for
-        for (size_t i = 0; i < s->send_packinfos[r].size(); i++) {
-          const PackInfo &info = s->send_packinfos[r][i];
+        for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
+          const PackInfo &info = s->buf->send_packinfos[r][i];
           pack(info.block, info.pack, dim, info.sx, info.sy, info.sz, info.ex,
                info.ey, info.ez, _BS_, _BS_);
         }
       }
     }
-  for (auto r : s->Neighbors)
-    if (s->send_buffer_size[r] > 0) {
-      s->requests.resize(s->requests.size() + 1);
-      MPI_Isend(&s->send_buffer[r][0], s->send_buffer_size[r] * dim, MPI_Real,
-                r, *timestamp, MPI_COMM_WORLD, &s->requests.back());
+  for (auto r : s->buf->Neighbors)
+    if (s->buf->send_buffer_size[r] > 0) {
+      s->buf->requests.resize(s->buf->requests.size() + 1);
+      MPI_Isend(&s->buf->send_buffer[r][0], s->buf->send_buffer_size[r] * dim,
+                MPI_Real, r, *timestamp, MPI_COMM_WORLD,
+                &s->buf->requests.back());
     }
   *timestamp = (*timestamp + 1) % 32768;
   return s;
@@ -2365,20 +2380,22 @@ struct BlockLab {
         int base[2] = {(info->index[0] + code[0]) % 2,
                        (info->index[1] + code[1]) % 2};
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : (((info->index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info->index[0])) ||
-                           ((info->index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info->index[0])))
-                            ? 1
-                            : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : (((info->index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info->index[1])) ||
-                           ((info->index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info->index[1])))
-                            ? 1
-                            : 0;
+        CoarseEdge[0] = code[0] == 0
+                            ? 0
+                            : (((info->index[0] % 2 == 0) &&
+                                (infoNei_index_true[0] > info->index[0])) ||
+                               ((info->index[0] % 2 == 1) &&
+                                (infoNei_index_true[0] < info->index[0])))
+                                  ? 1
+                                  : 0;
+        CoarseEdge[1] = code[1] == 0
+                            ? 0
+                            : (((info->index[1] % 2 == 0) &&
+                                (infoNei_index_true[1] > info->index[1])) ||
+                               ((info->index[1] % 2 == 1) &&
+                                (infoNei_index_true[1] < info->index[1])))
+                                  ? 1
+                                  : 0;
         int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
                             (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                             code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
@@ -2613,8 +2630,8 @@ struct BlockLab {
       post_load(info, applybc);
     int id = info->halo_id;
     if (id >= 0) {
-      UnPackInfo *unpacks = sync->myunpacks[id].data();
-      for (size_t jj = 0; jj < sync->myunpacks[id].size(); jj++) {
+      UnPackInfo *unpacks = sync->buf->myunpacks[id].data();
+      for (size_t jj = 0; jj < sync->buf->myunpacks[id].size(); jj++) {
         UnPackInfo *unpack = &unpacks[jj];
         int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
                        (unpack->icode / 9) % 3 - 1};
@@ -2632,7 +2649,7 @@ struct BlockLab {
                            (s[1] - sync->stencil.sy) * nm[0] + s[0] -
                            sync->stencil.sx) *
                               dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
@@ -2651,8 +2668,8 @@ struct BlockLab {
             L[1] = sync->sLength[3 * (icode + 2 * 27) + 1];
             L[2] = sync->sLength[3 * (icode + 2 * 27) + 2];
             unpack_subregion(
-                &sync->recv_buffer[otherrank][unpack->offset +
-                                              unpack->CoarseVersionOffset],
+                &sync->buf->recv_buffer[otherrank][unpack->offset +
+                                                   unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
                 unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
                 L[1], nc[0]);
@@ -2666,7 +2683,7 @@ struct BlockLab {
           Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                            offset[0] + (sC[1] - offset[1]) * nc[0]) *
                               dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nc[0]);
         } else {
@@ -2710,7 +2727,7 @@ struct BlockLab {
                    (1 - abs(code[0])) *
                        (-sync->stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                       dim;
-          unpack_subregion(&sync->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
         }
@@ -3058,7 +3075,7 @@ template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
                               &g->all, &g->infos, &g->timestamp, g->dim);
-  std::vector<Info *> *inner = &Synch->inner_blocks;
+  std::vector<Info *> *inner = &Synch->buf->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
 #pragma omp parallel
@@ -3087,7 +3104,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
       }
     }
   }
-  MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+  MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename Lab, typename Lab2>
@@ -3108,8 +3125,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
   const Stencil &stencil2 = Synch2->stencil;
   std::vector<Info> &blk = grid->infos;
   std::vector<bool> ready(blk.size(), false);
-  std::vector<Info *> &avail0 = Synch->inner_blocks;
-  std::vector<Info *> &avail02 = Synch2->inner_blocks;
+  std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
+  std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
   const int Ninner = avail0.size();
   std::vector<Info *> avail1;
   std::vector<Info *> avail12;
@@ -3130,13 +3147,13 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     }
 #pragma omp master
     {
-      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
                   MPI_STATUSES_IGNORE);
-      avail1 = Synch->halo_blocks;
+      avail1 = Synch->buf->halo_blocks;
 
-      MPI_Waitall(Synch2->requests.size(), Synch2->requests.data(),
+      MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
                   MPI_STATUSES_IGNORE);
-      avail12 = Synch2->halo_blocks;
+      avail12 = Synch2->buf->halo_blocks;
     }
 #pragma omp barrier
     const int Nhalo = avail1.size();
@@ -4692,8 +4709,8 @@ static void adapt() {
   bool Reduction = false;
   MPI_Request Reduction_req;
   int tmp;
-  std::vector<Info *> *halo = &Synch->halo_blocks;
-  std::vector<Info *> *infos[2] = {&Synch->inner_blocks, halo};
+  std::vector<Info *> *halo = &Synch->buf->halo_blocks;
+  std::vector<Info *> *infos[2] = {&Synch->buf->inner_blocks, halo};
   for (int iii = 0;; iii++) {
     std::vector<Info *> *I = infos[iii];
 #pragma omp parallel
@@ -4705,9 +4722,8 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state = Linf > sim.Rtol   ? Refine
-                         : Linf < sim.Ctol ? Compress
-                                           : Leave;
+        (*I)[i]->state =
+            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -4730,7 +4746,7 @@ static void adapt() {
     }
     if (iii == 1)
       break;
-    MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+    MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
                 MPI_STATUSES_IGNORE);
   }
   if (!Reduction) {
@@ -4937,9 +4953,9 @@ static void adapt() {
     if (basic == false) {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
                     &g->timestamp, g->dim);
-      MPI_Waitall(Synch->requests.size(), Synch->requests.data(),
+      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
                   MPI_STATUSES_IGNORE);
-      g->boundary = Synch->halo_blocks;
+      g->boundary = Synch->buf->halo_blocks;
       if (boundary_needed)
         update_boundary(false, &g->boundary, &g->all, &g->tree);
     }
@@ -5455,7 +5471,7 @@ static void adapt() {
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
-        (*it->second).Setup(dim, &g->tree, &g->all, &g->infos);
+        (*it->second).Setup(dim, &g->tree, &g->all, &g->infos, it->second->buf);
         it++;
       }
     }
@@ -6422,12 +6438,14 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
-                                            shape->rS[i] * shape->rS[i])
-              : shape->rS[i] < st
-                  ? wh -
-                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
+              shape->rS[i] < sb
+                  ? std::sqrt(2 * wh * shape->rS[i] -
+                              shape->rS[i] * shape->rS[i])
+                  : shape->rS[i] < st
+                        ? wh - (wh - wt) *
+                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                        : wt * (shape->length - shape->rS[i]) /
+                              (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
