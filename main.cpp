@@ -2312,8 +2312,8 @@ struct BlockLab {
                    end[0] > 3 || end[1] > 3;
   }
   void load(std::unordered_map<long long, int> *tree,
-            std::unordered_map<long long, Info *> *all, Synchronizer *sync,
-            const Stencil &stencil, Info *info, bool applybc) {
+            std::unordered_map<long long, Info *> *all, SyncBuf *buf,
+            const Stencil &stencil, Info *info, bool applybc, int *sLength) {
     int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -2625,8 +2625,8 @@ struct BlockLab {
       post_load(info, applybc);
     int id = info->halo_id;
     if (id >= 0) {
-      UnPackInfo *unpacks = sync->buf->myunpacks[id].data();
-      for (size_t jj = 0; jj < sync->buf->myunpacks[id].size(); jj++) {
+      UnPackInfo *unpacks = buf->myunpacks[id].data();
+      for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
         UnPackInfo *unpack = &unpacks[jj];
         int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
                        (unpack->icode / 9) % 3 - 1};
@@ -2642,7 +2642,7 @@ struct BlockLab {
           Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
                            (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                               dim;
-          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
@@ -2657,11 +2657,11 @@ struct BlockLab {
             int L[3];
             int icode =
                 (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1);
-            L[0] = sync->sLength[3 * (icode + 2 * 27) + 0];
-            L[1] = sync->sLength[3 * (icode + 2 * 27) + 1];
-            L[2] = sync->sLength[3 * (icode + 2 * 27) + 2];
+            L[0] = sLength[3 * (icode + 2 * 27) + 0];
+            L[1] = sLength[3 * (icode + 2 * 27) + 1];
+            L[2] = sLength[3 * (icode + 2 * 27) + 2];
             unpack_subregion(
-                &sync->buf->recv_buffer[otherrank][unpack->offset +
+                &buf->recv_buffer[otherrank][unpack->offset +
                                                    unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
                 unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
@@ -2676,7 +2676,7 @@ struct BlockLab {
           Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                            offset[0] + (sC[1] - offset[1]) * nc[0]) *
                               dim;
-          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nc[0]);
         } else {
@@ -2720,7 +2720,7 @@ struct BlockLab {
                (1 - abs(code[0])) *
                    (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
-          unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
         }
@@ -3077,7 +3077,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(&g->tree, &g->all, Synch, kernel.stencil, I, true);
+      lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
       kernel(&lab, I);
     }
     while (done == false) {
@@ -3087,7 +3087,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(&g->tree, &g->all, Synch, kernel.stencil, I, true);
+        lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
         kernel(&lab, I);
       }
 #pragma omp single
@@ -3133,8 +3133,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(&grid->tree, &grid->all, Synch, kernel.stencil, I, true);
-      lab2.load(&grid2->tree, &grid2->all, Synch2, kernel2.stencil, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2, true, Synch2->sLength);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
@@ -3154,8 +3154,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(&grid->tree, &grid->all, Synch, kernel.stencil, I, true);
-      lab2.load(&grid2->tree, &grid2->all, Synch2, kernel.stencil2, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2, true, Synch->sLength);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -5000,7 +5000,7 @@ static void adapt() {
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab->load(&g->tree, &g->all, Synch, stencil, parent, true);
+        lab->load(&g->tree, &g->all, Synch->buf, stencil, parent, true, Synch->sLength);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
