@@ -593,13 +593,13 @@ struct Range {
   const int ez = 1;
   bool needed{true};
   bool avg_down{true};
-  void remove(const Range *other) {
-    size_t s = removed.size();
-    removed.resize(s + other->removed.size());
-    for (size_t i = 0; i < other->removed.size(); i++)
-      removed[s + i] = other->removed[i];
-  }
 };
+static void remove(Range *q, Range *other) {
+  size_t s = q->removed.size();
+  q->removed.resize(s + other->removed.size());
+  for (size_t i = 0; i < other->removed.size(); i++)
+    q->removed[s + i] = other->removed[i];
+}
 static bool contains(Range *q, Range *r) {
   if (q->avg_down != r->avg_down)
     return false;
@@ -670,7 +670,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
             if (me[j2].needed && contains(&me[j2], &me[j1])) {
               me[j1].needed = false;
               me[j2].removed.push_back(me[j1].index);
-              me[j2].remove(&me[j1]);
+              remove(&me[j2], &me[j1]);
               v.push_back(me[j1].index);
               break;
             }
@@ -697,7 +697,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
                   if (m.needed && contains(&m, &o)) {
                     o.needed = false;
                     m.removed.push_back(o.index);
-                    m.remove(&o);
+                    remove(&m, &o);
                     v.push_back(o.index);
                     break;
                   }
