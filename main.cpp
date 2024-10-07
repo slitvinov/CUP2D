@@ -1425,14 +1425,14 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
 }
 struct Synchronizer {
   bool use_averages;
-  std::unordered_map<int, MPI_Request *> mapofrequests;
-  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
-  std::vector<std::vector<int>> ToBeAveragedDown;
-  std::vector<Info *> dummy_vector;
   const Stencil stencil;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
-  Range Coarse_Range;
+  std::unordered_map<int, MPI_Request *> mapofrequests;
+  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
+  std::vector<Info *> dummy_vector;
+  std::vector<std::vector<int>> ToBeAveragedDown;
+  struct Range Coarse_Range;
   struct SyncBuf *buf;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
 };
