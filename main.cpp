@@ -56,10 +56,10 @@ static double getA_local(int I1, int I2) {
     return 0.0;
 }
 static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
-                 int zstart, int xend, int yend) {
+                 int xend, int yend) {
   if (dim == 1) {
     const int mod = (xend - xstart) % 4;
-    for (int idst = 0, iz = zstart; iz < 1; ++iz)
+    for (int idst = 0, iz = 0; iz < 1; ++iz)
       for (int iy = ystart; iy < yend; ++iy) {
         for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
           dst[idst + 0] = srcbase[ix + 0 + _BS_ * (iy + _BS_ * iz)];
@@ -72,7 +72,7 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
         }
       }
   } else {
-    for (int idst = 0, iz = zstart; iz < 1; ++iz)
+    for (int idst = 0, iz = 0; iz < 1; ++iz)
       for (int iy = ystart; iy < yend; ++iy)
         for (int ix = xstart; ix < xend; ++ix) {
           const Real *src = srcbase + dim * (ix + _BS_ * (iy + _BS_ * iz));
@@ -2167,8 +2167,7 @@ static Synchronizer *sync1(const Stencil &stencil,
 #pragma omp for
         for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
           const PackInfo &info = s->buf->send_packinfos[r][i];
-          pack(info.block, info.pack, dim, info.sx, info.sy, 0, info.ex,
-               info.ey);
+          pack(info.block, info.pack, dim, info.sx, info.sy, info.ex, info.ey);
         }
       }
     }
