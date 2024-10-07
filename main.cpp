@@ -951,7 +951,478 @@ struct SyncBuf {
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
 };
+static void
+Setup(int dim, std::unordered_map<long long, int> *tree,
+      std::unordered_map<long long, Info *> *all, std::vector<Info> *infos,
+      struct SyncBuf *buf, bool &use_averages,
+      std::array<Range, 3 * 27> &AllStencils, Range &Coarse_Range,
+      const Stencil &stencil, int *sLength,
+      std::vector<std::vector<int>> &ToBeAveragedDown,
+      std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups
 
+) {
+  DuplicatesManager DM;
+  std::vector<int> offsets(sim.size, 0);
+  std::vector<int> offsets_recv(sim.size, 0);
+  DM.positions.resize(sim.size);
+  DM.sizes.resize(sim.size);
+  buf->Neighbors.clear();
+  buf->inner_blocks.clear();
+  buf->halo_blocks.clear();
+  for (int r = 0; r < sim.size; r++) {
+    buf->send_interfaces[r].clear();
+    buf->recv_interfaces[r].clear();
+    buf->send_buffer_size[r] = 0;
+  }
+  for (size_t i = 0; i < buf->myunpacks.size(); i++)
+    buf->myunpacks[i].clear();
+  buf->myunpacks.clear();
+  std::vector<Range> compass[27];
+  for (Info &info : *infos) {
+    info.halo_id = -1;
+    bool xskin =
+        info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
+    bool yskin =
+        info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
+    int xskip = info.index[0] == 0 ? -1 : 1;
+    int yskip = info.index[1] == 0 ? -1 : 1;
+    assert(xskip);
+    assert(yskip);
+
+    bool isInner = true;
+    std::vector<int> ToBeChecked;
+    bool Coarsened = false;
+    for (int icode = 0; icode < 27; icode++) {
+      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
+        continue;
+      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
+      if (code[2] != 0)
+        continue;
+      if (code[0] == xskip && xskin)
+        continue;
+      if (code[1] == yskip && yskin)
+        continue;
+      int &infoNeiTree =
+          treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+      if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
+        isInner = false;
+        buf->Neighbors.insert(infoNeiTree);
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+        buf->send_interfaces[infoNeiTree].push_back(
+            {&info, infoNei, icode, icode2});
+        buf->recv_interfaces[infoNeiTree].push_back(
+            {infoNei, &info, icode2, icode});
+        ToBeChecked.push_back(infoNeiTree);
+        ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
+                              1);
+        ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
+                              1);
+        DM.add(infoNeiTree, (int)buf->send_interfaces[infoNeiTree].size() - 1);
+      } else if (infoNeiTree == -2) {
+        Coarsened = true;
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int infoNeiCoarserrank = treef(tree, info.level - 1, infoNei->Zparent);
+        if (infoNeiCoarserrank != sim.rank) {
+          isInner = false;
+          buf->Neighbors.insert(infoNeiCoarserrank);
+          Info *infoNeiCoarser =
+              getf(all, infoNei->level - 1, infoNei->Zparent);
+          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+          int Bmax[3] = {sim.bpdx << (info.level - 1),
+                         sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
+          int test_idx[3] = {
+              (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
+              (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
+              (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
+          if (info.index[0] / 2 == test_idx[0] &&
+              info.index[1] / 2 == test_idx[1] &&
+              info.index[2] / 2 == test_idx[2]) {
+            buf->send_interfaces[infoNeiCoarserrank].push_back(
+                {&info, infoNeiCoarser, icode, icode2});
+            buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                {infoNeiCoarser, &info, icode2, icode});
+            DM.add(infoNeiCoarserrank,
+                   (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
+            if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
+              int d0 = abs(code[1] + 2 * code[2]);
+              int d1 = (d0 + 1) % 3;
+              int d2 = (d0 + 2) % 3;
+              int code3[3];
+              code3[d0] = code[d0];
+              code3[d1] = -2 * (info.index[d1] % 2) + 1;
+              code3[d2] = -2 * (info.index[d2] % 2) + 1;
+              int icode3 =
+                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
+              int code4[3];
+              code4[d0] = code[d0];
+              code4[d1] = code3[d1];
+              code4[d2] = 0;
+              int icode4 =
+                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
+              int code5[3];
+              code5[d0] = code[d0];
+              code5[d1] = 0;
+              code5[d2] = code3[d2];
+              int icode5 =
+                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
+              if (code3[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode3});
+              if (code4[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode4});
+              if (code5[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode5});
+            }
+          }
+        }
+      } else if (infoNeiTree == -1) {
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 3; B += Bstep) {
+          if (Bstep == 1 && B >= 2)
+            continue;
+          if (Bstep > 1 && B >= 1)
+            continue;
+          int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
+          if (infoNeiFinerrank != sim.rank) {
+            isInner = false;
+            buf->Neighbors.insert(infoNeiFinerrank);
+            Info *infoNeiFiner = getf(all, info.level + 1, nFine);
+            int icode2 =
+                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+            buf->send_interfaces[infoNeiFinerrank].push_back(
+                {&info, infoNeiFiner, icode, icode2});
+            buf->recv_interfaces[infoNeiFinerrank].push_back(
+                {infoNeiFiner, &info, icode2, icode});
+            DM.add(infoNeiFinerrank,
+                   (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+            if (Bstep == 1) {
+              int d0 = abs(code[1] + 2 * code[2]);
+              int d1 = (d0 + 1) % 3;
+              int d2 = (d0 + 2) % 3;
+              int code3[3];
+              code3[d0] = -code[d0];
+              code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
+              code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
+              int icode3 =
+                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
+              int code4[3];
+              code4[d0] = -code[d0];
+              code4[d1] = code3[d1];
+              code4[d2] = 0;
+              int icode4 =
+                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
+              int code5[3];
+              code5[d0] = -code[d0];
+              code5[d1] = 0;
+              code5[d2] = code3[d2];
+              int icode5 =
+                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
+              if (code3[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode3));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+              if (code4[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode4));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+              if (code5[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode5));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+            }
+          }
+        }
+      }
+    }
+    if (isInner) {
+      info.halo_id = -1;
+      buf->inner_blocks.push_back(&info);
+    } else {
+      info.halo_id = buf->halo_blocks.size();
+      buf->halo_blocks.push_back(&info);
+      if (Coarsened) {
+        for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
+          int r = ToBeChecked[j];
+          int send = ToBeChecked[j + 1];
+          int recv = ToBeChecked[j + 2];
+          Info *a = buf->send_interfaces[r][send].infos[0];
+          Info *b = buf->send_interfaces[r][send].infos[1];
+          bool retval = false;
+          if (!(a->level == 0 || !use_averages)) {
+            int imin[2];
+            int imax[2];
+            int aux = 1 << a->level;
+            int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
+            for (int d = 0; d < 2; d++) {
+              imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
+              imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
+              if (a->index[d] == 0 && b->index[d] == 0)
+                imin[d] = 0;
+              if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
+                imax[d] = 0;
+            }
+            for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+              for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+                if ((treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
+                  retval = true;
+                  break;
+                }
+              }
+          }
+          buf->send_interfaces[r][send].CoarseStencil = retval;
+          buf->recv_interfaces[r][recv].CoarseStencil = retval;
+        }
+      }
+      for (int r = 0; r < sim.size; r++)
+        if (DM.sizes[r] > 0) {
+          std::vector<Interface> &f = buf->send_interfaces[r];
+          int &total_size = buf->send_buffer_size[r];
+          bool skip_needed = false;
+          std::sort(f.begin() + DM.positions[r],
+                    f.begin() + DM.sizes[r] + DM.positions[r]);
+          for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+            compass[i].clear();
+          for (size_t i = 0; i < DM.sizes[r]; i++) {
+            compass[f[i + DM.positions[r]].icode[0]].push_back(
+                DetermineStencil(AllStencils, Coarse_Range, stencil,
+                                 &f[i + DM.positions[r]], false));
+            compass[f[i + DM.positions[r]].icode[0]].back().index =
+                i + DM.positions[r];
+            compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
+                (f[i + DM.positions[r]].infos[0]->level >
+                 f[i + DM.positions[r]].infos[1]->level);
+            if (skip_needed == false)
+              skip_needed = f[i + DM.positions[r]].CoarseStencil;
+          }
+          if (skip_needed == false) {
+            std::vector<int> remEl;
+            needed0(compass, remEl);
+            for (size_t k = 0; k < remEl.size(); k++)
+              f[remEl[k]].ToBeKept = false;
+          }
+          int L[3] = {0, 0, 0};
+          int Lc[2] = {0, 0};
+          for (auto &i : keepEl(compass)) {
+            const int k = i->index;
+            DetermineStencilLength(sLength, f[k].infos[0]->level,
+                                   f[k].infos[1]->level, f[k].icode[1], L);
+            const int V = L[0] * L[1] * L[2];
+            total_size += V;
+            f[k].dis = offsets[r];
+            if (f[k].CoarseStencil) {
+              Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+              Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+              int Vc = Lc[0] * Lc[1];
+              total_size += Vc;
+              offsets[r] += Vc * dim;
+            }
+            offsets[r] += V * dim;
+            for (size_t kk = 0; kk < (*i).removed.size(); kk++)
+              f[i->removed[kk]].dis = f[k].dis;
+          }
+          DM.sizes[r] = 0;
+        }
+    }
+    getf(all, info.level, info.Z)->halo_id = info.halo_id;
+  }
+  buf->myunpacks.resize(buf->halo_blocks.size());
+  for (int r = 0; r < sim.size; r++) {
+    buf->recv_buffer_size[r] = 0;
+    std::sort(buf->recv_interfaces[r].begin(), buf->recv_interfaces[r].end());
+    size_t counter = 0;
+    while (counter < buf->recv_interfaces[r].size()) {
+      long long ID = buf->recv_interfaces[r][counter].infos[0]->id2;
+      size_t start = counter;
+      size_t finish = start + 1;
+      counter++;
+      size_t j;
+      for (j = counter; j < buf->recv_interfaces[r].size(); j++) {
+        if (buf->recv_interfaces[r][j].infos[0]->id2 == ID)
+          finish++;
+        else
+          break;
+      }
+      counter = j;
+      std::vector<Interface> &f = buf->recv_interfaces[r];
+      int &total_size = buf->recv_buffer_size[r];
+      int otherrank = r;
+      bool skip_needed = false;
+      for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+        compass[i].clear();
+      for (size_t i = start; i < finish; i++) {
+        compass[f[i].icode[0]].push_back(
+            DetermineStencil(AllStencils, Coarse_Range, stencil, &f[i], false));
+        compass[f[i].icode[0]].back().index = i;
+        compass[f[i].icode[0]].back().avg_down =
+            (f[i].infos[0]->level > f[i].infos[1]->level);
+        if (skip_needed == false)
+          skip_needed = f[i].CoarseStencil;
+      }
+      if (skip_needed == false) {
+        std::vector<int> remEl;
+        needed0(compass, remEl);
+        for (size_t k = 0; k < remEl.size(); k++)
+          f[remEl[k]].ToBeKept = false;
+      }
+      for (auto &i : keepEl(compass)) {
+        const int k = i->index;
+        int L[3] = {0, 0, 0};
+        int Lc[2] = {0, 0};
+        DetermineStencilLength(sLength, f[k].infos[0]->level,
+                               f[k].infos[1]->level, f[k].icode[1], L);
+        const int V = L[0] * L[1] * L[2];
+        int Vc = 0;
+        total_size += V;
+        f[k].dis = offsets_recv[otherrank];
+        UnPackInfo info = {f[k].dis,
+                           L[0],
+                           L[1],
+                           0,
+                           0,
+                           0,
+                           L[0],
+                           L[1],
+                           -1,
+                           0,
+                           0,
+                           0,
+                           0,
+                           0,
+                           f[k].infos[0]->level,
+                           f[k].icode[1],
+                           otherrank,
+                           f[k].infos[0]->index[0],
+                           f[k].infos[0]->index[1],
+                           f[k].infos[0]->index[2],
+                           f[k].infos[1]->id2};
+        if (f[k].CoarseStencil) {
+          Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+          Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+          Vc = Lc[0] * Lc[1];
+          total_size += Vc;
+          offsets_recv[otherrank] += Vc * dim;
+          info.CoarseVersionOffset = V * dim;
+          info.CoarseVersionLX = Lc[0];
+          info.CoarseVersionLY = Lc[1];
+        }
+        offsets_recv[otherrank] += V * dim;
+        buf->myunpacks[f[k].infos[1]->halo_id].push_back(info);
+        for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
+          int remEl1 = i->removed[kk];
+          DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
+                                 f[remEl1].infos[1]->level, f[remEl1].icode[1],
+                                 &L[0]);
+          int srcx, srcy, srcz;
+          FixDuplicates(AllStencils, Coarse_Range, stencil, &f[k], &f[remEl1],
+                        info.lx, info.ly, 1, L[0], L[1], L[2], &srcx, &srcy,
+                        &srcz);
+          int Csrcx = 0;
+          int Csrcy = 0;
+          int Csrcz = 0;
+          if (f[k].CoarseStencil)
+            FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
+                           &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
+          buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
+              {info.offset,
+               L[0],
+               L[1],
+               srcx,
+               srcy,
+               srcz,
+               info.LX,
+               info.LY,
+               info.CoarseVersionOffset,
+               info.CoarseVersionLX,
+               info.CoarseVersionLY,
+               Csrcx,
+               Csrcy,
+               Csrcz,
+               f[remEl1].infos[0]->level,
+               f[remEl1].icode[1],
+               otherrank,
+               f[remEl1].infos[0]->index[0],
+               f[remEl1].infos[0]->index[1],
+               f[remEl1].infos[0]->index[2],
+               f[remEl1].infos[1]->id2});
+          f[remEl1].dis = info.offset;
+        }
+      }
+    }
+    buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
+    buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim);
+    buf->send_packinfos[r].clear();
+    ToBeAveragedDown[r].clear();
+    for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
+      Interface *f = &buf->send_interfaces[r][i];
+      if (!f->ToBeKept)
+        continue;
+      if (f->infos[0]->level <= f->infos[1]->level) {
+        Range &range =
+            DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
+        buf->send_packinfos[r].push_back(
+            {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
+             range.sy, range.sz, range.ex, range.ey, range.ez});
+        if (f->CoarseStencil) {
+          int V = (range.ex - range.sx) * (range.ey - range.sy);
+          ToBeAveragedDown[r].push_back(i);
+          ToBeAveragedDown[r].push_back(f->dis + V * dim);
+        }
+      } else {
+        ToBeAveragedDown[r].push_back(i);
+        ToBeAveragedDown[r].push_back(f->dis);
+      }
+    }
+  }
+  mapofHaloBlockGroups.clear();
+  for (auto info : buf->halo_blocks) {
+    int id = info->halo_id;
+    UnPackInfo *unpacks = buf->myunpacks[id].data();
+    std::set<int> ranks;
+    for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
+      UnPackInfo *unpack = &unpacks[jj];
+      ranks.insert(unpack->rank);
+    }
+    std::string set_ID;
+    for (auto r : ranks) {
+      std::stringstream ss;
+      ss << std::setw(sim.size) << std::setfill('0') << r;
+      std::string s = ss.str();
+      set_ID += s;
+    }
+    auto retval = mapofHaloBlockGroups.find(set_ID);
+    if (retval == mapofHaloBlockGroups.end()) {
+      HaloBlockGroup temporary;
+      temporary.myranks = ranks;
+      temporary.myblocks.push_back(info);
+      mapofHaloBlockGroups[set_ID] = temporary;
+    } else {
+      (retval->second).myblocks.push_back(info);
+    }
+  }
+}
 struct Synchronizer {
   bool use_averages;
   std::unordered_map<int, MPI_Request *> mapofrequests;
@@ -964,477 +1435,6 @@ struct Synchronizer {
   Range Coarse_Range;
   struct SyncBuf *buf;
   Synchronizer(Stencil stencil) : stencil(stencil) {}
-  void Setup(int dim, std::unordered_map<long long, int> *tree,
-             std::unordered_map<long long, Info *> *all,
-             std::vector<Info> *infos, struct SyncBuf *buf) {
-    DuplicatesManager DM;
-    std::vector<int> offsets(sim.size, 0);
-    std::vector<int> offsets_recv(sim.size, 0);
-    DM.positions.resize(sim.size);
-    DM.sizes.resize(sim.size);
-    buf->Neighbors.clear();
-    buf->inner_blocks.clear();
-    buf->halo_blocks.clear();
-    for (int r = 0; r < sim.size; r++) {
-      buf->send_interfaces[r].clear();
-      buf->recv_interfaces[r].clear();
-      buf->send_buffer_size[r] = 0;
-    }
-    for (size_t i = 0; i < buf->myunpacks.size(); i++)
-      buf->myunpacks[i].clear();
-    buf->myunpacks.clear();
-    std::vector<Range> compass[27];
-    for (Info &info : *infos) {
-      info.halo_id = -1;
-      bool xskin =
-          info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
-      bool yskin =
-          info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
-      int xskip = info.index[0] == 0 ? -1 : 1;
-      int yskip = info.index[1] == 0 ? -1 : 1;
-      assert(xskip);
-      assert(yskip);
-
-      bool isInner = true;
-      std::vector<int> ToBeChecked;
-      bool Coarsened = false;
-      for (int icode = 0; icode < 27; icode++) {
-        if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-          continue;
-        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-        if (code[2] != 0)
-          continue;
-        if (code[0] == xskip && xskin)
-          continue;
-        if (code[1] == yskip && yskin)
-          continue;
-        int &infoNeiTree =
-            treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-        if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-          isInner = false;
-          buf->Neighbors.insert(infoNeiTree);
-          Info *infoNei =
-              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          buf->send_interfaces[infoNeiTree].push_back(
-              {&info, infoNei, icode, icode2});
-          buf->recv_interfaces[infoNeiTree].push_back(
-              {infoNei, &info, icode2, icode});
-          ToBeChecked.push_back(infoNeiTree);
-          ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
-                                1);
-          ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
-                                1);
-          DM.add(infoNeiTree,
-                 (int)buf->send_interfaces[infoNeiTree].size() - 1);
-        } else if (infoNeiTree == -2) {
-          Coarsened = true;
-          Info *infoNei =
-              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int infoNeiCoarserrank =
-              treef(tree, info.level - 1, infoNei->Zparent);
-          if (infoNeiCoarserrank != sim.rank) {
-            isInner = false;
-            buf->Neighbors.insert(infoNeiCoarserrank);
-            Info *infoNeiCoarser =
-                getf(all, infoNei->level - 1, infoNei->Zparent);
-            int icode2 =
-                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            int Bmax[3] = {sim.bpdx << (info.level - 1),
-                           sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
-            int test_idx[3] = {
-                (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
-                (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
-                (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
-            if (info.index[0] / 2 == test_idx[0] &&
-                info.index[1] / 2 == test_idx[1] &&
-                info.index[2] / 2 == test_idx[2]) {
-              buf->send_interfaces[infoNeiCoarserrank].push_back(
-                  {&info, infoNeiCoarser, icode, icode2});
-              buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                  {infoNeiCoarser, &info, icode2, icode});
-              DM.add(infoNeiCoarserrank,
-                     (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
-              if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
-                int d0 = abs(code[1] + 2 * code[2]);
-                int d1 = (d0 + 1) % 3;
-                int d2 = (d0 + 2) % 3;
-                int code3[3];
-                code3[d0] = code[d0];
-                code3[d1] = -2 * (info.index[d1] % 2) + 1;
-                code3[d2] = -2 * (info.index[d2] % 2) + 1;
-                int icode3 =
-                    (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                int code4[3];
-                code4[d0] = code[d0];
-                code4[d1] = code3[d1];
-                code4[d2] = 0;
-                int icode4 =
-                    (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-                int code5[3];
-                code5[d0] = code[d0];
-                code5[d1] = 0;
-                code5[d2] = code3[d2];
-                int icode5 =
-                    (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-                if (code3[2] == 0)
-                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, &info, icode2, icode3});
-                if (code4[2] == 0)
-                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, &info, icode2, icode4});
-                if (code5[2] == 0)
-                  buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                      {infoNeiCoarser, &info, icode2, icode5});
-              }
-            }
-          }
-        } else if (infoNeiTree == -1) {
-          Info *infoNei =
-              getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-          int Bstep = 1;
-          if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-            Bstep = 3;
-          else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-            Bstep = 4;
-          for (int B = 0; B <= 3; B += Bstep) {
-            if (Bstep == 1 && B >= 2)
-              continue;
-            if (Bstep > 1 && B >= 1)
-              continue;
-            int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-            long long nFine =
-                infoNei->Zchild[std::max(-code[0], 0) +
-                                (B % 2) * std::max(0, 1 - abs(code[0]))]
-                               [std::max(-code[1], 0) +
-                                temp * std::max(0, 1 - abs(code[1]))];
-            int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
-            if (infoNeiFinerrank != sim.rank) {
-              isInner = false;
-              buf->Neighbors.insert(infoNeiFinerrank);
-              Info *infoNeiFiner = getf(all, info.level + 1, nFine);
-              int icode2 =
-                  (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-              buf->send_interfaces[infoNeiFinerrank].push_back(
-                  {&info, infoNeiFiner, icode, icode2});
-              buf->recv_interfaces[infoNeiFinerrank].push_back(
-                  {infoNeiFiner, &info, icode2, icode});
-              DM.add(infoNeiFinerrank,
-                     (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-              if (Bstep == 1) {
-                int d0 = abs(code[1] + 2 * code[2]);
-                int d1 = (d0 + 1) % 3;
-                int d2 = (d0 + 2) % 3;
-                int code3[3];
-                code3[d0] = -code[d0];
-                code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
-                code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
-                int icode3 =
-                    (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-                int code4[3];
-                code4[d0] = -code[d0];
-                code4[d1] = code3[d1];
-                code4[d2] = 0;
-                int icode4 =
-                    (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-                int code5[3];
-                code5[d0] = -code[d0];
-                code5[d1] = 0;
-                code5[d2] = code3[d2];
-                int icode5 =
-                    (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-                if (code3[2] == 0) {
-                  buf->send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, infoNeiFiner, icode, icode3));
-                  DM.add(infoNeiFinerrank,
-                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
-                             1);
-                }
-                if (code4[2] == 0) {
-                  buf->send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, infoNeiFiner, icode, icode4));
-                  DM.add(infoNeiFinerrank,
-                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
-                             1);
-                }
-                if (code5[2] == 0) {
-                  buf->send_interfaces[infoNeiFinerrank].push_back(
-                      Interface(&info, infoNeiFiner, icode, icode5));
-                  DM.add(infoNeiFinerrank,
-                         (int)buf->send_interfaces[infoNeiFinerrank].size() -
-                             1);
-                }
-              }
-            }
-          }
-        }
-      }
-      if (isInner) {
-        info.halo_id = -1;
-        buf->inner_blocks.push_back(&info);
-      } else {
-        info.halo_id = buf->halo_blocks.size();
-        buf->halo_blocks.push_back(&info);
-        if (Coarsened) {
-          for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
-            int r = ToBeChecked[j];
-            int send = ToBeChecked[j + 1];
-            int recv = ToBeChecked[j + 2];
-            Info *a = buf->send_interfaces[r][send].infos[0];
-            Info *b = buf->send_interfaces[r][send].infos[1];
-            bool retval = false;
-            if (!(a->level == 0 || !use_averages)) {
-              int imin[2];
-              int imax[2];
-              int aux = 1 << a->level;
-              int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
-              for (int d = 0; d < 2; d++) {
-                imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
-                imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
-                if (a->index[d] == 0 && b->index[d] == 0)
-                  imin[d] = 0;
-                if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
-                  imax[d] = 0;
-              }
-              for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-                for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  if ((treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
-                    retval = true;
-                    break;
-                  }
-                }
-            }
-            buf->send_interfaces[r][send].CoarseStencil = retval;
-            buf->recv_interfaces[r][recv].CoarseStencil = retval;
-          }
-        }
-        for (int r = 0; r < sim.size; r++)
-          if (DM.sizes[r] > 0) {
-            std::vector<Interface> &f = buf->send_interfaces[r];
-            int &total_size = buf->send_buffer_size[r];
-            bool skip_needed = false;
-            std::sort(f.begin() + DM.positions[r],
-                      f.begin() + DM.sizes[r] + DM.positions[r]);
-            for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-              compass[i].clear();
-            for (size_t i = 0; i < DM.sizes[r]; i++) {
-              compass[f[i + DM.positions[r]].icode[0]].push_back(
-                  DetermineStencil(AllStencils, Coarse_Range, stencil,
-                                   &f[i + DM.positions[r]], false));
-              compass[f[i + DM.positions[r]].icode[0]].back().index =
-                  i + DM.positions[r];
-              compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
-                  (f[i + DM.positions[r]].infos[0]->level >
-                   f[i + DM.positions[r]].infos[1]->level);
-              if (skip_needed == false)
-                skip_needed = f[i + DM.positions[r]].CoarseStencil;
-            }
-            if (skip_needed == false) {
-              std::vector<int> remEl;
-              needed0(compass, remEl);
-              for (size_t k = 0; k < remEl.size(); k++)
-                f[remEl[k]].ToBeKept = false;
-            }
-            int L[3] = {0, 0, 0};
-            int Lc[2] = {0, 0};
-            for (auto &i : keepEl(compass)) {
-              const int k = i->index;
-              DetermineStencilLength(sLength, f[k].infos[0]->level,
-                                     f[k].infos[1]->level, f[k].icode[1], L);
-              const int V = L[0] * L[1] * L[2];
-              total_size += V;
-              f[k].dis = offsets[r];
-              if (f[k].CoarseStencil) {
-                Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
-                Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-                int Vc = Lc[0] * Lc[1];
-                total_size += Vc;
-                offsets[r] += Vc * dim;
-              }
-              offsets[r] += V * dim;
-              for (size_t kk = 0; kk < (*i).removed.size(); kk++)
-                f[i->removed[kk]].dis = f[k].dis;
-            }
-            DM.sizes[r] = 0;
-          }
-      }
-      getf(all, info.level, info.Z)->halo_id = info.halo_id;
-    }
-    buf->myunpacks.resize(buf->halo_blocks.size());
-    for (int r = 0; r < sim.size; r++) {
-      buf->recv_buffer_size[r] = 0;
-      std::sort(buf->recv_interfaces[r].begin(), buf->recv_interfaces[r].end());
-      size_t counter = 0;
-      while (counter < buf->recv_interfaces[r].size()) {
-        long long ID = buf->recv_interfaces[r][counter].infos[0]->id2;
-        size_t start = counter;
-        size_t finish = start + 1;
-        counter++;
-        size_t j;
-        for (j = counter; j < buf->recv_interfaces[r].size(); j++) {
-          if (buf->recv_interfaces[r][j].infos[0]->id2 == ID)
-            finish++;
-          else
-            break;
-        }
-        counter = j;
-        std::vector<Interface> &f = buf->recv_interfaces[r];
-        int &total_size = buf->recv_buffer_size[r];
-        int otherrank = r;
-        bool skip_needed = false;
-        for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-          compass[i].clear();
-        for (size_t i = start; i < finish; i++) {
-          compass[f[i].icode[0]].push_back(DetermineStencil(
-              AllStencils, Coarse_Range, stencil, &f[i], false));
-          compass[f[i].icode[0]].back().index = i;
-          compass[f[i].icode[0]].back().avg_down =
-              (f[i].infos[0]->level > f[i].infos[1]->level);
-          if (skip_needed == false)
-            skip_needed = f[i].CoarseStencil;
-        }
-        if (skip_needed == false) {
-          std::vector<int> remEl;
-          needed0(compass, remEl);
-          for (size_t k = 0; k < remEl.size(); k++)
-            f[remEl[k]].ToBeKept = false;
-        }
-        for (auto &i : keepEl(compass)) {
-          const int k = i->index;
-          int L[3] = {0, 0, 0};
-          int Lc[2] = {0, 0};
-          DetermineStencilLength(sLength, f[k].infos[0]->level,
-                                 f[k].infos[1]->level, f[k].icode[1], L);
-          const int V = L[0] * L[1] * L[2];
-          int Vc = 0;
-          total_size += V;
-          f[k].dis = offsets_recv[otherrank];
-          UnPackInfo info = {f[k].dis,
-                             L[0],
-                             L[1],
-                             0,
-                             0,
-                             0,
-                             L[0],
-                             L[1],
-                             -1,
-                             0,
-                             0,
-                             0,
-                             0,
-                             0,
-                             f[k].infos[0]->level,
-                             f[k].icode[1],
-                             otherrank,
-                             f[k].infos[0]->index[0],
-                             f[k].infos[0]->index[1],
-                             f[k].infos[0]->index[2],
-                             f[k].infos[1]->id2};
-          if (f[k].CoarseStencil) {
-            Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
-            Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-            Vc = Lc[0] * Lc[1];
-            total_size += Vc;
-            offsets_recv[otherrank] += Vc * dim;
-            info.CoarseVersionOffset = V * dim;
-            info.CoarseVersionLX = Lc[0];
-            info.CoarseVersionLY = Lc[1];
-          }
-          offsets_recv[otherrank] += V * dim;
-          buf->myunpacks[f[k].infos[1]->halo_id].push_back(info);
-          for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
-            int remEl1 = i->removed[kk];
-            DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
-                                   f[remEl1].infos[1]->level,
-                                   f[remEl1].icode[1], &L[0]);
-            int srcx, srcy, srcz;
-            FixDuplicates(AllStencils, Coarse_Range, stencil, &f[k], &f[remEl1],
-                          info.lx, info.ly, 1, L[0], L[1], L[2], &srcx, &srcy,
-                          &srcz);
-            int Csrcx = 0;
-            int Csrcy = 0;
-            int Csrcz = 0;
-            if (f[k].CoarseStencil)
-              FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
-                             &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
-            buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
-                {info.offset,
-                 L[0],
-                 L[1],
-                 srcx,
-                 srcy,
-                 srcz,
-                 info.LX,
-                 info.LY,
-                 info.CoarseVersionOffset,
-                 info.CoarseVersionLX,
-                 info.CoarseVersionLY,
-                 Csrcx,
-                 Csrcy,
-                 Csrcz,
-                 f[remEl1].infos[0]->level,
-                 f[remEl1].icode[1],
-                 otherrank,
-                 f[remEl1].infos[0]->index[0],
-                 f[remEl1].infos[0]->index[1],
-                 f[remEl1].infos[0]->index[2],
-                 f[remEl1].infos[1]->id2});
-            f[remEl1].dis = info.offset;
-          }
-        }
-      }
-      buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
-      buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim);
-      buf->send_packinfos[r].clear();
-      ToBeAveragedDown[r].clear();
-      for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
-        Interface *f = &buf->send_interfaces[r][i];
-        if (!f->ToBeKept)
-          continue;
-        if (f->infos[0]->level <= f->infos[1]->level) {
-          Range &range =
-              DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
-          buf->send_packinfos[r].push_back(
-              {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
-               range.sy, range.sz, range.ex, range.ey, range.ez});
-          if (f->CoarseStencil) {
-            int V = (range.ex - range.sx) * (range.ey - range.sy);
-            ToBeAveragedDown[r].push_back(i);
-            ToBeAveragedDown[r].push_back(f->dis + V * dim);
-          }
-        } else {
-          ToBeAveragedDown[r].push_back(i);
-          ToBeAveragedDown[r].push_back(f->dis);
-        }
-      }
-    }
-    mapofHaloBlockGroups.clear();
-    for (auto info : buf->halo_blocks) {
-      int id = info->halo_id;
-      UnPackInfo *unpacks = buf->myunpacks[id].data();
-      std::set<int> ranks;
-      for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
-        UnPackInfo *unpack = &unpacks[jj];
-        ranks.insert(unpack->rank);
-      }
-      std::string set_ID;
-      for (auto r : ranks) {
-        std::stringstream ss;
-        ss << std::setw(sim.size) << std::setfill('0') << r;
-        std::string s = ss.str();
-        set_ID += s;
-      }
-      auto retval = mapofHaloBlockGroups.find(set_ID);
-      if (retval == mapofHaloBlockGroups.end()) {
-        HaloBlockGroup temporary;
-        temporary.myranks = ranks;
-        temporary.myblocks.push_back(info);
-        mapofHaloBlockGroups[set_ID] = temporary;
-      } else {
-        (retval->second).myblocks.push_back(info);
-      }
-    }
-  }
 };
 struct Face {
   Info *infos[2];
@@ -2069,7 +2069,11 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
     }
-    s->Setup(dim, tree, all, infos, s->buf);
+    Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
+          s->Coarse_Range, s->stencil, s->sLength, s->ToBeAveragedDown,
+          s->mapofHaloBlockGroups
+
+    );
     (*synchronizers)[stencil] = s;
   } else {
     s = itSynchronizerMPI->second;
@@ -5471,7 +5475,12 @@ static void adapt() {
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
-        (*it->second).Setup(dim, &g->tree, &g->all, &g->infos, it->second->buf);
+        Setup(dim, &g->tree, &g->all, &g->infos, it->second->buf,
+
+              it->second->use_averages, it->second->AllStencils,
+              it->second->Coarse_Range, it->second->stencil,
+              it->second->sLength, it->second->ToBeAveragedDown,
+              it->second->mapofHaloBlockGroups);
         it++;
       }
     }
