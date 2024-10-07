@@ -2661,8 +2661,8 @@ struct BlockLab {
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             L[2] = sLength[3 * (icode + 2 * 27) + 2];
             unpack_subregion(
-                &buf->recv_buffer[otherrank][unpack->offset +
-                                                   unpack->CoarseVersionOffset],
+                &buf->recv_buffer[otherrank]
+                                 [unpack->offset + unpack->CoarseVersionOffset],
                 &dst1[0], dim, unpack->CoarseVersionsrcxstart,
                 unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
                 L[1], nc[0]);
@@ -3077,7 +3077,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
+      lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
+               Synch->sLength);
       kernel(&lab, I);
     }
     while (done == false) {
@@ -3087,7 +3088,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
+        lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
+                 Synch->sLength);
         kernel(&lab, I);
       }
 #pragma omp single
@@ -3133,8 +3135,10 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2, true, Synch2->sLength);
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+               Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2,
+                true, Synch2->sLength);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
@@ -3154,8 +3158,10 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true, Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2, true, Synch->sLength);
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+               Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2,
+                true, Synch->sLength);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -5000,7 +5006,8 @@ static void adapt() {
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab->load(&g->tree, &g->all, Synch->buf, stencil, parent, true, Synch->sLength);
+        lab->load(&g->tree, &g->all, Synch->buf, stencil, parent, true,
+                  Synch->sLength);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
