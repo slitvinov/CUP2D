@@ -587,7 +587,6 @@ struct Range {
   int index;
   int sx;
   int sy;
-  const int sz = 0;
   int ex;
   int ey;
   const int ez = 1;
@@ -885,7 +884,7 @@ static void FixDuplicates(std::array<Range, 3 * 27> &AllStencils,
         DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
     *sx = range_dup.sx - range.sx;
     *sy = range_dup.sy - range.sy;
-    *sz = range_dup.sz - range.sz;
+    *sz = 0;
   }
 }
 
@@ -901,7 +900,7 @@ static void FixDuplicates2(std::array<Range, 3 * 27> &AllStencils,
       DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, true);
   *sx = range_dup.sx - range.sx;
   *sy = range_dup.sy - range.sy;
-  *sz = range_dup.sz - range.sz;
+  *sz = 0;
 }
 
 static std::vector<Info *> &avail_next(
@@ -1382,7 +1381,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
         buf->send_packinfos[r].push_back(
             {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
-             range.sy, range.sz, range.ex, range.ey, range.ez});
+             range.sy, 0, range.ex, range.ey, range.ez});
         if (f->CoarseStencil) {
           int V = (range.ex - range.sx) * (range.ey - range.sy);
           ToBeAveragedDown[r].push_back(i);
@@ -2047,7 +2046,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
       s->sLength[3 * icode + 0] = range0.ex - range0.sx;
       s->sLength[3 * icode + 1] = range0.ey - range0.sy;
-      s->sLength[3 * icode + 2] = range0.ez - range0.sz;
+      s->sLength[3 * icode + 2] = range0.ez;
       Range &range1 = s->AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
@@ -2063,7 +2062,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
       s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
-      s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
+      s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez;
     }
     Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
           s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
