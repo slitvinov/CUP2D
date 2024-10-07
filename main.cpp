@@ -56,26 +56,26 @@ static double getA_local(int I1, int I2) {
     return 0.0;
 }
 static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
-                 int zstart, int xend, int yend, int zend, int BSX, int BSY) {
+                 int zstart, int xend, int yend, int zend) {
   if (dim == 1) {
     const int mod = (xend - xstart) % 4;
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy) {
         for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
-          dst[idst + 0] = srcbase[ix + 0 + BSX * (iy + BSY * iz)];
-          dst[idst + 1] = srcbase[ix + 1 + BSX * (iy + BSY * iz)];
-          dst[idst + 2] = srcbase[ix + 2 + BSX * (iy + BSY * iz)];
-          dst[idst + 3] = srcbase[ix + 3 + BSX * (iy + BSY * iz)];
+          dst[idst + 0] = srcbase[ix + 0 + _BS_ * (iy + _BS_ * iz)];
+          dst[idst + 1] = srcbase[ix + 1 + _BS_ * (iy + _BS_ * iz)];
+          dst[idst + 2] = srcbase[ix + 2 + _BS_ * (iy + _BS_ * iz)];
+          dst[idst + 3] = srcbase[ix + 3 + _BS_ * (iy + _BS_ * iz)];
         }
         for (int ix = xend - mod; ix < xend; ix++, idst++) {
-          dst[idst] = srcbase[ix + BSX * (iy + BSY * iz)];
+          dst[idst] = srcbase[ix + _BS_ * (iy + _BS_ * iz)];
         }
       }
   } else {
     for (int idst = 0, iz = zstart; iz < zend; ++iz)
       for (int iy = ystart; iy < yend; ++iy)
         for (int ix = xstart; ix < xend; ++ix) {
-          const Real *src = srcbase + dim * (ix + BSX * (iy + BSY * iz));
+          const Real *src = srcbase + dim * (ix + _BS_ * (iy + _BS_ * iz));
           for (int ic = 0; ic < dim; ic++, idst++)
             dst[idst] = src[ic];
         }
@@ -2168,7 +2168,7 @@ static Synchronizer *sync1(const Stencil &stencil,
         for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
           const PackInfo &info = s->buf->send_packinfos[r][i];
           pack(info.block, info.pack, dim, info.sx, info.sy, 0, info.ex,
-               info.ey, 1, _BS_, _BS_);
+               info.ey, 1);
         }
       }
     }
