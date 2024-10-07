@@ -59,26 +59,26 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
                  int xend, int yend) {
   if (dim == 1) {
     const int mod = (xend - xstart) % 4;
-    for (int idst = 0, iz = 0; iz < 1; ++iz)
-      for (int iy = ystart; iy < yend; ++iy) {
-        for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
-          dst[idst + 0] = srcbase[ix + 0 + _BS_ * (iy + _BS_ * iz)];
-          dst[idst + 1] = srcbase[ix + 1 + _BS_ * (iy + _BS_ * iz)];
-          dst[idst + 2] = srcbase[ix + 2 + _BS_ * (iy + _BS_ * iz)];
-          dst[idst + 3] = srcbase[ix + 3 + _BS_ * (iy + _BS_ * iz)];
-        }
-        for (int ix = xend - mod; ix < xend; ix++, idst++) {
-          dst[idst] = srcbase[ix + _BS_ * (iy + _BS_ * iz)];
-        }
+    int idst = 0;
+    for (int iy = ystart; iy < yend; ++iy) {
+      for (int ix = xstart; ix < xend - mod; ix += 4, idst += 4) {
+        dst[idst + 0] = srcbase[ix + 0 + _BS_ * iy];
+        dst[idst + 1] = srcbase[ix + 1 + _BS_ * iy];
+        dst[idst + 2] = srcbase[ix + 2 + _BS_ * iy];
+        dst[idst + 3] = srcbase[ix + 3 + _BS_ * iy];
       }
+      for (int ix = xend - mod; ix < xend; ix++, idst++) {
+        dst[idst] = srcbase[ix + _BS_ * iy];
+      }
+    }
   } else {
-    for (int idst = 0, iz = 0; iz < 1; ++iz)
-      for (int iy = ystart; iy < yend; ++iy)
-        for (int ix = xstart; ix < xend; ++ix) {
-          const Real *src = srcbase + dim * (ix + _BS_ * (iy + _BS_ * iz));
-          for (int ic = 0; ic < dim; ic++, idst++)
-            dst[idst] = src[ic];
-        }
+    int idst = 0;
+    for (int iy = ystart; iy < yend; ++iy)
+      for (int ix = xstart; ix < xend; ++ix) {
+        const Real *src = srcbase + dim * (ix + _BS_ * iy);
+        for (int ic = 0; ic < dim; ic++, idst++)
+          dst[idst] = src[ic];
+      }
   }
 }
 static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
