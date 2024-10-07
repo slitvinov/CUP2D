@@ -589,7 +589,6 @@ struct Range {
   int sy;
   int ex;
   int ey;
-  const int ez = 1;
   bool needed{true};
   bool avg_down{true};
 };
@@ -1381,7 +1380,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
         buf->send_packinfos[r].push_back(
             {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
-             range.sy, 0, range.ex, range.ey, range.ez});
+             range.sy, 0, range.ex, range.ey, 1});
         if (f->CoarseStencil) {
           int V = (range.ex - range.sx) * (range.ey - range.sy);
           ToBeAveragedDown[r].push_back(i);
@@ -2046,7 +2045,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
       s->sLength[3 * icode + 0] = range0.ex - range0.sx;
       s->sLength[3 * icode + 1] = range0.ey - range0.sy;
-      s->sLength[3 * icode + 2] = range0.ez;
+      s->sLength[3 * icode + 2] = 1;
       Range &range1 = s->AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
@@ -2062,7 +2061,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
       s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
-      s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez;
+      s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
     Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
           s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
