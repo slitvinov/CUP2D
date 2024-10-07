@@ -8,6 +8,6 @@ rm -rf ${d?not set} &&
    module load mpi &&
    make -j "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" "CXXFLAGS = -O3" &&
    mpiexec -n 2 sh run.sh &&
-   ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
+   # ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
 '
 rsync -avz "glados:$d"/vel* .
