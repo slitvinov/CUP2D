@@ -594,11 +594,11 @@ struct Range {
   bool needed{true};
   bool avg_down{true};
 };
-static void remove(Range *q, Range *other) {
+static void remove(Range *q, Range *p) {
   size_t s = q->removed.size();
-  q->removed.resize(s + other->removed.size());
-  for (size_t i = 0; i < other->removed.size(); i++)
-    q->removed[s + i] = other->removed[i];
+  q->removed.resize(s + p->removed.size());
+  for (size_t i = 0; i < p->removed.size(); i++)
+    q->removed[s + i] = p->removed[i];
 }
 static bool contains(Range *q, Range *r) {
   if (q->avg_down != r->avg_down)
