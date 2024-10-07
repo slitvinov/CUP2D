@@ -593,13 +593,6 @@ struct Range {
   const int ez = 1;
   bool needed{true};
   bool avg_down{true};
-  bool contains(Range *r) const {
-    if (avg_down != r->avg_down)
-      return false;
-    int V = (ey - sy) * (ex - sx);
-    int Vr = (r->ey - r->sy) * (r->ex - r->sx);
-    return sx <= r->sx && r->ex <= ex && sy <= r->sy && r->ey <= ey && Vr < V;
-  }
   void remove(const Range *other) {
     size_t s = removed.size();
     removed.resize(s + other->removed.size());
@@ -607,6 +600,14 @@ struct Range {
       removed[s + i] = other->removed[i];
   }
 };
+static bool contains(Range *q, Range *r) {
+  if (q->avg_down != r->avg_down)
+    return false;
+  int V = (q->ey - q->sy) * (q->ex - q->sx);
+  int Vr = (r->ey - r->sy) * (r->ex - r->sx);
+  return q->sx <= r->sx && r->ex <= q->ex && q->sy <= r->sy && r->ey <= q->ey &&
+         Vr < V;
+}
 struct UnPackInfo {
   int offset;
   int lx;
@@ -666,7 +667,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
         if (me[j1].needed) {
           needme = true;
           for (size_t j2 = 0; j2 < me.size(); j2++)
-            if (me[j2].needed && me[j2].contains(&me[j1])) {
+            if (me[j2].needed && contains(&me[j2], &me[j1])) {
               me[j1].needed = false;
               me[j2].removed.push_back(me[j1].index);
               me[j2].remove(&me[j1]);
@@ -693,7 +694,7 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
               if (o.needed)
                 for (size_t k1 = 0; k1 < me.size(); k1++) {
                   auto &m = me[k1];
-                  if (m.needed && m.contains(&o)) {
+                  if (m.needed && contains(&m, &o)) {
                     o.needed = false;
                     m.removed.push_back(o.index);
                     m.remove(&o);
