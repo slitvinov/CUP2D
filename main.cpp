@@ -1425,7 +1425,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
 }
 struct Synchronizer {
   bool use_averages;
-  const Stencil stencil;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   std::unordered_map<int, MPI_Request *> mapofrequests;
@@ -1434,7 +1433,6 @@ struct Synchronizer {
   std::vector<std::vector<int>> ToBeAveragedDown;
   struct Range Coarse_Range;
   struct SyncBuf *buf;
-  Synchronizer(Stencil stencil) : stencil(stencil) {}
 };
 struct Face {
   Info *infos[2];
@@ -2026,7 +2024,7 @@ static Synchronizer *sync1(const Stencil &stencil,
   Synchronizer *s;
   auto itSynchronizerMPI = synchronizers->find(stencil);
   if (itSynchronizerMPI == synchronizers->end()) {
-    s = new Synchronizer(stencil);
+    s = new Synchronizer;
     s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
@@ -2038,7 +2036,7 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf->send_buffer.resize(sim.size);
     s->buf->recv_buffer.resize(sim.size);
     s->ToBeAveragedDown.resize(sim.size);
-    const int sC[3] = {(s->stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+    const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
@@ -2070,7 +2068,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 2] = range2.ez - range2.sz;
     }
     Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
-          s->Coarse_Range, s->stencil, s->sLength, s->ToBeAveragedDown,
+          s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
           s->mapofHaloBlockGroups
 
     );
@@ -2322,7 +2320,7 @@ struct BlockLab {
   }
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, Synchronizer *sync,
-            Info *info, bool applybc) {
+            const Stencil &stencil, Info *info, bool applybc) {
     int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -2640,25 +2638,23 @@ struct BlockLab {
         int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
                        (unpack->icode / 9) % 3 - 1};
         int otherrank = unpack->rank;
-        int s[3] = {code[0] < 1 ? (code[0] < 0 ? sync->stencil.sx : 0) : _BS_,
-                    code[1] < 1 ? (code[1] < 0 ? sync->stencil.sy : 0) : _BS_,
+        int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                    code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
                     code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-        int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_)
-                                : _BS_ + sync->stencil.ex - 1,
-                    code[1] < 1 ? (code[1] < 0 ? 0 : _BS_)
-                                : _BS_ + sync->stencil.ey - 1,
-                    code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
+        int e[3] = {
+            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
+            code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
           Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
-                           (s[1] - sync->stencil.sy) * nm[0] + s[0] -
-                           sync->stencil.sx) *
+                           (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                               dim;
           unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
-            int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
-                             (sync->stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
+            int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                             (0 - 1) / 2 + 0};
             int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
                          code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
                          code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
@@ -2679,8 +2675,8 @@ struct BlockLab {
                 L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
-          int offset[3] = {(sync->stencil.sx - 1) / 2 - 1,
-                           (sync->stencil.sy - 1) / 2 - 1, (0 - 1) / 2 + 0};
+          int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                           (0 - 1) / 2 + 0};
           int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
                        code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
                        code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
@@ -2720,17 +2716,17 @@ struct BlockLab {
           }
           int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
           Real *dst =
-              m + ((abs(code[2]) * (s[2] - 0) +
-                    (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
-                       nm[0] * nm[1] +
-                   (abs(code[1]) * (s[1] - sync->stencil.sy) +
-                    (1 - abs(code[1])) *
-                        (-sync->stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
-                       nm[0] +
-                   abs(code[0]) * (s[0] - sync->stencil.sx) +
-                   (1 - abs(code[0])) *
-                       (-sync->stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
-                      dim;
+              m +
+              ((abs(code[2]) * (s[2] - 0) +
+                (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
+                   nm[0] * nm[1] +
+               (abs(code[1]) * (s[1] - stencil.sy) +
+                (1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
+                   nm[0] +
+               abs(code[0]) * (s[0] - stencil.sx) +
+               (1 - abs(code[0])) *
+                   (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
+                  dim;
           unpack_subregion(&sync->buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
@@ -3088,7 +3084,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (const auto &I : *inner) {
-      lab.load(&g->tree, &g->all, Synch, I, true);
+      lab.load(&g->tree, &g->all, Synch, kernel.stencil, I, true);
       kernel(&lab, I);
     }
     while (done == false) {
@@ -3098,7 +3094,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (const auto &I : *halo_next) {
-        lab.load(&g->tree, &g->all, Synch, I, true);
+        lab.load(&g->tree, &g->all, Synch, kernel.stencil, I, true);
         kernel(&lab, I);
       }
 #pragma omp single
@@ -3125,8 +3121,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
   Synchronizer *Synch2 =
       sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
             &grid2->infos, &grid2->timestamp, grid2->dim);
-  const Stencil &stencil = Synch->stencil;
-  const Stencil &stencil2 = Synch2->stencil;
+  const Stencil &stencil = kernel.stencil;
+  const Stencil &stencil2 = kernel2.stencil;
   std::vector<Info> &blk = grid->infos;
   std::vector<bool> ready(blk.size(), false);
   std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
@@ -3144,8 +3140,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(&grid->tree, &grid->all, Synch, I, true);
-      lab2.load(&grid2->tree, &grid2->all, Synch2, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch, kernel.stencil, I, true);
+      lab2.load(&grid2->tree, &grid2->all, Synch2, kernel2.stencil, I2, true);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
@@ -3165,8 +3161,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(&grid->tree, &grid->all, Synch, I, true);
-      lab2.load(&grid2->tree, &grid2->all, Synch2, I2, true);
+      lab.load(&grid->tree, &grid->all, Synch, kernel.stencil, I, true);
+      lab2.load(&grid2->tree, &grid2->all, Synch2, kernel.stencil2, I2, true);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -5011,7 +5007,7 @@ static void adapt() {
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab->load(&g->tree, &g->all, Synch, parent, true);
+        lab->load(&g->tree, &g->all, Synch, stencil, parent, true);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -5026,7 +5022,7 @@ static void adapt() {
           Blocks[j * 2 + i] = Child->block;
         }
       if (basic == false) {
-        int nm = _BS_ + Synch->stencil.ex - Synch->stencil.sx - 1;
+        int nm = _BS_ + stencil.ex - stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
         Real *um = lab->m;
@@ -5036,8 +5032,8 @@ static void adapt() {
             memset(b, 0, dim * _BS_ * _BS_ * sizeof(Real));
             for (int j = 0; j < _BS_; j += 2)
               for (int i = 0; i < _BS_; i += 2) {
-                int i0 = i / 2 + offsetX[I] - Synch->stencil.sx;
-                int j0 = j / 2 + offsetY[J] - Synch->stencil.sy;
+                int i0 = i / 2 + offsetX[I] - stencil.sx;
+                int j0 = j / 2 + offsetY[J] - stencil.sy;
                 int im = i0 - 1;
                 int ip = i0 + 1;
                 int jm = j0 - 1;
@@ -5478,9 +5474,8 @@ static void adapt() {
         Setup(dim, &g->tree, &g->all, &g->infos, it->second->buf,
 
               it->second->use_averages, it->second->AllStencils,
-              it->second->Coarse_Range, it->second->stencil,
-              it->second->sLength, it->second->ToBeAveragedDown,
-              it->second->mapofHaloBlockGroups);
+              it->second->Coarse_Range, stencil, it->second->sLength,
+              it->second->ToBeAveragedDown, it->second->mapofHaloBlockGroups);
         it++;
       }
     }
