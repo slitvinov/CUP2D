@@ -9,6 +9,5 @@ rm -rf ${d?not set} &&
    make -j "NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++" "CXXFLAGS = -O3" &&
    mpiexec -n 2 sh run.sh &&
    ls vort.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
-   # python -m gcovr --html-details cover.html
 '
-rsync -avz "glados:$d"/vort* .
+rsync -avz "glados:$d"/vel* .
