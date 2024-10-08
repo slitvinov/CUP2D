@@ -1577,11 +1577,9 @@ static void fillcase0(Face *F, Buffers *buf,
   int myFace = abs(code[0]) * std::max(0, code[0]) +
                abs(code[1]) * (std::max(0, code[1]) + 2) +
                abs(code[2]) * (std::max(0, code[2]) + 4);
-  std::array<long long, 2> temp = {(long long)info->level, info->Z};
-  auto search = buf->Map.find(temp);
+  auto search = buf->Map.find({info->level, info->Z});
   assert(search != buf->Map.end());
-  BlockCase &CoarseCase = (*search->second);
-  Real *CoarseFace = CoarseCase.d[myFace];
+  Real *CoarseFace = search->second->d[myFace];
   for (int B = 0; B <= 1; B++) {
     int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
     long long Z = forward(info->level + 1,
