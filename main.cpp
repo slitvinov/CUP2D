@@ -2194,7 +2194,6 @@ static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
-  const int dim;
   size_t timestamp;
   std::map<Stencil, Synchronizer *> *synchronizers;
   std::unordered_map<long long, Info *> all;
@@ -2202,7 +2201,6 @@ struct Grid {
   std::vector<Info *> boundary;
   std::vector<Info> infos;
   struct Buffers *buf;
-  Grid(int dim) : dim(dim) {}
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -3005,7 +3003,7 @@ struct BlockLab {
 };
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
-  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, grid->dim);
+  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
   Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
@@ -3029,7 +3027,7 @@ struct MPI_Block {
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
-                              &g->all, &g->infos, &g->timestamp, g->dim);
+                              &g->all, &g->infos, &g->timestamp, dim);
   std::vector<Info *> *inner = &Synch->buf->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
@@ -3065,10 +3063,10 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename Lab, typename Lab2>
-static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2, int dim2) {
-  Synchronizer *Synch =
-      sync1(kernel.stencil, grid->synchronizers, &grid->tree, &grid->all,
-            &grid->infos, &grid->timestamp, grid->dim);
+static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
+                     int dim2) {
+  Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
+                              &grid->all, &grid->infos, &grid->timestamp, dim);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -3077,7 +3075,7 @@ static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2, int dim2
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   Synchronizer *Synch2 =
       sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
-            &grid2->infos, &grid2->timestamp, grid2->dim);
+            &grid2->infos, &grid2->timestamp, dim2);
   const Stencil &stencil = kernel.stencil;
   const Stencil &stencil2 = kernel2.stencil;
   std::vector<Info> &blk = grid->infos;
@@ -4665,7 +4663,7 @@ static void adapt() {
   Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch =
       sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
-            &var.tmp->infos, &var.tmp->timestamp, var.tmp->dim);
+            &var.tmp->infos, &var.tmp->timestamp, 1);
   bool CallValidStates = false;
   bool Reduction = false;
   MPI_Request Reduction_req;
@@ -4907,13 +4905,12 @@ static void adapt() {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     bool boundary_needed = var.F[i].boundary_needed;
-    ;
     int dim = var.F[i].dim;
     Synchronizer *Synch = nullptr;
     const Stencil stencil{-1, -1, 2, 2, true};
     if (basic == false) {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
-                    &g->timestamp, g->dim);
+                    &g->timestamp, dim);
       MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
                   MPI_STATUSES_IGNORE);
       g->boundary = Synch->buf->halo_blocks;
@@ -4979,7 +4976,7 @@ static void adapt() {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info *Child = getf(&g->all, level + 1, nc);
           Child->state = Leave;
-          _alloc(level + 1, nc, &g->all, &g->infos, &g->tree, g->dim);
+          _alloc(level + 1, nc, &g->all, &g->infos, &g->tree, dim);
           treef(&g->tree, level + 1, nc) = -2;
           Blocks[j * 2 + i] = Child->block;
         }
@@ -5128,7 +5125,7 @@ static void adapt() {
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].level;
         const long long Z = recv_blocks[r][i].Z;
-        _alloc(level, Z, &g->all, &g->infos, &g->tree, g->dim);
+        _alloc(level, Z, &g->all, &g->infos, &g->tree, dim);
         Info *info = getf(&g->all, level, Z);
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
@@ -5419,8 +5416,7 @@ static void adapt() {
       MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                      &request_reduction);
       for (int i = 0; i < -flux_left; i++)
-        AddBlock(dim, g, recv_left[i].level, recv_left[i].Z,
-                 recv_left[i].data);
+        AddBlock(dim, g, recv_left[i].level, recv_left[i].Z, recv_left[i].data);
       for (int i = 0; i < -flux_right; i++)
         AddBlock(dim, g, recv_right[i].level, recv_right[i].Z,
                  recv_right[i].data);
@@ -6510,7 +6506,7 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
-    Grid *g = *var.F[i].g = new Grid(dim);
+    Grid *g = *var.F[i].g = new Grid;
     g->buf = new Buffers;
     g->synchronizers = new std::map<Stencil, Synchronizer *>;
     for (size_t i = 0; i < my_blocks; i++) {
@@ -6614,7 +6610,7 @@ int main(int argc, char **argv) {
                2 * _BS_ * _BS_ * sizeof(Real));
       if (var.tmpV->UpdateFluxCorrection) {
         prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
-                 &var.tmpV->tree, var.tmpV->dim);
+                 &var.tmpV->tree, 2);
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
@@ -6630,7 +6626,7 @@ int main(int argc, char **argv) {
       }
       if (var.tmpV->UpdateFluxCorrection) {
         prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
-                 &var.tmpV->tree, var.tmpV->dim);
+                 &var.tmpV->tree, 2);
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
@@ -7010,7 +7006,7 @@ int main(int argc, char **argv) {
       }
       if (var.tmp->UpdateFluxCorrection) {
         prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 var.tmp->dim);
+                 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel, 2,
@@ -7026,7 +7022,7 @@ int main(int argc, char **argv) {
       }
       if (var.tmp->UpdateFluxCorrection) {
         prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 var.tmp->dim);
+                 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
@@ -7179,7 +7175,7 @@ int main(int argc, char **argv) {
       }
       if (var.tmp->UpdateFluxCorrection) {
         prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 var.tmp->dim);
+                 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
@@ -7192,8 +7188,8 @@ int main(int argc, char **argv) {
         for (int j = 0; j < 2 * _BS_ * _BS_; j++)
           V[j] += tmpV[j] * ih2;
       }
-      computeB<KernelComputeForces, VectorLab, ScalarLab>(KernelComputeForces(),
-                                                          var.vel, 2, var.chi, 1);
+      computeB<KernelComputeForces, VectorLab, ScalarLab>(
+          KernelComputeForces(), var.vel, 2, var.chi, 1);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
