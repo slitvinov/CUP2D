@@ -3065,7 +3065,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename Lab, typename Lab2>
-static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
+static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2, int dim2) {
   Synchronizer *Synch =
       sync1(kernel.stencil, grid->synchronizers, &grid->tree, &grid->all,
             &grid->infos, &grid->timestamp, grid->dim);
@@ -4472,7 +4472,7 @@ static void ongrid(Real dt) {
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(ComputeSurfaceNormals(),
-                                                        var.chi, var.tmp);
+                                                        var.chi, 1, var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -7013,8 +7013,8 @@ int main(int argc, char **argv) {
                  var.tmp->dim);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel,
-                                                   var.tmpV);
+      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel, 2,
+                                                   var.tmpV, 2);
       fillcases(var.tmp->buf, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
@@ -7193,7 +7193,7 @@ int main(int argc, char **argv) {
           V[j] += tmpV[j] * ih2;
       }
       computeB<KernelComputeForces, VectorLab, ScalarLab>(KernelComputeForces(),
-                                                          var.vel, var.chi);
+                                                          var.vel, 2, var.chi, 1);
       for (const auto &shape : sim.shapes) {
         shape->perimeter = 0;
         shape->forcex = 0;
