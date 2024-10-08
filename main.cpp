@@ -128,10 +128,8 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
     Real dksiY = curv[i - 1] * norY[i - 1];
     Real dnuX = -curv[i - 1] * ksiX;
     Real dnuY = -curv[i - 1] * ksiY;
-    Real dvKsiX =
-        curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-    Real dvKsiY =
-        curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
+    Real dvKsiX = curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
+    Real dvKsiY = curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
     Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
     Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
     Real ds = rS[i] - rS[i - 1];
