@@ -363,7 +363,6 @@ struct SpaceCurve {
       Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
     }
     isRegular = true;
-#pragma omp parallel for collapse(2)
     for (int j = 0; j < sim.bpdy; j++)
       for (int i = 0; i < sim.bpdx; i++) {
         int c[2] = {i, j};
