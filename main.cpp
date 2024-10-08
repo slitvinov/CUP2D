@@ -348,7 +348,7 @@ struct SpaceCurve {
   std::vector<std::vector<long long>> Zsave;
   std::vector<std::vector<int>> i_inverse, j_inverse;
   SpaceCurve() {
-    const int n_max = std::max(sim.bpdx, sim.bpdy);
+    int n_max = std::max(sim.bpdx, sim.bpdy);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
       base_level++;
@@ -356,8 +356,8 @@ struct SpaceCurve {
     j_inverse.resize(sim.levelMax);
     Zsave.resize(sim.levelMax);
     {
-      const int l = 0;
-      const int aux = pow(pow(2, l), 2);
+      int l = 0;
+      int aux = pow(pow(2, l), 2);
       i_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
       j_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
       Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
@@ -366,7 +366,7 @@ struct SpaceCurve {
 #pragma omp parallel for collapse(2)
     for (int j = 0; j < sim.bpdy; j++)
       for (int i = 0; i < sim.bpdx; i++) {
-        const int c[2] = {i, j};
+        int c[2] = {i, j};
         long long index = AxestoTranspose(c, base_level);
         long long substract = 0;
         for (long long h = 0; h < index; h++) {
