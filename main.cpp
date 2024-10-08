@@ -124,17 +124,17 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   Real vKsiX = 0.0;
   Real vKsiY = 0.0;
   for (unsigned i = 1; i < Nm; i++) {
-    const Real dksiX = curv[i - 1] * norX[i - 1];
-    const Real dksiY = curv[i - 1] * norY[i - 1];
-    const Real dnuX = -curv[i - 1] * ksiX;
-    const Real dnuY = -curv[i - 1] * ksiY;
-    const Real dvKsiX =
+    Real dksiX = curv[i - 1] * norX[i - 1];
+    Real dksiY = curv[i - 1] * norY[i - 1];
+    Real dnuX = -curv[i - 1] * ksiX;
+    Real dnuY = -curv[i - 1] * ksiY;
+    Real dvKsiX =
         curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-    const Real dvKsiY =
+    Real dvKsiY =
         curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
-    const Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
-    const Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
-    const Real ds = rS[i] - rS[i - 1];
+    Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
+    Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
+    Real ds = rS[i] - rS[i - 1];
     rX[i] = rX[i - 1] + ds * ksiX;
     rY[i] = rY[i - 1] + ds * ksiY;
     norX[i] = norX[i - 1] + ds * dnuX;
@@ -147,15 +147,15 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
     vNorY[i] = vNorY[i - 1] + ds * dvNuY;
     vKsiX += ds * dvKsiX;
     vKsiY += ds * dvKsiY;
-    const Real d1 = ksiX * ksiX + ksiY * ksiY;
-    const Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
+    Real d1 = ksiX * ksiX + ksiY * ksiY;
+    Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
     if (d1 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d1);
+      Real normfac = 1 / std::sqrt(d1);
       ksiX *= normfac;
       ksiY *= normfac;
     }
     if (d2 > std::numeric_limits<Real>::epsilon()) {
-      const Real normfac = 1 / std::sqrt(d2);
+      Real normfac = 1 / std::sqrt(d2);
       norX[i] *= normfac;
       norY[i] *= normfac;
     }
