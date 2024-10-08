@@ -343,7 +343,7 @@ static struct {
   struct LocalSpMatDnVec *mat;
 } sim;
 struct SpaceCurve {
-  int BX, BY, base_level;
+  int base_level;
   bool isRegular;
   std::vector<std::vector<long long>> Zsave;
   std::vector<std::vector<int>> i_inverse, j_inverse;
@@ -385,8 +385,8 @@ struct SpaceCurve {
       *y = t;
     }
   }
-  SpaceCurve(int a_BX, int a_BY) : BX(a_BX), BY(a_BY) {
-    const int n_max = std::max(BX, BY);
+  SpaceCurve() {
+    const int n_max = std::max(sim.bpdx, sim.bpdy);
     base_level = (log(n_max) / log(2));
     if (base_level < (double)(log(n_max) / log(2)))
       base_level++;
@@ -396,21 +396,21 @@ struct SpaceCurve {
     {
       const int l = 0;
       const int aux = pow(pow(2, l), 2);
-      i_inverse[l].resize(BX * BY * aux, -1);
-      j_inverse[l].resize(BX * BY * aux, -1);
-      Zsave[l].resize(BX * BY * aux, -1);
+      i_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
+      j_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
+      Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
     }
     isRegular = true;
 #pragma omp parallel for collapse(2)
-    for (int j = 0; j < BY; j++)
-      for (int i = 0; i < BX; i++) {
+    for (int j = 0; j < sim.bpdy; j++)
+      for (int i = 0; i < sim.bpdx; i++) {
         const int c[2] = {i, j};
         long long index = AxestoTranspose(c, base_level);
         long long substract = 0;
         for (long long h = 0; h < index; h++) {
           int X[2] = {0, 0};
           TransposetoAxes(h, X, base_level);
-          if (X[0] >= BX || X[1] >= BY)
+          if (X[0] >= sim.bpdx || X[1] >= sim.bpdy)
             substract++;
         }
         index -= substract;
@@ -418,7 +418,7 @@ struct SpaceCurve {
           isRegular = false;
         i_inverse[0][index] = i;
         j_inverse[0][index] = j;
-        Zsave[0][j * BX + i] = index;
+        Zsave[0][j * sim.bpdx + i] = index;
       }
   }
   long long forward(const int l, const int i, const int j) const {
@@ -431,7 +431,7 @@ struct SpaceCurve {
       const int J = j / aux;
       const int c2_a[2] = {i - I * aux, j - J * aux};
       retval = AxestoTranspose(c2_a, l);
-      retval += Zsave[0][J * BX + I] * aux * aux;
+      retval += Zsave[0][J * sim.bpdx + I] * aux * aux;
     } else {
       const int c2_a[2] = {i, j};
       retval = AxestoTranspose(c2_a, l + base_level);
@@ -6383,7 +6383,7 @@ int main(int argc, char **argv) {
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
-  sim.space_curve = new SpaceCurve(sim.bpdx, sim.bpdy);
+  sim.space_curve = new SpaceCurve;
 
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
