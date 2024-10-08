@@ -6614,7 +6614,7 @@ int main(int argc, char **argv) {
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.buf1, &var.tmpV->tree, 2);
+      fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
