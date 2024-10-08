@@ -3022,7 +3022,8 @@ static void AddBlock(int dim, Grid *grid, int level, long long Z,
   }
 }
 struct MPI_Block {
-  long long mn[2];
+  long long level;
+  long long Z;
   uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
 };
 template <typename Lab, typename Kernel>
@@ -5070,8 +5071,8 @@ static void adapt() {
       if (b.Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           MPI_Block x;
-          x.mn[0] = bCopy->level;
-          x.mn[1] = bCopy->Z;
+          x.level = bCopy->level;
+          x.Z = bCopy->Z;
           std::memcpy(&x.data[0], bCopy->block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
@@ -5088,8 +5089,8 @@ static void adapt() {
             const int temprank = treef(&g->tree, b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
-              x.mn[0] = bCopy->level;
-              x.mn[1] = bCopy->Z;
+              x.level = bCopy->level;
+              x.Z = bCopy->Z;
               recv_blocks[temprank].push_back(x);
               treef(&g->tree, b.level, n) = baserank;
             }
@@ -5116,8 +5117,8 @@ static void adapt() {
       }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        dealloc(send_blocks[r][i].mn[0], send_blocks[r][i].mn[1], &g->infos);
-        treef(&g->tree, send_blocks[r][i].mn[0], send_blocks[r][i].mn[1]) = -2;
+        dealloc(send_blocks[r][i].level, send_blocks[r][i].Z, &g->infos);
+        treef(&g->tree, send_blocks[r][i].level, send_blocks[r][i].Z) = -2;
       }
     if (requests0.size() != 0) {
       movedBlocks = true;
@@ -5125,8 +5126,8 @@ static void adapt() {
     }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
-        const int level = (int)recv_blocks[r][i].mn[0];
-        const long long Z = recv_blocks[r][i].mn[1];
+        const int level = (int)recv_blocks[r][i].level;
+        const long long Z = recv_blocks[r][i].Z;
         _alloc(level, Z, &g->all, &g->infos, &g->tree, g->dim);
         Info *info = getf(&g->all, level, Z);
         std::memcpy(info->block, recv_blocks[r][i].data,
@@ -5270,8 +5271,8 @@ static void adapt() {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             Info *info = &g->infos[counter_S + i];
             MPI_Block *x = &send_blocks[r][i];
-            x->mn[0] = info->level;
-            x->mn[1] = info->Z;
+            x->level = info->level;
+            x->Z = info->Z;
             std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
           }
           counter_S += send_blocks[r].size();
@@ -5286,8 +5287,8 @@ static void adapt() {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
             Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
             MPI_Block *x = &send_blocks[r][i];
-            x->mn[0] = info->level;
-            x->mn[1] = info->Z;
+            x->level = info->level;
+            x->Z = info->Z;
             std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
           }
           counter_E += send_blocks[r].size();
@@ -5327,7 +5328,7 @@ static void adapt() {
           if (recv_blocks[r].size() != 0) {
 #pragma omp for
             for (size_t i = 0; i < recv_blocks[r].size(); i++)
-              AddBlock(dim, g, recv_blocks[r][i].mn[0], recv_blocks[r][i].mn[1],
+              AddBlock(dim, g, recv_blocks[r][i].level, recv_blocks[r][i].Z,
                        recv_blocks[r][i].data);
           }
       }
@@ -5363,8 +5364,8 @@ static void adapt() {
         for (int i = 0; i < flux_left; i++) {
           Info *info = &g->infos[i];
           MPI_Block *x = &send_left[i];
-          x->mn[0] = info->level;
-          x->mn[1] = info->Z;
+          x->level = info->level;
+          x->Z = info->Z;
           std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         MPI_Request req{};
@@ -5384,8 +5385,8 @@ static void adapt() {
         for (int i = 0; i < flux_right; i++) {
           Info *info = &g->infos[my_blocks - i - 1];
           MPI_Block *x = &send_right[i];
-          x->mn[0] = info->level;
-          x->mn[1] = info->Z;
+          x->level = info->level;
+          x->Z = info->Z;
           std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         MPI_Request req{};
@@ -5418,10 +5419,10 @@ static void adapt() {
       MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                      &request_reduction);
       for (int i = 0; i < -flux_left; i++)
-        AddBlock(dim, g, recv_left[i].mn[0], recv_left[i].mn[1],
+        AddBlock(dim, g, recv_left[i].level, recv_left[i].Z,
                  recv_left[i].data);
       for (int i = 0; i < -flux_right; i++)
-        AddBlock(dim, g, recv_right[i].mn[0], recv_right[i].mn[1],
+        AddBlock(dim, g, recv_right[i].level, recv_right[i].Z,
                  recv_right[i].data);
       MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
       movedBlocks = (temp >= 1);
