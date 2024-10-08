@@ -2198,7 +2198,6 @@ struct Grid {
   std::unordered_map<long long, int> tree;
   std::vector<Info *> boundary;
   std::vector<Info> infos;
-  struct Buffers *buf;
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -3275,6 +3274,7 @@ static struct {
       {&pres, 1, false, false}, {&pold, 1, false, false},
       {&tmpV, 2, true, false},
   };
+  struct Buffers *buf1, *buf2;
 } var;
 struct surface_data {
   int ix, iy;
@@ -6502,10 +6502,12 @@ int main(int argc, char **argv) {
     else
       n_start += total_blocks % sim.size;
   }
+  var.buf1 = new Buffers;
+  var.buf2 = new Buffers;
+
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid;
-    g->buf = new Buffers;
     g->synchronizers = new std::map<Stencil, Synchronizer *>;
     for (size_t i = 0; i < my_blocks; i++) {
       long long Z = n_start + i;
@@ -6607,12 +6609,12 @@ int main(int argc, char **argv) {
         memcpy(var.vold->infos[i].block, velInfo[i].block,
                2 * _BS_ * _BS_ * sizeof(Real));
       if (var.tmpV->UpdateFluxCorrection) {
-        prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
-                 &var.tmpV->tree, 2);
+        prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree,
+                 2);
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.tmpV->buf, &var.tmpV->tree, 2);
+      fillcases(var.buf1, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -6623,12 +6625,12 @@ int main(int argc, char **argv) {
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
       if (var.tmpV->UpdateFluxCorrection) {
-        prepare0(var.tmpV->buf, &var.tmpV->infos, &var.tmpV->all,
-                 &var.tmpV->tree, 2);
+        prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree,
+                 2);
         var.tmpV->UpdateFluxCorrection = false;
       }
       computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.tmpV->buf, &var.tmpV->tree, 2);
+      fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real *V = velInfo[i].block;
@@ -7003,13 +7005,12 @@ int main(int argc, char **argv) {
         }
       }
       if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 1);
+        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel, 2,
                                                    var.tmpV, 2);
-      fillcases(var.tmp->buf, &var.tmp->tree, 1);
+      fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
 #pragma omp parallel for
@@ -7019,12 +7020,11 @@ int main(int argc, char **argv) {
         memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
       }
       if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 1);
+        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
-      fillcases(var.tmp->buf, &var.tmp->tree, 1);
+      fillcases(var.buf1, &var.tmp->tree, 1);
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
       const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
       const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -7172,12 +7172,11 @@ int main(int argc, char **argv) {
           pres[j] += pold[j] - avg;
       }
       if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.tmp->buf, &var.tmp->infos, &var.tmp->all, &var.tmp->tree,
-                 1);
+        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
       computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
-      fillcases(var.tmp->buf, &var.tmp->tree, 1);
+      fillcases(var.buf1, &var.tmp->tree, 1);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
         Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
