@@ -304,7 +304,6 @@ struct Stencil {
   }
 };
 struct Shape;
-struct SpaceCurve;
 struct Solver;
 struct Synchronizer;
 static struct {
@@ -345,41 +344,6 @@ struct SpaceCurve {
   bool isRegular;
   std::vector<std::vector<long long>> Zsave;
   std::vector<std::vector<int>> i_inverse, j_inverse;
-  SpaceCurve() {
-    int n_max = std::max(sim.bpdx, sim.bpdy);
-    base_level = (log(n_max) / log(2));
-    if (base_level < (double)(log(n_max) / log(2)))
-      base_level++;
-    i_inverse.resize(sim.levelMax);
-    j_inverse.resize(sim.levelMax);
-    Zsave.resize(sim.levelMax);
-    {
-      int l = 0;
-      int aux = pow(pow(2, l), 2);
-      i_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-      j_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-      Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-    }
-    isRegular = true;
-    for (int j = 0; j < sim.bpdy; j++)
-      for (int i = 0; i < sim.bpdx; i++) {
-        int c[2] = {i, j};
-        long long index = AxestoTranspose(c, base_level);
-        long long substract = 0;
-        for (long long h = 0; h < index; h++) {
-          int X[2] = {0, 0};
-          TransposetoAxes(h, X, base_level);
-          if (X[0] >= sim.bpdx || X[1] >= sim.bpdy)
-            substract++;
-        }
-        index -= substract;
-        if (substract > 0)
-          isRegular = false;
-        i_inverse[0][index] = i;
-        j_inverse[0][index] = j;
-        Zsave[0][j * sim.bpdx + i] = index;
-      }
-  }
   long long AxestoTranspose(const int *X_in, int b) const {
     int x = X_in[0];
     int y = X_in[1];
@@ -6381,6 +6345,40 @@ int main(int argc, char **argv) {
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve;
+  int n_max = std::max(sim.bpdx, sim.bpdy);
+  sim.space_curve->base_level = (log(n_max) / log(2));
+  if (sim.space_curve->base_level < (double)(log(n_max) / log(2)))
+    sim.space_curve->base_level++;
+  sim.space_curve->i_inverse.resize(sim.levelMax);
+  sim.space_curve->j_inverse.resize(sim.levelMax);
+  sim.space_curve->Zsave.resize(sim.levelMax);
+  {
+    int l = 0;
+    int aux = pow(pow(2, l), 2);
+    sim.space_curve->i_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
+    sim.space_curve->j_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
+    sim.space_curve->Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
+  }
+  sim.space_curve->isRegular = true;
+  for (int j = 0; j < sim.bpdy; j++)
+    for (int i = 0; i < sim.bpdx; i++) {
+      int c[2] = {i, j};
+      long long index =
+          sim.space_curve->AxestoTranspose(c, sim.space_curve->base_level);
+      long long substract = 0;
+      for (long long h = 0; h < index; h++) {
+        int X[2] = {0, 0};
+        sim.space_curve->TransposetoAxes(h, X, sim.space_curve->base_level);
+        if (X[0] >= sim.bpdx || X[1] >= sim.bpdy)
+          substract++;
+      }
+      index -= substract;
+      if (substract > 0)
+        sim.space_curve->isRegular = false;
+      sim.space_curve->i_inverse[0][index] = i;
+      sim.space_curve->j_inverse[0][index] = j;
+      sim.space_curve->Zsave[0][j * sim.bpdx + i] = index;
+    }
 
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
