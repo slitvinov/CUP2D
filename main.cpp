@@ -2876,7 +2876,7 @@ struct Obstacle {
   Real *fY_s = nullptr;
   Real *fXv_s = nullptr;
   Real *fYv_s = nullptr;
-  Real perimeter = 0, forcex = 0, forcey = 0;
+  Real forcex = 0, forcey = 0;
   Real torque = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
     defPower = 0;
@@ -2894,7 +2894,7 @@ struct Obstacle {
   void clear_surface() {
     filled = false;
     n_surfPoints = 0;
-    perimeter = forcex = forcey = 0;
+    forcex = forcey = 0;
     torque = drag = thrust = lift = 0;
     Pout = PoutBnd = defPower = circulation = 0;
     surface.clear();
@@ -3293,7 +3293,7 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real perimeter = 0, forcex = 0, forcey = 0;
+  Real forcex = 0, forcey = 0;
   Real torque = 0;
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
@@ -5289,7 +5289,6 @@ struct KernelComputeForces {
             -P[_BS_ * iy + ix] * dy + NUoH * DvDx * dx + NUoH * DvDy * dy;
         O->fXv_s[k] = NUoH * DuDx * dx + NUoH * DuDy * dy;
         O->fYv_s[k] = NUoH * DvDx * dx + NUoH * DvDy * dy;
-        O->perimeter += std::sqrt(normX * normX + normY * normY);
         O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
         O->forcex += fXT;
         O->forcey += fYT;
@@ -6745,25 +6744,21 @@ int main(int argc, char **argv) {
       computeB<KernelComputeForces, VectorLab, ScalarLab>(
           KernelComputeForces(), var.vel, 2, var.chi, 1);
       for (const auto &shape : sim.shapes) {
-        shape->perimeter = 0;
         shape->forcex = 0;
         shape->forcey = 0;
         shape->torque = 0;
         for (auto &block : shape->obstacleBlocks)
           if (block not_eq nullptr) {
-            shape->perimeter += block->perimeter;
             shape->torque += block->torque;
             shape->forcex += block->forcex;
             shape->forcey += block->forcey;
           }
         Real quantities[19];
-        quantities[1] = shape->perimeter;
         quantities[2] = shape->forcex;
         quantities[11] = shape->torque;
         quantities[12] = shape->forcey;
         MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
                       MPI_COMM_WORLD);
-        shape->perimeter = quantities[1];
         shape->forcex = quantities[2];
         shape->torque = quantities[11];
         shape->forcey = quantities[12];
