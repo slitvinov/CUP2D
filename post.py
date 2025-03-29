@@ -9,9 +9,9 @@ import matplotlib.patches
 
 def plot(path):
     dtype = np.dtype("float32")
-    path = re.sub("\.xdmf2$", "", path)
-    path = re.sub("\.attr\.raw$", "", path)
-    path = re.sub("\.xyz\.raw$", "", path)
+    path = re.sub("[.]xdmf2$", "", path)
+    path = re.sub("[.]attr\.raw$", "", path)
+    path = re.sub("[.]xyz\.raw$", "", path)
     xdmf_path = path + ".xdmf2"
     xyz_path = path + ".xyz.raw"
     attr_path = path + ".attr.raw"
