@@ -2998,7 +2998,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
-  k = l = m = 0;
+  k = l = 0;
   Info* chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
@@ -3006,6 +3006,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
     Real *b = info->block;
     Real *c = cinfo->block;
     j = 0;
+    m = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
