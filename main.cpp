@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cmath>
 #include <cfloat>
+#include <cmath>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -788,22 +788,20 @@ static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
       for (int d = 0; d < 3; d++)
         Cindex_true[d] = f->infos[1]->index[d] + code[d];
       int CoarseEdge[2];
-      CoarseEdge[0] = code[0] == 0
-                          ? 0
-                          : ((f->infos[1]->index[0] % 2 == 0) &&
-                             (Cindex_true[0] > f->infos[1]->index[0])) ||
-                                    ((f->infos[1]->index[0] % 2 == 1) &&
-                                     (Cindex_true[0] < f->infos[1]->index[0]))
-                                ? 1
-                                : 0;
-      CoarseEdge[1] = code[1] == 0
-                          ? 0
-                          : ((f->infos[1]->index[1] % 2 == 0) &&
-                             (Cindex_true[1] > f->infos[1]->index[1])) ||
-                                    ((f->infos[1]->index[1] % 2 == 1) &&
-                                     (Cindex_true[1] < f->infos[1]->index[1]))
-                                ? 1
-                                : 0;
+      CoarseEdge[0] = code[0] == 0 ? 0
+                      : ((f->infos[1]->index[0] % 2 == 0) &&
+                         (Cindex_true[0] > f->infos[1]->index[0])) ||
+                              ((f->infos[1]->index[0] % 2 == 1) &&
+                               (Cindex_true[0] < f->infos[1]->index[0]))
+                          ? 1
+                          : 0;
+      CoarseEdge[1] = code[1] == 0 ? 0
+                      : ((f->infos[1]->index[1] % 2 == 0) &&
+                         (Cindex_true[1] > f->infos[1]->index[1])) ||
+                              ((f->infos[1]->index[1] % 2 == 1) &&
+                               (Cindex_true[1] < f->infos[1]->index[1]))
+                          ? 1
+                          : 0;
       Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
                         (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                         code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
@@ -2331,22 +2329,20 @@ struct BlockLab {
         int base[2] = {(info->index[0] + code[0]) % 2,
                        (info->index[1] + code[1]) % 2};
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0
-                            ? 0
-                            : (((info->index[0] % 2 == 0) &&
-                                (infoNei_index_true[0] > info->index[0])) ||
-                               ((info->index[0] % 2 == 1) &&
-                                (infoNei_index_true[0] < info->index[0])))
-                                  ? 1
-                                  : 0;
-        CoarseEdge[1] = code[1] == 0
-                            ? 0
-                            : (((info->index[1] % 2 == 0) &&
-                                (infoNei_index_true[1] > info->index[1])) ||
-                               ((info->index[1] % 2 == 1) &&
-                                (infoNei_index_true[1] < info->index[1])))
-                                  ? 1
-                                  : 0;
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
+                            ? 1
+                            : 0;
         int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
                             (1 - abs(code[0])) * base[0] * _BS_ / 2 -
                             code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
@@ -4679,8 +4675,9 @@ static void adapt() {
         double Linf = 0.0;
         for (int j = 0; j < _BS_ * _BS_; j++)
           Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state =
-            Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
+        (*I)[i]->state = Linf > sim.Rtol   ? Refine
+                         : Linf < sim.Ctol ? Compress
+                                           : Leave;
         const bool maxLevel =
             (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
         const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
@@ -6432,14 +6429,12 @@ int main(int argc, char **argv) {
           shape->width[i] = 0;
         else
           shape->width[i] =
-              shape->rS[i] < sb
-                  ? std::sqrt(2 * wh * shape->rS[i] -
-                              shape->rS[i] * shape->rS[i])
-                  : shape->rS[i] < st
-                        ? wh - (wh - wt) *
-                                   std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                        : wt * (shape->length - shape->rS[i]) /
-                              (shape->length - st);
+              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
+                                            shape->rS[i] * shape->rS[i])
+              : shape->rS[i] < st
+                  ? wh -
+                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
+                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
       sim.shapes.push_back(shape);
     }
@@ -6687,11 +6682,13 @@ int main(int argc, char **argv) {
         UM = quantities[4];
         VM = quantities[5];
         AM = quantities[6];
-	/* TODO */
-	Real D = -PM*(PY*PY+PX*PX-PJ*PM);
-	shape->u = -(PX*PY*VM+(PX*PX-PJ*PM)*UM-AM*PM*PY)/D;
-	shape->v = -((PY*PY-PJ*PM)*VM+PX*PY*UM+AM*PM*PX)/D;
-	shape->omega = -(PM*PX*VM-PM*PY*UM-AM*PM*PM)/D;
+        /* TODO */
+        Real D = -PM * (PY * PY + PX * PX - PJ * PM);
+        shape->u =
+            -(PX * PY * VM + (PX * PX - PJ * PM) * UM - AM * PM * PY) / D;
+        shape->v =
+            -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
+        shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
