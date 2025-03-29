@@ -2938,7 +2938,7 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, long nblock, Info *infos, char *path) {
-  long i, j, k, l, x, y, ncell, ncell_total, offset;
+  long i, j, k, l, m, x, y, ncell, ncell_total, offset;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
   MPI_File mpi_file;
@@ -2998,11 +2998,12 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
-  k = 0;
-  l = 0;
+  k = l = m = 0;
+  Info* chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
     Real *b = info->block;
+    Real *c = (&chiInfo[i])->block;
     j = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
@@ -3022,7 +3023,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
         xyz[k++] = v0;
         attr[l++] = b[j++];
         attr[l++] = b[j++];
-        attr[l++] = 0;
+        attr[l++] = c[m++];
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
