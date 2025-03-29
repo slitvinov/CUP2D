@@ -3296,8 +3296,6 @@ struct Shape {
   Real omega;
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
   Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
-  Real drag = 0, thrust = 0, lift = 0, circulation = 0, Pout = 0, PoutNew = 0,
-       PoutBnd = 0, defPower = 0;
   Real defPowerBnd = 0;
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
@@ -6766,18 +6764,9 @@ int main(int argc, char **argv) {
         shape->torque = 0;
         shape->torque_P = 0;
         shape->torque_V = 0;
-        shape->drag = 0;
-        shape->thrust = 0;
-        shape->lift = 0;
-        shape->Pout = 0;
-        shape->PoutNew = 0;
-        shape->PoutBnd = 0;
-        shape->defPower = 0;
         shape->defPowerBnd = 0;
-        shape->circulation = 0;
         for (auto &block : shape->obstacleBlocks)
           if (block not_eq nullptr) {
-            shape->circulation += block->circulation;
             shape->perimeter += block->perimeter;
             shape->torque += block->torque;
             shape->forcex += block->forcex;
@@ -6788,56 +6777,33 @@ int main(int argc, char **argv) {
             shape->forcey_V += block->forcey_V;
             shape->torque_P += block->torque_P;
             shape->torque_V += block->torque_V;
-            shape->drag += block->drag;
-            shape->thrust += block->thrust;
-            shape->lift += block->lift;
-            shape->Pout += block->Pout;
-            shape->PoutNew += block->PoutNew;
             shape->defPowerBnd += block->defPowerBnd;
-            shape->PoutBnd += block->PoutBnd;
-            shape->defPower += block->defPower;
           }
         Real quantities[19];
-        quantities[0] = shape->circulation;
         quantities[1] = shape->perimeter;
         quantities[2] = shape->forcex;
         quantities[3] = shape->forcex_P;
         quantities[4] = shape->forcex_V;
         quantities[5] = shape->torque_P;
-        quantities[6] = shape->drag;
-        quantities[7] = shape->lift;
-        quantities[8] = shape->Pout;
-        quantities[9] = shape->PoutNew;
-        quantities[10] = shape->PoutBnd;
         quantities[11] = shape->torque;
         quantities[12] = shape->forcey;
         quantities[13] = shape->forcey_P;
         quantities[14] = shape->forcey_V;
         quantities[15] = shape->torque_V;
-        quantities[16] = shape->thrust;
         quantities[17] = shape->defPowerBnd;
-        quantities[18] = shape->defPower;
         MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
                       MPI_COMM_WORLD);
-        shape->circulation = quantities[0];
         shape->perimeter = quantities[1];
         shape->forcex = quantities[2];
         shape->forcex_P = quantities[3];
         shape->forcex_V = quantities[4];
         shape->torque_P = quantities[5];
-        shape->drag = quantities[6];
-        shape->lift = quantities[7];
-        shape->Pout = quantities[8];
-        shape->PoutNew = quantities[9];
-        shape->PoutBnd = quantities[10];
         shape->torque = quantities[11];
         shape->forcey = quantities[12];
         shape->forcey_P = quantities[13];
         shape->forcey_V = quantities[14];
         shape->torque_V = quantities[15];
-        shape->thrust = quantities[16];
         shape->defPowerBnd = quantities[17];
-        shape->defPower = quantities[18];
       }
       sim.time += sim.dt;
       sim.step++;
