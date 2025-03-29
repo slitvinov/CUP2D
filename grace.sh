@@ -8,7 +8,7 @@ rm -rf "${d?not set}" &&
    git checkout '${1-HEAD}' &&
    MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5 &&
    set -x &&
-   make -j "CXXFLAGS = -O2 -g" "OPENMPFLAGS = " &&
+   make -j "CXXFLAGS = -O2 -g" "NVCCFLAGS = -O2 -g" &&
    mpiexec -n 2 sh run.sh &&
    ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
 ' &&

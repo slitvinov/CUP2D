@@ -3040,7 +3040,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
                               Synch->dummy_vector);
 #pragma omp barrier
 #pragma omp for nowait
-      for (const auto &I : *halo_next) {
+      for (std::size_t i = 0; i < halo_next->size(); ++i) {
+	const auto& I = (*halo_next)[i];
         lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
                  Synch->sLength);
         kernel(&lab, I);

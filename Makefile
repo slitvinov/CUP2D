@@ -17,7 +17,6 @@ O =\
 cuda.o\
 main.o\
 
-NVCCFLAGS =
 main: $O
 	$(LINK) -o main $O $(LDFLAGS) -Xcompiler '$(OPENMPFLAGS)' $(LIBS)
 .cpp.o:
