@@ -2876,10 +2876,10 @@ struct Obstacle {
   Real *fY_s = nullptr;
   Real *fXv_s = nullptr;
   Real *fYv_s = nullptr;
-  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
+  Real perimeter = 0, forcex = 0, forcey = 0;
+  Real torque = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
-       defPower = 0, defPowerBnd = 0;
+    defPower = 0;
   Real circulation = 0;
   Real COM_x = 0;
   Real COM_y = 0;
@@ -2894,10 +2894,9 @@ struct Obstacle {
   void clear_surface() {
     filled = false;
     n_surfPoints = 0;
-    perimeter = forcex = forcey = forcex_P = forcey_P = 0;
-    forcey_V = torque = torque_P = torque_V = drag = thrust = lift =
-        0;
-    Pout = PoutBnd = defPower = defPowerBnd = circulation = 0;
+    perimeter = forcex = forcey = 0;
+    torque = drag = thrust = lift = 0;
+    Pout = PoutBnd = defPower = circulation = 0;
     surface.clear();
     free(x_s);
     free(y_s);
@@ -3294,9 +3293,8 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
-  Real defPowerBnd = 0;
+  Real perimeter = 0, forcex = 0, forcey = 0;
+  Real torque = 0;
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
@@ -5295,12 +5293,7 @@ struct KernelComputeForces {
         O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
         O->forcex += fXT;
         O->forcey += fYT;
-        O->forcey_V += fYV;
-        O->forcex_P += fXP;
-        O->forcey_P += fYP;
         O->torque += (p[0] - Cx) * fYT - (p[1] - Cy) * fXT;
-        O->torque_P += (p[0] - Cx) * fYP - (p[1] - Cy) * fXP;
-        O->torque_V += (p[0] - Cx) * fYV - (p[1] - Cy) * fXV;
         Real forcePar = fXT * vel_unit[0] + fYT * vel_unit[1];
         O->thrust += .5 * (forcePar + std::fabs(forcePar));
         O->drag -= .5 * (forcePar - std::fabs(forcePar));
@@ -5311,7 +5304,6 @@ struct KernelComputeForces {
         O->Pout += powOut;
         O->defPower += powDef;
         O->PoutBnd += std::min((Real)0, powOut);
-        O->defPowerBnd += std::min((Real)0, powDef);
       }
       O->PoutNew = O->forcex * shape->u + O->forcey * shape->v;
     }
@@ -6756,49 +6748,25 @@ int main(int argc, char **argv) {
         shape->perimeter = 0;
         shape->forcex = 0;
         shape->forcey = 0;
-        shape->forcex_P = 0;
-        shape->forcey_P = 0;
-        shape->forcey_V = 0;
         shape->torque = 0;
-        shape->torque_P = 0;
-        shape->torque_V = 0;
-        shape->defPowerBnd = 0;
         for (auto &block : shape->obstacleBlocks)
           if (block not_eq nullptr) {
             shape->perimeter += block->perimeter;
             shape->torque += block->torque;
             shape->forcex += block->forcex;
             shape->forcey += block->forcey;
-            shape->forcex_P += block->forcex_P;
-            shape->forcey_P += block->forcey_P;
-            shape->forcey_V += block->forcey_V;
-            shape->torque_P += block->torque_P;
-            shape->torque_V += block->torque_V;
-            shape->defPowerBnd += block->defPowerBnd;
           }
         Real quantities[19];
         quantities[1] = shape->perimeter;
         quantities[2] = shape->forcex;
-        quantities[3] = shape->forcex_P;
-        quantities[5] = shape->torque_P;
         quantities[11] = shape->torque;
         quantities[12] = shape->forcey;
-        quantities[13] = shape->forcey_P;
-        quantities[14] = shape->forcey_V;
-        quantities[15] = shape->torque_V;
-        quantities[17] = shape->defPowerBnd;
         MPI_Allreduce(MPI_IN_PLACE, quantities, 19, MPI_Real, MPI_SUM,
                       MPI_COMM_WORLD);
         shape->perimeter = quantities[1];
         shape->forcex = quantities[2];
-        shape->forcex_P = quantities[3];
-        shape->torque_P = quantities[5];
         shape->torque = quantities[11];
         shape->forcey = quantities[12];
-        shape->forcey_P = quantities[13];
-        shape->forcey_V = quantities[14];
-        shape->torque_V = quantities[15];
-        shape->defPowerBnd = quantities[17];
       }
       sim.time += sim.dt;
       sim.step++;
