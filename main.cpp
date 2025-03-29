@@ -3029,7 +3029,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     Lab lab;
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
-    for (const auto &I : *inner) {
+    for (std::size_t i = 0; i < inner->size(); ++i) {
+      const auto &I = (*inner)[i];
       lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
                Synch->sLength);
       kernel(&lab, I);
@@ -3041,7 +3042,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
-	const auto& I = (*halo_next)[i];
+        const auto &I = (*halo_next)[i];
         lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
                  Synch->sLength);
         kernel(&lab, I);
