@@ -3,8 +3,8 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cfloat>
 #include <cstring>
-#include <gsl/gsl_linalg.h>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -6687,20 +6687,11 @@ int main(int argc, char **argv) {
         UM = quantities[4];
         VM = quantities[5];
         AM = quantities[6];
-        double A[3][3] = {{PM, 0, -PY}, {0, PM, PX}, {-PY, PX, PJ}};
-        double b[3] = {UM, VM, AM};
-        gsl_matrix_view Agsl = gsl_matrix_view_array(&A[0][0], 3, 3);
-        gsl_vector_view bgsl = gsl_vector_view_array(b, 3);
-        gsl_vector *xgsl = gsl_vector_alloc(3);
-        int sgsl;
-        gsl_permutation *permgsl = gsl_permutation_alloc(3);
-        gsl_linalg_LU_decomp(&Agsl.matrix, permgsl, &sgsl);
-        gsl_linalg_LU_solve(&Agsl.matrix, permgsl, &bgsl.vector, xgsl);
-        shape->u = gsl_vector_get(xgsl, 0);
-        shape->v = gsl_vector_get(xgsl, 1);
-        shape->omega = gsl_vector_get(xgsl, 2);
-        gsl_permutation_free(permgsl);
-        gsl_vector_free(xgsl);
+	/* TODO */
+	Real D = -PM*(PY*PY+PX*PX-PJ*PM);
+	shape->u = -(PX*PY*VM+(PX*PX-PJ*PM)*UM-AM*PM*PY)/D;
+	shape->v = -((PY*PY-PJ*PM)*VM+PX*PY*UM+AM*PM*PX)/D;
+	shape->omega = -(PM*PX*VM-PM*PY*UM-AM*PM*PM)/D;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;

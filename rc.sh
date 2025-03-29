@@ -1,4 +1,4 @@
-d=/n/holyscratch01/koumoutsakos_lab/slitvinov/CUP2D
+d=/n/netscratch/koumoutsakos_lab/Lab/slitvinov/remote.CUP2D
 ssh rc '
 . /etc/profile
 d='$d' 
