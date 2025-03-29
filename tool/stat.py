@@ -21,4 +21,6 @@ for path in sys.argv[1:]:
     assert ncell * 2 * 4 == xyz.size
     attr = np.memmap(attr_path, dtype, "r")
     attr = attr.reshape((ncell, -1))
-    print(np.mean(attr), np.std(attr), np.mean(xyz), np.std(attr))
+    print(
+        f"{np.mean(attr):.2e} {np.std(attr):.2e} {np.mean(xyz):.2e} {np.std(attr):.2e}"
+    )
