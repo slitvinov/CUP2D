@@ -22,5 +22,5 @@ for path in sys.argv[1:]:
     attr = np.memmap(attr_path, dtype, "r")
     attr = attr.reshape((ncell, -1))
     print(
-        f"{np.mean(attr):.2e} {np.std(attr):.2e} {np.mean(xyz):.2e} {np.std(attr):.2e}"
+        f"{np.mean(attr):+.2e} {np.std(attr):+.2e} {np.mean(xyz):+.2e} {np.std(attr):+.2e}"
     )
