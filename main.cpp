@@ -2498,7 +2498,7 @@ struct BlockLab {
             Real *p2 = m + dim * k2;
             Real *p3 = m + dim * k3;
             Real *q00 = b + dim * (_BS_ * y0 + x);
-	    // Real *q10 = b + dim * (_BS_ * z0 + x);
+            // Real *q10 = b + dim * (_BS_ * z0 + x);
             Real *q01 = b + dim * (_BS_ * y1 + x);
             Real *q11 = b + dim * (_BS_ * z1 + x);
             Real *q02 = b + dim * (_BS_ * y2 + x);
@@ -3307,9 +3307,9 @@ struct Obstacle {
   Real Mass = 0;
   Obstacle() {
     clear_surface();
-    std::fill(dist, dist + _BS_ * _BS_, -1);
-    memset(chi, 0, sizeof(Real) * _BS_ * _BS_);
-    memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
+    std::fill(&dist[0][0], &dist[0][0] + _BS_ * _BS_, -1);
+    memset(&chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+    memset(&udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
     surface.reserve(4 * _BS_);
   }
   void clear_surface() {
@@ -4258,9 +4258,9 @@ static void ongrid(Real dt) {
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info->id] = block;
         block->clear_surface();
-        std::fill(block->dist, block->dist + _BS_ * _BS_, -1);
-	memset(block->chi, 0, sizeof(Real) * _BS_ * _BS_);
-        memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
+        std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
+        memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+        memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
     }
     assert(not segmentsPerBlock.empty());
@@ -4294,8 +4294,8 @@ static void ongrid(Real dt) {
           const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
           const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
           const Real *const width = shape->width;
-          std::fill(o->dist, o->dist + _BS_ * _BS_, -1);
-	  memset(o->chi, 0, sizeof(Real) * _BS_ * _BS_);
+          std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
+          memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
@@ -4453,7 +4453,7 @@ static void ongrid(Real dt) {
               b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
               ;
             }
-          std::fill(o->chi, o->chi + _BS_ * _BS_, 0);
+          memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
         }
       }
     }
@@ -6984,7 +6984,7 @@ int main(int argc, char **argv) {
               int j = _BS_ * iy + ix;
               if (chi[j] < CHI[j])
                 continue;
-	      /*
+              /*
               Real p[2];
               p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
               p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5); */
