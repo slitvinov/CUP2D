@@ -22,7 +22,7 @@ make 'CXXFLAGS = -I/scratch/slitvinov/.grace/include' 'LDFLAGS = -L/scratch/slit
 
 local
 ```
-make 'CXXFLAGS != pkg-config --cflags gsl' 'LDFLAGS != pkg-config --libs gsl' -j
+make
 ```
 
 ```
@@ -45,4 +45,9 @@ make
 salloc -N 1 -n 2 -c 4 -p seas_gpu --gpus 1 --mem 1Gb
 ...
 OMP_NUM_THREADS=4 main='srun --mpi=pmix ./main' sh -x run.sh
+```
+
+Paraview
+```
+for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi; done | xargs -r -P `nproc` -n 2 sh -xc 'pvbatch tool/view.py "$@"' sh
 ```
