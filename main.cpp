@@ -2878,8 +2878,7 @@ struct Obstacle {
   Real *fYv_s = nullptr;
   Real forcex = 0, forcey = 0;
   Real torque = 0;
-  Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutBnd = 0,
-    defPower = 0;
+  Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutBnd = 0, defPower = 0;
   Real circulation = 0;
   Real COM_x = 0;
   Real COM_y = 0;
@@ -6255,7 +6254,7 @@ int main(int argc, char **argv) {
         shape->v =
             -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
         /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D; */
-	shape->omega = 0.25;
+        shape->omega = 0.25;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
