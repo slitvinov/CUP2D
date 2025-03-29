@@ -3002,8 +3002,9 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   Info* chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
+    Info *cinfo = &chiInfo[i];
     Real *b = info->block;
-    Real *c = (&chiInfo[i])->block;
+    Real *c = cinfo->block;
     j = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
