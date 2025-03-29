@@ -2877,7 +2877,7 @@ struct Obstacle {
   Real *fXv_s = nullptr;
   Real *fYv_s = nullptr;
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
+  Real forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
        defPower = 0, defPowerBnd = 0;
   Real circulation = 0;
@@ -2895,7 +2895,7 @@ struct Obstacle {
     filled = false;
     n_surfPoints = 0;
     perimeter = forcex = forcey = forcex_P = forcey_P = 0;
-    forcex_V = forcey_V = torque = torque_P = torque_V = drag = thrust = lift =
+    forcey_V = torque = torque_P = torque_V = drag = thrust = lift =
         0;
     Pout = PoutBnd = defPower = defPowerBnd = circulation = 0;
     surface.clear();
@@ -3295,7 +3295,7 @@ struct Shape {
   Real v;
   Real omega;
   Real perimeter = 0, forcex = 0, forcey = 0, forcex_P = 0, forcey_P = 0;
-  Real forcex_V = 0, forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
+  Real forcey_V = 0, torque = 0, torque_P = 0, torque_V = 0;
   Real defPowerBnd = 0;
   Real phaseShift;
   Real area_internal = 0, J_internal = 0;
@@ -5295,7 +5295,6 @@ struct KernelComputeForces {
         O->circulation += normX * O->v_s[k] - normY * O->u_s[k];
         O->forcex += fXT;
         O->forcey += fYT;
-        O->forcex_V += fXV;
         O->forcey_V += fYV;
         O->forcex_P += fXP;
         O->forcey_P += fYP;
@@ -6759,7 +6758,6 @@ int main(int argc, char **argv) {
         shape->forcey = 0;
         shape->forcex_P = 0;
         shape->forcey_P = 0;
-        shape->forcex_V = 0;
         shape->forcey_V = 0;
         shape->torque = 0;
         shape->torque_P = 0;
@@ -6773,7 +6771,6 @@ int main(int argc, char **argv) {
             shape->forcey += block->forcey;
             shape->forcex_P += block->forcex_P;
             shape->forcey_P += block->forcey_P;
-            shape->forcex_V += block->forcex_V;
             shape->forcey_V += block->forcey_V;
             shape->torque_P += block->torque_P;
             shape->torque_V += block->torque_V;
@@ -6783,7 +6780,6 @@ int main(int argc, char **argv) {
         quantities[1] = shape->perimeter;
         quantities[2] = shape->forcex;
         quantities[3] = shape->forcex_P;
-        quantities[4] = shape->forcex_V;
         quantities[5] = shape->torque_P;
         quantities[11] = shape->torque;
         quantities[12] = shape->forcey;
@@ -6796,7 +6792,6 @@ int main(int argc, char **argv) {
         shape->perimeter = quantities[1];
         shape->forcex = quantities[2];
         shape->forcex_P = quantities[3];
-        shape->forcex_V = quantities[4];
         shape->torque_P = quantities[5];
         shape->torque = quantities[11];
         shape->forcey = quantities[12];
