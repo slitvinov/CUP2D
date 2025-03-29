@@ -9,7 +9,7 @@ rm -rf "${d?not set}" &&
    MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5 &&
    set -x &&
    make -j "CXXFLAGS = -O2 -g" "OPENMPFLAGS = " &&
-   sh -x run.sh &&
+   mpiexec -n 2 sh run.sh &&
    ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
 ' &&
 rsync -avz "grace2:$d"/vel* .
