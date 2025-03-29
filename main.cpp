@@ -2489,7 +2489,7 @@ struct BlockLab {
             int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
                                                std::min(0, code[1]) * _BS_
                                          : iy + 3 * ys;
-            int z0 = y0 + 1;
+            /* int z0 = y0 + 1; */
             int z1 = y1 + 1;
             int z2 = y2 + 1;
             int z3 = y3 + 1;
@@ -3308,7 +3308,7 @@ struct Obstacle {
   Obstacle() {
     clear_surface();
     std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
-    std::fill(chi[0], chi[0] + _BS_ * _BS_, 0);
+    memset(chi, 0, sizeof(Real) * _BS_ * _BS_);
     memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
     surface.reserve(4 * _BS_);
   }
