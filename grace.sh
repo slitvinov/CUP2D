@@ -6,7 +6,7 @@ rm -rf "${d?not set}" &&
    git clone git@github.com:slitvinov/CUP2D "$d" &&
    cd "$d" &&
    git checkout '${1-HEAD}' &&
-   MODULEPATH=/scratch/`whoami`/.grace/modulefiles:$MODULEPATH module load nvhpc/24.5 &&
+   module load /scratch/slitvinov/.grace/modulefiles/nvhpc/24.5 &&
    set -x &&
    make -j "CXXFLAGS = -O2 -g" "NVCCFLAGS = -O2 -g" &&
    OMP_NUM_THREADS=2 mpiexec -n 2 sh run.sh &&

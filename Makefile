@@ -26,3 +26,4 @@ main: $O
 clean:
 	rm -f main $O
 
+main.o: utils.h
