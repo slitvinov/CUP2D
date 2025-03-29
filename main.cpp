@@ -3307,7 +3307,7 @@ struct Obstacle {
   Real Mass = 0;
   Obstacle() {
     clear_surface();
-    std::fill(dist[0], dist[0] + _BS_ * _BS_, -1);
+    std::fill(dist, dist + _BS_ * _BS_, -1);
     memset(chi, 0, sizeof(Real) * _BS_ * _BS_);
     memset(udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
     surface.reserve(4 * _BS_);
@@ -4259,7 +4259,7 @@ static void ongrid(Real dt) {
         shape->obstacleBlocks[info->id] = block;
         block->clear_surface();
         std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
-	memset(chi, 0, sizeof(Real) * _BS_ * _BS_);
+	memset(block->chi, 0, sizeof(Real) * _BS_ * _BS_);
         memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
     }
@@ -4295,7 +4295,7 @@ static void ongrid(Real dt) {
           const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
           const Real *const width = shape->width;
           std::fill(o->dist[0], o->dist[0] + _BS_ * _BS_, -1);
-	  memset(chi, 0, sizeof(Real) * _BS_ * _BS_);
+	  memset(o->chi, 0, sizeof(Real) * _BS_ * _BS_);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
             const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
