@@ -6255,7 +6255,7 @@ int main(int argc, char **argv) {
         shape->v =
             -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
         /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D; */
-	shape->omega = 1.0;
+	shape->omega = 0.25;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
