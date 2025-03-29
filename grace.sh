@@ -13,4 +13,4 @@ rm -rf "${d?not set}" &&
    OMP_NUM_THREADS=4 sh -x run.sh &&
    ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` ./post.py
 ' &&
-rsync -avz "rc:$d"/vel* .
+rsync -avz "grace2:$d"/vel* .

@@ -687,7 +687,7 @@ static int &treef(std::unordered_map<long long, int> *tree, int m,
   }
 }
 static void fill(Info *b, int level, long long Z) {
-  int i, j, aux, Bmax[2];
+  int i, j, Bmax[2];
   b->level = level;
   b->Z = Z;
   b->h = sim.h0 / (1 << level);
@@ -2498,7 +2498,7 @@ struct BlockLab {
             Real *p2 = m + dim * k2;
             Real *p3 = m + dim * k3;
             Real *q00 = b + dim * (_BS_ * y0 + x);
-            Real *q10 = b + dim * (_BS_ * z0 + x);
+	    // Real *q10 = b + dim * (_BS_ * z0 + x);
             Real *q01 = b + dim * (_BS_ * y1 + x);
             Real *q11 = b + dim * (_BS_ * z1 + x);
             Real *q02 = b + dim * (_BS_ * y2 + x);
@@ -6984,9 +6984,10 @@ int main(int argc, char **argv) {
               int j = _BS_ * iy + ix;
               if (chi[j] < CHI[j])
                 continue;
+	      /*
               Real p[2];
               p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
-              p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5);
+              p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5); */
               UDEF[2 * j + 0] += udef[2 * j + 0];
               UDEF[2 * j + 1] += udef[2 * j + 1];
             }
