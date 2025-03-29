@@ -2878,7 +2878,7 @@ struct Obstacle {
   Real *fYv_s = nullptr;
   Real forcex = 0, forcey = 0;
   Real torque = 0;
-  Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutNew = 0, PoutBnd = 0,
+  Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutBnd = 0,
     defPower = 0;
   Real circulation = 0;
   Real COM_x = 0;
@@ -5304,7 +5304,6 @@ struct KernelComputeForces {
         O->defPower += powDef;
         O->PoutBnd += std::min((Real)0, powOut);
       }
-      O->PoutNew = O->forcex * shape->u + O->forcey * shape->v;
     }
   }
 };
