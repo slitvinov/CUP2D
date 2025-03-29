@@ -4258,7 +4258,7 @@ static void ongrid(Real dt) {
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info->id] = block;
         block->clear_surface();
-        std::fill(block->dist[0], block->dist[0] + _BS_ * _BS_, -1);
+        std::fill(block->dist, block->dist + _BS_ * _BS_, -1);
 	memset(block->chi, 0, sizeof(Real) * _BS_ * _BS_);
         memset(block->udef, 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
@@ -4294,7 +4294,7 @@ static void ongrid(Real dt) {
           const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
           const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
           const Real *const width = shape->width;
-          std::fill(o->dist[0], o->dist[0] + _BS_ * _BS_, -1);
+          std::fill(o->dist, o->dist + _BS_ * _BS_, -1);
 	  memset(o->chi, 0, sizeof(Real) * _BS_ * _BS_);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
@@ -4453,7 +4453,7 @@ static void ongrid(Real dt) {
               b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
               ;
             }
-          std::fill(o->chi[0], o->chi[0] + _BS_ * _BS_, 0);
+          std::fill(o->chi, o->chi + _BS_ * _BS_, 0);
         }
       }
     }
