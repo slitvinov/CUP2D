@@ -3166,32 +3166,15 @@ static void ongrid(Real dt) {
     shape->norY[Nm - 1] = shape->norY[Nm - 2];
     const int Nsegments = (Nm - 1) / 8;
     assert((Nm - 1) % Nsegments == 0);
-    std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
+    std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nsegments; ++i) {
       const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
       const int idx = i * (Nm - 1) / Nsegments;
-      Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
-      for (int ss = idx; ss <= next_idx; ++ss) {
-        const Real xBnd[2] = {
-            shape->rX[ss] - shape->norX[ss] * shape->width[ss],
-            shape->rX[ss] + shape->norX[ss] * shape->width[ss]};
-        const Real yBnd[2] = {
-            shape->rY[ss] - shape->norY[ss] * shape->width[ss],
-            shape->rY[ss] + shape->norY[ss] * shape->width[ss]};
-        const Real maxX = std::max(xBnd[0], xBnd[1]),
-                   minX = std::min(xBnd[0], xBnd[1]);
-        const Real maxY = std::max(yBnd[0], yBnd[1]),
-                   minY = std::min(yBnd[0], yBnd[1]);
-        bbox[0][0] = std::min(bbox[0][0], minX);
-        bbox[0][1] = std::max(bbox[0][1], maxX);
-        bbox[1][0] = std::min(bbox[1][0], minY);
-        bbox[1][1] = std::max(bbox[1][1], maxY);
-      }
       AreaSegment *const tAS =
           new AreaSegment(std::make_pair(idx, next_idx));
       vSegments[i] = tAS;
