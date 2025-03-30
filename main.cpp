@@ -3010,14 +3010,7 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real length, h;
-  Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
-  int Nmid =
-      (int)std::ceil(length * fracMid / (sim.minH / std::sqrt(2)) / 8) * 8;
-  Real dSmid = length * fracMid / Nmid;
-  int Nend = (int)std::ceil(fracRefined * length * 2 /
-                            (dSmid + 0.125 * sim.minH) / 4) *
-             4;
+  Real length;
   Real *rS;
   Real *rX;
   Real *rY;
@@ -5225,8 +5218,8 @@ int main(int argc, char **argv) {
       shape->norY = new Real[Nm];
       shape->width = new Real[Nm];
       for (int i = 0; i < Nm; ++i) {
-        shape->rS[i] = i * shape->dSmid;
-        shape->rX[i] = i * shape->dSmid;
+        shape->rS[i] = i * 0.00133333;
+        shape->rX[i] = i * 0.00133333;
         shape->rY[i] = 0;
         shape->norX[0] = 0;
         shape->norY[0] = 1;
