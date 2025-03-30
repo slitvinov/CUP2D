@@ -3087,8 +3087,6 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real forcex = 0, forcey = 0;
-  Real torque = 0;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0;
