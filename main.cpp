@@ -3227,10 +3227,8 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX, shape->norY);
     Real _area = 0, _cmx = 0, _cmy = 0;
-#pragma omp parallel for schedule(static)                                      \
-    reduction(+ : _area, _cmx, _cmy)
+#pragma omp parallel for schedule(static) reduction(+ : _area, _cmx, _cmy)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
@@ -5251,9 +5249,11 @@ int main(int argc, char **argv) {
       shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
       std::fill(shape->rX, shape->rX + shape->Nm, 0);
       std::fill(shape->rY, shape->rY + shape->Nm, 0);
+      Real sb = .04 * shape->length;
+      Real st = .95 * shape->length;
+      Real wt = .01 * shape->length;
+      Real wh = .04 * shape->length;
       for (int i = 0; i < shape->Nm; ++i) {
-        Real sb = .04 * shape->length, st = .95 * shape->length,
-             wt = .01 * shape->length, wh = .04 * shape->length;
         if (shape->rS[i] < 0 or shape->rS[i] > shape->length)
           shape->width[i] = 0;
         else
@@ -5265,6 +5265,8 @@ int main(int argc, char **argv) {
                         (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
                   : wt * (shape->length - shape->rS[i]) / (shape->length - st);
       }
+      if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX,
+                 shape->norY);
       sim.shapes.push_back(shape);
     }
   }
