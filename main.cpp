@@ -3198,9 +3198,7 @@ static void ongrid(Real dt) {
         const Real h = info->h, invh = 1.0 / info->h;
         std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
         memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-        const int firstSegm = 1;
-        const int lastSegm = Nm - 2;
-        for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+        for (int ss = 1; ss <= Nm - 2; ++ss) {
           assert(width[ss] > 0);
           for (int signp = -1; signp <= 1; signp += 2) {
             Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
@@ -3280,7 +3278,7 @@ static void ongrid(Real dt) {
               }
           }
         }
-        for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+        for (int ss = 1; ss <= Nm - 2; ++ss) {
           const Real myWidth = shape->width[ss];
           assert(myWidth > 0);
           const int Nw = std::floor(myWidth / h);
