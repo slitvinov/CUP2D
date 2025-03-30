@@ -3027,9 +3027,6 @@ public:
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
     : s_range(sr) {
   }
-  bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
-    return true;
-  }
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
