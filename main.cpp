@@ -2859,13 +2859,8 @@ struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
   Real udef[_BS_][_BS_][2];
-  size_t n_surfPoints = 0;
   bool filled = false;
   std::vector<surface_data> surface;
-  Real forcex = 0, forcey = 0;
-  Real torque = 0;
-  Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutBnd = 0, defPower = 0;
-  Real circulation = 0;
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
@@ -2878,10 +2873,6 @@ struct Obstacle {
   }
   void clear_surface() {
     filled = false;
-    n_surfPoints = 0;
-    forcex = forcey = 0;
-    torque = drag = thrust = lift = 0;
-    Pout = PoutBnd = defPower = circulation = 0;
     surface.clear();
   }
 };
@@ -3166,7 +3157,6 @@ struct ComputeSurfaceNormals {
           Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
           Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
           if (std::fabs(D) > EPS) {
-            o.n_surfPoints++;
             Real dchidx = -D * gradUX, dchidy = -D * gradUY;
             struct surface_data s {
               x0, y0, dchidx, dchidy, D
