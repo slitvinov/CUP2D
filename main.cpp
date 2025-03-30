@@ -5233,19 +5233,14 @@ int main(int argc, char **argv) {
       shape->norX = new Real[shape->Nm];
       shape->norY = new Real[shape->Nm];
       shape->width = new Real[shape->Nm];
-      shape->rS[0] = 0;
-      int k = 0;
-      for (int i = 0; i < shape->Nend; ++i, k++)
-        shape->rS[k + 1] =
-            shape->rS[k] + shape->dSref +
-            (shape->dSmid - shape->dSref) * i / ((Real)shape->Nend - 1.);
-      for (int i = 0; i < shape->Nm; i++)
+      for (int i = 0; i < shape->Nm; ++i) {
         shape->rS[i] = i * shape->dSmid;
-      shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
-      std::fill(shape->rX, shape->rX + shape->Nm, 0);
-      std::fill(shape->rY, shape->rY + shape->Nm, 0);
-      for (int i = 0; i < shape->Nm; ++i)
+        shape->rX[i] = i * shape->dSmid;
+        shape->rY[i] = 0;
+        shape->norX[0] = 0;
+        shape->norY[0] = 1;
         shape->width[i] = .04 * shape->length;
+      }
       if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX,
                  shape->norY);
       sim.shapes.push_back(shape);

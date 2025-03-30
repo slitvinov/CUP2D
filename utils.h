@@ -81,33 +81,6 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
       }
   }
 }
-static void if2d_solve(unsigned Nm, Real *rS, Real *rX, Real *rY, Real *norX, Real *norY) {
-  rX[0] = 0.0;
-  rY[0] = 0.0;
-  norX[0] = 0.0;
-  norY[0] = 1.0;
-  Real ksiX = 1.0;
-  Real ksiY = 0.0;
-  for (unsigned i = 1; i < Nm; i++) {
-    Real ds = rS[i] - rS[i - 1];
-    rX[i] = rX[i - 1] + ds * ksiX;
-    rY[i] = rY[i - 1] + ds * ksiY;
-    norX[i] = norX[i - 1];
-    norY[i] = norY[i - 1];
-    Real d1 = ksiX * ksiX + ksiY * ksiY;
-    Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
-    if (d1 > std::numeric_limits<Real>::epsilon()) {
-      Real normfac = 1 / std::sqrt(d1);
-      ksiX *= normfac;
-      ksiY *= normfac;
-    }
-    if (d2 > std::numeric_limits<Real>::epsilon()) {
-      Real normfac = 1 / std::sqrt(d2);
-      norX[i] *= normfac;
-      norY[i] *= normfac;
-    }
-  }
-}
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
