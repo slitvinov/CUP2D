@@ -15,7 +15,7 @@ ${main=./main} \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
 -tdump 0.5 \
--tend 10.0 \
+-tend 100.0 \
 -shapes '
   angle=0 L=0.2 xpos=1.8 ypos=0.8
   angle=180 L=0.2 xpos=1.6 ypos=0.8

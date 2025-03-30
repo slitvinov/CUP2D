@@ -3162,16 +3162,6 @@ struct Shape {
   Real linMom[2], area, angMom;
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
-  Real periodPIDval = 1;
-  Real periodPIDdif = 0;
-  Real time0 = 0;
-  Real timeshift = 0;
-  Real current_period = 1;
-  Real next_period = 1;
-  const Real transition_start = 0.0;
-  Real transition_duration = 0.1;
-  Real *rK;
-  Real *vK;
   Real *rC;
   Real *vC;
   Real *rB;
@@ -3433,8 +3423,6 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    std::fill(shape->rK, shape->rK + shape->Nm, 0.0);
-    std::fill(shape->vK, shape->vK + shape->Nm, 0.0);
     std::fill(shape->rC, shape->rC + shape->Nm, 0.0);
     std::fill(shape->vC, shape->vC + shape->Nm, 0.0);
     std::fill(shape->rB, shape->rB + shape->Nm, 0.0);
@@ -5745,8 +5733,6 @@ int main(int argc, char **argv) {
       shape->phaseShift = 0;
       shape->u = 0;
       shape->v = 0;
-      shape->rK = new Real[shape->Nm];
-      shape->vK = new Real[shape->Nm];
       shape->rC = new Real[shape->Nm];
       shape->vC = new Real[shape->Nm];
       shape->rB = new Real[shape->Nm];
