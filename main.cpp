@@ -21,6 +21,8 @@
 #endif
 #include "cuda.h"
 enum { max_dim = 2, Nm = 177 };
+const double ds = 0.00133333;
+
 typedef double Real;
 static const MPI_Datatype MPI_Real = MPI_DOUBLE;
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
