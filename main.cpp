@@ -5241,8 +5241,6 @@ int main(int argc, char **argv) {
         shape->norY[0] = 1;
         shape->width[i] = .04 * shape->length;
       }
-      if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX,
-                 shape->norY);
       sim.shapes.push_back(shape);
     }
   }
