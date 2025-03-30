@@ -3182,6 +3182,9 @@ static void ongrid(Real dt) {
       putfish.Rmatrix2D[1][0] = std::sin(shape->orientation);
       putfish.Rmatrix2D[1][1] = std::cos(shape->orientation);
 
+      const Real *const rX = shape->rX, *const norX = shape->norX;
+      const Real *const rY = shape->rY, *const norY = shape->norY;
+      const Real *const width = shape->width;
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
         Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
@@ -3193,9 +3196,6 @@ static void ongrid(Real dt) {
         org[0] = info->origin[0] + info->h * 0.5;
         org[1] = info->origin[1] + info->h * 0.5;
         const Real h = info->h, invh = 1.0 / info->h;
-        const Real *const rX = shape->rX, *const norX = shape->norX;
-        const Real *const rY = shape->rY, *const norY = shape->norY;
-        const Real *const width = shape->width;
         std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
         memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
         const int firstSegm = 1;
