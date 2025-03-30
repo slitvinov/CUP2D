@@ -3188,14 +3188,12 @@ static void ongrid(Real dt) {
 	  segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
 	segmentsPerBlock[info->id]->push_back(vSegments[s]);
       }
-      if (segmentsPerBlock[info->id] not_eq nullptr) {
-        Obstacle *const block = new Obstacle();
-        assert(block not_eq nullptr);
-        shape->obstacleBlocks[info->id] = block;
-        std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
-        memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-        memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
-      }
+      Obstacle *const block = new Obstacle();
+      assert(block not_eq nullptr);
+      shape->obstacleBlocks[info->id] = block;
+      std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
+      memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+      memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
     }
     assert(not segmentsPerBlock.empty());
 #pragma omp parallel
