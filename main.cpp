@@ -3024,7 +3024,7 @@ struct Shape {
 struct AreaSegment {
 public:
   const std::pair<int, int> s_range;
-  AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
+  AreaSegment(std::pair<int, int> sr)
     : s_range(sr) {
   }
 };
@@ -3192,9 +3192,8 @@ static void ongrid(Real dt) {
         bbox[1][0] = std::min(bbox[1][0], minY);
         bbox[1][1] = std::max(bbox[1][1], maxY);
       }
-      const Real DD = 4 * h;
       AreaSegment *const tAS =
-          new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
+          new AreaSegment(std::make_pair(idx, next_idx));
       vSegments[i] = tAS;
     }
     const auto N = tmpInfo.size();
@@ -3208,12 +3207,11 @@ static void ongrid(Real dt) {
       pStart[1] = info->origin[1] + info->h * 0.5;
       pEnd[0] = info->origin[0] + info->h * (_BS_ - 0.5);
       pEnd[1] = info->origin[1] + info->h * (_BS_ - 0.5);
-      for (size_t s = 0; s < vSegments.size(); ++s)
-        if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-          if (segmentsPerBlock[info->id] == nullptr)
-            segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
-          segmentsPerBlock[info->id]->push_back(vSegments[s]);
-        }
+      for (size_t s = 0; s < vSegments.size(); ++s) {
+	if (segmentsPerBlock[info->id] == nullptr)
+	  segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
+	segmentsPerBlock[info->id]->push_back(vSegments[s]);
+      }
       if (segmentsPerBlock[info->id] not_eq nullptr) {
         Obstacle *const block = new Obstacle();
         assert(block not_eq nullptr);
