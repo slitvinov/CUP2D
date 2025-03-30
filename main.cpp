@@ -3217,21 +3217,16 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    Real _area = 0, _cmx = 0, _cmy = 0;
-#pragma omp parallel for schedule(static) reduction(+ : _area, _cmx, _cmy)
+    Real _cmx = 0, _cmy = 0;
+#pragma omp parallel for schedule(static) reduction(+ : _cmx, _cmy)
     for (int i = 0; i < Nm; ++i) {
-      const Real fac1 = 2 * shape->width[i];
-      _area += fac1 * ds / 2;
-      _cmx += shape->rX[i] * fac1 * ds / 2;
-      _cmy += shape->rY[i] * fac1 * ds / 2;
+      _cmx += shape->rX[i];
+      _cmy += shape->rY[i];
     }
-    Real CoM_internal[2] = {_cmx, _cmy};
-    CoM_internal[0] /= _area;
-    CoM_internal[1] /= _area;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nm; ++i) {
-      shape->rX[i] -= CoM_internal[0];
-      shape->rY[i] -= CoM_internal[1];
+      shape->rX[i] -= _cmx / Nm;
+      shape->rY[i] -= _cmy / Nm;
     }
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nm - 1; i++) {
