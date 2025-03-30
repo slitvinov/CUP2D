@@ -2851,10 +2851,6 @@ static struct {
   };
   struct Buffers *buf1, *buf2;
 } var;
-struct surface_data {
-  int ix, iy;
-  Real dchidx, dchidy, delta;
-};
 struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
