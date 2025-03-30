@@ -3033,8 +3033,6 @@ struct Shape {
   Real *norY;
   Real *width;
   Real area, angMom;
-  Skin upperSkin = Skin(Nm);
-  Skin lowerSkin = Skin(Nm);
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
@@ -3236,17 +3234,6 @@ static void ongrid(Real dt) {
     shape->obstacleBlocks.clear();
     if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->vX, shape->vY,
                shape->norX, shape->norY);
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < shape->lowerSkin.n; ++i) {
-      Real norm[2] = {shape->norX[i], shape->norY[i]};
-      Real const norm_mod1 = std::sqrt(norm[0] * norm[0] + norm[1] * norm[1]);
-      norm[0] /= norm_mod1;
-      norm[1] /= norm_mod1;
-      shape->lowerSkin.xSurf[i] = shape->rX[i] - shape->width[i] * norm[0];
-      shape->lowerSkin.ySurf[i] = shape->rY[i] - shape->width[i] * norm[1];
-      shape->upperSkin.xSurf[i] = shape->rX[i] + shape->width[i] * norm[0];
-      shape->upperSkin.ySurf[i] = shape->rY[i] + shape->width[i] * norm[1];
-    }
     Real _area = 0, _cmx = 0, _cmy = 0;
 #pragma omp parallel for schedule(static)                                      \
     reduction(+ : _area, _cmx, _cmy)
@@ -3321,22 +3308,6 @@ static void ongrid(Real dt) {
     }
     shape->norX[shape->Nm - 1] = shape->norX[shape->Nm - 2];
     shape->norY[shape->Nm - 1] = shape->norY[shape->Nm - 2];
-    {
-      const Real Rmatrix2D[2][2] = {
-          {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
-          {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
-#pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < shape->upperSkin.n; ++i) {
-        shape->upperSkin.xSurf[i] -= shape->CoM_internal[0];
-        shape->upperSkin.ySurf[i] -= shape->CoM_internal[1];
-        rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
-                 &shape->upperSkin.ySurf[i]);
-        shape->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
-        shape->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
-        rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
-                 &shape->lowerSkin.ySurf[i]);
-      }
-    }
     const int Nsegments = (shape->Nm - 1) / 8;
     const int Nm = shape->Nm;
     assert((Nm - 1) % Nsegments == 0);
@@ -3683,20 +3654,6 @@ static void ongrid(Real dt) {
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
     }
-    const Real Rmatrix2D[2][2] = {
-        {std::cos(shape->orientation), -std::sin(shape->orientation)},
-        {std::sin(shape->orientation), std::cos(shape->orientation)}};
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < shape->upperSkin.n; ++i) {
-      rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
-               &shape->upperSkin.ySurf[i]);
-      shape->upperSkin.xSurf[i] += shape->centerOfMass[0];
-      shape->upperSkin.ySurf[i] += shape->centerOfMass[1];
-      rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
-               &shape->lowerSkin.ySurf[i]);
-      shape->lowerSkin.xSurf[i] += shape->centerOfMass[0];
-      shape->lowerSkin.ySurf[i] += shape->centerOfMass[1];
-    }
     {
       const Real Rmatrix2D[2][2] = {
           {std::cos(shape->orientation), -std::sin(shape->orientation)},
@@ -3706,53 +3663,6 @@ static void ongrid(Real dt) {
         rotate2D(Rmatrix2D, &shape->norX[i], &shape->norY[i]);
         shape->rX[i] += shape->centerOfMass[0];
         shape->rY[i] += shape->centerOfMass[1];
-      }
-#pragma omp parallel for
-      for (size_t i = 0; i < shape->lowerSkin.n - 1; ++i) {
-        shape->lowerSkin.midX[i] =
-            (shape->lowerSkin.xSurf[i] + shape->lowerSkin.xSurf[i + 1]) / 2;
-        shape->upperSkin.midX[i] =
-            (shape->upperSkin.xSurf[i] + shape->upperSkin.xSurf[i + 1]) / 2;
-        shape->lowerSkin.midY[i] =
-            (shape->lowerSkin.ySurf[i] + shape->lowerSkin.ySurf[i + 1]) / 2;
-        shape->upperSkin.midY[i] =
-            (shape->upperSkin.ySurf[i] + shape->upperSkin.ySurf[i + 1]) / 2;
-        shape->lowerSkin.normXSurf[i] =
-            (shape->lowerSkin.ySurf[i + 1] - shape->lowerSkin.ySurf[i]);
-        shape->upperSkin.normXSurf[i] =
-            (shape->upperSkin.ySurf[i + 1] - shape->upperSkin.ySurf[i]);
-        shape->lowerSkin.normYSurf[i] =
-            -(shape->lowerSkin.xSurf[i + 1] - shape->lowerSkin.xSurf[i]);
-        shape->upperSkin.normYSurf[i] =
-            -(shape->upperSkin.xSurf[i + 1] - shape->upperSkin.xSurf[i]);
-        Real normL = std::sqrt(std::pow(shape->lowerSkin.normXSurf[i], 2) +
-                               std::pow(shape->lowerSkin.normYSurf[i], 2));
-        Real normU = std::sqrt(std::pow(shape->upperSkin.normXSurf[i], 2) +
-                               std::pow(shape->upperSkin.normYSurf[i], 2));
-        shape->lowerSkin.normXSurf[i] /= normL;
-        shape->upperSkin.normXSurf[i] /= normU;
-        shape->lowerSkin.normYSurf[i] /= normL;
-        shape->upperSkin.normYSurf[i] /= normU;
-        const int ii =
-            (i < 8)
-                ? 8
-                : ((i > shape->lowerSkin.n - 9) ? shape->lowerSkin.n - 9 : i);
-        const Real dirL = shape->lowerSkin.normXSurf[i] *
-                              (shape->lowerSkin.midX[i] - shape->rX[ii]) +
-                          shape->lowerSkin.normYSurf[i] *
-                              (shape->lowerSkin.midY[i] - shape->rY[ii]);
-        const Real dirU = shape->upperSkin.normXSurf[i] *
-                              (shape->upperSkin.midX[i] - shape->rX[ii]) +
-                          shape->upperSkin.normYSurf[i] *
-                              (shape->upperSkin.midY[i] - shape->rY[ii]);
-        if (dirL < 0) {
-          shape->lowerSkin.normXSurf[i] *= -1.0;
-          shape->lowerSkin.normYSurf[i] *= -1.0;
-        }
-        if (dirU < 0) {
-          shape->upperSkin.normXSurf[i] *= -1.0;
-          shape->upperSkin.normYSurf[i] *= -1.0;
-        }
       }
     }
   }
