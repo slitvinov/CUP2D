@@ -3015,7 +3015,7 @@ struct Shape {
   Real v;
   Real omega;
   Real area_internal = 0;
-  Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
+  Real CoM_internal[2] = {0, 0};
   Real theta_internal = 0;
   Real angvel_internal = 0;
   Real length, h;
@@ -3035,10 +3035,8 @@ struct Shape {
   Real *vY;
   Real *norX;
   Real *norY;
-  Real *vNorX;
-  Real *vNorY;
   Real *width;
-  Real linMom[2], area, angMom;
+  Real area, angMom;
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
@@ -3241,7 +3239,7 @@ static void ongrid(Real dt) {
       delete entry;
     shape->obstacleBlocks.clear();
     if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->vX, shape->vY,
-               shape->norX, shape->norY, shape->vNorX, shape->vNorY);
+               shape->norX, shape->norY);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->lowerSkin.n; ++i) {
       Real norm[2] = {shape->norX[i], shape->norY[i]};
@@ -3253,9 +3251,9 @@ static void ongrid(Real dt) {
       shape->upperSkin.xSurf[i] = shape->rX[i] + shape->width[i] * norm[0];
       shape->upperSkin.ySurf[i] = shape->rY[i] + shape->width[i] * norm[1];
     }
-    Real _area = 0, _cmx = 0, _cmy = 0, _lmx = 0, _lmy = 0;
+    Real _area = 0, _cmx = 0, _cmy = 0;
 #pragma omp parallel for schedule(static)                                      \
-    reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
+    reduction(+ : _area, _cmx, _cmy)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
@@ -3271,28 +3269,20 @@ static void ongrid(Real dt) {
       _area += fac1 * ds / 2;
       _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
       _cmy += (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
-      _lmx += (shape->vX[i] * fac1 + shape->vNorX[i] * fac2) * ds / 2;
-      _lmy += (shape->vY[i] * fac1 + shape->vNorY[i] * fac2) * ds / 2;
     }
     shape->area = _area;
     shape->CoM_internal[0] = _cmx;
     shape->CoM_internal[1] = _cmy;
-    shape->linMom[0] = _lmx;
-    shape->linMom[1] = _lmy;
     shape->CoM_internal[0] /= shape->area;
     shape->CoM_internal[1] /= shape->area;
-    shape->vCoM_internal[0] = shape->linMom[0] / shape->area;
-    shape->vCoM_internal[1] = shape->linMom[1] / shape->area;
     shape->area_internal = shape->area;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       shape->rX[i] -= shape->CoM_internal[0];
       shape->rY[i] -= shape->CoM_internal[1];
-      shape->vX[i] -= shape->vCoM_internal[0];
-      shape->vY[i] -= shape->vCoM_internal[1];
     }
     Real _J = 0, _am = 0;
-#pragma omp parallel for reduction(+ : _J, _am) schedule(static)
+#pragma omp parallel for reduction(+ : _J) schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
@@ -3305,20 +3295,11 @@ static void ongrid(Real dt) {
                    dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
                   3;
       Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
-      Real tmp_M =
-          (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
-          (shape->rX[i] * shape->vNorY[i] - shape->rY[i] * shape->vNorX[i] +
-           shape->vY[i] * shape->norX[i] - shape->vX[i] * shape->norY[i]) *
-              fac2 +
-          (shape->norX[i] * shape->vNorY[i] -
-           shape->norY[i] * shape->vNorX[i]) *
-              fac3;
       Real tmp_J =
           (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
           2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
               fac2 +
           fac3;
-      _am += tmp_M * ds / 2;
       _J += tmp_J * ds / 2;
     }
     shape->J = _J;
@@ -3339,17 +3320,11 @@ static void ongrid(Real dt) {
       const auto ds = shape->rS[i + 1] - shape->rS[i];
       const auto tX = shape->rX[i + 1] - shape->rX[i];
       const auto tY = shape->rY[i + 1] - shape->rY[i];
-      const auto tVX = shape->vX[i + 1] - shape->vX[i];
-      const auto tVY = shape->vY[i + 1] - shape->vY[i];
       shape->norX[i] = -tY / ds;
       shape->norY[i] = tX / ds;
-      shape->vNorX[i] = -tVY / ds;
-      shape->vNorY[i] = tVX / ds;
     }
     shape->norX[shape->Nm - 1] = shape->norX[shape->Nm - 2];
     shape->norY[shape->Nm - 1] = shape->norY[shape->Nm - 2];
-    shape->vNorX[shape->Nm - 1] = shape->vNorX[shape->Nm - 2];
-    shape->vNorY[shape->Nm - 1] = shape->vNorY[shape->Nm - 2];
     {
       const Real Rmatrix2D[2][2] = {
           {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
@@ -3455,8 +3430,8 @@ static void ongrid(Real dt) {
           const Real h = info->h, invh = 1.0 / info->h;
           const Real *const rX = shape->rX, *const norX = shape->norX;
           const Real *const rY = shape->rY, *const norY = shape->norY;
-          const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
-          const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
+          const Real *const vX = shape->vX;
+          const Real *const vY = shape->vY;
           const Real *const width = shape->width;
           std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
@@ -3485,8 +3460,8 @@ static void ongrid(Real dt) {
                                   width[ss - 1] * signp * norY[ss - 1]};
                 putfish.changeToComputationalFrame(pM);
                 Real udef[2] = {
-                    vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
-                    vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
+                    vX[ss + 0],
+                    vY[ss + 0]};
                 putfish.changeVelocityToComputationalFrame(udef);
                 for (int sy = std::max(0, iap[1] - 2);
                      sy < std::min(iap[1] + 4, _BS_); ++sy)
@@ -3576,8 +3551,8 @@ static void ongrid(Real dt) {
                   continue;
                 if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
                   continue;
-                Real udef[2] = {shape->vX[ss] + offsetW * shape->vNorX[ss],
-                                shape->vY[ss] + offsetW * shape->vNorY[ss]};
+                Real udef[2] = {shape->vX[ss],
+                                shape->vY[ss]};
                 putfish.changeVelocityToComputationalFrame(udef);
                 Real wghts[2][2];
                 for (int c = 0; c < 2; ++c) {
@@ -5382,8 +5357,6 @@ int main(int argc, char **argv) {
       shape->vY = new Real[shape->Nm];
       shape->norX = new Real[shape->Nm];
       shape->norY = new Real[shape->Nm];
-      shape->vNorX = new Real[shape->Nm];
-      shape->vNorY = new Real[shape->Nm];
       shape->width = new Real[shape->Nm];
       shape->rS[0] = 0;
       int k = 0;
