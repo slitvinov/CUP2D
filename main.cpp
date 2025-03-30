@@ -20,8 +20,8 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum { max_dim = 2, Nm = 2 };
-const double ds = 0.117999705;
+enum { max_dim = 2, Nm = 177 };
+const double ds = 0.00133333;
 
 typedef double Real;
 static const MPI_Datatype MPI_Real = MPI_DOUBLE;
