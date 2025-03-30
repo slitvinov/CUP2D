@@ -3023,8 +3023,8 @@ struct Shape {
 };
 struct AreaSegment {
 public:
-  const std::pair<int, int>(0, Nm);
-  AreaSegment(std::pair<int, int> sr)
+  const std::pair<int, int> s_range {0, Nm};
+  AreaSegment(std::pair<int, int>) {
   }
 };
 struct PutChiOnGrid {
