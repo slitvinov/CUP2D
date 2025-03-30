@@ -3010,8 +3010,6 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real area_internal = 0;
-  Real CoM_internal[2] = {0, 0};
   Real length, h;
   Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   int Nmid =
@@ -3028,7 +3026,6 @@ struct Shape {
   Real *norX;
   Real *norY;
   Real *width;
-  Real area;
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
@@ -3245,16 +3242,13 @@ static void ongrid(Real dt) {
       _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
       _cmy += (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
     }
-    shape->area = _area;
-    shape->CoM_internal[0] = _cmx;
-    shape->CoM_internal[1] = _cmy;
-    shape->CoM_internal[0] /= shape->area;
-    shape->CoM_internal[1] /= shape->area;
-    shape->area_internal = shape->area;
+    Real CoM_internal[2] = {_cmx, _cmy};
+    CoM_internal[0] /= _area;
+    CoM_internal[1] /= _area;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
-      shape->rX[i] -= shape->CoM_internal[0];
-      shape->rY[i] -= shape->CoM_internal[1];
+      shape->rX[i] -= CoM_internal[0];
+      shape->rY[i] -= CoM_internal[1];
     }
     Real _J = 0;
 #pragma omp parallel for reduction(+ : _J) schedule(static)
