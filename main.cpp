@@ -3023,9 +3023,8 @@ struct Shape {
 };
 struct AreaSegment {
 public:
-  const std::pair<int, int> s_range;
+  const std::pair<int, int>(0, Nm);
   AreaSegment(std::pair<int, int> sr)
-    : s_range(sr) {
   }
 };
 struct PutChiOnGrid {
@@ -3164,8 +3163,7 @@ static void ongrid(Real dt) {
     }
     shape->norX[Nm - 1] = shape->norX[Nm - 2];
     shape->norY[Nm - 1] = shape->norY[Nm - 2];
-    const int Nsegments = (Nm - 1) / 8;
-    assert((Nm - 1) % Nsegments == 0);
+    const int Nsegments = 1;
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       h = std::min(var.vel->infos[i].h, h);
