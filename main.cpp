@@ -2869,7 +2869,6 @@ struct Obstacle {
   Real *v_s = nullptr;
   Real *nx_s = nullptr;
   Real *ny_s = nullptr;
-  Real *omega_s = nullptr;
   Real *uDef_s = nullptr;
   Real *vDef_s = nullptr;
   Real *fX_s = nullptr;
@@ -2904,7 +2903,6 @@ struct Obstacle {
     free(v_s);
     free(nx_s);
     free(ny_s);
-    free(omega_s);
     free(uDef_s);
     free(vDef_s);
     free(fX_s);
@@ -3210,7 +3208,6 @@ struct ComputeSurfaceNormals {
       o.v_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.nx_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.ny_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.omega_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.uDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.vDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.fX_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
