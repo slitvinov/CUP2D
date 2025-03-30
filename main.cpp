@@ -3021,9 +3021,6 @@ struct Shape {
   Real *width;
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
-struct AreaSegment {
-
-};
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   std::vector<Info> &chiInfo = var.chi->infos;
@@ -3160,30 +3157,21 @@ static void ongrid(Real dt) {
     }
     shape->norX[Nm - 1] = shape->norX[Nm - 2];
     shape->norY[Nm - 1] = shape->norY[Nm - 2];
-    const int Nsegments = 1;
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
-    std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-    vSegments[0] = new AreaSegment;
     const auto N = tmpInfo.size();
-    std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
       const Info *info = &tmpInfo[i];
-      if (segmentsPerBlock[info->id] == nullptr)
-	segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
-      segmentsPerBlock[info->id]->push_back(vSegments[0]);
       Obstacle *const block = new Obstacle();
-      assert(block not_eq nullptr);
       shape->obstacleBlocks[info->id] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
       memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
     }
-    assert(not segmentsPerBlock.empty());
 #pragma omp parallel
     {
       PutFishOnBlocks putfish;
@@ -3366,10 +3354,6 @@ static void ongrid(Real dt) {
         }
       }
     }
-    for (auto &E : vSegments)
-      delete E;
-    for (auto &E : segmentsPerBlock)
-      delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   for (const auto &shape : sim.shapes) {
