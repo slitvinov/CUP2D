@@ -3173,11 +3173,9 @@ static void ongrid(Real dt) {
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
       const Info *info = &tmpInfo[i];
-      for (size_t s = 0; s < vSegments.size(); ++s) {
-	if (segmentsPerBlock[info->id] == nullptr)
-	  segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
-	segmentsPerBlock[info->id]->push_back(vSegments[s]);
-      }
+      if (segmentsPerBlock[info->id] == nullptr)
+	segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
+      segmentsPerBlock[info->id]->push_back(vSegments[0]);
       Obstacle *const block = new Obstacle();
       assert(block not_eq nullptr);
       shape->obstacleBlocks[info->id] = block;
