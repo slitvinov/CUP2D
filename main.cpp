@@ -20,7 +20,7 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum { max_dim = 2 };
+enum { max_dim = 2, Nm = 177 };
 typedef double Real;
 static const MPI_Datatype MPI_Real = MPI_DOUBLE;
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -3018,7 +3018,6 @@ struct Shape {
   int Nend = (int)std::ceil(fracRefined * length * 2 /
                             (dSmid + 0.125 * sim.minH) / 4) *
              4;
-  int Nm = Nmid + 2 * Nend + 1;
   Real *rS;
   Real *rX;
   Real *rY;
@@ -3225,17 +3224,17 @@ static void ongrid(Real dt) {
     shape->obstacleBlocks.clear();
     Real _area = 0, _cmx = 0, _cmy = 0;
 #pragma omp parallel for schedule(static) reduction(+ : _area, _cmx, _cmy)
-    for (int i = 0; i < shape->Nm; ++i) {
+    for (int i = 0; i < Nm; ++i) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
-                   : ((i == shape->Nm - 1)
-                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
+                   : ((i == Nm - 1)
+                          ? shape->rS[Nm - 1] - shape->rS[Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
       const Real fac1 = 2 * shape->width[i];
       const Real fac2 =
           2 * std::pow(shape->width[i], 3) *
-          (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
-           dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
+          (dds(i, Nm, shape->norX, shape->rS) * shape->norY[i] -
+           dds(i, Nm, shape->norY, shape->rS) * shape->norX[i]) /
           3;
       _area += fac1 * ds / 2;
       _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
@@ -3245,22 +3244,22 @@ static void ongrid(Real dt) {
     CoM_internal[0] /= _area;
     CoM_internal[1] /= _area;
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->Nm; ++i) {
+    for (int i = 0; i < Nm; ++i) {
       shape->rX[i] -= CoM_internal[0];
       shape->rY[i] -= CoM_internal[1];
     }
     Real _J = 0;
 #pragma omp parallel for reduction(+ : _J) schedule(static)
-    for (int i = 0; i < shape->Nm; ++i) {
+    for (int i = 0; i < Nm; ++i) {
       const Real ds =
           (i == 0) ? shape->rS[1] - shape->rS[0]
-                   : ((i == shape->Nm - 1)
-                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
+                   : ((i == Nm - 1)
+                          ? shape->rS[Nm - 1] - shape->rS[Nm - 2]
                           : shape->rS[i + 1] - shape->rS[i - 1]);
       Real fac1 = 2 * shape->width[i];
       Real fac2 = 2 * std::pow(shape->width[i], 3) *
-                  (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
-                   dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
+                  (dds(i, Nm, shape->norX, shape->rS) * shape->norY[i] -
+                   dds(i, Nm, shape->norY, shape->rS) * shape->norX[i]) /
                   3;
       Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
       Real tmp_J =
@@ -3272,17 +3271,16 @@ static void ongrid(Real dt) {
     }
     shape->J = _J;
 #pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->Nm - 1; i++) {
+    for (int i = 0; i < Nm - 1; i++) {
       const auto ds = shape->rS[i + 1] - shape->rS[i];
       const auto tX = shape->rX[i + 1] - shape->rX[i];
       const auto tY = shape->rY[i + 1] - shape->rY[i];
       shape->norX[i] = -tY / ds;
       shape->norY[i] = tX / ds;
     }
-    shape->norX[shape->Nm - 1] = shape->norX[shape->Nm - 2];
-    shape->norY[shape->Nm - 1] = shape->norY[shape->Nm - 2];
-    const int Nsegments = (shape->Nm - 1) / 8;
-    const int Nm = shape->Nm;
+    shape->norX[Nm - 1] = shape->norX[Nm - 2];
+    shape->norY[Nm - 1] = shape->norY[Nm - 2];
+    const int Nsegments = (Nm - 1) / 8;
     assert((Nm - 1) % Nsegments == 0);
     std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
     Real h = std::numeric_limits<Real>::infinity();
@@ -3374,7 +3372,7 @@ static void ongrid(Real dt) {
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
-            const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
+            const int lastSegm = std::min(v[i]->s_range.second, Nm - 2);
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
               assert(width[ss] > 0);
               for (int signp = -1; signp <= 1; signp += 2) {
@@ -3466,7 +3464,7 @@ static void ongrid(Real dt) {
           org[1] = info->origin[1] + info->h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
             const int firstSegm = std::max(v[i]->s_range.first, 1);
-            const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
+            const int lastSegm = std::min(v[i]->s_range.second, Nm - 2);
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
               const Real myWidth = shape->width[ss];
               assert(myWidth > 0);
@@ -3622,7 +3620,7 @@ static void ongrid(Real dt) {
       const Real Rmatrix2D[2][2] = {
           {std::cos(shape->orientation), -std::sin(shape->orientation)},
           {std::sin(shape->orientation), std::cos(shape->orientation)}};
-      for (int i = 0; i < shape->Nm; ++i) {
+      for (int i = 0; i < Nm; ++i) {
         rotate2D(Rmatrix2D, &shape->rX[i], &shape->rY[i]);
         rotate2D(Rmatrix2D, &shape->norX[i], &shape->norY[i]);
         shape->rX[i] += shape->centerOfMass[0];
@@ -5220,13 +5218,13 @@ int main(int argc, char **argv) {
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
-      shape->rS = new Real[shape->Nm];
-      shape->rX = new Real[shape->Nm];
-      shape->rY = new Real[shape->Nm];
-      shape->norX = new Real[shape->Nm];
-      shape->norY = new Real[shape->Nm];
-      shape->width = new Real[shape->Nm];
-      for (int i = 0; i < shape->Nm; ++i) {
+      shape->rS = new Real[Nm];
+      shape->rX = new Real[Nm];
+      shape->rY = new Real[Nm];
+      shape->norX = new Real[Nm];
+      shape->norY = new Real[Nm];
+      shape->width = new Real[Nm];
+      for (int i = 0; i < Nm; ++i) {
         shape->rS[i] = i * shape->dSmid;
         shape->rX[i] = i * shape->dSmid;
         shape->rY[i] = 0;
