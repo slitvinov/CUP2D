@@ -4314,7 +4314,6 @@ static void adapt() {
                 forward(b.level, b.index[0] + i, b.index[1] + j);
             if (n == nBlock)
               continue;
-            Info *temp = getf(&g->all, b.level, n);
             const int temprank = treef(&g->tree, b.level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
