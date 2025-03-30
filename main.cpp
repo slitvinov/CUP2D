@@ -3221,14 +3221,9 @@ static void ongrid(Real dt) {
 #pragma omp parallel for schedule(static) reduction(+ : _area, _cmx, _cmy)
     for (int i = 0; i < Nm; ++i) {
       const Real fac1 = 2 * shape->width[i];
-      const Real fac2 =
-          2 * std::pow(shape->width[i], 3) *
-          (dds(i, Nm, shape->norX, shape->rS) * shape->norY[i] -
-           dds(i, Nm, shape->norY, shape->rS) * shape->norX[i]) /
-          3;
       _area += fac1 * ds / 2;
-      _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
-      _cmy += (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
+      _cmx += shape->rX[i] * fac1 * ds / 2;
+      _cmy += shape->rY[i] * fac1 * ds / 2;
     }
     Real CoM_internal[2] = {_cmx, _cmy};
     CoM_internal[0] /= _area;
