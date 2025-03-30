@@ -3014,7 +3014,7 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
-  Real area_internal = 0, J_internal = 0;
+  Real area_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0;
   Real angvel_internal = 0;
@@ -3325,7 +3325,6 @@ static void ongrid(Real dt) {
     shape->J = _J;
     shape->angMom = _am;
     shape->angvel_internal = shape->angMom / shape->J;
-    shape->J_internal = shape->J;
     const Real Rmatrix2D[2][2] = {
         {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
         {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
