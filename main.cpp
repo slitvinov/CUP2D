@@ -2862,19 +2862,6 @@ struct Obstacle {
   size_t n_surfPoints = 0;
   bool filled = false;
   std::vector<surface_data> surface;
-  Real *x_s = nullptr;
-  Real *y_s = nullptr;
-  Real *p_s = nullptr;
-  Real *u_s = nullptr;
-  Real *v_s = nullptr;
-  Real *nx_s = nullptr;
-  Real *ny_s = nullptr;
-  Real *uDef_s = nullptr;
-  Real *vDef_s = nullptr;
-  Real *fX_s = nullptr;
-  Real *fY_s = nullptr;
-  Real *fXv_s = nullptr;
-  Real *fYv_s = nullptr;
   Real forcex = 0, forcey = 0;
   Real torque = 0;
   Real drag = 0, thrust = 0, lift = 0, Pout = 0, PoutBnd = 0, defPower = 0;
@@ -2896,19 +2883,6 @@ struct Obstacle {
     torque = drag = thrust = lift = 0;
     Pout = PoutBnd = defPower = circulation = 0;
     surface.clear();
-    free(x_s);
-    free(y_s);
-    free(p_s);
-    free(u_s);
-    free(v_s);
-    free(nx_s);
-    free(ny_s);
-    free(uDef_s);
-    free(vDef_s);
-    free(fX_s);
-    free(fY_s);
-    free(fXv_s);
-    free(fYv_s);
   }
 };
 struct KernelVorticity {
@@ -3201,19 +3175,6 @@ struct ComputeSurfaceNormals {
           }
         }
       o.filled = true;
-      o.x_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.y_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.p_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.u_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.v_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.nx_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.ny_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.uDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.vDef_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.fX_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.fY_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.fXv_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
-      o.fYv_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
     }
   }
 };
