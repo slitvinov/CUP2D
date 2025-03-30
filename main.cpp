@@ -3025,8 +3025,6 @@ struct Shape {
   Real *rS;
   Real *rX;
   Real *rY;
-  Real *vX;
-  Real *vY;
   Real *norX;
   Real *norY;
   Real *width;
@@ -3229,8 +3227,7 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->vX, shape->vY,
-               shape->norX, shape->norY);
+    if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX, shape->norY);
     Real _area = 0, _cmx = 0, _cmy = 0;
 #pragma omp parallel for schedule(static)                                      \
     reduction(+ : _area, _cmx, _cmy)
@@ -3382,8 +3379,6 @@ static void ongrid(Real dt) {
           const Real h = info->h, invh = 1.0 / info->h;
           const Real *const rX = shape->rX, *const norX = shape->norX;
           const Real *const rY = shape->rY, *const norY = shape->norY;
-          const Real *const vX = shape->vX;
-          const Real *const vY = shape->vY;
           const Real *const width = shape->width;
           std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
@@ -3411,10 +3406,6 @@ static void ongrid(Real dt) {
                               rY[ss - 1] +
                                   width[ss - 1] * signp * norY[ss - 1]};
                 putfish.changeToComputationalFrame(pM);
-                Real udef[2] = {
-                    vX[ss + 0],
-                    vY[ss + 0]};
-                putfish.changeVelocityToComputationalFrame(udef);
                 for (int sy = std::max(0, iap[1] - 2);
                      sy < std::min(iap[1] + 4, _BS_); ++sy)
                   for (int sx = std::max(0, iap[0] - 2);
@@ -3472,8 +3463,8 @@ static void ongrid(Real dt) {
                       Real W =
                           1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
                       assert(W >= 0);
-                      o->udef[sy][sx][0] = W * udef[0];
-                      o->udef[sy][sx][1] = W * udef[1];
+                      o->udef[sy][sx][0] = 0;
+                      o->udef[sy][sx][1] = 0;
                       o->dist[sy][sx] = sign2d * dist1;
                       o->chi[sy][sx] = W;
                     }
@@ -3503,8 +3494,7 @@ static void ongrid(Real dt) {
                   continue;
                 if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
                   continue;
-                Real udef[2] = {shape->vX[ss],
-                                shape->vY[ss]};
+                Real udef[2] = {0, 0};
                 putfish.changeVelocityToComputationalFrame(udef);
                 Real wghts[2][2];
                 for (int c = 0; c < 2; ++c) {
@@ -3542,7 +3532,6 @@ static void ongrid(Real dt) {
                                     ? std::sqrt(o->dist[iy][ix])
                                     : -std::sqrt(-o->dist[iy][ix]);
               b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
-              ;
             }
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
         }
@@ -5244,8 +5233,6 @@ int main(int argc, char **argv) {
       shape->rS = new Real[shape->Nm];
       shape->rX = new Real[shape->Nm];
       shape->rY = new Real[shape->Nm];
-      shape->vX = new Real[shape->Nm];
-      shape->vY = new Real[shape->Nm];
       shape->norX = new Real[shape->Nm];
       shape->norY = new Real[shape->Nm];
       shape->width = new Real[shape->Nm];
@@ -5264,8 +5251,6 @@ int main(int argc, char **argv) {
       shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
       std::fill(shape->rX, shape->rX + shape->Nm, 0);
       std::fill(shape->rY, shape->rY + shape->Nm, 0);
-      std::fill(shape->vX, shape->vX + shape->Nm, 0);
-      std::fill(shape->vY, shape->vY + shape->Nm, 0);
       for (int i = 0; i < shape->Nm; ++i) {
         Real sb = .04 * shape->length, st = .95 * shape->length,
              wt = .01 * shape->length, wh = .04 * shape->length;

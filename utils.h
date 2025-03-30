@@ -81,26 +81,19 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
       }
   }
 }
-static void if2d_solve(unsigned Nm, Real *rS, Real *rX, Real *rY, Real *vX,
-                       Real *vY, Real *norX, Real *norY) {
+static void if2d_solve(unsigned Nm, Real *rS, Real *rX, Real *rY, Real *norX, Real *norY) {
   rX[0] = 0.0;
   rY[0] = 0.0;
   norX[0] = 0.0;
   norY[0] = 1.0;
   Real ksiX = 1.0;
   Real ksiY = 0.0;
-  vX[0] = 0.0;
-  vY[0] = 0.0;
-  Real vKsiX = 0.0;
-  Real vKsiY = 0.0;
   for (unsigned i = 1; i < Nm; i++) {
     Real ds = rS[i] - rS[i - 1];
     rX[i] = rX[i - 1] + ds * ksiX;
     rY[i] = rY[i - 1] + ds * ksiY;
     norX[i] = norX[i - 1];
     norY[i] = norY[i - 1];
-    vX[i] = vX[i - 1] + ds * vKsiX;
-    vY[i] = vY[i - 1] + ds * vKsiY;
     Real d1 = ksiX * ksiX + ksiY * ksiY;
     Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
     if (d1 > std::numeric_limits<Real>::epsilon()) {
