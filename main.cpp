@@ -3355,7 +3355,6 @@ static void ongrid(Real dt) {
       PutFishOnBlocks putfish;
       putfish.position[0] = shape->center[0];
       putfish.position[1] = shape->center[1];
-
       putfish.Rmatrix2D[0][0] = std::cos(shape->orientation);
       putfish.Rmatrix2D[0][1] = -std::sin(shape->orientation);
       putfish.Rmatrix2D[1][0] = std::sin(shape->orientation);
@@ -5240,17 +5239,13 @@ int main(int argc, char **argv) {
         shape->rS[k + 1] =
             shape->rS[k] + shape->dSref +
             (shape->dSmid - shape->dSref) * i / ((Real)shape->Nend - 1.);
-      for (int i = 0; i < shape->Nmid; ++i, k++)
-        shape->rS[k + 1] = shape->rS[k] + shape->dSmid;
-      for (int i = 0; i < shape->Nend; ++i, k++)
-        shape->rS[k + 1] = shape->rS[k] + shape->dSref +
-                           (shape->dSmid - shape->dSref) *
-                               (shape->Nend - i - 1) / ((Real)shape->Nend - 1.);
+      for (int i = 0; i < shape->Nm; i++)
+        shape->rS[i] = i * shape->dSmid;
       shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
       std::fill(shape->rX, shape->rX + shape->Nm, 0);
       std::fill(shape->rY, shape->rY + shape->Nm, 0);
       for (int i = 0; i < shape->Nm; ++i)
-	shape->width[i] = .04 * shape->length;
+        shape->width[i] = .04 * shape->length;
       if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX,
                  shape->norY);
       sim.shapes.push_back(shape);
