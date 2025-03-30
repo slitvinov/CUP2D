@@ -81,9 +81,9 @@ static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
       }
   }
 }
-static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
-                       Real *rX, Real *rY, Real *vX, Real *vY, Real *norX,
-                       Real *norY, Real *vNorX, Real *vNorY) {
+static void if2d_solve(unsigned Nm, Real *rS, Real *rX, Real *rY, Real *vX,
+                       Real *vY, Real *norX, Real *norY, Real *vNorX,
+                       Real *vNorY) {
   rX[0] = 0.0;
   rY[0] = 0.0;
   norX[0] = 0.0;
@@ -97,27 +97,15 @@ static void if2d_solve(unsigned Nm, Real *rS, Real *curv, Real *curv_dt,
   Real vKsiX = 0.0;
   Real vKsiY = 0.0;
   for (unsigned i = 1; i < Nm; i++) {
-    Real dksiX = curv[i - 1] * norX[i - 1];
-    Real dksiY = curv[i - 1] * norY[i - 1];
-    Real dnuX = -curv[i - 1] * ksiX;
-    Real dnuY = -curv[i - 1] * ksiY;
-    Real dvKsiX = curv_dt[i - 1] * norX[i - 1] + curv[i - 1] * vNorX[i - 1];
-    Real dvKsiY = curv_dt[i - 1] * norY[i - 1] + curv[i - 1] * vNorY[i - 1];
-    Real dvNuX = -curv_dt[i - 1] * ksiX - curv[i - 1] * vKsiX;
-    Real dvNuY = -curv_dt[i - 1] * ksiY - curv[i - 1] * vKsiY;
     Real ds = rS[i] - rS[i - 1];
     rX[i] = rX[i - 1] + ds * ksiX;
     rY[i] = rY[i - 1] + ds * ksiY;
-    norX[i] = norX[i - 1] + ds * dnuX;
-    norY[i] = norY[i - 1] + ds * dnuY;
-    ksiX += ds * dksiX;
-    ksiY += ds * dksiY;
+    norX[i] = norX[i - 1];
+    norY[i] = norY[i - 1];
     vX[i] = vX[i - 1] + ds * vKsiX;
     vY[i] = vY[i - 1] + ds * vKsiY;
-    vNorX[i] = vNorX[i - 1] + ds * dvNuX;
-    vNorY[i] = vNorY[i - 1] + ds * dvNuY;
-    vKsiX += ds * dvKsiX;
-    vKsiY += ds * dvKsiY;
+    vNorX[i] = vNorX[i - 1];
+    vNorY[i] = vNorY[i - 1];
     Real d1 = ksiX * ksiX + ksiY * ksiY;
     Real d2 = norX[i] * norX[i] + norY[i] * norY[i];
     if (d1 > std::numeric_limits<Real>::epsilon()) {

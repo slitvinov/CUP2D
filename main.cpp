@@ -33,9 +33,9 @@ struct Stencil {
     int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
     for (int i = 0; i < sizeof me / sizeof *me; ++i)
       if (me[i] < you[i])
-	return true;
+        return true;
       else if (me[i] > you[i])
-	return false;
+        return false;
     return false;
   }
 };
@@ -110,10 +110,10 @@ struct Interface {
   bool operator<(const Interface &other) const {
     if (infos[0]->id2 == other.infos[0]->id2) {
       if (icode[0] == other.icode[0]) {
-	if (infos[1]->id2 == other.infos[1]->id2) {
-	  return (icode[1] < other.icode[1]);
-	}
-	return (infos[1]->id2 < other.infos[1]->id2);
+        if (infos[1]->id2 == other.infos[1]->id2) {
+          return (icode[1] < other.icode[1]);
+        }
+        return (infos[1]->id2 < other.infos[1]->id2);
       }
       return (icode[0] < other.icode[0]);
     }
@@ -139,7 +139,7 @@ static bool contains(Range *q, Range *r) {
   int V = (q->ey - q->sy) * (q->ex - q->sx);
   int Vr = (r->ey - r->sy) * (r->ex - r->sx);
   return q->sx <= r->sx && r->ex <= q->ex && q->sy <= r->sy && r->ey <= q->ey &&
-	 Vr < V;
+         Vr < V;
 }
 struct UnPackInfo {
   int offset;
@@ -182,7 +182,7 @@ static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
   for (int i = 0; i < 27; i++)
     for (size_t j = 0; j < compass[i].size(); j++)
       if (compass[i][j].needed)
-	retval.push_back(&compass[i][j]);
+        retval.push_back(&compass[i][j]);
   return retval;
 }
 static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
@@ -195,19 +195,19 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
       bool needme = false;
       auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
       for (size_t j1 = 0; j1 < me.size(); j1++)
-	if (me[j1].needed) {
-	  needme = true;
-	  for (size_t j2 = 0; j2 < me.size(); j2++)
-	    if (me[j2].needed && contains(&me[j2], &me[j1])) {
-	      me[j1].needed = false;
-	      me[j2].removed.push_back(me[j1].index);
-	      remove(&me[j2], &me[j1]);
-	      v.push_back(me[j1].index);
-	      break;
-	    }
-	}
+        if (me[j1].needed) {
+          needme = true;
+          for (size_t j2 = 0; j2 < me.size(); j2++)
+            if (me[j2].needed && contains(&me[j2], &me[j1])) {
+              me[j1].needed = false;
+              me[j2].removed.push_back(me[j1].index);
+              remove(&me[j2], &me[j1]);
+              v.push_back(me[j1].index);
+              break;
+            }
+        }
       if (!needme)
-	continue;
+        continue;
       int imax = (f[0] == 1) ? 2 : f[0];
       int imin = (f[0] == 1) ? 0 : f[0];
       int jmax = (f[1] == 1) ? 2 : f[1];
@@ -215,26 +215,26 @@ static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
       int kmax = (f[2] == 1) ? 2 : f[2];
       int kmin = (f[2] == 1) ? 0 : f[2];
       for (int k = kmin; k <= kmax; k++)
-	for (int j = jmin; j <= jmax; j++)
-	  for (int i = imin; i <= imax; i++) {
-	    if (i == f[0] && j == f[1] && k == f[2])
-	      continue;
-	    auto &other = compass[i + j * 3 + k * 9];
-	    for (size_t j1 = 0; j1 < other.size(); j1++) {
-	      auto &o = other[j1];
-	      if (o.needed)
-		for (size_t k1 = 0; k1 < me.size(); k1++) {
-		  auto &m = me[k1];
-		  if (m.needed && contains(&m, &o)) {
-		    o.needed = false;
-		    m.removed.push_back(o.index);
-		    remove(&m, &o);
-		    v.push_back(o.index);
-		    break;
-		  }
-		}
-	    }
-	  }
+        for (int j = jmin; j <= jmax; j++)
+          for (int i = imin; i <= imax; i++) {
+            if (i == f[0] && j == f[1] && k == f[2])
+              continue;
+            auto &other = compass[i + j * 3 + k * 9];
+            for (size_t j1 = 0; j1 < other.size(); j1++) {
+              auto &o = other[j1];
+              if (o.needed)
+                for (size_t k1 = 0; k1 < me.size(); k1++) {
+                  auto &m = me[k1];
+                  if (m.needed && contains(&m, &o)) {
+                    o.needed = false;
+                    m.removed.push_back(o.index);
+                    remove(&m, &o);
+                    v.push_back(o.index);
+                    break;
+                  }
+                }
+            }
+          }
     }
 }
 struct DuplicatesManager {
@@ -247,7 +247,7 @@ struct DuplicatesManager {
   }
 };
 static int &treef(std::unordered_map<long long, int> *tree, int m,
-		  long long n) {
+                  long long n) {
   long long aux = sim.levels[m] + n;
   auto retval = tree->find(aux);
   if (retval == tree->end()) {
@@ -255,7 +255,7 @@ static int &treef(std::unordered_map<long long, int> *tree, int m,
     {
       auto retval1 = tree->find(aux);
       if (retval1 == tree->end()) {
-	(*tree)[aux] = -3;
+        (*tree)[aux] = -3;
       }
     }
     return treef(tree, m, n);
@@ -281,21 +281,21 @@ static void fill(Info *b, int level, long long Z) {
   for (i = -1; i < 2; i++)
     for (j = -1; j < 2; j++)
       b->Znei[i + 1][j + 1] = sim.space_curve->forward(
-	  level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
+          level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
   for (i = 0; i < 2; i++)
     for (j = 0; j < 2; j++)
       b->Zchild[i][j] = sim.space_curve->forward(level + 1, 2 * b->index[0] + i,
-						 2 * b->index[1] + j);
+                                                 2 * b->index[1] + j);
   b->Zparent =
       level == 0
-	  ? 0
-	  : sim.space_curve->forward(level - 1, (b->index[0] / 2) % Bmax[0],
-				     (b->index[1] / 2) % Bmax[1]);
+          ? 0
+          : sim.space_curve->forward(level - 1, (b->index[0] / 2) % Bmax[0],
+                                     (b->index[1] / 2) % Bmax[1]);
   b->id2 = sim.space_curve->Encode(level, b->index);
   b->id = b->id2;
 }
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
-		  long long Z) {
+                  long long Z) {
   long long aux = sim.levels[m] + Z;
   auto retval = all->find(aux);
   if (retval != all->end()) {
@@ -305,16 +305,16 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     {
       const auto retval1 = all->find(aux);
       if (retval1 == all->end()) {
-	Info *dumm = new Info;
-	fill(dumm, m, Z);
-	(*all)[aux] = dumm;
+        Info *dumm = new Info;
+        fill(dumm, m, Z);
+        (*all)[aux] = dumm;
       }
     }
     return getf(all, m, Z);
   }
 }
 static void DetermineStencilLength(int *sLength, int level_sender,
-				   int level_receiver, int icode, int *L) {
+                                   int level_receiver, int icode, int *L) {
   if (level_sender == level_receiver) {
     L[0] = sLength[3 * icode + 0];
     L[1] = sLength[3 * icode + 1];
@@ -331,8 +331,8 @@ static void DetermineStencilLength(int *sLength, int level_sender,
 }
 
 static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
-			       Range &Coarse_Range, const Stencil &stencil,
-			       const Interface *f, bool CoarseVersion) {
+                               Range &Coarse_Range, const Stencil &stencil,
+                               const Interface *f, bool CoarseVersion) {
   if (CoarseVersion) {
     AllStencils[f->icode[1] + 2 * 27].needed = true;
     return AllStencils[f->icode[1] + 2 * 27];
@@ -346,75 +346,75 @@ static Range &DetermineStencil(std::array<Range, 3 * 27> &AllStencils,
     } else {
       Coarse_Range.needed = true;
       const int code[3] = {f->icode[1] % 3 - 1, (f->icode[1] / 3) % 3 - 1,
-			   (f->icode[1] / 9) % 3 - 1};
+                           (f->icode[1] / 9) % 3 - 1};
       const int s[3] = {
-	  code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
-		      : _BS_ / 2,
-	  code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
-		      : _BS_ / 2,
-	  code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
+          code[0] < 1 ? (code[0] < 0 ? ((stencil.sx - 1) / 2 - 1) : 0)
+                      : _BS_ / 2,
+          code[1] < 1 ? (code[1] < 0 ? ((stencil.sy - 1) / 2 - 1) : 0)
+                      : _BS_ / 2,
+          code[2] < 1 ? (code[2] < 0 ? ((0 - 1) / 2) : 0) : 1 / 2};
       int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-			      : _BS_ / 2 + stencil.ex / 2 + 1,
-		  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-			      : _BS_ / 2 + stencil.ey / 2 + 1,
-		  code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
+                              : _BS_ / 2 + stencil.ex / 2 + 1,
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                              : _BS_ / 2 + stencil.ey / 2 + 1,
+                  code[2] < 1 ? (code[2] < 0 ? 0 : 1 / 2) : 1 / 2};
       int base[3] = {(f->infos[1]->index[0] + code[0]) % 2,
-		     (f->infos[1]->index[1] + code[1]) % 2,
-		     (f->infos[1]->index[2] + code[2]) % 2};
+                     (f->infos[1]->index[1] + code[1]) % 2,
+                     (f->infos[1]->index[2] + code[2]) % 2};
       int Cindex_true[3];
       for (int d = 0; d < 3; d++)
-	Cindex_true[d] = f->infos[1]->index[d] + code[d];
+        Cindex_true[d] = f->infos[1]->index[d] + code[d];
       int CoarseEdge[2];
       CoarseEdge[0] = code[0] == 0 ? 0
-		      : ((f->infos[1]->index[0] % 2 == 0) &&
-			 (Cindex_true[0] > f->infos[1]->index[0])) ||
-			      ((f->infos[1]->index[0] % 2 == 1) &&
-			       (Cindex_true[0] < f->infos[1]->index[0]))
-			  ? 1
-			  : 0;
+                      : ((f->infos[1]->index[0] % 2 == 0) &&
+                         (Cindex_true[0] > f->infos[1]->index[0])) ||
+                              ((f->infos[1]->index[0] % 2 == 1) &&
+                               (Cindex_true[0] < f->infos[1]->index[0]))
+                          ? 1
+                          : 0;
       CoarseEdge[1] = code[1] == 0 ? 0
-		      : ((f->infos[1]->index[1] % 2 == 0) &&
-			 (Cindex_true[1] > f->infos[1]->index[1])) ||
-			      ((f->infos[1]->index[1] % 2 == 1) &&
-			       (Cindex_true[1] < f->infos[1]->index[1]))
-			  ? 1
-			  : 0;
+                      : ((f->infos[1]->index[1] % 2 == 0) &&
+                         (Cindex_true[1] > f->infos[1]->index[1])) ||
+                              ((f->infos[1]->index[1] % 2 == 1) &&
+                               (Cindex_true[1] < f->infos[1]->index[1]))
+                          ? 1
+                          : 0;
       Coarse_Range.sx = s[0] + std::max(code[0], 0) * _BS_ / 2 +
-			(1 - abs(code[0])) * base[0] * _BS_ / 2 -
-			code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
+                        (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                        code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
       Coarse_Range.sy = s[1] + std::max(code[1], 0) * _BS_ / 2 +
-			(1 - abs(code[1])) * base[1] * _BS_ / 2 -
-			code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
+                        (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                        code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
       Coarse_Range.ex = e[0] + std::max(code[0], 0) * _BS_ / 2 +
-			(1 - abs(code[0])) * base[0] * _BS_ / 2 -
-			code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
+                        (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                        code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2;
       Coarse_Range.ey = e[1] + std::max(code[1], 0) * _BS_ / 2 +
-			(1 - abs(code[1])) * base[1] * _BS_ / 2 -
-			code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
+                        (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                        code[1] * _BS_ + CoarseEdge[1] * code[1] * _BS_ / 2;
       return Coarse_Range;
     }
   }
 }
 
 static void FixDuplicates(std::array<Range, 3 * 27> &AllStencils,
-			  Range &Coarse_Range, const Stencil &stencil,
-			  const Interface *f, const Interface *f_dup, int lx,
-			  int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
-			  int *sx, int *sy, int *sz) {
+                          Range &Coarse_Range, const Stencil &stencil,
+                          const Interface *f, const Interface *f_dup, int lx,
+                          int ly, int lz, int lx_dup, int ly_dup, int lz_dup,
+                          int *sx, int *sy, int *sz) {
   Info *receiver = f->infos[1];
   Info *receiver_dup = f_dup->infos[1];
   if (receiver->level >= receiver_dup->level) {
     int icode_dup = f_dup->icode[1];
     const int code_dup[3] = {icode_dup % 3 - 1, (icode_dup / 3) % 3 - 1,
-			     (icode_dup / 9) % 3 - 1};
+                             (icode_dup / 9) % 3 - 1};
     *sx = (lx == lx_dup || code_dup[0] != -1) ? 0 : lx - lx_dup;
     *sy = (ly == ly_dup || code_dup[1] != -1) ? 0 : ly - ly_dup;
     *sz = (lz == lz_dup || code_dup[2] != -1) ? 0 : lz - lz_dup;
   } else {
     Range &range =
-	DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
     Range &range_dup =
-	DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
+        DetermineStencil(AllStencils, Coarse_Range, stencil, f_dup, false);
     *sx = range_dup.sx - range.sx;
     *sy = range_dup.sy - range.sy;
     *sz = 0;
@@ -422,9 +422,9 @@ static void FixDuplicates(std::array<Range, 3 * 27> &AllStencils,
 }
 
 static void FixDuplicates2(std::array<Range, 3 * 27> &AllStencils,
-			   Range &Coarse_Range, const Stencil &stencil,
-			   const Interface *f, const Interface *f_dup, int *sx,
-			   int *sy, int *sz) {
+                           Range &Coarse_Range, const Stencil &stencil,
+                           const Interface *f, const Interface *f_dup, int *sx,
+                           int *sy, int *sz) {
   if (f->infos[0]->level != f->infos[1]->level ||
       f_dup->infos[0]->level != f_dup->infos[1]->level)
     return;
@@ -447,18 +447,18 @@ static std::vector<Info *> &avail_next(
     it = mapofHaloBlockGroups.begin();
     while (it != mapofHaloBlockGroups.end()) {
       if ((it->second).ready == false) {
-	std::set<int> ranks = (it->second).myranks;
-	int flag = 0;
-	for (auto r : ranks) {
-	  const auto retval = mapofrequests.find(r);
-	  MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
-	  if (flag == false)
-	    break;
-	}
-	if (flag == 1) {
-	  (it->second).ready = true;
-	  return (it->second).myblocks;
-	}
+        std::set<int> ranks = (it->second).myranks;
+        int flag = 0;
+        for (auto r : ranks) {
+          const auto retval = mapofrequests.find(r);
+          MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+          if (flag == false)
+            break;
+        }
+        if (flag == 1) {
+          (it->second).ready = true;
+          return (it->second).myblocks;
+        }
       }
       done = done && (it->second).ready;
       it++;
@@ -511,9 +511,9 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
   for (Info &info : *infos) {
     info.halo_id = -1;
     bool xskin =
-	info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
+        info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
     bool yskin =
-	info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
+        info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
     assert(xskip);
@@ -524,167 +524,167 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     bool Coarsened = false;
     for (int icode = 0; icode < 27; icode++) {
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-	continue;
+        continue;
       int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
       if (code[2] != 0)
-	continue;
+        continue;
       if (code[0] == xskip && xskin)
-	continue;
+        continue;
       if (code[1] == yskip && yskin)
-	continue;
+        continue;
       int &infoNeiTree =
-	  treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
       if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-	isInner = false;
-	buf->Neighbors.insert(infoNeiTree);
-	Info *infoNei =
-	    getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-	int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-	buf->send_interfaces[infoNeiTree].push_back(
-	    {&info, infoNei, icode, icode2});
-	buf->recv_interfaces[infoNeiTree].push_back(
-	    {infoNei, &info, icode2, icode});
-	ToBeChecked.push_back(infoNeiTree);
-	ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
-			      1);
-	ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
-			      1);
-	DM.add(infoNeiTree, (int)buf->send_interfaces[infoNeiTree].size() - 1);
+        isInner = false;
+        buf->Neighbors.insert(infoNeiTree);
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+        buf->send_interfaces[infoNeiTree].push_back(
+            {&info, infoNei, icode, icode2});
+        buf->recv_interfaces[infoNeiTree].push_back(
+            {infoNei, &info, icode2, icode});
+        ToBeChecked.push_back(infoNeiTree);
+        ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
+                              1);
+        ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
+                              1);
+        DM.add(infoNeiTree, (int)buf->send_interfaces[infoNeiTree].size() - 1);
       } else if (infoNeiTree == -2) {
-	Coarsened = true;
-	Info *infoNei =
-	    getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-	int infoNeiCoarserrank = treef(tree, info.level - 1, infoNei->Zparent);
-	if (infoNeiCoarserrank != sim.rank) {
-	  isInner = false;
-	  buf->Neighbors.insert(infoNeiCoarserrank);
-	  Info *infoNeiCoarser =
-	      getf(all, infoNei->level - 1, infoNei->Zparent);
-	  int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-	  int Bmax[3] = {sim.bpdx << (info.level - 1),
-			 sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
-	  int test_idx[3] = {
-	      (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
-	      (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
-	      (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
-	  if (info.index[0] / 2 == test_idx[0] &&
-	      info.index[1] / 2 == test_idx[1] &&
-	      info.index[2] / 2 == test_idx[2]) {
-	    buf->send_interfaces[infoNeiCoarserrank].push_back(
-		{&info, infoNeiCoarser, icode, icode2});
-	    buf->recv_interfaces[infoNeiCoarserrank].push_back(
-		{infoNeiCoarser, &info, icode2, icode});
-	    DM.add(infoNeiCoarserrank,
-		   (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
-	    if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
-	      int d0 = abs(code[1] + 2 * code[2]);
-	      int d1 = (d0 + 1) % 3;
-	      int d2 = (d0 + 2) % 3;
-	      int code3[3];
-	      code3[d0] = code[d0];
-	      code3[d1] = -2 * (info.index[d1] % 2) + 1;
-	      code3[d2] = -2 * (info.index[d2] % 2) + 1;
-	      int icode3 =
-		  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-	      int code4[3];
-	      code4[d0] = code[d0];
-	      code4[d1] = code3[d1];
-	      code4[d2] = 0;
-	      int icode4 =
-		  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-	      int code5[3];
-	      code5[d0] = code[d0];
-	      code5[d1] = 0;
-	      code5[d2] = code3[d2];
-	      int icode5 =
-		  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-	      if (code3[2] == 0)
-		buf->recv_interfaces[infoNeiCoarserrank].push_back(
-		    {infoNeiCoarser, &info, icode2, icode3});
-	      if (code4[2] == 0)
-		buf->recv_interfaces[infoNeiCoarserrank].push_back(
-		    {infoNeiCoarser, &info, icode2, icode4});
-	      if (code5[2] == 0)
-		buf->recv_interfaces[infoNeiCoarserrank].push_back(
-		    {infoNeiCoarser, &info, icode2, icode5});
-	    }
-	  }
-	}
+        Coarsened = true;
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int infoNeiCoarserrank = treef(tree, info.level - 1, infoNei->Zparent);
+        if (infoNeiCoarserrank != sim.rank) {
+          isInner = false;
+          buf->Neighbors.insert(infoNeiCoarserrank);
+          Info *infoNeiCoarser =
+              getf(all, infoNei->level - 1, infoNei->Zparent);
+          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+          int Bmax[3] = {sim.bpdx << (info.level - 1),
+                         sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
+          int test_idx[3] = {
+              (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
+              (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
+              (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
+          if (info.index[0] / 2 == test_idx[0] &&
+              info.index[1] / 2 == test_idx[1] &&
+              info.index[2] / 2 == test_idx[2]) {
+            buf->send_interfaces[infoNeiCoarserrank].push_back(
+                {&info, infoNeiCoarser, icode, icode2});
+            buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                {infoNeiCoarser, &info, icode2, icode});
+            DM.add(infoNeiCoarserrank,
+                   (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
+            if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
+              int d0 = abs(code[1] + 2 * code[2]);
+              int d1 = (d0 + 1) % 3;
+              int d2 = (d0 + 2) % 3;
+              int code3[3];
+              code3[d0] = code[d0];
+              code3[d1] = -2 * (info.index[d1] % 2) + 1;
+              code3[d2] = -2 * (info.index[d2] % 2) + 1;
+              int icode3 =
+                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
+              int code4[3];
+              code4[d0] = code[d0];
+              code4[d1] = code3[d1];
+              code4[d2] = 0;
+              int icode4 =
+                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
+              int code5[3];
+              code5[d0] = code[d0];
+              code5[d1] = 0;
+              code5[d2] = code3[d2];
+              int icode5 =
+                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
+              if (code3[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode3});
+              if (code4[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode4});
+              if (code5[2] == 0)
+                buf->recv_interfaces[infoNeiCoarserrank].push_back(
+                    {infoNeiCoarser, &info, icode2, icode5});
+            }
+          }
+        }
       } else if (infoNeiTree == -1) {
-	Info *infoNei =
-	    getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-	int Bstep = 1;
-	if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-	  Bstep = 3;
-	else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-	  Bstep = 4;
-	for (int B = 0; B <= 3; B += Bstep) {
-	  if (Bstep == 1 && B >= 2)
-	    continue;
-	  if (Bstep > 1 && B >= 1)
-	    continue;
-	  int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-	  long long nFine =
-	      infoNei->Zchild[std::max(-code[0], 0) +
-			      (B % 2) * std::max(0, 1 - abs(code[0]))]
-			     [std::max(-code[1], 0) +
-			      temp * std::max(0, 1 - abs(code[1]))];
-	  int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
-	  if (infoNeiFinerrank != sim.rank) {
-	    isInner = false;
-	    buf->Neighbors.insert(infoNeiFinerrank);
-	    Info *infoNeiFiner = getf(all, info.level + 1, nFine);
-	    int icode2 =
-		(-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-	    buf->send_interfaces[infoNeiFinerrank].push_back(
-		{&info, infoNeiFiner, icode, icode2});
-	    buf->recv_interfaces[infoNeiFinerrank].push_back(
-		{infoNeiFiner, &info, icode2, icode});
-	    DM.add(infoNeiFinerrank,
-		   (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-	    if (Bstep == 1) {
-	      int d0 = abs(code[1] + 2 * code[2]);
-	      int d1 = (d0 + 1) % 3;
-	      int d2 = (d0 + 2) % 3;
-	      int code3[3];
-	      code3[d0] = -code[d0];
-	      code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
-	      code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
-	      int icode3 =
-		  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-	      int code4[3];
-	      code4[d0] = -code[d0];
-	      code4[d1] = code3[d1];
-	      code4[d2] = 0;
-	      int icode4 =
-		  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-	      int code5[3];
-	      code5[d0] = -code[d0];
-	      code5[d1] = 0;
-	      code5[d2] = code3[d2];
-	      int icode5 =
-		  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-	      if (code3[2] == 0) {
-		buf->send_interfaces[infoNeiFinerrank].push_back(
-		    Interface(&info, infoNeiFiner, icode, icode3));
-		DM.add(infoNeiFinerrank,
-		       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-	      }
-	      if (code4[2] == 0) {
-		buf->send_interfaces[infoNeiFinerrank].push_back(
-		    Interface(&info, infoNeiFiner, icode, icode4));
-		DM.add(infoNeiFinerrank,
-		       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-	      }
-	      if (code5[2] == 0) {
-		buf->send_interfaces[infoNeiFinerrank].push_back(
-		    Interface(&info, infoNeiFiner, icode, icode5));
-		DM.add(infoNeiFinerrank,
-		       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-	      }
-	    }
-	  }
-	}
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 3; B += Bstep) {
+          if (Bstep == 1 && B >= 2)
+            continue;
+          if (Bstep > 1 && B >= 1)
+            continue;
+          int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
+          if (infoNeiFinerrank != sim.rank) {
+            isInner = false;
+            buf->Neighbors.insert(infoNeiFinerrank);
+            Info *infoNeiFiner = getf(all, info.level + 1, nFine);
+            int icode2 =
+                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+            buf->send_interfaces[infoNeiFinerrank].push_back(
+                {&info, infoNeiFiner, icode, icode2});
+            buf->recv_interfaces[infoNeiFinerrank].push_back(
+                {infoNeiFiner, &info, icode2, icode});
+            DM.add(infoNeiFinerrank,
+                   (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+            if (Bstep == 1) {
+              int d0 = abs(code[1] + 2 * code[2]);
+              int d1 = (d0 + 1) % 3;
+              int d2 = (d0 + 2) % 3;
+              int code3[3];
+              code3[d0] = -code[d0];
+              code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
+              code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
+              int icode3 =
+                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
+              int code4[3];
+              code4[d0] = -code[d0];
+              code4[d1] = code3[d1];
+              code4[d2] = 0;
+              int icode4 =
+                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
+              int code5[3];
+              code5[d0] = -code[d0];
+              code5[d1] = 0;
+              code5[d2] = code3[d2];
+              int icode5 =
+                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
+              if (code3[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode3));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+              if (code4[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode4));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+              if (code5[2] == 0) {
+                buf->send_interfaces[infoNeiFinerrank].push_back(
+                    Interface(&info, infoNeiFiner, icode, icode5));
+                DM.add(infoNeiFinerrank,
+                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
+              }
+            }
+          }
+        }
       }
     }
     if (isInner) {
@@ -694,87 +694,87 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       info.halo_id = buf->halo_blocks.size();
       buf->halo_blocks.push_back(&info);
       if (Coarsened) {
-	for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
-	  int r = ToBeChecked[j];
-	  int send = ToBeChecked[j + 1];
-	  int recv = ToBeChecked[j + 2];
-	  Info *a = buf->send_interfaces[r][send].infos[0];
-	  Info *b = buf->send_interfaces[r][send].infos[1];
-	  bool retval = false;
-	  if (!(a->level == 0 || !use_averages)) {
-	    int imin[2];
-	    int imax[2];
-	    int aux = 1 << a->level;
-	    int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
-	    for (int d = 0; d < 2; d++) {
-	      imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
-	      imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
-	      if (a->index[d] == 0 && b->index[d] == 0)
-		imin[d] = 0;
-	      if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
-		imax[d] = 0;
-	    }
-	    for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-	      for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-		if ((treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
-		  retval = true;
-		  break;
-		}
-	      }
-	  }
-	  buf->send_interfaces[r][send].CoarseStencil = retval;
-	  buf->recv_interfaces[r][recv].CoarseStencil = retval;
-	}
+        for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
+          int r = ToBeChecked[j];
+          int send = ToBeChecked[j + 1];
+          int recv = ToBeChecked[j + 2];
+          Info *a = buf->send_interfaces[r][send].infos[0];
+          Info *b = buf->send_interfaces[r][send].infos[1];
+          bool retval = false;
+          if (!(a->level == 0 || !use_averages)) {
+            int imin[2];
+            int imax[2];
+            int aux = 1 << a->level;
+            int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
+            for (int d = 0; d < 2; d++) {
+              imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
+              imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
+              if (a->index[d] == 0 && b->index[d] == 0)
+                imin[d] = 0;
+              if (a->index[d] == blocks[d] && b->index[d] == blocks[d])
+                imax[d] = 0;
+            }
+            for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+              for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+                if ((treef(tree, a->level, a->Znei[1 + i0][1 + i1])) == -2) {
+                  retval = true;
+                  break;
+                }
+              }
+          }
+          buf->send_interfaces[r][send].CoarseStencil = retval;
+          buf->recv_interfaces[r][recv].CoarseStencil = retval;
+        }
       }
       for (int r = 0; r < sim.size; r++)
-	if (DM.sizes[r] > 0) {
-	  std::vector<Interface> &f = buf->send_interfaces[r];
-	  int &total_size = buf->send_buffer_size[r];
-	  bool skip_needed = false;
-	  std::sort(f.begin() + DM.positions[r],
-		    f.begin() + DM.sizes[r] + DM.positions[r]);
-	  for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-	    compass[i].clear();
-	  for (size_t i = 0; i < DM.sizes[r]; i++) {
-	    compass[f[i + DM.positions[r]].icode[0]].push_back(
-		DetermineStencil(AllStencils, Coarse_Range, stencil,
-				 &f[i + DM.positions[r]], false));
-	    compass[f[i + DM.positions[r]].icode[0]].back().index =
-		i + DM.positions[r];
-	    compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
-		(f[i + DM.positions[r]].infos[0]->level >
-		 f[i + DM.positions[r]].infos[1]->level);
-	    if (skip_needed == false)
-	      skip_needed = f[i + DM.positions[r]].CoarseStencil;
-	  }
-	  if (skip_needed == false) {
-	    std::vector<int> remEl;
-	    needed0(compass, remEl);
-	    for (size_t k = 0; k < remEl.size(); k++)
-	      f[remEl[k]].ToBeKept = false;
-	  }
-	  int L[3] = {0, 0, 0};
-	  int Lc[2] = {0, 0};
-	  for (auto &i : keepEl(compass)) {
-	    const int k = i->index;
-	    DetermineStencilLength(sLength, f[k].infos[0]->level,
-				   f[k].infos[1]->level, f[k].icode[1], L);
-	    const int V = L[0] * L[1] * L[2];
-	    total_size += V;
-	    f[k].dis = offsets[r];
-	    if (f[k].CoarseStencil) {
-	      Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
-	      Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-	      int Vc = Lc[0] * Lc[1];
-	      total_size += Vc;
-	      offsets[r] += Vc * dim;
-	    }
-	    offsets[r] += V * dim;
-	    for (size_t kk = 0; kk < (*i).removed.size(); kk++)
-	      f[i->removed[kk]].dis = f[k].dis;
-	  }
-	  DM.sizes[r] = 0;
-	}
+        if (DM.sizes[r] > 0) {
+          std::vector<Interface> &f = buf->send_interfaces[r];
+          int &total_size = buf->send_buffer_size[r];
+          bool skip_needed = false;
+          std::sort(f.begin() + DM.positions[r],
+                    f.begin() + DM.sizes[r] + DM.positions[r]);
+          for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+            compass[i].clear();
+          for (size_t i = 0; i < DM.sizes[r]; i++) {
+            compass[f[i + DM.positions[r]].icode[0]].push_back(
+                DetermineStencil(AllStencils, Coarse_Range, stencil,
+                                 &f[i + DM.positions[r]], false));
+            compass[f[i + DM.positions[r]].icode[0]].back().index =
+                i + DM.positions[r];
+            compass[f[i + DM.positions[r]].icode[0]].back().avg_down =
+                (f[i + DM.positions[r]].infos[0]->level >
+                 f[i + DM.positions[r]].infos[1]->level);
+            if (skip_needed == false)
+              skip_needed = f[i + DM.positions[r]].CoarseStencil;
+          }
+          if (skip_needed == false) {
+            std::vector<int> remEl;
+            needed0(compass, remEl);
+            for (size_t k = 0; k < remEl.size(); k++)
+              f[remEl[k]].ToBeKept = false;
+          }
+          int L[3] = {0, 0, 0};
+          int Lc[2] = {0, 0};
+          for (auto &i : keepEl(compass)) {
+            const int k = i->index;
+            DetermineStencilLength(sLength, f[k].infos[0]->level,
+                                   f[k].infos[1]->level, f[k].icode[1], L);
+            const int V = L[0] * L[1] * L[2];
+            total_size += V;
+            f[k].dis = offsets[r];
+            if (f[k].CoarseStencil) {
+              Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+              Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+              int Vc = Lc[0] * Lc[1];
+              total_size += Vc;
+              offsets[r] += Vc * dim;
+            }
+            offsets[r] += V * dim;
+            for (size_t kk = 0; kk < (*i).removed.size(); kk++)
+              f[i->removed[kk]].dis = f[k].dis;
+          }
+          DM.sizes[r] = 0;
+        }
     }
     getf(all, info.level, info.Z)->halo_id = info.halo_id;
   }
@@ -790,10 +790,10 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       counter++;
       size_t j;
       for (j = counter; j < buf->recv_interfaces[r].size(); j++) {
-	if (buf->recv_interfaces[r][j].infos[0]->id2 == ID)
-	  finish++;
-	else
-	  break;
+        if (buf->recv_interfaces[r][j].infos[0]->id2 == ID)
+          finish++;
+        else
+          break;
       }
       counter = j;
       std::vector<Interface> &f = buf->recv_interfaces[r];
@@ -801,104 +801,104 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       int otherrank = r;
       bool skip_needed = false;
       for (int i = 0; i < sizeof compass / sizeof *compass; i++)
-	compass[i].clear();
+        compass[i].clear();
       for (size_t i = start; i < finish; i++) {
-	compass[f[i].icode[0]].push_back(
-	    DetermineStencil(AllStencils, Coarse_Range, stencil, &f[i], false));
-	compass[f[i].icode[0]].back().index = i;
-	compass[f[i].icode[0]].back().avg_down =
-	    (f[i].infos[0]->level > f[i].infos[1]->level);
-	if (skip_needed == false)
-	  skip_needed = f[i].CoarseStencil;
+        compass[f[i].icode[0]].push_back(
+            DetermineStencil(AllStencils, Coarse_Range, stencil, &f[i], false));
+        compass[f[i].icode[0]].back().index = i;
+        compass[f[i].icode[0]].back().avg_down =
+            (f[i].infos[0]->level > f[i].infos[1]->level);
+        if (skip_needed == false)
+          skip_needed = f[i].CoarseStencil;
       }
       if (skip_needed == false) {
-	std::vector<int> remEl;
-	needed0(compass, remEl);
-	for (size_t k = 0; k < remEl.size(); k++)
-	  f[remEl[k]].ToBeKept = false;
+        std::vector<int> remEl;
+        needed0(compass, remEl);
+        for (size_t k = 0; k < remEl.size(); k++)
+          f[remEl[k]].ToBeKept = false;
       }
       for (auto &i : keepEl(compass)) {
-	const int k = i->index;
-	int L[3] = {0, 0, 0};
-	int Lc[2] = {0, 0};
-	DetermineStencilLength(sLength, f[k].infos[0]->level,
-			       f[k].infos[1]->level, f[k].icode[1], L);
-	const int V = L[0] * L[1] * L[2];
-	int Vc = 0;
-	total_size += V;
-	f[k].dis = offsets_recv[otherrank];
-	UnPackInfo info = {f[k].dis,
-			   L[0],
-			   L[1],
-			   0,
-			   0,
-			   0,
-			   L[0],
-			   L[1],
-			   -1,
-			   0,
-			   0,
-			   0,
-			   0,
-			   0,
-			   f[k].infos[0]->level,
-			   f[k].icode[1],
-			   otherrank,
-			   f[k].infos[0]->index[0],
-			   f[k].infos[0]->index[1],
-			   f[k].infos[0]->index[2],
-			   f[k].infos[1]->id2};
-	if (f[k].CoarseStencil) {
-	  Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
-	  Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
-	  Vc = Lc[0] * Lc[1];
-	  total_size += Vc;
-	  offsets_recv[otherrank] += Vc * dim;
-	  info.CoarseVersionOffset = V * dim;
-	  info.CoarseVersionLX = Lc[0];
-	  info.CoarseVersionLY = Lc[1];
-	}
-	offsets_recv[otherrank] += V * dim;
-	buf->myunpacks[f[k].infos[1]->halo_id].push_back(info);
-	for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
-	  int remEl1 = i->removed[kk];
-	  DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
-				 f[remEl1].infos[1]->level, f[remEl1].icode[1],
-				 &L[0]);
-	  int srcx, srcy, srcz;
-	  FixDuplicates(AllStencils, Coarse_Range, stencil, &f[k], &f[remEl1],
-			info.lx, info.ly, 1, L[0], L[1], L[2], &srcx, &srcy,
-			&srcz);
-	  int Csrcx = 0;
-	  int Csrcy = 0;
-	  int Csrcz = 0;
-	  if (f[k].CoarseStencil)
-	    FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
-			   &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
-	  buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
-	      {info.offset,
-	       L[0],
-	       L[1],
-	       srcx,
-	       srcy,
-	       srcz,
-	       info.LX,
-	       info.LY,
-	       info.CoarseVersionOffset,
-	       info.CoarseVersionLX,
-	       info.CoarseVersionLY,
-	       Csrcx,
-	       Csrcy,
-	       Csrcz,
-	       f[remEl1].infos[0]->level,
-	       f[remEl1].icode[1],
-	       otherrank,
-	       f[remEl1].infos[0]->index[0],
-	       f[remEl1].infos[0]->index[1],
-	       f[remEl1].infos[0]->index[2],
-	       f[remEl1].infos[1]->id2});
-	  f[remEl1].dis = info.offset;
-	}
+        const int k = i->index;
+        int L[3] = {0, 0, 0};
+        int Lc[2] = {0, 0};
+        DetermineStencilLength(sLength, f[k].infos[0]->level,
+                               f[k].infos[1]->level, f[k].icode[1], L);
+        const int V = L[0] * L[1] * L[2];
+        int Vc = 0;
+        total_size += V;
+        f[k].dis = offsets_recv[otherrank];
+        UnPackInfo info = {f[k].dis,
+                           L[0],
+                           L[1],
+                           0,
+                           0,
+                           0,
+                           L[0],
+                           L[1],
+                           -1,
+                           0,
+                           0,
+                           0,
+                           0,
+                           0,
+                           f[k].infos[0]->level,
+                           f[k].icode[1],
+                           otherrank,
+                           f[k].infos[0]->index[0],
+                           f[k].infos[0]->index[1],
+                           f[k].infos[0]->index[2],
+                           f[k].infos[1]->id2};
+        if (f[k].CoarseStencil) {
+          Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
+          Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
+          Vc = Lc[0] * Lc[1];
+          total_size += Vc;
+          offsets_recv[otherrank] += Vc * dim;
+          info.CoarseVersionOffset = V * dim;
+          info.CoarseVersionLX = Lc[0];
+          info.CoarseVersionLY = Lc[1];
+        }
+        offsets_recv[otherrank] += V * dim;
+        buf->myunpacks[f[k].infos[1]->halo_id].push_back(info);
+        for (size_t kk = 0; kk < (*i).removed.size(); kk++) {
+          int remEl1 = i->removed[kk];
+          DetermineStencilLength(sLength, f[remEl1].infos[0]->level,
+                                 f[remEl1].infos[1]->level, f[remEl1].icode[1],
+                                 &L[0]);
+          int srcx, srcy, srcz;
+          FixDuplicates(AllStencils, Coarse_Range, stencil, &f[k], &f[remEl1],
+                        info.lx, info.ly, 1, L[0], L[1], L[2], &srcx, &srcy,
+                        &srcz);
+          int Csrcx = 0;
+          int Csrcy = 0;
+          int Csrcz = 0;
+          if (f[k].CoarseStencil)
+            FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
+                           &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
+          buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
+              {info.offset,
+               L[0],
+               L[1],
+               srcx,
+               srcy,
+               srcz,
+               info.LX,
+               info.LY,
+               info.CoarseVersionOffset,
+               info.CoarseVersionLX,
+               info.CoarseVersionLY,
+               Csrcx,
+               Csrcy,
+               Csrcz,
+               f[remEl1].infos[0]->level,
+               f[remEl1].icode[1],
+               otherrank,
+               f[remEl1].infos[0]->index[0],
+               f[remEl1].infos[0]->index[1],
+               f[remEl1].infos[0]->index[2],
+               f[remEl1].infos[1]->id2});
+          f[remEl1].dis = info.offset;
+        }
       }
     }
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
@@ -908,21 +908,21 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
       Interface *f = &buf->send_interfaces[r][i];
       if (!f->ToBeKept)
-	continue;
+        continue;
       if (f->infos[0]->level <= f->infos[1]->level) {
-	Range &range =
-	    DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
-	buf->send_packinfos[r].push_back(
-	    {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
-	     range.sy, range.ex, range.ey});
-	if (f->CoarseStencil) {
-	  int V = (range.ex - range.sx) * (range.ey - range.sy);
-	  ToBeAveragedDown[r].push_back(i);
-	  ToBeAveragedDown[r].push_back(f->dis + V * dim);
-	}
+        Range &range =
+            DetermineStencil(AllStencils, Coarse_Range, stencil, f, false);
+        buf->send_packinfos[r].push_back(
+            {f->infos[0]->block, &buf->send_buffer[r][f->dis], range.sx,
+             range.sy, range.ex, range.ey});
+        if (f->CoarseStencil) {
+          int V = (range.ex - range.sx) * (range.ey - range.sy);
+          ToBeAveragedDown[r].push_back(i);
+          ToBeAveragedDown[r].push_back(f->dis + V * dim);
+        }
       } else {
-	ToBeAveragedDown[r].push_back(i);
-	ToBeAveragedDown[r].push_back(f->dis);
+        ToBeAveragedDown[r].push_back(i);
+        ToBeAveragedDown[r].push_back(f->dis);
       }
     }
   }
@@ -983,8 +983,8 @@ struct Face {
   }
 };
 static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
-			  std::unordered_map<long long, Info *> *all,
-			  std::unordered_map<long long, int> *tree) {
+                          std::unordered_map<long long, Info *> *all,
+                          std::unordered_map<long long, int> *tree) {
   std::vector<long long> myData;
   for (auto &info : *infos) {
     bool myflag = false;
@@ -995,51 +995,51 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     int yskip = info.index[1] == 0 ? -1 : 1;
     for (int x = -1; x < 2; x++)
       for (int y = -1; y < 2; y++)
-	if (x != 0 || y != 0) {
-	  if (x == xskip && xskin)
-	    continue;
-	  if (y == yskip && yskin)
-	    continue;
-	  Info *infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
-	  int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
-	  if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-	    myflag = true;
-	    goto end;
-	  } else if (infoNeiTree == -2) {
-	    long long nCoarse = infoNei->Zparent;
-	    int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
-	    if (infoNeiCoarserrank != sim.rank) {
-	      myflag = true;
-	      goto end;
-	    }
-	  } else if (infoNeiTree == -1) {
-	    int Bstep = 1;
-	    if ((abs(x) + abs(y) == 2))
-	      Bstep = 3;
-	    for (int B = 0; B <= 3; B += Bstep) {
-	      int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
-	      long long nFine =
-		  infoNei->Zchild[std::max(-x, 0) +
-				  (B % 2) * std::max(0, 1 - abs(x))]
-				 [std::max(-y, 0) +
-				  temp * std::max(0, 1 - abs(y))];
-	      int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
-	      if (infoNeiFinerrank != sim.rank) {
-		myflag = true;
-		goto end;
-	      }
-	    }
-	  } else if (infoNeiTree < 0) {
-	    myflag = true;
-	    goto end;
-	  }
-	}
+        if (x != 0 || y != 0) {
+          if (x == xskip && xskin)
+            continue;
+          if (y == yskip && yskin)
+            continue;
+          Info *infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
+          int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
+          if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
+            myflag = true;
+            goto end;
+          } else if (infoNeiTree == -2) {
+            long long nCoarse = infoNei->Zparent;
+            int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
+            if (infoNeiCoarserrank != sim.rank) {
+              myflag = true;
+              goto end;
+            }
+          } else if (infoNeiTree == -1) {
+            int Bstep = 1;
+            if ((abs(x) + abs(y) == 2))
+              Bstep = 3;
+            for (int B = 0; B <= 3; B += Bstep) {
+              int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
+              long long nFine =
+                  infoNei->Zchild[std::max(-x, 0) +
+                                  (B % 2) * std::max(0, 1 - abs(x))]
+                                 [std::max(-y, 0) +
+                                  temp * std::max(0, 1 - abs(y))];
+              int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+              if (infoNeiFinerrank != sim.rank) {
+                myflag = true;
+                goto end;
+              }
+            }
+          } else if (infoNeiTree < 0) {
+            myflag = true;
+            goto end;
+          }
+        }
   end:
     if (myflag) {
       myData.push_back(info.level);
       myData.push_back(info.Z);
       if (UpdateIDs)
-	myData.push_back(info.id);
+        myData.push_back(info.id);
     }
   }
   std::vector<int> neighbors;
@@ -1060,7 +1060,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
     double *l2 = &boxes[i * 4];
     double *h2 = &boxes[i * 4 + 2];
     if (std::max(box[0], l2[0]) <= std::min(box[2], h2[0]) &&
-	std::max(box[1], l2[1]) <= std::min(box[3], h2[1]))
+        std::max(box[1], l2[1]) <= std::min(box[3], h2[1]))
       neighbors.push_back(i);
   }
   free(boxes);
@@ -1072,9 +1072,9 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   int kk = 0;
   for (auto r : neighbors) {
     MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, 0, MPI_COMM_WORLD,
-	      &size_requests[2 * kk]);
+              &size_requests[2 * kk]);
     MPI_Isend(&mysize, 1, MPI_INT, r, 0, MPI_COMM_WORLD,
-	      &size_requests[2 * kk + 1]);
+              &size_requests[2 * kk + 1]);
     kk++;
   }
   kk = 0;
@@ -1090,9 +1090,9 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   for (auto r : neighbors) {
     recv_buffer[kk].resize(recv_size[kk]);
     MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG, r,
-	      0, MPI_COMM_WORLD, &requests[2 * kk]);
+              0, MPI_COMM_WORLD, &requests[2 * kk]);
     MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG, r,
-	      0, MPI_COMM_WORLD, &requests[2 * kk + 1]);
+              0, MPI_COMM_WORLD, &requests[2 * kk + 1]);
     kk++;
   }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -1105,18 +1105,18 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
       long long Z = recv_buffer[kk][index + 1];
       treef(tree, level, Z) = r;
       if (UpdateIDs)
-	getf(all, level, Z)->id = recv_buffer[kk][index + 2];
+        getf(all, level, Z)->id = recv_buffer[kk][index + 2];
       int p[2];
       sim.space_curve->inverse(Z, level, &p[0], &p[1]);
       if (level < sim.levelMax - 1)
-	for (int j = 0; j < 2; j++)
-	  for (int i = 0; i < 2; i++) {
-	    long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-	    treef(tree, level + 1, nc) = -2;
-	  }
+        for (int j = 0; j < 2; j++)
+          for (int i = 0; i < 2; i++) {
+            long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+            treef(tree, level + 1, nc) = -2;
+          }
       if (level > 0) {
-	long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-	treef(tree, level - 1, nf) = -1;
+        long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
+        treef(tree, level - 1, nf) = -1;
       }
     }
   }
@@ -1124,7 +1124,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
 
 static bool info_cmp(Info &a, Info &b) { return a.id2 < b.id2; }
 static void fill_pos(std::vector<Info> *infos,
-		     std::unordered_map<long long, Info *> *all) {
+                     std::unordered_map<long long, Info *> *all) {
   std::sort(infos->begin(), infos->end(), info_cmp);
   for (size_t j = 0; j < infos->size(); j++) {
     int m = (*infos)[j].level;
@@ -1145,23 +1145,23 @@ struct Buffers {
   std::map<std::array<long long, 2>, BlockCase *> Map;
 };
 static void fillcase0(Face *F, Buffers *buf,
-		      std::unordered_map<long long, int> *tree, int dim) {
+                      std::unordered_map<long long, int> *tree, int dim) {
   Info *info = F->infos[1];
   int icode = F->icode[1];
   int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
   int myFace = abs(code[0]) * std::max(0, code[0]) +
-	       abs(code[1]) * (std::max(0, code[1]) + 2) +
-	       abs(code[2]) * (std::max(0, code[2]) + 4);
+               abs(code[1]) * (std::max(0, code[1]) + 2) +
+               abs(code[2]) * (std::max(0, code[2]) + 4);
   auto search = buf->Map.find({info->level, info->Z});
   assert(search != buf->Map.end());
   Real *CoarseFace = search->second->d[myFace];
   for (int B = 0; B <= 1; B++) {
     int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
     long long Z = forward(info->level + 1,
-			  2 * info->index[0] + std::max(code[0], 0) + code[0] +
-			      (B % 2) * std::max(0, 1 - abs(code[0])),
-			  2 * info->index[1] + std::max(code[1], 0) + code[1] +
-			      aux * std::max(0, 1 - abs(code[1])));
+                          2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                              (B % 2) * std::max(0, 1 - abs(code[0])),
+                          2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                              aux * std::max(0, 1 - abs(code[1])));
     if (Z != F->infos[0]->Z)
       continue;
     int d = myFace / 2;
@@ -1181,7 +1181,7 @@ static void fillcase0(Face *F, Buffers *buf,
     for (int i2 = 0; i2 < N2; i2 += 2) {
       Real *s = &CoarseFace[dim * (base + (i2 / 2))];
       for (int j = 0; j < dim; j++)
-	s[j] += buf->recv_buffer[r][F->offset + dis + j];
+        s[j] += buf->recv_buffer[r][F->offset + dis + j];
       dis += dim;
     }
   }
@@ -1195,7 +1195,7 @@ static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
   if (abs(code[1]) != codey)
     return;
   const int myFace = abs(code[0]) * std::max(0, code[0]) +
-		     abs(code[1]) * (std::max(0, code[1]) + 2);
+                     abs(code[1]) * (std::max(0, code[1]) + 2);
   std::array<long long, 2> temp = {(long long)info->level, info->Z};
   auto search = buf->Map.find(temp);
   assert(search != buf->Map.end());
@@ -1211,7 +1211,7 @@ static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
     for (int i2 = 0; i2 < N2; i2++) {
       int k = _BS_ * i2 + j;
       for (int d = 0; d < dim; d++)
-	block[dim * k + d] += CoarseFace[dim * i2 + d];
+        block[dim * k + d] += CoarseFace[dim * i2 + d];
       memset(&CoarseFace[i2], 0, dim * sizeof(Real));
     }
   } else {
@@ -1219,14 +1219,14 @@ static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
     for (int i2 = 0; i2 < N2; i2++) {
       int k = _BS_ * j + i2;
       for (int d = 0; d < dim; d++)
-	block[dim * k + d] += CoarseFace[dim * i2 + d];
+        block[dim * k + d] += CoarseFace[dim * i2 + d];
       memset(&CoarseFace[i2], 0, dim * sizeof(Real));
     }
   }
 }
 static void prepare0(Buffers *buf, std::vector<Info> *infos,
-		     std::unordered_map<long long, Info *> *all,
-		     std::unordered_map<long long, int> *tree, int dim) {
+                     std::unordered_map<long long, Info *> *all,
+                     std::unordered_map<long long, int> *tree, int dim) {
   buf->send_buffer.resize(sim.size);
   buf->recv_buffer.resize(sim.size);
   buf->send_faces.resize(sim.size);
@@ -1243,8 +1243,8 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   buf->Cases.clear();
   buf->Map.clear();
   std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
-			      1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
-			      1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
+                              1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
+                              1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
   for (auto &info : *infos) {
     getf(all, info.level, info.Z)->auxiliary = nullptr;
     info.auxiliary = nullptr;
@@ -1258,53 +1258,53 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     bool stored = false;
     for (int f = 0; f < 6; f++) {
       const int code[3] = {icode[f] % 3 - 1, (icode[f] / 3) % 3 - 1,
-			   (icode[f] / 9) % 3 - 1};
+                           (icode[f] / 9) % 3 - 1};
       if (code[0] == xskip && xskin)
-	continue;
+        continue;
       if (code[1] == yskip && yskin)
-	continue;
+        continue;
       if (code[2] != 0)
-	continue;
+        continue;
       if (!(treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
-	    0)) {
-	storeFace[abs(code[0]) * std::max(0, code[0]) +
-		  abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
-	stored = true;
+            0)) {
+        storeFace[abs(code[0]) * std::max(0, code[0]) +
+                  abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
+        stored = true;
       }
       int L[3];
       L[0] = code[0] == 0 ? _BS_ / 2 : 1;
       L[1] = code[1] == 0 ? _BS_ / 2 : 1;
       int V = L[0] * L[1];
       if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
-	Info *infoNei =
-	    getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-	const long long nCoarse = infoNei->Zparent;
-	Info *infoNeiCoarser = getf(all, info.level - 1, nCoarse);
-	const int infoNeiCoarserrank = treef(tree, info.level - 1, nCoarse);
-	int code2[3] = {-code[0], -code[1], -code[2]};
-	int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
-	buf->send_faces[infoNeiCoarserrank].push_back(
-	    Face(&info, infoNeiCoarser, icode[f], icode2));
-	send_buffer_size[infoNeiCoarserrank] += V;
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        const long long nCoarse = infoNei->Zparent;
+        Info *infoNeiCoarser = getf(all, info.level - 1, nCoarse);
+        const int infoNeiCoarserrank = treef(tree, info.level - 1, nCoarse);
+        int code2[3] = {-code[0], -code[1], -code[2]};
+        int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
+        buf->send_faces[infoNeiCoarserrank].push_back(
+            Face(&info, infoNeiCoarser, icode[f], icode2));
+        send_buffer_size[infoNeiCoarserrank] += V;
       } else if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
-		 -1) {
-	Info *infoNei =
-	    getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-	int Bstep = 1;
-	for (int B = 0; B <= 1; B += Bstep) {
-	  const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-	  const long long nFine =
-	      infoNei->Zchild[std::max(-code[0], 0) +
-			      (B % 2) * std::max(0, 1 - abs(code[0]))]
-			     [std::max(-code[1], 0) +
-			      temp * std::max(0, 1 - abs(code[1]))];
-	  const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
-	  Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
-	  int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-	  buf->recv_faces[infoNeiFinerrank].push_back(
-	      Face(infoNeiFiner, &info, icode2, icode[f]));
-	  recv_buffer_size[infoNeiFinerrank] += V;
-	}
+                 -1) {
+        Info *infoNei =
+            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+        int Bstep = 1;
+        for (int B = 0; B <= 1; B += Bstep) {
+          const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          const long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+          Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
+          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
+          buf->recv_faces[infoNeiFinerrank].push_back(
+              Face(infoNeiFiner, &info, icode2, icode[f]));
+          recv_buffer_size[infoNeiFinerrank] += V;
+        }
       }
     }
     if (stored) {
@@ -1312,8 +1312,8 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
       c->level = info.level;
       c->Z = info.Z;
       for (int i = 0; i < 4; i++)
-	c->d[i] =
-	    storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real)) : nullptr;
+        c->d[i] =
+            storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real)) : nullptr;
       buf->Cases.push_back(c);
     }
   }
@@ -1321,16 +1321,16 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   if (buf->Cases.size() > 0)
     for (auto &info : *infos) {
       if (Cases_index == buf->Cases.size())
-	break;
+        break;
       if (buf->Cases[Cases_index]->level == info.level &&
-	  buf->Cases[Cases_index]->Z == info.Z) {
-	buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
-	    {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
-	    buf->Cases[Cases_index]));
-	getf(all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
-	    ->auxiliary = buf->Cases[Cases_index];
-	info.auxiliary = buf->Cases[Cases_index];
-	Cases_index++;
+          buf->Cases[Cases_index]->Z == info.Z) {
+        buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
+            {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
+            buf->Cases[Cases_index]));
+        getf(all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
+            ->auxiliary = buf->Cases[Cases_index];
+        info.auxiliary = buf->Cases[Cases_index];
+        Cases_index++;
       }
     }
   for (int r = 0; r < sim.size; r++) {
@@ -1344,7 +1344,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     for (int k = 0; k < (int)buf->recv_faces[r].size(); k++) {
       Face &f = buf->recv_faces[r][k];
       const int code[3] = {f.icode[1] % 3 - 1, (f.icode[1] / 3) % 3 - 1,
-			   (f.icode[1] / 9) % 3 - 1};
+                           (f.icode[1] / 9) % 3 - 1};
       int V = ((code[0] == 0) ? _BS_ / 2 : 1) * ((code[1] == 0) ? _BS_ / 2 : 1);
       f.offset = offset;
       offset += V * dim;
@@ -1352,7 +1352,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   }
 }
 static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
-		      int dim) {
+                      int dim) {
   for (int r = 0; r < sim.size; r++) {
     int displacement = 0;
     for (int k = 0; k < (int)buf->send_faces[r].size(); k++) {
@@ -1365,22 +1365,22 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
       assert((icode / 9) % 3 - 1 == 0);
       int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
       int myFace = abs(code[0]) * std::max(0, code[0]) +
-		   abs(code[1]) * (std::max(0, code[1]) + 2);
+                   abs(code[1]) * (std::max(0, code[1]) + 2);
       Real *FineFace = FineCase->d[myFace];
       int d = myFace / 2;
       assert(d == 0 || d == 1);
       int d2 = std::min((d + 1) % 3, (d + 2) % 3);
       int N2 = sizes[d2];
       for (int i2 = 0; i2 < N2; i2 += 2) {
-	Real *a = &FineFace[dim * i2];
-	Real *b = &FineFace[dim * (i2 + 1)];
-	for (d = 0; d < dim; d++) {
-	  Real avg = a[d] + b[d];
-	  memcpy(&buf->send_buffer[r][displacement], &avg, sizeof(Real));
-	  displacement++;
-	}
-	memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
-	memset(&FineFace[dim * (i2 + 1)], 0, dim * sizeof(Real));
+        Real *a = &FineFace[dim * i2];
+        Real *b = &FineFace[dim * (i2 + 1)];
+        for (d = 0; d < dim; d++) {
+          Real avg = a[d] + b[d];
+          memcpy(&buf->send_buffer[r][displacement], &avg, sizeof(Real));
+          displacement++;
+        }
+        memset(&FineFace[dim * i2], 0, dim * sizeof(Real));
+        memset(&FineFace[dim * (i2 + 1)], 0, dim * sizeof(Real));
       }
     }
   }
@@ -1389,22 +1389,22 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   for (int r = 0; r < sim.size; r++)
     if (r != sim.rank) {
       if (buf->recv_buffer[r].size() != 0) {
-	MPI_Request req{};
-	recv_requests.push_back(req);
-	MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(), MPI_Real,
-		  r, 123456, MPI_COMM_WORLD, &recv_requests.back());
+        MPI_Request req{};
+        recv_requests.push_back(req);
+        MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(), MPI_Real,
+                  r, 123456, MPI_COMM_WORLD, &recv_requests.back());
       }
       if (buf->send_buffer[r].size() != 0) {
-	MPI_Request req{};
-	send_requests.push_back(req);
-	MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(), MPI_Real,
-		  r, 123456, MPI_COMM_WORLD, &send_requests.back());
+        MPI_Request req{};
+        send_requests.push_back(req);
+        MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(), MPI_Real,
+                  r, 123456, MPI_COMM_WORLD, &send_requests.back());
       }
     }
   if (buf->recv_buffer[sim.rank].size() > 0 &&
       buf->send_buffer[sim.rank].size() > 0)
     memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
-	   buf->send_buffer[sim.rank].size() * sizeof(Real));
+           buf->send_buffer[sim.rank].size() * sizeof(Real));
   for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
     fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
   if (recv_requests.size() > 0)
@@ -1412,7 +1412,7 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   for (int r = 0; r < sim.size; r++)
     if (r != sim.rank)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-	fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
+        fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
   for (int r = 0; r < sim.size; r++)
     for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
       fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
@@ -1423,8 +1423,8 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
     MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
 }
 static void update_boundary(bool clean, std::vector<Info *> *boundary,
-			    std::unordered_map<long long, Info *> *all,
-			    std::unordered_map<long long, int> *tree) {
+                            std::unordered_map<long long, Info *> *all,
+                            std::unordered_map<long long, int> *tree) {
   std::vector<std::vector<long long>> send_buffer(sim.size);
   std::vector<Info *> &bbb = *boundary;
   std::set<int> Neighbors;
@@ -1433,76 +1433,76 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
     std::set<int> receivers;
     const int aux = 1 << info->level;
     const bool xskin =
-	info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
+        info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
     const bool yskin =
-	info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+        info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
     const int xskip = info->index[0] == 0 ? -1 : 1;
     const int yskip = info->index[1] == 0 ? -1 : 1;
 
     for (int icode = 0; icode < 27; icode++) {
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-	continue;
+        continue;
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-			   (icode / 9) % 3 - 1};
+                           (icode / 9) % 3 - 1};
       if (code[0] == xskip && xskin)
-	continue;
+        continue;
       if (code[1] == yskip && yskin)
-	continue;
+        continue;
       if (code[2] != 0)
-	continue;
+        continue;
       Info *infoNei =
-	  getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       const int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
       if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-	if (infoNei->state != Refine || clean)
-	  infoNei->state = Leave;
-	receivers.insert(infoNeiTree);
-	Neighbors.insert(infoNeiTree);
+        if (infoNei->state != Refine || clean)
+          infoNei->state = Leave;
+        receivers.insert(infoNeiTree);
+        Neighbors.insert(infoNeiTree);
       } else if (infoNeiTree == -2) {
-	const long long nCoarse = infoNei->Zparent;
-	Info *infoNeiCoarser = getf(all, infoNei->level - 1, nCoarse);
-	const int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
-	if (infoNeiCoarserrank != sim.rank) {
-	  assert(infoNeiCoarserrank >= 0);
-	  if (infoNeiCoarser->state != Refine || clean)
-	    infoNeiCoarser->state = Leave;
-	  receivers.insert(infoNeiCoarserrank);
-	  Neighbors.insert(infoNeiCoarserrank);
-	}
+        const long long nCoarse = infoNei->Zparent;
+        Info *infoNeiCoarser = getf(all, infoNei->level - 1, nCoarse);
+        const int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
+        if (infoNeiCoarserrank != sim.rank) {
+          assert(infoNeiCoarserrank >= 0);
+          if (infoNeiCoarser->state != Refine || clean)
+            infoNeiCoarser->state = Leave;
+          receivers.insert(infoNeiCoarserrank);
+          Neighbors.insert(infoNeiCoarserrank);
+        }
       } else if (infoNeiTree == -1) {
-	int Bstep = 1;
-	if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-	  Bstep = 3;
-	else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-	  Bstep = 4;
-	for (int B = 0; B <= 1; B += Bstep) {
-	  const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-	  const long long nFine =
-	      infoNei->Zchild[std::max(-code[0], 0) +
-			      (B % 2) * std::max(0, 1 - abs(code[0]))]
-			     [std::max(-code[1], 0) +
-			      temp * std::max(0, 1 - abs(code[1]))];
-	  Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
-	  const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
-	  if (infoNeiFinerrank != sim.rank) {
-	    if (infoNeiFiner->state != Refine || clean)
-	      infoNeiFiner->state = Leave;
-	    receivers.insert(infoNeiFinerrank);
-	    Neighbors.insert(infoNeiFinerrank);
-	  }
-	}
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 1; B += Bstep) {
+          const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          const long long nFine =
+              infoNei->Zchild[std::max(-code[0], 0) +
+                              (B % 2) * std::max(0, 1 - abs(code[0]))]
+                             [std::max(-code[1], 0) +
+                              temp * std::max(0, 1 - abs(code[1]))];
+          Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
+          const int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+          if (infoNeiFinerrank != sim.rank) {
+            if (infoNeiFiner->state != Refine || clean)
+              infoNeiFiner->state = Leave;
+            receivers.insert(infoNeiFinerrank);
+            Neighbors.insert(infoNeiFinerrank);
+          }
+        }
       }
     }
     if (info->changed2 && info->state != Leave) {
       if (info->state == Refine)
-	info->changed2 = false;
+        info->changed2 = false;
       std::set<int>::iterator it = receivers.begin();
       while (it != receivers.end()) {
-	int temp = (info->state == Compress) ? 1 : 2;
-	send_buffer[*it].push_back(info->level);
-	send_buffer[*it].push_back(info->Z);
-	send_buffer[*it].push_back(temp);
-	it++;
+        int temp = (info->state == Compress) ? 1 : 2;
+        send_buffer[*it].push_back(info->level);
+        send_buffer[*it].push_back(info->Z);
+        send_buffer[*it].push_back(temp);
+        it++;
       }
     }
   }
@@ -1512,11 +1512,11 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
     if (r != sim.rank) {
       requests.resize(requests.size() + 1);
       if (send_buffer[r].size() != 0)
-	MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
-		  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
+        MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
+                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
       else {
-	MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
-		  &requests[requests.size() - 1]);
+        MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
+                  &requests[requests.size() - 1]);
       }
     }
   std::vector<std::vector<long long>> recv_buffer(sim.size);
@@ -1527,35 +1527,35 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
       MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
       MPI_Get_count(&status, MPI_LONG_LONG, &recv_size);
       if (recv_size > 0) {
-	recv_buffer[r].resize(recv_size);
-	requests.resize(requests.size() + 1);
-	MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
-		  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
+        recv_buffer[r].resize(recv_size);
+        requests.resize(requests.size() + 1);
+        MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
+                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
       }
     }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
   for (int r = 0; r < sim.size; r++)
     if (recv_buffer[r].size() > 1)
       for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
-	int level = recv_buffer[r][index];
-	long long Z = recv_buffer[r][index + 1];
-	getf(all, level, Z)->state =
-	    (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
+        int level = recv_buffer[r][index];
+        long long Z = recv_buffer[r][index + 1];
+        getf(all, level, Z)->state =
+            (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
       }
 };
 static Synchronizer *sync1(const Stencil &stencil,
-			   std::map<Stencil, Synchronizer *> *synchronizers,
-			   std::unordered_map<long long, int> *tree,
-			   std::unordered_map<long long, Info *> *all,
-			   std::vector<Info> *infos, size_t *timestamp,
-			   int dim) {
+                           std::map<Stencil, Synchronizer *> *synchronizers,
+                           std::unordered_map<long long, int> *tree,
+                           std::unordered_map<long long, Info *> *all,
+                           std::vector<Info> *infos, size_t *timestamp,
+                           int dim) {
   Synchronizer *s;
   auto itSynchronizerMPI = synchronizers->find(stencil);
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer;
     s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-		      stencil.ex > 3 || stencil.ey > 3;
+                      stencil.ex > 3 || stencil.ey > 3;
     s->buf->send_interfaces.resize(sim.size);
     s->buf->recv_interfaces.resize(sim.size);
     s->buf->send_packinfos.resize(sim.size);
@@ -1565,11 +1565,11 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf->recv_buffer.resize(sim.size);
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-		       (0 - 1) / 2 + 0};
+                       (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
     for (int icode = 0; icode < 27; icode++) {
       const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-			   (icode / 9) % 3 - 1};
+                           (icode / 9) % 3 - 1};
       Range &range0 = s->AllStencils[icode];
       range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
       range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
@@ -1596,8 +1596,8 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
     Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
-	  s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
-	  s->mapofHaloBlockGroups
+          s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
+          s->mapofHaloBlockGroups
 
     );
     (*synchronizers)[stencil] = s;
@@ -1617,100 +1617,100 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->buf->requests.resize(s->buf->requests.size() + 1);
       s->mapofrequests[r] = &s->buf->requests.back();
       MPI_Irecv(&s->buf->recv_buffer[r][0], s->buf->recv_buffer_size[r] * dim,
-		MPI_Real, r, *timestamp, MPI_COMM_WORLD,
-		&s->buf->requests.back());
+                MPI_Real, r, *timestamp, MPI_COMM_WORLD,
+                &s->buf->requests.back());
     }
   for (int r = 0; r < sim.size; r++)
     if (s->buf->send_buffer_size[r] != 0) {
 #pragma omp parallel
       {
 #pragma omp for
-	for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
-	  int i = s->ToBeAveragedDown[r][j];
-	  int d = s->ToBeAveragedDown[r][j + 1];
-	  Interface &f = s->buf->send_interfaces[r][i];
-	  int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
-			 -((f.icode[0] / 9) % 3 - 1)};
-	  if (f.CoarseStencil) {
-	    Real *dst = s->buf->send_buffer[r].data() + d;
-	    const Info *const info = f.infos[0];
-	    int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
-	    int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
-	    int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
-			code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
-	    int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
-				    : _BS_ / 2 + eC[0] - 1,
-			code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
-				    : _BS_ / 2 + eC[1] - 1};
-	    Real *src = (*info).block;
-	    int pos = 0;
-	    for (int iy = s[1]; iy < e[1]; iy++) {
-	      int YY = 2 * (iy - s[1]) + s[1] +
-		       std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
-		       std::min(0, code[1]) * (e[1] - s[1]);
-	      for (int ix = s[0]; ix < e[0]; ix++) {
-		int XX = 2 * (ix - s[0]) + s[0] +
-			 std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
-			 std::min(0, code[0]) * (e[0] - s[0]);
-		for (int c = 0; c < dim; c++) {
-		  int comp = c;
-		  dst[pos] =
-		      0.25 *
-		      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-			(*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-		       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-			(*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-		  pos++;
-		}
-	      }
-	    }
-	  } else {
-	    Real *dst = s->buf->send_buffer[r].data() + d;
-	    const Info *const info = f.infos[0];
-	    int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-			code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
-	    int e[2] = {
-		code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
-		code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1};
-	    Real *src = (*info).block;
-	    int xStep = (code[0] == 0) ? 2 : 1;
-	    int yStep = (code[1] == 0) ? 2 : 1;
-	    int pos = 0;
-	    for (int iy = s[1]; iy < e[1]; iy += yStep) {
-	      int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
-						 std::min(0, code[1]) * _BS_
-					   : iy;
-	      for (int ix = s[0]; ix < e[0]; ix += xStep) {
-		int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
-						   std::min(0, code[0]) * _BS_
-					     : ix;
-		for (int c = 0; c < dim; c++) {
-		  int comp = c;
-		  dst[pos] =
-		      0.25 *
-		      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
-			(*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
-		       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
-			(*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
-		  pos++;
-		}
-	      }
-	    }
-	  }
-	}
+        for (size_t j = 0; j < s->ToBeAveragedDown[r].size(); j += 2) {
+          int i = s->ToBeAveragedDown[r][j];
+          int d = s->ToBeAveragedDown[r][j + 1];
+          Interface &f = s->buf->send_interfaces[r][i];
+          int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
+                         -((f.icode[0] / 9) % 3 - 1)};
+          if (f.CoarseStencil) {
+            Real *dst = s->buf->send_buffer[r].data() + d;
+            const Info *const info = f.infos[0];
+            int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
+            int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
+            int s[2] = {code[0] < 1 ? (code[0] < 0 ? sC[0] : 0) : _BS_ / 2,
+                        code[1] < 1 ? (code[1] < 0 ? sC[1] : 0) : _BS_ / 2};
+            int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_ / 2)
+                                    : _BS_ / 2 + eC[0] - 1,
+                        code[1] < 1 ? (code[1] < 0 ? 0 : _BS_ / 2)
+                                    : _BS_ / 2 + eC[1] - 1};
+            Real *src = (*info).block;
+            int pos = 0;
+            for (int iy = s[1]; iy < e[1]; iy++) {
+              int YY = 2 * (iy - s[1]) + s[1] +
+                       std::max(code[1], 0) * _BS_ / 2 - code[1] * _BS_ +
+                       std::min(0, code[1]) * (e[1] - s[1]);
+              for (int ix = s[0]; ix < e[0]; ix++) {
+                int XX = 2 * (ix - s[0]) + s[0] +
+                         std::max(code[0], 0) * _BS_ / 2 - code[0] * _BS_ +
+                         std::min(0, code[0]) * (e[0] - s[0]);
+                for (int c = 0; c < dim; c++) {
+                  int comp = c;
+                  dst[pos] =
+                      0.25 *
+                      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                  pos++;
+                }
+              }
+            }
+          } else {
+            Real *dst = s->buf->send_buffer[r].data() + d;
+            const Info *const info = f.infos[0];
+            int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                        code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
+            int e[2] = {
+                code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+                code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1};
+            Real *src = (*info).block;
+            int xStep = (code[0] == 0) ? 2 : 1;
+            int yStep = (code[1] == 0) ? 2 : 1;
+            int pos = 0;
+            for (int iy = s[1]; iy < e[1]; iy += yStep) {
+              int YY = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                                 std::min(0, code[1]) * _BS_
+                                           : iy;
+              for (int ix = s[0]; ix < e[0]; ix += xStep) {
+                int XX = (abs(code[0]) == 1) ? 2 * (ix - code[0] * _BS_) +
+                                                   std::min(0, code[0]) * _BS_
+                                             : ix;
+                for (int c = 0; c < dim; c++) {
+                  int comp = c;
+                  dst[pos] =
+                      0.25 *
+                      (((*(src + dim * (XX + (YY)*_BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY + 1) * _BS_) + comp))) +
+                       ((*(src + dim * (XX + (YY + 1) * _BS_) + comp)) +
+                        (*(src + dim * (XX + 1 + (YY)*_BS_) + comp))));
+                  pos++;
+                }
+              }
+            }
+          }
+        }
 #pragma omp for
-	for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
-	  const PackInfo &info = s->buf->send_packinfos[r][i];
-	  pack(info.block, info.pack, dim, info.sx, info.sy, info.ex, info.ey);
-	}
+        for (size_t i = 0; i < s->buf->send_packinfos[r].size(); i++) {
+          const PackInfo &info = s->buf->send_packinfos[r][i];
+          pack(info.block, info.pack, dim, info.sx, info.sy, info.ex, info.ey);
+        }
       }
     }
   for (auto r : s->buf->Neighbors)
     if (s->buf->send_buffer_size[r] > 0) {
       s->buf->requests.resize(s->buf->requests.size() + 1);
       MPI_Isend(&s->buf->send_buffer[r][0], s->buf->send_buffer_size[r] * dim,
-		MPI_Real, r, *timestamp, MPI_COMM_WORLD,
-		&s->buf->requests.back());
+                MPI_Real, r, *timestamp, MPI_COMM_WORLD,
+                &s->buf->requests.back());
     }
   *timestamp = (*timestamp + 1) % 32768;
   return s;
@@ -1725,19 +1725,19 @@ static void dealloc(int m, long long n, std::vector<Info> *infos) {
   }
 }
 static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
-		   std::unordered_map<long long, Info *> *all) {
+                   std::unordered_map<long long, Info *> *all) {
   return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
 }
 static Real *avail1(int ix, int iy, int m,
-		    std::unordered_map<long long, int> *tree,
-		    std::unordered_map<long long, Info *> *all) {
+                    std::unordered_map<long long, int> *tree,
+                    std::unordered_map<long long, Info *> *all) {
   const long long n = forward(m, ix, iy);
   return avail(m, n, tree, all);
 }
 static void _alloc(int level, long long Z,
-		   std::unordered_map<long long, Info *> *all,
-		   std::vector<Info> *infos,
-		   std::unordered_map<long long, int> *tree, int dim) {
+                   std::unordered_map<long long, Info *> *all,
+                   std::vector<Info> *infos,
+                   std::unordered_map<long long, int> *tree, int dim) {
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
@@ -1746,20 +1746,20 @@ static void _alloc(int level, long long Z,
 }
 
 static void dealloc_many(std::vector<long long> &ids,
-			 std::vector<Info> *infos) {
+                         std::vector<Info> *infos) {
   for (size_t j = 0; j < infos->size(); j++)
     (*infos)[j].changed2 = false;
   for (size_t i = 0; i < ids.size(); i++)
     for (size_t j = 0; j < infos->size(); j++) {
       if ((*infos)[j].id2 == ids[i]) {
-	(*infos)[j].changed2 = true;
-	free((*infos)[j].block);
-	break;
+        (*infos)[j].changed2 = true;
+        free((*infos)[j].block);
+        break;
       }
     }
   infos->erase(std::remove_if(infos->begin(), infos->end(),
-			      [](const Info &x) { return x.changed2; }),
-	       infos->end());
+                              [](const Info &x) { return x.changed2; }),
+               infos->end());
 }
 
 static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
@@ -1801,7 +1801,7 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
   Real dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
   *R = (*C[1][1] + (dx * dudx + dy * dudy)) +
        (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
-	(dx * dy) * dudxdy);
+        (dx * dy) * dudxdy);
 }
 struct BlockLab {
   bool coarsened, istensorial, use_averages;
@@ -1840,11 +1840,11 @@ struct BlockLab {
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
     use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
-		   end[0] > 3 || end[1] > 3;
+                   end[0] > 3 || end[1] > 3;
   }
   void load(std::unordered_map<long long, int> *tree,
-	    std::unordered_map<long long, Info *> *all, SyncBuf *buf,
-	    const Stencil &stencil, Info *info, bool applybc, int *sLength) {
+            std::unordered_map<long long, Info *> *all, SyncBuf *buf,
+            const Stencil &stencil, Info *info, bool applybc, int *sLength) {
     int aux = 1 << info->level;
     NX = sim.bpdx * aux;
     NY = sim.bpdy * aux;
@@ -1854,13 +1854,13 @@ struct BlockLab {
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
       Real *q = u + dim * iy * nm[0] - dim * start[0];
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-	  p += dim * _BS_;
+          p += dim * _BS_;
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-	  p += dim * _BS_;
+          p += dim * _BS_;
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-	  p += dim * _BS_;
+          p += dim * _BS_;
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-	  p += dim * _BS_;
+          p += dim * _BS_;
     }
     coarsened = false;
     bool xskin = info->index[0] == 0 || info->index[0] == NX - 1;
@@ -1873,282 +1873,282 @@ struct BlockLab {
     for (int icode = 9; icode < 18; icode++) {
       myblocks[icode] = nullptr;
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-	continue;
+        continue;
       int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
       assert(code[2] == 0);
       if (code[0] == xskip && xskin)
-	continue;
+        continue;
       if (code[1] == yskip && yskin)
-	continue;
+        continue;
       const auto &TreeNei =
-	  treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (TreeNei >= 0) {
-	icodes[k++] = icode;
+        icodes[k++] = icode;
       } else if (TreeNei == -2) {
-	coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-	int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
-				(info->index[1] + code[1] + NY) % NY};
-	int infoNei_index_true[2] = {(info->index[0] + code[0]),
-				     (info->index[1] + code[1])};
-	Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-			 info->level - 1, tree, all);
-	if (b == nullptr)
-	  continue;
-	int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-		    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
-	int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
-				: (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
-		    code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-				: (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
-	int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-	if (!bytes)
-	  continue;
-	int base[2] = {(info->index[0] + code[0]) % 2,
-		       (info->index[1] + code[1]) % 2};
-	int CoarseEdge[2];
-	CoarseEdge[0] = code[0] == 0 ? 0
-			: (((info->index[0] % 2 == 0) &&
-			    (infoNei_index_true[0] > info->index[0])) ||
-			   ((info->index[0] % 2 == 1) &&
-			    (infoNei_index_true[0] < info->index[0])))
-			    ? 1
-			    : 0;
-	CoarseEdge[1] = code[1] == 0 ? 0
-			: (((info->index[1] % 2 == 0) &&
-			    (infoNei_index_true[1] > info->index[1])) ||
-			   ((info->index[1] % 2 == 1) &&
-			    (infoNei_index_true[1] < info->index[1])))
-			    ? 1
-			    : 0;
-	int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
-			    (1 - abs(code[0])) * base[0] * _BS_ / 2 -
-			    code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
-			std::max(code[1], 0) * _BS_ / 2 +
-			    (1 - abs(code[1])) * base[1] * _BS_ / 2 -
-			    code[1] * _BS_ +
-			    CoarseEdge[1] * code[1] * _BS_ / 2};
-	int i = s[0] - offset[0];
-	int mod = (e[1] - s[1]) % 4;
-	for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-	  int i0 = i + (iy + 0 - offset[1]) * nc[0];
-	  int i1 = i + (iy + 1 - offset[1]) * nc[0];
-	  int i2 = i + (iy + 2 - offset[1]) * nc[0];
-	  int i3 = i + (iy + 3 - offset[1]) * nc[0];
-	  int y0 = iy + 0 + start[1];
-	  int y1 = iy + 1 + start[1];
-	  int y2 = iy + 2 + start[1];
-	  int y3 = iy + 3 + start[1];
-	  int x = s[0] + start[0];
-	  Real *p0 = c + dim * i0;
-	  Real *p1 = c + dim * i1;
-	  Real *p2 = c + dim * i2;
-	  Real *p3 = c + dim * i3;
-	  Real *q0 = b + dim * (_BS_ * y0 + x);
-	  Real *q1 = b + dim * (_BS_ * y1 + x);
-	  Real *q2 = b + dim * (_BS_ * y2 + x);
-	  Real *q3 = b + dim * (_BS_ * y3 + x);
-	  memcpy(p0, q0, bytes);
-	  memcpy(p1, q1, bytes);
-	  memcpy(p2, q2, bytes);
-	  memcpy(p3, q3, bytes);
-	}
-	for (int iy = e[1] - mod; iy < e[1]; iy++) {
-	  int i0 = i + (iy - offset[1]) * nc[0];
-	  int y0 = iy + start[1];
-	  int x = s[0] + start[0];
-	  Real *p = c + dim * i0;
-	  Real *q = b + dim * (_BS_ * y0 + x);
-	  memcpy(p, q, bytes);
-	}
+        coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
+        int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
+                                (info->index[1] + code[1] + NY) % NY};
+        int infoNei_index_true[2] = {(info->index[0] + code[0]),
+                                     (info->index[1] + code[1])};
+        Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
+                         info->level - 1, tree, all);
+        if (b == nullptr)
+          continue;
+        int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
+                    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
+        int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
+                                : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
+                    code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
+                                : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
+        int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int base[2] = {(info->index[0] + code[0]) % 2,
+                       (info->index[1] + code[1]) % 2};
+        int CoarseEdge[2];
+        CoarseEdge[0] = code[0] == 0 ? 0
+                        : (((info->index[0] % 2 == 0) &&
+                            (infoNei_index_true[0] > info->index[0])) ||
+                           ((info->index[0] % 2 == 1) &&
+                            (infoNei_index_true[0] < info->index[0])))
+                            ? 1
+                            : 0;
+        CoarseEdge[1] = code[1] == 0 ? 0
+                        : (((info->index[1] % 2 == 0) &&
+                            (infoNei_index_true[1] > info->index[1])) ||
+                           ((info->index[1] % 2 == 1) &&
+                            (infoNei_index_true[1] < info->index[1])))
+                            ? 1
+                            : 0;
+        int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
+                            (1 - abs(code[0])) * base[0] * _BS_ / 2 -
+                            code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
+                        std::max(code[1], 0) * _BS_ / 2 +
+                            (1 - abs(code[1])) * base[1] * _BS_ / 2 -
+                            code[1] * _BS_ +
+                            CoarseEdge[1] * code[1] * _BS_ / 2};
+        int i = s[0] - offset[0];
+        int mod = (e[1] - s[1]) % 4;
+        for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+          int i0 = i + (iy + 0 - offset[1]) * nc[0];
+          int i1 = i + (iy + 1 - offset[1]) * nc[0];
+          int i2 = i + (iy + 2 - offset[1]) * nc[0];
+          int i3 = i + (iy + 3 - offset[1]) * nc[0];
+          int y0 = iy + 0 + start[1];
+          int y1 = iy + 1 + start[1];
+          int y2 = iy + 2 + start[1];
+          int y3 = iy + 3 + start[1];
+          int x = s[0] + start[0];
+          Real *p0 = c + dim * i0;
+          Real *p1 = c + dim * i1;
+          Real *p2 = c + dim * i2;
+          Real *p3 = c + dim * i3;
+          Real *q0 = b + dim * (_BS_ * y0 + x);
+          Real *q1 = b + dim * (_BS_ * y1 + x);
+          Real *q2 = b + dim * (_BS_ * y2 + x);
+          Real *q3 = b + dim * (_BS_ * y3 + x);
+          memcpy(p0, q0, bytes);
+          memcpy(p1, q1, bytes);
+          memcpy(p2, q2, bytes);
+          memcpy(p3, q3, bytes);
+        }
+        for (int iy = e[1] - mod; iy < e[1]; iy++) {
+          int i0 = i + (iy - offset[1]) * nc[0];
+          int y0 = iy + start[1];
+          int x = s[0] + start[0];
+          Real *p = c + dim * i0;
+          Real *q = b + dim * (_BS_ * y0 + x);
+          memcpy(p, q, bytes);
+        }
       }
       if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
-	continue;
+        continue;
       int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-		  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
+                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
       int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-		  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
-		  1};
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
+                  1};
       if (TreeNei >= 0) {
-	int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-	if (!bytes)
-	  continue;
-	int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
-	myblocks[icode] =
-	    avail(info->level, info->Znei[1 + code[0]][1 + code[1]], tree, all);
-	if (myblocks[icode] == nullptr)
-	  continue;
-	Real *b = myblocks[icode];
-	int i = s[0] - start[0];
-	int mod = (e[1] - s[1]) % 4;
-	for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-	  int i0 = i + (iy - start[1]) * nm[0];
-	  int i1 = i + (iy + 1 - start[1]) * nm[0];
-	  int i2 = i + (iy + 2 - start[1]) * nm[0];
-	  int i3 = i + (iy + 3 - start[1]) * nm[0];
-	  int x0 = s[0] - code[0] * _BS_;
-	  int y0 = iy - code[1] * _BS_;
-	  int y1 = iy + 1 - code[1] * _BS_;
-	  int y2 = iy + 2 - code[1] * _BS_;
-	  int y3 = iy + 3 - code[1] * _BS_;
-	  Real *p0 = &m[dim * i0];
-	  Real *p1 = &m[dim * i1];
-	  Real *p2 = &m[dim * i2];
-	  Real *p3 = &m[dim * i3];
-	  Real *q0 = &b[dim * (_BS_ * y0 + x0)];
-	  Real *q1 = &b[dim * (_BS_ * y1 + x0)];
-	  Real *q2 = &b[dim * (_BS_ * y2 + x0)];
-	  Real *q3 = &b[dim * (_BS_ * y3 + x0)];
-	  memcpy(p0, q0, bytes);
-	  memcpy(p1, q1, bytes);
-	  memcpy(p2, q2, bytes);
-	  memcpy(p3, q3, bytes);
-	}
-	for (int iy = e[1] - mod; iy < e[1]; iy++) {
-	  int i0 = i + (iy - start[1]) * nm[0];
-	  int x0 = s[0] - code[0] * _BS_;
-	  int y0 = iy - code[1] * _BS_;
-	  Real *p = &m[dim * i0];
-	  Real *q = &b[dim * (_BS_ * y0 + x0)];
-	  memcpy(p, q, bytes);
-	}
+        int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+        myblocks[icode] =
+            avail(info->level, info->Znei[1 + code[0]][1 + code[1]], tree, all);
+        if (myblocks[icode] == nullptr)
+          continue;
+        Real *b = myblocks[icode];
+        int i = s[0] - start[0];
+        int mod = (e[1] - s[1]) % 4;
+        for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
+          int i0 = i + (iy - start[1]) * nm[0];
+          int i1 = i + (iy + 1 - start[1]) * nm[0];
+          int i2 = i + (iy + 2 - start[1]) * nm[0];
+          int i3 = i + (iy + 3 - start[1]) * nm[0];
+          int x0 = s[0] - code[0] * _BS_;
+          int y0 = iy - code[1] * _BS_;
+          int y1 = iy + 1 - code[1] * _BS_;
+          int y2 = iy + 2 - code[1] * _BS_;
+          int y3 = iy + 3 - code[1] * _BS_;
+          Real *p0 = &m[dim * i0];
+          Real *p1 = &m[dim * i1];
+          Real *p2 = &m[dim * i2];
+          Real *p3 = &m[dim * i3];
+          Real *q0 = &b[dim * (_BS_ * y0 + x0)];
+          Real *q1 = &b[dim * (_BS_ * y1 + x0)];
+          Real *q2 = &b[dim * (_BS_ * y2 + x0)];
+          Real *q3 = &b[dim * (_BS_ * y3 + x0)];
+          memcpy(p0, q0, bytes);
+          memcpy(p1, q1, bytes);
+          memcpy(p2, q2, bytes);
+          memcpy(p3, q3, bytes);
+        }
+        for (int iy = e[1] - mod; iy < e[1]; iy++) {
+          int i0 = i + (iy - start[1]) * nm[0];
+          int x0 = s[0] - code[0] * _BS_;
+          int y0 = iy - code[1] * _BS_;
+          Real *p = &m[dim * i0];
+          Real *q = &b[dim * (_BS_ * y0 + x0)];
+          memcpy(p, q, bytes);
+        }
       } else if (TreeNei == -1) {
-	int bytes = (abs(code[0]) * (e[0] - s[0]) +
-		     (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-		    dim * sizeof(Real);
-	if (!bytes)
-	  continue;
-	int ys = (code[1] == 0) ? 2 : 1;
-	int mod = ((e[1] - s[1]) / ys) % 4;
-	int Bstep = 1;
-	if ((abs(code[0]) + abs(code[1]) == 2))
-	  Bstep = 3;
-	else if ((abs(code[0]) + abs(code[1]) == 3))
-	  Bstep = 4;
-	for (int B = 0; B <= 3; B += Bstep) {
-	  int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-	  Real *b = avail1(2 * info->index[0] + std::max(code[0], 0) + code[0] +
-			       (B % 2) * std::max(0, 1 - abs(code[0])),
-			   2 * info->index[1] + std::max(code[1], 0) + code[1] +
-			       aux * std::max(0, 1 - abs(code[1])),
-			   info->level + 1, tree, all);
-	  if (b == nullptr)
-	    continue;
-	  int i = abs(code[0]) * (s[0] - start[0]) +
-		  (1 - abs(code[0])) *
-		      (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
-	  int x = s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
-	  for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-	    int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
-			  (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
-						aux * (e[1] - s[1]) / 2)) *
-			     nm[0];
-	    int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
-			  (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
-						aux * (e[1] - s[1]) / 2)) *
-			     nm[0];
-	    int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
-			  (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
-						aux * (e[1] - s[1]) / 2)) *
-			     nm[0];
-	    int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
-			  (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
-						aux * (e[1] - s[1]) / 2)) *
-			     nm[0];
-	    int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
-					       std::min(0, code[1]) * _BS_
-					 : iy + 0 * ys;
-	    int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
-					       std::min(0, code[1]) * _BS_
-					 : iy + 1 * ys;
-	    int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
-					       std::min(0, code[1]) * _BS_
-					 : iy + 2 * ys;
-	    int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
-					       std::min(0, code[1]) * _BS_
-					 : iy + 3 * ys;
-	    /* int z0 = y0 + 1; */
-	    int z1 = y1 + 1;
-	    int z2 = y2 + 1;
-	    int z3 = y3 + 1;
-	    Real *p0 = m + dim * k0;
-	    Real *p1 = m + dim * k1;
-	    Real *p2 = m + dim * k2;
-	    Real *p3 = m + dim * k3;
-	    Real *q00 = b + dim * (_BS_ * y0 + x);
-	    // Real *q10 = b + dim * (_BS_ * z0 + x);
-	    Real *q01 = b + dim * (_BS_ * y1 + x);
-	    Real *q11 = b + dim * (_BS_ * z1 + x);
-	    Real *q02 = b + dim * (_BS_ * y2 + x);
-	    Real *q12 = b + dim * (_BS_ * z2 + x);
-	    Real *q03 = b + dim * (_BS_ * y3 + x);
-	    Real *q13 = b + dim * (_BS_ * z3 + x);
-	    for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-				   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-		 ee++) {
-	      Real *q000 = q00 + dim * 2 * ee;
-	      Real *q001 = q00 + dim * (2 * ee + 1);
-	      Real *q010 = q01 + dim * 2 * ee;
-	      Real *q011 = q01 + dim * (2 * ee + 1);
-	      Real *q020 = q02 + dim * 2 * ee;
-	      Real *q021 = q02 + dim * (2 * ee + 1);
-	      Real *q030 = q03 + dim * 2 * ee;
-	      Real *q031 = q03 + dim * (2 * ee + 1);
-	      Real *q110 = q11 + dim * 2 * ee;
-	      Real *q111 = q11 + dim * (2 * ee + 1);
-	      Real *q120 = q12 + dim * 2 * ee;
-	      Real *q121 = q12 + dim * (2 * ee + 1);
-	      Real *q130 = q13 + dim * 2 * ee;
-	      Real *q131 = q13 + dim * (2 * ee + 1);
-	      for (int d = 0; d < dim; d++) {
-		*(p0 + dim * ee + d) =
-		    (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
-		*(p1 + dim * ee + d) =
-		    (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
-		*(p2 + dim * ee + d) =
-		    (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
-		*(p3 + dim * ee + d) =
-		    (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
-	      }
-	    }
-	  }
-	  for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-	    int k = i + (abs(code[1]) * (iy - start[1]) +
-			 (1 - abs(code[1])) *
-			     (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
-			    nm[0];
-	    int y = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
-					      std::min(0, code[1]) * _BS_
-					: iy;
-	    int z = y + 1;
-	    Real *p = m + dim * k;
-	    Real *q0 = b + dim * (_BS_ * y + x);
-	    Real *q1 = b + dim * (_BS_ * z + x);
-	    for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-				   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
-		 ee++) {
-	      Real *q00 = q0 + dim * 2 * ee;
-	      Real *q01 = q0 + dim * (2 * ee + 1);
-	      Real *q10 = q1 + dim * 2 * ee;
-	      Real *q11 = q1 + dim * (2 * ee + 1);
-	      for (int d = 0; d < dim; d++)
-		*(p + dim * ee + d) =
-		    (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
-	    }
-	  }
-	}
+        int bytes = (abs(code[0]) * (e[0] - s[0]) +
+                     (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
+                    dim * sizeof(Real);
+        if (!bytes)
+          continue;
+        int ys = (code[1] == 0) ? 2 : 1;
+        int mod = ((e[1] - s[1]) / ys) % 4;
+        int Bstep = 1;
+        if ((abs(code[0]) + abs(code[1]) == 2))
+          Bstep = 3;
+        else if ((abs(code[0]) + abs(code[1]) == 3))
+          Bstep = 4;
+        for (int B = 0; B <= 3; B += Bstep) {
+          int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          Real *b = avail1(2 * info->index[0] + std::max(code[0], 0) + code[0] +
+                               (B % 2) * std::max(0, 1 - abs(code[0])),
+                           2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                               aux * std::max(0, 1 - abs(code[1])),
+                           info->level + 1, tree, all);
+          if (b == nullptr)
+            continue;
+          int i = abs(code[0]) * (s[0] - start[0]) +
+                  (1 - abs(code[0])) *
+                      (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
+          int x = s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
+          for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
+            int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
+                          (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
+                                                aux * (e[1] - s[1]) / 2)) *
+                             nm[0];
+            int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 0 * ys;
+            int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 1 * ys;
+            int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 2 * ys;
+            int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
+                                               std::min(0, code[1]) * _BS_
+                                         : iy + 3 * ys;
+            /* int z0 = y0 + 1; */
+            int z1 = y1 + 1;
+            int z2 = y2 + 1;
+            int z3 = y3 + 1;
+            Real *p0 = m + dim * k0;
+            Real *p1 = m + dim * k1;
+            Real *p2 = m + dim * k2;
+            Real *p3 = m + dim * k3;
+            Real *q00 = b + dim * (_BS_ * y0 + x);
+            // Real *q10 = b + dim * (_BS_ * z0 + x);
+            Real *q01 = b + dim * (_BS_ * y1 + x);
+            Real *q11 = b + dim * (_BS_ * z1 + x);
+            Real *q02 = b + dim * (_BS_ * y2 + x);
+            Real *q12 = b + dim * (_BS_ * z2 + x);
+            Real *q03 = b + dim * (_BS_ * y3 + x);
+            Real *q13 = b + dim * (_BS_ * z3 + x);
+            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+                 ee++) {
+              Real *q000 = q00 + dim * 2 * ee;
+              Real *q001 = q00 + dim * (2 * ee + 1);
+              Real *q010 = q01 + dim * 2 * ee;
+              Real *q011 = q01 + dim * (2 * ee + 1);
+              Real *q020 = q02 + dim * 2 * ee;
+              Real *q021 = q02 + dim * (2 * ee + 1);
+              Real *q030 = q03 + dim * 2 * ee;
+              Real *q031 = q03 + dim * (2 * ee + 1);
+              Real *q110 = q11 + dim * 2 * ee;
+              Real *q111 = q11 + dim * (2 * ee + 1);
+              Real *q120 = q12 + dim * 2 * ee;
+              Real *q121 = q12 + dim * (2 * ee + 1);
+              Real *q130 = q13 + dim * 2 * ee;
+              Real *q131 = q13 + dim * (2 * ee + 1);
+              for (int d = 0; d < dim; d++) {
+                *(p0 + dim * ee + d) =
+                    (*(q000 + d) + *(q010 + d) + *(q001 + d) + *(q011 + d)) / 4;
+                *(p1 + dim * ee + d) =
+                    (*(q010 + d) + *(q110 + d) + *(q011 + d) + *(q111 + d)) / 4;
+                *(p2 + dim * ee + d) =
+                    (*(q020 + d) + *(q120 + d) + *(q021 + d) + *(q121 + d)) / 4;
+                *(p3 + dim * ee + d) =
+                    (*(q030 + d) + *(q130 + d) + *(q031 + d) + *(q131 + d)) / 4;
+              }
+            }
+          }
+          for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
+            int k = i + (abs(code[1]) * (iy - start[1]) +
+                         (1 - abs(code[1])) *
+                             (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
+                            nm[0];
+            int y = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
+                                              std::min(0, code[1]) * _BS_
+                                        : iy;
+            int z = y + 1;
+            Real *p = m + dim * k;
+            Real *q0 = b + dim * (_BS_ * y + x);
+            Real *q1 = b + dim * (_BS_ * z + x);
+            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
+                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+                 ee++) {
+              Real *q00 = q0 + dim * 2 * ee;
+              Real *q01 = q0 + dim * (2 * ee + 1);
+              Real *q10 = q1 + dim * 2 * ee;
+              Real *q11 = q1 + dim * (2 * ee + 1);
+              for (int d = 0; d < dim; d++)
+                *(p + dim * ee + d) =
+                    (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+            }
+          }
+        }
       }
     }
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
-	int icode = icodes[i];
-	int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-	int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
-				(info->index[1] + code[1] + NY) % NY,
-				(info->index[2] + code[2] + aux) % aux};
-	if (UseCoarseStencil0(info, infoNei_index)) {
-	  FillCoarseVersion(code);
-	  coarsened = true;
-	}
+        int icode = icodes[i];
+        int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
+        int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
+                                (info->index[1] + code[1] + NY) % NY,
+                                (info->index[2] + code[2] + aux) % aux};
+        if (UseCoarseStencil0(info, infoNei_index)) {
+          FillCoarseVersion(code);
+          coarsened = true;
+        }
       }
     if (sim.size == 1)
       post_load(info, applybc);
@@ -2156,103 +2156,103 @@ struct BlockLab {
     if (id >= 0) {
       UnPackInfo *unpacks = buf->myunpacks[id].data();
       for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
-	UnPackInfo *unpack = &unpacks[jj];
-	int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
-		       (unpack->icode / 9) % 3 - 1};
-	int otherrank = unpack->rank;
-	int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-		    code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
-		    code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-	int e[3] = {
-	    code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
-	    code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
-	    code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
-	if (unpack->level == info->level) {
-	  Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
-			   (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
-			      dim;
-	  unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-			   &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-			   unpack->LX, unpack->lx, unpack->ly, nm[0]);
-	  if (unpack->CoarseVersionOffset >= 0) {
-	    int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-			     (0 - 1) / 2 + 0};
-	    int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-			 code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-			 code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-	    Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
-			      (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
-				 dim;
-	    int L[3];
-	    int icode =
-		(-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1);
-	    L[0] = sLength[3 * (icode + 2 * 27) + 0];
-	    L[1] = sLength[3 * (icode + 2 * 27) + 1];
-	    L[2] = sLength[3 * (icode + 2 * 27) + 2];
-	    unpack_subregion(
-		&buf->recv_buffer[otherrank]
-				 [unpack->offset + unpack->CoarseVersionOffset],
-		&dst1[0], dim, unpack->CoarseVersionsrcxstart,
-		unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
-		L[1], nc[0]);
-	  }
-	} else if (unpack->level < info->level) {
-	  int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-			   (0 - 1) / 2 + 0};
-	  int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-		       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-		       code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-	  Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
-			   offset[0] + (sC[1] - offset[1]) * nc[0]) *
-			      dim;
-	  unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-			   &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-			   unpack->LX, unpack->lx, unpack->ly, nc[0]);
-	} else {
-	  int B;
-	  if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-	    B = 0;
-	  else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
-	    int t;
-	    if (code[0] == 0)
-	      t = unpack->index_0 - 2 * info->index[0];
-	    else if (code[1] == 0)
-	      t = unpack->index_1 - 2 * info->index[1];
-	    else
-	      t = unpack->index_2 - 2 * info->index[2];
-	    assert(t == 0 || t == 1);
-	    B = (t == 1) ? 3 : 0;
-	  } else {
-	    int Bmod, Bdiv;
-	    if (abs(code[0]) == 1) {
-	      Bmod = unpack->index_1 - 2 * info->index[1];
-	      Bdiv = unpack->index_2 - 2 * info->index[2];
-	    } else if (abs(code[1]) == 1) {
-	      Bmod = unpack->index_0 - 2 * info->index[0];
-	      Bdiv = unpack->index_2 - 2 * info->index[2];
-	    } else {
-	      Bmod = unpack->index_0 - 2 * info->index[0];
-	      Bdiv = unpack->index_1 - 2 * info->index[1];
-	    }
-	    B = 2 * Bdiv + Bmod;
-	  }
-	  int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-	  Real *dst =
-	      m +
-	      ((abs(code[2]) * (s[2] - 0) +
-		(1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
-		   nm[0] * nm[1] +
-	       (abs(code[1]) * (s[1] - stencil.sy) +
-		(1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
-		   nm[0] +
-	       abs(code[0]) * (s[0] - stencil.sx) +
-	       (1 - abs(code[0])) *
-		   (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
-		  dim;
-	  unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-			   &dst[0], dim, unpack->srcxstart, unpack->srcystart,
-			   unpack->LX, unpack->lx, unpack->ly, nm[0]);
-	}
+        UnPackInfo *unpack = &unpacks[jj];
+        int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
+                       (unpack->icode / 9) % 3 - 1};
+        int otherrank = unpack->rank;
+        int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
+                    code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
+                    code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
+        int e[3] = {
+            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
+            code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
+        if (unpack->level == info->level) {
+          Real *dst = m + ((s[2] - 0) * nm[0] * nm[1] +
+                           (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
+                              dim;
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
+          if (unpack->CoarseVersionOffset >= 0) {
+            int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                             (0 - 1) / 2 + 0};
+            int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+                         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
+            Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
+                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
+                                 dim;
+            int L[3];
+            int icode =
+                (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1);
+            L[0] = sLength[3 * (icode + 2 * 27) + 0];
+            L[1] = sLength[3 * (icode + 2 * 27) + 1];
+            L[2] = sLength[3 * (icode + 2 * 27) + 2];
+            unpack_subregion(
+                &buf->recv_buffer[otherrank]
+                                 [unpack->offset + unpack->CoarseVersionOffset],
+                &dst1[0], dim, unpack->CoarseVersionsrcxstart,
+                unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
+                L[1], nc[0]);
+          }
+        } else if (unpack->level < info->level) {
+          int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
+                           (0 - 1) / 2 + 0};
+          int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
+                       code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
+          Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
+                           offset[0] + (sC[1] - offset[1]) * nc[0]) *
+                              dim;
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->LX, unpack->lx, unpack->ly, nc[0]);
+        } else {
+          int B;
+          if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+            B = 0;
+          else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
+            int t;
+            if (code[0] == 0)
+              t = unpack->index_0 - 2 * info->index[0];
+            else if (code[1] == 0)
+              t = unpack->index_1 - 2 * info->index[1];
+            else
+              t = unpack->index_2 - 2 * info->index[2];
+            assert(t == 0 || t == 1);
+            B = (t == 1) ? 3 : 0;
+          } else {
+            int Bmod, Bdiv;
+            if (abs(code[0]) == 1) {
+              Bmod = unpack->index_1 - 2 * info->index[1];
+              Bdiv = unpack->index_2 - 2 * info->index[2];
+            } else if (abs(code[1]) == 1) {
+              Bmod = unpack->index_0 - 2 * info->index[0];
+              Bdiv = unpack->index_2 - 2 * info->index[2];
+            } else {
+              Bmod = unpack->index_0 - 2 * info->index[0];
+              Bdiv = unpack->index_1 - 2 * info->index[1];
+            }
+            B = 2 * Bdiv + Bmod;
+          }
+          int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          Real *dst =
+              m +
+              ((abs(code[2]) * (s[2] - 0) +
+                (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
+                   nm[0] * nm[1] +
+               (abs(code[1]) * (s[1] - stencil.sy) +
+                (1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
+                   nm[0] +
+               abs(code[0]) * (s[0] - stencil.sx) +
+               (1 - abs(code[0])) *
+                   (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
+                  dim;
+          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
+                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
+        }
       }
     }
     if (sim.size > 1)
@@ -2262,22 +2262,22 @@ struct BlockLab {
   void post_load(Info *info, bool applybc) {
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
-	for (int i = 0; i < _BS_ / 2; i++) {
-	  if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
-	    continue;
-	  int ix = 2 * i - start[0];
-	  int iy = 2 * j - start[1];
-	  int i00 = ix + nm[0] * iy;
-	  int i10 = ix + 1 + nm[0] * iy;
-	  int i01 = ix + nm[0] * (iy + 1);
-	  int i11 = ix + 1 + nm[0] * (iy + 1);
-	  int j00 = i - offset[0] + nc[0] * (j - offset[1]);
-	  for (int d = 0; d < dim; d++) {
-	    c[dim * j00 + d] = (m[dim * i01 + d] + m[dim * i00 + d] +
-				m[dim * i10 + d] + m[dim * i11 + d]) /
-			       4;
-	  }
-	}
+        for (int i = 0; i < _BS_ / 2; i++) {
+          if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
+            continue;
+          int ix = 2 * i - start[0];
+          int iy = 2 * j - start[1];
+          int i00 = ix + nm[0] * iy;
+          int i10 = ix + 1 + nm[0] * iy;
+          int i01 = ix + nm[0] * (iy + 1);
+          int i11 = ix + 1 + nm[0] * (iy + 1);
+          int j00 = i - offset[0] + nc[0] * (j - offset[1]);
+          for (int d = 0; d < dim; d++) {
+            c[dim * j00 + d] = (m[dim * i01 + d] + m[dim * i00 + d] +
+                                m[dim * i10 + d] + m[dim * i11 + d]) /
+                               4;
+          }
+        }
       }
     }
     if (applybc)
@@ -2290,215 +2290,215 @@ struct BlockLab {
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-	continue;
+        continue;
       int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
       if (code[2] != 0)
-	continue;
+        continue;
       if (code[0] == xskip && xskin)
-	continue;
+        continue;
       if (code[1] == yskip && yskin)
-	continue;
+        continue;
       if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
-	continue;
+        continue;
       int s[2] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-		  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_};
+                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_};
       int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-		  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1};
+                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1};
       int sC[2] = {
-	  code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
-	  code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2)};
+          code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
+          code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2)};
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
-	continue;
+        continue;
       if (use_averages) {
-	for (int iy = s[1]; iy < e[1]; iy += 1) {
-	  int YY =
-	      (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
-	      sC[1];
-	  for (int ix = s[0]; ix < e[0]; ix += 1) {
-	    int XX =
-		(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
-		sC[0];
-	    Real *Test[3][3];
-	    for (int i = 0; i < 3; i++)
-	      for (int j = 0; j < 3; j++) {
-		int i0 =
-		    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
-		Test[i][j] = c + dim * i0;
-	      }
-	    int i1 = ix - start[0] + nm[0] * (iy - start[1]);
-	    for (int d = 0; d < dim; d++)
-	      TestInterp(
-		  Test, m + dim * i1 + d,
-		  abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
-		      2,
-		  abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
-		      2);
-	  }
-	}
+        for (int iy = s[1]; iy < e[1]; iy += 1) {
+          int YY =
+              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
+              sC[1];
+          for (int ix = s[0]; ix < e[0]; ix += 1) {
+            int XX =
+                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
+                sC[0];
+            Real *Test[3][3];
+            for (int i = 0; i < 3; i++)
+              for (int j = 0; j < 3; j++) {
+                int i0 =
+                    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
+                Test[i][j] = c + dim * i0;
+              }
+            int i1 = ix - start[0] + nm[0] * (iy - start[1]);
+            for (int d = 0; d < dim; d++)
+              TestInterp(
+                  Test, m + dim * i1 + d,
+                  abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) %
+                      2,
+                  abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) %
+                      2);
+          }
+        }
       }
       if (abs(code[0]) + abs(code[1]) == 1) {
-	for (int iy = s[1]; iy < e[1]; iy += 2) {
-	  int YY =
-	      (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
-	      sC[1] - offset[1];
-	  int y =
-	      abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-	  int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
-	  double dy = 0.25 * (2 * y - 1);
-	  for (int ix = s[0]; ix < e[0]; ix += 2) {
-	    int XX =
-		(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
-		sC[0] - offset[0];
-	    int x =
-		abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
-	    int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
-	    double dx = 0.25 * (2 * x - 1);
-	    if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
-	      continue;
-	    int i0 = XX + nc[0] * (YY + 2);
-	    int i1 = XX + nc[0] * (YY);
-	    int i2 = XX + nc[0] * (YY + 1);
-	    int i3 = XX + nc[0] * (YY - 2);
-	    int i4 = XX + nc[0] * (YY - 1);
-	    int i5 = XX + 2 + nc[0] * (YY);
-	    int i6 = XX + 1 + nc[0] * (YY);
-	    int i7 = XX - 1 + nc[0] * (YY);
-	    int i8 = XX - 2 + nc[0] * (YY);
-	    int j0 = ix - start[0] + nm[0] * (iy - start[1]);
-	    int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
-	    int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
-	    int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
-	    for (int d = 0; d < dim; d++) {
-	      if (code[0] != 0) {
-		Real dudy, dudy2;
-		if (YY + offset[1] == 0) {
-		  dudy = (-0.5 * c[dim * i0 + d] - 1.5 * c[dim * i1 + d]) +
-			 2.0 * c[dim * i2 + d];
-		  dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
-			  2.0 * c[dim * i2 + d];
-		} else if (YY + offset[1] == (_BS_ / 2) - 1) {
-		  dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
-			 2.0 * c[dim * i4 + d];
-		  dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
-			  2.0 * c[dim * i4 + d];
-		} else {
-		  dudy = 0.5 * (c[dim * i2 + d] - c[dim * i4 + d]);
-		  dudy2 = (c[dim * i2 + d] + c[dim * i4 + d]) -
-			  2.0 * c[dim * i1 + d];
-		}
-		m[dim * j0 + d] =
-		    c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-		if (iy + iyp >= s[1] && iy + iyp < e[1])
-		  m[dim * j1 + d] =
-		      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-		if (ix + ixp >= s[0] && ix + ixp < e[0])
-		  m[dim * j2 + d] =
-		      c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-		if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-		    iy + iyp < e[1])
-		  m[dim * j3 + d] =
-		      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-	      } else {
-		Real dudx, dudx2;
-		if (XX + offset[0] == 0) {
-		  dudx = (-0.5 * c[dim * i5 + d] - 1.5 * c[dim * i1 + d]) +
-			 2.0 * c[dim * i6 + d];
-		  dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
-			  2.0 * c[dim * i6 + d];
-		} else if (XX + offset[0] == (_BS_ / 2) - 1) {
-		  dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
-			 2.0 * c[dim * i7 + d];
-		  dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
-			  2.0 * c[dim * i7 + d];
-		} else {
-		  dudx = 0.5 * (c[dim * i6 + d] - c[dim * i7 + d]);
-		  dudx2 = (c[dim * i6 + d] + c[dim * i7 + d]) -
-			  2.0 * c[dim * i1 + d];
-		}
-		m[dim * j0 + d] =
-		    c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-		if (iy + iyp >= s[1] && iy + iyp < e[1])
-		  m[dim * j1 + d] =
-		      c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-		if (ix + ixp >= s[0] && ix + ixp < e[0])
-		  m[dim * j2 + d] =
-		      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
-		if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-		    iy + iyp < e[1])
-		  m[dim * j3 + d] =
-		      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
-	      }
-	    }
-	  }
-	}
-	for (int iy = s[1]; iy < e[1]; iy += 1) {
-	  for (int ix = s[0]; ix < e[0]; ix += 1) {
-	    if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
-	      continue;
-	    int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
-	    int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
-	    int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
-	    int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
-	    int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
-	    int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
-	    int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
-	    int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
-	    int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
-	    int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
-	    int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
-	    int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
-	    int k12 = ix - start[0] + nm[0] * (iy - start[1]);
-	    int x =
-		abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
-	    int y =
-		abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
-	    for (int d = 0; d < dim; d++) {
-	      Real *a = m + dim * k12 + d;
-	      if (code[0] == 0 && code[1] == 1) {
-		if (y == 0) {
-		  Real *b = m + dim * k0 + d;
-		  Real *c = m + dim * k1 + d;
-		  LI(a, b, c);
-		} else if (y == 1) {
-		  Real *b = m + dim * k1 + d;
-		  Real *c = m + dim * k11 + d;
-		  LE(a, b, c);
-		}
-	      } else if (code[0] == 0 && code[1] == -1) {
-		if (y == 1) {
-		  Real *b = m + dim * k2 + d;
-		  Real *c = m + dim * k3 + d;
-		  LI(a, b, c);
-		} else if (y == 0) {
-		  Real *b = m + dim * k3 + d;
-		  Real *c = m + dim * k4 + d;
-		  LE(a, b, c);
-		}
-	      } else if (code[1] == 0 && code[0] == 1) {
-		if (x == 0) {
-		  Real *b = m + dim * k5 + d;
-		  Real *c = m + dim * k6 + d;
-		  LI(a, b, c);
-		} else if (x == 1) {
-		  Real *b = m + dim * k6 + d;
-		  Real *c = m + dim * k7 + d;
-		  LE(a, b, c);
-		}
-	      } else if (code[1] == 0 && code[0] == -1) {
-		if (x == 1) {
-		  Real *b = m + dim * k8 + d;
-		  Real *c = m + dim * k9 + d;
-		  LI(a, b, c);
-		} else if (x == 0) {
-		  Real *b = m + dim * k9 + d;
-		  Real *c = m + dim * k10 + d;
-		  LE(a, b, c);
-		}
-	      }
-	    }
-	  }
-	}
+        for (int iy = s[1]; iy < e[1]; iy += 2) {
+          int YY =
+              (iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) / 2 +
+              sC[1] - offset[1];
+          int y =
+              abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
+          int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
+          double dy = 0.25 * (2 * y - 1);
+          for (int ix = s[0]; ix < e[0]; ix += 2) {
+            int XX =
+                (ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) / 2 +
+                sC[0] - offset[0];
+            int x =
+                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
+            int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
+            double dx = 0.25 * (2 * x - 1);
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+              continue;
+            int i0 = XX + nc[0] * (YY + 2);
+            int i1 = XX + nc[0] * (YY);
+            int i2 = XX + nc[0] * (YY + 1);
+            int i3 = XX + nc[0] * (YY - 2);
+            int i4 = XX + nc[0] * (YY - 1);
+            int i5 = XX + 2 + nc[0] * (YY);
+            int i6 = XX + 1 + nc[0] * (YY);
+            int i7 = XX - 1 + nc[0] * (YY);
+            int i8 = XX - 2 + nc[0] * (YY);
+            int j0 = ix - start[0] + nm[0] * (iy - start[1]);
+            int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
+            int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
+            int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
+            for (int d = 0; d < dim; d++) {
+              if (code[0] != 0) {
+                Real dudy, dudy2;
+                if (YY + offset[1] == 0) {
+                  dudy = (-0.5 * c[dim * i0 + d] - 1.5 * c[dim * i1 + d]) +
+                         2.0 * c[dim * i2 + d];
+                  dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i2 + d];
+                } else if (YY + offset[1] == (_BS_ / 2) - 1) {
+                  dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
+                         2.0 * c[dim * i4 + d];
+                  dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i4 + d];
+                } else {
+                  dudy = 0.5 * (c[dim * i2 + d] - c[dim * i4 + d]);
+                  dudy2 = (c[dim * i2 + d] + c[dim * i4 + d]) -
+                          2.0 * c[dim * i1 + d];
+                }
+                m[dim * j0 + d] =
+                    c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  m[dim * j1 + d] =
+                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  m[dim * j2 + d] =
+                      c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  m[dim * j3 + d] =
+                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
+              } else {
+                Real dudx, dudx2;
+                if (XX + offset[0] == 0) {
+                  dudx = (-0.5 * c[dim * i5 + d] - 1.5 * c[dim * i1 + d]) +
+                         2.0 * c[dim * i6 + d];
+                  dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i6 + d];
+                } else if (XX + offset[0] == (_BS_ / 2) - 1) {
+                  dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
+                         2.0 * c[dim * i7 + d];
+                  dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
+                          2.0 * c[dim * i7 + d];
+                } else {
+                  dudx = 0.5 * (c[dim * i6 + d] - c[dim * i7 + d]);
+                  dudx2 = (c[dim * i6 + d] + c[dim * i7 + d]) -
+                          2.0 * c[dim * i1 + d];
+                }
+                m[dim * j0 + d] =
+                    c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (iy + iyp >= s[1] && iy + iyp < e[1])
+                  m[dim * j1 + d] =
+                      c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0])
+                  m[dim * j2 + d] =
+                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
+                    iy + iyp < e[1])
+                  m[dim * j3 + d] =
+                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+              }
+            }
+          }
+        }
+        for (int iy = s[1]; iy < e[1]; iy += 1) {
+          for (int ix = s[0]; ix < e[0]; ix += 1) {
+            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+              continue;
+            int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
+            int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
+            int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
+            int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
+            int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
+            int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
+            int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
+            int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
+            int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
+            int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
+            int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
+            int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
+            int k12 = ix - start[0] + nm[0] * (iy - start[1]);
+            int x =
+                abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
+            int y =
+                abs(iy - s[1] - std::min(0, code[1]) * ((e[1] - s[1]) % 2)) % 2;
+            for (int d = 0; d < dim; d++) {
+              Real *a = m + dim * k12 + d;
+              if (code[0] == 0 && code[1] == 1) {
+                if (y == 0) {
+                  Real *b = m + dim * k0 + d;
+                  Real *c = m + dim * k1 + d;
+                  LI(a, b, c);
+                } else if (y == 1) {
+                  Real *b = m + dim * k1 + d;
+                  Real *c = m + dim * k11 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[0] == 0 && code[1] == -1) {
+                if (y == 1) {
+                  Real *b = m + dim * k2 + d;
+                  Real *c = m + dim * k3 + d;
+                  LI(a, b, c);
+                } else if (y == 0) {
+                  Real *b = m + dim * k3 + d;
+                  Real *c = m + dim * k4 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == 1) {
+                if (x == 0) {
+                  Real *b = m + dim * k5 + d;
+                  Real *c = m + dim * k6 + d;
+                  LI(a, b, c);
+                } else if (x == 1) {
+                  Real *b = m + dim * k6 + d;
+                  Real *c = m + dim * k7 + d;
+                  LE(a, b, c);
+                }
+              } else if (code[1] == 0 && code[0] == -1) {
+                if (x == 1) {
+                  Real *b = m + dim * k8 + d;
+                  Real *c = m + dim * k9 + d;
+                  LI(a, b, c);
+                } else if (x == 0) {
+                  Real *b = m + dim * k9 + d;
+                  Real *c = m + dim * k10 + d;
+                  LE(a, b, c);
+                }
+              }
+            }
+          }
+        }
       }
     }
     if (applybc)
@@ -2515,18 +2515,18 @@ struct BlockLab {
       imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
       imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
       if (info->index[d] == 0 && infoNei_index[d] == 0)
-	imin[d] = 0;
+        imin[d] = 0;
       if (info->index[d] == blocks[d] && infoNei_index[d] == blocks[d])
-	imax[d] = 0;
+        imax[d] = 0;
     }
     for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
       for (int i2 = imin[2]; i2 <= imax[2]; i2++)
-	for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-	  for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-	    int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
-	    if (coarsened_nei_codes[itest] == icode_test)
-	      return true;
-	  }
+        for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+          for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+            int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
+            if (coarsened_nei_codes[itest] == icode_test)
+              return true;
+          }
     return false;
   }
   void FillCoarseVersion(int *code) {
@@ -2536,17 +2536,17 @@ struct BlockLab {
     Real *b = myblocks[icode];
     int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
     int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-		code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
+                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
     int e[2] = {
-	code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
-	code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
+        code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
+        code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
     int start[2] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
-			std::min(0, code[0]) * (e[0] - s[0]),
-		    s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
-			std::min(0, code[1]) * (e[1] - s[1])};
+                        std::min(0, code[0]) * (e[0] - s[0]),
+                    s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
+                        std::min(0, code[1]) * (e[1] - s[1])};
     int i = s[0] - offset[0];
     int x = start[0];
     for (int iy = s[1]; iy < e[1]; iy++) {
@@ -2557,13 +2557,13 @@ struct BlockLab {
       Real *q0 = b + dim * (_BS_ * y0 + x);
       Real *q1 = b + dim * (_BS_ * y1 + x);
       for (int ee = 0; ee < e[0] - s[0]; ee++) {
-	Real *q00 = q0 + dim * 2 * ee;
-	Real *q01 = q0 + dim * (2 * ee + 1);
-	Real *q10 = q1 + dim * 2 * ee;
-	Real *q11 = q1 + dim * (2 * ee + 1);
-	for (int d = 0; d < dim; d++)
-	  *(p1 + dim * ee + d) =
-	      (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+        Real *q00 = q0 + dim * 2 * ee;
+        Real *q01 = q0 + dim * (2 * ee + 1);
+        Real *q10 = q1 + dim * 2 * ee;
+        Real *q11 = q1 + dim * (2 * ee + 1);
+        for (int d = 0; d < dim; d++)
+          *(p1 + dim * ee + d) =
+              (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
       }
     }
   }
@@ -2572,7 +2572,7 @@ struct BlockLab {
   BlockLab &operator=(const BlockLab &) = delete;
 };
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
-		     uint8_t *data) {
+                     uint8_t *data) {
   _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
   Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
@@ -2581,8 +2581,8 @@ static void AddBlock(int dim, Grid *grid, int level, long long Z,
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
-	long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-	treef(&grid->tree, level + 1, nc) = -2;
+        long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+        treef(&grid->tree, level + 1, nc) = -2;
       }
   if (level > 0) {
     long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
@@ -2597,7 +2597,7 @@ struct MPI_Block {
 template <typename Lab, typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
-			      &g->all, &g->infos, &g->timestamp, dim);
+                              &g->all, &g->infos, &g->timestamp, dim);
   std::vector<Info *> *inner = &Synch->buf->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
@@ -2609,36 +2609,36 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     for (std::size_t i = 0; i < inner->size(); ++i) {
       const auto &I = (*inner)[i];
       lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
-	       Synch->sLength);
+               Synch->sLength);
       kernel(&lab, I);
     }
     while (done == false) {
 #pragma omp master
       halo_next = &avail_next(Synch->mapofHaloBlockGroups, Synch->mapofrequests,
-			      Synch->dummy_vector);
+                              Synch->dummy_vector);
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
-	const auto &I = (*halo_next)[i];
-	lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
-		 Synch->sLength);
-	kernel(&lab, I);
+        const auto &I = (*halo_next)[i];
+        lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
+                 Synch->sLength);
+        kernel(&lab, I);
       }
 #pragma omp single
       {
-	if (halo_next->size() == 0)
-	  done = true;
+        if (halo_next->size() == 0)
+          done = true;
       }
     }
   }
   MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-	      MPI_STATUSES_IGNORE);
+              MPI_STATUSES_IGNORE);
 }
 template <typename Kernel, typename Lab, typename Lab2>
 static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
-		     int dim2) {
+                     int dim2) {
   Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
-			      &grid->all, &grid->infos, &grid->timestamp, dim);
+                              &grid->all, &grid->infos, &grid->timestamp, dim);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -2647,7 +2647,7 @@ static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   Synchronizer *Synch2 =
       sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
-	    &grid2->infos, &grid2->timestamp, dim2);
+            &grid2->infos, &grid2->timestamp, dim2);
   const Stencil &stencil = kernel.stencil;
   const Stencil &stencil2 = kernel2.stencil;
   std::vector<Info> &blk = grid->infos;
@@ -2668,20 +2668,20 @@ static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
       Info *I = avail0[i];
       Info *I2 = avail02[i];
       lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
-	       Synch->sLength);
+               Synch->sLength);
       lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2,
-		true, Synch2->sLength);
+                true, Synch2->sLength);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
     }
 #pragma omp master
     {
       MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-		  MPI_STATUSES_IGNORE);
+                  MPI_STATUSES_IGNORE);
       avail1 = Synch->buf->halo_blocks;
 
       MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
-		  MPI_STATUSES_IGNORE);
+                  MPI_STATUSES_IGNORE);
       avail12 = Synch2->buf->halo_blocks;
     }
 #pragma omp barrier
@@ -2691,9 +2691,9 @@ static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
       Info *I = avail1[i];
       Info *I2 = avail12[i];
       lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
-	       Synch->sLength);
+               Synch->sLength);
       lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2,
-		true, Synch->sLength);
+                true, Synch->sLength);
       kernel(lab, lab2, I, I2);
     }
   }
@@ -2713,68 +2713,68 @@ struct VectorLab : public BlockLab {
       s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
       s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
       e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ + stenEnd[0] - 1)
-		      : _BS_ + stenEnd[0] - 1;
+                      : _BS_ + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
-		      : _BS_ + stenEnd[1] - 1;
+                      : _BS_ + stenEnd[1] - 1;
       for (int iy = s[1]; iy < e[1]; iy++)
-	for (int ix = s[0]; ix < e[0]; ix++) {
-	  const int x =
-	      (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
-	  const int y =
-	      (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-	  int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
-	  int i1 = x + nm[0] * (y);
-	  m[2 * i0 + 1 - A] = -m[2 * i1 + 1 - A];
-	  m[2 * i0 + A] = m[2 * i1 + A];
-	}
+        for (int ix = s[0]; ix < e[0]; ix++) {
+          const int x =
+              (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
+          const int y =
+              (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
+          int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
+          int i1 = x + nm[0] * (y);
+          m[2 * i0 + 1 - A] = -m[2 * i1 + 1 - A];
+          m[2 * i0 + A] = m[2 * i1 + A];
+        }
     } else {
       const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
-			 (this->end[1]) / 2 + 1 + (2) - 1,
-			 (this->end[2]) / 2 + 1 + (1) - 1};
+                         (this->end[1]) / 2 + 1 + (2) - 1,
+                         (this->end[2]) / 2 + 1 + (1) - 1};
       const int sI[3] = {(this->start[0] - 1) / 2 + (-1),
-			 (this->start[1] - 1) / 2 + (-1),
-			 (this->start[2] - 1) / 2};
+                         (this->start[1] - 1) / 2 + (-1),
+                         (this->start[2] - 1) / 2};
       const int *const stenBeg = sI;
       const int *const stenEnd = eI;
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
       s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_ / 2) : stenBeg[0];
       s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_ / 2) : stenBeg[1];
       e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[0] - 1)
-		      : _BS_ / 2 + stenEnd[0] - 1;
+                      : _BS_ / 2 + stenEnd[0] - 1;
       e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
-		      : _BS_ / 2 + stenEnd[1] - 1;
+                      : _BS_ / 2 + stenEnd[1] - 1;
       for (int iy = s[1]; iy < e[1]; iy++)
-	for (int ix = s[0]; ix < e[0]; ix++) {
-	  const int x =
-	      (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
-	  const int y =
-	      (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-	  int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
-	  int i1 = x + nc[0] * (y);
-	  c[2 * i0 + 1 - A] = -c[2 * i1 + 1 - A];
-	  c[2 * i0 + A] = c[2 * i1 + A];
-	}
+        for (int ix = s[0]; ix < e[0]; ix++) {
+          const int x =
+              (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
+          const int y =
+              (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
+          int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
+          int i1 = x + nc[0] * (y);
+          c[2 * i0 + 1 - A] = -c[2 * i1 + 1 - A];
+          c[2 * i0 + A] = c[2 * i1 + A];
+        }
     }
   }
   void _apply_bc(Info *info, bool coarse) override {
     if (!coarse) {
       if (info->index[0] == 0)
-	this->template applyBCface<0, 0>(false);
+        this->template applyBCface<0, 0>(false);
       if (info->index[0] == this->NX - 1)
-	this->template applyBCface<0, 1>(false);
+        this->template applyBCface<0, 1>(false);
       if (info->index[1] == 0)
-	this->template applyBCface<1, 0>(false);
+        this->template applyBCface<1, 0>(false);
       if (info->index[1] == this->NY - 1)
-	this->template applyBCface<1, 1>(false);
+        this->template applyBCface<1, 1>(false);
     } else {
       if (info->index[0] == 0)
-	this->template applyBCface<0, 0>(false, coarse);
+        this->template applyBCface<0, 0>(false, coarse);
       if (info->index[0] == this->NX - 1)
-	this->template applyBCface<0, 1>(false, coarse);
+        this->template applyBCface<0, 1>(false, coarse);
       if (info->index[1] == 0)
-	this->template applyBCface<1, 0>(false, coarse);
+        this->template applyBCface<1, 0>(false, coarse);
       if (info->index[1] == this->NY - 1)
-	this->template applyBCface<1, 1>(false, coarse);
+        this->template applyBCface<1, 1>(false, coarse);
     }
   }
 };
@@ -2808,15 +2808,15 @@ struct ScalarLab : public BlockLab {
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
     s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
     e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
-		    : bsize[0] + stenEnd[0] - 1;
+                    : bsize[0] + stenEnd[0] - 1;
     e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
-		    : bsize[1] + stenEnd[1] - 1;
+                    : bsize[1] + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++)
-	cb[ix - stenBeg[0] + n[0] * (iy - stenBeg[1])] =
-	    cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
-	       n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
-		       stenBeg[1])];
+        cb[ix - stenBeg[0] + n[0] * (iy - stenBeg[1])] =
+            cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
+               n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
+                       stenBeg[1])];
   }
   virtual void _apply_bc(Info *info, bool coarse) override {
     if (info->index[0] == 0)
@@ -2923,17 +2923,17 @@ struct KernelVorticity {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
-	int x0 = i - stencil.sx;
-	int y0 = j - stencil.sy;
-	int xp = x0 + 1;
-	int yp = y0 + 1;
-	int xm = x0 - 1;
-	int ym = y0 - 1;
-	Real *e0 = um + 2 * (nm * ym + x0) + 0;
-	Real *e1 = um + 2 * (nm * yp + x0) + 0;
-	Real *e2 = um + 2 * (nm * y0 + xp) + 1;
-	Real *e3 = um + 2 * (nm * y0 + xm) + 1;
-	TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
+        int x0 = i - stencil.sx;
+        int y0 = j - stencil.sy;
+        int xp = x0 + 1;
+        int yp = y0 + 1;
+        int xm = x0 - 1;
+        int ym = y0 - 1;
+        Real *e0 = um + 2 * (nm * ym + x0) + 0;
+        Real *e1 = um + 2 * (nm * yp + x0) + 0;
+        Real *e2 = um + 2 * (nm * y0 + xp) + 1;
+        Real *e3 = um + 2 * (nm * y0 + xm) + 1;
+        TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
       }
   }
 };
@@ -2963,43 +2963,43 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
     ncell_total = ncell + offset;
     xmf = fopen(xdmf_path, "w");
     fprintf(xmf,
-	    "<Xdmf\n"
-	    "    Version=\"2.0\">\n"
-	    "  <Domain>\n"
-	    "    <Grid>\n"
-	    "      <Time Value=\"%.16e\"/>\n"
-	    "      <Topology\n"
-	    "          Dimensions=\"%ld\"\n"
-	    "          TopologyType=\"Quadrilateral\"/>\n"
-	    "     <Geometry\n"
-	    "         GeometryType=\"XY\">\n"
-	    "       <DataItem\n"
-	    "           Dimensions=\"%ld 2\"\n"
-	    "           Format=\"Binary\">\n"
-	    "         %s\n"
-	    "       </DataItem>\n"
-	    "     </Geometry>\n"
-	    "       <Attribute\n"
-	    "           AttributeType=\"Vector\"\n"
-	    "           Name=\"vort\"\n"
-	    "           Center=\"Cell\">\n"
-	    "         <DataItem\n"
-	    "             Dimensions=\"3 %ld\"\n"
-	    "             Format=\"Binary\">\n"
-	    "           %s\n"
-	    "         </DataItem>\n"
-	    "       </Attribute>\n"
-	    "    </Grid>\n"
-	    "  </Domain>\n"
-	    "</Xdmf>\n",
-	    time, ncell_total, 4 * ncell_total, xyz_base, ncell_total,
-	    attr_base);
+            "<Xdmf\n"
+            "    Version=\"2.0\">\n"
+            "  <Domain>\n"
+            "    <Grid>\n"
+            "      <Time Value=\"%.16e\"/>\n"
+            "      <Topology\n"
+            "          Dimensions=\"%ld\"\n"
+            "          TopologyType=\"Quadrilateral\"/>\n"
+            "     <Geometry\n"
+            "         GeometryType=\"XY\">\n"
+            "       <DataItem\n"
+            "           Dimensions=\"%ld 2\"\n"
+            "           Format=\"Binary\">\n"
+            "         %s\n"
+            "       </DataItem>\n"
+            "     </Geometry>\n"
+            "       <Attribute\n"
+            "           AttributeType=\"Vector\"\n"
+            "           Name=\"vort\"\n"
+            "           Center=\"Cell\">\n"
+            "         <DataItem\n"
+            "             Dimensions=\"3 %ld\"\n"
+            "             Format=\"Binary\">\n"
+            "           %s\n"
+            "         </DataItem>\n"
+            "       </Attribute>\n"
+            "    </Grid>\n"
+            "  </Domain>\n"
+            "</Xdmf>\n",
+            time, ncell_total, 4 * ncell_total, xyz_base, ncell_total,
+            attr_base);
     fclose(xmf);
   }
   xyz = (float *)malloc(8 * ncell * sizeof *xyz);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
   k = l = 0;
-  Info* chiInfo = var.chi->infos.data();
+  Info *chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
     Info *cinfo = &chiInfo[i];
@@ -3009,35 +3009,35 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
     m = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
-	double u0, v0, u1, v1, h;
-	h = sim.h0 / (1 << info->level);
-	u0 = info->origin[0] + h * x;
-	v0 = info->origin[1] + h * y;
-	u1 = u0 + h;
-	v1 = v0 + h;
-	xyz[k++] = u0;
-	xyz[k++] = v0;
-	xyz[k++] = u0;
-	xyz[k++] = v1;
-	xyz[k++] = u1;
-	xyz[k++] = v1;
-	xyz[k++] = u1;
-	xyz[k++] = v0;
-	attr[l++] = b[j++];
-	attr[l++] = b[j++];
-	attr[l++] = c[m++];
+        double u0, v0, u1, v1, h;
+        h = sim.h0 / (1 << info->level);
+        u0 = info->origin[0] + h * x;
+        v0 = info->origin[1] + h * y;
+        u1 = u0 + h;
+        v1 = v0 + h;
+        xyz[k++] = u0;
+        xyz[k++] = v0;
+        xyz[k++] = u0;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v0;
+        attr[l++] = b[j++];
+        attr[l++] = b[j++];
+        attr[l++] = c[m++];
       }
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
-		MPI_INFO_NULL, &mpi_file);
+                MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz,
-			8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
+                        8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(xyz);
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
-		MPI_INFO_NULL, &mpi_file);
+                MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 3 * offset * sizeof *attr, attr,
-			3 * ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
+                        3 * ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(attr);
 }
@@ -3050,12 +3050,12 @@ struct Integrals {
 };
 struct IF2D_Interpolation1D {
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
-				 const Real *xx, Real *yy, const unsigned nn) {
+                                 const Real *xx, Real *yy, const unsigned nn) {
     return naturalCubicSpline(x, y, n, xx, yy, nn, 0);
   }
   static void naturalCubicSpline(const Real *x, const Real *y, const unsigned n,
-				 const Real *xx, Real *yy, const unsigned nn,
-				 const Real offset) {
+                                 const Real *xx, Real *yy, const unsigned nn,
+                                 const Real offset) {
     std::vector<Real> y2(n), u(n - 1);
     y2[0] = 0;
     u[0] = 0;
@@ -3064,7 +3064,7 @@ struct IF2D_Interpolation1D {
       const Real p = sig * y2[i - 1] + 2;
       y2[i] = (sig - 1) / p;
       u[i] = (y[i + 1] - y[i]) / (x[i + 1] - x[i]) -
-	     (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
+             (y[i] - y[i - 1]) / (x[i] - x[i - 1]);
       u[i] = (6 * u[i] / (x[i + 1] - x[i - 1]) - sig * u[i - 1]) / p;
     }
     const Real qn = 0;
@@ -3077,46 +3077,46 @@ struct IF2D_Interpolation1D {
       unsigned int khi = n - 1;
       unsigned int k = 0;
       while (khi - klo > 1) {
-	k = (khi + klo) >> 1;
-	if (x[k] > (xx[j] + offset))
-	  khi = k;
-	else
-	  klo = k;
+        k = (khi + klo) >> 1;
+        if (x[k] > (xx[j] + offset))
+          khi = k;
+        else
+          klo = k;
       }
       const Real h = x[khi] - x[klo];
       if (h <= 0.0) {
-	fprintf(stderr, "main.cpp: interpolation points must be distinct\n");
-	abort();
+        fprintf(stderr, "main.cpp: interpolation points must be distinct\n");
+        abort();
       }
       const Real a = (x[khi] - (xx[j] + offset)) / h;
       const Real b = ((xx[j] + offset) - x[klo]) / h;
       yy[j] =
-	  a * y[klo] + b * y[khi] +
-	  ((a * a * a - a) * y2[klo] + (b * b * b - b) * y2[khi]) * (h * h) / 6;
+          a * y[klo] + b * y[khi] +
+          ((a * a * a - a) * y2[klo] + (b * b * b - b) * y2[khi]) * (h * h) / 6;
     }
   }
   static void cubicInterpolation(const Real x0, const Real x1, const Real x,
-				 const Real y0, const Real y1, const Real dy0,
-				 const Real dy1, Real &y, Real &dy) {
+                                 const Real y0, const Real y1, const Real dy0,
+                                 const Real dy1, Real &y, Real &dy) {
     const Real xrel = (x - x0);
     const Real deltax = (x1 - x0);
     const Real a = (dy0 + dy1) / (deltax * deltax) -
-		   2 * (y1 - y0) / (deltax * deltax * deltax);
+                   2 * (y1 - y0) / (deltax * deltax * deltax);
     const Real b =
-	(-2 * dy0 - dy1) / deltax + 3 * (y1 - y0) / (deltax * deltax);
+        (-2 * dy0 - dy1) / deltax + 3 * (y1 - y0) / (deltax * deltax);
     const Real c = dy0;
     const Real d = y0;
     y = a * xrel * xrel * xrel + b * xrel * xrel + c * xrel + d;
     dy = 3 * a * xrel * xrel + 2 * b * xrel + c;
   }
   static void cubicInterpolation(const Real x0, const Real x1, const Real x,
-				 const Real y0, const Real y1, Real &y,
-				 Real &dy) {
+                                 const Real y0, const Real y1, Real &y,
+                                 Real &dy) {
     return cubicInterpolation(x0, x1, x, y0, y1, 0, 0, y, dy);
   }
   static void linearInterpolation(const Real x0, const Real x1, const Real x,
-				  const Real y0, const Real y1, Real &y,
-				  Real &dy) {
+                                  const Real y0, const Real y1, Real &y,
+                                  Real &dy) {
     y = (y1 - y0) / (x1 - x0) * (x - x0) + y0;
     dy = (y1 - y0) / (x1 - x0);
   }
@@ -3145,8 +3145,8 @@ struct Shape {
       (int)std::ceil(length * fracMid / (sim.minH / std::sqrt(2)) / 8) * 8;
   Real dSmid = length * fracMid / Nmid;
   int Nend = (int)std::ceil(fracRefined * length * 2 /
-			    (dSmid + 0.125 * sim.minH) / 4) *
-	     4;
+                            (dSmid + 0.125 * sim.minH) / 4) *
+             4;
   Real dSref = fracRefined * length * 2 / Nend - dSmid;
   int Nm = Nmid + 2 * Nend + 1;
   Real *rS;
@@ -3182,41 +3182,41 @@ struct ComputeSurfaceNormals {
   Stencil stencil{-1, -1, 2, 2, false};
   Stencil stencil2{-1, -1, 2, 2, false};
   void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info *infoChi,
-		  const Info *infoSDF) const {
+                  const Info *infoSDF) const {
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     Real *um0 = labChi.m;
     Real *um1 = labSDF.m;
     for (const auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       if (oblock[infoChi->id] == nullptr)
-	continue;
+        continue;
       Real h = sim.h0 / (1 << infoChi->level);
       Obstacle &o = *oblock[infoChi->id];
       Real i2h = 0.5 / h;
       Real fac = 0.5 * h;
       for (int y0 = 0; y0 < _BS_; y0++)
-	for (int x0 = 0; x0 < _BS_; x0++) {
-	  int xp = x0 + 1 - stencil.sx;
-	  int xm = x0 - 1 - stencil.sy;
-	  int yp = y0 + 1 - stencil.sx;
-	  int ym = y0 - 1 - stencil.sy;
-	  Real gradHX = um0[nm * y0 + xp] - um0[nm * y0 + xm];
-	  Real gradHY = um0[nm * yp + x0] - um0[nm * ym + x0];
-	  if (gradHX * gradHX + gradHY * gradHY < 1e-12)
-	    continue;
-	  Real gradUX = i2h * (um1[nm * y0 + xp] - um1[nm * y0 + xm]);
-	  Real gradUY = i2h * (um1[nm * yp + x0] - um1[nm * ym + x0]);
-	  Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-	  Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
-	  if (std::fabs(D) > EPS) {
-	    o.n_surfPoints++;
-	    Real dchidx = -D * gradUX, dchidy = -D * gradUY;
-	    struct surface_data s {
-	      x0, y0, dchidx, dchidy, D
-	    };
-	    o.surface.push_back(s);
-	  }
-	}
+        for (int x0 = 0; x0 < _BS_; x0++) {
+          int xp = x0 + 1 - stencil.sx;
+          int xm = x0 - 1 - stencil.sy;
+          int yp = y0 + 1 - stencil.sx;
+          int ym = y0 - 1 - stencil.sy;
+          Real gradHX = um0[nm * y0 + xp] - um0[nm * y0 + xm];
+          Real gradHY = um0[nm * yp + x0] - um0[nm * ym + x0];
+          if (gradHX * gradHX + gradHY * gradHY < 1e-12)
+            continue;
+          Real gradUX = i2h * (um1[nm * y0 + xp] - um1[nm * y0 + xm]);
+          Real gradUY = i2h * (um1[nm * yp + x0] - um1[nm * ym + x0]);
+          Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+          Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
+          if (std::fabs(D) > EPS) {
+            o.n_surfPoints++;
+            Real dchidx = -D * gradUX, dchidy = -D * gradUY;
+            struct surface_data s {
+              x0, y0, dchidx, dchidy, D
+            };
+            o.surface.push_back(s);
+          }
+        }
       o.filled = true;
       o.x_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
       o.y_s = (Real *)calloc(o.n_surfPoints, sizeof(Real));
@@ -3245,14 +3245,14 @@ struct AreaSegment {
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
       : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
-					    (bb[1][1] - bb[1][0]) / 2 + safe},
-	c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
+                                            (bb[1][1] - bb[1][0]) / 2 + safe},
+        c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
     assert(w[0] > 0);
     assert(w[1] > 0);
   }
   void changeToComputationalFrame(const Real pos[2], const Real angle) {
     Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-			    {std::sin(angle), std::cos(angle)}};
+                            {std::sin(angle), std::cos(angle)}};
     Real p[2] = {c[0], c[1]};
     Real nx[2] = {normalI[0], normalI[1]};
     Real ny[2] = {normalJ[0], normalJ[1]};
@@ -3285,32 +3285,32 @@ struct AreaSegment {
   }
   bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
     Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
-		      (end[1] - start[1]) / 2 + safe_distance};
+                      (end[1] - start[1]) / 2 + safe_distance};
     Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
     Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
-			   {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
+                           {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
     assert(AABB_w[0] > 0 && AABB_w[1] > 0);
     Real intersectionLabFrame[2][2] = {
-	{std::max(objBoxLabFr[0][0], AABB_box[0][0]),
-	 std::min(objBoxLabFr[0][1], AABB_box[0][1])},
-	{std::max(objBoxLabFr[1][0], AABB_box[1][0]),
-	 std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
+        {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
+         std::min(objBoxLabFr[0][1], AABB_box[0][1])},
+        {std::max(objBoxLabFr[1][0], AABB_box[1][0]),
+         std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
     if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
-	intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
+        intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
       return false;
     Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
     Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
     Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
-			  AABB_c[0] + widthXbox[0] + widthYbox[0]},
-			 {AABB_c[1] - widthXbox[1] - widthYbox[1],
-			  AABB_c[1] + widthXbox[1] + widthYbox[1]}};
+                          AABB_c[0] + widthXbox[0] + widthYbox[0]},
+                         {AABB_c[1] - widthXbox[1] - widthYbox[1],
+                          AABB_c[1] + widthXbox[1] + widthYbox[1]}};
     Real intersectionFishFrame[2][2] = {
-	{std::max(boxBox[0][0], objBoxObjFr[0][0]),
-	 std::min(boxBox[0][1], objBoxObjFr[0][1])},
-	{std::max(boxBox[1][0], objBoxObjFr[1][0]),
-	 std::min(boxBox[1][1], objBoxObjFr[1][1])}};
+        {std::max(boxBox[0][0], objBoxObjFr[0][0]),
+         std::min(boxBox[0][1], objBoxObjFr[0][1])},
+        {std::max(boxBox[1][0], objBoxObjFr[1][0]),
+         std::min(boxBox[1][1], objBoxObjFr[1][1])}};
     if (intersectionFishFrame[0][1] - intersectionFishFrame[0][0] < 0 ||
-	intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
+        intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
       return false;
     return true;
   }
@@ -3324,7 +3324,7 @@ struct PutChiOnGrid {
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       if (oblock[info->id] == nullptr)
-	continue;
+        continue;
       Real h = sim.h0 / (1 << info->level);
       Real h2 = h * h;
       Obstacle &o = *oblock[info->id];
@@ -3335,42 +3335,42 @@ struct PutChiOnGrid {
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < _BS_; iy++)
-	for (int ix = 0; ix < _BS_; ix++) {
-	  int j = _BS_ * iy + ix;
-	  int x0 = ix - stencil.sx;
-	  int y0 = iy - stencil.sy;
-	  int xp = x0 + 1;
-	  int yp = y0 + 1;
-	  int xm = x0 - 1;
-	  int ym = y0 - 1;
-	  if (dist[j] > +h || dist[j] < -h) {
-	    chi[j] = dist[j] > 0 ? 1 : 0;
-	  } else {
-	    Real distPx = *(um + nm * y0 + xp);
-	    Real distMx = *(um + nm * y0 + xm);
-	    Real distPy = *(um + nm * yp + x0);
-	    Real distMy = *(um + nm * ym + x0);
-	    Real IplusX = std::max(0.0, distPx);
-	    Real IminuX = std::max(0.0, distMx);
-	    Real IplusY = std::max(0.0, distPy);
-	    Real IminuY = std::max(0.0, distMy);
-	    Real gradIX = IplusX - IminuX;
-	    Real gradIY = IplusY - IminuY;
-	    Real gradUX = distPx - distMx;
-	    Real gradUY = distPy - distMy;
-	    Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-	    chi[j] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
-	  }
-	  CHI[j] = std::max(CHI[j], chi[j]);
-	  if (chi[j] > 0) {
-	    Real p[2];
-	    p[0] = info->origin[0] + info->h * (ix + 0.5);
-	    p[1] = info->origin[1] + info->h * (iy + 0.5);
-	    o.COM_x += chi[j] * h2 * (p[0] - shape->centerOfMass[0]);
-	    o.COM_y += chi[j] * h2 * (p[1] - shape->centerOfMass[1]);
-	    o.Mass += chi[j] * h2;
-	  }
-	}
+        for (int ix = 0; ix < _BS_; ix++) {
+          int j = _BS_ * iy + ix;
+          int x0 = ix - stencil.sx;
+          int y0 = iy - stencil.sy;
+          int xp = x0 + 1;
+          int yp = y0 + 1;
+          int xm = x0 - 1;
+          int ym = y0 - 1;
+          if (dist[j] > +h || dist[j] < -h) {
+            chi[j] = dist[j] > 0 ? 1 : 0;
+          } else {
+            Real distPx = *(um + nm * y0 + xp);
+            Real distMx = *(um + nm * y0 + xm);
+            Real distPy = *(um + nm * yp + x0);
+            Real distMy = *(um + nm * ym + x0);
+            Real IplusX = std::max(0.0, distPx);
+            Real IminuX = std::max(0.0, distMx);
+            Real IplusY = std::max(0.0, distPy);
+            Real IminuY = std::max(0.0, distMy);
+            Real gradIX = IplusX - IminuX;
+            Real gradIY = IplusY - IminuY;
+            Real gradUX = distPx - distMx;
+            Real gradUY = distPy - distMy;
+            Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
+            chi[j] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
+          }
+          CHI[j] = std::max(CHI[j], chi[j]);
+          if (chi[j] > 0) {
+            Real p[2];
+            p[0] = info->origin[0] + info->h * (ix + 0.5);
+            p[1] = info->origin[1] + info->h * (iy + 0.5);
+            o.COM_x += chi[j] * h2 * (p[0] - shape->centerOfMass[0]);
+            o.COM_y += chi[j] * h2 * (p[1] - shape->centerOfMass[1]);
+            o.Mass += chi[j] * h2;
+          }
+        }
     }
   }
 };
@@ -3401,20 +3401,20 @@ static void ongrid(Real dt) {
     shape->centerOfMass[1] += dt * shape->v;
     shape->orientation += dt * shape->omega;
     shape->orientation = shape->orientation > M_PI
-			     ? shape->orientation - 2 * M_PI
-			     : shape->orientation;
+                             ? shape->orientation - 2 * M_PI
+                             : shape->orientation;
     shape->orientation = shape->orientation < -M_PI
-			     ? shape->orientation + 2 * M_PI
-			     : shape->orientation;
+                             ? shape->orientation + 2 * M_PI
+                             : shape->orientation;
     Real cosang = std::cos(shape->orientation);
     Real sinang = std::sin(shape->orientation);
     shape->center[0] = shape->centerOfMass[0] + cosang * shape->d_gm[0] -
-		       sinang * shape->d_gm[1];
+                       sinang * shape->d_gm[1];
     shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
-		       cosang * shape->d_gm[1];
+                       cosang * shape->d_gm[1];
     shape->theta_internal -= dt * shape->angvel_internal;
     if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
-	shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
+        shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
       fprintf(stderr, "main.cpp: a body out of the domain\n");
       abort();
     }
@@ -3438,10 +3438,9 @@ static void ongrid(Real dt) {
     std::fill(shape->rC, shape->rC + shape->Nm, 0.0);
     std::fill(shape->vC, shape->vC + shape->Nm, 0.0);
     std::fill(shape->rB, shape->rB + shape->Nm, 0.0);
-    std::fill(shape->vB, shape->vB + shape->Nm, 0.0);    
-    if2d_solve(shape->Nm, shape->rS, shape->rK, shape->vK, shape->rX, shape->rY,
-	       shape->vX, shape->vY, shape->norX, shape->norY, shape->vNorX,
-	       shape->vNorY);
+    std::fill(shape->vB, shape->vB + shape->Nm, 0.0);
+    if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->vX, shape->vY,
+               shape->norX, shape->norY, shape->vNorX, shape->vNorY);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < shape->lowerSkin.n; ++i) {
       Real norm[2] = {shape->norX[i], shape->norY[i]};
@@ -3458,16 +3457,16 @@ static void ongrid(Real dt) {
     reduction(+ : _area, _cmx, _cmy, _lmx, _lmy)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
-	  (i == 0) ? shape->rS[1] - shape->rS[0]
-		   : ((i == shape->Nm - 1)
-			  ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
-			  : shape->rS[i + 1] - shape->rS[i - 1]);
+          (i == 0) ? shape->rS[1] - shape->rS[0]
+                   : ((i == shape->Nm - 1)
+                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
+                          : shape->rS[i + 1] - shape->rS[i - 1]);
       const Real fac1 = 2 * shape->width[i];
       const Real fac2 =
-	  2 * std::pow(shape->width[i], 3) *
-	  (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
-	   dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
-	  3;
+          2 * std::pow(shape->width[i], 3) *
+          (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
+           dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
+          3;
       _area += fac1 * ds / 2;
       _cmx += (shape->rX[i] * fac1 + shape->norX[i] * fac2) * ds / 2;
       _cmy += (shape->rY[i] * fac1 + shape->norY[i] * fac2) * ds / 2;
@@ -3495,29 +3494,29 @@ static void ongrid(Real dt) {
 #pragma omp parallel for reduction(+ : _J, _am) schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
-	  (i == 0) ? shape->rS[1] - shape->rS[0]
-		   : ((i == shape->Nm - 1)
-			  ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
-			  : shape->rS[i + 1] - shape->rS[i - 1]);
+          (i == 0) ? shape->rS[1] - shape->rS[0]
+                   : ((i == shape->Nm - 1)
+                          ? shape->rS[shape->Nm - 1] - shape->rS[shape->Nm - 2]
+                          : shape->rS[i + 1] - shape->rS[i - 1]);
       Real fac1 = 2 * shape->width[i];
       Real fac2 = 2 * std::pow(shape->width[i], 3) *
-		  (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
-		   dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
-		  3;
+                  (dds(i, shape->Nm, shape->norX, shape->rS) * shape->norY[i] -
+                   dds(i, shape->Nm, shape->norY, shape->rS) * shape->norX[i]) /
+                  3;
       Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
       Real tmp_M =
-	  (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
-	  (shape->rX[i] * shape->vNorY[i] - shape->rY[i] * shape->vNorX[i] +
-	   shape->vY[i] * shape->norX[i] - shape->vX[i] * shape->norY[i]) *
-	      fac2 +
-	  (shape->norX[i] * shape->vNorY[i] -
-	   shape->norY[i] * shape->vNorX[i]) *
-	      fac3;
+          (shape->rX[i] * shape->vY[i] - shape->rY[i] * shape->vX[i]) * fac1 +
+          (shape->rX[i] * shape->vNorY[i] - shape->rY[i] * shape->vNorX[i] +
+           shape->vY[i] * shape->norX[i] - shape->vX[i] * shape->norY[i]) *
+              fac2 +
+          (shape->norX[i] * shape->vNorY[i] -
+           shape->norY[i] * shape->vNorX[i]) *
+              fac3;
       Real tmp_J =
-	  (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
-	  2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
-	      fac2 +
-	  fac3;
+          (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
+          2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
+              fac2 +
+          fac3;
       _am += tmp_M * ds / 2;
       _J += tmp_J * ds / 2;
     }
@@ -3526,8 +3525,8 @@ static void ongrid(Real dt) {
     shape->angvel_internal = shape->angMom / shape->J;
     shape->J_internal = shape->J;
     const Real Rmatrix2D[2][2] = {
-	{std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
-	{std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
+        {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
+        {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       shape->vX[i] += shape->angvel_internal * shape->rY[i];
@@ -3553,18 +3552,18 @@ static void ongrid(Real dt) {
     shape->vNorY[shape->Nm - 1] = shape->vNorY[shape->Nm - 2];
     {
       const Real Rmatrix2D[2][2] = {
-	  {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
-	  {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
+          {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
+          {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
 #pragma omp parallel for schedule(static)
       for (size_t i = 0; i < shape->upperSkin.n; ++i) {
-	shape->upperSkin.xSurf[i] -= shape->CoM_internal[0];
-	shape->upperSkin.ySurf[i] -= shape->CoM_internal[1];
-	rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
-		 &shape->upperSkin.ySurf[i]);
-	shape->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
-	shape->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
-	rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
-		 &shape->lowerSkin.ySurf[i]);
+        shape->upperSkin.xSurf[i] -= shape->CoM_internal[0];
+        shape->upperSkin.ySurf[i] -= shape->CoM_internal[1];
+        rotate2D(Rmatrix2D, &shape->upperSkin.xSurf[i],
+                 &shape->upperSkin.ySurf[i]);
+        shape->lowerSkin.xSurf[i] -= shape->CoM_internal[0];
+        shape->lowerSkin.ySurf[i] -= shape->CoM_internal[1];
+        rotate2D(Rmatrix2D, &shape->lowerSkin.xSurf[i],
+                 &shape->lowerSkin.ySurf[i]);
       }
     }
     const int Nsegments = (shape->Nm - 1) / 8;
@@ -3581,24 +3580,24 @@ static void ongrid(Real dt) {
       const int idx = i * (Nm - 1) / Nsegments;
       Real bbox[2][2] = {{1e9, -1e9}, {1e9, -1e9}};
       for (int ss = idx; ss <= next_idx; ++ss) {
-	const Real xBnd[2] = {
-	    shape->rX[ss] - shape->norX[ss] * shape->width[ss],
-	    shape->rX[ss] + shape->norX[ss] * shape->width[ss]};
-	const Real yBnd[2] = {
-	    shape->rY[ss] - shape->norY[ss] * shape->width[ss],
-	    shape->rY[ss] + shape->norY[ss] * shape->width[ss]};
-	const Real maxX = std::max(xBnd[0], xBnd[1]),
-		   minX = std::min(xBnd[0], xBnd[1]);
-	const Real maxY = std::max(yBnd[0], yBnd[1]),
-		   minY = std::min(yBnd[0], yBnd[1]);
-	bbox[0][0] = std::min(bbox[0][0], minX);
-	bbox[0][1] = std::max(bbox[0][1], maxX);
-	bbox[1][0] = std::min(bbox[1][0], minY);
-	bbox[1][1] = std::max(bbox[1][1], maxY);
+        const Real xBnd[2] = {
+            shape->rX[ss] - shape->norX[ss] * shape->width[ss],
+            shape->rX[ss] + shape->norX[ss] * shape->width[ss]};
+        const Real yBnd[2] = {
+            shape->rY[ss] - shape->norY[ss] * shape->width[ss],
+            shape->rY[ss] + shape->norY[ss] * shape->width[ss]};
+        const Real maxX = std::max(xBnd[0], xBnd[1]),
+                   minX = std::min(xBnd[0], xBnd[1]);
+        const Real maxY = std::max(yBnd[0], yBnd[1]),
+                   minY = std::min(yBnd[0], yBnd[1]);
+        bbox[0][0] = std::min(bbox[0][0], minX);
+        bbox[0][1] = std::max(bbox[0][1], maxX);
+        bbox[1][0] = std::min(bbox[1][0], minY);
+        bbox[1][1] = std::max(bbox[1][1], maxY);
       }
       const Real DD = 4 * h;
       AreaSegment *const tAS =
-	  new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
+          new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
       tAS->changeToComputationalFrame(shape->center, shape->orientation);
       vSegments[i] = tAS;
     }
@@ -3614,19 +3613,19 @@ static void ongrid(Real dt) {
       pEnd[0] = info->origin[0] + info->h * (_BS_ - 0.5);
       pEnd[1] = info->origin[1] + info->h * (_BS_ - 0.5);
       for (size_t s = 0; s < vSegments.size(); ++s)
-	if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
-	  if (segmentsPerBlock[info->id] == nullptr)
-	    segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
-	  segmentsPerBlock[info->id]->push_back(vSegments[s]);
-	}
+        if (vSegments[s]->isIntersectingWithAABB(pStart, pEnd)) {
+          if (segmentsPerBlock[info->id] == nullptr)
+            segmentsPerBlock[info->id] = new std::vector<AreaSegment *>(0);
+          segmentsPerBlock[info->id]->push_back(vSegments[s]);
+        }
       if (segmentsPerBlock[info->id] not_eq nullptr) {
-	Obstacle *const block = new Obstacle();
-	assert(block not_eq nullptr);
-	shape->obstacleBlocks[info->id] = block;
-	block->clear_surface();
-	std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
-	memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-	memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
+        Obstacle *const block = new Obstacle();
+        assert(block not_eq nullptr);
+        shape->obstacleBlocks[info->id] = block;
+        block->clear_surface();
+        std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
+        memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+        memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
       }
     }
     assert(not segmentsPerBlock.empty());
@@ -3643,168 +3642,168 @@ static void ongrid(Real dt) {
 
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
-	const auto pos = segmentsPerBlock[tmpInfo[i].id];
-	if (pos not_eq nullptr) {
-	  Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
-	  assert(block not_eq nullptr);
-	  const Info *info = &tmpInfo[i];
-	  ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
-	  Obstacle *const o = block;
-	  const std::vector<AreaSegment *> &v = *pos;
-	  Real org[2];
-	  org[0] = info->origin[0] + info->h * 0.5;
-	  org[1] = info->origin[1] + info->h * 0.5;
-	  const Real h = info->h, invh = 1.0 / info->h;
-	  const Real *const rX = shape->rX, *const norX = shape->norX;
-	  const Real *const rY = shape->rY, *const norY = shape->norY;
-	  const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
-	  const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
-	  const Real *const width = shape->width;
-	  std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
-	  memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-	  for (int i = 0; i < (int)v.size(); ++i) {
-	    const int firstSegm = std::max(v[i]->s_range.first, 1);
-	    const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
-	    for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-	      assert(width[ss] > 0);
-	      for (int signp = -1; signp <= 1; signp += 2) {
-		Real myP[2] = {
-		    rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
-		    rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
-		putfish.changeToComputationalFrame(myP);
-		const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
-				    (int)std::floor((myP[1] - org[1]) * invh)};
-		if (iap[0] + 3 <= 0 || iap[0] - 1 >= _BS_)
-		  continue;
-		if (iap[1] + 3 <= 0 || iap[1] - 1 >= _BS_)
-		  continue;
-		Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
-			      rY[ss + 1] +
-				  width[ss + 1] * signp * norY[ss + 1]};
-		putfish.changeToComputationalFrame(pP);
-		Real pM[2] = {rX[ss - 1] + width[ss - 1] * signp * norX[ss - 1],
-			      rY[ss - 1] +
-				  width[ss - 1] * signp * norY[ss - 1]};
-		putfish.changeToComputationalFrame(pM);
-		Real udef[2] = {
-		    vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
-		    vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
-		putfish.changeVelocityToComputationalFrame(udef);
-		for (int sy = std::max(0, iap[1] - 2);
-		     sy < std::min(iap[1] + 4, _BS_); ++sy)
-		  for (int sx = std::max(0, iap[0] - 2);
-		       sx < std::min(iap[0] + 4, _BS_); ++sx) {
-		    Real p[2];
-		    p[0] = info->origin[0] + info->h * (sx + 0.5);
-		    p[1] = info->origin[1] + info->h * (sy + 0.5);
-		    const Real dist0 = dist(p, myP);
-		    const Real distP = dist(p, pP);
-		    const Real distM = dist(p, pM);
-		    if (std::fabs(o->dist[sy][sx]) <
-			std::min({dist0, distP, distM}))
-		      continue;
-		    putfish.changeFromComputationalFrame(p);
-		    Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
-				  rY[ss] + width[ss] * signp * norY[ss]};
-		    Real distC = dist(p, p0);
-		    assert(std::fabs(distC - dist0) < EPS);
-		    int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
-		    Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
-		    if (distP < dist0 || distM < dist0) {
-		      dist1 = dist2;
-		      dist2 = dist0;
-		      close_s = secnd_s;
-		      secnd_s = ss;
-		    }
-		    Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
-				std::pow(rY[close_s] - rY[secnd_s], 2);
-		    assert(dSsq > 2.2e-16);
-		    Real cnt2ML = std::pow(width[close_s], 2);
-		    Real nxt2ML = std::pow(width[secnd_s], 2);
-		    Real safeW =
-			std::max(width[close_s], width[secnd_s]) + 2 * h;
-		    Real xMidl[2] = {rX[close_s], rY[close_s]};
-		    Real grd2ML = dist(p, xMidl);
-		    Real diffH = std::fabs(width[close_s] - width[secnd_s]);
-		    Real sign2d = 0;
-		    if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
-		      sign2d = grd2ML > cnt2ML ? -1 : 1;
-		    } else {
-		      Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
-		      Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
-				 (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
-		      Real maxAx = std::max(cnt2ML, nxt2ML);
-		      int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
-		      int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-		      Real d = std::sqrt((Rsq - maxAx) / dSsq);
-		      Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
-					rY[idAx1] +
-					    (rY[idAx1] - rY[idAx2]) * d};
-		      Real grd2Core = dist(p, xCentr);
-		      sign2d = grd2Core > Rsq ? -1 : 1;
-		    }
-		    if (std::fabs(o->dist[sy][sx]) > dist1) {
-		      Real W =
-			  1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-		      assert(W >= 0);
-		      o->udef[sy][sx][0] = W * udef[0];
-		      o->udef[sy][sx][1] = W * udef[1];
-		      o->dist[sy][sx] = sign2d * dist1;
-		      o->chi[sy][sx] = W;
-		    }
-		  }
-	      }
-	    }
-	  }
-	  org[0] = info->origin[0] + info->h * 0.5;
-	  org[1] = info->origin[1] + info->h * 0.5;
-	  for (int i = 0; i < (int)v.size(); ++i) {
-	    const int firstSegm = std::max(v[i]->s_range.first, 1);
-	    const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
-	    for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-	      const Real myWidth = shape->width[ss];
-	      assert(myWidth > 0);
-	      const int Nw = std::floor(myWidth / h);
-	      for (int iw = -Nw + 1; iw < Nw; ++iw) {
-		const Real offsetW = iw * h;
-		Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
-			      shape->rY[ss] + offsetW * shape->norY[ss]};
-		putfish.changeToComputationalFrame(xp);
-		xp[0] = (xp[0] - org[0]) * invh;
-		xp[1] = (xp[1] - org[1]) * invh;
-		const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
-		const int iap[2] = {(int)ap[0], (int)ap[1]};
-		if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
-		  continue;
-		if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
-		  continue;
-		Real udef[2] = {shape->vX[ss] + offsetW * shape->vNorX[ss],
-				shape->vY[ss] + offsetW * shape->vNorY[ss]};
-		putfish.changeVelocityToComputationalFrame(udef);
-		Real wghts[2][2];
-		for (int c = 0; c < 2; ++c) {
-		  const Real t[2] = {std::fabs(xp[c] - ap[c]),
-				     std::fabs(xp[c] - (ap[c] + 1))};
-		  wghts[c][0] = 1 - t[0];
-		  wghts[c][1] = 1 - t[1];
-		}
-		for (int idy = std::max(0, iap[1]);
-		     idy < std::min(iap[1] + 2, _BS_); ++idy)
-		  for (int idx = std::max(0, iap[0]);
-		       idx < std::min(iap[0] + 2, _BS_); ++idx) {
-		    const int sx = idx - iap[0], sy = idy - iap[1];
-		    const Real wxwy = wghts[1][sy] * wghts[0][sx];
-		    assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
-		    assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
-		    o->udef[idy][idx][0] += wxwy * udef[0];
-		    o->udef[idy][idx][1] += wxwy * udef[1];
-		    o->chi[idy][idx] += wxwy;
-		    static constexpr Real EPS =
-			std::numeric_limits<Real>::epsilon();
-		    if (std::fabs(o->dist[idy][idx] + 1) < EPS)
-		      o->dist[idy][idx] = 1;
-		  }
-	}
+        const auto pos = segmentsPerBlock[tmpInfo[i].id];
+        if (pos not_eq nullptr) {
+          Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
+          assert(block not_eq nullptr);
+          const Info *info = &tmpInfo[i];
+          ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
+          Obstacle *const o = block;
+          const std::vector<AreaSegment *> &v = *pos;
+          Real org[2];
+          org[0] = info->origin[0] + info->h * 0.5;
+          org[1] = info->origin[1] + info->h * 0.5;
+          const Real h = info->h, invh = 1.0 / info->h;
+          const Real *const rX = shape->rX, *const norX = shape->norX;
+          const Real *const rY = shape->rY, *const norY = shape->norY;
+          const Real *const vX = shape->vX, *const vNorX = shape->vNorX;
+          const Real *const vY = shape->vY, *const vNorY = shape->vNorY;
+          const Real *const width = shape->width;
+          std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
+          memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+          for (int i = 0; i < (int)v.size(); ++i) {
+            const int firstSegm = std::max(v[i]->s_range.first, 1);
+            const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
+            for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+              assert(width[ss] > 0);
+              for (int signp = -1; signp <= 1; signp += 2) {
+                Real myP[2] = {
+                    rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
+                    rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
+                putfish.changeToComputationalFrame(myP);
+                const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
+                                    (int)std::floor((myP[1] - org[1]) * invh)};
+                if (iap[0] + 3 <= 0 || iap[0] - 1 >= _BS_)
+                  continue;
+                if (iap[1] + 3 <= 0 || iap[1] - 1 >= _BS_)
+                  continue;
+                Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
+                              rY[ss + 1] +
+                                  width[ss + 1] * signp * norY[ss + 1]};
+                putfish.changeToComputationalFrame(pP);
+                Real pM[2] = {rX[ss - 1] + width[ss - 1] * signp * norX[ss - 1],
+                              rY[ss - 1] +
+                                  width[ss - 1] * signp * norY[ss - 1]};
+                putfish.changeToComputationalFrame(pM);
+                Real udef[2] = {
+                    vX[ss + 0] + width[ss + 0] * signp * vNorX[ss + 0],
+                    vY[ss + 0] + width[ss + 0] * signp * vNorY[ss + 0]};
+                putfish.changeVelocityToComputationalFrame(udef);
+                for (int sy = std::max(0, iap[1] - 2);
+                     sy < std::min(iap[1] + 4, _BS_); ++sy)
+                  for (int sx = std::max(0, iap[0] - 2);
+                       sx < std::min(iap[0] + 4, _BS_); ++sx) {
+                    Real p[2];
+                    p[0] = info->origin[0] + info->h * (sx + 0.5);
+                    p[1] = info->origin[1] + info->h * (sy + 0.5);
+                    const Real dist0 = dist(p, myP);
+                    const Real distP = dist(p, pP);
+                    const Real distM = dist(p, pM);
+                    if (std::fabs(o->dist[sy][sx]) <
+                        std::min({dist0, distP, distM}))
+                      continue;
+                    putfish.changeFromComputationalFrame(p);
+                    Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
+                                  rY[ss] + width[ss] * signp * norY[ss]};
+                    Real distC = dist(p, p0);
+                    assert(std::fabs(distC - dist0) < EPS);
+                    int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
+                    Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
+                    if (distP < dist0 || distM < dist0) {
+                      dist1 = dist2;
+                      dist2 = dist0;
+                      close_s = secnd_s;
+                      secnd_s = ss;
+                    }
+                    Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
+                                std::pow(rY[close_s] - rY[secnd_s], 2);
+                    assert(dSsq > 2.2e-16);
+                    Real cnt2ML = std::pow(width[close_s], 2);
+                    Real nxt2ML = std::pow(width[secnd_s], 2);
+                    Real safeW =
+                        std::max(width[close_s], width[secnd_s]) + 2 * h;
+                    Real xMidl[2] = {rX[close_s], rY[close_s]};
+                    Real grd2ML = dist(p, xMidl);
+                    Real diffH = std::fabs(width[close_s] - width[secnd_s]);
+                    Real sign2d = 0;
+                    if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
+                      sign2d = grd2ML > cnt2ML ? -1 : 1;
+                    } else {
+                      Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
+                      Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
+                                 (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
+                      Real maxAx = std::max(cnt2ML, nxt2ML);
+                      int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
+                      int idAx2 = idAx1 == close_s ? secnd_s : close_s;
+                      Real d = std::sqrt((Rsq - maxAx) / dSsq);
+                      Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
+                                        rY[idAx1] +
+                                            (rY[idAx1] - rY[idAx2]) * d};
+                      Real grd2Core = dist(p, xCentr);
+                      sign2d = grd2Core > Rsq ? -1 : 1;
+                    }
+                    if (std::fabs(o->dist[sy][sx]) > dist1) {
+                      Real W =
+                          1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
+                      assert(W >= 0);
+                      o->udef[sy][sx][0] = W * udef[0];
+                      o->udef[sy][sx][1] = W * udef[1];
+                      o->dist[sy][sx] = sign2d * dist1;
+                      o->chi[sy][sx] = W;
+                    }
+                  }
+              }
+            }
+          }
+          org[0] = info->origin[0] + info->h * 0.5;
+          org[1] = info->origin[1] + info->h * 0.5;
+          for (int i = 0; i < (int)v.size(); ++i) {
+            const int firstSegm = std::max(v[i]->s_range.first, 1);
+            const int lastSegm = std::min(v[i]->s_range.second, shape->Nm - 2);
+            for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+              const Real myWidth = shape->width[ss];
+              assert(myWidth > 0);
+              const int Nw = std::floor(myWidth / h);
+              for (int iw = -Nw + 1; iw < Nw; ++iw) {
+                const Real offsetW = iw * h;
+                Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
+                              shape->rY[ss] + offsetW * shape->norY[ss]};
+                putfish.changeToComputationalFrame(xp);
+                xp[0] = (xp[0] - org[0]) * invh;
+                xp[1] = (xp[1] - org[1]) * invh;
+                const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
+                const int iap[2] = {(int)ap[0], (int)ap[1]};
+                if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
+                  continue;
+                if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
+                  continue;
+                Real udef[2] = {shape->vX[ss] + offsetW * shape->vNorX[ss],
+                                shape->vY[ss] + offsetW * shape->vNorY[ss]};
+                putfish.changeVelocityToComputationalFrame(udef);
+                Real wghts[2][2];
+                for (int c = 0; c < 2; ++c) {
+                  const Real t[2] = {std::fabs(xp[c] - ap[c]),
+                                     std::fabs(xp[c] - (ap[c] + 1))};
+                  wghts[c][0] = 1 - t[0];
+                  wghts[c][1] = 1 - t[1];
+                }
+                for (int idy = std::max(0, iap[1]);
+                     idy < std::min(iap[1] + 2, _BS_); ++idy)
+                  for (int idx = std::max(0, iap[0]);
+                       idx < std::min(iap[0] + 2, _BS_); ++idx) {
+                    const int sx = idx - iap[0], sy = idy - iap[1];
+                    const Real wxwy = wghts[1][sy] * wghts[0][sx];
+                    assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
+                    assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
+                    o->udef[idy][idx][0] += wxwy * udef[0];
+                    o->udef[idy][idx][1] += wxwy * udef[1];
+                    o->chi[idy][idx] += wxwy;
+                    static constexpr Real EPS =
+                        std::numeric_limits<Real>::epsilon();
+                    if (std::fabs(o->dist[idy][idx] + 1) < EPS)
+                      o->dist[idy][idx] = 1;
+                  }
+              }
             }
           }
           static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
