@@ -3030,7 +3030,7 @@ struct Shape {
   Real *norX;
   Real *norY;
   Real *width;
-  Real area, angMom;
+  Real area;
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
@@ -3261,7 +3261,7 @@ static void ongrid(Real dt) {
       shape->rX[i] -= shape->CoM_internal[0];
       shape->rY[i] -= shape->CoM_internal[1];
     }
-    Real _J = 0, _am = 0;
+    Real _J = 0;
 #pragma omp parallel for reduction(+ : _J) schedule(static)
     for (int i = 0; i < shape->Nm; ++i) {
       const Real ds =
@@ -3283,7 +3283,6 @@ static void ongrid(Real dt) {
       _J += tmp_J * ds / 2;
     }
     shape->J = _J;
-    shape->angMom = _am;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm - 1; i++) {
       const auto ds = shape->rS[i + 1] - shape->rS[i];
