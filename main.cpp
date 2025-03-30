@@ -3220,11 +3220,6 @@ static void ongrid(Real dt) {
     Real _area = 0, _cmx = 0, _cmy = 0;
 #pragma omp parallel for schedule(static) reduction(+ : _area, _cmx, _cmy)
     for (int i = 0; i < Nm; ++i) {
-      const Real ds =
-          (i == 0) ? shape->rS[1] - shape->rS[0]
-                   : ((i == Nm - 1)
-                          ? shape->rS[Nm - 1] - shape->rS[Nm - 2]
-                          : shape->rS[i + 1] - shape->rS[i - 1]);
       const Real fac1 = 2 * shape->width[i];
       const Real fac2 =
           2 * std::pow(shape->width[i], 3) *
@@ -3246,11 +3241,6 @@ static void ongrid(Real dt) {
     Real _J = 0;
 #pragma omp parallel for reduction(+ : _J) schedule(static)
     for (int i = 0; i < Nm; ++i) {
-      const Real ds =
-          (i == 0) ? shape->rS[1] - shape->rS[0]
-                   : ((i == Nm - 1)
-                          ? shape->rS[Nm - 1] - shape->rS[Nm - 2]
-                          : shape->rS[i + 1] - shape->rS[i - 1]);
       Real fac1 = 2 * shape->width[i];
       Real fac2 = 2 * std::pow(shape->width[i], 3) *
                   (dds(i, Nm, shape->norX, shape->rS) * shape->norY[i] -
@@ -3267,7 +3257,6 @@ static void ongrid(Real dt) {
     shape->J = _J;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nm - 1; i++) {
-      const auto ds = shape->rS[i + 1] - shape->rS[i];
       const auto tX = shape->rX[i + 1] - shape->rX[i];
       const auto tY = shape->rY[i + 1] - shape->rY[i];
       shape->norX[i] = -tY / ds;
@@ -5220,8 +5209,8 @@ int main(int argc, char **argv) {
       shape->norY = new Real[Nm];
       shape->width = new Real[Nm];
       for (int i = 0; i < Nm; ++i) {
-        shape->rS[i] = i * 0.00133333;
-        shape->rX[i] = i * 0.00133333;
+        shape->rS[i] = i * ds;
+        shape->rX[i] = i * ds;
         shape->rY[i] = 0;
         shape->norX[0] = 0;
         shape->norY[0] = 1;
