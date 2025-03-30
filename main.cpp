@@ -3012,8 +3012,6 @@ struct Shape {
   Real omega;
   Real area_internal = 0;
   Real CoM_internal[2] = {0, 0};
-  Real theta_internal = 0;
-  Real angvel_internal = 0;
   Real length, h;
   Real fracRefined = 0.1, fracMid = 1 - 2 * fracRefined;
   int Nmid =
@@ -3212,7 +3210,6 @@ static void ongrid(Real dt) {
                        sinang * shape->d_gm[1];
     shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
                        cosang * shape->d_gm[1];
-    shape->theta_internal -= dt * shape->angvel_internal;
     if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
         shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
       fprintf(stderr, "main.cpp: a body out of the domain\n");
@@ -3287,17 +3284,6 @@ static void ongrid(Real dt) {
     }
     shape->J = _J;
     shape->angMom = _am;
-    shape->angvel_internal = shape->angMom / shape->J;
-    const Real Rmatrix2D[2][2] = {
-        {std::cos(shape->theta_internal), -std::sin(shape->theta_internal)},
-        {std::sin(shape->theta_internal), std::cos(shape->theta_internal)}};
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < shape->Nm; ++i) {
-      shape->vX[i] += shape->angvel_internal * shape->rY[i];
-      shape->vY[i] -= shape->angvel_internal * shape->rX[i];
-      rotate2D(Rmatrix2D, &shape->rX[i], &shape->rY[i]);
-      rotate2D(Rmatrix2D, &shape->vX[i], &shape->vY[i]);
-    }
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < shape->Nm - 1; i++) {
       const auto ds = shape->rS[i + 1] - shape->rS[i];
