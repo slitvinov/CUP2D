@@ -3196,14 +3196,12 @@ static void ongrid(Real dt) {
 
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
-        const auto pos = segmentsPerBlock[tmpInfo[i].id];
-        if (pos not_eq nullptr) {
+	{
           Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
           assert(block not_eq nullptr);
           const Info *info = &tmpInfo[i];
           ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
           Obstacle *const o = block;
-          const std::vector<AreaSegment *> &v = *pos;
           Real org[2];
           org[0] = info->origin[0] + info->h * 0.5;
           org[1] = info->origin[1] + info->h * 0.5;
@@ -3213,7 +3211,7 @@ static void ongrid(Real dt) {
           const Real *const width = shape->width;
           std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-          for (int i = 0; i < (int)v.size(); ++i) {
+          for (int i = 0; i < 1; ++i) {
             const int firstSegm = 1;
             const int lastSegm = Nm - 2;
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
@@ -3305,7 +3303,7 @@ static void ongrid(Real dt) {
           }
           org[0] = info->origin[0] + info->h * 0.5;
           org[1] = info->origin[1] + info->h * 0.5;
-          for (int i = 0; i < (int)v.size(); ++i) {
+          for (int i = 0; i < 1; ++i) {
             const int firstSegm = 1;
             const int lastSegm = Nm - 2;
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
