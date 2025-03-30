@@ -5184,8 +5184,6 @@ int main(int argc, char **argv) {
         shape->rS[i] = i * ds;
         shape->rX[i] = i * ds;
         shape->rY[i] = 0;
-        shape->norX[0] = 0;
-        shape->norY[0] = 1;
         shape->width[i] = .04 * shape->length;
       }
       sim.shapes.push_back(shape);
