@@ -3184,7 +3184,7 @@ static void ongrid(Real dt) {
 
 #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < tmpInfo.size(); i++) {
-	{
+        {
           Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
           assert(block not_eq nullptr);
           const Info *info = &tmpInfo[i];
