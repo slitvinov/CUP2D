@@ -3232,11 +3232,10 @@ static void ongrid(Real dt) {
   std::vector<Info> &chiInfo = var.chi->infos;
   const size_t Nblocks = velInfo.size();
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++)
-    for (int j = 0; j < _BS_ * _BS_; j++) {
-      *(chiInfo[i].block + j) = 0;
-      *(tmpInfo[i].block + j) = -1;
-    }
+  for (size_t i = 0; i < Nblocks; i++) {
+    memset(chiInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
+    std::fill(tmpInfo[i].block, tmpInfo[i].block + _BS_ * _BS_, -1.0);
+  }
   for (const auto &shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
