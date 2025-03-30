@@ -3022,54 +3022,13 @@ struct Shape {
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
-private:
-  const Real safe_distance;
-  Real w[2], c[2];
-  Real normalI[2] = {1, 0};
-  Real normalJ[2] = {0, 1};
-  Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
-  Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
 public:
   const std::pair<int, int> s_range;
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
-      : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
-                                            (bb[1][1] - bb[1][0]) / 2 + safe},
-        c{(bb[0][1] + bb[0][0]) / 2, (bb[1][1] + bb[1][0]) / 2} {
-    assert(w[0] > 0);
-    assert(w[1] > 0);
+    : s_range(sr) {
   }
   void changeToComputationalFrame(const Real pos[2], const Real angle) {
-    Real Rmatrix2D[2][2] = {{std::cos(angle), -std::sin(angle)},
-                            {std::sin(angle), std::cos(angle)}};
-    Real p[2] = {c[0], c[1]};
-    Real nx[2] = {normalI[0], normalI[1]};
-    Real ny[2] = {normalJ[0], normalJ[1]};
-    for (int i = 0; i < 2; ++i) {
-      c[i] = Rmatrix2D[i][0] * p[0] + Rmatrix2D[i][1] * p[1];
-      normalI[i] = Rmatrix2D[i][0] * nx[0] + Rmatrix2D[i][1] * nx[1];
-      normalJ[i] = Rmatrix2D[i][0] * ny[0] + Rmatrix2D[i][1] * ny[1];
-    }
-    c[0] += pos[0];
-    c[1] += pos[1];
-    Real magI = std::sqrt(normalI[0] * normalI[0] + normalI[1] * normalI[1]);
-    Real magJ = std::sqrt(normalJ[0] * normalJ[0] + normalJ[1] * normalJ[1]);
-    assert(magI > std::numeric_limits<Real>::epsilon());
-    assert(magJ > std::numeric_limits<Real>::epsilon());
-    Real invMagI = 1 / magI, invMagJ = 1 / magJ;
-    for (int i = 0; i < 2; ++i) {
-      normalI[i] = std::fabs(normalI[i]) * invMagI;
-      normalJ[i] = std::fabs(normalJ[i]) * invMagJ;
-    }
-    assert(normalI[0] >= 0 && normalI[1] >= 0);
-    assert(normalJ[0] >= 0 && normalJ[1] >= 0);
-    Real widthXvec[] = {w[0] * normalI[0], w[0] * normalI[1]};
-    Real widthYvec[] = {w[1] * normalJ[0], w[1] * normalJ[1]};
-    for (int i = 0; i < 2; ++i) {
-      objBoxLabFr[i][0] = c[i] - widthXvec[i] - widthYvec[i];
-      objBoxLabFr[i][1] = c[i] + widthXvec[i] + widthYvec[i];
-      objBoxObjFr[i][0] = c[i] - w[i];
-      objBoxObjFr[i][1] = c[i] + w[i];
-    }
+    return;
   }
   bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
     return true;
