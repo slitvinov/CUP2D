@@ -3022,10 +3022,7 @@ struct Shape {
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
-public:
-  const std::pair<int, int> s_range {0, Nm};
-  AreaSegment(std::pair<int, int>) {
-  }
+
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
@@ -3169,14 +3166,7 @@ static void ongrid(Real dt) {
       h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     std::vector<AreaSegment *> vSegments(Nsegments, nullptr);
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < Nsegments; ++i) {
-      const int next_idx = (i + 1) * (Nm - 1) / Nsegments;
-      const int idx = i * (Nm - 1) / Nsegments;
-      AreaSegment *const tAS =
-          new AreaSegment(std::make_pair(idx, next_idx));
-      vSegments[i] = tAS;
-    }
+    vSegments[0] = new AreaSegment;
     const auto N = tmpInfo.size();
     std::vector<std::vector<AreaSegment *> *> segmentsPerBlock(N, nullptr);
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
