@@ -5249,22 +5249,8 @@ int main(int argc, char **argv) {
       shape->rS[k] = std::min(shape->rS[k], (Real)shape->length);
       std::fill(shape->rX, shape->rX + shape->Nm, 0);
       std::fill(shape->rY, shape->rY + shape->Nm, 0);
-      Real sb = .04 * shape->length;
-      Real st = .95 * shape->length;
-      Real wt = .01 * shape->length;
-      Real wh = .04 * shape->length;
-      for (int i = 0; i < shape->Nm; ++i) {
-        if (shape->rS[i] < 0 or shape->rS[i] > shape->length)
-          shape->width[i] = 0;
-        else
-          shape->width[i] =
-              shape->rS[i] < sb ? std::sqrt(2 * wh * shape->rS[i] -
-                                            shape->rS[i] * shape->rS[i])
-              : shape->rS[i] < st
-                  ? wh -
-                        (wh - wt) * std::pow((shape->rS[i] - sb) / (st - sb), 1)
-                  : wt * (shape->length - shape->rS[i]) / (shape->length - st);
-      }
+      for (int i = 0; i < shape->Nm; ++i)
+	shape->width[i] = .04 * shape->length;
       if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->norX,
                  shape->norY);
       sim.shapes.push_back(shape);
