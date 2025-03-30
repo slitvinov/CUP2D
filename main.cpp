@@ -3018,7 +3018,6 @@ struct Shape {
   int Nend = (int)std::ceil(fracRefined * length * 2 /
                             (dSmid + 0.125 * sim.minH) / 4) *
              4;
-  Real dSref = fracRefined * length * 2 / Nend - dSmid;
   int Nm = Nmid + 2 * Nend + 1;
   Real *rS;
   Real *rX;
