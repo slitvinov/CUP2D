@@ -405,8 +405,15 @@ std::vector<double> precond() {
   return P_inv;
 }
 
-static Real sdf_circle(Real x, Real y, Real cx, Real cy, Real r) {
-  Real dx = x - cx;
-  Real dy = y - cy;
-  return std::sqrt(dx * dx + dy * dy) - r;
+Real sdf2_segment(Real x, Real y, Real ax, Real ay, Real bx, Real by) {
+  Real h, bb, cx, cy;
+  x -= ax;
+  y -= ay;
+  bx -= ax;
+  by -= ay;
+  bb = by * by + bx * bx;
+  h = (by * y + bx * x) / bb;
+  h = h > 1 ? 1 : h < 0 ? 0;
+  cx = x - bx *h cy = y - by * h;
+  return cx * cx + cy * cy;
 }
