@@ -162,6 +162,33 @@ static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
                : weno5_minus(um1, u, up1, up2, up3) -
                      weno5_minus(um2, um1, u, up1, up2);
 }
+static void compute_j(Real *Rc, Real *R, Real *N, Real *I, Real *J) {
+  Real m00 = 1.0;
+  Real m01 = 0.0;
+  Real m02 = 0.0;
+  Real m11 = 1.0;
+  Real m12 = 0.0;
+  Real m22 = I[5];
+  Real a00 = m22 * m11 - m12 * m12;
+  Real a01 = m02 * m12 - m22 * m01;
+  Real a02 = m01 * m12 - m02 * m11;
+  Real a11 = m22 * m00 - m02 * m02;
+  Real a12 = m01 * m02 - m00 * m12;
+  Real a22 = m00 * m11 - m01 * m01;
+  Real determinant = 1.0 / ((m00 * a00) + (m01 * a01) + (m02 * a02));
+  a00 *= determinant;
+  a01 *= determinant;
+  a02 *= determinant;
+  a11 *= determinant;
+  a12 *= determinant;
+  a22 *= determinant;
+  Real aux_0 = (Rc[1] - R[1]) * N[2] - (Rc[2] - R[2]) * N[1];
+  Real aux_1 = (Rc[2] - R[2]) * N[0] - (Rc[0] - R[0]) * N[2];
+  Real aux_2 = (Rc[0] - R[0]) * N[1] - (Rc[1] - R[1]) * N[0];
+  J[0] = a00 * aux_0 + a01 * aux_1 + a02 * aux_2;
+  J[1] = a01 * aux_0 + a11 * aux_1 + a12 * aux_2;
+  J[2] = a02 * aux_0 + a12 * aux_1 + a22 * aux_2;
+}
 static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
                       Real *o1, Real *o2, Real *hv1, Real *hv2, Real *ho1,
                       Real *ho2, Real *C1, Real *C2, Real NX, Real NY, Real NZ,
