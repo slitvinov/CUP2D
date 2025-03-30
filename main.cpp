@@ -3228,8 +3228,8 @@ static void ongrid(Real dt) {
           std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
           memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
           for (int i = 0; i < (int)v.size(); ++i) {
-            const int firstSegm = std::max(v[i]->s_range.first, 1);
-            const int lastSegm = std::min(v[i]->s_range.second, Nm - 2);
+            const int firstSegm = 1;
+            const int lastSegm = Nm - 2;
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
               assert(width[ss] > 0);
               for (int signp = -1; signp <= 1; signp += 2) {
@@ -3320,8 +3320,8 @@ static void ongrid(Real dt) {
           org[0] = info->origin[0] + info->h * 0.5;
           org[1] = info->origin[1] + info->h * 0.5;
           for (int i = 0; i < (int)v.size(); ++i) {
-            const int firstSegm = std::max(v[i]->s_range.first, 1);
-            const int lastSegm = std::min(v[i]->s_range.second, Nm - 2);
+            const int firstSegm = 1;
+            const int lastSegm = Nm - 2;
             for (int ss = firstSegm; ss <= lastSegm; ++ss) {
               const Real myWidth = shape->width[ss];
               assert(myWidth > 0);
