@@ -3280,52 +3280,48 @@ static void ongrid(Real dt) {
               }
           }
         }
-        for (int i = 0; i < 1; ++i) {
-          const int firstSegm = 1;
-          const int lastSegm = Nm - 2;
-          for (int ss = firstSegm; ss <= lastSegm; ++ss) {
-            const Real myWidth = shape->width[ss];
-            assert(myWidth > 0);
-            const int Nw = std::floor(myWidth / h);
-            for (int iw = -Nw + 1; iw < Nw; ++iw) {
-              const Real offsetW = iw * h;
-              Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
-                            shape->rY[ss] + offsetW * shape->norY[ss]};
-              putfish.changeToComputationalFrame(xp);
-              xp[0] = (xp[0] - org[0]) * invh;
-              xp[1] = (xp[1] - org[1]) * invh;
-              const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
-              const int iap[2] = {(int)ap[0], (int)ap[1]};
-              if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
-                continue;
-              if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
-                continue;
-              Real udef[2] = {0, 0};
-              putfish.changeVelocityToComputationalFrame(udef);
-              Real wghts[2][2];
-              for (int c = 0; c < 2; ++c) {
-                const Real t[2] = {std::fabs(xp[c] - ap[c]),
-                                   std::fabs(xp[c] - (ap[c] + 1))};
-                wghts[c][0] = 1 - t[0];
-                wghts[c][1] = 1 - t[1];
-              }
-              for (int idy = std::max(0, iap[1]);
-                   idy < std::min(iap[1] + 2, _BS_); ++idy)
-                for (int idx = std::max(0, iap[0]);
-                     idx < std::min(iap[0] + 2, _BS_); ++idx) {
-                  const int sx = idx - iap[0], sy = idy - iap[1];
-                  const Real wxwy = wghts[1][sy] * wghts[0][sx];
-                  assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
-                  assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
-                  o->udef[idy][idx][0] += wxwy * udef[0];
-                  o->udef[idy][idx][1] += wxwy * udef[1];
-                  o->chi[idy][idx] += wxwy;
-                  static constexpr Real EPS =
-                      std::numeric_limits<Real>::epsilon();
-                  if (std::fabs(o->dist[idy][idx] + 1) < EPS)
-                    o->dist[idy][idx] = 1;
-                }
+        for (int ss = firstSegm; ss <= lastSegm; ++ss) {
+          const Real myWidth = shape->width[ss];
+          assert(myWidth > 0);
+          const int Nw = std::floor(myWidth / h);
+          for (int iw = -Nw + 1; iw < Nw; ++iw) {
+            const Real offsetW = iw * h;
+            Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
+                          shape->rY[ss] + offsetW * shape->norY[ss]};
+            putfish.changeToComputationalFrame(xp);
+            xp[0] = (xp[0] - org[0]) * invh;
+            xp[1] = (xp[1] - org[1]) * invh;
+            const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
+            const int iap[2] = {(int)ap[0], (int)ap[1]};
+            if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
+              continue;
+            if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
+              continue;
+            Real udef[2] = {0, 0};
+            putfish.changeVelocityToComputationalFrame(udef);
+            Real wghts[2][2];
+            for (int c = 0; c < 2; ++c) {
+              const Real t[2] = {std::fabs(xp[c] - ap[c]),
+                                 std::fabs(xp[c] - (ap[c] + 1))};
+              wghts[c][0] = 1 - t[0];
+              wghts[c][1] = 1 - t[1];
             }
+            for (int idy = std::max(0, iap[1]);
+                 idy < std::min(iap[1] + 2, _BS_); ++idy)
+              for (int idx = std::max(0, iap[0]);
+                   idx < std::min(iap[0] + 2, _BS_); ++idx) {
+                const int sx = idx - iap[0], sy = idy - iap[1];
+                const Real wxwy = wghts[1][sy] * wghts[0][sx];
+                assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
+                assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
+                o->udef[idy][idx][0] += wxwy * udef[0];
+                o->udef[idy][idx][1] += wxwy * udef[1];
+                o->chi[idy][idx] += wxwy;
+                static constexpr Real EPS =
+                    std::numeric_limits<Real>::epsilon();
+                if (std::fabs(o->dist[idy][idx] + 1) < EPS)
+                  o->dist[idy][idx] = 1;
+              }
           }
         }
         static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
