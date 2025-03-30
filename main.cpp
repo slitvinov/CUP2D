@@ -3280,9 +3280,6 @@ static void ongrid(Real dt) {
               }
           }
         }
-
-        org[0] = info->origin[0] + info->h * 0.5;
-        org[1] = info->origin[1] + info->h * 0.5;
         for (int i = 0; i < 1; ++i) {
           const int firstSegm = 1;
           const int lastSegm = Nm - 2;
