@@ -3022,13 +3022,15 @@ struct Shape {
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct AreaSegment {
+private:
   const Real safe_distance;
-  const std::pair<int, int> s_range;
   Real w[2], c[2];
-  Real normalI[2] = {(Real)1, (Real)0};
-  Real normalJ[2] = {(Real)0, (Real)1};
+  Real normalI[2] = {1, 0};
+  Real normalJ[2] = {0, 1};
   Real objBoxLabFr[2][2] = {{0, 0}, {0, 0}};
   Real objBoxObjFr[2][2] = {{0, 0}, {0, 0}};
+public:
+  const std::pair<int, int> s_range;
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
       : safe_distance(safe), s_range(sr), w{(bb[0][1] - bb[0][0]) / 2 + safe,
                                             (bb[1][1] - bb[1][0]) / 2 + safe},
@@ -3070,34 +3072,6 @@ struct AreaSegment {
     }
   }
   bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
-    Real AABB_w[2] = {(end[0] - start[0]) / 2 + safe_distance,
-                      (end[1] - start[1]) / 2 + safe_distance};
-    Real AABB_c[2] = {(end[0] + start[0]) / 2, (end[1] + start[1]) / 2};
-    Real AABB_box[2][2] = {{AABB_c[0] - AABB_w[0], AABB_c[0] + AABB_w[0]},
-                           {AABB_c[1] - AABB_w[1], AABB_c[1] + AABB_w[1]}};
-    assert(AABB_w[0] > 0 && AABB_w[1] > 0);
-    Real intersectionLabFrame[2][2] = {
-        {std::max(objBoxLabFr[0][0], AABB_box[0][0]),
-         std::min(objBoxLabFr[0][1], AABB_box[0][1])},
-        {std::max(objBoxLabFr[1][0], AABB_box[1][0]),
-         std::min(objBoxLabFr[1][1], AABB_box[1][1])}};
-    if (intersectionLabFrame[0][1] - intersectionLabFrame[0][0] < 0 ||
-        intersectionLabFrame[1][1] - intersectionLabFrame[1][0] < 0)
-      return false;
-    Real widthXbox[2] = {AABB_w[0] * normalI[0], AABB_w[0] * normalJ[0]};
-    Real widthYbox[2] = {AABB_w[1] * normalI[1], AABB_w[1] * normalJ[1]};
-    Real boxBox[2][2] = {{AABB_c[0] - widthXbox[0] - widthYbox[0],
-                          AABB_c[0] + widthXbox[0] + widthYbox[0]},
-                         {AABB_c[1] - widthXbox[1] - widthYbox[1],
-                          AABB_c[1] + widthXbox[1] + widthYbox[1]}};
-    Real intersectionFishFrame[2][2] = {
-        {std::max(boxBox[0][0], objBoxObjFr[0][0]),
-         std::min(boxBox[0][1], objBoxObjFr[0][1])},
-        {std::max(boxBox[1][0], objBoxObjFr[1][0]),
-         std::min(boxBox[1][1], objBoxObjFr[1][1])}};
-    if (intersectionFishFrame[0][1] - intersectionFishFrame[0][0] < 0 ||
-        intersectionFishFrame[1][1] - intersectionFishFrame[1][0] < 0)
-      return false;
     return true;
   }
 };
