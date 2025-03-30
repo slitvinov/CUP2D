@@ -2859,21 +2859,13 @@ struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
   Real udef[_BS_][_BS_][2];
-  bool filled = false;
-  std::vector<surface_data> surface;
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
   Obstacle() {
-    clear_surface();
     std::fill(&dist[0][0], &dist[0][0] + _BS_ * _BS_, -1);
     memset(&chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
     memset(&udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
-    surface.reserve(4 * _BS_);
-  }
-  void clear_surface() {
-    filled = false;
-    surface.clear();
   }
 };
 struct KernelVorticity {
@@ -3125,48 +3117,6 @@ struct Shape {
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
-};
-struct ComputeSurfaceNormals {
-  Stencil stencil{-1, -1, 2, 2, false};
-  Stencil stencil2{-1, -1, 2, 2, false};
-  void operator()(ScalarLab &labChi, ScalarLab &labSDF, const Info *infoChi,
-                  const Info *infoSDF) const {
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    Real *um0 = labChi.m;
-    Real *um1 = labSDF.m;
-    for (const auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-      if (oblock[infoChi->id] == nullptr)
-        continue;
-      Real h = sim.h0 / (1 << infoChi->level);
-      Obstacle &o = *oblock[infoChi->id];
-      Real i2h = 0.5 / h;
-      Real fac = 0.5 * h;
-      for (int y0 = 0; y0 < _BS_; y0++)
-        for (int x0 = 0; x0 < _BS_; x0++) {
-          int xp = x0 + 1 - stencil.sx;
-          int xm = x0 - 1 - stencil.sy;
-          int yp = y0 + 1 - stencil.sx;
-          int ym = y0 - 1 - stencil.sy;
-          Real gradHX = um0[nm * y0 + xp] - um0[nm * y0 + xm];
-          Real gradHY = um0[nm * yp + x0] - um0[nm * ym + x0];
-          if (gradHX * gradHX + gradHY * gradHY < 1e-12)
-            continue;
-          Real gradUX = i2h * (um1[nm * y0 + xp] - um1[nm * y0 + xm]);
-          Real gradUY = i2h * (um1[nm * yp + x0] - um1[nm * ym + x0]);
-          Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-          Real D = fac * (gradHX * gradUX + gradHY * gradUY) / gradUSq;
-          if (std::fabs(D) > EPS) {
-            Real dchidx = -D * gradUX, dchidy = -D * gradUY;
-            struct surface_data s {
-              x0, y0, dchidx, dchidy, D
-            };
-            o.surface.push_back(s);
-          }
-        }
-      o.filled = true;
-    }
-  }
 };
 struct AreaSegment {
   const Real safe_distance;
@@ -3549,7 +3499,6 @@ static void ongrid(Real dt) {
         Obstacle *const block = new Obstacle();
         assert(block not_eq nullptr);
         shape->obstacleBlocks[info->id] = block;
-        block->clear_surface();
         std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
         memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
         memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
@@ -3755,8 +3704,6 @@ static void ongrid(Real dt) {
       delete E;
   }
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
-  computeB<ComputeSurfaceNormals, ScalarLab, ScalarLab>(ComputeSurfaceNormals(),
-                                                        var.chi, 1, var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
