@@ -3190,7 +3190,7 @@ static void ongrid(Real dt) {
         Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
         assert(block not_eq nullptr);
         const Info *info = &tmpInfo[i];
-        ScalarBlock &b = *(ScalarBlock *)tmpInfo[i].block;
+        Real *b = tmpInfo[i].block;
         Obstacle *const o = block;
         Real org[2];
         org[0] = info->origin[0] + info->h * 0.5;
@@ -3333,7 +3333,7 @@ static void ongrid(Real dt) {
             o->dist[iy][ix] = o->dist[iy][ix] >= 0
                                   ? std::sqrt(o->dist[iy][ix])
                                   : -std::sqrt(-o->dist[iy][ix]);
-            b[iy][ix] = std::max(b[iy][ix], o->dist[iy][ix]);
+            b[ix + iy * _BS_] = std::max(b[ix + iy * _BS_], o->dist[iy][ix]);
           }
         memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
       }
