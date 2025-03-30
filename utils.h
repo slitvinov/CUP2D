@@ -453,3 +453,9 @@ std::vector<double> precond() {
 
   return P_inv;
 }
+
+static Real sdf_circle(Real x, Real y, Real cx, Real cy, Real r) {
+  Real dx = x - cx;
+  Real dy = y - cy;
+  return std::sqrt(dx * dx + dy * dy) - r;
+}
