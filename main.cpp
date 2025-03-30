@@ -3027,9 +3027,6 @@ public:
   AreaSegment(std::pair<int, int> sr, const Real bb[2][2], const Real safe)
     : s_range(sr) {
   }
-  void changeToComputationalFrame(const Real pos[2], const Real angle) {
-    return;
-  }
   bool isIntersectingWithAABB(const Real start[2], const Real end[2]) const {
     return true;
   }
@@ -3201,7 +3198,6 @@ static void ongrid(Real dt) {
       const Real DD = 4 * h;
       AreaSegment *const tAS =
           new AreaSegment(std::make_pair(idx, next_idx), bbox, DD);
-      tAS->changeToComputationalFrame(shape->center, shape->orientation);
       vSegments[i] = tAS;
     }
     const auto N = tmpInfo.size();
