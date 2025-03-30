@@ -3134,7 +3134,6 @@ struct Shape {
   Real omega;
   Real forcex = 0, forcey = 0;
   Real torque = 0;
-  Real phaseShift;
   Real area_internal = 0, J_internal = 0;
   Real CoM_internal[2] = {0, 0}, vCoM_internal[2] = {0, 0};
   Real theta_internal = 0;
@@ -3162,10 +3161,6 @@ struct Shape {
   Real linMom[2], area, angMom;
   Skin upperSkin = Skin(Nm);
   Skin lowerSkin = Skin(Nm);
-  Real *rC;
-  Real *vC;
-  Real *rB;
-  Real *vB;
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct ComputeSurfaceNormals {
@@ -3423,10 +3418,6 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    std::fill(shape->rC, shape->rC + shape->Nm, 0.0);
-    std::fill(shape->vC, shape->vC + shape->Nm, 0.0);
-    std::fill(shape->rB, shape->rB + shape->Nm, 0.0);
-    std::fill(shape->vB, shape->vB + shape->Nm, 0.0);
     if2d_solve(shape->Nm, shape->rS, shape->rX, shape->rY, shape->vX, shape->vY,
                shape->norX, shape->norY, shape->vNorX, shape->vNorY);
 #pragma omp parallel for schedule(static)
@@ -5730,13 +5721,8 @@ int main(int argc, char **argv) {
       shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
       shape->omega = 0;
-      shape->phaseShift = 0;
       shape->u = 0;
       shape->v = 0;
-      shape->rC = new Real[shape->Nm];
-      shape->vC = new Real[shape->Nm];
-      shape->rB = new Real[shape->Nm];
-      shape->vB = new Real[shape->Nm];
       shape->rS = new Real[shape->Nm];
       shape->rX = new Real[shape->Nm];
       shape->rY = new Real[shape->Nm];
