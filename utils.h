@@ -6,16 +6,6 @@ static void rotate2D(const Real Rmatrix2D[2][2], Real *x, Real *y) {
   *x = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
   *y = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
 }
-static Real dds(int i, int m, Real *a, Real *b) {
-  if (i == 0)
-    return (a[i + 1] - a[i]) / (b[i + 1] - b[i]);
-  else if (i == m - 1)
-    return (a[i] - a[i - 1]) / (b[i] - b[i - 1]);
-  else
-    return ((a[i + 1] - a[i]) / (b[i + 1] - b[i]) +
-            (a[i] - a[i - 1]) / (b[i] - b[i - 1])) /
-           2;
-}
 static double getA_local(int I1, int I2) {
   int j1 = I1 / _BS_;
   int i1 = I1 % _BS_;

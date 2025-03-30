@@ -3008,7 +3008,7 @@ struct Shape {
   Real orientation;
   Real d_gm[2] = {0, 0};
   Real M = 0;
-  Real J = 0;
+  const Real J = 8.80277e-06;
   Real u;
   Real v;
   Real omega;
@@ -3233,23 +3233,6 @@ static void ongrid(Real dt) {
       shape->rX[i] -= CoM_internal[0];
       shape->rY[i] -= CoM_internal[1];
     }
-    Real _J = 0;
-#pragma omp parallel for reduction(+ : _J) schedule(static)
-    for (int i = 0; i < Nm; ++i) {
-      Real fac1 = 2 * shape->width[i];
-      Real fac2 = 2 * std::pow(shape->width[i], 3) *
-                  (dds(i, Nm, shape->norX, shape->rS) * shape->norY[i] -
-                   dds(i, Nm, shape->norY, shape->rS) * shape->norX[i]) /
-                  3;
-      Real fac3 = 2 * std::pow(shape->width[i], 3) / 3;
-      Real tmp_J =
-          (shape->rX[i] * shape->rX[i] + shape->rY[i] * shape->rY[i]) * fac1 +
-          2 * (shape->rX[i] * shape->norX[i] + shape->rY[i] * shape->norY[i]) *
-              fac2 +
-          fac3;
-      _J += tmp_J * ds / 2;
-    }
-    shape->J = _J;
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < Nm - 1; i++) {
       const auto tX = shape->rX[i + 1] - shape->rX[i];
@@ -3572,7 +3555,6 @@ static void ongrid(Real dt) {
     _a /= _j;
     Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
     shape->M = I.m;
-    shape->J = I.j;
     const Real dCx = shape->center[0] - shape->centerOfMass[0];
     const Real dCy = shape->center[1] - shape->centerOfMass[1];
     shape->d_gm[0] =
