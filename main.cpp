@@ -3074,27 +3074,6 @@ struct PutChiOnGrid {
     }
   }
 };
-struct PutFishOnBlocks {
-  Real position[2];
-  Real Rmatrix2D[2][2];
-  void changeVelocityToComputationalFrame(Real x[2]) const {
-    const Real p[2] = {x[0], x[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-  void changeToComputationalFrame(Real x[2]) const {
-    const Real p[2] = {x[0], x[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[0][1] * p[1];
-    x[1] = Rmatrix2D[1][0] * p[0] + Rmatrix2D[1][1] * p[1];
-    x[0] += position[0];
-    x[1] += position[1];
-  }
-  void changeFromComputationalFrame(Real x[2]) const {
-    Real p[2] = {x[0] - position[0], x[1] - position[1]};
-    x[0] = Rmatrix2D[0][0] * p[0] + Rmatrix2D[1][0] * p[1];
-    x[1] = Rmatrix2D[0][1] * p[0] + Rmatrix2D[1][1] * p[1];
-  }
-};
 static void ongrid(Real dt) {
   for (const auto &shape : sim.shapes) {
     shape->centerOfMass[0] += dt * shape->u;
