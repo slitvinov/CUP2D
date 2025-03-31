@@ -3013,12 +3013,6 @@ struct Shape {
   Real v;
   Real omega;
   Real length;
-  Real *rS;
-  Real *rX;
-  Real *rY;
-  Real *norX;
-  Real *norY;
-  Real *width;
   Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct PutChiOnGrid {
@@ -3137,30 +3131,6 @@ static void ongrid(Real dt) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    Real _cmx = 0, _cmy = 0;
-#pragma omp parallel for schedule(static) reduction(+ : _cmx, _cmy)
-    for (int i = 0; i < Nm; ++i) {
-      _cmx += shape->rX[i];
-      _cmy += shape->rY[i];
-    }
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < Nm; ++i) {
-      shape->rX[i] -= _cmx / Nm;
-      shape->rY[i] -= _cmy / Nm;
-    }
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < Nm - 1; i++) {
-      const auto tX = shape->rX[i + 1] - shape->rX[i];
-      const auto tY = shape->rY[i + 1] - shape->rY[i];
-      shape->norX[i] = -tY / ds;
-      shape->norY[i] = tX / ds;
-    }
-    shape->norX[Nm - 1] = shape->norX[Nm - 2];
-    shape->norY[Nm - 1] = shape->norY[Nm - 2];
-    Real h = std::numeric_limits<Real>::infinity();
-    for (size_t i = 0; i < var.vel->infos.size(); i++)
-      h = std::min(var.vel->infos[i].h, h);
-    MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     const auto N = tmpInfo.size();
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
@@ -3172,171 +3142,43 @@ static void ongrid(Real dt) {
       memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
     }
-#pragma omp parallel
-    {
-      PutFishOnBlocks putfish;
-      putfish.position[0] = shape->center[0];
-      putfish.position[1] = shape->center[1];
-      putfish.Rmatrix2D[0][0] = std::cos(shape->orientation);
-      putfish.Rmatrix2D[0][1] = -std::sin(shape->orientation);
-      putfish.Rmatrix2D[1][0] = std::sin(shape->orientation);
-      putfish.Rmatrix2D[1][1] = std::cos(shape->orientation);
-
-      const Real *const rX = shape->rX, *const norX = shape->norX;
-      const Real *const rY = shape->rY, *const norY = shape->norY;
-      const Real *const width = shape->width;
-#pragma omp for schedule(dynamic)
-      for (size_t i = 0; i < tmpInfo.size(); i++) {
-        Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
-        assert(block not_eq nullptr);
-        const Info *info = &tmpInfo[i];
-        Real *b = tmpInfo[i].block;
-        Obstacle *const o = block;
-        Real org[2];
-        org[0] = info->origin[0] + info->h * 0.5;
-        org[1] = info->origin[1] + info->h * 0.5;
-        const Real h = info->h, invh = 1.0 / info->h;
-        std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
-        memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-        for (int ss = 1; ss <= Nm - 2; ++ss) {
-          assert(width[ss] > 0);
-          for (int signp = -1; signp <= 1; signp += 2) {
-            Real myP[2] = {rX[ss + 0] + width[ss + 0] * signp * norX[ss + 0],
-                           rY[ss + 0] + width[ss + 0] * signp * norY[ss + 0]};
-            putfish.changeToComputationalFrame(myP);
-            const int iap[2] = {(int)std::floor((myP[0] - org[0]) * invh),
-                                (int)std::floor((myP[1] - org[1]) * invh)};
-            if (iap[0] + 3 <= 0 || iap[0] - 1 >= _BS_)
-              continue;
-            if (iap[1] + 3 <= 0 || iap[1] - 1 >= _BS_)
-              continue;
-            Real pP[2] = {rX[ss + 1] + width[ss + 1] * signp * norX[ss + 1],
-                          rY[ss + 1] + width[ss + 1] * signp * norY[ss + 1]};
-            putfish.changeToComputationalFrame(pP);
-            Real pM[2] = {rX[ss - 1] + width[ss - 1] * signp * norX[ss - 1],
-                          rY[ss - 1] + width[ss - 1] * signp * norY[ss - 1]};
-            putfish.changeToComputationalFrame(pM);
-            for (int sy = std::max(0, iap[1] - 2);
-                 sy < std::min(iap[1] + 4, _BS_); ++sy)
-              for (int sx = std::max(0, iap[0] - 2);
-                   sx < std::min(iap[0] + 4, _BS_); ++sx) {
-                Real p[2];
-                p[0] = info->origin[0] + info->h * (sx + 0.5);
-                p[1] = info->origin[1] + info->h * (sy + 0.5);
-                const Real dist0 = dist(p, myP);
-                const Real distP = dist(p, pP);
-                const Real distM = dist(p, pM);
-                if (std::fabs(o->dist[sy][sx]) <
-                    std::min({dist0, distP, distM}))
-                  continue;
-                putfish.changeFromComputationalFrame(p);
-                Real p0[2] = {rX[ss] + width[ss] * signp * norX[ss],
-                              rY[ss] + width[ss] * signp * norY[ss]};
-                Real distC = dist(p, p0);
-                assert(std::fabs(distC - dist0) < EPS);
-                int close_s = ss, secnd_s = ss + (distP < distM ? 1 : -1);
-                Real dist1 = dist0, dist2 = distP < distM ? distP : distM;
-                if (distP < dist0 || distM < dist0) {
-                  dist1 = dist2;
-                  dist2 = dist0;
-                  close_s = secnd_s;
-                  secnd_s = ss;
-                }
-                Real dSsq = std::pow(rX[close_s] - rX[secnd_s], 2) +
-                            std::pow(rY[close_s] - rY[secnd_s], 2);
-                assert(dSsq > 2.2e-16);
-                Real cnt2ML = std::pow(width[close_s], 2);
-                Real nxt2ML = std::pow(width[secnd_s], 2);
-                Real safeW = std::max(width[close_s], width[secnd_s]) + 2 * h;
-                Real xMidl[2] = {rX[close_s], rY[close_s]};
-                Real grd2ML = dist(p, xMidl);
-                Real diffH = std::fabs(width[close_s] - width[secnd_s]);
-                Real sign2d = 0;
-                if (dSsq > diffH * diffH || grd2ML > safeW * safeW) {
-                  sign2d = grd2ML > cnt2ML ? -1 : 1;
-                } else {
-                  Real corr = 2 * std::sqrt(cnt2ML * nxt2ML);
-                  Real Rsq = (cnt2ML + nxt2ML - corr + dSsq) *
-                             (cnt2ML + nxt2ML + corr + dSsq) / 4 / dSsq;
-                  Real maxAx = std::max(cnt2ML, nxt2ML);
-                  int idAx1 = cnt2ML > nxt2ML ? close_s : secnd_s;
-                  int idAx2 = idAx1 == close_s ? secnd_s : close_s;
-                  Real d = std::sqrt((Rsq - maxAx) / dSsq);
-                  Real xCentr[2] = {rX[idAx1] + (rX[idAx1] - rX[idAx2]) * d,
-                                    rY[idAx1] + (rY[idAx1] - rY[idAx2]) * d};
-                  Real grd2Core = dist(p, xCentr);
-                  sign2d = grd2Core > Rsq ? -1 : 1;
-                }
-                if (std::fabs(o->dist[sy][sx]) > dist1) {
-                  Real W = 1 - std::min((Real)1, std::sqrt(dist1) * (invh / 3));
-                  assert(W >= 0);
-                  o->udef[sy][sx][0] = 0;
-                  o->udef[sy][sx][1] = 0;
-                  o->dist[sy][sx] = sign2d * dist1;
-                  o->chi[sy][sx] = W;
-                }
-              }
-          }
+    //#pragma omp parallel
+    //#pragma omp for schedule(dynamic)
+    for (size_t i = 0; i < tmpInfo.size(); i++) {
+      Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
+      assert(block not_eq nullptr);
+      const Info *info = &tmpInfo[i];
+      Real *b = tmpInfo[i].block;
+      Obstacle *const o = block;
+      const Real h = info->h;
+      std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
+      memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+      memset(&o->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
+      for (int iy = 0; iy < _BS_; ++iy) {
+        for (int ix = 0; ix < _BS_; ++ix) {
+          Real c = std::cos(shape->orientation);
+          Real s = std::sin(shape->orientation);
+          Real x = info->origin[0] + h * (ix + 0.5);
+          Real y = info->origin[1] + h * (iy + 0.5);
+          x -= shape->center[0];
+          y -= shape->center[1];
+          Real x0 = c * x + s * y;
+          Real y0 = -s * x + c * y;
+          Real ax = -shape->length / 4;
+          Real ay = 0;
+          Real bx = shape->length / 4;
+          Real by = 0;
+          Real dist = -sqrt(sdf2_segment(x0, y0, ax, ay, bx, by));
+          o->dist[iy][ix] = dist + shape->length / 10;
+          b[iy * _BS_ + ix] = std::max(b[iy * _BS_ + ix], dist);
+          o->udef[iy][ix][0] = 0;
+          o->udef[iy][ix][1] = 0;
         }
-        for (int ss = 1; ss <= Nm - 2; ++ss) {
-          const Real myWidth = shape->width[ss];
-          assert(myWidth > 0);
-          const int Nw = std::floor(myWidth / h);
-          for (int iw = -Nw + 1; iw < Nw; ++iw) {
-            const Real offsetW = iw * h;
-            Real xp[2] = {shape->rX[ss] + offsetW * shape->norX[ss],
-                          shape->rY[ss] + offsetW * shape->norY[ss]};
-            putfish.changeToComputationalFrame(xp);
-            xp[0] = (xp[0] - org[0]) * invh;
-            xp[1] = (xp[1] - org[1]) * invh;
-            const Real ap[2] = {std::floor(xp[0]), std::floor(xp[1])};
-            const int iap[2] = {(int)ap[0], (int)ap[1]};
-            if (iap[0] + 2 <= 0 || iap[0] >= _BS_)
-              continue;
-            if (iap[1] + 2 <= 0 || iap[1] >= _BS_)
-              continue;
-            Real udef[2] = {0, 0};
-            putfish.changeVelocityToComputationalFrame(udef);
-            Real wghts[2][2];
-            for (int c = 0; c < 2; ++c) {
-              const Real t[2] = {std::fabs(xp[c] - ap[c]),
-                                 std::fabs(xp[c] - (ap[c] + 1))};
-              wghts[c][0] = 1 - t[0];
-              wghts[c][1] = 1 - t[1];
-            }
-            for (int idy = std::max(0, iap[1]);
-                 idy < std::min(iap[1] + 2, _BS_); ++idy)
-              for (int idx = std::max(0, iap[0]);
-                   idx < std::min(iap[0] + 2, _BS_); ++idx) {
-                const int sx = idx - iap[0], sy = idy - iap[1];
-                const Real wxwy = wghts[1][sy] * wghts[0][sx];
-                assert(idx >= 0 && idx < _BS_ && wxwy >= 0);
-                assert(idy >= 0 && idy < _BS_ && wxwy <= 1);
-                o->udef[idy][idx][0] += wxwy * udef[0];
-                o->udef[idy][idx][1] += wxwy * udef[1];
-                o->chi[idy][idx] += wxwy;
-                static constexpr Real EPS =
-                    std::numeric_limits<Real>::epsilon();
-                if (std::fabs(o->dist[idy][idx] + 1) < EPS)
-                  o->dist[idy][idx] = 1;
-              }
-          }
-        }
-        static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++) {
-            const Real normfac = o->chi[iy][ix] > EPS ? o->chi[iy][ix] : 1;
-            o->udef[iy][ix][0] /= normfac;
-            o->udef[iy][ix][1] /= normfac;
-            o->dist[iy][ix] = o->dist[iy][ix] >= 0
-                                  ? std::sqrt(o->dist[iy][ix])
-                                  : -std::sqrt(-o->dist[iy][ix]);
-            b[ix + iy * _BS_] = std::max(b[ix + iy * _BS_], o->dist[iy][ix]);
-          }
-        memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
       }
+      memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
     }
   }
+
   computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
@@ -3421,17 +3263,6 @@ static void ongrid(Real dt) {
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
-    }
-    {
-      const Real Rmatrix2D[2][2] = {
-          {std::cos(shape->orientation), -std::sin(shape->orientation)},
-          {std::sin(shape->orientation), std::cos(shape->orientation)}};
-      for (int i = 0; i < Nm; ++i) {
-        rotate2D(Rmatrix2D, &shape->rX[i], &shape->rY[i]);
-        rotate2D(Rmatrix2D, &shape->norX[i], &shape->norY[i]);
-        shape->rX[i] += shape->centerOfMass[0];
-        shape->rY[i] += shape->centerOfMass[1];
-      }
     }
   }
 }
@@ -5024,18 +4855,6 @@ int main(int argc, char **argv) {
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
-      shape->rS = new Real[Nm];
-      shape->rX = new Real[Nm];
-      shape->rY = new Real[Nm];
-      shape->norX = new Real[Nm];
-      shape->norY = new Real[Nm];
-      shape->width = new Real[Nm];
-      for (int i = 0; i < Nm; ++i) {
-        shape->rS[i] = i * ds;
-        shape->rX[i] = i * ds;
-        shape->rY[i] = 0;
-        shape->width[i] = .04 * shape->length;
-      }
       sim.shapes.push_back(shape);
     }
   }
@@ -5251,7 +5070,8 @@ int main(int argc, char **argv) {
             -(PX * PY * VM + (PX * PX - PJ * PM) * UM - AM * PM * PY) / D;
         shape->v =
             -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
-        /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D; */
+        /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
+         */
         shape->omega = 0.05;
       }
       const auto &shapes = sim.shapes;
