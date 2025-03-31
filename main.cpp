@@ -3142,8 +3142,7 @@ static void ongrid(Real dt) {
       memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
     }
-    //#pragma omp parallel
-    //#pragma omp for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < tmpInfo.size(); i++) {
       Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
       assert(block not_eq nullptr);
