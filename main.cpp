@@ -5072,7 +5072,7 @@ int main(int argc, char **argv) {
             -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
         /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
          */
-        shape->omega = 0.05;
+        shape->omega = 0.2;
       }
       const auto &shapes = sim.shapes;
       const auto &infos = var.chi->infos;
