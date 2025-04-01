@@ -891,22 +891,10 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             FixDuplicates2(AllStencils, Coarse_Range, stencil, &f[k],
                            &f[remEl1], &Csrcx, &Csrcy, &Csrcz);
           buf->myunpacks[f[remEl1].infos[1]->halo_id].push_back(
-              {info.offset,
-               L[0],
-               L[1],
-               srcx,
-               srcy,
-               info.LX,
-               info.LY,
-               info.CoarseVersionOffset,
-               info.CoarseVersionLX,
-               info.CoarseVersionLY,
-               Csrcx,
-               Csrcy,
-               f[remEl1].infos[0]->level,
-               f[remEl1].icode[1],
-               otherrank,
-               f[remEl1].infos[0]->index[0],
+              {info.offset, L[0], L[1], srcx, srcy, info.LX, info.LY,
+               info.CoarseVersionOffset, info.CoarseVersionLX,
+               info.CoarseVersionLY, Csrcx, Csrcy, f[remEl1].infos[0]->level,
+               f[remEl1].icode[1], otherrank, f[remEl1].infos[0]->index[0],
                f[remEl1].infos[0]->index[1]});
           f[remEl1].dis = info.offset;
         }
@@ -2232,17 +2220,17 @@ struct BlockLab {
             else if (code[1] == 0)
               t = unpack->index_1 - 2 * info->index[1];
             else
-              t = - 2 * info->index[2];
+              t = -2 * info->index[2];
             assert(t == 0 || t == 1);
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
             if (abs(code[0]) == 1) {
               Bmod = unpack->index_1 - 2 * info->index[1];
-              Bdiv = - 2 * info->index[2];
+              Bdiv = -2 * info->index[2];
             } else if (abs(code[1]) == 1) {
               Bmod = unpack->index_0 - 2 * info->index[0];
-              Bdiv = - 2 * info->index[2];
+              Bdiv = -2 * info->index[2];
             } else {
               Bmod = unpack->index_0 - 2 * info->index[0];
               Bdiv = unpack->index_1 - 2 * info->index[1];
@@ -4818,11 +4806,12 @@ int main(int argc, char **argv) {
     update_blocks(false, &g->infos, &g->all, &g->tree);
     MPI_Barrier(MPI_COMM_WORLD);
   }
-  for (int i = 0; i < sim.levelMax; i++) {
+  for (int i = 0;; i++) {
     ongrid(0.0);
+    if (i == sim.levelMax)
+      break;
     adapt();
   }
-  ongrid(0.0);
   std::vector<Info> &velInfo = var.vel->infos;
   for (auto &shape : sim.shapes) {
     std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
