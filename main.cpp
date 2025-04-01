@@ -2777,11 +2777,12 @@ static struct {
     int dim;
     bool basic;
     bool boundary_needed;
+    const char *prefix;
   } F[7] = {
-      {&tmp, 1, false, true},   {&chi, 1, false, false},
-      {&vel, 2, false, false},  {&vold, 2, false, false},
-      {&pres, 1, false, false}, {&pold, 1, false, false},
-      {&tmpV, 2, true, false},
+      {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
+      {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
+      {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
+      {&tmpV, 2, true, false, NULL},
   };
   struct Buffers *buf1, *buf2;
 } var;
@@ -2931,20 +2932,22 @@ struct KernelVorticity {
 };
 static void dump(Real time, long nblock, Info *infos, char *path) {
   long i, j, k, l, m, x, y, nblock_total, offset;
-  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
-      *xyz_base, *attr_base;
+  char xyz_path[FILENAME_MAX],
+      attr_path[sizeof var.F / sizeof *var.F][FILENAME_MAX],
+      xdmf_path[FILENAME_MAX], *xyz_base,
+      *attr_base[sizeof var.F / sizeof *var.F];
   MPI_File mpi_file;
   FILE *xmf;
   float *attr, xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
-  snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
+  snprintf(attr_path[0], sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
   xyz_base = xyz_path;
-  attr_base = attr_path;
+  attr_base[0] = attr_path[0];
   for (j = 0; xyz_path[j] != '\0'; j++) {
     if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0') {
       xyz_base = &xyz_path[j + 1];
-      attr_base = &attr_path[j + 1];
+      attr_base[0] = &attr_path[0][j + 1];
     }
   }
   MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -2984,7 +2987,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
             "  </Domain>\n"
             "</Xdmf>\n",
             time, _BS_ * _BS_ * nblock_total, 4 * _BS_ * _BS_ * nblock_total,
-            xyz_base, _BS_ * _BS_ * nblock_total, attr_base);
+            xyz_base, _BS_ * _BS_ * nblock_total, attr_base[0]);
     fclose(xmf);
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -3024,7 +3027,8 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
                       sizeof xyz / sizeof *xyz, MPI_FLOAT, MPI_STATUS_IGNORE);
   }
   MPI_File_close(&mpi_file);
-  MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+
+  MPI_File_open(MPI_COMM_WORLD, attr_path[0], MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 3 * offset * _BS_ * _BS_ * sizeof *attr, attr,
                         3 * nblock * _BS_ * _BS_ * sizeof *attr, MPI_BYTE,
