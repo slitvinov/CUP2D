@@ -3027,7 +3027,8 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
       Info *inf = g->infos.data();
-      snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
+      snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
+	       var.F[i].prefix);
       MPI_File_open(MPI_COMM_WORLD, attr_path,
                     MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL,
                     &mpi_file);
