@@ -93,6 +93,28 @@ struct BlockCase {
   int level;
   long long Z;
 };
+struct CollisionInfo {
+  Real iM = 0;
+  Real iPosX = 0;
+  Real iPosY = 0;
+  Real iPosZ = 0;
+  Real iMomX = 0;
+  Real iMomY = 0;
+  Real iMomZ = 0;
+  Real ivecX = 0;
+  Real ivecY = 0;
+  Real ivecZ = 0;
+  Real jM = 0;
+  Real jPosX = 0;
+  Real jPosY = 0;
+  Real jPosZ = 0;
+  Real jMomX = 0;
+  Real jMomY = 0;
+  Real jMomZ = 0;
+  Real jvecX = 0;
+  Real jvecY = 0;
+  Real jvecZ = 0;
+};
 struct Interface {
   Info *infos[2];
   int icode[2];
@@ -5051,28 +5073,6 @@ int main(int argc, char **argv) {
       const auto &infos = var.chi->infos;
       const size_t N = shapes.size();
       sim.bCollisionID.clear();
-      struct CollisionInfo {
-        Real iM = 0;
-        Real iPosX = 0;
-        Real iPosY = 0;
-        Real iPosZ = 0;
-        Real iMomX = 0;
-        Real iMomY = 0;
-        Real iMomZ = 0;
-        Real ivecX = 0;
-        Real ivecY = 0;
-        Real ivecZ = 0;
-        Real jM = 0;
-        Real jPosX = 0;
-        Real jPosY = 0;
-        Real jPosZ = 0;
-        Real jMomX = 0;
-        Real jMomY = 0;
-        Real jMomZ = 0;
-        Real jvecX = 0;
-        Real jvecY = 0;
-        Real jvecZ = 0;
-      };
       std::vector<CollisionInfo> collisions(N);
       std::vector<Real> n_vec(3 * N, 0.0);
 #pragma omp parallel for schedule(static)
