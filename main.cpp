@@ -2805,107 +2805,104 @@ static struct {
   };
   struct Buffers *buf1, *buf2;
 } var;
-struct pressure_rhs {
-  pressure_rhs() {};
-  void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
-                  const Info *) const {
-    Stencil stencil{-1, -1, 2, 2, false};
-    Stencil stencil2{-1, -1, 2, 2, false};
-    const std::vector<Info> &tmpInfo = var.tmp->infos;
-    const std::vector<Info> &chiInfo = var.chi->infos;
-    Real *vm = velLab.m;
-    Real *um = uDefLab.m;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    const Real h = info->h;
-    const Real facDiv = 0.5 * h / sim.dt;
-    Real *TMP = tmpInfo[info->id].block;
-    Real *CHI = chiInfo[info->id].block;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        int im1 = ip0 - 1;
-        int jp1 = jp0 + 1;
-        int jm1 = jp0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-        Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
-        Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-        Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
-        Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
-        TMP[_BS_ * iy + ix] =
-            facDiv * (*v0 - *v1 + *v2 - *v3) -
-            facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
-      }
-    BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id].auxiliary);
-    Real *faceXm = nullptr;
-    Real *faceXp = nullptr;
-    Real *faceYm = nullptr;
-    Real *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
+static void pressure_rhs_fun(VectorLab &velLab, VectorLab &uDefLab,
+                             const Info *info, const Info *) {
+  Stencil stencil{-1, -1, 2, 2, false};
+  Stencil stencil2{-1, -1, 2, 2, false};
+  const std::vector<Info> &tmpInfo = var.tmp->infos;
+  const std::vector<Info> &chiInfo = var.chi->infos;
+  Real *vm = velLab.m;
+  Real *um = uDefLab.m;
+  int nm = _BS_ + stencil.ex - stencil.sx - 1;
+  const Real h = info->h;
+  const Real facDiv = 0.5 * h / sim.dt;
+  Real *TMP = tmpInfo[info->id].block;
+  Real *CHI = chiInfo[info->id].block;
+  for (int iy = 0; iy < _BS_; ++iy)
+    for (int ix = 0; ix < _BS_; ++ix) {
+      int ip0 = ix - stencil.sx;
+      int jp0 = iy - stencil.sy;
+      int ip1 = ip0 + 1;
+      int im1 = ip0 - 1;
+      int jp1 = jp0 + 1;
+      int jm1 = jp0 - 1;
+      Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
+      Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+      Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
+      Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
+      Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
+      Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
+      Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
+      Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
+      TMP[_BS_ * iy + ix] =
+          facDiv * (*v0 - *v1 + *v2 - *v3) -
+          facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
     }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int im1 = ip0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-        faceXm[iy] =
-            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
+  BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id].auxiliary);
+  Real *faceXm = nullptr;
+  Real *faceXp = nullptr;
+  Real *faceYm = nullptr;
+  Real *faceYp = nullptr;
+  if (tempCase != nullptr) {
+    faceXm = tempCase->d[0];
+    faceXp = tempCase->d[1];
+    faceYm = tempCase->d[2];
+    faceYp = tempCase->d[3];
+  }
+  if (faceXm != nullptr) {
+    int ix = 0;
+    for (int iy = 0; iy < _BS_; ++iy) {
+      int ip0 = ix - stencil.sx;
+      int jp0 = iy - stencil.sy;
+      int im1 = ip0 - 1;
+      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
+      Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+      Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+      Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
+      faceXm[iy] =
+          facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
     }
-    if (faceXp != nullptr) {
-      int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
-        faceXp[iy] = -facDiv * (*v1 + *v0) +
-                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
+  }
+  if (faceXp != nullptr) {
+    int ix = _BS_ - 1;
+    for (int iy = 0; iy < _BS_; ++iy) {
+      int ip0 = ix - stencil.sx;
+      int jp0 = iy - stencil.sy;
+      int ip1 = ip0 + 1;
+      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
+      Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+      Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
+      Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
+      faceXp[iy] =
+          -facDiv * (*v1 + *v0) + (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
     }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jm1 = jp0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
-        Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
-        faceYm[ix] =
-            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
+  }
+  if (faceYm != nullptr) {
+    int iy = 0;
+    for (int ix = 0; ix < _BS_; ++ix) {
+      int ip0 = ix - stencil.sx;
+      int jp0 = iy - stencil.sy;
+      int jm1 = jp0 - 1;
+      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
+      Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+      Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
+      Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
+      faceYm[ix] =
+          facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
     }
-    if (faceYp != nullptr) {
-      int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jp1 = jp0 + 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
-        Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
-        faceYp[ix] = -facDiv * (*v1 + *v0) +
-                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
+  }
+  if (faceYp != nullptr) {
+    int iy = _BS_ - 1;
+    for (int ix = 0; ix < _BS_; ++ix) {
+      int ip0 = ix - stencil.sx;
+      int jp0 = iy - stencil.sy;
+      int jp1 = jp0 + 1;
+      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
+      Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+      Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
+      Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
+      faceYp[ix] =
+          -facDiv * (*v1 + *v0) + (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
     }
   }
 };
@@ -5272,10 +5269,9 @@ int main(int argc, char **argv) {
         var.tmp->UpdateFluxCorrection = false;
       }
       Stencil stencil{-1, -1, 2, 2, false};
-      pressure_rhs kernel = pressure_rhs();
       Synchronizer *Synch =
-          sync1(stencil, var.vel->synchronizers, &var.vel->tree,
-                &var.vel->all, &var.vel->infos, &var.vel->timestamp, 2);
+          sync1(stencil, var.vel->synchronizers, &var.vel->tree, &var.vel->all,
+                &var.vel->infos, &var.vel->timestamp, 2);
       Synchronizer *Synch2 =
           sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree,
                 &var.tmpV->all, &var.tmpV->infos, &var.tmpV->timestamp, 2);
@@ -5296,11 +5292,11 @@ int main(int argc, char **argv) {
         for (int i = 0; i < Ninner; i++) {
           Info *I = avail0[i];
           Info *I2 = avail02[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I,
-                   true, Synch->sLength);
-          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
-                    stencil, I2, true, Synch2->sLength);
-          kernel(lab, lab2, I, I2);
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
+                   Synch->sLength);
+          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
+                    true, Synch2->sLength);
+          pressure_rhs_fun(lab, lab2, I, I2);
           ready[I->id] = true;
         }
 #pragma omp master
@@ -5319,11 +5315,11 @@ int main(int argc, char **argv) {
         for (int i = 0; i < Nhalo; i++) {
           Info *I = avail1[i];
           Info *I2 = avail12[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I,
-                   true, Synch->sLength);
-          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
-                    stencil, I2, true, Synch->sLength);
-          kernel(lab, lab2, I, I2);
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
+                   Synch->sLength);
+          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
+                    true, Synch->sLength);
+          pressure_rhs_fun(lab, lab2, I, I2);
         }
       }
       fillcases(var.buf1, &var.tmp->tree, 1);
