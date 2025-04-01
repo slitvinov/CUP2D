@@ -2804,9 +2804,9 @@ static struct {
   struct Buffers *buf1, *buf2;
 } var;
 template <typename Kernel>
-static void computeB(Kernel &&kernel, Grid *grid) {
-  Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
-                              &grid->all, &grid->infos, &grid->timestamp, 2);
+static void computeB(Kernel &&kernel) {
+  Synchronizer *Synch = sync1(kernel.stencil, var.vel->synchronizers, &var.vel->tree,
+                              &var.vel->all, &var.vel->infos, &var.vel->timestamp, 2);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -2818,7 +2818,7 @@ static void computeB(Kernel &&kernel, Grid *grid) {
             &var.tmpV->infos, &var.tmpV->timestamp, 2);
   const Stencil &stencil = kernel.stencil;
   const Stencil &stencil2 = kernel2.stencil;
-  std::vector<Info> &blk = grid->infos;
+  std::vector<Info> &blk = var.vel->infos;
   std::vector<bool> ready(blk.size(), false);
   std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
   std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
@@ -2835,7 +2835,7 @@ static void computeB(Kernel &&kernel, Grid *grid) {
     for (int i = 0; i < Ninner; i++) {
       Info *I = avail0[i];
       Info *I2 = avail02[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+      lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I, true,
                Synch->sLength);
       lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel2.stencil, I2,
                 true, Synch2->sLength);
@@ -2858,7 +2858,7 @@ static void computeB(Kernel &&kernel, Grid *grid) {
     for (int i = 0; i < Nhalo; i++) {
       Info *I = avail1[i];
       Info *I2 = avail12[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+      lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I, true,
                Synch->sLength);
       lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel.stencil2, I2,
                 true, Synch->sLength);
@@ -5330,7 +5330,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs>(pressure_rhs(), var.vel);
+      computeB<pressure_rhs>(pressure_rhs());
       fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
