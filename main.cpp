@@ -23,7 +23,7 @@
 enum { max_dim = 2 };
 
 typedef double Real;
-#define MPI_Real MPI_DOUBLE 
+#define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
@@ -3034,7 +3034,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       for (j = 0; j < nblock; j++)
         MPI_File_write_at(
             mpi_file, (offset + j) * dim * _BS_ * _BS_ * sizeof(Real),
-            inf[j].block, dim * _BS_ * _BS_, MPI_DOUBLE, MPI_STATUS_IGNORE);
+            inf[j].block, dim * _BS_ * _BS_, MPI_Real, MPI_STATUS_IGNORE);
       MPI_File_close(&mpi_file);
     }
 }
