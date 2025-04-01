@@ -2979,7 +2979,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
                 "           Name=\"%s\"\n"
                 "           Center=\"Cell\">\n"
                 "         <DataItem\n"
-                "             Dimensions=\"%d %ld\"\n"
+                "             Dimensions=\"%ld %d\"\n"
                 "             Precision=\"%ld\"\n"
                 "             Format=\"Binary\">\n"
                 "           %s\n"
