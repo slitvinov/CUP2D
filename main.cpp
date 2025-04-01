@@ -2811,6 +2811,8 @@ struct pressure_rhs {
   Stencil stencil2{-1, -1, 2, 2, false};
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
                   const Info *) const {
+    const std::vector<Info> &tmpInfo = var.tmp->infos;
+    const std::vector<Info> &chiInfo = var.chi->infos;
     Real *vm = velLab.m;
     Real *um = uDefLab.m;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
