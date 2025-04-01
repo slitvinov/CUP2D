@@ -2935,7 +2935,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       *xyz_base, *attr_base;
   MPI_File mpi_file;
   FILE *xmf;
-  float *xyz, *attr;
+  float *attr;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -2988,7 +2988,11 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
             attr_base);
     fclose(xmf);
   }
-  xyz = (float *)malloc(8 * ncell * sizeof *xyz);
+  float xyz[8];
+  MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                MPI_INFO_NULL, &mpi_file);
+  MPI_File_set_view(mpi_file, 8 * offset, MPI_FLOAT, MPI_FLOAT, "native",
+                    MPI_INFO_NULL);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
   k = l = 0;
   Info *chiInfo = var.chi->infos.data();
@@ -3007,25 +3011,21 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
         v0 = info->origin[1] + h * y;
         u1 = u0 + h;
         v1 = v0 + h;
-        xyz[k++] = u0;
-        xyz[k++] = v0;
-        xyz[k++] = u0;
-        xyz[k++] = v1;
-        xyz[k++] = u1;
-        xyz[k++] = v1;
-        xyz[k++] = u1;
-        xyz[k++] = v0;
+        xyz[0] = u0;
+        xyz[1] = v0;
+        xyz[2] = u0;
+        xyz[3] = v1;
+        xyz[4] = u1;
+        xyz[5] = v1;
+        xyz[6] = u1;
+        xyz[7] = v0;
         attr[l++] = b[j++];
         attr[l++] = b[j++];
         attr[l++] = c[m++];
       }
+    MPI_File_write(mpi_file, xyz, 8, MPI_FLOAT, MPI_STATUS_IGNORE);
   }
-  MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
-                MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, 8 * offset * sizeof *xyz, xyz,
-                        8 * ncell * sizeof *xyz, MPI_BYTE, MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
-  free(xyz);
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 3 * offset * sizeof *attr, attr,
