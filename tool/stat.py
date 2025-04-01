@@ -12,7 +12,7 @@ for path in sys.argv[1:]:
     path = re.sub("[.]xyz\.raw$", "", path)
     xdmf_path = path + ".xdmf2"
     xyz_path = path + ".xyz.raw"
-    attr_path = path + ".attr.raw"
+    attr_path = path + ".chi.raw"
     root = xml.etree.ElementTree.parse(xdmf_path)
     time = root.find("Domain/Grid/Time").get("Value")
     xyz = np.memmap(xyz_path, dtype, "r")
