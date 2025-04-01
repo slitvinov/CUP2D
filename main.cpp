@@ -3024,7 +3024,7 @@ struct Integrals {
 };
 struct Shape {
   std::vector<Obstacle *> obstacleBlocks;
-  Real centerOfMass[2];
+  Real center[2];
   Real orientation;
   Real M = 0;
   const Real J = 8.80277e-06; /* TODO */
@@ -3084,8 +3084,8 @@ struct PutChiOnGrid {
             Real p[2];
             p[0] = info->origin[0] + info->h * (ix + 0.5);
             p[1] = info->origin[1] + info->h * (iy + 0.5);
-            o.COM_x += chi[j] * h2 * (p[0] - shape->centerOfMass[0]);
-            o.COM_y += chi[j] * h2 * (p[1] - shape->centerOfMass[1]);
+            o.COM_x += chi[j] * h2 * (p[0] - shape->center[0]);
+            o.COM_y += chi[j] * h2 * (p[1] - shape->center[1]);
             o.Mass += chi[j] * h2;
           }
         }
@@ -3094,8 +3094,8 @@ struct PutChiOnGrid {
 };
 static void ongrid(Real dt) {
   for (const auto &shape : sim.shapes) {
-    shape->centerOfMass[0] += dt * shape->u;
-    shape->centerOfMass[1] += dt * shape->v;
+    shape->center[0] += dt * shape->u;
+    shape->center[1] += dt * shape->v;
     shape->orientation += dt * shape->omega;
     shape->orientation = shape->orientation > M_PI
                              ? shape->orientation - 2 * M_PI
@@ -3145,8 +3145,8 @@ static void ongrid(Real dt) {
           Real s = std::sin(shape->orientation);
           Real x = info->origin[0] + h * (ix + 0.5);
           Real y = info->origin[1] + h * (iy + 0.5);
-          x -= shape->centerOfMass[0];
-          y -= shape->centerOfMass[1];
+          x -= shape->center[0];
+          y -= shape->center[1];
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
           Real ax = -shape->length / 4;
@@ -3178,8 +3178,8 @@ static void ongrid(Real dt) {
     }
     MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
     shape->M = com[0];
-    shape->centerOfMass[0] += com[1] / com[0];
-    shape->centerOfMass[1] += com[2] / com[0];
+    shape->center[0] += com[1] / com[0];
+    shape->center[1] += com[2] / com[0];
   }
   for (const auto &shape : sim.shapes) {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
@@ -3201,8 +3201,8 @@ static void ongrid(Real dt) {
           p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
           p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
           const Real chi = CHI[j] * hsq;
-          p[0] -= shape->centerOfMass[0];
-          p[1] -= shape->centerOfMass[1];
+          p[0] -= shape->center[0];
+          p[1] -= shape->center[1];
           _x += chi * p[0];
           _y += chi * p[1];
           _m += chi;
@@ -3237,8 +3237,8 @@ static void ongrid(Real dt) {
           Real p[2];
           p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
           p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
-          p[0] -= shape->centerOfMass[0];
-          p[1] -= shape->centerOfMass[1];
+          p[0] -= shape->center[0];
+          p[1] -= shape->center[1];
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
@@ -4825,8 +4825,8 @@ int main(int argc, char **argv) {
       LineParser p(line_stream);
       Shape *shape = new Shape;
       shape->length = p("L").asDouble();
-      shape->centerOfMass[0] = p("xpos").asDouble();
-      shape->centerOfMass[1] = p("ypos").asDouble();
+      shape->center[0] = p("xpos").asDouble();
+      shape->center[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
       shape->omega = 0;
       shape->u = 0;
@@ -4995,8 +4995,8 @@ int main(int argc, char **argv) {
       }
       for (const auto &shape : sim.shapes) {
         const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-        const Real Cx = shape->centerOfMass[0];
-        const Real Cy = shape->centerOfMass[1];
+        const Real Cx = shape->center[0];
+        const Real Cy = shape->center[1];
         Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
         for (size_t i = 0; i < velInfo.size(); i++) {
@@ -5066,14 +5066,14 @@ int main(int argc, char **argv) {
           Real iU0 = shapes[i]->u;
           Real iU1 = shapes[i]->v;
           Real iomega2 = shapes[i]->omega;
-          Real iCx = shapes[i]->centerOfMass[0];
-          Real iCy = shapes[i]->centerOfMass[1];
+          Real iCx = shapes[i]->center[0];
+          Real iCy = shapes[i]->center[1];
           auto &jBlocks = shapes[j]->obstacleBlocks;
           Real jU0 = shapes[j]->u;
           Real jU1 = shapes[j]->v;
           Real jomega2 = shapes[j]->omega;
-          Real jCx = shapes[j]->centerOfMass[0];
-          Real jCy = shapes[j]->centerOfMass[1];
+          Real jCx = shapes[j]->center[0];
+          Real jCy = shapes[j]->center[1];
           assert(iBlocks.size() == jBlocks.size());
           const size_t nBlocks = iBlocks.size();
           for (size_t k = 0; k < nBlocks; ++k) {
@@ -5197,9 +5197,9 @@ int main(int argc, char **argv) {
           Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
           Real o1[3] = {0, 0, shapes[i]->omega};
           Real o2[3] = {0, 0, shapes[j]->omega};
-          Real C1[3] = {shapes[i]->centerOfMass[0], shapes[i]->centerOfMass[1],
+          Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1],
                         0};
-          Real C2[3] = {shapes[j]->centerOfMass[0], shapes[j]->centerOfMass[1],
+          Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1],
                         0};
           Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
           Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
@@ -5278,8 +5278,8 @@ int main(int argc, char **argv) {
           Real u_s = shape->u;
           Real v_s = shape->v;
           Real omega_s = shape->omega;
-          Real Cx = shape->centerOfMass[0];
-          Real Cy = shape->centerOfMass[1];
+          Real Cx = shape->center[0];
+          Real Cy = shape->center[1];
           Real *X = (Real *)o->chi;
           Real *UDEF = (Real *)o->udef;
           Real *CHI = chiInfo[i].block;
