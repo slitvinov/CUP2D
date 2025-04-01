@@ -2931,30 +2931,25 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, long nblock, Info *infos, char *path) {
-  long i, j, k, l, m, x, y, nblock_total, offset;
-  char xyz_path[FILENAME_MAX],
-      attr_path[sizeof var.F / sizeof *var.F][FILENAME_MAX],
-      xdmf_path[FILENAME_MAX], *xyz_base,
-      *attr_base[sizeof var.F / sizeof *var.F];
+  long i, j, k, l, m, x, y, offset;
+  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   MPI_File mpi_file;
   FILE *xmf;
   float *attr, xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
-  snprintf(attr_path[0], sizeof attr_path, "%s.attr.raw", path);
-  snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
-  xyz_base = xyz_path;
-  attr_base[0] = attr_path[0];
-  for (j = 0; xyz_path[j] != '\0'; j++) {
-    if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0') {
-      xyz_base = &xyz_path[j + 1];
-      attr_base[0] = &attr_path[0][j + 1];
-    }
-  }
+  snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
+
   MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
   if (sim.rank == sim.size - 1) {
-    nblock_total = nblock + offset;
+    char *xyz_base, xdmf_path[FILENAME_MAX];
+    long nblock_total = nblock + offset;
+    snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
+    xyz_base = xyz_path;
+    for (j = 0; xyz_path[j] != '\0'; j++)
+      if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0')
+        xyz_base = &xyz_path[j + 1];
     xmf = fopen(xdmf_path, "w");
     fprintf(xmf,
             "<Xdmf\n"
@@ -2987,7 +2982,8 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
             "  </Domain>\n"
             "</Xdmf>\n",
             time, _BS_ * _BS_ * nblock_total, 4 * _BS_ * _BS_ * nblock_total,
-            xyz_base, _BS_ * _BS_ * nblock_total, attr_base[0]);
+            xyz_base, _BS_ * _BS_ * nblock_total,
+            attr_path + (xyz_path - xyz_base));
     fclose(xmf);
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
@@ -3027,8 +3023,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
                       sizeof xyz / sizeof *xyz, MPI_FLOAT, MPI_STATUS_IGNORE);
   }
   MPI_File_close(&mpi_file);
-
-  MPI_File_open(MPI_COMM_WORLD, attr_path[0], MPI_MODE_CREATE | MPI_MODE_WRONLY,
+  MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   MPI_File_write_at_all(mpi_file, 3 * offset * _BS_ * _BS_ * sizeof *attr, attr,
                         3 * nblock * _BS_ * _BS_ * sizeof *attr, MPI_BYTE,
@@ -3526,7 +3521,6 @@ static void adapt() {
       }
     }
   }
-
   for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
