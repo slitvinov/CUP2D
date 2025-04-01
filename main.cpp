@@ -5341,10 +5341,6 @@ int main(int argc, char **argv) {
               int j = _BS_ * iy + ix;
               if (chi[j] < CHI[j])
                 continue;
-              /*
-              Real p[2];
-              p[0] = tmpVInfo[i].origin[0] + tmpVInfo[i].h * (ix + 0.5);
-              p[1] = tmpVInfo[i].origin[1] + tmpVInfo[i].h * (iy + 0.5); */
               UDEF[2 * j + 0] += udef[2 * j + 0];
               UDEF[2 * j + 1] += udef[2 * j + 1];
             }
