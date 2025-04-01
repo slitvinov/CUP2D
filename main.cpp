@@ -182,7 +182,6 @@ struct UnPackInfo {
   int rank;
   int index_0;
   int index_1;
-  long long IDreceiver;
 };
 struct HaloBlockGroup {
   std::vector<Info *> myblocks;
@@ -863,8 +862,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                            f[k].icode[1],
                            otherrank,
                            f[k].infos[0]->index[0],
-                           f[k].infos[0]->index[1],
-                           f[k].infos[1]->id2};
+                           f[k].infos[0]->index[1]};
         if (f[k].CoarseStencil) {
           Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
           Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
@@ -909,8 +907,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                f[remEl1].icode[1],
                otherrank,
                f[remEl1].infos[0]->index[0],
-               f[remEl1].infos[0]->index[1],
-               f[remEl1].infos[1]->id2});
+               f[remEl1].infos[0]->index[1]});
           f[remEl1].dis = info.offset;
         }
       }
