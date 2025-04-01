@@ -2657,70 +2657,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
               MPI_STATUSES_IGNORE);
 }
-template <typename Kernel, typename Lab, typename Lab2>
-static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
-                     int dim2) {
-  Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
-                              &grid->all, &grid->infos, &grid->timestamp, dim);
-  Kernel kernel2 = kernel;
-  kernel2.stencil.sx = kernel2.stencil2.sx;
-  kernel2.stencil.sy = kernel2.stencil2.sy;
-  kernel2.stencil.ex = kernel2.stencil2.ex;
-  kernel2.stencil.ey = kernel2.stencil2.ey;
-  kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
-  Synchronizer *Synch2 =
-      sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
-            &grid2->infos, &grid2->timestamp, dim2);
-  const Stencil &stencil = kernel.stencil;
-  const Stencil &stencil2 = kernel2.stencil;
-  std::vector<Info> &blk = grid->infos;
-  std::vector<bool> ready(blk.size(), false);
-  std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
-  std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
-  const int Ninner = avail0.size();
-  std::vector<Info *> avail1;
-  std::vector<Info *> avail12;
-#pragma omp parallel
-  {
-    Lab lab;
-    Lab2 lab2;
-    lab.prepare(stencil);
-    lab2.prepare(stencil2);
-#pragma omp for
-    for (int i = 0; i < Ninner; i++) {
-      Info *I = avail0[i];
-      Info *I2 = avail02[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
-               Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2,
-                true, Synch2->sLength);
-      kernel(lab, lab2, I, I2);
-      ready[I->id] = true;
-    }
-#pragma omp master
-    {
-      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                  MPI_STATUSES_IGNORE);
-      avail1 = Synch->buf->halo_blocks;
-
-      MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
-                  MPI_STATUSES_IGNORE);
-      avail12 = Synch2->buf->halo_blocks;
-    }
-#pragma omp barrier
-    const int Nhalo = avail1.size();
-#pragma omp for
-    for (int i = 0; i < Nhalo; i++) {
-      Info *I = avail1[i];
-      Info *I2 = avail12[i];
-      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
-               Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2,
-                true, Synch->sLength);
-      kernel(lab, lab2, I, I2);
-    }
-  }
-}
 typedef Real ScalarBlock[_BS_][_BS_];
 struct VectorLab : public BlockLab {
   VectorLab() : BlockLab(2) {}
@@ -2852,6 +2788,70 @@ struct ScalarLab : public BlockLab {
       Neumann2D<1, 1>(coarse);
   }
 };
+template <typename Kernel>
+static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
+                     int dim2) {
+  Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
+                              &grid->all, &grid->infos, &grid->timestamp, dim);
+  Kernel kernel2 = kernel;
+  kernel2.stencil.sx = kernel2.stencil2.sx;
+  kernel2.stencil.sy = kernel2.stencil2.sy;
+  kernel2.stencil.ex = kernel2.stencil2.ex;
+  kernel2.stencil.ey = kernel2.stencil2.ey;
+  kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
+  Synchronizer *Synch2 =
+      sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
+            &grid2->infos, &grid2->timestamp, dim2);
+  const Stencil &stencil = kernel.stencil;
+  const Stencil &stencil2 = kernel2.stencil;
+  std::vector<Info> &blk = grid->infos;
+  std::vector<bool> ready(blk.size(), false);
+  std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
+  std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
+  const int Ninner = avail0.size();
+  std::vector<Info *> avail1;
+  std::vector<Info *> avail12;
+#pragma omp parallel
+  {
+    VectorLab lab;
+    VectorLab lab2;
+    lab.prepare(stencil);
+    lab2.prepare(stencil2);
+#pragma omp for
+    for (int i = 0; i < Ninner; i++) {
+      Info *I = avail0[i];
+      Info *I2 = avail02[i];
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+               Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2,
+                true, Synch2->sLength);
+      kernel(lab, lab2, I, I2);
+      ready[I->id] = true;
+    }
+#pragma omp master
+    {
+      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
+                  MPI_STATUSES_IGNORE);
+      avail1 = Synch->buf->halo_blocks;
+
+      MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
+                  MPI_STATUSES_IGNORE);
+      avail12 = Synch2->buf->halo_blocks;
+    }
+#pragma omp barrier
+    const int Nhalo = avail1.size();
+#pragma omp for
+    for (int i = 0; i < Nhalo; i++) {
+      Info *I = avail1[i];
+      Info *I2 = avail12[i];
+      lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
+               Synch->sLength);
+      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2,
+                true, Synch->sLength);
+      kernel(lab, lab2, I, I2);
+    }
+  }
+}
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
@@ -5331,8 +5331,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs, VectorLab, VectorLab>(pressure_rhs(), var.vel, 2,
-                                                   var.tmpV, 2);
+      computeB<pressure_rhs>(pressure_rhs(), var.vel, 2, var.tmpV, 2);
       fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
