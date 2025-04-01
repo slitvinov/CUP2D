@@ -2788,8 +2788,23 @@ struct ScalarLab : public BlockLab {
       Neumann2D<1, 1>(coarse);
   }
 };
+static struct {
+  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
+  struct {
+    Grid **g;
+    int dim;
+    bool basic;
+    bool boundary_needed;
+  } F[7] = {
+      {&tmp, 1, false, true},   {&chi, 1, false, false},
+      {&vel, 2, false, false},  {&vold, 2, false, false},
+      {&pres, 1, false, false}, {&pold, 1, false, false},
+      {&tmpV, 2, true, false},
+  };
+  struct Buffers *buf1, *buf2;
+} var;
 template <typename Kernel>
-static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
+static void computeB(Kernel &&kernel, Grid *grid) {
   Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
                               &grid->all, &grid->infos, &grid->timestamp, 2);
   Kernel kernel2 = kernel;
@@ -2799,8 +2814,8 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
   kernel2.stencil.ey = kernel2.stencil2.ey;
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   Synchronizer *Synch2 =
-      sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
-            &grid2->infos, &grid2->timestamp, 2);
+      sync1(kernel2.stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
+            &var.tmpV->infos, &var.tmpV->timestamp, 2);
   const Stencil &stencil = kernel.stencil;
   const Stencil &stencil2 = kernel2.stencil;
   std::vector<Info> &blk = grid->infos;
@@ -2822,7 +2837,7 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
       Info *I2 = avail02[i];
       lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
                Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel2.stencil, I2,
+      lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel2.stencil, I2,
                 true, Synch2->sLength);
       kernel(lab, lab2, I, I2);
       ready[I->id] = true;
@@ -2845,7 +2860,7 @@ static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
       Info *I2 = avail12[i];
       lab.load(&grid->tree, &grid->all, Synch->buf, kernel.stencil, I, true,
                Synch->sLength);
-      lab2.load(&grid2->tree, &grid2->all, Synch2->buf, kernel.stencil2, I2,
+      lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel.stencil2, I2,
                 true, Synch->sLength);
       kernel(lab, lab2, I, I2);
     }
@@ -2858,21 +2873,6 @@ struct Skin {
       : n(n), xSurf(n), ySurf(n), normXSurf(n), normYSurf(n), midX(n), midY(n) {
   }
 };
-static struct {
-  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
-  struct {
-    Grid **g;
-    int dim;
-    bool basic;
-    bool boundary_needed;
-  } F[7] = {
-      {&tmp, 1, false, true},   {&chi, 1, false, false},
-      {&vel, 2, false, false},  {&vold, 2, false, false},
-      {&pres, 1, false, false}, {&pold, 1, false, false},
-      {&tmpV, 2, true, false},
-  };
-  struct Buffers *buf1, *buf2;
-} var;
 struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
@@ -5330,7 +5330,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs>(pressure_rhs(), var.vel, var.tmpV);
+      computeB<pressure_rhs>(pressure_rhs(), var.vel);
       fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
