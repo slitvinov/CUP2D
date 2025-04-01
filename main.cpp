@@ -3021,7 +3021,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
         attr[l++] = b[j++];
         attr[l++] = c[m++];
       }
-    MPI_File_write_at(mpi_file, (offset + i) * sizeof xyz, xyz, 8,
+    MPI_File_write_at(mpi_file, (offset + i) * sizeof xyz, xyz, _BS_ * _BS_,
 		      MPI_FLOAT, MPI_STATUS_IGNORE);
   }
   MPI_File_close(&mpi_file);
