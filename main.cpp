@@ -3106,18 +3106,7 @@ struct PutChiOnGrid {
     }
   }
 };
-static void ongrid(Real dt) {
-  for (const auto &shape : sim.shapes) {
-    shape->center[0] += dt * shape->u;
-    shape->center[1] += dt * shape->v;
-    shape->orientation += dt * shape->omega;
-    shape->orientation = shape->orientation > M_PI
-                             ? shape->orientation - 2 * M_PI
-                             : shape->orientation;
-    shape->orientation = shape->orientation < -M_PI
-                             ? shape->orientation + 2 * M_PI
-                             : shape->orientation;
-  }
+static void ongrid() {
   std::vector<Info> &velInfo = var.vel->infos;
   std::vector<Info> &tmpInfo = var.tmp->infos;
   std::vector<Info> &chiInfo = var.chi->infos;
@@ -4807,7 +4796,7 @@ int main(int argc, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
   }
   for (int i = 0;; i++) {
-    ongrid(0.0);
+    ongrid();
     if (i == sim.levelMax)
       break;
     adapt();
@@ -4870,7 +4859,18 @@ int main(int argc, char **argv) {
       }
       if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
         adapt();
-      ongrid(sim.dt);
+      for (const auto &shape : sim.shapes) {
+        shape->center[0] += sim.dt * shape->u;
+        shape->center[1] += sim.dt * shape->v;
+        shape->orientation += sim.dt * shape->omega;
+        shape->orientation = shape->orientation > M_PI
+                                 ? shape->orientation - 2 * M_PI
+                                 : shape->orientation;
+        shape->orientation = shape->orientation < -M_PI
+                                 ? shape->orientation + 2 * M_PI
+                                 : shape->orientation;
+      }
+      ongrid();
       size_t Nblocks = velInfo.size();
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++)
