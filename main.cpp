@@ -2935,7 +2935,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       *xyz_base, *attr_base;
   MPI_File mpi_file;
   FILE *xmf;
-  float *attr, xyz[8];
+  float *attr, xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -2991,7 +2991,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
-  k = l = 0;
+  l = 0;
   Info *chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
@@ -3000,6 +3000,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
     Real *c = cinfo->block;
     j = 0;
     m = 0;
+    k = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
@@ -3008,14 +3009,14 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
         v0 = info->origin[1] + h * y;
         u1 = u0 + h;
         v1 = v0 + h;
-        xyz[0] = u0;
-        xyz[1] = v0;
-        xyz[2] = u0;
-        xyz[3] = v1;
-        xyz[4] = u1;
-        xyz[5] = v1;
-        xyz[6] = u1;
-        xyz[7] = v0;
+        xyz[k++] = u0;
+        xyz[k++] = v0;
+        xyz[k++] = u0;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v1;
+        xyz[k++] = u1;
+        xyz[k++] = v0;
         attr[l++] = b[j++];
         attr[l++] = b[j++];
         attr[l++] = c[m++];
