@@ -3022,7 +3022,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
         attr[l++] = b[j++];
         attr[l++] = c[m++];
       }
-    MPI_File_write(mpi_file, xyz, 8, MPI_FLOAT, MPI_STATUS_IGNORE);
+    MPI_File_write_at(mpi_file, i * sizeof xyz, xyz, 8, MPI_FILE, MPI_STATUS_IGNORE);
   }
   MPI_File_close(&mpi_file);
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
