@@ -177,7 +177,6 @@ struct UnPackInfo {
   int CoarseVersionLY;
   int CoarseVersionsrcxstart;
   int CoarseVersionsrcystart;
-  //  int CoarseVersionsrczstart;
   int level;
   int icode;
   int rank;
