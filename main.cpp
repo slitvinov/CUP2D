@@ -2990,7 +2990,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_set_view(mpi_file, 8 * offset, MPI_FLOAT, MPI_FLOAT, "native",
+  MPI_File_set_view(mpi_file, offset * sizeof xyz, MPI_FLOAT, MPI_FLOAT, "native",
                     MPI_INFO_NULL);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
   k = l = 0;
