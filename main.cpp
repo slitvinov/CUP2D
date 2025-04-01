@@ -2807,10 +2807,10 @@ static struct {
 } var;
 struct pressure_rhs {
   pressure_rhs() {};
-  Stencil stencil{-1, -1, 2, 2, false};
-  Stencil stencil2{-1, -1, 2, 2, false};
   void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
                   const Info *) const {
+    Stencil stencil{-1, -1, 2, 2, false};
+    Stencil stencil2{-1, -1, 2, 2, false};
     const std::vector<Info> &tmpInfo = var.tmp->infos;
     const std::vector<Info> &chiInfo = var.chi->infos;
     Real *vm = velLab.m;
@@ -5271,21 +5271,14 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
+      Stencil stencil{-1, -1, 2, 2, false};
       pressure_rhs kernel = pressure_rhs();
       Synchronizer *Synch =
-          sync1(kernel.stencil, var.vel->synchronizers, &var.vel->tree,
+          sync1(stencil, var.vel->synchronizers, &var.vel->tree,
                 &var.vel->all, &var.vel->infos, &var.vel->timestamp, 2);
-      pressure_rhs kernel2 = kernel;
-      kernel2.stencil.sx = kernel2.stencil2.sx;
-      kernel2.stencil.sy = kernel2.stencil2.sy;
-      kernel2.stencil.ex = kernel2.stencil2.ex;
-      kernel2.stencil.ey = kernel2.stencil2.ey;
-      kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
       Synchronizer *Synch2 =
-          sync1(kernel2.stencil, var.tmpV->synchronizers, &var.tmpV->tree,
+          sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree,
                 &var.tmpV->all, &var.tmpV->infos, &var.tmpV->timestamp, 2);
-      const Stencil &stencil = kernel.stencil;
-      const Stencil &stencil2 = kernel2.stencil;
       std::vector<Info> &blk = var.vel->infos;
       std::vector<bool> ready(blk.size(), false);
       std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
@@ -5298,15 +5291,15 @@ int main(int argc, char **argv) {
         VectorLab lab;
         VectorLab lab2;
         lab.prepare(stencil);
-        lab2.prepare(stencil2);
+        lab2.prepare(stencil);
 #pragma omp for
         for (int i = 0; i < Ninner; i++) {
           Info *I = avail0[i];
           Info *I2 = avail02[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I,
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I,
                    true, Synch->sLength);
           lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
-                    kernel2.stencil, I2, true, Synch2->sLength);
+                    stencil, I2, true, Synch2->sLength);
           kernel(lab, lab2, I, I2);
           ready[I->id] = true;
         }
@@ -5326,10 +5319,10 @@ int main(int argc, char **argv) {
         for (int i = 0; i < Nhalo; i++) {
           Info *I = avail1[i];
           Info *I2 = avail12[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I,
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I,
                    true, Synch->sLength);
           lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
-                    kernel.stencil2, I2, true, Synch->sLength);
+                    stencil, I2, true, Synch->sLength);
           kernel(lab, lab2, I, I2);
         }
       }
