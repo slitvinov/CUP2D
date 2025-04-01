@@ -2935,7 +2935,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       *xyz_base, *attr_base;
   MPI_File mpi_file;
   FILE *xmf;
-  float *attr, float xyz[8];
+  float *attr, xyz[8];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
