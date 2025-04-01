@@ -2986,7 +2986,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
                 "         </DataItem>\n"
                 "       </Attribute>\n",
                 dim == 2 ? "Vector" : "Scalar", var.F[i].prefix, dim,
-                sizeof(Real), _BS_ * _BS_ * nblock_total,
+                _BS_ * _BS_ * nblock_total, sizeof(Real),
                 attr_path + (xyz_path - xyz_base));
       }
     fprintf(xdmf, "    </Grid>\n"
