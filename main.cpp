@@ -4824,10 +4824,10 @@ int main(int argc, char **argv) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
       Shape *shape = new Shape;
-      shape->length = p("L").asDouble();
-      shape->center[0] = p("xpos").asDouble();
-      shape->center[1] = p("ypos").asDouble();
-      shape->orientation = p("angle").asDouble() * M_PI / 180;
+      shape->length = p("length").asDouble();
+      shape->center[0] = p("xcenter").asDouble();
+      shape->center[1] = p("ycenter").asDouble();
+      shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;

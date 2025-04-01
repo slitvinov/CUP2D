@@ -17,6 +17,6 @@ ${main=./main} \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  angle=0 L=0.2 xpos=1.8 ypos=0.8
-  angle=180 L=0.2 xpos=1.6 ypos=0.8
+  orientation=0 length=0.2 xcenter=1.8 ycenter=0.8
+  orientation=180 length=0.2 xcenter=1.6 ycenter=0.8
 '
