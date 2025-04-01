@@ -3024,10 +3024,8 @@ struct Integrals {
 };
 struct Shape {
   std::vector<Obstacle *> obstacleBlocks;
-  Real center[2];
   Real centerOfMass[2];
   Real orientation;
-  Real d_gm[2] = {0, 0};
   Real M = 0;
   const Real J = 8.80277e-06; /* TODO */
   Real u;
@@ -3105,17 +3103,6 @@ static void ongrid(Real dt) {
     shape->orientation = shape->orientation < -M_PI
                              ? shape->orientation + 2 * M_PI
                              : shape->orientation;
-    Real cosang = std::cos(shape->orientation);
-    Real sinang = std::sin(shape->orientation);
-    shape->center[0] = shape->centerOfMass[0] + cosang * shape->d_gm[0] -
-                       sinang * shape->d_gm[1];
-    shape->center[1] = shape->centerOfMass[1] + sinang * shape->d_gm[0] +
-                       cosang * shape->d_gm[1];
-    if (shape->center[0] < 0 || shape->center[0] > sim.extents[0] ||
-        shape->center[1] < 0 || shape->center[1] > sim.extents[1]) {
-      fprintf(stderr, "main.cpp: a body out of the domain\n");
-      abort();
-    }
   }
   std::vector<Info> &velInfo = var.vel->infos;
   std::vector<Info> &tmpInfo = var.tmp->infos;
@@ -3158,8 +3145,8 @@ static void ongrid(Real dt) {
           Real s = std::sin(shape->orientation);
           Real x = info->origin[0] + h * (ix + 0.5);
           Real y = info->origin[1] + h * (iy + 0.5);
-          x -= shape->center[0];
-          y -= shape->center[1];
+          x -= shape->centerOfMass[0];
+          y -= shape->centerOfMass[1];
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
           Real ax = -shape->length / 4;
@@ -3240,12 +3227,6 @@ static void ongrid(Real dt) {
     _a /= _j;
     Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
     shape->M = I.m;
-    const Real dCx = shape->center[0] - shape->centerOfMass[0];
-    const Real dCy = shape->center[1] - shape->centerOfMass[1];
-    shape->d_gm[0] =
-        dCx * std::cos(shape->orientation) + dCy * std::sin(shape->orientation);
-    shape->d_gm[1] = -dCx * std::sin(shape->orientation) +
-                     dCy * std::cos(shape->orientation);
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < chiInfo.size(); i++) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
@@ -4844,8 +4825,8 @@ int main(int argc, char **argv) {
       LineParser p(line_stream);
       Shape *shape = new Shape;
       shape->length = p("L").asDouble();
-      shape->center[0] = shape->centerOfMass[0] = p("xpos").asDouble();
-      shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
+      shape->centerOfMass[0] = p("xpos").asDouble();
+      shape->centerOfMass[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
       shape->omega = 0;
       shape->u = 0;
