@@ -1807,14 +1807,15 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
 struct BlockLab {
 private:
   const int dim;
-
-public:
   bool coarsened, istensorial, use_averages;
-  int coarsened_nei_codes_size, end[3], NX, NY, offset[3], start[3];
-  unsigned int nm[2], nc[2];
-  Real *m, *c;
+  int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
+
+public:
+  int NX, NY, end[3], start[3];
+  unsigned int nm[2], nc[2];
+  Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
     c = NULL;
