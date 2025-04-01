@@ -3007,12 +3007,11 @@ struct Shape {
   Real orientation;
   Real d_gm[2] = {0, 0};
   Real M = 0;
-  const Real J = 8.80277e-06;
+  const Real J = 8.80277e-06; /* TODO */
   Real u;
   Real v;
   Real omega;
   Real length;
-  Shape(CommandlineParser &p) : length(p("L").asDouble()) {}
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
@@ -4788,13 +4787,9 @@ int main(int argc, char **argv) {
   sim.space_curve->i_inverse.resize(sim.levelMax);
   sim.space_curve->j_inverse.resize(sim.levelMax);
   sim.space_curve->Zsave.resize(sim.levelMax);
-  {
-    int l = 0;
-    int aux = pow(pow(2, l), 2);
-    sim.space_curve->i_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-    sim.space_curve->j_inverse[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-    sim.space_curve->Zsave[l].resize(sim.bpdx * sim.bpdy * aux, -1);
-  }
+  sim.space_curve->i_inverse[0].resize(sim.bpdx * sim.bpdy, -1);
+  sim.space_curve->j_inverse[0].resize(sim.bpdx * sim.bpdy, -1);
+  sim.space_curve->Zsave[0].resize(sim.bpdx * sim.bpdy, -1);
   sim.space_curve->isRegular = true;
   for (int j = 0; j < sim.bpdy; j++)
     for (int i = 0; i < sim.bpdx; i++) {
@@ -4825,7 +4820,8 @@ int main(int argc, char **argv) {
     while (std::getline(ss, line, ',')) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
-      Shape *shape = new Shape(p);
+      Shape *shape = new Shape;
+      shape->length = p("L").asDouble();
       shape->center[0] = shape->centerOfMass[0] = p("xpos").asDouble();
       shape->center[1] = shape->centerOfMass[1] = p("ypos").asDouble();
       shape->orientation = p("angle").asDouble() * M_PI / 180;
