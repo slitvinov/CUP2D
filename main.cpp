@@ -2789,10 +2789,9 @@ struct ScalarLab : public BlockLab {
   }
 };
 template <typename Kernel>
-static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
-                     int dim2) {
+static void computeB(Kernel &&kernel, Grid *grid, Grid *grid2) {
   Synchronizer *Synch = sync1(kernel.stencil, grid->synchronizers, &grid->tree,
-                              &grid->all, &grid->infos, &grid->timestamp, dim);
+                              &grid->all, &grid->infos, &grid->timestamp, 2);
   Kernel kernel2 = kernel;
   kernel2.stencil.sx = kernel2.stencil2.sx;
   kernel2.stencil.sy = kernel2.stencil2.sy;
@@ -2801,7 +2800,7 @@ static void computeB(Kernel &&kernel, Grid *grid, int dim, Grid *grid2,
   kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
   Synchronizer *Synch2 =
       sync1(kernel2.stencil, grid2->synchronizers, &grid2->tree, &grid2->all,
-            &grid2->infos, &grid2->timestamp, dim2);
+            &grid2->infos, &grid2->timestamp, 2);
   const Stencil &stencil = kernel.stencil;
   const Stencil &stencil2 = kernel2.stencil;
   std::vector<Info> &blk = grid->infos;
@@ -5331,7 +5330,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs>(pressure_rhs(), var.vel, 2, var.tmpV, 2);
+      computeB<pressure_rhs>(pressure_rhs(), var.vel, var.tmpV);
       fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
