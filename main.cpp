@@ -1764,7 +1764,9 @@ static void _alloc(int level, long long Z,
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-  { infos->push_back(*new_info); }
+  {
+    infos->push_back(*new_info);
+  }
   treef(tree, level, Z) = sim.rank;
 }
 
@@ -2738,7 +2740,7 @@ struct VectorLab : public BlockLab {
   }
 };
 struct ScalarLab : public BlockLab {
-  ScalarLab() : BlockLab(1){};
+  ScalarLab() : BlockLab(1) {};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
   template <int dir, int side> void Neumann2D(bool coarse) {
@@ -2803,69 +2805,110 @@ static struct {
   };
   struct Buffers *buf1, *buf2;
 } var;
-template <typename Kernel>
-static void computeB(Kernel &&kernel) {
-  Synchronizer *Synch = sync1(kernel.stencil, var.vel->synchronizers, &var.vel->tree,
-                              &var.vel->all, &var.vel->infos, &var.vel->timestamp, 2);
-  Kernel kernel2 = kernel;
-  kernel2.stencil.sx = kernel2.stencil2.sx;
-  kernel2.stencil.sy = kernel2.stencil2.sy;
-  kernel2.stencil.ex = kernel2.stencil2.ex;
-  kernel2.stencil.ey = kernel2.stencil2.ey;
-  kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
-  Synchronizer *Synch2 =
-      sync1(kernel2.stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
-            &var.tmpV->infos, &var.tmpV->timestamp, 2);
-  const Stencil &stencil = kernel.stencil;
-  const Stencil &stencil2 = kernel2.stencil;
-  std::vector<Info> &blk = var.vel->infos;
-  std::vector<bool> ready(blk.size(), false);
-  std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
-  std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
-  const int Ninner = avail0.size();
-  std::vector<Info *> avail1;
-  std::vector<Info *> avail12;
-#pragma omp parallel
-  {
-    VectorLab lab;
-    VectorLab lab2;
-    lab.prepare(stencil);
-    lab2.prepare(stencil2);
-#pragma omp for
-    for (int i = 0; i < Ninner; i++) {
-      Info *I = avail0[i];
-      Info *I2 = avail02[i];
-      lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I, true,
-               Synch->sLength);
-      lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel2.stencil, I2,
-                true, Synch2->sLength);
-      kernel(lab, lab2, I, I2);
-      ready[I->id] = true;
+struct pressure_rhs {
+  pressure_rhs() {};
+  Stencil stencil{-1, -1, 2, 2, false};
+  Stencil stencil2{-1, -1, 2, 2, false};
+  const std::vector<Info> &tmpInfo = var.tmp->infos;
+  const std::vector<Info> &chiInfo = var.chi->infos;
+  void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
+                  const Info *) const {
+    Real *vm = velLab.m;
+    Real *um = uDefLab.m;
+    int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    const Real h = info->h;
+    const Real facDiv = 0.5 * h / sim.dt;
+    Real *TMP = tmpInfo[info->id].block;
+    Real *CHI = chiInfo[info->id].block;
+    for (int iy = 0; iy < _BS_; ++iy)
+      for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
+        int im1 = ip0 - 1;
+        int jp1 = jp0 + 1;
+        int jm1 = jp0 - 1;
+        Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+        Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
+        Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
+        Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
+        Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
+        Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
+        TMP[_BS_ * iy + ix] =
+            facDiv * (*v0 - *v1 + *v2 - *v3) -
+            facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
+      }
+    BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id].auxiliary);
+    Real *faceXm = nullptr;
+    Real *faceXp = nullptr;
+    Real *faceYm = nullptr;
+    Real *faceYp = nullptr;
+    if (tempCase != nullptr) {
+      faceXm = tempCase->d[0];
+      faceXp = tempCase->d[1];
+      faceYm = tempCase->d[2];
+      faceYp = tempCase->d[3];
     }
-#pragma omp master
-    {
-      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                  MPI_STATUSES_IGNORE);
-      avail1 = Synch->buf->halo_blocks;
-
-      MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
-                  MPI_STATUSES_IGNORE);
-      avail12 = Synch2->buf->halo_blocks;
+    if (faceXm != nullptr) {
+      int ix = 0;
+      for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int im1 = ip0 - 1;
+        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
+        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
+        faceXm[iy] =
+            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
+      }
     }
-#pragma omp barrier
-    const int Nhalo = avail1.size();
-#pragma omp for
-    for (int i = 0; i < Nhalo; i++) {
-      Info *I = avail1[i];
-      Info *I2 = avail12[i];
-      lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I, true,
-               Synch->sLength);
-      lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, kernel.stencil2, I2,
-                true, Synch->sLength);
-      kernel(lab, lab2, I, I2);
+    if (faceXp != nullptr) {
+      int ix = _BS_ - 1;
+      for (int iy = 0; iy < _BS_; ++iy) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int ip1 = ip0 + 1;
+        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
+        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
+        Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
+        Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
+        faceXp[iy] = -facDiv * (*v1 + *v0) +
+                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
+      }
+    }
+    if (faceYm != nullptr) {
+      int iy = 0;
+      for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jm1 = jp0 - 1;
+        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
+        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
+        Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
+        faceYm[ix] =
+            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
+      }
+    }
+    if (faceYp != nullptr) {
+      int iy = _BS_ - 1;
+      for (int ix = 0; ix < _BS_; ++ix) {
+        int ip0 = ix - stencil.sx;
+        int jp0 = iy - stencil.sy;
+        int jp1 = jp0 + 1;
+        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
+        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
+        Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
+        Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
+        faceYp[ix] = -facDiv * (*v1 + *v0) +
+                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
+      }
     }
   }
-}
+};
 struct Skin {
   size_t n;
   std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
@@ -3167,7 +3210,7 @@ static void ongrid(Real dt) {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3652,7 +3695,9 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
+      {
+        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
+      }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3802,7 +3847,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
+            {
+              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
+            }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4188,8 +4235,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
+        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -4540,110 +4587,6 @@ struct pressureCorrectionKernel {
         Real *p1 = um + nm * jp1 + ip0;
         faceYp[2 * ix] = 0;
         faceYp[2 * ix + 1] = -pFac * (*p1 + *p0);
-      }
-    }
-  }
-};
-struct pressure_rhs {
-  pressure_rhs(){};
-  Stencil stencil{-1, -1, 2, 2, false};
-  Stencil stencil2{-1, -1, 2, 2, false};
-  const std::vector<Info> &tmpInfo = var.tmp->infos;
-  const std::vector<Info> &chiInfo = var.chi->infos;
-  void operator()(VectorLab &velLab, VectorLab &uDefLab, const Info *info,
-                  const Info *) const {
-    Real *vm = velLab.m;
-    Real *um = uDefLab.m;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    const Real h = info->h;
-    const Real facDiv = 0.5 * h / sim.dt;
-    Real *TMP = tmpInfo[info->id].block;
-    Real *CHI = chiInfo[info->id].block;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        int im1 = ip0 - 1;
-        int jp1 = jp0 + 1;
-        int jm1 = jp0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-        Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
-        Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-        Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
-        Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
-        TMP[_BS_ * iy + ix] =
-            facDiv * (*v0 - *v1 + *v2 - *v3) -
-            facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
-      }
-    BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id].auxiliary);
-    Real *faceXm = nullptr;
-    Real *faceXp = nullptr;
-    Real *faceYm = nullptr;
-    Real *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
-    }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int im1 = ip0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-        faceXm[iy] =
-            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
-    }
-    if (faceXp != nullptr) {
-      int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
-        Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
-        faceXp[iy] = -facDiv * (*v1 + *v0) +
-                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
-    }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jm1 = jp0 - 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
-        Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
-        faceYm[ix] =
-            facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-      }
-    }
-    if (faceYp != nullptr) {
-      int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jp1 = jp0 + 1;
-        Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-        Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
-        Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
-        faceYp[ix] = -facDiv * (*v1 + *v0) +
-                     (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
       }
     }
   }
@@ -5196,10 +5139,8 @@ int main(int argc, char **argv) {
           Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
           Real o1[3] = {0, 0, shapes[i]->omega};
           Real o2[3] = {0, 0, shapes[j]->omega};
-          Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1],
-                        0};
-          Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1],
-                        0};
+          Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1], 0};
+          Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1], 0};
           Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
           Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
           auto &coll = collisions[i];
@@ -5330,7 +5271,68 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeB<pressure_rhs>(pressure_rhs());
+      pressure_rhs kernel = pressure_rhs();
+      Synchronizer *Synch =
+          sync1(kernel.stencil, var.vel->synchronizers, &var.vel->tree,
+                &var.vel->all, &var.vel->infos, &var.vel->timestamp, 2);
+      pressure_rhs kernel2 = kernel;
+      kernel2.stencil.sx = kernel2.stencil2.sx;
+      kernel2.stencil.sy = kernel2.stencil2.sy;
+      kernel2.stencil.ex = kernel2.stencil2.ex;
+      kernel2.stencil.ey = kernel2.stencil2.ey;
+      kernel2.stencil.tensorial = kernel2.stencil2.tensorial;
+      Synchronizer *Synch2 =
+          sync1(kernel2.stencil, var.tmpV->synchronizers, &var.tmpV->tree,
+                &var.tmpV->all, &var.tmpV->infos, &var.tmpV->timestamp, 2);
+      const Stencil &stencil = kernel.stencil;
+      const Stencil &stencil2 = kernel2.stencil;
+      std::vector<Info> &blk = var.vel->infos;
+      std::vector<bool> ready(blk.size(), false);
+      std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
+      std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
+      const int Ninner = avail0.size();
+      std::vector<Info *> avail1;
+      std::vector<Info *> avail12;
+#pragma omp parallel
+      {
+        VectorLab lab;
+        VectorLab lab2;
+        lab.prepare(stencil);
+        lab2.prepare(stencil2);
+#pragma omp for
+        for (int i = 0; i < Ninner; i++) {
+          Info *I = avail0[i];
+          Info *I2 = avail02[i];
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I,
+                   true, Synch->sLength);
+          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
+                    kernel2.stencil, I2, true, Synch2->sLength);
+          kernel(lab, lab2, I, I2);
+          ready[I->id] = true;
+        }
+#pragma omp master
+        {
+          MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
+                      MPI_STATUSES_IGNORE);
+          avail1 = Synch->buf->halo_blocks;
+
+          MPI_Waitall(Synch2->buf->requests.size(),
+                      Synch2->buf->requests.data(), MPI_STATUSES_IGNORE);
+          avail12 = Synch2->buf->halo_blocks;
+        }
+#pragma omp barrier
+        const int Nhalo = avail1.size();
+#pragma omp for
+        for (int i = 0; i < Nhalo; i++) {
+          Info *I = avail1[i];
+          Info *I2 = avail12[i];
+          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, kernel.stencil, I,
+                   true, Synch->sLength);
+          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf,
+                    kernel.stencil2, I2, true, Synch->sLength);
+          kernel(lab, lab2, I, I2);
+        }
+      }
       fillcases(var.buf1, &var.tmp->tree, 1);
       std::vector<Info> &presInfo = var.pres->infos;
       std::vector<Info> &poldInfo = var.pold->infos;
