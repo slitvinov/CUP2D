@@ -2930,7 +2930,7 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, long nblock, Info *infos, char *path) {
-  long i, j, k, l, m, x, y, ncell, ncell_total, offset;
+  long i, j, k, l, m, x, y, nblock_total, offset;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX], xdmf_path[FILENAME_MAX],
       *xyz_base, *attr_base;
   MPI_File mpi_file;
@@ -2947,12 +2947,11 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       attr_base = &attr_path[j + 1];
     }
   }
-  ncell = nblock * _BS_ * _BS_;
-  MPI_Exscan(&ncell, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
   if (sim.rank == sim.size - 1) {
-    ncell_total = ncell + offset;
+    nblock_total = nblock + offset;
     xmf = fopen(xdmf_path, "w");
     fprintf(xmf,
             "<Xdmf\n"
@@ -2984,13 +2983,13 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
             "    </Grid>\n"
             "  </Domain>\n"
             "</Xdmf>\n",
-            time, ncell_total, 4 * ncell_total, xyz_base, ncell_total,
-            attr_base);
+            time, _BS_ * _BS_ * nblock_total, 4 * _BS_ * _BS_ * nblock_total,
+            xyz_base, _BS_ * _BS_ * nblock_total, attr_base);
     fclose(xmf);
   }
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  attr = (float *)malloc(3 * ncell * sizeof *attr);
+  attr = (float *)malloc(3 * _BS_ * _BS_ * nblock * sizeof *attr);
   l = 0;
   Info *chiInfo = var.chi->infos.data();
   for (i = 0; i < nblock; i++) {
@@ -3027,8 +3026,9 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
   MPI_File_close(&mpi_file);
   MPI_File_open(MPI_COMM_WORLD, attr_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_write_at_all(mpi_file, 3 * offset * sizeof *attr, attr,
-                        3 * ncell * sizeof *attr, MPI_BYTE, MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(mpi_file, 3 * offset * _BS_ * _BS_ * sizeof *attr, attr,
+                        3 * nblock * _BS_ * _BS_ * sizeof *attr, MPI_BYTE,
+                        MPI_STATUS_IGNORE);
   MPI_File_close(&mpi_file);
   free(attr);
 }
