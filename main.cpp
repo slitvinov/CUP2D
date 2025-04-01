@@ -2935,7 +2935,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
       *xyz_base, *attr_base;
   MPI_File mpi_file;
   FILE *xmf;
-  float *attr;
+  float *attr, float xyz[8];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   snprintf(attr_path, sizeof attr_path, "%s.attr.raw", path);
   snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
@@ -2988,10 +2988,9 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
             attr_base);
     fclose(xmf);
   }
-  float xyz[8];
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
-  MPI_File_set_view(mpi_file, offset * sizeof xyz, MPI_FLOAT, MPI_FLOAT, "native",
+  MPI_File_set_view(mpi_file, 8 * offset, MPI_FLOAT, MPI_FLOAT, "native",
                     MPI_INFO_NULL);
   attr = (float *)malloc(3 * ncell * sizeof *attr);
   k = l = 0;
