@@ -23,7 +23,7 @@
 enum { max_dim = 2 };
 
 typedef double Real;
-static MPI_Datatype const MPI_Real = MPI_DOUBLE;
+#define MPI_Real MPI_DOUBLE 
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
