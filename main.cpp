@@ -2808,7 +2808,6 @@ static struct {
 static void pressure_rhs_fun(VectorLab &velLab, VectorLab &uDefLab,
                              const Info *info, const Info *) {
   Stencil stencil{-1, -1, 2, 2, false};
-  Stencil stencil2{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   const std::vector<Info> &chiInfo = var.chi->infos;
   Real *vm = velLab.m;
