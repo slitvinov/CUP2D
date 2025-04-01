@@ -170,7 +170,6 @@ struct UnPackInfo {
   int ly;
   int srcxstart;
   int srcystart;
-  int srczstart;
   int LX;
   int LY;
   int CoarseVersionOffset;
@@ -855,7 +854,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                            L[1],
                            0,
                            0,
-                           0,
                            L[0],
                            L[1],
                            -1,
@@ -904,7 +902,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                L[1],
                srcx,
                srcy,
-               srcz,
                info.LX,
                info.LY,
                info.CoarseVersionOffset,
