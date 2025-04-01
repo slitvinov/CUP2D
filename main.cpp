@@ -177,7 +177,7 @@ struct UnPackInfo {
   int CoarseVersionLY;
   int CoarseVersionsrcxstart;
   int CoarseVersionsrcystart;
-  int CoarseVersionsrczstart;
+  //  int CoarseVersionsrczstart;
   int level;
   int icode;
   int rank;
@@ -861,7 +861,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                            0,
                            0,
                            0,
-                           0,
                            f[k].infos[0]->level,
                            f[k].icode[1],
                            otherrank,
@@ -909,7 +908,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                info.CoarseVersionLY,
                Csrcx,
                Csrcy,
-               Csrcz,
                f[remEl1].infos[0]->level,
                f[remEl1].icode[1],
                otherrank,
