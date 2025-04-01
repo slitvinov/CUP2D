@@ -182,7 +182,6 @@ struct UnPackInfo {
   int rank;
   int index_0;
   int index_1;
-  int index_2;
   long long IDreceiver;
 };
 struct HaloBlockGroup {
@@ -865,7 +864,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                            otherrank,
                            f[k].infos[0]->index[0],
                            f[k].infos[0]->index[1],
-                           f[k].infos[0]->index[2],
                            f[k].infos[1]->id2};
         if (f[k].CoarseStencil) {
           Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
@@ -912,7 +910,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                otherrank,
                f[remEl1].infos[0]->index[0],
                f[remEl1].infos[0]->index[1],
-               f[remEl1].infos[0]->index[2],
                f[remEl1].infos[1]->id2});
           f[remEl1].dis = info.offset;
         }
@@ -2238,17 +2235,17 @@ struct BlockLab {
             else if (code[1] == 0)
               t = unpack->index_1 - 2 * info->index[1];
             else
-              t = unpack->index_2 - 2 * info->index[2];
+              t = - 2 * info->index[2];
             assert(t == 0 || t == 1);
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
             if (abs(code[0]) == 1) {
               Bmod = unpack->index_1 - 2 * info->index[1];
-              Bdiv = unpack->index_2 - 2 * info->index[2];
+              Bdiv = - 2 * info->index[2];
             } else if (abs(code[1]) == 1) {
               Bmod = unpack->index_0 - 2 * info->index[0];
-              Bdiv = unpack->index_2 - 2 * info->index[2];
+              Bdiv = - 2 * info->index[2];
             } else {
               Bmod = unpack->index_0 - 2 * info->index[0];
               Bdiv = unpack->index_1 - 2 * info->index[1];
