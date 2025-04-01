@@ -4784,8 +4784,8 @@ int main(int argc, char **argv) {
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve;
   int n_max = std::max(sim.bpdx, sim.bpdy);
-  sim.space_curve->base_level = (log(n_max) / log(2));
-  if (sim.space_curve->base_level < (double)(log(n_max) / log(2)))
+  sim.space_curve->base_level = log(n_max) / log(2);
+  if (sim.space_curve->base_level < log(n_max) / log(2))
     sim.space_curve->base_level++;
   sim.space_curve->i_inverse.resize(sim.levelMax);
   sim.space_curve->j_inverse.resize(sim.levelMax);
