@@ -2892,9 +2892,9 @@ struct Obstacle {
   }
 };
 struct KernelVorticity {
-  const std::vector<Info> &tmpInfo = var.tmp->infos;
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
+    const std::vector<Info> &tmpInfo = var.tmp->infos;
     const Real i2h = 0.5 * (1 << info->level) * _BS_;
     Real *TMP = tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3042,8 +3042,8 @@ struct Shape {
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
-  std::vector<Info> &chiInfo = var.chi->infos;
   void operator()(Real *um, const Info *info) const {
+    std::vector<Info> &chiInfo = var.chi->infos;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -3242,8 +3242,8 @@ static void ongrid() {
 struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
-  const std::vector<Info> &tmpInfo = var.tmp->infos;
   void operator()(Real *um, const Info *info) const {
+    const std::vector<Info> &tmpInfo = var.tmp->infos;
     Real *TMP = tmpInfo[info->id].block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
@@ -4047,8 +4047,8 @@ static void adapt() {
 }
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
-  std::vector<Info> &tmpVInfo = var.tmpV->infos;
   void operator()(Real *um, Info *info) {
+    std::vector<Info> &tmpVInfo = var.tmpV->infos;
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
@@ -4452,8 +4452,8 @@ struct Solver {
 };
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
-  const std::vector<Info> &tmpVInfo = var.tmpV->infos;
   void operator()(Real *um, const Info *info) const {
+    const std::vector<Info> &tmpVInfo = var.tmpV->infos;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = tmpVInfo[info->id].block;
