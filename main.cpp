@@ -4670,7 +4670,6 @@ int main(int argc, char **argv) {
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = 1.0 / _BS_;
   sim.space_curve = new SpaceCurve;
-  sim.space_curve->base_level = 0;
   sim.space_curve->i_inverse.resize(sim.levelMax);
   sim.space_curve->j_inverse.resize(sim.levelMax);
   sim.space_curve->Zsave.resize(sim.levelMax);
@@ -4679,11 +4678,11 @@ int main(int argc, char **argv) {
   sim.space_curve->Zsave[0].resize(1, -1);
   int c[2] = {0, 0};
   long long index =
-      sim.space_curve->AxestoTranspose(c, sim.space_curve->base_level);
+      sim.space_curve->AxestoTranspose(c, 0);
   long long substract = 0;
   for (long long h = 0; h < index; h++) {
     int X[2] = {0, 0};
-    sim.space_curve->TransposetoAxes(h, X, sim.space_curve->base_level);
+    sim.space_curve->TransposetoAxes(h, X, 0);
     if (X[0] >= 1 || X[1] >= 1)
       substract++;
   }

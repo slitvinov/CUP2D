@@ -202,7 +202,6 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[2] = o2[2] + J2[2] * impulse;
 }
 struct SpaceCurve {
-  int base_level;
   std::vector<std::vector<long long>> Zsave;
   std::vector<std::vector<int>> i_inverse, j_inverse;
   long long AxestoTranspose(const int *X_in, int b) const {
@@ -249,12 +248,12 @@ struct SpaceCurve {
       return 0;
     long long retval;
     const int c2_a[2] = {i, j};
-    retval = AxestoTranspose(c2_a, l + base_level);
+    retval = AxestoTranspose(c2_a, l);
     return retval;
   }
   void inverse(long long Z, int l, int *i, int *j) const {
     int X[2] = {0, 0};
-    TransposetoAxes(Z, X, l + base_level);
+    TransposetoAxes(Z, X, l);
     *i = X[0];
     *j = X[1];
     return;
