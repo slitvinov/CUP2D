@@ -1801,9 +1801,6 @@ private:
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
-  BlockLab() = delete;
-  BlockLab(const BlockLab &) = delete;
-  BlockLab &operator=(const BlockLab &) = delete;
 public:
   int NX, NY, end[3], start[3];
   unsigned int nm[2], nc[2];
