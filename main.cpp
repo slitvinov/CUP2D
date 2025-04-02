@@ -2703,57 +2703,59 @@ void applyBCface(VectorLab *lab, bool wall, bool coarse) {
       }
   }
 }
+struct ScalarLab;
+template <int, int> void Neumann2D(ScalarLab *, bool);
 struct ScalarLab : public BlockLab {
   ScalarLab() : BlockLab(1){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
-  template <int dir, int side> void Neumann2D(bool coarse) {
-    int stenBeg[2];
-    int stenEnd[2];
-    int bsize[2];
-    if (!coarse) {
-      stenEnd[0] = this->end[0];
-      stenEnd[1] = this->end[1];
-      stenBeg[0] = this->start[0];
-      stenBeg[1] = this->start[1];
-      bsize[0] = _BS_;
-      bsize[1] = _BS_;
-    } else {
-      stenEnd[0] = (this->end[0]) / 2 + 1 + (2) - 1;
-      stenEnd[1] = (this->end[1]) / 2 + 1 + (2) - 1;
-      stenBeg[0] = (this->start[0] - 1) / 2 + (-1);
-      stenBeg[1] = (this->start[1] - 1) / 2 + (-1);
-      bsize[0] = _BS_ / 2;
-      bsize[1] = _BS_ / 2;
-    }
-    Real *cb = coarse ? this->c : this->m;
-    const unsigned int *n = coarse ? this->nc : this->nm;
-    int s[2];
-    int e[2];
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
-                    : bsize[0] + stenEnd[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
-                    : bsize[1] + stenEnd[1] - 1;
-    for (int iy = s[1]; iy < e[1]; iy++)
-      for (int ix = s[0]; ix < e[0]; ix++)
-        cb[ix - stenBeg[0] + n[0] * (iy - stenBeg[1])] =
-            cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
-               n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
-                       stenBeg[1])];
-  }
   virtual void _apply_bc(Info *info, bool coarse) {
     if (info->index[0] == 0)
-      Neumann2D<0, 0>(coarse);
+      Neumann2D<0, 0>(this, coarse);
     if (info->index[0] == this->NX - 1)
-      Neumann2D<0, 1>(coarse);
+      Neumann2D<0, 1>(this, coarse);
     if (info->index[1] == 0)
-      Neumann2D<1, 0>(coarse);
+      Neumann2D<1, 0>(this, coarse);
     if (info->index[1] == this->NY - 1)
-      Neumann2D<1, 1>(coarse);
+      Neumann2D<1, 1>(this, coarse);
   }
 };
+template <int dir, int side> void Neumann2D(ScalarLab *lab, bool coarse) {
+  int stenBeg[2];
+  int stenEnd[2];
+  int bsize[2];
+  if (!coarse) {
+    stenEnd[0] = lab->end[0];
+    stenEnd[1] = lab->end[1];
+    stenBeg[0] = lab->start[0];
+    stenBeg[1] = lab->start[1];
+    bsize[0] = _BS_;
+    bsize[1] = _BS_;
+  } else {
+    stenEnd[0] = (lab->end[0]) / 2 + 1 + (2) - 1;
+    stenEnd[1] = (lab->end[1]) / 2 + 1 + (2) - 1;
+    stenBeg[0] = (lab->start[0] - 1) / 2 + (-1);
+    stenBeg[1] = (lab->start[1] - 1) / 2 + (-1);
+    bsize[0] = _BS_ / 2;
+    bsize[1] = _BS_ / 2;
+  }
+  Real *cb = coarse ? lab->c : lab->m;
+  const unsigned int *n = coarse ? lab->nc : lab->nm;
+  int s[2];
+  int e[2];
+  s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
+  s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
+  e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
+                  : bsize[0] + stenEnd[0] - 1;
+  e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
+                  : bsize[1] + stenEnd[1] - 1;
+  for (int iy = s[1]; iy < e[1]; iy++)
+    for (int ix = s[0]; ix < e[0]; ix++)
+      cb[ix - stenBeg[0] + n[0] * (iy - stenBeg[1])] =
+          cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
+             n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
+                     stenBeg[1])];
+}
 static struct {
   Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
   struct {
