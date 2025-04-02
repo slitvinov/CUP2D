@@ -4699,7 +4699,7 @@ int main(int argc, char **argv) {
       sim.space_curve->j_inverse[0][index] = j;
       sim.space_curve->Zsave[0][j + i] = index;
     }
-
+  assert(sim.space_curve->isRegular);
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
