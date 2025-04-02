@@ -1800,6 +1800,7 @@ private:
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
+  BlockLab() = delete;
 
 public:
   int NX, NY, end[3], start[3];
@@ -2604,7 +2605,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   bool done = false;
 #pragma omp parallel
   {
-    Lab lab;
+    BlockLab lab(dim);
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (std::size_t i = 0; i < inner->size(); ++i) {
@@ -2636,11 +2637,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 typedef Real ScalarBlock[_BS_][_BS_];
-struct VectorLab : public BlockLab {
-  VectorLab() : BlockLab(2) {}
-  VectorLab(const VectorLab &) = delete;
-  VectorLab &operator=(const VectorLab &) = delete;
-};
 template <int dir, int side>
 void applyBCface(BlockLab *lab, bool wall, bool coarse) {
   const int A = 1 - dir;
@@ -2712,11 +2708,6 @@ static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
       applyBCface<1, 1>(lab, false, coarse);
   }
 }
-struct ScalarLab : public BlockLab {
-  ScalarLab() : BlockLab(1){};
-  ScalarLab(const ScalarLab &) = delete;
-  ScalarLab &operator=(const ScalarLab &) = delete;
-};
 template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
   int stenBeg[2];
   int stenEnd[2];
@@ -2782,7 +2773,7 @@ static struct {
   };
   struct Buffers *buf1, *buf2;
 } var;
-static void pressure_rhs_fun(VectorLab &velLab, VectorLab &uDefLab,
+static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
                              const Info *info, const Info *) {
   Stencil stencil{-1, -1, 2, 2, false};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
@@ -3169,7 +3160,7 @@ static void ongrid() {
     }
   }
 
-  computeA<ScalarLab>(PutChiOnGrid(), var.tmp, 1);
+  computeA<BlockLab>(PutChiOnGrid(), var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -3279,8 +3270,8 @@ struct GradChiOnTmp {
 };
 static void adapt() {
   bool movedBlocks = false;
-  computeA<VectorLab>(KernelVorticity(), var.vel, 2);
-  computeA<ScalarLab>(GradChiOnTmp(), var.chi, 1);
+  computeA<BlockLab>(KernelVorticity(), var.vel, 2);
+  computeA<BlockLab>(GradChiOnTmp(), var.chi, 1);
   Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch =
       sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
@@ -3570,9 +3561,9 @@ static void adapt() {
     std::vector<long long> dealloc_IDs;
     BlockLab *lab;
     if (dim == 1) {
-      lab = new ScalarLab;
+      lab = new BlockLab(1);
     } else {
-      lab = new VectorLab;
+      lab = new BlockLab(2);
     }
     if (Synch != nullptr)
       lab->prepare(stencil);
@@ -4826,7 +4817,7 @@ int main(int argc, char **argv) {
                  2);
         var.tmpV->UpdateFluxCorrection = false;
       }
-      computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
+      computeA<BlockLab>(KernelAdvectDiffuse(), var.vel, 2);
       fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -4842,7 +4833,7 @@ int main(int argc, char **argv) {
                  2);
         var.tmpV->UpdateFluxCorrection = false;
       }
-      computeA<VectorLab>(KernelAdvectDiffuse(), var.vel, 2);
+      computeA<BlockLab>(KernelAdvectDiffuse(), var.vel, 2);
       fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -5205,8 +5196,8 @@ int main(int argc, char **argv) {
       std::vector<Info *> avail12;
 #pragma omp parallel
       {
-        VectorLab lab;
-        VectorLab lab2;
+        BlockLab lab(2);
+        BlockLab lab2(2);
         lab.prepare(stencil);
         lab2.prepare(stencil);
 #pragma omp for
@@ -5256,7 +5247,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeA<ScalarLab>(pressure_rhs1(), var.pold, 1);
+      computeA<BlockLab>(pressure_rhs1(), var.pold, 1);
       fillcases(var.buf1, &var.tmp->tree, 1);
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
       const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
@@ -5408,7 +5399,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeA<ScalarLab>(pressureCorrectionKernel(), var.pres, 1);
+      computeA<BlockLab>(pressureCorrectionKernel(), var.pres, 1);
       fillcases(var.buf1, &var.tmp->tree, 1);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
