@@ -2766,7 +2766,7 @@ static struct {
     bool basic;
     bool boundary_needed;
     const char *prefix;
-  } F[8] = {
+  } F[] = {
       {&tmp, 1, false, true, "tmp"},
       {&chi, 1, false, false, "chi"},
       {&vold, 2, false, false, NULL},
