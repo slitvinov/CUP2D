@@ -4679,7 +4679,6 @@ int main(int argc, char **argv) {
   sim.Ctol = parser("Ctol").asDouble();
   sim.AdaptSteps = parser("AdaptSteps").asInt();
   sim.levelStart = parser("levelStart").asInt();
-  Real extent = parser("extent").asDouble();
   sim.CFL = parser("CFL").asDouble();
   sim.endTime = parser("tend").asDouble();
   sim.lambda = parser("lambda").asDouble();
@@ -4689,7 +4688,7 @@ int main(int argc, char **argv) {
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
   sim.dumpTime = parser("tdump").asDouble();
-  sim.h0 = extent / std::max(sim.bpdx, sim.bpdy) / _BS_;
+  sim.h0 = 1.0 / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
   sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
