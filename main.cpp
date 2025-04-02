@@ -66,7 +66,6 @@ static struct {
   std::vector<int> bCollisionID;
   std::vector<long long> levels, nblocks, nrows;
   std::vector<Shape *> shapes;
-  struct SpaceCurve *space_curve;
   struct Solver *solver;
   struct LocalSpMatDnVec *mat;
 } sim;
@@ -281,30 +280,28 @@ static void fill(Info *b, int level, long long Z) {
   b->level = level;
   b->Z = Z;
   b->h = 1.0 / _BS_ / (1 << level);
-  sim.space_curve->inverse(Z, level, &i, &j);
-  b->origin[0] = (Real) i / (1 << level);
-  b->origin[1] = (Real) j / (1 << level);
+  sfc_inverse(Z, level, &i, &j);
+  b->origin[0] = (Real)i / (1 << level);
+  b->origin[1] = (Real)j / (1 << level);
   b->state = Leave;
   b->changed2 = true;
   b->auxiliary = nullptr;
-  sim.space_curve->inverse(Z, level, &b->index[0], &b->index[1]);
+  sfc_inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
   Bmax[0] = 1 << level;
   Bmax[1] = 1 << level;
   for (i = -1; i < 2; i++)
     for (j = -1; j < 2; j++)
-      b->Znei[i + 1][j + 1] = sim.space_curve->forward(
-          level, (b->index[0] + i) % Bmax[0], (b->index[1] + j) % Bmax[1]);
+      b->Znei[i + 1][j + 1] = sfc_forward(level, (b->index[0] + i) % Bmax[0],
+                                          (b->index[1] + j) % Bmax[1]);
   for (i = 0; i < 2; i++)
     for (j = 0; j < 2; j++)
-      b->Zchild[i][j] = sim.space_curve->forward(level + 1, 2 * b->index[0] + i,
-                                                 2 * b->index[1] + j);
-  b->Zparent =
-      level == 0
-          ? 0
-          : sim.space_curve->forward(level - 1, (b->index[0] / 2) % Bmax[0],
-                                     (b->index[1] / 2) % Bmax[1]);
-  b->id2 = sim.space_curve->Encode(level, b->index);
+      b->Zchild[i][j] =
+          sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
+  b->Zparent = level == 0 ? 0
+                          : sfc_forward(level - 1, (b->index[0] / 2) % Bmax[0],
+                                        (b->index[1] / 2) % Bmax[1]);
+  b->id2 = sfc_encode(level, b->index);
   b->id = b->id2;
 }
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
@@ -1098,7 +1095,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
       if (UpdateIDs)
         getf(all, level, Z)->id = recv_buffer[kk][index + 2];
       int p[2];
-      sim.space_curve->inverse(Z, level, &p[0], &p[1]);
+      sfc_inverse(Z, level, &p[0], &p[1]);
       if (level < sim.levelMax - 1)
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
@@ -2570,7 +2567,7 @@ static void AddBlock(int dim, Grid *grid, int level, long long Z,
   Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
-  sim.space_curve->inverse(Z, level, &p[0], &p[1]);
+  sfc_inverse(Z, level, &p[0], &p[1]);
   if (level < sim.levelMax - 1)
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
@@ -4665,7 +4662,6 @@ int main(int argc, char **argv) {
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.dumpTime = parser("tdump").asDouble();
-  sim.space_curve = new SpaceCurve;
 
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
@@ -4696,17 +4692,11 @@ int main(int argc, char **argv) {
   sim.levels.push_back(2);
   for (int m = 1; m < sim.levelMax; m++)
     sim.levels.push_back(sim.levels[m - 1] + 1 << (m + 1));
-  long long total_blocks = pow(pow(2, sim.levelStart), 2);
-  long long my_blocks = total_blocks / sim.size;
-  if ((long long)sim.rank < total_blocks % sim.size)
-    my_blocks++;
-  long long n_start = sim.rank * (total_blocks / sim.size);
-  if (total_blocks % sim.size > 0) {
-    if ((long long)sim.rank < total_blocks % sim.size)
-      n_start += sim.rank;
-    else
-      n_start += total_blocks % sim.size;
-  }
+  long long total_blocks = 1LL << (2 * sim.levelStart);
+  long long base = total_blocks / sim.size;
+  long long rema = total_blocks % sim.size;
+  long long my_blocks = base + (sim.rank < rema ? 1 : 0);
+  long long n_start = sim.rank * (sim.rank < rema ? sim.rank : rema);
   var.buf1 = new Buffers;
   var.buf2 = new Buffers;
 
@@ -4723,7 +4713,7 @@ int main(int argc, char **argv) {
       g->infos.push_back(*info);
       g->tree[aux] = sim.rank;
       int p[2];
-      sim.space_curve->inverse(Z, sim.levelStart, &p[0], &p[1]);
+      sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {

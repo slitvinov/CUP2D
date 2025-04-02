@@ -201,72 +201,70 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-struct SpaceCurve {
-  long long forward(const int l, int i, int j) {
-    if (l >= sim.levelMax)
-      return 0;
-    int n = 1 << l;
-    int rx, ry, s, d = 0;
-    for (s = n / 2; s > 0; s /= 2) {
-      rx = (i & s) > 0;
-      ry = (j & s) > 0;
-      d += s * s * ((3 * rx) ^ ry);
-      rot(n, &i, &j, rx, ry);
+void sfc_rot(long long n, int *x, int *y, long long rx, long long ry) {
+  if (ry == 0) {
+    if (rx == 1) {
+      *x = n - 1 - *x;
+      *y = n - 1 - *y;
     }
-    return d;
+    int t = *x;
+    *x = *y;
+    *y = t;
   }
-  void inverse(long long Z, int l, int *i, int *j) {
-    int n = 1 << l;
-    long long rx, ry, s;
-    *i = 0;
-    *j = 0;
-    for (s = 1; s < n; s *= 2) {
-      rx = 1 & (Z / 2);
-      ry = 1 & (Z ^ rx);
-      rot(s, i, j, rx, ry);
-      *i += s * rx;
-      *j += s * ry;
-      Z /= 4;
-    }
+}
+long long sfc_forward(const int l, int i, int j) {
+  if (l >= sim.levelMax)
+    return 0;
+  int n = 1 << l;
+  int rx, ry, s, d = 0;
+  for (s = n / 2; s > 0; s /= 2) {
+    rx = (i & s) > 0;
+    ry = (j & s) > 0;
+    d += s * s * ((3 * rx) ^ ry);
+    sfc_rot(n, &i, &j, rx, ry);
   }
-  void rot(long long n, int *x, int *y, long long rx, long long ry) {
-    if (ry == 0) {
-      if (rx == 1) {
-        *x = n - 1 - *x;
-        *y = n - 1 - *y;
-      }
-      int t = *x;
-      *x = *y;
-      *y = t;
-    }
+  return d;
+}
+void sfc_inverse(long long Z, int l, int *i, int *j) {
+  int n = 1 << l;
+  long long rx, ry, s;
+  *i = 0;
+  *j = 0;
+  for (s = 1; s < n; s *= 2) {
+    rx = 1 & (Z / 2);
+    ry = 1 & (Z ^ rx);
+    sfc_rot(s, i, j, rx, ry);
+    *i += s * rx;
+    *j += s * ry;
+    Z /= 4;
   }
-  long long Encode(int level, int index[2]) {
-    long long retval = 0;
-    int ix = index[0];
-    int iy = index[1];
-    for (int l = level; l >= 0; l--) {
-      long long Zp = forward(l, ix, iy);
-      retval += Zp;
-      ix /= 2;
-      iy /= 2;
-    }
-    ix = 2 * index[0];
-    iy = 2 * index[1];
-    for (int l = level + 1; l < sim.levelMax; l++) {
-      long long Zc = forward(l, ix, iy);
-      Zc -= Zc % 4;
-      retval += Zc;
-      int ix1, iy1;
-      inverse(Zc, l, &ix1, &iy1);
-      ix = 2 * ix1;
-      iy = 2 * iy1;
-    }
-    retval += level;
-    return retval;
+}
+long long sfc_encode(int level, int index[2]) {
+  long long retval = 0;
+  int ix = index[0];
+  int iy = index[1];
+  for (int l = level; l >= 0; l--) {
+    long long Zp = sfc_forward(l, ix, iy);
+    retval += Zp;
+    ix /= 2;
+    iy /= 2;
   }
+  ix = 2 * index[0];
+  iy = 2 * index[1];
+  for (int l = level + 1; l < sim.levelMax; l++) {
+    long long Zc = sfc_forward(l, ix, iy);
+    Zc -= Zc % 4;
+    retval += Zc;
+    int ix1, iy1;
+    sfc_inverse(Zc, l, &ix1, &iy1);
+    ix = 2 * ix1;
+    iy = 2 * iy1;
+  }
+  retval += level;
+  return retval;
 };
 static long long forward(int level, int i, int j) {
-  return sim.space_curve->forward(level, i % (1 << level), j % (1 << level));
+  return sfc_forward(level, i % (1 << level), j % (1 << level));
 }
 struct Value {
   std::string content;
