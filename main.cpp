@@ -4671,8 +4671,6 @@ int main(int argc, char **argv) {
   sim.h0 = 1.0 / _BS_;
   sim.space_curve = new SpaceCurve;
   sim.space_curve->base_level = 0;
-  if (sim.space_curve->base_level < 0)
-    sim.space_curve->base_level++;
   sim.space_curve->i_inverse.resize(sim.levelMax);
   sim.space_curve->j_inverse.resize(sim.levelMax);
   sim.space_curve->Zsave.resize(sim.levelMax);
