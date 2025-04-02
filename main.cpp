@@ -1794,8 +1794,9 @@ static void bc_scalar(BlockLab *, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
 
 struct BlockLab {
-private:
   const int dim;
+
+private:
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
@@ -2688,6 +2689,7 @@ void applyBCface(BlockLab *lab, bool wall, bool coarse) {
   }
 }
 static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
+  assert(lab->dim == 2);
   if (!coarse) {
     if (info->index[0] == 0)
       applyBCface<0, 0>(lab, false, false);
@@ -2746,6 +2748,7 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
 void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
+  assert(lab->dim == 2);
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, coarse);
   if (info->index[0] == lab->NX - 1)
