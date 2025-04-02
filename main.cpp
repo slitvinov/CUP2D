@@ -1225,9 +1225,11 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   }
   std::vector<int> send_buffer_size(sim.size, 0);
   std::vector<int> recv_buffer_size(sim.size, 0);
-  for (int i = 0; i < buf->Cases.size(); i++)
+  for (int i = 0; i < buf->Cases.size(); i++) {
     for (int j = 0; j < 4; j++)
       free(buf->Cases[i]->d[j]);
+    delete buf->Cases[i];
+  }
   buf->Cases.clear();
   buf->Map.clear();
   std::array<int, 6> icode = {1 * 2 + 3 * 1 + 9 * 1, 1 * 0 + 3 * 1 + 9 * 1,
@@ -5403,10 +5405,11 @@ int main(int argc, char **argv) {
       delete oblock;
     delete shape;
   }
-  for (BlockCase *Case : var.buf1->Cases)
-    delete Case;
-  for (BlockCase *Case : var.buf2->Cases)
-    delete Case;
+  for (int i = 0; i < var.buf1->Cases.size(); i++) {
+    for (int j = 0; j < 4; j++)
+      free(var.buf1->Cases[i]->d[j]);
+    delete var.buf1->Cases[i];
+  }
   delete var.buf1;
   delete var.buf2;
   MPI_Finalize();
