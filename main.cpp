@@ -1801,7 +1801,6 @@ private:
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
-  int NX, NY;
 public:
   unsigned int nm[2], nc[2];
   int end[3], start[3];
@@ -1840,9 +1839,7 @@ public:
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, SyncBuf *buf,
             const Stencil &stencil, Info *info, bool applybc, int *sLength) {
-    int aux = 1 << info->level;
-    NX = aux;
-    NY = aux;
+    int n = 1 << info->level;
     assert(m != NULL);
     Real *p = info->block;
     Real *u = m;
@@ -1858,8 +1855,8 @@ public:
           p += dim * _BS_;
     }
     coarsened = false;
-    bool xskin = info->index[0] == 0 || info->index[0] == NX - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == NY - 1;
+    bool xskin = info->index[0] == 0 || info->index[0] == n - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == n - 1;
     int xskip = info->index[0] == 0 ? -1 : 1;
     int yskip = info->index[1] == 0 ? -1 : 1;
     int icodes[8];
@@ -1881,8 +1878,8 @@ public:
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        int infoNei_index[2] = {(info->index[0] + code[0] + NX) % NX,
-                                (info->index[1] + code[1] + NY) % NY};
+        int infoNei_index[2] = {(info->index[0] + code[0] + n) % n,
+                                (info->index[1] + code[1] + n) % n};
         int infoNei_index_true[2] = {(info->index[0] + code[0]),
                                      (info->index[1] + code[1])};
         Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
@@ -2137,9 +2134,9 @@ public:
       for (int i = 0; i < k; ++i) {
         int icode = icodes[i];
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-        int infoNei_index[3] = {(info->index[0] + code[0] + NX) % NX,
-                                (info->index[1] + code[1] + NY) % NY,
-                                (info->index[2] + code[2] + aux) % aux};
+        int infoNei_index[3] = {(info->index[0] + code[0] + n) % n,
+                                (info->index[1] + code[1] + n) % n,
+                                (info->index[2] + code[2] + n) % n};
         if (UseCoarseStencil0(info, infoNei_index)) {
           FillCoarseVersion(code);
           coarsened = true;
