@@ -203,7 +203,6 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
 }
 struct SpaceCurve {
   int base_level;
-  bool isRegular;
   std::vector<std::vector<long long>> Zsave;
   std::vector<std::vector<int>> i_inverse, j_inverse;
   long long AxestoTranspose(const int *X_in, int b) const {
@@ -249,36 +248,15 @@ struct SpaceCurve {
     if (l >= sim.levelMax)
       return 0;
     long long retval;
-    if (!isRegular) {
-      const int I = i / aux;
-      const int J = j / aux;
-      const int c2_a[2] = {i - I * aux, j - J * aux};
-      retval = AxestoTranspose(c2_a, l);
-      retval += Zsave[0][J + I] * aux * aux;
-    } else {
-      const int c2_a[2] = {i, j};
-      retval = AxestoTranspose(c2_a, l + base_level);
-    }
+    const int c2_a[2] = {i, j};
+    retval = AxestoTranspose(c2_a, l + base_level);
     return retval;
   }
   void inverse(long long Z, int l, int *i, int *j) const {
-    if (isRegular) {
-      int X[2] = {0, 0};
-      TransposetoAxes(Z, X, l + base_level);
-      *i = X[0];
-      *j = X[1];
-    } else {
-      int aux = 1 << l;
-      long long Zloc = Z % (aux * aux);
-      int X[2] = {0, 0};
-      TransposetoAxes(Zloc, X, l);
-      long long index = Z / (aux * aux);
-      int I, J;
-      I = i_inverse[0][index];
-      J = j_inverse[0][index];
-      *i = X[0] + I * aux;
-      *j = X[1] + J * aux;
-    }
+    int X[2] = {0, 0};
+    TransposetoAxes(Z, X, l + base_level);
+    *i = X[0];
+    *j = X[1];
     return;
   }
   long long Encode(int level, int index[2]) {

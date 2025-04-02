@@ -4679,27 +4679,21 @@ int main(int argc, char **argv) {
   sim.space_curve->i_inverse[0].resize(1, -1);
   sim.space_curve->j_inverse[0].resize(1, -1);
   sim.space_curve->Zsave[0].resize(1, -1);
-  sim.space_curve->isRegular = true;
-  for (int j = 0; j < 1; j++)
-    for (int i = 0; i < 1; i++) {
-      int c[2] = {i, j};
-      long long index =
-          sim.space_curve->AxestoTranspose(c, sim.space_curve->base_level);
-      long long substract = 0;
-      for (long long h = 0; h < index; h++) {
-        int X[2] = {0, 0};
-        sim.space_curve->TransposetoAxes(h, X, sim.space_curve->base_level);
-        if (X[0] >= 1 || X[1] >= 1)
-          substract++;
-      }
-      index -= substract;
-      if (substract > 0)
-        sim.space_curve->isRegular = false;
-      sim.space_curve->i_inverse[0][index] = i;
-      sim.space_curve->j_inverse[0][index] = j;
-      sim.space_curve->Zsave[0][j + i] = index;
-    }
-  assert(sim.space_curve->isRegular);
+  int c[2] = {0, 0};
+  long long index =
+      sim.space_curve->AxestoTranspose(c, sim.space_curve->base_level);
+  long long substract = 0;
+  for (long long h = 0; h < index; h++) {
+    int X[2] = {0, 0};
+    sim.space_curve->TransposetoAxes(h, X, sim.space_curve->base_level);
+    if (X[0] >= 1 || X[1] >= 1)
+      substract++;
+  }
+  index -= substract;
+  sim.space_curve->i_inverse[0][index] = 0;
+  sim.space_curve->j_inverse[0][index] = 0;
+  sim.space_curve->Zsave[0][0] = index;
+
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
