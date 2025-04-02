@@ -2766,14 +2766,10 @@ static struct {
     bool basic;
     bool boundary_needed;
     const char *prefix;
-  } F[] = {
-      {&tmp, 1, false, true, "tmp"},
-      {&chi, 1, false, false, "chi"},
-      {&vold, 2, false, false, NULL},
-      {&pres, 1, false, false, "pres"},
-      {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL}, /* {&abc, 10, false, true, NULL}, */
-  };
+  } F[7] = {{&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
+            {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
+            {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
+            {&tmpV, 2, true, false, NULL}};
   struct Buffers *buf1, *buf2;
 } var;
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
