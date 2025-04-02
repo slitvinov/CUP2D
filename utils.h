@@ -201,7 +201,7 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[1] = o2[1] + J2[1] * impulse;
   ho2[2] = o2[2] + J2[2] * impulse;
 }
-void sfc_rot(long long n, int *x, int *y, long long rx, long long ry) {
+static void sfc_rot(long long n, int *x, int *y, long long rx, long long ry) {
   if (ry == 0) {
     if (rx == 1) {
       *x = n - 1 - *x;
@@ -212,7 +212,7 @@ void sfc_rot(long long n, int *x, int *y, long long rx, long long ry) {
     *y = t;
   }
 }
-long long sfc_forward(const int l, int i, int j) {
+static long long sfc_forward(const int l, int i, int j) {
   if (l >= sim.levelMax)
     return 0;
   int n = 1 << l;
@@ -225,7 +225,7 @@ long long sfc_forward(const int l, int i, int j) {
   }
   return d;
 }
-void sfc_inverse(long long Z, int l, int *i, int *j) {
+static void sfc_inverse(long long Z, int l, int *i, int *j) {
   int n = 1 << l;
   long long rx, ry, s;
   *i = 0;
@@ -239,7 +239,7 @@ void sfc_inverse(long long Z, int l, int *i, int *j) {
     Z /= 4;
   }
 }
-long long sfc_encode(int level, int index[2]) {
+static long long sfc_encode(int level, int index[2]) {
   long long retval = 0;
   int ix = index[0];
   int iy = index[1];
