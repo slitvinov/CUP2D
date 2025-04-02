@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   if (argc == 3) {
     i = atoi(argv[1]);
     j = atoi(argv[2]);
-    Z = sim.space_curve->forward(level, i, j);
+    Z = forward(level, i, j);
     printf("[%d %d] %d %d\n", i, j, (int)Z, (int)morton(i, j));
   } else {
     Z = atoi(argv[1]);

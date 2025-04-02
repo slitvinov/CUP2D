@@ -241,13 +241,10 @@ struct SpaceCurve {
     }
   }
   long long forward(const int l, const int i, const int j) const {
-    const int aux = 1 << l;
     if (l >= sim.levelMax)
       return 0;
-    long long retval;
-    const int c2_a[2] = {i, j};
-    retval = AxestoTranspose(c2_a, l);
-    return retval;
+    const int c[2] = {i, j};
+    retval AxestoTranspose(c, l);
   }
   void inverse(long long Z, int l, int *i, int *j) const {
     int X[2] = {0, 0};
