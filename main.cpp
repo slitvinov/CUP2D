@@ -2760,6 +2760,7 @@ void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
 }
 static struct {
   Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
+  struct Buffers *buf1, *buf2;
   struct {
     Grid **g;
     int dim;
@@ -2770,7 +2771,6 @@ static struct {
             {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
             {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
             {&tmpV, 2, true, false, NULL}};
-  struct Buffers *buf1, *buf2;
 } var;
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
                              const Info *info, const Info *) {
