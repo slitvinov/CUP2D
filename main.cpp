@@ -1789,6 +1789,10 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
        (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
         (dx * dy) * dudxdy);
 }
+struct BlockLab;
+static void bc_scalar(BlockLab *, Info *, bool coarse);
+static void bc_vector(BlockLab *, Info *, bool coarse);
+
 struct BlockLab {
 private:
   const int dim;
@@ -2270,8 +2274,12 @@ public:
         }
       }
     }
-    if (applybc)
-      _apply_bc(info, true);
+    if (applybc) {
+      if (dim == 1)
+        bc_scalar(this, info, true);
+      else
+        bc_scalar(this, info, true);
+    }
     int aux = 1 << info->level;
     bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
     bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
@@ -2491,8 +2499,12 @@ public:
         }
       }
     }
-    if (applybc)
-      _apply_bc(info, false);
+    if (applybc) {
+      if (dim == 1)
+        bc_scalar(this, info, false);
+      else
+        bc_vector(this, info, false);
+    }
   }
   bool UseCoarseStencil0(Info *info, int *infoNei_index) {
     if (info->level == 0 || !use_averages)
@@ -2557,7 +2569,6 @@ public:
       }
     }
   }
-  virtual void _apply_bc(Info *info, bool coarse) = 0;
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
@@ -2625,36 +2636,13 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 typedef Real ScalarBlock[_BS_][_BS_];
-struct VectorLab;
-template <int, int> void applyBCface(VectorLab *, bool, bool);
 struct VectorLab : public BlockLab {
   VectorLab() : BlockLab(2) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
-  virtual void _apply_bc(Info *info, bool coarse) {
-    if (!coarse) {
-      if (info->index[0] == 0)
-        applyBCface<0, 0>(this, false, false);
-      if (info->index[0] == this->NX - 1)
-        applyBCface<0, 1>(this, false, false);
-      if (info->index[1] == 0)
-        applyBCface<1, 0>(this, false, false);
-      if (info->index[1] == this->NY - 1)
-        applyBCface<1, 1>(this, false, false);
-    } else {
-      if (info->index[0] == 0)
-        applyBCface<0, 0>(this, false, coarse);
-      if (info->index[0] == this->NX - 1)
-        applyBCface<0, 1>(this, false, coarse);
-      if (info->index[1] == 0)
-        applyBCface<1, 0>(this, false, coarse);
-      if (info->index[1] == this->NY - 1)
-        applyBCface<1, 1>(this, false, coarse);
-    }
-  }
 };
 template <int dir, int side>
-void applyBCface(VectorLab *lab, bool wall, bool coarse) {
+void applyBCface(BlockLab *lab, bool wall, bool coarse) {
   const int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -2703,22 +2691,31 @@ void applyBCface(VectorLab *lab, bool wall, bool coarse) {
       }
   }
 }
-struct ScalarLab;
-template <int, int> void Neumann2D(ScalarLab *, bool);
+static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
+  if (!coarse) {
+    if (info->index[0] == 0)
+      applyBCface<0, 0>(lab, false, false);
+    if (info->index[0] == lab->NX - 1)
+      applyBCface<0, 1>(lab, false, false);
+    if (info->index[1] == 0)
+      applyBCface<1, 0>(lab, false, false);
+    if (info->index[1] == lab->NY - 1)
+      applyBCface<1, 1>(lab, false, false);
+  } else {
+    if (info->index[0] == 0)
+      applyBCface<0, 0>(lab, false, coarse);
+    if (info->index[0] == lab->NX - 1)
+      applyBCface<0, 1>(lab, false, coarse);
+    if (info->index[1] == 0)
+      applyBCface<1, 0>(lab, false, coarse);
+    if (info->index[1] == lab->NY - 1)
+      applyBCface<1, 1>(lab, false, coarse);
+  }
+}
 struct ScalarLab : public BlockLab {
   ScalarLab() : BlockLab(1){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
-  virtual void _apply_bc(Info *info, bool coarse) {
-    if (info->index[0] == 0)
-      Neumann2D<0, 0>(this, coarse);
-    if (info->index[0] == this->NX - 1)
-      Neumann2D<0, 1>(this, coarse);
-    if (info->index[1] == 0)
-      Neumann2D<1, 0>(this, coarse);
-    if (info->index[1] == this->NY - 1)
-      Neumann2D<1, 1>(this, coarse);
-  }
 };
 template <int dir, int side> void Neumann2D(ScalarLab *lab, bool coarse) {
   int stenBeg[2];
@@ -2755,6 +2752,17 @@ template <int dir, int side> void Neumann2D(ScalarLab *lab, bool coarse) {
           cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
              n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                      stenBeg[1])];
+};
+template <int, int> void Neumann2D(BlockLab *, bool);
+void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
+  if (info->index[0] == 0)
+    Neumann2D<0, 0>(lab, coarse);
+  if (info->index[0] == lab->NX - 1)
+    Neumann2D<0, 1>(lab, coarse);
+  if (info->index[1] == 0)
+    Neumann2D<1, 0>(lab, coarse);
+  if (info->index[1] == lab->NY - 1)
+    Neumann2D<1, 1>(lab, coarse);
 }
 static struct {
   Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
