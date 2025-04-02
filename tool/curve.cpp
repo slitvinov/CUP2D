@@ -44,15 +44,6 @@ int main(int argc, char **argv) {
   long long Z;
   sim.levelMax = 8;
   sim.space_curve = new SpaceCurve;
-  sim.space_curve->i_inverse.resize(sim.levelMax);
-  sim.space_curve->j_inverse.resize(sim.levelMax);
-  sim.space_curve->Zsave.resize(sim.levelMax);
-  sim.space_curve->i_inverse[0].resize(1, -1);
-  sim.space_curve->j_inverse[0].resize(1, -1);
-  sim.space_curve->Zsave[0].resize(1, -1);
-  sim.space_curve->i_inverse[0][0] = 0;
-  sim.space_curve->j_inverse[0][0] = 0;
-  sim.space_curve->Zsave[0][0] = 0;
   level = 5;
   if (argc == 3) {
     i = atoi(argv[1]);
