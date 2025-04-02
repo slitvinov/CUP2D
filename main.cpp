@@ -57,7 +57,6 @@ static struct {
   Real dt;
   Real dumpTime;
   Real endTime;
-  Real extents[2];
   Real h0;
   Real lambda;
   Real nextDumpTime = 0;
@@ -4670,8 +4669,6 @@ int main(int argc, char **argv) {
   sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = 1.0 / _BS_;
-  sim.extents[0] = sim.h0 * _BS_;
-  sim.extents[1] = sim.h0 * _BS_;
   sim.space_curve = new SpaceCurve;
   sim.space_curve->base_level = 0;
   if (sim.space_curve->base_level < 0)
