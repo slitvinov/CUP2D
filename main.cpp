@@ -62,7 +62,6 @@ static struct {
   Real extents[2];
   Real h0;
   Real lambda;
-  Real minH;
   Real nextDumpTime = 0;
   Real nu;
   Real PoissonTol;
@@ -4691,7 +4690,6 @@ int main(int argc, char **argv) {
   sim.h0 = 1.0 / std::max(sim.bpdx, sim.bpdy) / _BS_;
   sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
   sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
-  sim.minH = sim.h0 / (1 << (sim.levelMax - 1));
   sim.space_curve = new SpaceCurve;
   int n_max = std::max(sim.bpdx, sim.bpdy);
   sim.space_curve->base_level = log(n_max) / log(2);
