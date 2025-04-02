@@ -4037,6 +4037,7 @@ static void adapt() {
         it++;
       }
     }
+    //    delete lab;
   }
 }
 struct KernelAdvectDiffuse {
