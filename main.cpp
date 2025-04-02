@@ -281,10 +281,10 @@ static void fill(Info *b, int level, long long Z) {
   int i, j, Bmax[2];
   b->level = level;
   b->Z = Z;
-  b->h = sim.h0 / (1 << level);
+  b->h = 1.0 / _BS_ / (1 << level);
   sim.space_curve->inverse(Z, level, &i, &j);
-  b->origin[0] = i * _BS_ * sim.h0 / (1 << level);
-  b->origin[1] = j * _BS_ * sim.h0 / (1 << level);
+  b->origin[0] = (Real) i / (1 << level);
+  b->origin[1] = (Real) j / (1 << level);
   b->state = Leave;
   b->changed2 = true;
   b->auxiliary = nullptr;
@@ -1038,7 +1038,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   double *boxes;
   double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
   for (auto &info : *infos) {
-    double h = sim.h0 / (1 << info.level);
+    double h = 1.0 / _BS_ / (1 << info.level);
     box[0] = std::min(box[0], info.origin[0] - 1.5 * h);
     box[1] = std::min(box[1], info.origin[1] - 1.5 * h);
     box[2] = std::max(box[2], info.origin[0] + h * _BS_ + 1.5 * h);
@@ -2900,7 +2900,7 @@ struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(VectorLab *lab, const Info *info) const {
     Real *um = lab->m;
-    const Real i2h = 0.5 / (sim.h0 / (1 << info->level));
+    const Real i2h = 0.5 * (1 << info->level) * _BS_;
     Real *TMP = tmpInfo[info->id].block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
