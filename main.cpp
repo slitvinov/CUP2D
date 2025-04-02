@@ -2630,7 +2630,7 @@ struct VectorLab : public BlockLab {
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
   template <int dir, int side>
-  void applyBCface(bool wall, bool coarse = false) {
+  void applyBCface(bool wall, bool coarse) {
     const int A = 1 - dir;
     if (!coarse) {
       int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -2685,13 +2685,13 @@ struct VectorLab : public BlockLab {
   void _apply_bc(Info *info, bool coarse) {
     if (!coarse) {
       if (info->index[0] == 0)
-        this->template applyBCface<0, 0>(false);
+        this->template applyBCface<0, 0>(false, false);
       if (info->index[0] == this->NX - 1)
-        this->template applyBCface<0, 1>(false);
+        this->template applyBCface<0, 1>(false, false);
       if (info->index[1] == 0)
-        this->template applyBCface<1, 0>(false);
+        this->template applyBCface<1, 0>(false, false);
       if (info->index[1] == this->NY - 1)
-        this->template applyBCface<1, 1>(false);
+        this->template applyBCface<1, 1>(false, false);
     } else {
       if (info->index[0] == 0)
         this->template applyBCface<0, 0>(false, coarse);
