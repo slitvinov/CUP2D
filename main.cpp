@@ -1228,7 +1228,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   for (int i = 0; i < buf->Cases.size(); i++) {
     for (int j = 0; j < 4; j++)
       free(buf->Cases[i]->d[j]);
-    delete buf->Cases[i];
+    free(buf->Cases[i]);
   }
   buf->Cases.clear();
   buf->Map.clear();
@@ -1298,7 +1298,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
       }
     }
     if (stored) {
-      BlockCase *c = new BlockCase;
+      BlockCase *c = (BlockCase*)malloc(sizeof BlockCase);
       c->level = info.level;
       c->Z = info.Z;
       for (int i = 0; i < 4; i++)
@@ -5408,7 +5408,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < var.buf1->Cases.size(); i++) {
     for (int j = 0; j < 4; j++)
       free(var.buf1->Cases[i]->d[j]);
-    delete var.buf1->Cases[i];
+    free(var.buf1->Cases[i]);
   }
   delete var.buf1;
   delete var.buf2;
