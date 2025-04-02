@@ -215,18 +215,18 @@ struct SpaceCurve {
     }
     return d;
   }
-  void TransposetoAxes(long long index, int *X, int b) const {
-    int n = 1 << b;
-    long long rx, ry, s, t = index;
-    X[0] = 0;
-    X[1] = 0;
+  void inverse(long long Z, int l, int *i, int *j) const {
+    int n = 1 << l;
+    long long rx, ry, s;
+    *i = 0;
+    *j = 0;
     for (s = 1; s < n; s *= 2) {
-      rx = 1 & (t / 2);
-      ry = 1 & (t ^ rx);
-      rot(s, &X[0], &X[1], rx, ry);
-      X[0] += s * rx;
-      X[1] += s * ry;
-      t /= 4;
+      rx = 1 & (Z / 2);
+      ry = 1 & (Z ^ rx);
+      rot(s, i, j, rx, ry);
+      *i += s * rx;
+      *j += s * ry;
+      Z /= 4;
     }
   }
   void rot(long long n, int *x, int *y, long long rx, long long ry) const {
@@ -245,13 +245,6 @@ struct SpaceCurve {
       return 0;
     const int c[2] = {i, j};
     return AxestoTranspose(c, l);
-  }
-  void inverse(long long Z, int l, int *i, int *j) const {
-    int X[2] = {0, 0};
-    TransposetoAxes(Z, X, l);
-    *i = X[0];
-    *j = X[1];
-    return;
   }
   long long Encode(int level, int index[2]) {
     long long retval = 0;
@@ -279,8 +272,7 @@ struct SpaceCurve {
   }
 };
 static long long forward(int level, int i, int j) {
-  return sim.space_curve->forward(level, i % (1 << level),
-                                  j % (1 << level));
+  return sim.space_curve->forward(level, i % (1 << level), j % (1 << level));
 }
 struct Value {
   std::string content;
