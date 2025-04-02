@@ -2557,7 +2557,7 @@ public:
       }
     }
   }
-  virtual void _apply_bc(Info *info, bool coarse) {}
+  virtual void _apply_bc(Info *info, bool coarse) = 0;
   BlockLab(const BlockLab &) = delete;
   BlockLab &operator=(const BlockLab &) = delete;
 };
@@ -2682,7 +2682,7 @@ struct VectorLab : public BlockLab {
         }
     }
   }
-  void _apply_bc(Info *info, bool coarse) override {
+  void _apply_bc(Info *info, bool coarse) {
     if (!coarse) {
       if (info->index[0] == 0)
         this->template applyBCface<0, 0>(false);
@@ -2744,7 +2744,7 @@ struct ScalarLab : public BlockLab {
                n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                        stenBeg[1])];
   }
-  virtual void _apply_bc(Info *info, bool coarse) override {
+  virtual void _apply_bc(Info *info, bool coarse) {
     if (info->index[0] == 0)
       Neumann2D<0, 0>(coarse);
     if (info->index[0] == this->NX - 1)
