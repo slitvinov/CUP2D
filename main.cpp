@@ -2756,18 +2756,18 @@ struct ScalarLab : public BlockLab {
   }
 };
 static struct {
-  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
+  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold, *abc;
   struct {
     Grid **g;
     int dim;
     bool basic;
     bool boundary_needed;
     const char *prefix;
-  } F[7] = {
+  } F[8] = {
       {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
       {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
       {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL},
+      {&tmpV, 2, true, false, NULL},    {&abc, 1, false, true, NULL},
   };
   struct Buffers *buf1, *buf2;
 } var;
@@ -3247,7 +3247,7 @@ struct GradChiOnTmp {
   const Stencil stencil{-4, -4, 5, 5, true};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab *lab, const Info *info) const {
-    Real * TMP = tmpInfo[info->id].block;
+    Real *TMP = tmpInfo[info->id].block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
