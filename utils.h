@@ -244,7 +244,7 @@ struct SpaceCurve {
     if (l >= sim.levelMax)
       return 0;
     const int c[2] = {i, j};
-    retval AxestoTranspose(c, l);
+    return AxestoTranspose(c, l);
   }
   void inverse(long long Z, int l, int *i, int *j) const {
     int X[2] = {0, 0};
