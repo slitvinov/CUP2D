@@ -1298,7 +1298,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
       }
     }
     if (stored) {
-      BlockCase *c = (BlockCase*)malloc(sizeof BlockCase);
+      BlockCase *c = (BlockCase *)malloc(sizeof BlockCase);
       c->level = info.level;
       c->Z = info.Z;
       for (int i = 0; i < 4; i++)
