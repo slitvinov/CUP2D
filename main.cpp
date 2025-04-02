@@ -2767,7 +2767,7 @@ static struct {
       {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
       {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
       {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL},    {&abc, 10, false, true, "abc"},
+      {&tmpV, 2, true, false, NULL},    {&abc, 10, false, true, NULL},
   };
   struct Buffers *buf1, *buf2;
 } var;
