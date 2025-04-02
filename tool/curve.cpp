@@ -19,7 +19,6 @@
 typedef double Real;
 static struct {
   int levelMax;
-  struct SpaceCurve *space_curve;
 } sim;
 #include "../utils.h"
 
@@ -43,7 +42,6 @@ int main(int argc, char **argv) {
   int i, j, level;
   long long Z;
   sim.levelMax = 8;
-  sim.space_curve = new SpaceCurve;
   level = 5;
   if (argc == 3) {
     i = atoi(argv[1]);
@@ -52,7 +50,7 @@ int main(int argc, char **argv) {
     printf("[%d %d] %d %d\n", i, j, (int)Z, (int)morton(i, j));
   } else {
     Z = atoi(argv[1]);
-    sim.space_curve->inverse(Z, level, &i, &j);
+    sfc_inverse(Z, level, &i, &j);
     printf("%d %d %d\n", i, j, (int)Z);
   }
 }
