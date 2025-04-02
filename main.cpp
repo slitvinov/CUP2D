@@ -20,7 +20,7 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum { max_dim = 10 };
+enum { max_dim = 2 };
 
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
@@ -2756,7 +2756,7 @@ struct ScalarLab : public BlockLab {
   }
 };
 static struct {
-  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold, *abc;
+  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
   struct {
     Grid **g;
     int dim;
@@ -2767,7 +2767,7 @@ static struct {
       {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
       {&vold, 2, false, false, NULL},
       {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL},    {&abc, 10, false, true, NULL},
+      {&tmpV, 2, true, false, NULL},    /* {&abc, 10, false, true, NULL}, */
   };
   struct Buffers *buf1, *buf2;
 } var;
@@ -3101,7 +3101,7 @@ struct PutChiOnGrid {
 static void ongrid() {
   std::vector<Info> &tmpInfo = var.tmp->infos;
   std::vector<Info> &chiInfo = var.chi->infos;
-  const size_t Nblocks = var.abc->infos.size();
+  const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     memset(chiInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
