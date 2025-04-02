@@ -202,7 +202,7 @@ static void collision(Real m1, Real m2, Real *I1, Real *I2, Real *v1, Real *v2,
   ho2[2] = o2[2] + J2[2] * impulse;
 }
 struct SpaceCurve {
-  long long AxestoTranspose(const int *X_in, int b) const {
+  long long AxestoTranspose(int *X_in, int b) {
     int x = X_in[0];
     int y = X_in[1];
     int n = 1 << b;
@@ -215,7 +215,7 @@ struct SpaceCurve {
     }
     return d;
   }
-  void inverse(long long Z, int l, int *i, int *j) const {
+  void inverse(long long Z, int l, int *i, int *j) {
     int n = 1 << l;
     long long rx, ry, s;
     *i = 0;
@@ -229,7 +229,7 @@ struct SpaceCurve {
       Z /= 4;
     }
   }
-  void rot(long long n, int *x, int *y, long long rx, long long ry) const {
+  void rot(long long n, int *x, int *y, long long rx, long long ry) {
     if (ry == 0) {
       if (rx == 1) {
         *x = n - 1 - *x;
@@ -240,10 +240,10 @@ struct SpaceCurve {
       *y = t;
     }
   }
-  long long forward(const int l, const int i, const int j) const {
+  long long forward(const int l, int i, int j) {
     if (l >= sim.levelMax)
       return 0;
-    const int c[2] = {i, j};
+    int c[2] = {i, j};
     return AxestoTranspose(c, l);
   }
   long long Encode(int level, int index[2]) {
