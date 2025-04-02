@@ -2278,7 +2278,7 @@ public:
       if (dim == 1)
         bc_scalar(this, info, true);
       else
-        bc_scalar(this, info, true);
+        bc_vector(this, info, true);
     }
     int aux = 1 << info->level;
     bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
