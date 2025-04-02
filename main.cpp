@@ -4696,7 +4696,7 @@ int main(int argc, char **argv) {
   long long base = total_blocks / sim.size;
   long long rema = total_blocks % sim.size;
   long long my_blocks = base + (sim.rank < rema ? 1 : 0);
-  long long n_start = sim.rank * (sim.rank < rema ? sim.rank : rema);
+  long long n_start = sim.rank * base + (sim.rank < rema ? sim.rank : rema);
   var.buf1 = new Buffers;
   var.buf2 = new Buffers;
 
