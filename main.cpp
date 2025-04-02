@@ -4670,15 +4670,6 @@ int main(int argc, char **argv) {
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = 1.0 / _BS_;
   sim.space_curve = new SpaceCurve;
-  sim.space_curve->i_inverse.resize(sim.levelMax);
-  sim.space_curve->j_inverse.resize(sim.levelMax);
-  sim.space_curve->Zsave.resize(sim.levelMax);
-  sim.space_curve->i_inverse[0].resize(1, -1);
-  sim.space_curve->j_inverse[0].resize(1, -1);
-  sim.space_curve->Zsave[0].resize(1, -1);
-  sim.space_curve->i_inverse[0][0] = 0;
-  sim.space_curve->j_inverse[0][0] = 0;
-  sim.space_curve->Zsave[0][0] = 0;
 
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
