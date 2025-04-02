@@ -2597,7 +2597,7 @@ struct MPI_Block {
   long long Z;
   uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
 };
-template <typename Lab, typename Kernel>
+template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
                               &g->all, &g->infos, &g->timestamp, dim);
@@ -3159,7 +3159,7 @@ static void ongrid() {
     }
   }
 
-  computeA<BlockLab>(PutChiOnGrid(), var.tmp, 1);
+  computeA(PutChiOnGrid(), var.tmp, 1);
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -3269,8 +3269,8 @@ struct GradChiOnTmp {
 };
 static void adapt() {
   bool movedBlocks = false;
-  computeA<BlockLab>(KernelVorticity(), var.vel, 2);
-  computeA<BlockLab>(GradChiOnTmp(), var.chi, 1);
+  computeA(KernelVorticity(), var.vel, 2);
+  computeA(GradChiOnTmp(), var.chi, 1);
   Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch =
       sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
@@ -4816,7 +4816,7 @@ int main(int argc, char **argv) {
                  2);
         var.tmpV->UpdateFluxCorrection = false;
       }
-      computeA<BlockLab>(KernelAdvectDiffuse(), var.vel, 2);
+      computeA(KernelAdvectDiffuse(), var.vel, 2);
       fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -4832,7 +4832,7 @@ int main(int argc, char **argv) {
                  2);
         var.tmpV->UpdateFluxCorrection = false;
       }
-      computeA<BlockLab>(KernelAdvectDiffuse(), var.vel, 2);
+      computeA(KernelAdvectDiffuse(), var.vel, 2);
       fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -5246,7 +5246,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeA<BlockLab>(pressure_rhs1(), var.pold, 1);
+      computeA(pressure_rhs1(), var.pold, 1);
       fillcases(var.buf1, &var.tmp->tree, 1);
       const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
       const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
@@ -5398,7 +5398,7 @@ int main(int argc, char **argv) {
         prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
         var.tmp->UpdateFluxCorrection = false;
       }
-      computeA<BlockLab>(pressureCorrectionKernel(), var.pres, 1);
+      computeA(pressureCorrectionKernel(), var.pres, 1);
       fillcases(var.buf1, &var.tmp->tree, 1);
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
