@@ -1801,6 +1801,7 @@ private:
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
+
 public:
   unsigned int nm[2], nc[2];
   int end[3], start[3];
@@ -4764,10 +4765,9 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       h = std::min(var.vel->infos[i].h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
-    size_t Nblocks = velInfo.size();
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
-    for (size_t i = 0; i < Nblocks; i++) {
+    for (size_t i = 0; i < velInfo.size(); i++) {
       Real *vel = velInfo[i].block;
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         umax = std::max(umax, std::fabs(vel[j]));
@@ -4776,632 +4776,624 @@ int main(int argc, char **argv) {
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
     Real dtAdvection = h / (umax + 1e-8);
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    if (sim.dt > 2e-16) {
-      if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
-        sim.nextDumpTime += sim.dumpTime;
-        char path[FILENAME_MAX];
-        snprintf(path, sizeof path, "vel.%08d", sim.step);
-        dump(sim.time, var.vel->infos.size(), var.vel->infos.data(), path);
-      }
-      if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
-        adapt();
-      for (const auto &shape : sim.shapes) {
-        shape->center[0] += sim.dt * shape->u;
-        shape->center[1] += sim.dt * shape->v;
-        shape->orientation += sim.dt * shape->omega;
-        shape->orientation = shape->orientation > M_PI
-                                 ? shape->orientation - 2 * M_PI
-                                 : shape->orientation;
-        shape->orientation = shape->orientation < -M_PI
-                                 ? shape->orientation + 2 * M_PI
-                                 : shape->orientation;
-      }
-      ongrid();
-      size_t Nblocks = velInfo.size();
+    if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
+      sim.nextDumpTime += sim.dumpTime;
+      char path[FILENAME_MAX];
+      snprintf(path, sizeof path, "vel.%08d", sim.step);
+      dump(sim.time, var.vel->infos.size(), var.vel->infos.data(), path);
+    }
+    if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
+      adapt();
+    for (const auto &shape : sim.shapes) {
+      shape->center[0] += sim.dt * shape->u;
+      shape->center[1] += sim.dt * shape->v;
+      shape->orientation += sim.dt * shape->omega;
+      shape->orientation = shape->orientation > M_PI
+                               ? shape->orientation - 2 * M_PI
+                               : shape->orientation;
+      shape->orientation = shape->orientation < -M_PI
+                               ? shape->orientation + 2 * M_PI
+                               : shape->orientation;
+    }
+    ongrid();
 #pragma omp parallel for
-      for (size_t i = 0; i < velInfo.size(); i++)
-        memcpy(var.vold->infos[i].block, velInfo[i].block,
-               2 * _BS_ * _BS_ * sizeof(Real));
-      if (var.tmpV->UpdateFluxCorrection) {
-        prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree,
-                 2);
-        var.tmpV->UpdateFluxCorrection = false;
-      }
-      computeA(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.buf2, &var.tmpV->tree, 2);
+    for (size_t i = 0; i < velInfo.size(); i++)
+      memcpy(var.vold->infos[i].block, velInfo[i].block,
+             2 * _BS_ * _BS_ * sizeof(Real));
+    if (var.tmpV->UpdateFluxCorrection) {
+      prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree, 2);
+      var.tmpV->UpdateFluxCorrection = false;
+    }
+    computeA(KernelAdvectDiffuse(), var.vel, 2);
+    fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
-      for (size_t i = 0; i < velInfo.size(); i++) {
-        Real *V = velInfo[i].block;
-        Real *Vold = var.vold->infos[i].block;
-        Real *tmpV = var.tmpV->infos[i].block;
-        Real ih2 = 0.5 / (velInfo[i].h * velInfo[i].h);
-        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
-          V[j] = Vold[j] + tmpV[j] * ih2;
-      }
-      if (var.tmpV->UpdateFluxCorrection) {
-        prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree,
-                 2);
-        var.tmpV->UpdateFluxCorrection = false;
-      }
-      computeA(KernelAdvectDiffuse(), var.vel, 2);
-      fillcases(var.buf2, &var.tmpV->tree, 2);
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      Real *V = velInfo[i].block;
+      Real *Vold = var.vold->infos[i].block;
+      Real *tmpV = var.tmpV->infos[i].block;
+      Real ih2 = 0.5 / (velInfo[i].h * velInfo[i].h);
+      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+        V[j] = Vold[j] + tmpV[j] * ih2;
+    }
+    if (var.tmpV->UpdateFluxCorrection) {
+      prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree, 2);
+      var.tmpV->UpdateFluxCorrection = false;
+    }
+    computeA(KernelAdvectDiffuse(), var.vel, 2);
+    fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
-      for (size_t i = 0; i < velInfo.size(); i++) {
-        Real *V = velInfo[i].block;
-        Real *Vold = var.vold->infos[i].block;
-        Real *tmpV = var.tmpV->infos[i].block;
-        Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
-        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
-          V[j] = Vold[j] + tmpV[j] * ih2;
-      }
-      for (const auto &shape : sim.shapes) {
-        const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-        const Real Cx = shape->center[0];
-        const Real Cy = shape->center[1];
-        Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      Real *V = velInfo[i].block;
+      Real *Vold = var.vold->infos[i].block;
+      Real *tmpV = var.tmpV->infos[i].block;
+      Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+        V[j] = Vold[j] + tmpV[j] * ih2;
+    }
+    for (const auto &shape : sim.shapes) {
+      const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      const Real Cx = shape->center[0];
+      const Real Cy = shape->center[1];
+      Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
-        for (size_t i = 0; i < velInfo.size(); i++) {
-          const Real *VEL = velInfo[i].block;
-          const Real hsq = velInfo[i].h * velInfo[i].h;
-          if (oblock[velInfo[i].id] == nullptr)
-            continue;
-          const Real *chi = (Real *)oblock[velInfo[i].id]->chi;
-          const Real *udef = (Real *)oblock[velInfo[i].id]->udef;
-          const Real lambdt = sim.lambda * sim.dt;
-          for (int iy = 0; iy < _BS_; ++iy)
-            for (int ix = 0; ix < _BS_; ++ix) {
-              int j = _BS_ * iy + ix;
-              if (chi[j] <= 0)
-                continue;
-              const Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
-                                     VEL[2 * j + 1] - udef[2 * j + 1]};
-              const Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
-              const Real F = hsq * Xlamdt / (1 + Xlamdt);
-              Real p[2];
-              p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
-              p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-              p[0] -= Cx;
-              p[1] -= Cy;
-              PM += F;
-              PJ += F * (p[0] * p[0] + p[1] * p[1]);
-              PX += F * p[0];
-              PY += F * p[1];
-              UM += F * udiff[0];
-              VM += F * udiff[1];
-              AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
-            }
-        }
-        Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-        MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                      MPI_COMM_WORLD);
-        PM = quantities[0];
-        PJ = quantities[1];
-        PX = quantities[2];
-        PY = quantities[3];
-        UM = quantities[4];
-        VM = quantities[5];
-        AM = quantities[6];
-        /* TODO */
-        Real D = -PM * (PY * PY + PX * PX - PJ * PM);
-        shape->u =
-            -(PX * PY * VM + (PX * PX - PJ * PM) * UM - AM * PM * PY) / D;
-        shape->v =
-            -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
-        /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
-         */
-        shape->omega = 0.2;
-      }
-      const auto &shapes = sim.shapes;
-      const auto &infos = var.chi->infos;
-      const size_t N = shapes.size();
-      sim.bCollisionID.clear();
-      std::vector<CollisionInfo> collisions(N);
-      std::vector<Real> n_vec(3 * N, 0.0);
-#pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < N; ++i)
-        for (size_t j = 0; j < N; ++j) {
-          if (i == j)
-            continue;
-          auto &coll = collisions[i];
-          auto &iBlocks = shapes[i]->obstacleBlocks;
-          Real iU0 = shapes[i]->u;
-          Real iU1 = shapes[i]->v;
-          Real iomega2 = shapes[i]->omega;
-          Real iCx = shapes[i]->center[0];
-          Real iCy = shapes[i]->center[1];
-          auto &jBlocks = shapes[j]->obstacleBlocks;
-          Real jU0 = shapes[j]->u;
-          Real jU1 = shapes[j]->v;
-          Real jomega2 = shapes[j]->omega;
-          Real jCx = shapes[j]->center[0];
-          Real jCy = shapes[j]->center[1];
-          assert(iBlocks.size() == jBlocks.size());
-          const size_t nBlocks = iBlocks.size();
-          for (size_t k = 0; k < nBlocks; ++k) {
-            if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
+      for (size_t i = 0; i < velInfo.size(); i++) {
+        const Real *VEL = velInfo[i].block;
+        const Real hsq = velInfo[i].h * velInfo[i].h;
+        if (oblock[velInfo[i].id] == nullptr)
+          continue;
+        const Real *chi = (Real *)oblock[velInfo[i].id]->chi;
+        const Real *udef = (Real *)oblock[velInfo[i].id]->udef;
+        const Real lambdt = sim.lambda * sim.dt;
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            int j = _BS_ * iy + ix;
+            if (chi[j] <= 0)
               continue;
-            auto &iSDF = iBlocks[k]->dist;
-            auto &jSDF = jBlocks[k]->dist;
-            ScalarBlock &iChi = iBlocks[k]->chi;
-            ScalarBlock &jChi = jBlocks[k]->chi;
-            auto &iUDEF = iBlocks[k]->udef;
-            auto &jUDEF = jBlocks[k]->udef;
-            for (int iy = 0; iy < _BS_; ++iy)
-              for (int ix = 0; ix < _BS_; ++ix) {
-                if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
-                  continue;
-                Real pos[2];
-                pos[0] = infos[k].origin[0] + infos[k].h * (ix + 0.5);
-                pos[1] = infos[k].origin[1] + infos[k].h * (iy + 0.5);
-                const Real iUr0 = -iomega2 * (pos[1] - iCy);
-                const Real iUr1 = iomega2 * (pos[0] - iCx);
-                coll.iM += iChi[iy][ix];
-                coll.iPosX += iChi[iy][ix] * pos[0];
-                coll.iPosY += iChi[iy][ix] * pos[1];
-                coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
-                coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
-                const Real jUr0 = -jomega2 * (pos[1] - jCy);
-                const Real jUr1 = jomega2 * (pos[0] - jCx);
-                coll.jM += jChi[iy][ix];
-                coll.jPosX += jChi[iy][ix] * pos[0];
-                coll.jPosY += jChi[iy][ix] * pos[1];
-                coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
-                coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
-                Real dSDFdx_i;
-                Real dSDFdx_j;
-                if (ix == 0) {
-                  dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
-                  dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
-                } else if (ix == _BS_ - 1) {
-                  dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
-                  dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
-                } else {
-                  dSDFdx_i = 0.5 * (iSDF[iy][ix + 1] - iSDF[iy][ix - 1]);
-                  dSDFdx_j = 0.5 * (jSDF[iy][ix + 1] - jSDF[iy][ix - 1]);
-                }
-                Real dSDFdy_i;
-                Real dSDFdy_j;
-                if (iy == 0) {
-                  dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
-                  dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
-                } else if (iy == _BS_ - 1) {
-                  dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
-                  dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
-                } else {
-                  dSDFdy_i = 0.5 * (iSDF[iy + 1][ix] - iSDF[iy - 1][ix]);
-                  dSDFdy_j = 0.5 * (jSDF[iy + 1][ix] - jSDF[iy - 1][ix]);
-                }
-                coll.ivecX += iChi[iy][ix] * dSDFdx_i;
-                coll.ivecY += iChi[iy][ix] * dSDFdy_i;
-                coll.jvecX += jChi[iy][ix] * dSDFdx_j;
-                coll.jvecY += jChi[iy][ix] * dSDFdy_j;
-              }
+            const Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
+                                   VEL[2 * j + 1] - udef[2 * j + 1]};
+            const Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
+            const Real F = hsq * Xlamdt / (1 + Xlamdt);
+            Real p[2];
+            p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
+            p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
+            p[0] -= Cx;
+            p[1] -= Cy;
+            PM += F;
+            PJ += F * (p[0] * p[0] + p[1] * p[1]);
+            PX += F * p[0];
+            PY += F * p[1];
+            UM += F * udiff[0];
+            VM += F * udiff[1];
+            AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
           }
-        }
-      std::vector<Real> buffer(20 * N);
-      for (size_t i = 0; i < N; i++) {
-        auto &coll = collisions[i];
-        buffer[20 * i] = coll.iM;
-        buffer[20 * i + 1] = coll.iPosX;
-        buffer[20 * i + 2] = coll.iPosY;
-        buffer[20 * i + 3] = coll.iPosZ;
-        buffer[20 * i + 4] = coll.iMomX;
-        buffer[20 * i + 5] = coll.iMomY;
-        buffer[20 * i + 6] = coll.iMomZ;
-        buffer[20 * i + 7] = coll.ivecX;
-        buffer[20 * i + 8] = coll.ivecY;
-        buffer[20 * i + 9] = coll.ivecZ;
-        buffer[20 * i + 10] = coll.jM;
-        buffer[20 * i + 11] = coll.jPosX;
-        buffer[20 * i + 12] = coll.jPosY;
-        buffer[20 * i + 13] = coll.jPosZ;
-        buffer[20 * i + 14] = coll.jMomX;
-        buffer[20 * i + 15] = coll.jMomY;
-        buffer[20 * i + 16] = coll.jMomZ;
-        buffer[20 * i + 17] = coll.jvecX;
-        buffer[20 * i + 18] = coll.jvecY;
-        buffer[20 * i + 19] = coll.jvecZ;
       }
-      MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real,
-                    MPI_SUM, MPI_COMM_WORLD);
-      for (size_t i = 0; i < N; i++) {
-        auto &coll = collisions[i];
-        coll.iM = buffer[20 * i];
-        coll.iPosX = buffer[20 * i + 1];
-        coll.iPosY = buffer[20 * i + 2];
-        coll.iPosZ = buffer[20 * i + 3];
-        coll.iMomX = buffer[20 * i + 4];
-        coll.iMomY = buffer[20 * i + 5];
-        coll.iMomZ = buffer[20 * i + 6];
-        coll.ivecX = buffer[20 * i + 7];
-        coll.ivecY = buffer[20 * i + 8];
-        coll.ivecZ = buffer[20 * i + 9];
-        coll.jM = buffer[20 * i + 10];
-        coll.jPosX = buffer[20 * i + 11];
-        coll.jPosY = buffer[20 * i + 12];
-        coll.jPosZ = buffer[20 * i + 13];
-        coll.jMomX = buffer[20 * i + 14];
-        coll.jMomY = buffer[20 * i + 15];
-        coll.jMomZ = buffer[20 * i + 16];
-        coll.jvecX = buffer[20 * i + 17];
-        coll.jvecY = buffer[20 * i + 18];
-        coll.jvecZ = buffer[20 * i + 19];
-      }
+      Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
+      MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+                    MPI_COMM_WORLD);
+      PM = quantities[0];
+      PJ = quantities[1];
+      PX = quantities[2];
+      PY = quantities[3];
+      UM = quantities[4];
+      VM = quantities[5];
+      AM = quantities[6];
+      /* TODO */
+      Real D = -PM * (PY * PY + PX * PX - PJ * PM);
+      shape->u = -(PX * PY * VM + (PX * PX - PJ * PM) * UM - AM * PM * PY) / D;
+      shape->v = -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
+      /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
+       */
+      shape->omega = 0.2;
+    }
+    const auto &shapes = sim.shapes;
+    const auto &infos = var.chi->infos;
+    const size_t N = shapes.size();
+    sim.bCollisionID.clear();
+    std::vector<CollisionInfo> collisions(N);
+    std::vector<Real> n_vec(3 * N, 0.0);
 #pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < N; ++i)
-        for (size_t j = i + 1; j < N; ++j) {
-          if (i == j)
+    for (size_t i = 0; i < N; ++i)
+      for (size_t j = 0; j < N; ++j) {
+        if (i == j)
+          continue;
+        auto &coll = collisions[i];
+        auto &iBlocks = shapes[i]->obstacleBlocks;
+        Real iU0 = shapes[i]->u;
+        Real iU1 = shapes[i]->v;
+        Real iomega2 = shapes[i]->omega;
+        Real iCx = shapes[i]->center[0];
+        Real iCy = shapes[i]->center[1];
+        auto &jBlocks = shapes[j]->obstacleBlocks;
+        Real jU0 = shapes[j]->u;
+        Real jU1 = shapes[j]->v;
+        Real jomega2 = shapes[j]->omega;
+        Real jCx = shapes[j]->center[0];
+        Real jCy = shapes[j]->center[1];
+        assert(iBlocks.size() == jBlocks.size());
+        const size_t nBlocks = iBlocks.size();
+        for (size_t k = 0; k < nBlocks; ++k) {
+          if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
             continue;
-          Real m1 = shapes[i]->M;
-          Real m2 = shapes[j]->M;
-          Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
-          Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
-          Real o1[3] = {0, 0, shapes[i]->omega};
-          Real o2[3] = {0, 0, shapes[j]->omega};
-          Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1], 0};
-          Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1], 0};
-          Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
-          Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
-          auto &coll = collisions[i];
-          auto &coll_other = collisions[j];
-          if (coll.iM < 2.0 || coll.jM < 2.0)
-            continue;
-          if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
-            continue;
-          if (std::fabs(coll.iPosX / coll.iM -
-                        coll_other.iPosX / coll_other.iM) > shapes[i]->length ||
-              std::fabs(coll.iPosY / coll.iM -
-                        coll_other.iPosY / coll_other.iM) > shapes[i]->length) {
-            continue;
-          }
-#pragma omp critical
-          {
-            sim.bCollisionID.push_back(i);
-            sim.bCollisionID.push_back(j);
-          }
-          Real ho1[3];
-          Real ho2[3];
-          Real hv1[3];
-          Real hv2[3];
-          Real norm_i =
-              std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
-                        coll.ivecZ * coll.ivecZ);
-          Real norm_j =
-              std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
-                        coll.jvecZ * coll.jvecZ);
-          Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
-          Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
-          Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
-          Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
-          Real NX = mX * inorm;
-          Real NY = mY * inorm;
-          Real NZ = mZ * inorm;
-          Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
-          Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
-          Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
-          Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
-          Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
-                         coll.iMomZ / coll.iM};
-          Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
-                         coll.jMomZ / coll.jM};
-          if (projVel <= 0)
-            continue;
-          Real inv_iM = 1.0 / coll.iM;
-          Real inv_jM = 1.0 / coll.jM;
-          Real iPX = coll.iPosX * inv_iM;
-          Real iPY = coll.iPosY * inv_iM;
-          Real iPZ = coll.iPosZ * inv_iM;
-          Real jPX = coll.jPosX * inv_jM;
-          Real jPY = coll.jPosY * inv_jM;
-          Real jPZ = coll.jPosZ * inv_jM;
-          Real CX = 0.5 * (iPX + jPX);
-          Real CY = 0.5 * (iPY + jPY);
-          Real CZ = 0.5 * (iPZ + jPZ);
-          collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1, C2,
-                    NX, NY, NZ, CX, CY, CZ, vc1, vc2);
-          shapes[i]->u = hv1[0];
-          shapes[i]->v = hv1[1];
-          shapes[j]->u = hv2[0];
-          shapes[j]->v = hv2[1];
-          shapes[i]->omega = ho1[2];
-          shapes[j]->omega = ho2[2];
-        }
-      std::vector<Info> &chiInfo = var.chi->infos;
-#pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++)
-        for (auto &shape : sim.shapes) {
-          std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-          Obstacle *o = oblock[velInfo[i].id];
-          if (o == nullptr)
-            continue;
-          Real u_s = shape->u;
-          Real v_s = shape->v;
-          Real omega_s = shape->omega;
-          Real Cx = shape->center[0];
-          Real Cy = shape->center[1];
-          Real *X = (Real *)o->chi;
-          Real *UDEF = (Real *)o->udef;
-          Real *CHI = chiInfo[i].block;
-          Real *V = velInfo[i].block;
+          auto &iSDF = iBlocks[k]->dist;
+          auto &jSDF = jBlocks[k]->dist;
+          ScalarBlock &iChi = iBlocks[k]->chi;
+          ScalarBlock &jChi = jBlocks[k]->chi;
+          auto &iUDEF = iBlocks[k]->udef;
+          auto &jUDEF = jBlocks[k]->udef;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
-              int j = _BS_ * iy + ix;
-              if (CHI[j] > X[j])
+              if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                 continue;
-              if (X[j] <= 0)
-                continue;
-              Real p[2];
-              p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
-              p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-              p[0] -= Cx;
-              p[1] -= Cy;
-              Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
-              Real US = u_s - omega_s * p[1] + UDEF[2 * j + 0];
-              Real VS = v_s + omega_s * p[0] + UDEF[2 * j + 1];
-              V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
-              V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
+              Real pos[2];
+              pos[0] = infos[k].origin[0] + infos[k].h * (ix + 0.5);
+              pos[1] = infos[k].origin[1] + infos[k].h * (iy + 0.5);
+              const Real iUr0 = -iomega2 * (pos[1] - iCy);
+              const Real iUr1 = iomega2 * (pos[0] - iCx);
+              coll.iM += iChi[iy][ix];
+              coll.iPosX += iChi[iy][ix] * pos[0];
+              coll.iPosY += iChi[iy][ix] * pos[1];
+              coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
+              coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
+              const Real jUr0 = -jomega2 * (pos[1] - jCy);
+              const Real jUr1 = jomega2 * (pos[0] - jCx);
+              coll.jM += jChi[iy][ix];
+              coll.jPosX += jChi[iy][ix] * pos[0];
+              coll.jPosY += jChi[iy][ix] * pos[1];
+              coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
+              coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
+              Real dSDFdx_i;
+              Real dSDFdx_j;
+              if (ix == 0) {
+                dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
+                dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
+              } else if (ix == _BS_ - 1) {
+                dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
+                dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
+              } else {
+                dSDFdx_i = 0.5 * (iSDF[iy][ix + 1] - iSDF[iy][ix - 1]);
+                dSDFdx_j = 0.5 * (jSDF[iy][ix + 1] - jSDF[iy][ix - 1]);
+              }
+              Real dSDFdy_i;
+              Real dSDFdy_j;
+              if (iy == 0) {
+                dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
+                dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
+              } else if (iy == _BS_ - 1) {
+                dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
+                dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
+              } else {
+                dSDFdy_i = 0.5 * (iSDF[iy + 1][ix] - iSDF[iy - 1][ix]);
+                dSDFdy_j = 0.5 * (jSDF[iy + 1][ix] - jSDF[iy - 1][ix]);
+              }
+              coll.ivecX += iChi[iy][ix] * dSDFdx_i;
+              coll.ivecY += iChi[iy][ix] * dSDFdy_i;
+              coll.jvecX += jChi[iy][ix] * dSDFdx_j;
+              coll.jvecY += jChi[iy][ix] * dSDFdy_j;
             }
         }
-      std::vector<Info> &tmpVInfo = var.tmpV->infos;
+      }
+    std::vector<Real> buffer(20 * N);
+    for (size_t i = 0; i < N; i++) {
+      auto &coll = collisions[i];
+      buffer[20 * i] = coll.iM;
+      buffer[20 * i + 1] = coll.iPosX;
+      buffer[20 * i + 2] = coll.iPosY;
+      buffer[20 * i + 3] = coll.iPosZ;
+      buffer[20 * i + 4] = coll.iMomX;
+      buffer[20 * i + 5] = coll.iMomY;
+      buffer[20 * i + 6] = coll.iMomZ;
+      buffer[20 * i + 7] = coll.ivecX;
+      buffer[20 * i + 8] = coll.ivecY;
+      buffer[20 * i + 9] = coll.ivecZ;
+      buffer[20 * i + 10] = coll.jM;
+      buffer[20 * i + 11] = coll.jPosX;
+      buffer[20 * i + 12] = coll.jPosY;
+      buffer[20 * i + 13] = coll.jPosZ;
+      buffer[20 * i + 14] = coll.jMomX;
+      buffer[20 * i + 15] = coll.jMomY;
+      buffer[20 * i + 16] = coll.jMomZ;
+      buffer[20 * i + 17] = coll.jvecX;
+      buffer[20 * i + 18] = coll.jvecY;
+      buffer[20 * i + 19] = coll.jvecZ;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM,
+                  MPI_COMM_WORLD);
+    for (size_t i = 0; i < N; i++) {
+      auto &coll = collisions[i];
+      coll.iM = buffer[20 * i];
+      coll.iPosX = buffer[20 * i + 1];
+      coll.iPosY = buffer[20 * i + 2];
+      coll.iPosZ = buffer[20 * i + 3];
+      coll.iMomX = buffer[20 * i + 4];
+      coll.iMomY = buffer[20 * i + 5];
+      coll.iMomZ = buffer[20 * i + 6];
+      coll.ivecX = buffer[20 * i + 7];
+      coll.ivecY = buffer[20 * i + 8];
+      coll.ivecZ = buffer[20 * i + 9];
+      coll.jM = buffer[20 * i + 10];
+      coll.jPosX = buffer[20 * i + 11];
+      coll.jPosY = buffer[20 * i + 12];
+      coll.jPosZ = buffer[20 * i + 13];
+      coll.jMomX = buffer[20 * i + 14];
+      coll.jMomY = buffer[20 * i + 15];
+      coll.jMomZ = buffer[20 * i + 16];
+      coll.jvecX = buffer[20 * i + 17];
+      coll.jvecY = buffer[20 * i + 18];
+      coll.jvecZ = buffer[20 * i + 19];
+    }
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < N; ++i)
+      for (size_t j = i + 1; j < N; ++j) {
+        if (i == j)
+          continue;
+        Real m1 = shapes[i]->M;
+        Real m2 = shapes[j]->M;
+        Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
+        Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
+        Real o1[3] = {0, 0, shapes[i]->omega};
+        Real o2[3] = {0, 0, shapes[j]->omega};
+        Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1], 0};
+        Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1], 0};
+        Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
+        Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
+        auto &coll = collisions[i];
+        auto &coll_other = collisions[j];
+        if (coll.iM < 2.0 || coll.jM < 2.0)
+          continue;
+        if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
+          continue;
+        if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
+                shapes[i]->length ||
+            std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
+                shapes[i]->length) {
+          continue;
+        }
+#pragma omp critical
+        {
+          sim.bCollisionID.push_back(i);
+          sim.bCollisionID.push_back(j);
+        }
+        Real ho1[3];
+        Real ho2[3];
+        Real hv1[3];
+        Real hv2[3];
+        Real norm_i =
+            std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
+                      coll.ivecZ * coll.ivecZ);
+        Real norm_j =
+            std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
+                      coll.jvecZ * coll.jvecZ);
+        Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
+        Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
+        Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
+        Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
+        Real NX = mX * inorm;
+        Real NY = mY * inorm;
+        Real NZ = mZ * inorm;
+        Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
+        Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
+        Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
+        Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
+        Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
+                       coll.iMomZ / coll.iM};
+        Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
+                       coll.jMomZ / coll.jM};
+        if (projVel <= 0)
+          continue;
+        Real inv_iM = 1.0 / coll.iM;
+        Real inv_jM = 1.0 / coll.jM;
+        Real iPX = coll.iPosX * inv_iM;
+        Real iPY = coll.iPosY * inv_iM;
+        Real iPZ = coll.iPosZ * inv_iM;
+        Real jPX = coll.jPosX * inv_jM;
+        Real jPY = coll.jPosY * inv_jM;
+        Real jPZ = coll.jPosZ * inv_jM;
+        Real CX = 0.5 * (iPX + jPX);
+        Real CY = 0.5 * (iPY + jPY);
+        Real CZ = 0.5 * (iPZ + jPZ);
+        collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1, C2,
+                  NX, NY, NZ, CX, CY, CZ, vc1, vc2);
+        shapes[i]->u = hv1[0];
+        shapes[i]->v = hv1[1];
+        shapes[j]->u = hv2[0];
+        shapes[j]->v = hv2[1];
+        shapes[i]->omega = ho1[2];
+        shapes[j]->omega = ho2[2];
+      }
+    std::vector<Info> &chiInfo = var.chi->infos;
 #pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++)
-        memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
+    for (size_t i = 0; i < velInfo.size(); i++)
       for (auto &shape : sim.shapes) {
         std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+        Obstacle *o = oblock[velInfo[i].id];
+        if (o == nullptr)
+          continue;
+        Real u_s = shape->u;
+        Real v_s = shape->v;
+        Real omega_s = shape->omega;
+        Real Cx = shape->center[0];
+        Real Cy = shape->center[1];
+        Real *X = (Real *)o->chi;
+        Real *UDEF = (Real *)o->udef;
+        Real *CHI = chiInfo[i].block;
+        Real *V = velInfo[i].block;
+        for (int iy = 0; iy < _BS_; ++iy)
+          for (int ix = 0; ix < _BS_; ++ix) {
+            int j = _BS_ * iy + ix;
+            if (CHI[j] > X[j])
+              continue;
+            if (X[j] <= 0)
+              continue;
+            Real p[2];
+            p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
+            p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
+            p[0] -= Cx;
+            p[1] -= Cy;
+            Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
+            Real US = u_s - omega_s * p[1] + UDEF[2 * j + 0];
+            Real VS = v_s + omega_s * p[0] + UDEF[2 * j + 1];
+            V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
+            V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
+          }
+      }
+    std::vector<Info> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
-        for (size_t i = 0; i < Nblocks; i++) {
-          if (oblock[tmpVInfo[i].id] == nullptr)
-            continue;
-          Real *udef = (Real *)oblock[tmpVInfo[i].id]->udef;
-          Real *chi = (Real *)oblock[tmpVInfo[i].id]->chi;
-          Real *UDEF = tmpVInfo[i].block;
-          Real *CHI = chiInfo[i].block;
-          for (int iy = 0; iy < _BS_; iy++)
-            for (int ix = 0; ix < _BS_; ix++) {
-              int j = _BS_ * iy + ix;
-              if (chi[j] < CHI[j])
-                continue;
-              UDEF[2 * j + 0] += udef[2 * j + 0];
-              UDEF[2 * j + 1] += udef[2 * j + 1];
-            }
-        }
-      }
-      if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
-        var.tmp->UpdateFluxCorrection = false;
-      }
-      Stencil stencil{-1, -1, 2, 2, false};
-      Synchronizer *Synch =
-          sync1(stencil, var.vel->synchronizers, &var.vel->tree, &var.vel->all,
-                &var.vel->infos, &var.vel->timestamp, 2);
-      Synchronizer *Synch2 =
-          sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree,
-                &var.tmpV->all, &var.tmpV->infos, &var.tmpV->timestamp, 2);
-      std::vector<Info> &blk = var.vel->infos;
-      std::vector<bool> ready(blk.size(), false);
-      std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
-      std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
-      const int Ninner = avail0.size();
-      std::vector<Info *> avail1;
-      std::vector<Info *> avail12;
-#pragma omp parallel
-      {
-        BlockLab lab(2);
-        BlockLab lab2(2);
-        lab.prepare(stencil);
-        lab2.prepare(stencil);
-#pragma omp for
-        for (int i = 0; i < Ninner; i++) {
-          Info *I = avail0[i];
-          Info *I2 = avail02[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
-                   Synch->sLength);
-          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
-                    true, Synch2->sLength);
-          pressure_rhs_fun(lab, lab2, I, I2);
-          ready[I->id] = true;
-        }
-#pragma omp master
-        {
-          MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                      MPI_STATUSES_IGNORE);
-          avail1 = Synch->buf->halo_blocks;
-
-          MPI_Waitall(Synch2->buf->requests.size(),
-                      Synch2->buf->requests.data(), MPI_STATUSES_IGNORE);
-          avail12 = Synch2->buf->halo_blocks;
-        }
-#pragma omp barrier
-        const int Nhalo = avail1.size();
-#pragma omp for
-        for (int i = 0; i < Nhalo; i++) {
-          Info *I = avail1[i];
-          Info *I2 = avail12[i];
-          lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
-                   Synch->sLength);
-          lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
-                    true, Synch->sLength);
-          pressure_rhs_fun(lab, lab2, I, I2);
-        }
-      }
-      fillcases(var.buf1, &var.tmp->tree, 1);
-      std::vector<Info> &presInfo = var.pres->infos;
-      std::vector<Info> &poldInfo = var.pold->infos;
-#pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
-        memcpy(poldInfo[i].block, presInfo[i].block,
-               _BS_ * _BS_ * sizeof(Real));
-        memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
-      }
-      if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
-        var.tmp->UpdateFluxCorrection = false;
-      }
-      computeA(pressure_rhs1(), var.pold, 1);
-      fillcases(var.buf1, &var.tmp->tree, 1);
-      const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
-      const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-      const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-      if (var.pres->UpdateFluxCorrection) {
-        var.pres->UpdateFluxCorrection = false;
-
-        update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
-        std::vector<Info> &RhsInfo = var.tmp->infos;
-        const int Nblocks = RhsInfo.size();
-        const int N = _BS_ * _BS_ * Nblocks;
-        sim.mat->reserve(N);
-        const long long Nblocks_long = Nblocks;
-        MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, sim.nblocks.data(), 1,
-                      MPI_LONG_LONG, MPI_COMM_WORLD);
-        for (int i(sim.nblocks.size() - 1); i > 0; i--) {
-          sim.nblocks[i] = sim.nblocks[i - 1];
-        }
-        sim.nblocks[0] = 0;
-        sim.nrows[0] = 0;
-        for (size_t i = 1; i < sim.nblocks.size(); i++) {
-          sim.nblocks[i] += sim.nblocks[i - 1];
-          sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
-        }
-        for (int i = 0; i < Nblocks; i++) {
-          const Info &rhs_info = RhsInfo[i];
-          const int aux = 1 << rhs_info.level;
-          const int MAX_X_BLOCKS = aux - 1;
-          const int MAX_Y_BLOCKS = aux - 1;
-          std::array<bool, 4> isBoundary;
-          isBoundary[0] = (rhs_info.index[0] == 0);
-          isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
-          isBoundary[2] = (rhs_info.index[1] == 0);
-          isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
-          std::array<const Info *, 4> rhsNei;
-          rhsNei[0] =
-              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 - 1][1]);
-          rhsNei[1] =
-              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 + 1][1]);
-          rhsNei[2] =
-              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 - 1]);
-          rhsNei[3] =
-              getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 + 1]);
-          for (int iy = 0; iy < _BS_; iy++)
-            for (int ix = 0; ix < _BS_; ix++) {
-              const long long sfc_idx =
-                  sim.solver->GenericCell.This(&rhs_info, ix, iy);
-              if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
-                sim.mat->cooPushBackVal(
-                    1, sfc_idx,
-                    sim.solver->GenericCell.This(&rhs_info, ix, iy - 1));
-                sim.mat->cooPushBackVal(
-                    1, sfc_idx,
-                    sim.solver->GenericCell.This(&rhs_info, ix - 1, iy));
-                sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-                sim.mat->cooPushBackVal(
-                    1, sfc_idx,
-                    sim.solver->GenericCell.This(&rhs_info, ix + 1, iy));
-                sim.mat->cooPushBackVal(
-                    1, sfc_idx,
-                    sim.solver->GenericCell.This(&rhs_info, ix, iy + 1));
-              } else {
-                std::array<bool, 4> validNei;
-                validNei[0] = ix > 0;
-                validNei[1] = ix < _BS_ - 1;
-                validNei[2] = iy > 0;
-                validNei[3] = iy < _BS_ - 1;
-                std::array<long long, 4> idxNei;
-                idxNei[0] = sim.solver->GenericCell.This(&rhs_info, ix - 1, iy);
-                idxNei[1] = sim.solver->GenericCell.This(&rhs_info, ix + 1, iy);
-                idxNei[2] = sim.solver->GenericCell.This(&rhs_info, ix, iy - 1);
-                idxNei[3] = sim.solver->GenericCell.This(&rhs_info, ix, iy + 1);
-                SpRowInfo row(Tree1(&rhs_info, &var.tmp->tree), sfc_idx, 8);
-                for (int j = 0; j < 4; j++) {
-                  if (validNei[j]) {
-                    row.mapColVal(idxNei[j], 1);
-                    row.mapColVal(sfc_idx, -1);
-                  } else if (!isBoundary[j]) {
-                    sim.solver->makeFlux(&rhs_info, ix, iy, rhsNei[j],
-                                         sim.solver->edgeIndexers[j], row);
-                  }
-                }
-                sim.mat->cooPushBackRow(row);
-              }
-            }
-        }
-        sim.mat->make(sim.nrows);
-        sim.solver->getVec();
-        sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
-      } else {
-        sim.solver->getVec();
-        sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
-      }
-      std::vector<Info> &zInfo = var.pres->infos;
-      const int NB = zInfo.size();
-      const std::vector<double> &x = sim.mat->get_x();
-      Real avg, avg1, quantities[2];
-      avg = 0;
-      avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-      for (int i = 0; i < NB; i++) {
-        Real *P = zInfo[i].block;
-        const double vv = zInfo[i].h * zInfo[i].h;
-        for (int j = 0; j < _BS_ * _BS_; j++) {
-          P[j] = x[i * _BS_ * _BS_ + j];
-          avg += P[j] * vv;
-          avg1 += vv;
-        }
-      }
-      quantities[0] = avg;
-      quantities[1] = avg1;
-      MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
-                    MPI_COMM_WORLD);
-      avg = quantities[0];
-      avg1 = quantities[1];
-      avg = avg / avg1;
-#pragma omp parallel for
-      for (int i = 0; i < NB; i++) {
-        Real *P = zInfo[i].block;
-        for (int j = 0; j < _BS_ * _BS_; j++)
-          P[j] += -avg;
-      }
-      avg = 0;
-      avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-      for (size_t i = 0; i < Nblocks; i++) {
-        Real *P = presInfo[i].block;
-        Real vv = presInfo[i].h * presInfo[i].h;
-        for (int j = 0; j < _BS_ * _BS_; j++) {
-          avg += P[j] * vv;
-          avg1 += vv;
-        }
-      }
-      quantities[0] = avg;
-      quantities[1] = avg1;
-      MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
-                    MPI_COMM_WORLD);
-      avg = quantities[0];
-      avg1 = quantities[1];
-      avg = avg / avg1;
-#pragma omp parallel for
-      for (size_t i = 0; i < Nblocks; i++) {
-        Real *pres = presInfo[i].block;
-        Real *pold = poldInfo[i].block;
-        for (int j = 0; j < _BS_ * _BS_; j++)
-          pres[j] += pold[j] - avg;
-      }
-      if (var.tmp->UpdateFluxCorrection) {
-        prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
-        var.tmp->UpdateFluxCorrection = false;
-      }
-      computeA(pressureCorrectionKernel(), var.pres, 1);
-      fillcases(var.buf1, &var.tmp->tree, 1);
+    for (size_t i = 0; i < velInfo.size(); i++)
+      memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
+    for (auto &shape : sim.shapes) {
+      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-        Real *V = velInfo[i].block;
-        Real *tmpV = tmpVInfo[i].block;
-        for (int j = 0; j < 2 * _BS_ * _BS_; j++)
-          V[j] += tmpV[j] * ih2;
+        if (oblock[tmpVInfo[i].id] == nullptr)
+          continue;
+        Real *udef = (Real *)oblock[tmpVInfo[i].id]->udef;
+        Real *chi = (Real *)oblock[tmpVInfo[i].id]->chi;
+        Real *UDEF = tmpVInfo[i].block;
+        Real *CHI = chiInfo[i].block;
+        for (int iy = 0; iy < _BS_; iy++)
+          for (int ix = 0; ix < _BS_; ix++) {
+            int j = _BS_ * iy + ix;
+            if (chi[j] < CHI[j])
+              continue;
+            UDEF[2 * j + 0] += udef[2 * j + 0];
+            UDEF[2 * j + 1] += udef[2 * j + 1];
+          }
       }
-      sim.time += sim.dt;
-      sim.step++;
     }
+    if (var.tmp->UpdateFluxCorrection) {
+      prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
+      var.tmp->UpdateFluxCorrection = false;
+    }
+    Stencil stencil{-1, -1, 2, 2, false};
+    Synchronizer *Synch =
+        sync1(stencil, var.vel->synchronizers, &var.vel->tree, &var.vel->all,
+              &var.vel->infos, &var.vel->timestamp, 2);
+    Synchronizer *Synch2 =
+        sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
+              &var.tmpV->infos, &var.tmpV->timestamp, 2);
+    std::vector<Info> &blk = var.vel->infos;
+    std::vector<bool> ready(blk.size(), false);
+    std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
+    std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
+    const int Ninner = avail0.size();
+    std::vector<Info *> avail1;
+    std::vector<Info *> avail12;
+#pragma omp parallel
+    {
+      BlockLab lab(2);
+      BlockLab lab2(2);
+      lab.prepare(stencil);
+      lab2.prepare(stencil);
+#pragma omp for
+      for (int i = 0; i < Ninner; i++) {
+        Info *I = avail0[i];
+        Info *I2 = avail02[i];
+        lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
+                 Synch->sLength);
+        lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
+                  true, Synch2->sLength);
+        pressure_rhs_fun(lab, lab2, I, I2);
+        ready[I->id] = true;
+      }
+#pragma omp master
+      {
+        MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
+                    MPI_STATUSES_IGNORE);
+        avail1 = Synch->buf->halo_blocks;
+
+        MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
+                    MPI_STATUSES_IGNORE);
+        avail12 = Synch2->buf->halo_blocks;
+      }
+#pragma omp barrier
+      const int Nhalo = avail1.size();
+#pragma omp for
+      for (int i = 0; i < Nhalo; i++) {
+        Info *I = avail1[i];
+        Info *I2 = avail12[i];
+        lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
+                 Synch->sLength);
+        lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
+                  true, Synch->sLength);
+        pressure_rhs_fun(lab, lab2, I, I2);
+      }
+    }
+    fillcases(var.buf1, &var.tmp->tree, 1);
+    std::vector<Info> &presInfo = var.pres->infos;
+    std::vector<Info> &poldInfo = var.pold->infos;
+#pragma omp parallel for
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      memcpy(poldInfo[i].block, presInfo[i].block, _BS_ * _BS_ * sizeof(Real));
+      memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
+    }
+    if (var.tmp->UpdateFluxCorrection) {
+      prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
+      var.tmp->UpdateFluxCorrection = false;
+    }
+    computeA(pressure_rhs1(), var.pold, 1);
+    fillcases(var.buf1, &var.tmp->tree, 1);
+    const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+    const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+    const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+    if (var.pres->UpdateFluxCorrection) {
+      var.pres->UpdateFluxCorrection = false;
+
+      update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
+      std::vector<Info> &RhsInfo = var.tmp->infos;
+      const int Nblocks = RhsInfo.size();
+      const int N = _BS_ * _BS_ * Nblocks;
+      sim.mat->reserve(N);
+      const long long Nblocks_long = Nblocks;
+      MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, sim.nblocks.data(), 1,
+                    MPI_LONG_LONG, MPI_COMM_WORLD);
+      for (int i(sim.nblocks.size() - 1); i > 0; i--) {
+        sim.nblocks[i] = sim.nblocks[i - 1];
+      }
+      sim.nblocks[0] = 0;
+      sim.nrows[0] = 0;
+      for (size_t i = 1; i < sim.nblocks.size(); i++) {
+        sim.nblocks[i] += sim.nblocks[i - 1];
+        sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
+      }
+      for (int i = 0; i < Nblocks; i++) {
+        const Info &rhs_info = RhsInfo[i];
+        const int aux = 1 << rhs_info.level;
+        const int MAX_X_BLOCKS = aux - 1;
+        const int MAX_Y_BLOCKS = aux - 1;
+        std::array<bool, 4> isBoundary;
+        isBoundary[0] = (rhs_info.index[0] == 0);
+        isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
+        isBoundary[2] = (rhs_info.index[1] == 0);
+        isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
+        std::array<const Info *, 4> rhsNei;
+        rhsNei[0] =
+            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 - 1][1]);
+        rhsNei[1] =
+            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 + 1][1]);
+        rhsNei[2] =
+            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 - 1]);
+        rhsNei[3] =
+            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 + 1]);
+        for (int iy = 0; iy < _BS_; iy++)
+          for (int ix = 0; ix < _BS_; ix++) {
+            const long long sfc_idx =
+                sim.solver->GenericCell.This(&rhs_info, ix, iy);
+            if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
+              sim.mat->cooPushBackVal(
+                  1, sfc_idx,
+                  sim.solver->GenericCell.This(&rhs_info, ix, iy - 1));
+              sim.mat->cooPushBackVal(
+                  1, sfc_idx,
+                  sim.solver->GenericCell.This(&rhs_info, ix - 1, iy));
+              sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
+              sim.mat->cooPushBackVal(
+                  1, sfc_idx,
+                  sim.solver->GenericCell.This(&rhs_info, ix + 1, iy));
+              sim.mat->cooPushBackVal(
+                  1, sfc_idx,
+                  sim.solver->GenericCell.This(&rhs_info, ix, iy + 1));
+            } else {
+              std::array<bool, 4> validNei;
+              validNei[0] = ix > 0;
+              validNei[1] = ix < _BS_ - 1;
+              validNei[2] = iy > 0;
+              validNei[3] = iy < _BS_ - 1;
+              std::array<long long, 4> idxNei;
+              idxNei[0] = sim.solver->GenericCell.This(&rhs_info, ix - 1, iy);
+              idxNei[1] = sim.solver->GenericCell.This(&rhs_info, ix + 1, iy);
+              idxNei[2] = sim.solver->GenericCell.This(&rhs_info, ix, iy - 1);
+              idxNei[3] = sim.solver->GenericCell.This(&rhs_info, ix, iy + 1);
+              SpRowInfo row(Tree1(&rhs_info, &var.tmp->tree), sfc_idx, 8);
+              for (int j = 0; j < 4; j++) {
+                if (validNei[j]) {
+                  row.mapColVal(idxNei[j], 1);
+                  row.mapColVal(sfc_idx, -1);
+                } else if (!isBoundary[j]) {
+                  sim.solver->makeFlux(&rhs_info, ix, iy, rhsNei[j],
+                                       sim.solver->edgeIndexers[j], row);
+                }
+              }
+              sim.mat->cooPushBackRow(row);
+            }
+          }
+      }
+      sim.mat->make(sim.nrows);
+      sim.solver->getVec();
+      sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
+    } else {
+      sim.solver->getVec();
+      sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
+    }
+    std::vector<Info> &zInfo = var.pres->infos;
+    const int NB = zInfo.size();
+    const std::vector<double> &x = sim.mat->get_x();
+    Real avg, avg1, quantities[2];
+    avg = 0;
+    avg1 = 0;
+#pragma omp parallel for reduction(+ : avg, avg1)
+    for (int i = 0; i < NB; i++) {
+      Real *P = zInfo[i].block;
+      const double vv = zInfo[i].h * zInfo[i].h;
+      for (int j = 0; j < _BS_ * _BS_; j++) {
+        P[j] = x[i * _BS_ * _BS_ + j];
+        avg += P[j] * vv;
+        avg1 += vv;
+      }
+    }
+    quantities[0] = avg;
+    quantities[1] = avg1;
+    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
+                  MPI_COMM_WORLD);
+    avg = quantities[0];
+    avg1 = quantities[1];
+    avg = avg / avg1;
+#pragma omp parallel for
+    for (int i = 0; i < NB; i++) {
+      Real *P = zInfo[i].block;
+      for (int j = 0; j < _BS_ * _BS_; j++)
+        P[j] += -avg;
+    }
+    avg = 0;
+    avg1 = 0;
+#pragma omp parallel for reduction(+ : avg, avg1)
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      Real *P = presInfo[i].block;
+      Real vv = presInfo[i].h * presInfo[i].h;
+      for (int j = 0; j < _BS_ * _BS_; j++) {
+        avg += P[j] * vv;
+        avg1 += vv;
+      }
+    }
+    quantities[0] = avg;
+    quantities[1] = avg1;
+    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
+                  MPI_COMM_WORLD);
+    avg = quantities[0];
+    avg1 = quantities[1];
+    avg = avg / avg1;
+#pragma omp parallel for
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      Real *pres = presInfo[i].block;
+      Real *pold = poldInfo[i].block;
+      for (int j = 0; j < _BS_ * _BS_; j++)
+        pres[j] += pold[j] - avg;
+    }
+    if (var.tmp->UpdateFluxCorrection) {
+      prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
+      var.tmp->UpdateFluxCorrection = false;
+    }
+    computeA(pressureCorrectionKernel(), var.pres, 1);
+    fillcases(var.buf1, &var.tmp->tree, 1);
+#pragma omp parallel for
+    for (size_t i = 0; i < velInfo.size(); i++) {
+      Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
+      Real *V = velInfo[i].block;
+      Real *tmpV = tmpVInfo[i].block;
+      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+        V[j] += tmpV[j] * ih2;
+    }
+    sim.time += sim.dt;
+    sim.step++;
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
   }

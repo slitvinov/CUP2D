@@ -50,7 +50,9 @@ OMP_NUM_THREADS=4 main='srun --mpi=pmix ./main' sh -x run.sh
 For hal/glados
 ```
 module load mpi
-git clean -fdxq && make 'CXXFLAGS = -coverage -Og -g3' NVCC='/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = '&& OMP_NUM_THREADS=2 mpiexec -n 2 sh run.sh && python3 tool/stat.py *.xdmf2 | tee ref.out && python -m gcovr --html-details cover.html
+scl enable gcc-toolset-12 bash
+PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH
+git clean -fdxq && make 'CXXFLAGS = -Og -g3' && mpirun -n 2 sh run.sh && python3 tool/stat.py *.xdmf2 | tee ref.out
 ```
 
 Paraview
