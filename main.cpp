@@ -2717,7 +2717,7 @@ struct ScalarLab : public BlockLab {
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
 };
-template <int dir, int side> void Neumann2D(ScalarLab *lab, bool coarse) {
+template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
   int stenBeg[2];
   int stenEnd[2];
   int bsize[2];
