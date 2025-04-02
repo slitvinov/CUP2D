@@ -20,7 +20,7 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum { max_dim = 2 };
+enum { max_dim = 10 };
 
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
@@ -2767,7 +2767,7 @@ static struct {
       {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
       {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
       {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL},    {&abc, 1, false, true, NULL},
+      {&tmpV, 2, true, false, NULL},    {&abc, 1, false, true, "abc"},
   };
   struct Buffers *buf1, *buf2;
 } var;
