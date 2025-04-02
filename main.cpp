@@ -56,7 +56,6 @@ static struct {
   Real dt;
   Real dumpTime;
   Real endTime;
-  Real h0;
   Real lambda;
   Real nextDumpTime = 0;
   Real nu;
@@ -2992,7 +2991,7 @@ static void dump(Real time, long nblock, Info *infos, char *path) {
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
         double u0, v0, u1, v1, h;
-        h = sim.h0 / (1 << info->level);
+        h = 1.0 / _BS_ / (1 << info->level);
         u0 = info->origin[0] + h * x;
         v0 = info->origin[1] + h * y;
         u1 = u0 + h;
@@ -3055,7 +3054,7 @@ struct PutChiOnGrid {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       if (oblock[info->id] == nullptr)
         continue;
-      Real h = sim.h0 / (1 << info->level);
+      Real h = 1.0 / _BS_ / (1 << info->level);
       Real h2 = h * h;
       Obstacle &o = *oblock[info->id];
       o.COM_x = 0;
@@ -4666,7 +4665,6 @@ int main(int argc, char **argv) {
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.dumpTime = parser("tdump").asDouble();
-  sim.h0 = 1.0 / _BS_;
   sim.space_curve = new SpaceCurve;
 
   std::string shapeArg = parser("shapes").asString();
