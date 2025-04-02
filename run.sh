@@ -5,7 +5,6 @@ ${main=./main} \
 -lambda 1e7 \
 -levelMax 8 \
 -levelStart 5 \
--maxPoissonIterations 1000 \
 -maxPoissonRestarts 0 \
 -nu 0.00004 \
 -poissonTol 1e-3 \

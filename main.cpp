@@ -47,7 +47,6 @@ static struct {
   int AdaptSteps;
   int levelMax;
   int levelStart;
-  int maxPoissonIterations;
   int maxPoissonRestarts;
   int rank;
   int size;
@@ -4666,7 +4665,6 @@ int main(int argc, char **argv) {
   sim.PoissonTol = parser("poissonTol").asDouble();
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
-  sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
   sim.dumpTime = parser("tdump").asDouble();
   sim.h0 = 1.0 / _BS_;
   sim.space_curve = new SpaceCurve;
