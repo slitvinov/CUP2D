@@ -3247,7 +3247,7 @@ struct GradChiOnTmp {
   const Stencil stencil{-4, -4, 5, 5, true};
   const std::vector<Info> &tmpInfo = var.tmp->infos;
   void operator()(ScalarLab *lab, const Info *info) const {
-    auto &TMP = *(ScalarBlock *)tmpInfo[info->id].block;
+    Real * TMP = tmpInfo[info->id].block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3259,10 +3259,12 @@ struct GradChiOnTmp {
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
         if (um[k] > 0.0 && um[k] < threshold) {
-          TMP[_BS_ / 2][_BS_ / 2 - 1] = 2 * sim.Rtol;
-          TMP[_BS_ / 2 - 1][_BS_ / 2 - 1] = 2 * sim.Rtol;
-          TMP[_BS_ / 2][_BS_ / 2] = 2 * sim.Rtol;
-          TMP[_BS_ / 2 - 1][_BS_ / 2] = 2 * sim.Rtol;
+          int i = _BS_ / 2;
+          int j = _BS_ / 2 - 1;
+          TMP[_BS_ * i + j] = 2 * sim.Rtol;
+          TMP[_BS_ * j + j] = 2 * sim.Rtol;
+          TMP[_BS_ * i + i] = 2 * sim.Rtol;
+          TMP[_BS_ * j + i] = 2 * sim.Rtol;
           break;
         }
       }
