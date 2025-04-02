@@ -1802,7 +1802,8 @@ private:
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
   BlockLab() = delete;
-
+  BlockLab(const BlockLab &) = delete;
+  BlockLab &operator=(const BlockLab &) = delete;
 public:
   int NX, NY, end[3], start[3];
   unsigned int nm[2], nc[2];
@@ -2571,8 +2572,6 @@ public:
       }
     }
   }
-  BlockLab(const BlockLab &) = delete;
-  BlockLab &operator=(const BlockLab &) = delete;
 };
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
@@ -3558,21 +3557,16 @@ static void adapt() {
     MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
                    1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     std::vector<long long> dealloc_IDs;
-    BlockLab *lab;
-    if (dim == 1) {
-      lab = new BlockLab(1);
-    } else {
-      lab = new BlockLab(2);
-    }
+    BlockLab lab(dim);
     if (Synch != nullptr)
-      lab->prepare(stencil);
+      lab.prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab->load(&g->tree, &g->all, Synch->buf, stencil, parent, true,
+        lab.load(&g->tree, &g->all, Synch->buf, stencil, parent, true,
                   Synch->sLength);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
@@ -3591,7 +3585,7 @@ static void adapt() {
         int nm = _BS_ + stencil.ex - stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
-        Real *um = lab->m;
+        Real *um = lab.m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = Blocks[J * 2 + I];
@@ -4043,7 +4037,6 @@ static void adapt() {
         it++;
       }
     }
-    delete lab;
   }
 }
 struct KernelAdvectDiffuse {
