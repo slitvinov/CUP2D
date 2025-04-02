@@ -3043,7 +3043,7 @@ struct PutChiOnGrid {
   void operator()(Real *um, const Info *info) const {
     std::vector<Info> &chiInfo = var.chi->infos;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    for (auto &shape : sim.shapes) {
+    for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       if (oblock[info->id] == nullptr)
         continue;
@@ -3105,7 +3105,7 @@ static void ongrid() {
     memset(chiInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
     std::fill(tmpInfo[i].block, tmpInfo[i].block + _BS_ * _BS_, -1.0);
   }
-  for (const auto &shape : sim.shapes) {
+  for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
@@ -3157,7 +3157,7 @@ static void ongrid() {
   }
 
   computeA(PutChiOnGrid(), var.tmp, 1);
-  for (const auto &shape : sim.shapes) {
+  for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for reduction(+ : com[:3])
@@ -3173,7 +3173,7 @@ static void ongrid() {
     shape->center[0] += com[1] / com[0];
     shape->center[1] += com[2] / com[0];
   }
-  for (const auto &shape : sim.shapes) {
+  for (Shape *shape : sim.shapes) {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
@@ -5397,5 +5397,11 @@ int main(int argc, char **argv) {
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
   }
+
+  delete var.buf1;
+  delete var.buf2;
+  for (Shape *shape : sim.shapes)
+    delete shape;
+
   MPI_Finalize();
 }
