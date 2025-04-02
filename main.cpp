@@ -5397,11 +5397,12 @@ int main(int argc, char **argv) {
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
   }
-
   delete var.buf1;
   delete var.buf2;
-  for (Shape *shape : sim.shapes)
+  for (Shape *shape : sim.shapes) {
+    for (Obstacle *oblock : shape->obstacleBlocks)
+      delete oblock;
     delete shape;
-
+  }
   MPI_Finalize();
 }
