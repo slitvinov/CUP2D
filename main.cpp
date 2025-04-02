@@ -2748,7 +2748,7 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
 void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
-  assert(lab->dim == 2);
+  assert(lab->dim == 1);
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, coarse);
   if (info->index[0] == lab->NX - 1)
