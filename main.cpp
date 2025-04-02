@@ -2625,85 +2625,84 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 typedef Real ScalarBlock[_BS_][_BS_];
+struct VectorLab;
+template <int, int> void applyBCface(VectorLab *, bool, bool);
 struct VectorLab : public BlockLab {
   VectorLab() : BlockLab(2) {}
   VectorLab(const VectorLab &) = delete;
   VectorLab &operator=(const VectorLab &) = delete;
-  template <int dir, int side>
-  void applyBCface(bool wall, bool coarse) {
-    const int A = 1 - dir;
-    if (!coarse) {
-      int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-      const int *const stenBeg = this->start;
-      const int *const stenEnd = this->end;
-      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
-      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
-      e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ + stenEnd[0] - 1)
-                      : _BS_ + stenEnd[0] - 1;
-      e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
-                      : _BS_ + stenEnd[1] - 1;
-      for (int iy = s[1]; iy < e[1]; iy++)
-        for (int ix = s[0]; ix < e[0]; ix++) {
-          const int x =
-              (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
-          const int y =
-              (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
-          int i0 = ix - stenBeg[0] + nm[0] * (iy - stenBeg[1]);
-          int i1 = x + nm[0] * (y);
-          m[2 * i0 + 1 - A] = -m[2 * i1 + 1 - A];
-          m[2 * i0 + A] = m[2 * i1 + A];
-        }
-    } else {
-      const int eI[3] = {(this->end[0]) / 2 + 1 + (2) - 1,
-                         (this->end[1]) / 2 + 1 + (2) - 1,
-                         (this->end[2]) / 2 + 1 + (1) - 1};
-      const int sI[3] = {(this->start[0] - 1) / 2 + (-1),
-                         (this->start[1] - 1) / 2 + (-1),
-                         (this->start[2] - 1) / 2};
-      const int *const stenBeg = sI;
-      const int *const stenEnd = eI;
-      int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-      s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_ / 2) : stenBeg[0];
-      s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_ / 2) : stenBeg[1];
-      e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[0] - 1)
-                      : _BS_ / 2 + stenEnd[0] - 1;
-      e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
-                      : _BS_ / 2 + stenEnd[1] - 1;
-      for (int iy = s[1]; iy < e[1]; iy++)
-        for (int ix = s[0]; ix < e[0]; ix++) {
-          const int x =
-              (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
-          const int y =
-              (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
-          int i0 = ix - stenBeg[0] + nc[0] * (iy - stenBeg[1]);
-          int i1 = x + nc[0] * (y);
-          c[2 * i0 + 1 - A] = -c[2 * i1 + 1 - A];
-          c[2 * i0 + A] = c[2 * i1 + A];
-        }
-    }
-  }
-  void _apply_bc(Info *info, bool coarse) {
+  virtual void _apply_bc(Info *info, bool coarse) {
     if (!coarse) {
       if (info->index[0] == 0)
-        this->template applyBCface<0, 0>(false, false);
+        applyBCface<0, 0>(this, false, false);
       if (info->index[0] == this->NX - 1)
-        this->template applyBCface<0, 1>(false, false);
+        applyBCface<0, 1>(this, false, false);
       if (info->index[1] == 0)
-        this->template applyBCface<1, 0>(false, false);
+        applyBCface<1, 0>(this, false, false);
       if (info->index[1] == this->NY - 1)
-        this->template applyBCface<1, 1>(false, false);
+        applyBCface<1, 1>(this, false, false);
     } else {
       if (info->index[0] == 0)
-        this->template applyBCface<0, 0>(false, coarse);
+        applyBCface<0, 0>(this, false, coarse);
       if (info->index[0] == this->NX - 1)
-        this->template applyBCface<0, 1>(false, coarse);
+        applyBCface<0, 1>(this, false, coarse);
       if (info->index[1] == 0)
-        this->template applyBCface<1, 0>(false, coarse);
+        applyBCface<1, 0>(this, false, coarse);
       if (info->index[1] == this->NY - 1)
-        this->template applyBCface<1, 1>(false, coarse);
+        applyBCface<1, 1>(this, false, coarse);
     }
   }
 };
+template <int dir, int side>
+void applyBCface(VectorLab *lab, bool wall, bool coarse) {
+  const int A = 1 - dir;
+  if (!coarse) {
+    int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
+    const int *const stenBeg = lab->start;
+    const int *const stenEnd = lab->end;
+    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
+    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ + stenEnd[0] - 1)
+                    : _BS_ + stenEnd[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
+                    : _BS_ + stenEnd[1] - 1;
+    for (int iy = s[1]; iy < e[1]; iy++)
+      for (int ix = s[0]; ix < e[0]; ix++) {
+        const int x = (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
+        const int y = (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
+        int i0 = ix - stenBeg[0] + lab->nm[0] * (iy - stenBeg[1]);
+        int i1 = x + lab->nm[0] * (y);
+        lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
+        lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
+      }
+  } else {
+    const int eI[3] = {(lab->end[0]) / 2 + 1 + (2) - 1,
+                       (lab->end[1]) / 2 + 1 + (2) - 1,
+                       (lab->end[2]) / 2 + 1 + (1) - 1};
+    const int sI[3] = {(lab->start[0] - 1) / 2 + (-1),
+                       (lab->start[1] - 1) / 2 + (-1), (lab->start[2] - 1) / 2};
+    const int *const stenBeg = sI;
+    const int *const stenEnd = eI;
+    int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
+    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_ / 2) : stenBeg[0];
+    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_ / 2) : stenBeg[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[0] - 1)
+                    : _BS_ / 2 + stenEnd[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
+                    : _BS_ / 2 + stenEnd[1] - 1;
+    for (int iy = s[1]; iy < e[1]; iy++)
+      for (int ix = s[0]; ix < e[0]; ix++) {
+        const int x =
+            (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
+        const int y =
+            (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
+        int i0 = ix - stenBeg[0] + lab->nc[0] * (iy - stenBeg[1]);
+        int i1 = x + lab->nc[0] * (y);
+        lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
+        lab->c[2 * i0 + A] = lab->c[2 * i1 + A];
+      }
+  }
+}
 struct ScalarLab : public BlockLab {
   ScalarLab() : BlockLab(1){};
   ScalarLab(const ScalarLab &) = delete;
@@ -2764,10 +2763,12 @@ static struct {
     bool boundary_needed;
     const char *prefix;
   } F[8] = {
-      {&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
+      {&tmp, 1, false, true, "tmp"},
+      {&chi, 1, false, false, "chi"},
       {&vold, 2, false, false, NULL},
-      {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-      {&tmpV, 2, true, false, NULL},    /* {&abc, 10, false, true, NULL}, */
+      {&pres, 1, false, false, "pres"},
+      {&pold, 1, false, false, NULL},
+      {&tmpV, 2, true, false, NULL}, /* {&abc, 10, false, true, NULL}, */
   };
   struct Buffers *buf1, *buf2;
 } var;
