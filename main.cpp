@@ -4679,6 +4679,7 @@ int main(int argc, char **argv) {
   int c[2] = {0, 0};
   long long index =
       sim.space_curve->AxestoTranspose(c, 0);
+  assert(index == 0);
   long long substract = 0;
   for (long long h = 0; h < index; h++) {
     int X[2] = {0, 0};
