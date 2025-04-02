@@ -254,7 +254,7 @@ struct SpaceCurve {
       const int J = j / aux;
       const int c2_a[2] = {i - I * aux, j - J * aux};
       retval = AxestoTranspose(c2_a, l);
-      retval += Zsave[0][J * sim.bpdx + I] * aux * aux;
+      retval += Zsave[0][J + I] * aux * aux;
     } else {
       const int c2_a[2] = {i, j};
       retval = AxestoTranspose(c2_a, l + base_level);
@@ -307,8 +307,8 @@ struct SpaceCurve {
   }
 };
 static long long forward(int level, int i, int j) {
-  return sim.space_curve->forward(level, i % (1 << level * sim.bpdx),
-                                  j % (1 << level * sim.bpdy));
+  return sim.space_curve->forward(level, i % (1 << level),
+                                  j % (1 << level));
 }
 struct Value {
   std::string content;

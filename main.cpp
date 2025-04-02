@@ -45,8 +45,6 @@ struct Solver;
 struct Synchronizer;
 static struct {
   int AdaptSteps;
-  int bpdx;
-  int bpdy;
   int levelMax;
   int levelStart;
   int maxPoissonIterations;
@@ -294,8 +292,8 @@ static void fill(Info *b, int level, long long Z) {
   b->auxiliary = nullptr;
   sim.space_curve->inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
-  Bmax[0] = sim.bpdx * 1 << level;
-  Bmax[1] = sim.bpdy * 1 << level;
+  Bmax[0] = 1 << level;
+  Bmax[1] = 1 << level;
   for (i = -1; i < 2; i++)
     for (j = -1; j < 2; j++)
       b->Znei[i + 1][j + 1] = sim.space_curve->forward(
@@ -528,10 +526,8 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
   std::vector<Range> compass[27];
   for (Info &info : *infos) {
     info.halo_id = -1;
-    bool xskin =
-        info.index[0] == 0 || info.index[0] == ((sim.bpdx << info.level) - 1);
-    bool yskin =
-        info.index[1] == 0 || info.index[1] == ((sim.bpdy << info.level) - 1);
+    bool xskin = info.index[0] == 0 || info.index[0] == ((1 << info.level) - 1);
+    bool yskin = info.index[1] == 0 || info.index[1] == ((1 << info.level) - 1);
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
     assert(xskip);
@@ -579,8 +575,8 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
           Info *infoNeiCoarser =
               getf(all, infoNei->level - 1, infoNei->Zparent);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          int Bmax[3] = {sim.bpdx << (info.level - 1),
-                         sim.bpdy << (info.level - 1), 1 << (info.level - 1)};
+          int Bmax[3] = {1 << (info.level - 1), 1 << (info.level - 1),
+                         1 << (info.level - 1)};
           int test_idx[3] = {
               (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
               (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
@@ -723,7 +719,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             int imin[2];
             int imax[2];
             int aux = 1 << a->level;
-            int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1};
+            int blocks[3] = {aux - 1, aux - 1};
             for (int d = 0; d < 2; d++) {
               imin[d] = (a->index[d] < b->index[d]) ? 0 : -1;
               imax[d] = (a->index[d] > b->index[d]) ? 0 : +1;
@@ -987,8 +983,8 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   for (auto &info : *infos) {
     bool myflag = false;
     int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    bool xskin = info.index[0] == 0 || info.index[0] == aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == aux - 1;
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
     for (int x = -1; x < 2; x++)
@@ -1247,8 +1243,8 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     getf(all, info.level, info.Z)->auxiliary = nullptr;
     info.auxiliary = nullptr;
     int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == sim.bpdx * aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == sim.bpdy * aux - 1;
+    bool xskin = info.index[0] == 0 || info.index[0] == aux - 1;
+    bool yskin = info.index[1] == 0 || info.index[1] == aux - 1;
     int xskip = info.index[0] == 0 ? -1 : 1;
     int yskip = info.index[1] == 0 ? -1 : 1;
 
@@ -1430,10 +1426,8 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
     Info *info = bbb[jjj];
     std::set<int> receivers;
     const int aux = 1 << info->level;
-    const bool xskin =
-        info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
-    const bool yskin =
-        info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+    const bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
+    const bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
     const int xskip = info->index[0] == 0 ? -1 : 1;
     const int yskip = info->index[1] == 0 ? -1 : 1;
 
@@ -1739,9 +1733,7 @@ static void _alloc(int level, long long Z,
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-  {
-    infos->push_back(*new_info);
-  }
+  { infos->push_back(*new_info); }
   treef(tree, level, Z) = sim.rank;
 }
 
@@ -1850,8 +1842,8 @@ public:
             std::unordered_map<long long, Info *> *all, SyncBuf *buf,
             const Stencil &stencil, Info *info, bool applybc, int *sLength) {
     int aux = 1 << info->level;
-    NX = sim.bpdx * aux;
-    NY = sim.bpdy * aux;
+    NX = aux;
+    NY = aux;
     assert(m != NULL);
     Real *p = info->block;
     Real *u = m;
@@ -2287,8 +2279,8 @@ public:
     if (applybc)
       _apply_bc(info, true);
     int aux = 1 << info->level;
-    bool xskin = info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+    bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
     int xskip = info->index[0] == 0 ? -1 : 1;
     int yskip = info->index[1] == 0 ? -1 : 1;
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
@@ -2514,7 +2506,7 @@ public:
     int imin[3];
     int imax[3];
     int aux = 1 << info->level;
-    int blocks[3] = {sim.bpdx * aux - 1, sim.bpdy * aux - 1, 1 * aux - 1};
+    int blocks[3] = {aux - 1, aux - 1, aux - 1};
     for (int d = 0; d < 3; d++) {
       imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
       imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
@@ -2719,7 +2711,7 @@ struct VectorLab : public BlockLab {
   }
 };
 struct ScalarLab : public BlockLab {
-  ScalarLab() : BlockLab(1) {};
+  ScalarLab() : BlockLab(1){};
   ScalarLab(const ScalarLab &) = delete;
   ScalarLab &operator=(const ScalarLab &) = delete;
   template <int dir, int side> void Neumann2D(bool coarse) {
@@ -3179,7 +3171,7 @@ static void ongrid() {
   for (const auto &shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3366,10 +3358,8 @@ static void adapt() {
         if (info->level == m && info->state != Refine &&
             info->level != sim.levelMax - 1) {
           int TwoPower = 1 << info->level;
-          bool xskin =
-              info->index[0] == 0 || info->index[0] == sim.bpdx * TwoPower - 1;
-          bool yskin =
-              info->index[1] == 0 || info->index[1] == sim.bpdy * TwoPower - 1;
+          bool xskin = info->index[0] == 0 || info->index[0] == TwoPower - 1;
+          bool yskin = info->index[1] == 0 || info->index[1] == TwoPower - 1;
           int xskip = info->index[0] == 0 ? -1 : 1;
           int yskip = info->index[1] == 0 ? -1 : 1;
 
@@ -3421,10 +3411,8 @@ static void adapt() {
         Info *info = &I[j];
         if (info->level == m && info->state == Compress) {
           int aux = 1 << info->level;
-          bool xskin =
-              info->index[0] == 0 || info->index[0] == sim.bpdx * aux - 1;
-          bool yskin =
-              info->index[1] == 0 || info->index[1] == sim.bpdy * aux - 1;
+          bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
+          bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
           int xskip = info->index[0] == 0 ? -1 : 1;
           int yskip = info->index[1] == 0 ? -1 : 1;
 
@@ -3663,9 +3651,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      {
-        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
-      }
+      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3815,9 +3801,7 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
-            }
+            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4203,8 +4187,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
-        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -4671,8 +4655,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
   }
 #endif
-  sim.bpdx = parser("bpdx").asInt();
-  sim.bpdy = parser("bpdy").asInt();
   sim.levelMax = parser("levelMax").asInt();
   sim.Rtol = parser("Rtol").asDouble();
   sim.Ctol = parser("Ctol").asDouble();
@@ -4687,23 +4669,22 @@ int main(int argc, char **argv) {
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.maxPoissonIterations = parser("maxPoissonIterations").asInt();
   sim.dumpTime = parser("tdump").asDouble();
-  sim.h0 = 1.0 / std::max(sim.bpdx, sim.bpdy) / _BS_;
-  sim.extents[0] = sim.bpdx * sim.h0 * _BS_;
-  sim.extents[1] = sim.bpdy * sim.h0 * _BS_;
+  sim.h0 = 1.0 / _BS_;
+  sim.extents[0] = sim.h0 * _BS_;
+  sim.extents[1] = sim.h0 * _BS_;
   sim.space_curve = new SpaceCurve;
-  int n_max = std::max(sim.bpdx, sim.bpdy);
-  sim.space_curve->base_level = log(n_max) / log(2);
-  if (sim.space_curve->base_level < log(n_max) / log(2))
+  sim.space_curve->base_level = 0;
+  if (sim.space_curve->base_level < 0)
     sim.space_curve->base_level++;
   sim.space_curve->i_inverse.resize(sim.levelMax);
   sim.space_curve->j_inverse.resize(sim.levelMax);
   sim.space_curve->Zsave.resize(sim.levelMax);
-  sim.space_curve->i_inverse[0].resize(sim.bpdx * sim.bpdy, -1);
-  sim.space_curve->j_inverse[0].resize(sim.bpdx * sim.bpdy, -1);
-  sim.space_curve->Zsave[0].resize(sim.bpdx * sim.bpdy, -1);
+  sim.space_curve->i_inverse[0].resize(1, -1);
+  sim.space_curve->j_inverse[0].resize(1, -1);
+  sim.space_curve->Zsave[0].resize(1, -1);
   sim.space_curve->isRegular = true;
-  for (int j = 0; j < sim.bpdy; j++)
-    for (int i = 0; i < sim.bpdx; i++) {
+  for (int j = 0; j < 1; j++)
+    for (int i = 0; i < 1; i++) {
       int c[2] = {i, j};
       long long index =
           sim.space_curve->AxestoTranspose(c, sim.space_curve->base_level);
@@ -4711,7 +4692,7 @@ int main(int argc, char **argv) {
       for (long long h = 0; h < index; h++) {
         int X[2] = {0, 0};
         sim.space_curve->TransposetoAxes(h, X, sim.space_curve->base_level);
-        if (X[0] >= sim.bpdx || X[1] >= sim.bpdy)
+        if (X[0] >= 1 || X[1] >= 1)
           substract++;
       }
       index -= substract;
@@ -4719,7 +4700,7 @@ int main(int argc, char **argv) {
         sim.space_curve->isRegular = false;
       sim.space_curve->i_inverse[0][index] = i;
       sim.space_curve->j_inverse[0][index] = j;
-      sim.space_curve->Zsave[0][j * sim.bpdx + i] = index;
+      sim.space_curve->Zsave[0][j + i] = index;
     }
 
   std::string shapeArg = parser("shapes").asString();
@@ -4748,11 +4729,10 @@ int main(int argc, char **argv) {
   sim.nrows.resize(sim.size + 1);
   std::vector<double> P_inv = precond();
   sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
-  sim.levels.push_back(sim.bpdx * sim.bpdy * 2);
+  sim.levels.push_back(2);
   for (int m = 1; m < sim.levelMax; m++)
-    sim.levels.push_back(sim.levels[m - 1] + sim.bpdx * sim.bpdy * 1
-                         << (m + 1));
-  long long total_blocks = sim.bpdx * sim.bpdy * pow(pow(2, sim.levelStart), 2);
+    sim.levels.push_back(sim.levels[m - 1] + 1 << (m + 1));
+  long long total_blocks = pow(pow(2, sim.levelStart), 2);
   long long my_blocks = total_blocks / sim.size;
   if ((long long)sim.rank < total_blocks % sim.size)
     my_blocks++;
@@ -5337,15 +5317,15 @@ int main(int argc, char **argv) {
         }
         sim.nblocks[0] = 0;
         sim.nrows[0] = 0;
-        for (size_t i(1); i < sim.nblocks.size(); i++) {
+        for (size_t i = 1; i < sim.nblocks.size(); i++) {
           sim.nblocks[i] += sim.nblocks[i - 1];
           sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
         }
         for (int i = 0; i < Nblocks; i++) {
           const Info &rhs_info = RhsInfo[i];
           const int aux = 1 << rhs_info.level;
-          const int MAX_X_BLOCKS = sim.bpdx * aux - 1;
-          const int MAX_Y_BLOCKS = sim.bpdy * aux - 1;
+          const int MAX_X_BLOCKS = aux - 1;
+          const int MAX_Y_BLOCKS = aux - 1;
           std::array<bool, 4> isBoundary;
           isBoundary[0] = (rhs_info.index[0] == 0);
           isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);

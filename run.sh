@@ -1,7 +1,5 @@
 ${main=./main} \
 -AdaptSteps 20 \
--bpdx 1 \
--bpdy 1 \
 -CFL 0.5 \
 -Ctol 1 \
 -lambda 1e7 \
