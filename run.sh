@@ -1,10 +1,10 @@
 ${main=./main} \
 -AdaptSteps 20 \
--bpdx 2 \
+-bpdx 1 \
 -bpdy 1 \
 -CFL 0.5 \
 -Ctol 1 \
--extent 4 \
+-extent 1 \
 -lambda 1e7 \
 -levelMax 8 \
 -levelStart 5 \
@@ -17,6 +17,6 @@ ${main=./main} \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  orientation=0 length=0.2 xcenter=1.8 ycenter=0.8
-  orientation=180 length=0.2 xcenter=1.6 ycenter=0.8
+  orientation=0 length=0.2 xcenter=0.3 ycenter=0.8
+  orientation=90 length=0.2 xcenter=0.7 ycenter=0.8
 '
