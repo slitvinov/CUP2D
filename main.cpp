@@ -1801,9 +1801,10 @@ private:
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
+  int NX, NY;
 public:
-  int NX, NY, end[3], start[3];
   unsigned int nm[2], nc[2];
+  int end[3], start[3];
   Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
@@ -2686,23 +2687,24 @@ void applyBCface(BlockLab *lab, bool wall, bool coarse) {
 }
 static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
   assert(lab->dim == 2);
+  int n = 1 << info->level;
   if (!coarse) {
     if (info->index[0] == 0)
       applyBCface<0, 0>(lab, false, false);
-    if (info->index[0] == lab->NX - 1)
+    if (info->index[0] == n - 1)
       applyBCface<0, 1>(lab, false, false);
     if (info->index[1] == 0)
       applyBCface<1, 0>(lab, false, false);
-    if (info->index[1] == lab->NY - 1)
+    if (info->index[1] == n - 1)
       applyBCface<1, 1>(lab, false, false);
   } else {
     if (info->index[0] == 0)
       applyBCface<0, 0>(lab, false, coarse);
-    if (info->index[0] == lab->NX - 1)
+    if (info->index[0] == n - 1)
       applyBCface<0, 1>(lab, false, coarse);
     if (info->index[1] == 0)
       applyBCface<1, 0>(lab, false, coarse);
-    if (info->index[1] == lab->NY - 1)
+    if (info->index[1] == n - 1)
       applyBCface<1, 1>(lab, false, coarse);
   }
 }
@@ -2744,14 +2746,15 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
 void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
+  int n = 1 << info->level;
   assert(lab->dim == 1);
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, coarse);
-  if (info->index[0] == lab->NX - 1)
+  if (info->index[0] == n - 1)
     Neumann2D<0, 1>(lab, coarse);
   if (info->index[1] == 0)
     Neumann2D<1, 0>(lab, coarse);
-  if (info->index[1] == lab->NY - 1)
+  if (info->index[1] == n - 1)
     Neumann2D<1, 1>(lab, coarse);
 }
 static struct {
@@ -3564,7 +3567,7 @@ static void adapt() {
       parent->state = Leave;
       if (basic == false)
         lab.load(&g->tree, &g->all, Synch->buf, stencil, parent, true,
-                  Synch->sLength);
+                 Synch->sLength);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
