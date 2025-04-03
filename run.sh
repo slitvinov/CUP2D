@@ -6,7 +6,7 @@ ${main=./main} \
 -levelMax 8 \
 -levelStart 6 \
 -maxPoissonRestarts 0 \
--nu 0.00004 \
+-nu 0.0001 \
 -poissonTol 1e-3 \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
