@@ -3038,6 +3038,7 @@ struct Shape {
   Real u;
   Real v;
   Real omega;
+  Real omega_fixed;
   Real length;
 };
 struct PutChiOnGrid {
@@ -4667,6 +4668,7 @@ int main(int argc, char **argv) {
       shape->center[0] = p("xcenter").asDouble();
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
+      shape->omega_fixed = p("omega_fixed").asDouble() * M_PI / 180;
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
@@ -4885,7 +4887,7 @@ int main(int argc, char **argv) {
       shape->v = -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
       /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
        */
-      shape->omega = 0.2;
+      shape->omega = shape->omega_fixed;
     }
     const auto &shapes = sim.shapes;
     const auto &infos = var.chi->infos;
