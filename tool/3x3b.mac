@@ -1,0 +1,30 @@
+load("cgrind");
+xx: PM;
+xz: -PY;
+yy: PM;
+yz: PX;
+zx: -PY;
+zy: PX;
+zz: PJ;
+
+x: UM;
+y: VM;
+z: AM;
+
+zx: 0;
+zy: 0;
+z: PJ * omega_fixed;
+
+A: matrix([xx, 0, xz], [0, yy, yz], [zx, zy, zz]);
+b: matrix([x], [y], [z]);
+
+M: lu_factor(A);
+x: lu_backsub(M, b);
+
+fullratsimp(A . x - b);
+
+(cgrind('D = factor(D)),
+  cgrind('u = x[1, 1]),
+  cgrind('v = x[2, 1]),
+  cgrind('omega_fixed = x[3, 1]));
+

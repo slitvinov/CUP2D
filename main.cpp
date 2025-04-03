@@ -4951,11 +4951,10 @@ int main(int argc, char **argv) {
       VM = quantities[5];
       AM = quantities[6];
       /* TODO */
-      Real D = -PM * (PY * PY + PX * PX - PJ * PM);
-      shape->u = -(PX * PY * VM + (PX * PX - PJ * PM) * UM - AM * PM * PY) / D;
-      shape->v = -((PY * PY - PJ * PM) * VM + PX * PY * UM + AM * PM * PX) / D;
-      /* shape->omega = -(PM * PX * VM - PM * PY * UM - AM * PM * PM) / D;
-       */
+      if (PM != 0) {
+        shape->u = (PY * shape->omega_fixed + UM) / PM;
+        shape->v = (VM - PX * shape->omega_fixed) / PM;
+      }
       shape->omega = shape->omega_fixed;
     }
     const auto &shapes = sim.shapes;
