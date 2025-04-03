@@ -47,10 +47,8 @@ dp = 2 * math.pi / (np - 1)
 area *= dr * dp
 J *= dr * dp
 length = bx - by
-print(area, J, length + 2 * length / 10)
 
-mass = 10
-J = 8.80277e-06 / 0.5 / 0.5
+print(area, J, length + 2 * length / 10)
 with open("sdf.raw", "wb") as f:
     f.write(b"SDF")
     f.write(struct.pack("ffffii", length, area, J, rmax, nr, np))
