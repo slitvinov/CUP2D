@@ -3147,12 +3147,10 @@ static void ongrid() {
           y -= shape->center[1];
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
-
           Real r = sqrt(x0 * x0 + y0 * y0);
           Real p = atan2(y, x);
           if (p < 0)
             p += 2 * M_PI;
-
           int i = r * shape->nr / shape->rmax;
           if (i >= shape->nr)
             i = shape->nr - 1;
@@ -3160,13 +3158,7 @@ static void ongrid() {
           if (j >= shape->np)
             j = shape->np - 1;
           Real dist_sdf = shape->sdf[i * shape->np + j];
-
-          Real ax = -shape->length / 4;
-          Real ay = 0;
-          Real bx = shape->length / 4;
-          Real by = 0;
-          Real dist = -sqrt(sdf2_segment(x0, y0, ax, ay, bx, by));
-          o->dist[iy][ix] = dist + shape->length / 10;
+          o->dist[iy][ix] = sdf2_dist + shape->length / 10;
           b[iy * _BS_ + ix] = std::max(b[iy * _BS_ + ix], dist);
           o->udef[iy][ix][0] = 0;
           o->udef[iy][ix][1] = 0;
