@@ -3,6 +3,7 @@ import struct
 import sys
 import os
 
+
 def sdf_box(x, y, bx, by):
     dx = abs(x) - bx
     dy = abs(y) - by
@@ -11,6 +12,7 @@ def sdf_box(x, y, bx, by):
     outside_dist = math.hypot(mx, my)
     inside_dist = min(max(dx, dy), 0.0)
     return -outside_dist - inside_dist
+
 
 bx = by = 1
 nr = 400
@@ -28,7 +30,7 @@ for i in range(nr):
         y = r * math.sin(p)
         sdf = sdf_box(x, y, bx, by)
         Sdf.append(sdf)
-        if -0.1 < sdf < 0.1:
+        if sdf > 0:
             area += r
             J += r**2
 dr = rmax / nr
