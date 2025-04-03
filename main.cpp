@@ -3040,9 +3040,8 @@ struct Shape {
   Real omega_fixed;
 
   /* TODO */
-  Real length = 0.5;
+  Real J, mass, length = 0.5;
   float *sdf, rmax;
-  Real J, mass;
   int nr, np;
 };
 struct PutChiOnGrid {
@@ -4691,8 +4690,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
         exit(1);
       }
-      fread(&shape->mass, sizeof(shape->mass), 1, file);
-      fread(&shape->J, sizeof(shape->J), 1, file);
+      flat mass, J;
+      fread(&mass, sizeof(mass), 1, file);
+      fread(&J, sizeof(J), 1, file);
+      shape->mass = mass;
+      shape->J = J;
       fread(&shape->rmax, sizeof(shape->rmax), 1, file);
       fread(&shape->nr, sizeof(shape->nr), 1, file);
       fread(&shape->np, sizeof(shape->np), 1, file);
