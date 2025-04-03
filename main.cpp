@@ -2982,7 +2982,6 @@ static void dump(Real time, Info *infos, char *path) {
                 MPI_INFO_NULL, &mpi_file);
   for (i = 0; i < nblock; i++) {
     Info *info = &infos[i];
-    Real *b = info->block;
     k = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
