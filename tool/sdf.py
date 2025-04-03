@@ -45,9 +45,8 @@ for i in range(nr):
 dr = rmax / nr
 dp = 2 * math.pi / (np - 1)
 area *= dr * dp
-J *= dr * dp
+J *= dr * dp / 1e6 #### DODO
 length = bx - by
-
 print(area, J, length + 2 * length / 10)
 with open("sdf.raw", "wb") as f:
     f.write(b"SDF")
