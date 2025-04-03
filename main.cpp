@@ -3040,6 +3040,9 @@ struct Shape {
   Real omega;
   Real omega_fixed;
   Real length;
+
+  float *sdf;
+  int nr, np;
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
@@ -4669,6 +4672,31 @@ int main(int argc, char **argv) {
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega_fixed = p("omega_fixed").asDouble();
+
+      const char *path = p("sdf").asString().c_str();
+      FILE *file = fopen(path, "r");
+      if (file == NULL) {
+        fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
+        exit(1);
+      }
+      char tag[3] = {0};
+      fread(tag, sizeof *tag, sizeof tag, file);
+      if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
+        fprintf(stderr, "main.cpp: error: not and sdf file\n");
+        exit(1);
+      }
+      float mass, J, rmax;
+      fread(&mass, sizeof(mass), 1, file);
+      fread(&J, sizeof(J), 1, file);
+      fread(&rmax, sizeof(rmax), 1, file);
+      fread(&shape->nr, sizeof(shape->nr), 1, file);
+      fread(&shape->np, sizeof(shape->np), 1, file);
+      shape->sdf = (float *)malloc(shape->nr * shape->np * sizeof(float));
+      if (fread(shape->sdf, sizeof *shape->sdf, shape->nr * shape->np, file) !=
+          shape->nr * shape->np) {
+        fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
+                path);
+      }
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
@@ -5405,6 +5433,7 @@ int main(int argc, char **argv) {
   for (Shape *shape : sim.shapes) {
     for (Obstacle *oblock : shape->obstacleBlocks)
       delete oblock;
+    free(shape->sdf);
     delete shape;
   }
   for (int i = 0; i < var.buf1->Cases.size(); i++) {
