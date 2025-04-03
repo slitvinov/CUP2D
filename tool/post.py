@@ -19,6 +19,7 @@ for path in sys.argv[1:]:
     chi_path = path + ".chi.raw"
     vel_path = path + ".vel.raw"
     if not os.path.isfile(png_path):
+        sys.stderr.write(f"post.py: {path}\n")
         root = xml.etree.ElementTree.parse(xdmf_path)
         time = root.find("Domain/Grid/Time").get("Value")
         xyz = np.memmap(xyz_path, "float32", "r")
