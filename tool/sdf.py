@@ -38,7 +38,7 @@ for i in range(nr):
         Sdf.append(sdf)
 
 mass = 10
-J = 8.80277e-06
+J = 8.80277e-06 / 0.5 / 0.5
 with open("sdf.raw", "wb") as f:
     f.write(b"SDF")
     f.write(struct.pack("fffii", mass, J, rmax, nr, np))
