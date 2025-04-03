@@ -15,7 +15,7 @@ ${main=./main} \
 -shapes '
    scale=0.25 orientation=0 omega_fixed=-0.05 xcenter=0.25 ycenter=0.5 sdf=box.raw
    scale=0.25 orientation=0 omega_fixed=-0.05 xcenter=0.75 ycenter=0.5 sdf=box.raw
- '
+'
 
 # -shapes '
 #   scale=0.75 orientation=0 omega_fixed=-0.05 xcenter=0.35 ycenter=0.55 sdf=sdf.raw

@@ -3,11 +3,6 @@ import struct
 import sys
 import os
 
-'''
-vec2 d = abs(p)-b;
-    return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
-'''
-
 def sdf_box(x, y, bx, by):
     dx = abs(x) - bx
     dy = abs(y) - by
@@ -15,7 +10,7 @@ def sdf_box(x, y, bx, by):
     my = max(dy, 0.0)
     outside_dist = math.hypot(mx, my)
     inside_dist = min(max(dx, dy), 0.0)
-    return outside_dist + inside_dist
+    return -outside_dist - inside_dist
 
 bx = by = 1
 nr = 400
@@ -34,7 +29,6 @@ for i in range(nr):
         sdf = sdf_box(x, y, bx, by)
         Sdf.append(sdf)
         if -0.1 < sdf < 0.1:
-            print(x, y)
             area += r
             J += r**2
 dr = rmax / nr
