@@ -3034,14 +3034,15 @@ struct Shape {
   Real center[2];
   Real orientation;
   Real M = 0;
-  const Real J = 8.80277e-06; /* TODO */
   Real u;
   Real v;
   Real omega;
   Real omega_fixed;
-  Real length;
 
+  /* TODO */
+  Real length = 0.5;
   float *sdf, rmax;
+  Real J, mass;
   int nr, np;
 };
 struct PutChiOnGrid {
@@ -3157,7 +3158,7 @@ static void ongrid() {
           int j = p * (shape->np - 2) / (2 * M_PI);
           if (j >= shape->np)
             j = shape->np - 1;
-	  Real dist = shape->sdf[i * shape->np + j];
+          Real dist = shape->sdf[i * shape->np + j];
           o->dist[iy][ix] = dist;
           b[iy * _BS_ + ix] = std::max(b[iy * _BS_ + ix], dist);
           o->udef[iy][ix][0] = 0;
@@ -4673,13 +4674,13 @@ int main(int argc, char **argv) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
       Shape *shape = new Shape;
-      shape->length = p("length").asDouble();
       shape->center[0] = p("xcenter").asDouble();
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega_fixed = p("omega_fixed").asDouble();
 
       const char *path = p("sdf").asString().c_str();
+      Real scale = p("scale").asDouble();
       FILE *file = fopen(path, "r");
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
@@ -4691,9 +4692,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
         exit(1);
       }
-      float mass, J;
-      fread(&mass, sizeof(mass), 1, file);
-      fread(&J, sizeof(J), 1, file);
+      fread(&shape->mass, sizeof(shape->mass), 1, file);
+      fread(&shape->J, sizeof(shape->J), 1, file);
       fread(&shape->rmax, sizeof(shape->rmax), 1, file);
       fread(&shape->nr, sizeof(shape->nr), 1, file);
       fread(&shape->np, sizeof(shape->np), 1, file);
@@ -4703,9 +4703,16 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
       }
+      shape->mass *= scale;
+      shape->J *= scale * scale;
+      for (int i = 0; shape->nr * shape->np; i++) {
+        shape->sdf[i] *= scale;
+      }
+
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
+
       sim.shapes.push_back(shape);
     }
   }

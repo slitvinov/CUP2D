@@ -21,14 +21,11 @@ length = 0.5
 ax = -length / 2
 bx = length / 2
 ext = length / 10
-
 nr = 400
 np = 400
 rmax = 4 * length
-
 ay = 0
 by = 0
-
 Sdf = []
 for i in range(nr):
     for j in range(np):
@@ -41,7 +38,7 @@ for i in range(nr):
         Sdf.append(sdf)
 
 mass = 10
-J = 10
+J = 8.80277e-06
 with open("sdf.raw", "wb") as f:
     f.write(b"SDF")
     f.write(struct.pack("fffii", mass, J, rmax, nr, np))

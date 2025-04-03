@@ -360,17 +360,3 @@ std::vector<double> precond() {
 
   return P_inv;
 }
-
-static Real sdf2_segment(Real x, Real y, Real ax, Real ay, Real bx, Real by) {
-  Real h, bb, cx, cy;
-  x -= ax;
-  y -= ay;
-  bx -= ax;
-  by -= ay;
-  bb = by * by + bx * bx;
-  h = (by * y + bx * x) / bb;
-  h = h > 1 ? 1 : h < 0 ? 0 : h;
-  cx = x - bx * h;
-  cy = y - by * h;
-  return cx * cx + cy * cy;
-}
