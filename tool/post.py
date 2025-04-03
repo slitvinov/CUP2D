@@ -33,10 +33,10 @@ def plot(path):
         lx = xyz[i, 2, 0] - x
         ly = xyz[i, 2, 1] - y
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-    print(min(chi), max(chi), statistics.variance(chi))
+    # print(min(chi), max(chi), statistics.variance(chi))
     plt.axis((0, 1, 0, 1))
     # plt.axis("off")
-    p = matplotlib.collections.PatchCollection(patches)
+    p = matplotlib.collections.PatchCollection(patches, edgecolor='black', linewidth=0.1)
 
     color = np.sum(vel**2, 1)
     color[chi > 0.5] = None

@@ -3,8 +3,8 @@ ${main=./main} \
 -CFL 0.5 \
 -Ctol 1 \
 -lambda 1e7 \
--levelMax 7 \
--levelStart 5 \
+-levelMax 8 \
+-levelStart 6 \
 -maxPoissonRestarts 0 \
 -nu 0.00004 \
 -poissonTol 1e-3 \
