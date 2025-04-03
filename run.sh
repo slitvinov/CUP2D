@@ -13,6 +13,6 @@ ${main=./main} \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  sdf=sdf.raw scale=0.5 orientation=30 omega_fixed=-0.4 xcenter=0.4 ycenter=0.5
-  sdf=sdf.raw scale=0.5 orientation=90 omega_fixed=+0.4 xcenter=0.6 ycenter=0.5
+  scale=0.5 orientation=30 omega_fixed=-0.4 xcenter=0.4 ycenter=0.5 sdf=sdf.raw
+  scale=0.5 orientation=90 omega_fixed=+0.4 xcenter=0.6 ycenter=0.5 sdf=sdf.raw
 '
