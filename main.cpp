@@ -5171,6 +5171,34 @@ int main(int argc, char **argv) {
         shapes[j]->v = hv2[1];
         shapes[i]->omega = ho1[2];
         shapes[j]->omega = ho2[2];
+        if (sim.rank == 0) {
+          std::cout << "Collision between objects " << i << " and " << j
+                    << std::endl;
+          std::cout << " iM   (0) = " << collisions[i].iM
+                    << " jM   (1) = " << collisions[j].jM << std::endl;
+          std::cout << " jM   (0) = " << collisions[i].jM
+                    << " jM   (1) = " << collisions[j].iM << std::endl;
+          std::cout << " Normal vector = (" << NX << "," << NY << "," << NZ
+                    << std::endl;
+          std::cout << " Location      = (" << CX << "," << CY << "," << CZ
+                    << std::endl;
+          std::cout << " Shape " << i << " before collision u    =(" << v1[0]
+                    << "," << v1[1] << "," << v1[2] << ")" << std::endl;
+          std::cout << " Shape " << i << " after  collision u    =(" << hv1[0]
+                    << "," << hv1[1] << "," << hv1[2] << ")" << std::endl;
+          std::cout << " Shape " << j << " before collision u    =(" << v2[0]
+                    << "," << v2[1] << "," << v2[2] << ")" << std::endl;
+          std::cout << " Shape " << j << " after  collision u    =(" << hv2[0]
+                    << "," << hv2[1] << "," << hv2[2] << ")" << std::endl;
+          std::cout << " Shape " << i << " before collision omega=(" << o1[0]
+                    << "," << o1[1] << "," << o1[2] << ")" << std::endl;
+          std::cout << " Shape " << i << " after  collision omega=(" << ho1[0]
+                    << "," << ho1[1] << "," << ho1[2] << ")" << std::endl;
+          std::cout << " Shape " << j << " before collision omega=(" << o2[0]
+                    << "," << o2[1] << "," << o2[2] << ")" << std::endl;
+          std::cout << " Shape " << j << " after  collision omega=(" << ho2[0]
+                    << "," << ho2[1] << "," << ho2[2] << ")" << std::endl;
+        }
       }
     std::vector<Info> &chiInfo = var.chi->infos;
 #pragma omp parallel for
