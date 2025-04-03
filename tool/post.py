@@ -8,22 +8,27 @@ import matplotlib.pyplot as plt
 import matplotlib.patches
 import statistics
 
+
 def plot(path):
     path = re.sub("[.]xdmf2$", "", path)
-    path = re.sub("[.]attr\.raw$", "", path)
+    path = re.sub("[.]chi\.raw$", "", path)
     path = re.sub("[.]xyz\.raw$", "", path)
     xdmf_path = path + ".xdmf2"
     xyz_path = path + ".xyz.raw"
-    attr_path = path + ".chi.raw"
+    chi_path = path + ".chi.raw"
+    vel_path = path + ".vel.raw"
     png_path = path + ".png"
     root = xml.etree.ElementTree.parse(xdmf_path)
     time = root.find("Domain/Grid/Time").get("Value")
     xyz = np.memmap(xyz_path, "float32", "r")
-    ncell = xyz.size // (2 * 4)
-    assert ncell * 2 * 4 == xyz.size
-    attr = np.memmap(attr_path, "float64", "r")
-    attr = attr.reshape((ncell, -1))
-    xyz = xyz.reshape(ncell, -1, 2)
+    xyz = xyz.reshape(-1, 4, 2)
+    ncell = len(xyz)
+
+    chi = np.memmap(chi_path, "float64", "r")
+
+    vel = np.memmap(vel_path, "float64", "r")
+    vel = vel.reshape(-1, 2)
+
     patches = []
     for i in range(ncell):
         x = xyz[i, 0, 0]
@@ -31,18 +36,22 @@ def plot(path):
         lx = xyz[i, 2, 0] - x
         ly = xyz[i, 2, 1] - y
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-    print(min(attr[:, 0]), max(attr[:, 0]),
-          statistics.variance(attr[:, 0]))
+    print(min(chi), max(chi), statistics.variance(chi))
     plt.axis((0, 1, 0, 1))
     plt.axis("off")
     p = matplotlib.collections.PatchCollection(patches)
-    color = np.sum(attr**2, 1)
+
+    color = np.sum(vel**2, 1)
+    color[chi > 0.5] = None
+
     p.set_array(color)
     plt.gca().add_collection(p)
     plt.tight_layout()
     plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
+    sys.stderr.write(f"post.py: {png_path}\n")
+
 
 plt.rcParams['image.cmap'] = 'jet'
 for path in sys.argv[1:]:
-    sys.stderr.write("post.py: %s\n" % path)
+    sys.stderr.write(f"post.py: {path}\n")
     plot(path)
