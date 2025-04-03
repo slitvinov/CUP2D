@@ -51,6 +51,7 @@ static struct {
   int rank;
   int size;
   int step = 0;
+  int dump_count = 0;
   Real CFL;
   Real Ctol;
   Real dt;
@@ -2914,12 +2915,13 @@ struct KernelVorticity {
       }
   }
 };
-static void dump(Real time, long nblock, Info *infos, char *path) {
-  long i, j, k, x, y, offset;
+static void dump(Real time, Info *infos, char *path) {
+  long i, j, k, x, y, offset, nblock;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   MPI_File mpi_file;
   float xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
+  nblock = var.vel->infos.size();
   MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
     offset = 0;
@@ -4783,8 +4785,8 @@ int main(int argc, char **argv) {
     if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
       sim.nextDumpTime += sim.dumpTime;
       char path[FILENAME_MAX];
-      snprintf(path, sizeof path, "vel.%08d", sim.step);
-      dump(sim.time, var.vel->infos.size(), var.vel->infos.data(), path);
+      snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
+      dump(sim.time, var.vel->infos.data(), path);
     }
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
