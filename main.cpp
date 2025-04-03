@@ -4668,7 +4668,7 @@ int main(int argc, char **argv) {
       shape->center[0] = p("xcenter").asDouble();
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
-      shape->omega_fixed = p("omega_fixed").asDouble() * M_PI / 180;
+      shape->omega_fixed = p("omega_fixed").asDouble();
       shape->omega = 0;
       shape->u = 0;
       shape->v = 0;

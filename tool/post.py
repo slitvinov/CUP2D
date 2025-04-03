@@ -23,18 +23,14 @@ def plot(path):
     assert ncell * 2 * 4 == xyz.size
     attr = np.memmap(attr_path, "float64", "r")
     attr = attr.reshape((ncell, -1))
+    xyz = xyz.reshape(ncell, -1, 2)
     patches = []
-    xx = [ ]
-    yy = [ ]
     for i in range(ncell):
-        j = 2 * 4 * i
-        x = xyz[j]
-        y = xyz[j + 1]
-        lx = xyz[j + 4] - x
-        ly = xyz[j + 5] - y
+        x = xyz[i, 0, 0]
+        y = xyz[i, 0, 1]
+        lx = xyz[i, 2, 0] - x
+        ly = xyz[i, 2, 1] - y
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-        xx.append(x)
-        yy.append(y)
     print(min(attr[:, 0]), max(attr[:, 0]),
           statistics.variance(attr[:, 0]))
     plt.axis((0, 1, 0, 1))
