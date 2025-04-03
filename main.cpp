@@ -4725,7 +4725,6 @@ int main(int argc, char **argv) {
       fread(&shape->np, sizeof(shape->np), 1, file);
       shape->sdf = (float *)malloc(shape->nr * shape->np * sizeof(float));
       int ncount = shape->nr * shape->np;
-      fprintf(stderr, "ncount: %d %d %d\n", shape->nr, shape->np, ncount);
       if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
