@@ -6,24 +6,26 @@ import re
 import xml.etree.ElementTree
 import matplotlib.pyplot as plt
 import matplotlib.patches
+import statistics
 
 def plot(path):
-    dtype = np.dtype("float32")
     path = re.sub("[.]xdmf2$", "", path)
     path = re.sub("[.]attr\.raw$", "", path)
     path = re.sub("[.]xyz\.raw$", "", path)
     xdmf_path = path + ".xdmf2"
     xyz_path = path + ".xyz.raw"
-    attr_path = path + ".attr.raw"
+    attr_path = path + ".chi.raw"
     png_path = path + ".png"
     root = xml.etree.ElementTree.parse(xdmf_path)
     time = root.find("Domain/Grid/Time").get("Value")
-    xyz = np.memmap(xyz_path, dtype, "r")
+    xyz = np.memmap(xyz_path, "float32", "r")
     ncell = xyz.size // (2 * 4)
     assert ncell * 2 * 4 == xyz.size
-    attr = np.memmap(attr_path, dtype, "r")
+    attr = np.memmap(attr_path, "float64", "r")
     attr = attr.reshape((ncell, -1))
     patches = []
+    xx = [ ]
+    yy = [ ]
     for i in range(ncell):
         j = 2 * 4 * i
         x = xyz[j]
@@ -31,7 +33,11 @@ def plot(path):
         lx = xyz[j + 4] - x
         ly = xyz[j + 5] - y
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-    plt.axis((0, 2 * 2, 0, 2))
+        xx.append(x)
+        yy.append(y)
+    print(min(attr[:, 0]), max(attr[:, 0]),
+          statistics.variance(attr[:, 0]))
+    # plt.axis((0, 1, 0, 1))
     plt.axis("scaled")
     plt.axis("off")
     p = matplotlib.collections.PatchCollection(patches)
