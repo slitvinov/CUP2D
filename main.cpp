@@ -4956,9 +4956,8 @@ int main(int argc, char **argv) {
       }
       shape->omega = shape->omega_fixed;
     }
-    const auto &shapes = sim.shapes;
     const auto &infos = var.chi->infos;
-    const size_t N = shapes.size();
+    const size_t N = sim.shapes.size();
     sim.bCollisionID.clear();
     std::vector<CollisionInfo> collisions(N);
     std::vector<Real> n_vec(3 * N, 0.0);
@@ -4968,18 +4967,18 @@ int main(int argc, char **argv) {
         if (i == j)
           continue;
         auto &coll = collisions[i];
-        auto &iBlocks = shapes[i]->obstacleBlocks;
-        Real iU0 = shapes[i]->u;
-        Real iU1 = shapes[i]->v;
-        Real iomega2 = shapes[i]->omega;
-        Real iCx = shapes[i]->center[0];
-        Real iCy = shapes[i]->center[1];
-        auto &jBlocks = shapes[j]->obstacleBlocks;
-        Real jU0 = shapes[j]->u;
-        Real jU1 = shapes[j]->v;
-        Real jomega2 = shapes[j]->omega;
-        Real jCx = shapes[j]->center[0];
-        Real jCy = shapes[j]->center[1];
+        auto &iBlocks = sim.shapes[i]->obstacleBlocks;
+        Real iU0 = sim.shapes[i]->u;
+        Real iU1 = sim.shapes[i]->v;
+        Real iomega2 = sim.shapes[i]->omega;
+        Real iCx = sim.shapes[i]->center[0];
+        Real iCy = sim.shapes[i]->center[1];
+        auto &jBlocks = sim.shapes[j]->obstacleBlocks;
+        Real jU0 = sim.shapes[j]->u;
+        Real jU1 = sim.shapes[j]->v;
+        Real jomega2 = sim.shapes[j]->omega;
+        Real jCx = sim.shapes[j]->center[0];
+        Real jCy = sim.shapes[j]->center[1];
         assert(iBlocks.size() == jBlocks.size());
         const size_t nBlocks = iBlocks.size();
         for (size_t k = 0; k < nBlocks; ++k) {
@@ -5099,16 +5098,16 @@ int main(int argc, char **argv) {
       for (size_t j = i + 1; j < N; ++j) {
         if (i == j)
           continue;
-        Real m1 = shapes[i]->mass;
-        Real m2 = shapes[j]->mass;
-        Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
-        Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
-        Real o1[3] = {0, 0, shapes[i]->omega};
-        Real o2[3] = {0, 0, shapes[j]->omega};
-        Real C1[3] = {shapes[i]->center[0], shapes[i]->center[1], 0};
-        Real C2[3] = {shapes[j]->center[0], shapes[j]->center[1], 0};
-        Real I1[6] = {1.0, 0, 0, 0, 0, shapes[i]->J};
-        Real I2[6] = {1.0, 0, 0, 0, 0, shapes[j]->J};
+        Real m1 = sim.shapes[i]->mass;
+        Real m2 = sim.shapes[j]->mass;
+        Real v1[3] = {sim.shapes[i]->u, sim.shapes[i]->v, 0.0};
+        Real v2[3] = {sim.shapes[j]->u, sim.shapes[j]->v, 0.0};
+        Real o1[3] = {0, 0, sim.shapes[i]->omega};
+        Real o2[3] = {0, 0, sim.shapes[j]->omega};
+        Real C1[3] = {sim.shapes[i]->center[0], sim.shapes[i]->center[1], 0};
+        Real C2[3] = {sim.shapes[j]->center[0], sim.shapes[j]->center[1], 0};
+        Real I1[6] = {1.0, 0, 0, 0, 0, sim.shapes[i]->J};
+        Real I2[6] = {1.0, 0, 0, 0, 0, sim.shapes[j]->J};
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
         if (coll.iM < 2.0 || coll.jM < 2.0)
@@ -5116,9 +5115,9 @@ int main(int argc, char **argv) {
         if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
           continue;
         if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
-                shapes[i]->length ||
+                sim.shapes[i]->length ||
             std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
-                shapes[i]->length) {
+                sim.shapes[i]->length) {
           continue;
         }
 #pragma omp critical
@@ -5166,12 +5165,12 @@ int main(int argc, char **argv) {
         Real CZ = 0.5 * (iPZ + jPZ);
         collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1, C2,
                   NX, NY, NZ, CX, CY, CZ, vc1, vc2);
-        shapes[i]->u = hv1[0];
-        shapes[i]->v = hv1[1];
-        shapes[j]->u = hv2[0];
-        shapes[j]->v = hv2[1];
-        shapes[i]->omega = ho1[2];
-        shapes[j]->omega = ho2[2];
+        sim.shapes[i]->u = hv1[0];
+        sim.shapes[i]->v = hv1[1];
+        sim.shapes[j]->u = hv2[0];
+        sim.shapes[j]->v = hv2[1];
+        sim.shapes[i]->omega = ho1[2];
+        sim.shapes[j]->omega = ho2[2];
         if (sim.rank == 0)
           printf("Collision between objects %ld and %ld\n"
                  " iM   (0) = %g  jM   (1) = %g\n"
