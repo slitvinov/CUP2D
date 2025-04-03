@@ -37,7 +37,7 @@ def plot(path):
         yy.append(y)
     print(min(attr[:, 0]), max(attr[:, 0]),
           statistics.variance(attr[:, 0]))
-    # plt.axis((0, 1, 0, 1))
+    plt.axis((0, 1, 0, 1))
     plt.axis("scaled")
     plt.axis("off")
     p = matplotlib.collections.PatchCollection(patches)
