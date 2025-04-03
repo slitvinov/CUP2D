@@ -3,7 +3,7 @@ ${main=./main} \
 -CFL 0.5 \
 -Ctol 1 \
 -lambda 1e7 \
--levelMax 8 \
+-levelMax 9 \
 -levelStart 6 \
 -maxPoissonRestarts 0 \
 -nu 0.0001 \
@@ -11,8 +11,8 @@ ${main=./main} \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
 -tdump 0.5 \
--tend 10.0 \
+-tend 1000.0 \
 -shapes '
-  scale=0.5 orientation=0 omega_fixed=-0.5 xcenter=0.5 ycenter=0.44 sdf=sdf.raw
-  scale=0.5 orientation=0 omega_fixed=+0.5 xcenter=0.4 ycenter=0.55 sdf=sdf.raw
+  scale=0.5 orientation=0 omega_fixed=-0.05 xcenter=0.5 ycenter=0.44 sdf=sdf.raw
+  scale=0.5 orientation=0 omega_fixed=+0.05 xcenter=0.4 ycenter=0.55 sdf=sdf.raw
 '
