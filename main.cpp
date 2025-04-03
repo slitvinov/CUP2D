@@ -3147,7 +3147,7 @@ static void ongrid() {
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
           Real r = sqrt(x0 * x0 + y0 * y0);
-          Real p = atan2(y, x);
+          Real p = atan2(y0, x0);
           if (p < 0)
             p += 2 * M_PI;
           int i = r * shape->nr / shape->rmax;
