@@ -3157,8 +3157,8 @@ static void ongrid() {
           int j = p * (shape->np - 2) / (2 * M_PI);
           if (j >= shape->np)
             j = shape->np - 1;
-          Real dist_sdf = shape->sdf[i * shape->np + j];
-          o->dist[iy][ix] = sdf2_dist + shape->length / 10;
+	  Real dist = shape->sdf[i * shape->np + j];
+          o->dist[iy][ix] = dist;
           b[iy * _BS_ + ix] = std::max(b[iy * _BS_ + ix], dist);
           o->udef[iy][ix][0] = 0;
           o->udef[iy][ix][1] = 0;

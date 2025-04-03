@@ -22,8 +22,8 @@ ax = -length / 2
 bx = length / 2
 ext = length / 10
 
-nr = 200
-np = 200
+nr = 400
+np = 400
 rmax = 4 * length
 
 ay = 0
