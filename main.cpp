@@ -4678,9 +4678,8 @@ int main(int argc, char **argv) {
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega_fixed = p("omega_fixed").asDouble();
-
-      const char *path = p("sdf").asString().c_str();
       Real scale = p("scale").asDouble();
+      const char *path = p("sdf").asString().c_str();
       FILE *file = fopen(path, "r");
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
