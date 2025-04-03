@@ -4633,11 +4633,39 @@ struct LineParser : public CommandlineParser {
     }
   }
 };
+
+#include <csignal>
+#include <execinfo.h>
+#include <fenv.h>
+#include <unistd.h>
+static void handler(int sig) {
+  void *array[10];
+  size_t size, i;
+  char **strings;
+  size = backtrace(array, 10);
+  fprintf(stderr, "%s:%d: error: floating point exception on rank %d\n",
+          __FILE__, __LINE__, sim.rank);
+  size = backtrace(array, 10);
+  strings = backtrace_symbols(array, size);
+  if (strings != NULL) {
+    for (i = 0; i < size; i++)
+      fprintf(stderr, "%s\n", strings[i]);
+  }
+  free(strings);
+  exit(1);
+}
+
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   CommandlineParser parser(argc, argv);
   MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
+
+  /* GNU extension */
+  std::signal(SIGFPE, handler);
+  feclearexcept(FE_ALL_EXCEPT);
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+
   if (sim.rank == 0)
     fprintf(stderr, "main.cpp: %d ranks\n", sim.size);
 #ifdef _OPENMP
