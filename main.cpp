@@ -4707,7 +4707,7 @@ int main(int argc, char **argv) {
       shape->rmax *= scale;
       shape->mass *= scale;
       shape->J *= scale * scale;
-      for (int i = 0; ncount; i++)
+      for (int i = 0; i < ncount; i++)
         shape->sdf[i] *= scale;
       shape->omega = 0;
       shape->u = 0;
