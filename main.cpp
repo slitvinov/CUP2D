@@ -3029,17 +3029,20 @@ struct Integrals {
       : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
 };
 struct Shape {
-  std::vector<Obstacle *> obstacleBlocks;
+  float rmax;
+  float *sdf;
+  int nr;
+  int np;
   Real center[2];
-  Real orientation;
-  Real M = 0;
-  Real u;
-  Real v;
+  Real J;
+  Real length;
+  Real mass;
   Real omega;
   Real omega_fixed;
-  Real J, mass;
-  float *sdf, rmax;
-  int nr, np;
+  Real orientation;
+  Real u;
+  Real v;
+  std::vector<Obstacle *> obstacleBlocks;
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
@@ -3178,7 +3181,6 @@ static void ongrid() {
       com[2] += oblock[i]->COM_y;
     }
     MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
-    shape->M = com[0];
     shape->center[0] += com[1] / com[0];
     shape->center[1] += com[2] / com[0];
   }
@@ -3227,7 +3229,6 @@ static void ongrid() {
     _v /= _m;
     _a /= _j;
     Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
-    shape->M = I.m;
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < chiInfo.size(); i++) {
       const auto pos = shape->obstacleBlocks[chiInfo[i].id];
@@ -4717,7 +4718,7 @@ int main(int argc, char **argv) {
       }
       float area, J, length, rmax;
       fread(&length, sizeof(length), 1, file);
-      fread(&area, sizeof(mass), 1, file);
+      fread(&area, sizeof(area), 1, file);
       fread(&J, sizeof(J), 1, file);
       fread(&rmax, sizeof(rmax), 1, file);
       fread(&shape->nr, sizeof(shape->nr), 1, file);
@@ -5098,8 +5099,8 @@ int main(int argc, char **argv) {
       for (size_t j = i + 1; j < N; ++j) {
         if (i == j)
           continue;
-        Real m1 = shapes[i]->M;
-        Real m2 = shapes[j]->M;
+        Real m1 = shapes[i]->mass;
+        Real m2 = shapes[j]->mass;
         Real v1[3] = {shapes[i]->u, shapes[i]->v, 0.0};
         Real v2[3] = {shapes[j]->u, shapes[j]->v, 0.0};
         Real o1[3] = {0, 0, shapes[i]->omega};
