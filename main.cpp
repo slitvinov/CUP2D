@@ -4991,6 +4991,7 @@ int main(int argc, char **argv) {
           ScalarBlock &jChi = jBlocks[k]->chi;
           auto &iUDEF = iBlocks[k]->udef;
           auto &jUDEF = jBlocks[k]->udef;
+	  //	  Real h = 1.0 / _BS_ / (1 << iBlocks[k].level);
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
@@ -5178,12 +5179,12 @@ int main(int argc, char **argv) {
                  " Location      = (%g, %g, %g)\n"
                  " Shape %ld before collision u     = (%g, %g, %g)\n"
                  " Shape %ld after  collision u     = (%g, %g, %g)\n"
-                 " Shape %d before collision u     = (%g, %g, %g)\n"
-                 " Shape %d after  collision u     = (%g, %g, %g)\n"
-                 " Shape %d before collision omega = (%g, %g, %g)\n"
-                 " Shape %d after  collision omega = (%g, %g, %g)\n"
-                 " Shape %d before collision omega = (%g, %g, %g)\n"
-                 " Shape %d after  collision omega = (%g, %g, %g)\n",
+                 " Shape %ld before collision u     = (%g, %g, %g)\n"
+                 " Shape %ld after  collision u     = (%g, %g, %g)\n"
+                 " Shape %ld before collision omega = (%g, %g, %g)\n"
+                 " Shape %ld after  collision omega = (%g, %g, %g)\n"
+                 " Shape %ld before collision omega = (%g, %g, %g)\n"
+                 " Shape %ld after  collision omega = (%g, %g, %g)\n",
                  i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
                  collisions[j].iM, NX, NY, NZ, CX, CY, CZ, i, v1[0], v1[1],
                  v1[2], i, hv1[0], hv1[1], hv1[2], j, v2[0], v2[1], v2[2], j,
