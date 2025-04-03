@@ -4905,8 +4905,6 @@ int main(int argc, char **argv) {
     }
     for (const auto &shape : sim.shapes) {
       const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-      const Real Cx = shape->center[0];
-      const Real Cy = shape->center[1];
       Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
       for (size_t i = 0; i < velInfo.size(); i++) {
@@ -4929,8 +4927,8 @@ int main(int argc, char **argv) {
             Real p[2];
             p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
             p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-            p[0] -= Cx;
-            p[1] -= Cy;
+            p[0] -= shape->center[0];
+            p[1] -= shape->center[1];
             PM += F;
             PJ += F * (p[0] * p[0] + p[1] * p[1]);
             PX += F * p[0];
