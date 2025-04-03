@@ -23,12 +23,9 @@ def plot(path):
     xyz = np.memmap(xyz_path, "float32", "r")
     xyz = xyz.reshape(-1, 4, 2)
     ncell = len(xyz)
-
     chi = np.memmap(chi_path, "float64", "r")
-
     vel = np.memmap(vel_path, "float64", "r")
     vel = vel.reshape(-1, 2)
-
     patches = []
     for i in range(ncell):
         x = xyz[i, 0, 0]
@@ -38,7 +35,7 @@ def plot(path):
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
     print(min(chi), max(chi), statistics.variance(chi))
     plt.axis((0, 1, 0, 1))
-    plt.axis("off")
+    # plt.axis("off")
     p = matplotlib.collections.PatchCollection(patches)
 
     color = np.sum(vel**2, 1)
@@ -48,6 +45,7 @@ def plot(path):
     plt.gca().add_collection(p)
     plt.tight_layout()
     plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
+    plt.close()
     sys.stderr.write(f"post.py: {png_path}\n")
 
 

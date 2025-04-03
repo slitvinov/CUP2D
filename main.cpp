@@ -299,9 +299,7 @@ static void fill(Info *b, int level, long long Z) {
     for (j = 0; j < 2; j++)
       b->Zchild[i][j] =
           sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
-  b->Zparent = level == 0 ? 0
-                          : sfc_forward(level - 1, (b->index[0] / 2) % Bmax[0],
-                                        (b->index[1] / 2) % Bmax[1]);
+  b->Zparent = Z >> 2;
   b->id2 = sfc_encode(level, b->index);
   b->id = b->id2;
 }
