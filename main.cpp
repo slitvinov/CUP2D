@@ -4851,6 +4851,7 @@ int main(int argc, char **argv) {
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
       sim.nextDumpTime += sim.dumpTime;
+      computeA(KernelVorticity(), var.vel, 2);
       char path[FILENAME_MAX];
       snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
       dump(sim.time, var.vel->infos.data(), path);
@@ -4950,7 +4951,6 @@ int main(int argc, char **argv) {
       UM = quantities[4];
       VM = quantities[5];
       AM = quantities[6];
-      /* TODO */
       if (PM != 0) {
         shape->u = (PY * shape->omega_fixed + UM) / PM;
         shape->v = (VM - PX * shape->omega_fixed) / PM;
