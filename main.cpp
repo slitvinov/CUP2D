@@ -4704,6 +4704,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
       }
+      shape->rmax *= scale;
       shape->mass *= scale;
       shape->J *= scale * scale;
       for (int i = 0; ncount; i++)
