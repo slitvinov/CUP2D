@@ -13,6 +13,6 @@ ${main=./main} \
 -tdump 0.5 \
 -tend 10.0 \
 -shapes '
-  orientation=90 omega_fixed=0.1  length=0.50 xcenter=0.4 ycenter=0.5
-  orientation=90 omega_fixed=-0.1 length=0.50 xcenter=0.6 ycenter=0.5
+  orientation=90 omega_fixed=0 length=0.50 xcenter=0.4 ycenter=0.5
+  orientation=90 omega_fixed=0 length=0.50 xcenter=0.6 ycenter=0.5
 '
