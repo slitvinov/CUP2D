@@ -34,15 +34,15 @@ def plot(path):
         ly = xyz[i, 2, 1] - y
         patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
     # print(min(chi), max(chi), statistics.variance(chi))
-    plt.axis((0, 1, 0, 1))
-    # plt.axis("off")
-    p = matplotlib.collections.PatchCollection(patches, edgecolor='black', linewidth=0.1)
-
+    p = matplotlib.collections.PatchCollection(patches,
+                                               edgecolor='black',
+                                               linewidth=0.1)
     color = np.sum(vel**2, 1)
     color[chi > 0.5] = None
-
     p.set_array(color)
     plt.gca().add_collection(p)
+    plt.axis((0, 1, 0, 1))
+    plt.axis("scaled")
     plt.tight_layout()
     plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
     plt.close()

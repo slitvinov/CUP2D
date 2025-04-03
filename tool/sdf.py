@@ -27,6 +27,9 @@ rmax = 4 * length
 ay = 0
 by = 0
 Sdf = []
+
+area = 0
+J = 0
 for i in range(nr):
     for j in range(np):
         r = (i + 1) * rmax / nr
@@ -36,12 +39,21 @@ for i in range(nr):
         sdf2 = sdf2_segment(x, y, ax, ay, bx, by)
         sdf = -math.sqrt(sdf2) + length / 10
         Sdf.append(sdf)
+        if sdf >= 0:
+            area += r
+            J += r**2
+dr = rmax / nr
+dp = 2 * math.pi / (np - 1)
+area *= dr * dp
+J *= dr * dp
+length = bx - by
+print(area, J, length + 2 * length / 10)
 
 mass = 10
 J = 8.80277e-06 / 0.5 / 0.5
 with open("sdf.raw", "wb") as f:
     f.write(b"SDF")
-    f.write(struct.pack("fffii", mass, J, rmax, nr, np))
+    f.write(struct.pack("ffffii", length, area, J, rmax, nr, np))
     assert len(Sdf) == nr * np
     for sdf in Sdf:
         f.write(struct.pack("f", sdf))

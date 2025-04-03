@@ -3037,9 +3037,7 @@ struct Shape {
   Real v;
   Real omega;
   Real omega_fixed;
-
-  /* TODO */
-  Real J, mass, length = 0.5;
+  Real J, mass;
   float *sdf, rmax;
   int nr, np;
 };
@@ -4717,12 +4715,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
         exit(1);
       }
-      float mass, J;
-      fread(&mass, sizeof(mass), 1, file);
+      float area, J, length, rmax;
+      fread(&length, sizeof(length), 1, file);
+      fread(&area, sizeof(mass), 1, file);
       fread(&J, sizeof(J), 1, file);
-      shape->mass = mass;
-      shape->J = J;
-      fread(&shape->rmax, sizeof(shape->rmax), 1, file);
+      fread(&rmax, sizeof(rmax), 1, file);
       fread(&shape->nr, sizeof(shape->nr), 1, file);
       fread(&shape->np, sizeof(shape->np), 1, file);
       shape->sdf = (float *)malloc(shape->nr * shape->np * sizeof(float));
@@ -4732,9 +4729,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
       }
-      shape->rmax *= scale;
-      shape->mass *= scale;
-      shape->J *= scale * scale;
+
+      shape->J = scale * J;
+      shape->length = scale * length;
+      shape->mass = scale * area;
+      shape->rmax = scale * rmax;
       for (int i = 0; i < ncount; i++)
         shape->sdf[i] *= scale;
       shape->omega = 0;
