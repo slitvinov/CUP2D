@@ -3041,7 +3041,7 @@ struct Shape {
   Real omega_fixed;
   Real length;
 
-  float *sdf;
+  float *sdf, rmax;
   int nr, np;
 };
 struct PutChiOnGrid {
@@ -3147,6 +3147,20 @@ static void ongrid() {
           y -= shape->center[1];
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
+
+          Real r = sqrt(x0 * x0 + y0 * y0);
+          Real p = atan2(y, x);
+          if (p < 0)
+            p += 2 * M_PI;
+
+          int i = r * shape->nr / shape->rmax;
+          if (i >= shape->nr)
+            i = shape->nr - 1;
+          int j = p * (shape->np - 2) / (2 * M_PI);
+          if (j >= shape->np)
+            j = shape->np - 1;
+          Real dist_sdf = shape->sdf[i * shape->np + j];
+
           Real ax = -shape->length / 4;
           Real ay = 0;
           Real bx = shape->length / 4;
@@ -4685,10 +4699,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
         exit(1);
       }
-      float mass, J, rmax;
+      float mass, J;
       fread(&mass, sizeof(mass), 1, file);
       fread(&J, sizeof(J), 1, file);
-      fread(&rmax, sizeof(rmax), 1, file);
+      fread(&shape->rmax, sizeof(shape->rmax), 1, file);
       fread(&shape->nr, sizeof(shape->nr), 1, file);
       fread(&shape->np, sizeof(shape->np), 1, file);
       shape->sdf = (float *)malloc(shape->nr * shape->np * sizeof(float));
