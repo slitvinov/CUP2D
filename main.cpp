@@ -4991,7 +4991,6 @@ int main(int argc, char **argv) {
           ScalarBlock &jChi = jBlocks[k]->chi;
           auto &iUDEF = iBlocks[k]->udef;
           auto &jUDEF = jBlocks[k]->udef;
-	  //	  Real h = 1.0 / _BS_ / (1 << iBlocks[k].level);
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
