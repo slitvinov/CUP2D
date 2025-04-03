@@ -39,18 +39,56 @@ uint64_t morton(unsigned int x, unsigned int y) {
 }
 
 int main(int argc, char **argv) {
-  int i, j, level;
+  char *end;
+  int i, j, level, LevelFlag;
   long long Z;
-  sim.levelMax = 8;
-  level = 5;
-  if (argc == 3) {
-    i = atoi(argv[1]);
-    j = atoi(argv[2]);
-    Z = forward(level, i, j);
-    printf("[%d %d] %d %d\n", i, j, (int)Z, (int)morton(i, j));
-  } else {
-    Z = atoi(argv[1]);
+  sim.levelMax = 12;
+  LevelFlag = 0;
+  while (*++argv != NULL && argv[0][0] == '-') {
+    switch (argv[0][1]) {
+    case 'h':
+      fprintf(stderr, "usage: curve -l z\n");
+      exit(1);
+      break;
+    case 'l':
+      argv++;
+      if (argv[0] == NULL) {
+	fprintf(stderr, "curve: error: -l needs an argument\n");
+	exit(1);
+      }
+      level = strtol(argv[0], &end, 10);
+      if (*end != '\0' || level <= 0) {
+        fprintf(
+            stderr,
+            "curve: error: -l argument is not a positive integer: '%s'\n",
+            argv[0]);
+        exit(1);
+      }
+      LevelFlag = 1;
+      break;
+    default:
+      fprintf(stderr, "curve: error: unknown option '%s'\n", *argv);
+      exit(1);
+    }
+  }
+
+  if (LevelFlag == 0) {
+    fprintf(stderr, "curve: error: -l (level) must be set\n");
+    exit(1);
+  }
+  if (argv[0] == NULL) {
+    for (Z = 0; Z < 1 << (2 * level); Z++) {
+      sfc_inverse(Z, level, &i, &j);      
+      printf("%d %d\n", i, j);
+    }
+  } else if (argv[1] == NULL) {
+    Z = atoi(argv[0]);
     sfc_inverse(Z, level, &i, &j);
     printf("%d %d %d\n", i, j, (int)Z);
+  } else if (argv[2] == NULL) {
+    i = atoi(argv[0]);
+    j = atoi(argv[1]);
+    Z = forward(level, i, j);
+    printf("[%d %d] %d %d\n", i, j, (int)Z, (int)morton(i, j));
   }
 }
