@@ -4991,28 +4991,29 @@ int main(int argc, char **argv) {
           ScalarBlock &jChi = jBlocks[k]->chi;
           auto &iUDEF = iBlocks[k]->udef;
           auto &jUDEF = jBlocks[k]->udef;
-	  //	  Real h = 1.0 / _BS_ / (1 << iBlocks[k].level);
+	  Real h = 1.0 / _BS_ / (1 << infos[k].level);
+	  Real hsq = h * h;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                 continue;
               Real pos[2];
-              pos[0] = infos[k].origin[0] + infos[k].h * (ix + 0.5);
-              pos[1] = infos[k].origin[1] + infos[k].h * (iy + 0.5);
+              pos[0] = infos[k].origin[0] + h * (ix + 0.5);
+              pos[1] = infos[k].origin[1] + h * (iy + 0.5);
               const Real iUr0 = -iomega2 * (pos[1] - iCy);
               const Real iUr1 = iomega2 * (pos[0] - iCx);
-              coll.iM += iChi[iy][ix];
-              coll.iPosX += iChi[iy][ix] * pos[0];
-              coll.iPosY += iChi[iy][ix] * pos[1];
-              coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]);
-              coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]);
+              coll.iM += iChi[iy][ix] * hsq;
+              coll.iPosX += iChi[iy][ix] * pos[0] * hsq;
+              coll.iPosY += iChi[iy][ix] * pos[1] * hsq;
+              coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]) * hsq;
+              coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]) * hsq;
               const Real jUr0 = -jomega2 * (pos[1] - jCy);
               const Real jUr1 = jomega2 * (pos[0] - jCx);
-              coll.jM += jChi[iy][ix];
-              coll.jPosX += jChi[iy][ix] * pos[0];
-              coll.jPosY += jChi[iy][ix] * pos[1];
-              coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]);
-              coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]);
+              coll.jM += jChi[iy][ix] * hsq;
+              coll.jPosX += jChi[iy][ix] * pos[0] * hsq;
+              coll.jPosY += jChi[iy][ix] * pos[1] * hsq;
+              coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]) * hsq;
+              coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]) * hsq;
               Real dSDFdx_i;
               Real dSDFdx_j;
               if (ix == 0) {
