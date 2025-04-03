@@ -4690,7 +4690,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
         exit(1);
       }
-      flat mass, J;
+      float mass, J;
       fread(&mass, sizeof(mass), 1, file);
       fread(&J, sizeof(J), 1, file);
       shape->mass = mass;
