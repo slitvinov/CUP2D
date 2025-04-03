@@ -14,14 +14,14 @@ def sdf_box(x, y, bx, by):
     return -outside_dist - inside_dist
 
 
-bx = by = 1
+bx = by = 0.5
+length = 2 * max(bx, by)
+rmax = 4 * length
 nr = 400
 np = 400
-rmax = 4 * max(bx, by)
-Sdf = []
-
 area = 0
 J = 0
+Sdf = []
 for i in range(nr):
     for j in range(np):
         r = (i + 1) * rmax / nr
@@ -37,7 +37,8 @@ dr = rmax / nr
 dp = 2 * math.pi / (np - 1)
 area *= dr * dp
 J *= dr * dp
-length = bx - by
+
+print(length, area, J)
 with open("box.raw", "wb") as f:
     f.write(b"SDF")
     f.write(struct.pack("ffffii", length, area, J, rmax, nr, np))
