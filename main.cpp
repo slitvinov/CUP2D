@@ -2625,8 +2625,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               MPI_STATUSES_IGNORE);
 }
 typedef Real ScalarBlock[_BS_][_BS_];
-template <int dir, int side>
-void applyBCface(BlockLab *lab, bool coarse) {
+template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
   const int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -3029,7 +3028,6 @@ struct Shape {
   Real length;
   Real mass;
   Real omega;
-  Real omega_fixed;
   Real orientation;
   Real u;
   Real v;
@@ -4230,9 +4228,7 @@ struct Solver {
     bool isBD(int, int iy) const override {
       return iy == _BS_ - 1 || iy == _BS_ / 2 - 1;
     }
-    bool isFD(int, int iy) const override {
-      return iy == 0 || iy == _BS_ / 2;
-    }
+    bool isFD(int, int iy) const override { return iy == 0 || iy == _BS_ / 2; }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
       return This(info, ix, iy + dist);
     }
@@ -4287,9 +4283,7 @@ struct Solver {
     bool isBD(int ix, int) const override {
       return ix == _BS_ - 1 || ix == _BS_ / 2 - 1;
     }
-    bool isFD(int ix, int) const override {
-      return ix == 0 || ix == _BS_ / 2;
-    }
+    bool isFD(int ix, int) const override { return ix == 0 || ix == _BS_ / 2; }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
       return This(info, ix + dist, iy);
     }
@@ -4697,7 +4691,7 @@ int main(int argc, char **argv) {
       shape->center[0] = p("xcenter").asDouble();
       shape->center[1] = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
-      shape->omega_fixed = p("omega_fixed").asDouble();
+      shape->omega = p("omega").asDouble();
       Real scale = p("scale").asDouble();
       const char *path = p("sdf").asString().c_str();
       FILE *file = fopen(path, "r");
@@ -4737,7 +4731,6 @@ int main(int argc, char **argv) {
       shape->rmax = scale * rmax;
       for (size_t i = 0; i < ncount; i++)
         shape->sdf[i] *= scale;
-      shape->omega = 0;
       shape->u = 0;
       shape->v = 0;
 
@@ -4938,8 +4931,8 @@ int main(int argc, char **argv) {
           }
       }
       Real quantities[] = {PM, PX, PY, UM, VM};
-      MPI_Allreduce(MPI_IN_PLACE, quantities, sizeof quantities / sizeof *quantities,
-		    MPI_Real, MPI_SUM,
+      MPI_Allreduce(MPI_IN_PLACE, quantities,
+                    sizeof quantities / sizeof *quantities, MPI_Real, MPI_SUM,
                     MPI_COMM_WORLD);
       PM = quantities[0];
       PX = quantities[1];
@@ -4947,10 +4940,9 @@ int main(int argc, char **argv) {
       UM = quantities[3];
       VM = quantities[4];
       if (PM != 0) {
-        shape->u = (PY * shape->omega_fixed + UM) / PM;
-        shape->v = (VM - PX * shape->omega_fixed) / PM;
+        shape->u = (PY * shape->omega + UM) / PM;
+        shape->v = (VM - PX * shape->omega) / PM;
       }
-      shape->omega = shape->omega_fixed;
     }
     const auto &infos = var.chi->infos;
     const size_t N = sim.shapes.size();
@@ -5045,11 +5037,9 @@ int main(int argc, char **argv) {
       coll.jvecX = buffer[20 * i + 17];
       coll.jvecY = buffer[20 * i + 18];
     }
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < N; ++i)
+    // #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < N; ++i) {
       for (size_t j = i + 1; j < N; ++j) {
-        if (i == j)
-          continue;
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
         if (coll.iM > 0 && coll.jM > 0 && coll_other.iM > 0 &&
@@ -5061,24 +5051,23 @@ int main(int argc, char **argv) {
           Real inorm = 1.0 / hypot(mX, mY);
           Real NX = mX * inorm;
           Real NY = mY * inorm;
-          Real inv_iM = 1.0 / coll.iM;
-          Real inv_jM = 1.0 / coll.jM;
-          Real iPX = coll.iPosX * inv_iM;
-          Real iPY = coll.iPosY * inv_iM;
-          Real jPX = coll.jPosX * inv_jM;
-          Real jPY = coll.jPosY * inv_jM;
-          Real CX = 0.5 * (iPX + jPX);
-          Real CY = 0.5 * (iPY + jPY);
           if (sim.rank == 0)
             printf("Collision between objects %ld and %ld\n"
-                   " iM   (0) = %g  jM   (1) = %g\n"
-                   " jM   (0) = %g  jM   (1) = %g\n"
-                   " Normal vector = %g, %g\n"
-                   " Location      = %g, %g\n",
+                   " iM %g %g\n"
+                   " jM %g %g\n"
+                   " Normal vector = %g %g\n",
                    i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                   collisions[j].iM, NX, NY, CX, CY);
+                   collisions[j].iM, NX, NY);
+          Real mass = (coll.iM + coll.jM) / 2;
+          Real du = NX * mass;
+          Real dv = NY * mass;
+          sim.shapes[i]->u += du;
+          sim.shapes[i]->v += dv;
+          sim.shapes[j]->u -= du;
+          sim.shapes[j]->v -= dv;
         }
       }
+    }
     std::vector<Info> &chiInfo = var.chi->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
@@ -5089,7 +5078,6 @@ int main(int argc, char **argv) {
           continue;
         Real u_s = shape->u;
         Real v_s = shape->v;
-        Real omega_s = shape->omega;
         Real Cx = shape->center[0];
         Real Cy = shape->center[1];
         Real *X = (Real *)o->chi;
@@ -5109,8 +5097,8 @@ int main(int argc, char **argv) {
             p[0] -= Cx;
             p[1] -= Cy;
             Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
-            Real US = u_s - omega_s * p[1] + UDEF[2 * j + 0];
-            Real VS = v_s + omega_s * p[0] + UDEF[2 * j + 1];
+            Real US = u_s - shape->omega * p[1] + UDEF[2 * j + 0];
+            Real VS = v_s + shape->omega * p[0] + UDEF[2 * j + 1];
             V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
             V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
           }
