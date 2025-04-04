@@ -5190,21 +5190,9 @@ int main(int argc, char **argv) {
                  " iM   (0) = %g  jM   (1) = %g\n"
                  " jM   (0) = %g  jM   (1) = %g\n"
                  " Normal vector = (%g, %g, %g)\n"
-                 " Location      = (%g, %g, %g)\n"
-                 " Shape %ld before collision u     = (%g, %g, %g)\n"
-                 " Shape %ld after  collision u     = (%g, %g, %g)\n"
-                 " Shape %ld before collision u     = (%g, %g, %g)\n"
-                 " Shape %ld after  collision u     = (%g, %g, %g)\n"
-                 " Shape %ld before collision omega = (%g, %g, %g)\n"
-                 " Shape %ld after  collision omega = (%g, %g, %g)\n"
-                 " Shape %ld before collision omega = (%g, %g, %g)\n"
-                 " Shape %ld after  collision omega = (%g, %g, %g)\n",
+                 " Location      = (%g, %g, %g)\n",
                  i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                 collisions[j].iM, NX, NY, NZ, CX, CY, CZ, i, v1[0], v1[1],
-                 v1[2], i, hv1[0], hv1[1], hv1[2], j, v2[0], v2[1], v2[2], j,
-                 hv2[0], hv2[1], hv2[2], i, o1[0], o1[1], o1[2], i, ho1[0],
-                 ho1[1], ho1[2], j, o2[0], o2[1], o2[2], j, ho2[0], ho2[1],
-                 ho2[2]);
+                 collisions[j].iM, NX, NY, NZ, CX, CY, CZ);
       }
     std::vector<Info> &chiInfo = var.chi->infos;
 #pragma omp parallel for

@@ -55,6 +55,11 @@ PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH
 git clean -fdxq && make 'CXXFLAGS = -Og -g3' && mpirun -n 2 sh run.sh && python3 tool/stat.py *.xdmf2 | tee ref.out
 ```
 
+or
+```
+PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH && module load mpi && make
+```
+
 AddressSanitizer:
 ```
 make 'NVCCFLAGS = -g -O0 -Xcompiler -fsanitize=address' \
