@@ -4758,8 +4758,6 @@ int main(int argc, char **argv) {
 
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
-  std::vector<double> P_inv = precond();
-  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
   sim.levels.push_back(2);
   for (int m = 1; m < sim.levelMax; m++)
     sim.levels.push_back(sim.levels[m - 1] + 1 << (m + 1));
@@ -4840,6 +4838,8 @@ int main(int argc, char **argv) {
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
     }
   }
+  std::vector<double> P_inv = precond();
+  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
   sim.solver = new Solver;
   while (1) {
     if (sim.rank == 0 && sim.step % 5 == 0)
@@ -5504,6 +5504,7 @@ int main(int argc, char **argv) {
       break;
   }
 
+  delete sim.mat;
   delete sim.solver;
   for (Shape *shape : sim.shapes) {
     for (Obstacle *oblock : shape->obstacleBlocks)

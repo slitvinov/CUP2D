@@ -36,7 +36,6 @@ struct LocalSpMatDnVec {
                        const int max_restarts);
   void solveNoUpdate(const double max_error, const double max_rel_error,
                      const int max_restarts);
-  void set_bMeanRow(int bMeanRow) { bMeanRow_ = bMeanRow; }
   friend class BiCGSTABSolver;
   int rank_;
   MPI_Comm m_comm_;
