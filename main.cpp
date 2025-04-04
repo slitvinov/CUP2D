@@ -1728,7 +1728,9 @@ static void _alloc(int level, long long Z,
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-  { infos->push_back(*new_info); }
+  {
+    infos->push_back(*new_info);
+  }
   treef(tree, level, Z) = sim.rank;
 }
 
@@ -3172,7 +3174,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3646,7 +3648,9 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
+      {
+        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
+      }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3796,7 +3800,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
+            {
+              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
+            }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4181,8 +4187,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
+        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -4651,7 +4657,7 @@ static void handler(int sig) {
       fprintf(stderr, "%s\n", strings[i]);
   }
   free(strings);
-  exit(1);
+  MPI_Abort(MPI_COMM_WORLD, 1);
 }
 
 int main(int argc, char **argv) {
@@ -4708,23 +4714,31 @@ int main(int argc, char **argv) {
       FILE *file = fopen(path, "r");
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
       }
       char tag[3] = {0};
+      float area, J, length, rmax;
       fread(tag, sizeof *tag, sizeof tag, file);
       if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
       }
-      float area, J, length, rmax;
-      fread(&length, sizeof(length), 1, file);
-      fread(&area, sizeof(area), 1, file);
-      fread(&J, sizeof(J), 1, file);
-      fread(&rmax, sizeof(rmax), 1, file);
-      fread(&shape->nr, sizeof(shape->nr), 1, file);
-      fread(&shape->np, sizeof(shape->np), 1, file);
-      shape->sdf = (float *)malloc(shape->nr * shape->np * sizeof(float));
+      if (fread(&length, sizeof(length), 1, file) != 1 ||
+          fread(&area, sizeof(area), 1, file) != 1 ||
+          fread(&J, sizeof(J), 1, file) != 1 ||
+          fread(&rmax, sizeof(rmax), 1, file) != 1 ||
+          fread(&shape->nr, sizeof(shape->nr), 1, file) != 1 ||
+          fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
+        fprintf(stderr,
+                "main.cpp: error: fail to read shape header from file.\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+      }
       int ncount = shape->nr * shape->np;
+      if ((shape->sdf = (float *)malloc(ncount * sizeof(float))) == NULL) {
+        fprintf(stderr, "main.cpp: error: malloc() failed\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+      }
+
       if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
@@ -4988,8 +5002,8 @@ int main(int argc, char **argv) {
           ScalarBlock &jChi = jBlocks[k]->chi;
           auto &iUDEF = iBlocks[k]->udef;
           auto &jUDEF = jBlocks[k]->udef;
-	  Real h = 1.0 / _BS_ / (1 << infos[k].level);
-	  Real hsq = h * h;
+          Real h = 1.0 / _BS_ / (1 << infos[k].level);
+          Real hsq = h * h;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
@@ -5002,15 +5016,19 @@ int main(int argc, char **argv) {
               coll.iM += iChi[iy][ix] * hsq;
               coll.iPosX += iChi[iy][ix] * pos[0] * hsq;
               coll.iPosY += iChi[iy][ix] * pos[1] * hsq;
-              coll.iMomX += iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]) * hsq;
-              coll.iMomY += iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]) * hsq;
+              coll.iMomX +=
+                  iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]) * hsq;
+              coll.iMomY +=
+                  iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]) * hsq;
               const Real jUr0 = -jomega2 * (pos[1] - jCy);
               const Real jUr1 = jomega2 * (pos[0] - jCx);
               coll.jM += jChi[iy][ix] * hsq;
               coll.jPosX += jChi[iy][ix] * pos[0] * hsq;
               coll.jPosY += jChi[iy][ix] * pos[1] * hsq;
-              coll.jMomX += jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]) * hsq;
-              coll.jMomY += jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]) * hsq;
+              coll.jMomX +=
+                  jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]) * hsq;
+              coll.jMomY +=
+                  jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]) * hsq;
               Real dSDFdx_i;
               Real dSDFdx_j;
               if (ix == 0) {

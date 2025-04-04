@@ -120,8 +120,10 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   MPI_Comm_size(m_comm_, &comm_size_);
   int count;
   if (cudaGetDeviceCount(&count) != cudaSuccess) {
-    fprintf(stderr, "cuda.cu: No CUDA-capable devices found\n");
-    exit(1);
+    fprintf(stderr,
+            "cuda.cu: error: no CUDA-capable devices found on rank %d\n",
+            rank_);
+    MPI_Abort(m_comm_, 1);
   }
   cudaStreamCreate(&solver_stream_);
   cudaStreamCreate(&copy_stream_);
