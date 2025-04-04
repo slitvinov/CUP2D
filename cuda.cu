@@ -131,14 +131,15 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   for (int i = 0;;) {
     if (i == rank_) {
       cudaUUID_t u = prop.uuid;
-      fprintf(stderr,
-              "cuda.cu: rank: %d: "
-              "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
-              "02x%02x%02x\n",
-              rank_, u.bytes[0], u.bytes[1], u.bytes[2], u.bytes[3], u.bytes[4],
-              u.bytes[5], u.bytes[6], u.bytes[7], u.bytes[8], u.bytes[9],
-              u.bytes[10], u.bytes[11], u.bytes[12], u.bytes[13], u.bytes[14],
-              u.bytes[15]);
+      printf("GPU %d: %s (UUID: "
+             "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%"
+             "02x%02x)\n",
+             i, prop.name, prop.uuid.bytes[0], prop.uuid.bytes[1],
+             prop.uuid.bytes[2], prop.uuid.bytes[3], prop.uuid.bytes[4],
+             prop.uuid.bytes[5], prop.uuid.bytes[6], prop.uuid.bytes[7],
+             prop.uuid.bytes[8], prop.uuid.bytes[9], prop.uuid.bytes[10],
+             prop.uuid.bytes[11], prop.uuid.bytes[12], prop.uuid.bytes[13],
+             prop.uuid.bytes[14], prop.uuid.bytes[15]);
     }
     if (++i == comm_size_)
       break;
