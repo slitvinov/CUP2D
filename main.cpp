@@ -4440,9 +4440,9 @@ struct Solver {
     std::vector<Info> &RhsInfo = var.tmp->infos;
     std::vector<Info> &zInfo = var.pres->infos;
     int Nblocks = RhsInfo.size();
-    std::vector<double> &x = sim.mat->get_x();
-    std::vector<double> &b = sim.mat->get_b();
-    std::vector<double> &h2 = sim.mat->get_h2();
+    std::vector<double> &x = sim.mat->x_;
+    std::vector<double> &b = sim.mat->b_;
+    std::vector<double> &h2 = sim.mat->h2_;
     long long shift = -sim.nrows[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
@@ -5432,7 +5432,7 @@ int main(int argc, char **argv) {
     }
     std::vector<Info> &zInfo = var.pres->infos;
     const int NB = zInfo.size();
-    const std::vector<double> &x = sim.mat->get_x();
+    const std::vector<double> &x = sim.mat->x_;
     Real avg, avg1, quantities[2];
     avg = 0;
     avg1 = 0;

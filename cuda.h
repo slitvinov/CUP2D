@@ -23,8 +23,7 @@ public:
   }
 };
 class BiCGSTABSolver;
-class LocalSpMatDnVec {
-public:
+struct LocalSpMatDnVec {
   LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint,
                   const std::vector<double> &P_inv);
   ~LocalSpMatDnVec();
@@ -38,12 +37,7 @@ public:
   void solveNoUpdate(const double max_error, const double max_rel_error,
                      const int max_restarts);
   void set_bMeanRow(int bMeanRow) { bMeanRow_ = bMeanRow; }
-  std::vector<double> &get_x() { return x_; }
-  std::vector<double> &get_b() { return b_; }
-  std::vector<double> &get_h2() { return h2_; }
   friend class BiCGSTABSolver;
-
-private:
   int rank_;
   MPI_Comm m_comm_;
   int comm_size_;
