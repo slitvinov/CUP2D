@@ -30,19 +30,19 @@ for path in sys.argv[1:]:
         vel = np.memmap(vel_path, "float64", "r")
         vel = vel.reshape(-1, 2)
         patches = []
+        color = []
         for i in range(ncell):
-            x = xyz[i, 0, 0]
-            y = xyz[i, 0, 1]
-            lx = xyz[i, 2, 0] - x
-            ly = xyz[i, 2, 1] - y
-            patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-        # print(min(chi), max(chi), statistics.variance(chi))
+            if chi[i] < 0.5:
+                x = xyz[i, 0, 0]
+                y = xyz[i, 0, 1]
+                lx = xyz[i, 2, 0] - x
+                ly = xyz[i, 2, 1] - y
+                color.append(tmp[i])
+                patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
         p = matplotlib.collections.PatchCollection(patches,
                                                    edgecolor='black',
-                                                   linewidth=0.1)
-        color = tmp.copy()
-        color[chi > 0.5] = None
-        vmax = np.nanmax(np.abs(color))
+                                                   linewidth=0.1)            
+        vmax = np.nanquantile(np.abs(color), 0.95)
         p.set_array(color)
         p.set_norm(matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax))
         plt.gca().add_collection(p)

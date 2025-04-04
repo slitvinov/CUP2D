@@ -5053,8 +5053,8 @@ int main(int argc, char **argv) {
           Real NX = mX * inorm;
           Real NY = mY * inorm;
           Real mass = (coll.iM + coll.jM) / 2;
-          Real du = NX * mass;
-          Real dv = NY * mass;
+          Real du = 8 * NX * mass;
+          Real dv = 8 * NY * mass;
           sim.shapes[i]->u += du;
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
@@ -5076,11 +5076,7 @@ int main(int argc, char **argv) {
         std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
         Obstacle *o = oblock[velInfo[i].id];
         if (o == nullptr)
-          continue;
-        Real u_s = shape->u;
-        Real v_s = shape->v;
-        Real Cx = shape->x;
-        Real Cy = shape->y;
+          continue;        
         Real *X = (Real *)o->chi;
         Real *UDEF = (Real *)o->udef;
         Real *CHI = chiInfo[i].block;
@@ -5095,11 +5091,11 @@ int main(int argc, char **argv) {
             Real p[2];
             p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
             p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-            p[0] -= Cx;
-            p[1] -= Cy;
+            p[0] -= shape->x;
+            p[1] -= shape->y;
             Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
-            Real US = u_s - shape->omega * p[1] + UDEF[2 * j + 0];
-            Real VS = v_s + shape->omega * p[0] + UDEF[2 * j + 1];
+            Real US = shape->u - shape->omega * p[1] + UDEF[2 * j + 0];
+            Real VS = shape->v + shape->omega * p[0] + UDEF[2 * j + 1];
             V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
             V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
           }
