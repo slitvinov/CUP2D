@@ -64,7 +64,6 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  std::vector<int> bCollisionID;
   std::vector<long long> levels, nblocks, nrows;
   std::vector<Shape *> shapes;
   struct Solver *solver;
@@ -91,23 +90,13 @@ struct CollisionInfo {
   Real iM = 0;
   Real iPosX = 0;
   Real iPosY = 0;
-  Real iPosZ = 0;
-  Real iMomX = 0;
-  Real iMomY = 0;
-  Real iMomZ = 0;
   Real ivecX = 0;
   Real ivecY = 0;
-  Real ivecZ = 0;
   Real jM = 0;
   Real jPosX = 0;
   Real jPosY = 0;
-  Real jPosZ = 0;
-  Real jMomX = 0;
-  Real jMomY = 0;
-  Real jMomZ = 0;
   Real jvecX = 0;
   Real jvecY = 0;
-  Real jvecZ = 0;
 };
 struct Interface {
   Info *infos[2];
@@ -4968,9 +4957,7 @@ int main(int argc, char **argv) {
     }
     const auto &infos = var.chi->infos;
     const size_t N = sim.shapes.size();
-    sim.bCollisionID.clear();
     std::vector<CollisionInfo> collisions(N);
-    std::vector<Real> n_vec(3 * N, 0.0);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < N; ++i)
       for (size_t j = 0; j < N; ++j) {
@@ -4978,28 +4965,14 @@ int main(int argc, char **argv) {
           continue;
         auto &coll = collisions[i];
         auto &iBlocks = sim.shapes[i]->obstacleBlocks;
-        Real iU0 = sim.shapes[i]->u;
-        Real iU1 = sim.shapes[i]->v;
-        Real iomega2 = sim.shapes[i]->omega;
-        Real iCx = sim.shapes[i]->center[0];
-        Real iCy = sim.shapes[i]->center[1];
         auto &jBlocks = sim.shapes[j]->obstacleBlocks;
-        Real jU0 = sim.shapes[j]->u;
-        Real jU1 = sim.shapes[j]->v;
-        Real jomega2 = sim.shapes[j]->omega;
-        Real jCx = sim.shapes[j]->center[0];
-        Real jCy = sim.shapes[j]->center[1];
-        assert(iBlocks.size() == jBlocks.size());
-        const size_t nBlocks = iBlocks.size();
-        for (size_t k = 0; k < nBlocks; ++k) {
+        for (size_t k = 0; k < iBlocks.size(); ++k) {
           if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
             continue;
           auto &iSDF = iBlocks[k]->dist;
           auto &jSDF = jBlocks[k]->dist;
           ScalarBlock &iChi = iBlocks[k]->chi;
           ScalarBlock &jChi = jBlocks[k]->chi;
-          auto &iUDEF = iBlocks[k]->udef;
-          auto &jUDEF = jBlocks[k]->udef;
           Real h = 1.0 / _BS_ / (1 << infos[k].level);
           Real hsq = h * h;
           for (int iy = 0; iy < _BS_; ++iy)
@@ -5009,24 +4982,12 @@ int main(int argc, char **argv) {
               Real pos[2];
               pos[0] = infos[k].origin[0] + h * (ix + 0.5);
               pos[1] = infos[k].origin[1] + h * (iy + 0.5);
-              const Real iUr0 = -iomega2 * (pos[1] - iCy);
-              const Real iUr1 = iomega2 * (pos[0] - iCx);
               coll.iM += iChi[iy][ix] * hsq;
               coll.iPosX += iChi[iy][ix] * pos[0] * hsq;
               coll.iPosY += iChi[iy][ix] * pos[1] * hsq;
-              coll.iMomX +=
-                  iChi[iy][ix] * (iU0 + iUr0 + iUDEF[iy][ix][0]) * hsq;
-              coll.iMomY +=
-                  iChi[iy][ix] * (iU1 + iUr1 + iUDEF[iy][ix][1]) * hsq;
-              const Real jUr0 = -jomega2 * (pos[1] - jCy);
-              const Real jUr1 = jomega2 * (pos[0] - jCx);
               coll.jM += jChi[iy][ix] * hsq;
               coll.jPosX += jChi[iy][ix] * pos[0] * hsq;
               coll.jPosY += jChi[iy][ix] * pos[1] * hsq;
-              coll.jMomX +=
-                  jChi[iy][ix] * (jU0 + jUr0 + jUDEF[iy][ix][0]) * hsq;
-              coll.jMomY +=
-                  jChi[iy][ix] * (jU1 + jUr1 + jUDEF[iy][ix][1]) * hsq;
               Real dSDFdx_i;
               Real dSDFdx_j;
               if (ix == 0) {
@@ -5064,23 +5025,13 @@ int main(int argc, char **argv) {
       buffer[20 * i] = coll.iM;
       buffer[20 * i + 1] = coll.iPosX;
       buffer[20 * i + 2] = coll.iPosY;
-      buffer[20 * i + 3] = coll.iPosZ;
-      buffer[20 * i + 4] = coll.iMomX;
-      buffer[20 * i + 5] = coll.iMomY;
-      buffer[20 * i + 6] = coll.iMomZ;
       buffer[20 * i + 7] = coll.ivecX;
       buffer[20 * i + 8] = coll.ivecY;
-      buffer[20 * i + 9] = coll.ivecZ;
       buffer[20 * i + 10] = coll.jM;
       buffer[20 * i + 11] = coll.jPosX;
       buffer[20 * i + 12] = coll.jPosY;
-      buffer[20 * i + 13] = coll.jPosZ;
-      buffer[20 * i + 14] = coll.jMomX;
-      buffer[20 * i + 15] = coll.jMomY;
-      buffer[20 * i + 16] = coll.jMomZ;
       buffer[20 * i + 17] = coll.jvecX;
       buffer[20 * i + 18] = coll.jvecY;
-      buffer[20 * i + 19] = coll.jvecZ;
     }
     MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM,
                   MPI_COMM_WORLD);
@@ -5089,110 +5040,47 @@ int main(int argc, char **argv) {
       coll.iM = buffer[20 * i];
       coll.iPosX = buffer[20 * i + 1];
       coll.iPosY = buffer[20 * i + 2];
-      coll.iPosZ = buffer[20 * i + 3];
-      coll.iMomX = buffer[20 * i + 4];
-      coll.iMomY = buffer[20 * i + 5];
-      coll.iMomZ = buffer[20 * i + 6];
       coll.ivecX = buffer[20 * i + 7];
       coll.ivecY = buffer[20 * i + 8];
-      coll.ivecZ = buffer[20 * i + 9];
       coll.jM = buffer[20 * i + 10];
       coll.jPosX = buffer[20 * i + 11];
       coll.jPosY = buffer[20 * i + 12];
-      coll.jPosZ = buffer[20 * i + 13];
-      coll.jMomX = buffer[20 * i + 14];
-      coll.jMomY = buffer[20 * i + 15];
-      coll.jMomZ = buffer[20 * i + 16];
       coll.jvecX = buffer[20 * i + 17];
       coll.jvecY = buffer[20 * i + 18];
-      coll.jvecZ = buffer[20 * i + 19];
     }
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < N; ++i)
       for (size_t j = i + 1; j < N; ++j) {
         if (i == j)
           continue;
-        Real m1 = sim.shapes[i]->mass;
-        Real m2 = sim.shapes[j]->mass;
-        Real v1[3] = {sim.shapes[i]->u, sim.shapes[i]->v, 0.0};
-        Real v2[3] = {sim.shapes[j]->u, sim.shapes[j]->v, 0.0};
-        Real o1[3] = {0, 0, sim.shapes[i]->omega};
-        Real o2[3] = {0, 0, sim.shapes[j]->omega};
-        Real C1[3] = {sim.shapes[i]->center[0], sim.shapes[i]->center[1], 0};
-        Real C2[3] = {sim.shapes[j]->center[0], sim.shapes[j]->center[1], 0};
-        Real I1[6] = {1.0, 0, 0, 0, 0, sim.shapes[i]->J};
-        Real I2[6] = {1.0, 0, 0, 0, 0, sim.shapes[j]->J};
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
-        if (coll.iM < 2.0 || coll.jM < 2.0)
-          continue;
-        if (coll_other.iM < 2.0 || coll_other.jM < 2.0)
-          continue;
-        if (std::fabs(coll.iPosX / coll.iM - coll_other.iPosX / coll_other.iM) >
-                sim.shapes[i]->length ||
-            std::fabs(coll.iPosY / coll.iM - coll_other.iPosY / coll_other.iM) >
-                sim.shapes[i]->length) {
-          continue;
+        if (coll.iM > 0 && coll.jM > 0 && coll_other.iM > 0 &&
+            coll_other.jM > 0) {
+          Real norm_i = hypot(coll.ivecX, coll.ivecY);
+          Real norm_j = hypot(coll.jvecX, coll.jvecY);
+          Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
+          Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
+          Real inorm = 1.0 / hypot(mX, mY);
+          Real NX = mX * inorm;
+          Real NY = mY * inorm;
+          Real inv_iM = 1.0 / coll.iM;
+          Real inv_jM = 1.0 / coll.jM;
+          Real iPX = coll.iPosX * inv_iM;
+          Real iPY = coll.iPosY * inv_iM;
+          Real jPX = coll.jPosX * inv_jM;
+          Real jPY = coll.jPosY * inv_jM;
+          Real CX = 0.5 * (iPX + jPX);
+          Real CY = 0.5 * (iPY + jPY);
+          if (sim.rank == 0)
+            printf("Collision between objects %ld and %ld\n"
+                   " iM   (0) = %g  jM   (1) = %g\n"
+                   " jM   (0) = %g  jM   (1) = %g\n"
+                   " Normal vector = %g, %g\n"
+                   " Location      = %g, %g\n",
+                   i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
+                   collisions[j].iM, NX, NY, CX, CY);
         }
-#pragma omp critical
-        {
-          sim.bCollisionID.push_back(i);
-          sim.bCollisionID.push_back(j);
-        }
-        Real ho1[3];
-        Real ho2[3];
-        Real hv1[3];
-        Real hv2[3];
-        Real norm_i =
-            std::sqrt(coll.ivecX * coll.ivecX + coll.ivecY * coll.ivecY +
-                      coll.ivecZ * coll.ivecZ);
-        Real norm_j =
-            std::sqrt(coll.jvecX * coll.jvecX + coll.jvecY * coll.jvecY +
-                      coll.jvecZ * coll.jvecZ);
-        Real mX = coll.ivecX / norm_i - coll.jvecX / norm_j;
-        Real mY = coll.ivecY / norm_i - coll.jvecY / norm_j;
-        Real mZ = coll.ivecZ / norm_i - coll.jvecZ / norm_j;
-        Real inorm = 1.0 / std::sqrt(mX * mX + mY * mY + mZ * mZ);
-        Real NX = mX * inorm;
-        Real NY = mY * inorm;
-        Real NZ = mZ * inorm;
-        Real hitVelX = coll.jMomX / coll.jM - coll.iMomX / coll.iM;
-        Real hitVelY = coll.jMomY / coll.jM - coll.iMomY / coll.iM;
-        Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
-        Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
-        Real vc1[3] = {coll.iMomX / coll.iM, coll.iMomY / coll.iM,
-                       coll.iMomZ / coll.iM};
-        Real vc2[3] = {coll.jMomX / coll.jM, coll.jMomY / coll.jM,
-                       coll.jMomZ / coll.jM};
-        if (projVel <= 0)
-          continue;
-        Real inv_iM = 1.0 / coll.iM;
-        Real inv_jM = 1.0 / coll.jM;
-        Real iPX = coll.iPosX * inv_iM;
-        Real iPY = coll.iPosY * inv_iM;
-        Real iPZ = coll.iPosZ * inv_iM;
-        Real jPX = coll.jPosX * inv_jM;
-        Real jPY = coll.jPosY * inv_jM;
-        Real jPZ = coll.jPosZ * inv_jM;
-        Real CX = 0.5 * (iPX + jPX);
-        Real CY = 0.5 * (iPY + jPY);
-        Real CZ = 0.5 * (iPZ + jPZ);
-        collision(m1, m2, I1, I2, v1, v2, o1, o2, hv1, hv2, ho1, ho2, C1, C2,
-                  NX, NY, NZ, CX, CY, CZ, vc1, vc2);
-        sim.shapes[i]->u = hv1[0];
-        sim.shapes[i]->v = hv1[1];
-        sim.shapes[j]->u = hv2[0];
-        sim.shapes[j]->v = hv2[1];
-        sim.shapes[i]->omega = ho1[2];
-        sim.shapes[j]->omega = ho2[2];
-        if (sim.rank == 0)
-          printf("Collision between objects %ld and %ld\n"
-                 " iM   (0) = %g  jM   (1) = %g\n"
-                 " jM   (0) = %g  jM   (1) = %g\n"
-                 " Normal vector = (%g, %g, %g)\n"
-                 " Location      = (%g, %g, %g)\n",
-                 i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                 collisions[j].iM, NX, NY, NZ, CX, CY, CZ);
       }
     std::vector<Info> &chiInfo = var.chi->infos;
 #pragma omp parallel for
