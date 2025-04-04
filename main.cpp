@@ -3023,7 +3023,8 @@ struct Shape {
   float *sdf;
   int nr;
   int np;
-  Real center[2];
+  Real x;
+  Real y;
   Real J;
   Real length;
   Real mass;
@@ -3083,8 +3084,8 @@ struct PutChiOnGrid {
             Real p[2];
             p[0] = info->origin[0] + info->h * (ix + 0.5);
             p[1] = info->origin[1] + info->h * (iy + 0.5);
-            o.COM_x += chi[j] * h2 * (p[0] - shape->center[0]);
-            o.COM_y += chi[j] * h2 * (p[1] - shape->center[1]);
+            o.COM_x += chi[j] * h2 * (p[0] - shape->x);
+            o.COM_y += chi[j] * h2 * (p[1] - shape->y);
             o.Mass += chi[j] * h2;
           }
         }
@@ -3132,8 +3133,8 @@ static void ongrid() {
           Real s = std::sin(shape->orientation);
           Real x = info->origin[0] + h * (ix + 0.5);
           Real y = info->origin[1] + h * (iy + 0.5);
-          x -= shape->center[0];
-          y -= shape->center[1];
+          x -= shape->x;
+          y -= shape->y;
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
           Real r = sqrt(x0 * x0 + y0 * y0);
@@ -3170,8 +3171,8 @@ static void ongrid() {
       com[2] += oblock[i]->COM_y;
     }
     MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
-    shape->center[0] += com[1] / com[0];
-    shape->center[1] += com[2] / com[0];
+    shape->x += com[1] / com[0];
+    shape->y += com[2] / com[0];
   }
   for (Shape *shape : sim.shapes) {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
@@ -3193,8 +3194,8 @@ static void ongrid() {
           p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
           p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
           const Real chi = CHI[j] * hsq;
-          p[0] -= shape->center[0];
-          p[1] -= shape->center[1];
+          p[0] -= shape->x;
+          p[1] -= shape->y;
           _x += chi * p[0];
           _y += chi * p[1];
           _m += chi;
@@ -3228,8 +3229,8 @@ static void ongrid() {
           Real p[2];
           p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
           p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
-          p[0] -= shape->center[0];
-          p[1] -= shape->center[1];
+          p[0] -= shape->x;
+          p[1] -= shape->y;
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
           pos->udef[iy][ix][1] -= I.v + I.a * p[0];
         }
@@ -4688,8 +4689,8 @@ int main(int argc, char **argv) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
       Shape *shape = new Shape;
-      shape->center[0] = p("xcenter").asDouble();
-      shape->center[1] = p("ycenter").asDouble();
+      shape->x = p("xcenter").asDouble();
+      shape->y = p("ycenter").asDouble();
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega = p("omega").asDouble();
       Real scale = p("scale").asDouble();
@@ -4852,8 +4853,8 @@ int main(int argc, char **argv) {
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
     for (const auto &shape : sim.shapes) {
-      shape->center[0] += sim.dt * shape->u;
-      shape->center[1] += sim.dt * shape->v;
+      shape->x += sim.dt * shape->u;
+      shape->y += sim.dt * shape->v;
       shape->orientation += sim.dt * shape->omega;
       shape->orientation = shape->orientation > M_PI
                                ? shape->orientation - 2 * M_PI
@@ -4921,8 +4922,8 @@ int main(int argc, char **argv) {
             Real p[2];
             p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
             p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
-            p[0] -= shape->center[0];
-            p[1] -= shape->center[1];
+            p[0] -= shape->x;
+            p[1] -= shape->y;
             PM += F;
             PX += F * p[0];
             PY += F * p[1];
@@ -5051,13 +5052,6 @@ int main(int argc, char **argv) {
           Real inorm = 1.0 / hypot(mX, mY);
           Real NX = mX * inorm;
           Real NY = mY * inorm;
-          if (sim.rank == 0)
-            printf("Collision between objects %ld and %ld\n"
-                   " iM %g %g\n"
-                   " jM %g %g\n"
-                   " Normal vector = %g %g\n",
-                   i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                   collisions[j].iM, NX, NY);
           Real mass = (coll.iM + coll.jM) / 2;
           Real du = NX * mass;
           Real dv = NY * mass;
@@ -5065,6 +5059,13 @@ int main(int argc, char **argv) {
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
+          if (sim.rank == 0)
+            printf("Collision between objects %ld and %ld\n"
+                   " iM %g %g\n"
+                   " jM %g %g\n"
+                   " Normal vector = %g %g\n",
+                   i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
+                   collisions[j].iM, NX, NY);
         }
       }
     }
@@ -5078,8 +5079,8 @@ int main(int argc, char **argv) {
           continue;
         Real u_s = shape->u;
         Real v_s = shape->v;
-        Real Cx = shape->center[0];
-        Real Cy = shape->center[1];
+        Real Cx = shape->x;
+        Real Cy = shape->y;
         Real *X = (Real *)o->chi;
         Real *UDEF = (Real *)o->udef;
         Real *CHI = chiInfo[i].block;
