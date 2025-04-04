@@ -4738,12 +4738,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: malloc() failed\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
       }
-
       if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
       }
-
       shape->J = scale * J;
       shape->length = scale * length;
       shape->mass = scale * area;
@@ -4758,7 +4756,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  sim.solver = new Solver;
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
   std::vector<double> P_inv = precond();
@@ -4843,6 +4840,7 @@ int main(int argc, char **argv) {
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
     }
   }
+  sim.solver = new Solver;
   while (1) {
     if (sim.rank == 0 && sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d\n", sim.step);
@@ -5506,6 +5504,7 @@ int main(int argc, char **argv) {
       break;
   }
 
+  delete sim.solver;
   for (Shape *shape : sim.shapes) {
     for (Obstacle *oblock : shape->obstacleBlocks)
       delete oblock;
