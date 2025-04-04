@@ -7,8 +7,7 @@ import xml.etree.ElementTree
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import statistics
-
-plt.rcParams['image.cmap'] = 'jet'
+plt.rcParams['image.cmap'] = 'RdBu'
 for path in sys.argv[1:]:
     path = re.sub("[.]xdmf2$", "", path)
     path = re.sub("[.]chi\.raw$", "", path)
@@ -18,6 +17,7 @@ for path in sys.argv[1:]:
     xyz_path = path + ".xyz.raw"
     chi_path = path + ".chi.raw"
     vel_path = path + ".vel.raw"
+    tmp_path = path + ".tmp.raw"
     if not os.path.isfile(png_path):
         sys.stderr.write(f"post.py: {path}\n")
         root = xml.etree.ElementTree.parse(xdmf_path)
@@ -26,6 +26,7 @@ for path in sys.argv[1:]:
         xyz = xyz.reshape(-1, 4, 2)
         ncell = len(xyz)
         chi = np.memmap(chi_path, "float64", "r")
+        tmp = np.memmap(tmp_path, "float64", "r")
         vel = np.memmap(vel_path, "float64", "r")
         vel = vel.reshape(-1, 2)
         patches = []
@@ -39,9 +40,11 @@ for path in sys.argv[1:]:
         p = matplotlib.collections.PatchCollection(patches,
                                                    edgecolor='black',
                                                    linewidth=0.1)
-        color = np.sum(vel**2, 1)
+        color = tmp.copy()
         color[chi > 0.5] = None
+        vmax = np.nanmax(np.abs(color))
         p.set_array(color)
+        p.set_norm(matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax))
         plt.gca().add_collection(p)
         plt.axis((0, 1, 0, 1))
         plt.axis("scaled")
