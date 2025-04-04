@@ -129,9 +129,17 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
   for (int i = 0;;) {
-    if (i == rank_)
-      fprintf(stderr, "cuda.cu: rank, CUDA device name: %d %s\n", rank_,
-              prop.name);
+    if (i == rank_) {
+      cudaUUID_t u = prop.uuid;
+      fprintf(stderr,
+              "cuda.cu: rank: %d: "
+              "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
+              "02x%02x%02x",
+              rank_, u.bytes[0], u.bytes[1], u.bytes[2], u.bytes[3], u.bytes[4],
+              u.bytes[5], u.bytes[6], u.bytes[7], u.bytes[8], u.bytes[9],
+              u.bytes[10], u.bytes[11], u.bytes[12], u.bytes[13], u.bytes[14],
+              u.bytes[15]);
+    }
     if (++i == comm_size_)
       break;
     MPI_Barrier(m_comm_);
