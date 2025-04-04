@@ -134,7 +134,7 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
       fprintf(stderr,
               "cuda.cu: rank: %d: "
               "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
-              "02x%02x%02x",
+              "02x%02x%02x\n",
               rank_, u.bytes[0], u.bytes[1], u.bytes[2], u.bytes[3], u.bytes[4],
               u.bytes[5], u.bytes[6], u.bytes[7], u.bytes[8], u.bytes[9],
               u.bytes[10], u.bytes[11], u.bytes[12], u.bytes[13], u.bytes[14],
