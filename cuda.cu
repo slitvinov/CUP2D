@@ -132,10 +132,10 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
     if (i == rank_) {
       cudaUUID_t u = prop.uuid;
       fprintf(stderr,
-              "rank %d: %s (UUID: "
+              "cuda.cu: rank %d: %s (UUID: "
               "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
               "02x%02x%02x)\n",
-	      rank_, prop.name, (unsigned char)u.bytes[0],
+              rank_, prop.name, (unsigned char)u.bytes[0],
               (unsigned char)u.bytes[1], (unsigned char)u.bytes[2],
               (unsigned char)u.bytes[3], (unsigned char)u.bytes[4],
               (unsigned char)u.bytes[5], (unsigned char)u.bytes[6],
