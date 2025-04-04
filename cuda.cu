@@ -131,15 +131,19 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
   for (int i = 0;;) {
     if (i == rank_) {
       cudaUUID_t u = prop.uuid;
-      printf("GPU %d: %s (UUID: "
-             "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%"
-             "02x%02x)\n",
-             i, prop.name, prop.uuid.bytes[0], prop.uuid.bytes[1],
-             prop.uuid.bytes[2], prop.uuid.bytes[3], prop.uuid.bytes[4],
-             prop.uuid.bytes[5], prop.uuid.bytes[6], prop.uuid.bytes[7],
-             prop.uuid.bytes[8], prop.uuid.bytes[9], prop.uuid.bytes[10],
-             prop.uuid.bytes[11], prop.uuid.bytes[12], prop.uuid.bytes[13],
-             prop.uuid.bytes[14], prop.uuid.bytes[15]);
+      fprintf(stderr,
+              "rank %d: %s (UUID: "
+              "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
+              "02x%02x%02x)\n",
+	      rank_, prop.name, (unsigned char)u.bytes[0],
+              (unsigned char)u.bytes[1], (unsigned char)u.bytes[2],
+              (unsigned char)u.bytes[3], (unsigned char)u.bytes[4],
+              (unsigned char)u.bytes[5], (unsigned char)u.bytes[6],
+              (unsigned char)u.bytes[7], (unsigned char)u.bytes[8],
+              (unsigned char)u.bytes[9], (unsigned char)u.bytes[10],
+              (unsigned char)u.bytes[11], (unsigned char)u.bytes[12],
+              (unsigned char)u.bytes[13], (unsigned char)u.bytes[14],
+              (unsigned char)u.bytes[15]);
     }
     if (++i == comm_size_)
       break;
