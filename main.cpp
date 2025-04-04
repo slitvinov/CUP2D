@@ -32,7 +32,7 @@ struct Stencil {
   bool operator<(Stencil s) const {
     int me[] = {sx, sy, ex, ey, tensorial};
     int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
-    for (int i = 0; i < sizeof me / sizeof *me; ++i)
+    for (size_t i = 0; i < sizeof me / sizeof *me; ++i)
       if (me[i] < you[i])
         return true;
       else if (me[i] > you[i])
@@ -729,7 +729,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
           bool skip_needed = false;
           std::sort(f.begin() + DM.positions[r],
                     f.begin() + DM.sizes[r] + DM.positions[r]);
-          for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+          for (size_t i = 0; i < sizeof compass / sizeof *compass; i++)
             compass[i].clear();
           for (size_t i = 0; i < DM.sizes[r]; i++) {
             compass[f[i + DM.positions[r]].icode[0]].push_back(
@@ -796,7 +796,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       int &total_size = buf->recv_buffer_size[r];
       int otherrank = r;
       bool skip_needed = false;
-      for (int i = 0; i < sizeof compass / sizeof *compass; i++)
+      for (size_t i = 0; i < sizeof compass / sizeof *compass; i++)
         compass[i].clear();
       for (size_t i = start; i < finish; i++) {
         compass[f[i].icode[0]].push_back(
@@ -1213,7 +1213,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
   }
   std::vector<int> send_buffer_size(sim.size, 0);
   std::vector<int> recv_buffer_size(sim.size, 0);
-  for (int i = 0; i < buf->Cases.size(); i++) {
+  for (size_t i = 0; i < buf->Cases.size(); i++) {
     for (int j = 0; j < 4; j++)
       free(buf->Cases[i]->d[j]);
     free(buf->Cases[i]);
@@ -2626,7 +2626,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 }
 typedef Real ScalarBlock[_BS_][_BS_];
 template <int dir, int side>
-void applyBCface(BlockLab *lab, bool wall, bool coarse) {
+void applyBCface(BlockLab *lab, bool coarse) {
   const int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -2680,22 +2680,22 @@ static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
   int n = 1 << info->level;
   if (!coarse) {
     if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, false, false);
+      applyBCface<0, 0>(lab, false);
     if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, false, false);
+      applyBCface<0, 1>(lab, false);
     if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, false, false);
+      applyBCface<1, 0>(lab, false);
     if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, false, false);
+      applyBCface<1, 1>(lab, false);
   } else {
     if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, false, coarse);
+      applyBCface<0, 0>(lab, coarse);
     if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, false, coarse);
+      applyBCface<0, 1>(lab, coarse);
     if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, false, coarse);
+      applyBCface<1, 0>(lab, coarse);
     if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, false, coarse);
+      applyBCface<1, 1>(lab, coarse);
   }
 }
 template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
@@ -2943,7 +2943,7 @@ static void dump(Real time, Info *infos, char *path) {
             "     </Geometry>\n",
             time, _BS_ * _BS_ * nblock_total, 4 * _BS_ * _BS_ * nblock_total,
             xyz_base);
-    for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
+    for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
       if (var.F[i].prefix != NULL) {
         snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
                  var.F[i].prefix);
@@ -2996,7 +2996,7 @@ static void dump(Real time, Info *infos, char *path) {
   }
   MPI_File_close(&mpi_file);
 
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++)
+  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
@@ -3475,7 +3475,7 @@ static void adapt() {
       {&var.pold->all, var.pold->infos}, {&var.vel->all, var.vel->infos},
       {&var.vold->all, var.vold->infos}, {&var.tmpV->all, var.tmpV->infos},
   };
-  for (int iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
+  for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
       Info *ary0 = &args[iarg].I2[i1];
       Info *info = getf(args[iarg].all, ary0->level, ary0->Z);
@@ -3506,7 +3506,7 @@ static void adapt() {
       }
     }
   }
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     bool boundary_needed = var.F[i].boundary_needed;
@@ -4183,16 +4183,16 @@ struct Solver {
     long long This(const Info *info, int ix, int iy) const {
       return blockOffset(info) + (long long)(iy * _BS_ + ix);
     }
-    long long Xmin(const Info *info, int ix, int iy, int offset) const {
+    long long Xmin(const Info *info, int, int iy, int offset) const {
       return blockOffset(info) + (long long)(iy * _BS_ + offset);
     }
-    long long Xmax(const Info *info, int ix, int iy, int offset = 0) const {
+    long long Xmax(const Info *info, int, int iy, int offset = 0) const {
       return blockOffset(info) + (long long)(iy * _BS_ + (_BS_ - 1 - offset));
     }
-    long long Ymin(const Info *info, int ix, int iy, int offset = 0) const {
+    long long Ymin(const Info *info, int ix, int, int offset = 0) const {
       return blockOffset(info) + (long long)(offset * _BS_ + ix);
     }
-    long long Ymax(const Info *info, int ix, int iy, int offset = 0) const {
+    long long Ymax(const Info *info, int ix, int, int offset = 0) const {
       return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
     }
     long long blockOffset(const Info *info) const {
@@ -4224,13 +4224,13 @@ struct Solver {
   };
   struct XbaseIndexer : public EdgeCellIndexer {
     XbaseIndexer() : EdgeCellIndexer() {}
-    double taylorSign(int ix, int iy) const override {
+    double taylorSign(int, int iy) const override {
       return iy % 2 == 0 ? -1. : 1.;
     }
-    bool isBD(int ix, int iy) const override {
+    bool isBD(int, int iy) const override {
       return iy == _BS_ - 1 || iy == _BS_ / 2 - 1;
     }
-    bool isFD(int ix, int iy) const override {
+    bool isFD(int, int iy) const override {
       return iy == 0 || iy == _BS_ / 2;
     }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
@@ -4245,7 +4245,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix + 1, iy);
     }
-    int ix_c(const Info *info, int ix) const override { return _BS_ - 1; }
+    int ix_c(const Info *, int) const override { return _BS_ - 1; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -4254,7 +4254,7 @@ struct Solver {
                        int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
-    long long Zchild(const Info *nei_info, int ix, int iy) const override {
+    long long Zchild(const Info *nei_info, int, int iy) const override {
       return nei_info->Zchild[1][int(iy >= _BS_ / 2)];
     }
   };
@@ -4266,7 +4266,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix - 1, iy);
     }
-    int ix_c(const Info *info, int ix) const override { return 0; }
+    int ix_c(const Info *, int) const override { return 0; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -4275,19 +4275,19 @@ struct Solver {
                        int offset = 0) const override {
       return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
-    long long Zchild(const Info *nei_info, int ix, int iy) const override {
+    long long Zchild(const Info *nei_info, int, int iy) const override {
       return nei_info->Zchild[0][int(iy >= _BS_ / 2)];
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
     YbaseIndexer() : EdgeCellIndexer() {}
-    double taylorSign(int ix, int iy) const override {
+    double taylorSign(int ix, int) const override {
       return ix % 2 == 0 ? -1. : 1.;
     }
-    bool isBD(int ix, int iy) const override {
+    bool isBD(int ix, int) const override {
       return ix == _BS_ - 1 || ix == _BS_ / 2 - 1;
     }
-    bool isFD(int ix, int iy) const override {
+    bool isFD(int ix, int) const override {
       return ix == 0 || ix == _BS_ / 2;
     }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
@@ -4302,7 +4302,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix, iy + 1);
     }
-    int iy_c(const Info *info, int iy) const override { return _BS_ - 1; }
+    int iy_c(const Info *, int) const override { return _BS_ - 1; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -4311,7 +4311,7 @@ struct Solver {
                        int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
-    long long Zchild(const Info *nei_info, int ix, int iy) const override {
+    long long Zchild(const Info *nei_info, int ix, int) const override {
       return nei_info->Zchild[int(ix >= _BS_ / 2)][1];
     }
   };
@@ -4323,7 +4323,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix, iy - 1);
     }
-    int iy_c(const Info *info, int iy) const override { return 0; }
+    int iy_c(const Info *, int) const override { return 0; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -4332,7 +4332,7 @@ struct Solver {
                        int offset = 0) const override {
       return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
-    long long Zchild(const Info *nei_info, int ix, int iy) const override {
+    long long Zchild(const Info *nei_info, int ix, int) const override {
       return nei_info->Zchild[int(ix >= _BS_ / 2)][0];
     }
   };
@@ -4632,7 +4632,7 @@ struct LineParser : public CommandlineParser {
 #include <execinfo.h>
 #include <fenv.h>
 #include <unistd.h>
-static void handler(int sig) {
+static void handler(int) {
   void *array[10];
   size_t size, i;
   char **strings;
@@ -4722,7 +4722,7 @@ int main(int argc, char **argv) {
                 "main.cpp: error: fail to read shape header from file.\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
       }
-      int ncount = shape->nr * shape->np;
+      size_t ncount = shape->nr * shape->np;
       if ((shape->sdf = (float *)malloc(ncount * sizeof(float))) == NULL) {
         fprintf(stderr, "main.cpp: error: malloc() failed\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -4735,7 +4735,7 @@ int main(int argc, char **argv) {
       shape->length = scale * length;
       shape->mass = scale * area;
       shape->rmax = scale * rmax;
-      for (int i = 0; i < ncount; i++)
+      for (size_t i = 0; i < ncount; i++)
         shape->sdf[i] *= scale;
       shape->omega = 0;
       shape->u = 0;
@@ -4749,7 +4749,7 @@ int main(int argc, char **argv) {
   sim.nrows.resize(sim.size + 1);
   sim.levels.push_back(2);
   for (int m = 1; m < sim.levelMax; m++)
-    sim.levels.push_back(sim.levels[m - 1] + 1 << (m + 1));
+    sim.levels.push_back((sim.levels[m - 1] + 1) << (m + 1)); /* TODO */
   long long total_blocks = 1LL << (2 * sim.levelStart);
   long long base = total_blocks / sim.size;
   long long rema = total_blocks % sim.size;
@@ -4758,7 +4758,7 @@ int main(int argc, char **argv) {
   var.buf1 = new Buffers;
   var.buf2 = new Buffers;
 
-  for (int i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid;
     g->synchronizers = new std::map<Stencil, Synchronizer *>;
