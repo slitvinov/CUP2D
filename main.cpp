@@ -4906,8 +4906,8 @@ int main(int argc, char **argv) {
     }
     for (const auto &shape : sim.shapes) {
       const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-      Real PM = 0, PJ = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
-#pragma omp parallel for reduction(+ : PM, PJ, PX, PY, UM, VM, AM)
+      Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+#pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real *VEL = velInfo[i].block;
         const Real hsq = velInfo[i].h * velInfo[i].h;
@@ -4931,24 +4931,21 @@ int main(int argc, char **argv) {
             p[0] -= shape->center[0];
             p[1] -= shape->center[1];
             PM += F;
-            PJ += F * (p[0] * p[0] + p[1] * p[1]);
             PX += F * p[0];
             PY += F * p[1];
             UM += F * udiff[0];
             VM += F * udiff[1];
-            AM += F * (p[0] * udiff[1] - p[1] * udiff[0]);
           }
       }
-      Real quantities[7] = {PM, PJ, PX, PY, UM, VM, AM};
-      MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
+      Real quantities[] = {PM, PX, PY, UM, VM};
+      MPI_Allreduce(MPI_IN_PLACE, quantities, sizeof quantities / sizeof *quantities,
+		    MPI_Real, MPI_SUM,
                     MPI_COMM_WORLD);
       PM = quantities[0];
-      PJ = quantities[1];
-      PX = quantities[2];
-      PY = quantities[3];
-      UM = quantities[4];
-      VM = quantities[5];
-      AM = quantities[6];
+      PX = quantities[1];
+      PY = quantities[2];
+      UM = quantities[3];
+      VM = quantities[4];
       if (PM != 0) {
         shape->u = (PY * shape->omega_fixed + UM) / PM;
         shape->v = (VM - PX * shape->omega_fixed) / PM;
