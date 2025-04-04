@@ -118,12 +118,23 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
       LocalLS_(LocalLS) {
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
-  int count;
-  if (cudaGetDeviceCount(&count) != cudaSuccess) {
+  int device;
+  if (cudaGetDevice(&device) != cudaSuccess) {
     fprintf(stderr,
             "cuda.cu: error: no CUDA-capable devices found on rank %d\n",
             rank_);
     MPI_Abort(m_comm_, 1);
+  }
+
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  for (int i = 0;;) {
+    if (i == rank_)
+      fprintf(stderr, "cuda.cu: rank, CUDA device name: %d %s\n", rank_,
+              prop.name);
+    if (++i == comm_size_)
+      break;
+    MPI_Barrier(m_comm_);
   }
   cudaStreamCreate(&solver_stream_);
   cudaStreamCreate(&copy_stream_);
