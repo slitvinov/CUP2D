@@ -1686,16 +1686,6 @@ static Real *avail1(int ix, int iy, int m,
   const long long n = forward(m, ix, iy);
   return avail(m, n, tree, all);
 }
-static void _alloc(int level, long long Z,
-                   std::unordered_map<long long, Info *> *all,
-                   std::vector<Info *> *infos,
-                   std::unordered_map<long long, int> *tree, int dim) {
-  Info *new_info = getf(all, level, Z);
-  new_info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
-#pragma omp critical
-  { infos->push_back(new_info); }
-  treef(tree, level, Z) = sim.rank;
-}
 
 static void dealloc_many(std::vector<long long> &ids,
                          std::vector<Info *> *infos) {
@@ -3584,12 +3574,14 @@ static void adapt() {
       Real *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info *Child = getf(&g->all, level + 1, nc);
-          Child->state = Leave;
-          _alloc(level + 1, nc, &g->all, &g->infos, &g->tree, dim);
-          treef(&g->tree, level + 1, nc) = -2;
-          Blocks[j * 2 + i] = Child->block;
+          long long Z = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          Info *info = getf(&g->all, level + 1, Z);
+          info->state = Leave;
+          info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+#pragma omp critical
+          { g->infos.push_back(info); }
+          treef(&g->tree, level + 1, Z) = -2;
+          Blocks[j * 2 + i] = info->block;
         }
       if (basic == false) {
         int nm = _BS_ + stencil.ex - stencil.sx - 1;
