@@ -2638,6 +2638,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
           }
         }
       done:;
+      }
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
