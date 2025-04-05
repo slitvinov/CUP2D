@@ -2534,7 +2534,9 @@ public:
 };
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
-  Info *info = getf(&grid->all, level, Z);
+  Info *info = new Info;
+  fill(info, level, Z);
+  grid->all[sim.levels[level] + Z] = info;
   info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
   { grid->infos.push_back(*info); }
