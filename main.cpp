@@ -3735,12 +3735,14 @@ static void adapt() {
       for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
         const int level = (int)recv_blocks[r][i].level;
         const long long Z = recv_blocks[r][i].Z;
-        _alloc(level, Z, &g->all, &g->infos, &g->tree, dim);
         Info *info = getf(&g->all, level, Z);
+        info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+#pragma omp critical
+        { g->infos.push_back(info); }
+        treef(&g->tree, level, Z) = sim.rank;
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
-
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
@@ -4916,7 +4918,7 @@ int main(int argc, char **argv) {
     }
     for (const auto &shape : sim.shapes) {
       const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-      Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
+      Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (size_t i = 0; i < velInfo.size(); i++) {
         const Real *VEL = velInfo[i]->block;
