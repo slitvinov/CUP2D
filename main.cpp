@@ -4685,7 +4685,8 @@ int main(int argc, char **argv) {
       shape->orientation = p("orientation").asDouble() * M_PI / 180;
       shape->omega = p("omega").asDouble();
       Real scale = p("scale").asDouble();
-      const char *path = p("sdf").asString().c_str();
+      std::string path0 = p("sdf").asString();
+      const char *path = path0.c_str();
       FILE *file = fopen(path, "r");
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);

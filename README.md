@@ -62,6 +62,7 @@ PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH && module load mpi && make
 
 AddressSanitizer:
 ```
+scl enable gcc-toolset-12 bash
 make 'NVCCFLAGS = -g -O0 -Xcompiler -fsanitize=address' \
      'CXXFLAGS = -O0 -g3 -fsanitize=address' \
      'LDFLAGS = -Xcompiler -fsanitize=address'
