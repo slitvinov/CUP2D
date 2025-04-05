@@ -2536,11 +2536,19 @@ public:
   }
 };
 static void AddBlock(int dim, Grid *g, int level, long long Z, uint8_t *data) {
-  assert(g->all.find(sim.levels[level] + Z) == g->all.end());
-  Info *info = new Info;
-  fill(info, level, Z);
-  g->all[sim.levels[level] + Z] = info;
-  info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+  Info *info;
+#pragma omp critical
+  {
+    const auto ret = g->all.find(sim.levels[level] + Z);
+    if (ret != g->all.end()) {
+      info = ret->second;
+    } else {
+      info = new Info;
+      fill(info, level, Z);
+      info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+      g->all[sim.levels[level] + Z] = info;
+    }
+  }
 #pragma omp critical
   { g->infos.push_back(info); }
   treef(&g->tree, level, Z) = sim.rank;
