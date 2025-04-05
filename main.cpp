@@ -4772,7 +4772,7 @@ int main(int argc, char **argv) {
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
   sim.levels.resize(sim.levelMax);
-  sim.levels[0] = 0;
+  sim.levels[0] = 4;
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << 2 * m);
   long long total_blocks = 1LL << (2 * sim.levelStart);
