@@ -2534,22 +2534,10 @@ public:
     }
   }
 };
-static void AddBlock(int dim, Grid *g, int level, long long Z, uint8_t *data) {
-  Info *info;
-  const auto ret = g->all.find(sim.levels[level] + Z);
-  if (ret != g->all.end()) {
-    info = ret->second;
-  } else
-#pragma omp critical
-  {
-    info = new Info;
-    fill(info, level, Z);
-    g->all[sim.levels[level] + Z] = info;
-    g->infos.push_back(info);
-  }
-  if (info->block == NULL)
-    info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
-  treef(&g->tree, level, Z) = sim.rank;
+static void AddBlock(int dim, Grid *grid, int level, long long Z,
+                     uint8_t *data) {
+  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
+  Info *info = getf(&grid->all, level, Z);
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
   sfc_inverse(Z, level, &p[0], &p[1]);
@@ -2557,11 +2545,11 @@ static void AddBlock(int dim, Grid *g, int level, long long Z, uint8_t *data) {
     for (int j1 = 0; j1 < 2; j1++)
       for (int i1 = 0; i1 < 2; i1++) {
         long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-        treef(&g->tree, level + 1, nc) = -2;
+        treef(&grid->tree, level + 1, nc) = -2;
       }
   if (level > 0) {
     long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-    treef(&g->tree, level - 1, nf) = -1;
+    treef(&grid->tree, level - 1, nf) = -1;
   }
 }
 struct MPI_Block {
