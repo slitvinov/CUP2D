@@ -4916,27 +4916,27 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
-    for (const auto &shape : sim.shapes) {
-      const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+    for (auto &shape : sim.shapes) {
+      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (size_t i = 0; i < velInfo.size(); i++) {
-        const Real *VEL = velInfo[i]->block;
-        const Real hsq = velInfo[i]->h * velInfo[i]->h;
+        Real *VEL = velInfo[i]->block;
+        Real hsq = velInfo[i]->h * velInfo[i]->h;
         if (oblock[velInfo[i]->id] == nullptr)
           continue;
-        const Real *chi = (Real *)oblock[velInfo[i]->id]->chi;
-        const Real *udef = (Real *)oblock[velInfo[i]->id]->udef;
-        const Real lambdt = sim.lambda * sim.dt;
+        Real *chi = (Real *)oblock[velInfo[i]->id]->chi;
+        Real *udef = (Real *)oblock[velInfo[i]->id]->udef;
+        Real lambdt = sim.lambda * sim.dt;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
             int j = _BS_ * iy + ix;
             if (chi[j] <= 0)
               continue;
-            const Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
-                                   VEL[2 * j + 1] - udef[2 * j + 1]};
-            const Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
-            const Real F = hsq * Xlamdt / (1 + Xlamdt);
+            Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
+                             VEL[2 * j + 1] - udef[2 * j + 1]};
+            Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
+            Real F = hsq * Xlamdt / (1 + Xlamdt);
             Real p[2];
             p[0] = velInfo[i]->origin[0] + velInfo[i]->h * (ix + 0.5);
             p[1] = velInfo[i]->origin[1] + velInfo[i]->h * (iy + 0.5);
@@ -4963,8 +4963,8 @@ int main(int argc, char **argv) {
         shape->v = (VM - PX * shape->omega) / PM;
       }
     }
-    const auto &infos = var.chi->infos;
-    const size_t N = sim.shapes.size();
+    auto &infos = var.chi->infos;
+    size_t N = sim.shapes.size();
     std::vector<CollisionInfo> collisions(N);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < N; ++i)
