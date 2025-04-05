@@ -2606,7 +2606,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
                   int len;
                   char err_string[MPI_MAX_ERROR_STRING];
                   MPI_Error_string(err, err_string, &len);
-                  fprintf(stderr, "main.cpp: error: %s\n", err_string);
+                  fprintf(stderr, "%s:%d: error: %s\n", __FILE__, __LINE__,
+                          err_string);
                   MPI_Abort(MPI_COMM_WORLD, 1);
                 }
                 if (flag == false)
