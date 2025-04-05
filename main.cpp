@@ -305,7 +305,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
       if (retval1 == all->end()) {
         Info *dumm = new Info;
         fill(dumm, m, Z);
-        /* TODO: does not allocate a block */
         (*all)[aux] = dumm;
       }
     }
@@ -5057,10 +5056,11 @@ int main(int argc, char **argv) {
           Real mass = (coll.iM + coll.jM) / 2;
           Real du = 8 * NX * mass;
           Real dv = 8 * NY * mass;
+	  /*
           sim.shapes[i]->u += du;
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
-          sim.shapes[j]->v -= dv;
+          sim.shapes[j]->v -= dv; */
           if (sim.rank == 0)
             printf("Collision between objects %ld and %ld\n"
                    " iM %g %g\n"
