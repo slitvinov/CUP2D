@@ -438,14 +438,12 @@ static std::vector<Info *> &avail_next(
     std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups,
     std::unordered_map<int, MPI_Request *> &mapofrequests,
     std::vector<Info *> &dummy_vector) {
-  bool done = false;
-  auto it = mapofHaloBlockGroups.begin();
-  while (done == false) {
+  for (;;) {
+    bool done;
     done = true;
-    it = mapofHaloBlockGroups.begin();
-    while (it != mapofHaloBlockGroups.end()) {
-      if ((it->second).ready == false) {
-        std::set<int> ranks = (it->second).myranks;
+    for (auto &it : mapofHaloBlockGroups) {
+      if (it.second.ready == false) {
+        std::set<int> ranks = it.second.myranks;
         int flag = 0;
         for (auto r : ranks) {
           const auto retval = mapofrequests.find(r);
@@ -454,15 +452,15 @@ static std::vector<Info *> &avail_next(
             break;
         }
         if (flag == 1) {
-          (it->second).ready = true;
-          return (it->second).myblocks;
+          it.second.ready = true;
+          return it.second.myblocks;
         }
       }
-      done = done && (it->second).ready;
-      it++;
+      done = done && it.second.ready;
     }
+    if (done)
+      return dummy_vector;
   }
-  return dummy_vector;
 }
 
 struct SyncBuf {
