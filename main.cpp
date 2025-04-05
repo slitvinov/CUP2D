@@ -2600,7 +2600,13 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               for (auto r : ranks) {
                 const auto retval = Synch->mapofrequests.find(r);
 		MPI_Status status;
-                int rc = MPI_Test(retval->second, &flag, &status);
+		if (MPI_Test(retval->second, &flag, &status) != MPI_SUCCESS) {
+		  int len;
+		  char err_string[MPI_MAX_ERROR_STRING];
+		  MPI_Error_string(err, err_string, &len);
+		  fprintf(stderr, "main.cpp: error: %s\n", err_string);
+		  MPI_Abort(MPI_COMM_WORLD, 1);
+		}
                 if (flag == false)
                   break;
               }
