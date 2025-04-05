@@ -2534,6 +2534,18 @@ public:
     }
   }
 };
+static void _alloc(int level, long long Z,
+                   std::unordered_map<long long, Info *> *all,
+                   std::vector<Info*> *infos,
+                   std::unordered_map<long long, int> *tree, int dim) {
+  Info *new_info = getf(all, level, Z);
+  new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+#pragma omp critical
+  {
+    infos->push_back(new_info);
+  }
+  treef(tree, level, Z) = sim.rank;
+}
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
   _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
