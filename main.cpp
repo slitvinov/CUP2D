@@ -4745,7 +4745,7 @@ int main(int argc, char **argv) {
   sim.levels.resize(sim.levelMax);
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
-    sim.levelMax[m + 1] = sim.levels[m] + (1 << 2 * m);
+    sim.levels[m + 1] = sim.levels[m] + (1 << 2 * m);
   long long total_blocks = 1LL << (2 * sim.levelStart);
   long long base = total_blocks / sim.size;
   long long rema = total_blocks % sim.size;
