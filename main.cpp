@@ -1250,6 +1250,9 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           buf->recv_faces[infoNeiFinerrank].push_back(
               Face(infoNeiFiner, &info, icode2, icode[f]));
+          assert(0 <= infoNeiFinerrank);
+          assert(infoNeiFinerrank < sim.size);
+          assert(recv_buffer_size.size() == sim.size);
           recv_buffer_size[infoNeiFinerrank] += V;
         }
       }
@@ -4733,7 +4736,7 @@ int main(int argc, char **argv) {
 
   sim.nblocks.resize(sim.size + 1);
   sim.nrows.resize(sim.size + 1);
-  sim.levels = { 0 };
+  sim.levels = {0};
   for (int m = 1; m < sim.levelMax; m++)
     sim.levels.push_back(sim.levels[m - 1] + 4 * (sim.levels[m - 1] + 1));
   long long total_blocks = 1LL << (2 * sim.levelStart);
