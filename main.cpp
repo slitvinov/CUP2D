@@ -1075,7 +1075,7 @@ static void fill_pos(std::vector<Info> *infos,
     int m = (*infos)[j].level;
     long long Z = (*infos)[j].Z;
     auto retval = all->find(sim.levels[m] + Z);
-    assert(retval != all->end()x);
+    assert(retval != all->end());
     Info *info = retval->second;
     info->id = j;
     (*infos)[j] = *info;
