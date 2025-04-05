@@ -2599,7 +2599,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
               int flag = 0;
               for (auto r : ranks) {
                 const auto retval = Synch->mapofrequests.find(r);
-                MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+		MPI_Status status;
+                int rc = MPI_Test(retval->second, &flag, &status);
                 if (flag == false)
                   break;
               }
