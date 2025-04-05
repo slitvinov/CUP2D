@@ -905,6 +905,10 @@ struct Synchronizer {
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   std::unordered_map<int, MPI_Request *> mapofrequests;
+
+  std::vector<MPI_Request *> reqs;
+  std::vector<Real *> bufs;
+
   std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
@@ -1561,6 +1565,8 @@ static Synchronizer *sync1(const Stencil &stencil,
     (it->second).ready = false;
     it++;
   }
+  s->reqs.clear();
+  s->bufs.clear();
   s->mapofrequests.clear();
   s->buf->requests.clear();
   s->buf->requests.reserve(2 * sim.size);
@@ -3923,12 +3929,6 @@ static void adapt() {
         }
       dealloc_many(deallocIDs, &g->infos);
       MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-      /****************/
-      for (Info *b : g->infos) {
-        long long key = sim.levels[b->level] + b->Z;
-        assert(g->all.find(key) != g->all.end());
-      }
-      /***************/
 #pragma omp parallel
       {
         for (int r = 0; r < sim.size; r++)
