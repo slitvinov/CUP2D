@@ -2610,9 +2610,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
-      halo_next = &avail_next(Synch->mapofHaloBlockGroups, Synch->mapofrequests,
-                              Synch->dummy_vector);
-      /*
       {
         for (;;) {
           bool all;
@@ -2640,9 +2637,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
             goto done;
           }
         }
-
       done:;
-      } */
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
