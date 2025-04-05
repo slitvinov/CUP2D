@@ -439,8 +439,8 @@ static std::vector<Info *> &avail_next(
     std::unordered_map<int, MPI_Request *> &mapofrequests,
     std::vector<Info *> &dummy_vector) {
   for (;;) {
-    bool done;
-    done = true;
+    bool all;
+    all = true;
     for (auto &it : mapofHaloBlockGroups) {
       if (it.second.ready == false) {
         std::set<int> ranks = it.second.myranks;
@@ -456,9 +456,9 @@ static std::vector<Info *> &avail_next(
           return it.second.myblocks;
         }
       }
-      done = done && it.second.ready;
+      all = all && it.second.ready;
     }
-    if (done)
+    if (all)
       return dummy_vector;
   }
 }
