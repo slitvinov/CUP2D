@@ -434,6 +434,37 @@ static void FixDuplicates2(std::array<Range, 3 * 27> &AllStencils,
   *sz = 0;
 }
 
+static std::vector<Info *> &avail_next(
+    std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups,
+    std::unordered_map<int, MPI_Request *> &mapofrequests,
+    std::vector<Info *> &dummy_vector) {
+  bool done = false;
+  auto it = mapofHaloBlockGroups.begin();
+  while (done == false) {
+    done = true;
+    it = mapofHaloBlockGroups.begin();
+    while (it != mapofHaloBlockGroups.end()) {
+      if ((it->second).ready == false) {
+        std::set<int> ranks = (it->second).myranks;
+        int flag = 0;
+        for (auto r : ranks) {
+          const auto retval = mapofrequests.find(r);
+          MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+          if (flag == false)
+            break;
+        }
+        if (flag == 1) {
+          (it->second).ready = true;
+          return (it->second).myblocks;
+        }
+      }
+      done = done && (it->second).ready;
+      it++;
+    }
+  }
+  return dummy_vector;
+}
+
 struct SyncBuf {
   std::set<int> Neighbors;
   std::vector<Info *> halo_blocks;
@@ -2579,6 +2610,9 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
+      halo_next = &avail_next(Synch->mapofHaloBlockGroups, Synch->mapofrequests,
+                              Synch->dummy_vector);
+      /*
       {
         for (;;) {
           bool all;
@@ -2608,7 +2642,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
         }
 
       done:;
-      }
+      } */
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
@@ -5056,11 +5090,10 @@ int main(int argc, char **argv) {
           Real mass = (coll.iM + coll.jM) / 2;
           Real du = 8 * NX * mass;
           Real dv = 8 * NY * mass;
-	  /*
           sim.shapes[i]->u += du;
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
-          sim.shapes[j]->v -= dv; */
+          sim.shapes[j]->v -= dv;
           if (sim.rank == 0)
             printf("Collision between objects %ld and %ld\n"
                    " iM %g %g\n"
