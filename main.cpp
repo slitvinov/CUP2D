@@ -450,7 +450,7 @@ struct SyncBuf {
 };
 static void
 Setup(int dim, std::unordered_map<long long, int> *tree,
-      std::unordered_map<long long, Info *> *all, std::vector<Info> *infos,
+      std::unordered_map<long long, Info *> *all, std::vector<Info *> *infos,
       struct SyncBuf *buf, bool &use_averages,
       std::array<Range, 3 * 27> &AllStencils, Range &Coarse_Range,
       const Stencil &stencil, int *sLength,
@@ -475,12 +475,14 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     buf->myunpacks[i].clear();
   buf->myunpacks.clear();
   std::vector<Range> compass[27];
-  for (Info &info : *infos) {
-    info.halo_id = -1;
-    bool xskin = info.index[0] == 0 || info.index[0] == ((1 << info.level) - 1);
-    bool yskin = info.index[1] == 0 || info.index[1] == ((1 << info.level) - 1);
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
+  for (Info *info : *infos) {
+    info->halo_id = -1;
+    bool xskin =
+        info->index[0] == 0 || info->index[0] == ((1 << info->level) - 1);
+    bool yskin =
+        info->index[1] == 0 || info->index[1] == ((1 << info->level) - 1);
+    int xskip = info->index[0] == 0 ? -1 : 1;
+    int yskip = info->index[1] == 0 ? -1 : 1;
     assert(xskip);
     assert(yskip);
 
@@ -498,17 +500,17 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       if (code[1] == yskip && yskin)
         continue;
       int &infoNeiTree =
-          treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+          treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
         isInner = false;
         buf->Neighbors.insert(infoNeiTree);
         Info *infoNei =
-            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
         buf->send_interfaces[infoNeiTree].push_back(
-            {&info, infoNei, icode, icode2});
+            {info, infoNei, icode, icode2});
         buf->recv_interfaces[infoNeiTree].push_back(
-            {infoNei, &info, icode2, icode});
+            {infoNei, info, icode2, icode});
         ToBeChecked.push_back(infoNeiTree);
         ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
                               1);
@@ -518,27 +520,27 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       } else if (infoNeiTree == -2) {
         Coarsened = true;
         Info *infoNei =
-            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
-        int infoNeiCoarserrank = treef(tree, info.level - 1, infoNei->Zparent);
+            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+        int infoNeiCoarserrank = treef(tree, info->level - 1, infoNei->Zparent);
         if (infoNeiCoarserrank != sim.rank) {
           isInner = false;
           buf->Neighbors.insert(infoNeiCoarserrank);
           Info *infoNeiCoarser =
               getf(all, infoNei->level - 1, infoNei->Zparent);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          int Bmax[3] = {1 << (info.level - 1), 1 << (info.level - 1),
-                         1 << (info.level - 1)};
+          int Bmax[3] = {1 << (info->level - 1), 1 << (info->level - 1),
+                         1 << (info->level - 1)};
           int test_idx[3] = {
               (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
               (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
               (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
-          if (info.index[0] / 2 == test_idx[0] &&
-              info.index[1] / 2 == test_idx[1] &&
-              info.index[2] / 2 == test_idx[2]) {
+          if (info->index[0] / 2 == test_idx[0] &&
+              info->index[1] / 2 == test_idx[1] &&
+              info->index[2] / 2 == test_idx[2]) {
             buf->send_interfaces[infoNeiCoarserrank].push_back(
-                {&info, infoNeiCoarser, icode, icode2});
+                {info, infoNeiCoarser, icode, icode2});
             buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                {infoNeiCoarser, &info, icode2, icode});
+                {infoNeiCoarser, info, icode2, icode});
             DM.add(infoNeiCoarserrank,
                    (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
             if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
@@ -547,8 +549,8 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
               int d2 = (d0 + 2) % 3;
               int code3[3];
               code3[d0] = code[d0];
-              code3[d1] = -2 * (info.index[d1] % 2) + 1;
-              code3[d2] = -2 * (info.index[d2] % 2) + 1;
+              code3[d1] = -2 * (info->index[d1] % 2) + 1;
+              code3[d2] = -2 * (info->index[d2] % 2) + 1;
               int icode3 =
                   (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
               int code4[3];
@@ -565,19 +567,19 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                   (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
               if (code3[2] == 0)
                 buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, &info, icode2, icode3});
+                    {infoNeiCoarser, info, icode2, icode3});
               if (code4[2] == 0)
                 buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, &info, icode2, icode4});
+                    {infoNeiCoarser, info, icode2, icode4});
               if (code5[2] == 0)
                 buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, &info, icode2, icode5});
+                    {infoNeiCoarser, info, icode2, icode5});
             }
           }
         }
       } else if (infoNeiTree == -1) {
         Info *infoNei =
-            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         int Bstep = 1;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
           Bstep = 3;
@@ -594,17 +596,17 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                               (B % 2) * std::max(0, 1 - abs(code[0]))]
                              [std::max(-code[1], 0) +
                               temp * std::max(0, 1 - abs(code[1]))];
-          int infoNeiFinerrank = treef(tree, info.level + 1, nFine);
+          int infoNeiFinerrank = treef(tree, info->level + 1, nFine);
           if (infoNeiFinerrank != sim.rank) {
             isInner = false;
             buf->Neighbors.insert(infoNeiFinerrank);
-            Info *infoNeiFiner = getf(all, info.level + 1, nFine);
+            Info *infoNeiFiner = getf(all, info->level + 1, nFine);
             int icode2 =
                 (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
             buf->send_interfaces[infoNeiFinerrank].push_back(
-                {&info, infoNeiFiner, icode, icode2});
+                {info, infoNeiFiner, icode, icode2});
             buf->recv_interfaces[infoNeiFinerrank].push_back(
-                {infoNeiFiner, &info, icode2, icode});
+                {infoNeiFiner, info, icode2, icode});
             DM.add(infoNeiFinerrank,
                    (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
             if (Bstep == 1) {
@@ -631,19 +633,19 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                   (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
               if (code3[2] == 0) {
                 buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(&info, infoNeiFiner, icode, icode3));
+                    Interface(info, infoNeiFiner, icode, icode3));
                 DM.add(infoNeiFinerrank,
                        (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
               }
               if (code4[2] == 0) {
                 buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(&info, infoNeiFiner, icode, icode4));
+                    Interface(info, infoNeiFiner, icode, icode4));
                 DM.add(infoNeiFinerrank,
                        (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
               }
               if (code5[2] == 0) {
                 buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(&info, infoNeiFiner, icode, icode5));
+                    Interface(info, infoNeiFiner, icode, icode5));
                 DM.add(infoNeiFinerrank,
                        (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
               }
@@ -653,11 +655,11 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
     }
     if (isInner) {
-      info.halo_id = -1;
-      buf->inner_blocks.push_back(&info);
+      info->halo_id = -1;
+      buf->inner_blocks.push_back(info);
     } else {
-      info.halo_id = buf->halo_blocks.size();
-      buf->halo_blocks.push_back(&info);
+      info->halo_id = buf->halo_blocks.size();
+      buf->halo_blocks.push_back(info);
       if (Coarsened) {
         for (size_t j = 0; j < ToBeChecked.size(); j += 3) {
           int r = ToBeChecked[j];
@@ -741,7 +743,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
           DM.sizes[r] = 0;
         }
     }
-    getf(all, info.level, info.Z)->halo_id = info.halo_id;
+    getf(all, info->level, info->Z)->halo_id = info->halo_id;
   }
   buf->myunpacks.resize(buf->halo_blocks.size());
   for (int r = 0; r < sim.size; r++) {
@@ -927,17 +929,17 @@ struct Face {
     }
   }
 };
-static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
+static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
                           std::unordered_map<long long, Info *> *all,
                           std::unordered_map<long long, int> *tree) {
   std::vector<long long> myData;
   for (auto &info : *infos) {
     bool myflag = false;
-    int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == aux - 1;
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
+    int aux = 1 << info->level;
+    bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
+    int xskip = info->index[0] == 0 ? -1 : 1;
+    int yskip = info->index[1] == 0 ? -1 : 1;
     for (int x = -1; x < 2; x++)
       for (int y = -1; y < 2; y++)
         if (x != 0 || y != 0) {
@@ -945,7 +947,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
             continue;
           if (y == yskip && yskin)
             continue;
-          Info *infoNei = getf(all, info.level, info.Znei[1 + x][1 + y]);
+          Info *infoNei = getf(all, info->level, info->Znei[1 + x][1 + y]);
           int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
           if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
             myflag = true;
@@ -981,21 +983,21 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
         }
   end:
     if (myflag) {
-      myData.push_back(info.level);
-      myData.push_back(info.Z);
+      myData.push_back(info->level);
+      myData.push_back(info->Z);
       if (UpdateIDs)
-        myData.push_back(info.id);
+        myData.push_back(info->id);
     }
   }
   std::vector<int> neighbors;
   double *boxes;
   double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
   for (auto &info : *infos) {
-    double h = 1.0 / _BS_ / (1 << info.level);
-    box[0] = std::min(box[0], info.origin[0] - 1.5 * h);
-    box[1] = std::min(box[1], info.origin[1] - 1.5 * h);
-    box[2] = std::max(box[2], info.origin[0] + h * _BS_ + 1.5 * h);
-    box[3] = std::max(box[3], info.origin[1] + h * _BS_ + 1.5 * h);
+    double h = 1.0 / _BS_ / (1 << info->level);
+    box[0] = std::min(box[0], info->origin[0] - 1.5 * h);
+    box[1] = std::min(box[1], info->origin[1] - 1.5 * h);
+    box[2] = std::max(box[2], info->origin[0] + h * _BS_ + 1.5 * h);
+    box[3] = std::max(box[3], info->origin[1] + h * _BS_ + 1.5 * h);
   }
   boxes = (double *)malloc(sim.size * sizeof box);
   MPI_Allgather(box, 4, MPI_DOUBLE, boxes, 4, MPI_DOUBLE, MPI_COMM_WORLD);
@@ -1067,18 +1069,18 @@ static void update_blocks(bool UpdateIDs, std::vector<Info> *infos,
   }
 }
 
-static bool info_cmp(Info &a, Info &b) { return a.id2 < b.id2; }
-static void fill_pos(std::vector<Info> *infos,
+static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
+static void fill_pos(std::vector<Info *> *infos,
                      std::unordered_map<long long, Info *> *all) {
   std::sort(infos->begin(), infos->end(), info_cmp);
   for (size_t j = 0; j < infos->size(); j++) {
-    int m = (*infos)[j].level;
-    long long Z = (*infos)[j].Z;
+    int m = (*infos)[j]->level;
+    long long Z = (*infos)[j]->Z;
     auto retval = all->find(sim.levels[m] + Z);
     assert(retval != all->end());
     Info *info = retval->second;
     info->id = j;
-    (*infos)[j] = *info;
+    (*infos)[j] = info;
   }
 }
 
@@ -1170,7 +1172,7 @@ static void fillcase1(Face *F, int codex, int codey, Buffers *buf, int dim) {
     }
   }
 }
-static void prepare0(Buffers *buf, std::vector<Info> *infos,
+static void prepare0(Buffers *buf, std::vector<Info *> *infos,
                      std::unordered_map<long long, Info *> *all,
                      std::unordered_map<long long, int> *tree, int dim) {
   buf->send_buffer.resize(sim.size);
@@ -1194,13 +1196,13 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
                               1 * 1 + 3 * 2 + 9 * 1, 1 * 1 + 3 * 0 + 9 * 1,
                               1 * 1 + 3 * 1 + 9 * 2, 1 * 1 + 3 * 1 + 9 * 0};
   for (auto &info : *infos) {
-    getf(all, info.level, info.Z)->auxiliary = nullptr;
-    info.auxiliary = nullptr;
-    int aux = 1 << info.level;
-    bool xskin = info.index[0] == 0 || info.index[0] == aux - 1;
-    bool yskin = info.index[1] == 0 || info.index[1] == aux - 1;
-    int xskip = info.index[0] == 0 ? -1 : 1;
-    int yskip = info.index[1] == 0 ? -1 : 1;
+    getf(all, info->level, info->Z)->auxiliary = nullptr;
+    info->auxiliary = nullptr;
+    int aux = 1 << info->level;
+    bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
+    bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
+    int xskip = info->index[0] == 0 ? -1 : 1;
+    int yskip = info->index[1] == 0 ? -1 : 1;
 
     bool storeFace[4] = {false, false, false, false};
     bool stored = false;
@@ -1213,7 +1215,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
         continue;
       if (code[2] != 0)
         continue;
-      if (!(treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) >=
+      if (!(treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]) >=
             0)) {
         storeFace[abs(code[0]) * std::max(0, code[0]) +
                   abs(code[1]) * (std::max(0, code[1]) + 2)] = true;
@@ -1223,21 +1225,22 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
       L[0] = code[0] == 0 ? _BS_ / 2 : 1;
       L[1] = code[1] == 0 ? _BS_ / 2 : 1;
       int V = L[0] * L[1];
-      if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) == -2) {
+      if (treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]) ==
+          -2) {
         Info *infoNei =
-            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         const long long nCoarse = infoNei->Zparent;
-        Info *infoNeiCoarser = getf(all, info.level - 1, nCoarse);
-        const int infoNeiCoarserrank = treef(tree, info.level - 1, nCoarse);
+        Info *infoNeiCoarser = getf(all, info->level - 1, nCoarse);
+        const int infoNeiCoarserrank = treef(tree, info->level - 1, nCoarse);
         int code2[3] = {-code[0], -code[1], -code[2]};
         int icode2 = (code2[0] + 1) + (code2[1] + 1) * 3 + (code2[2] + 1) * 9;
         buf->send_faces[infoNeiCoarserrank].push_back(
-            Face(&info, infoNeiCoarser, icode[f], icode2));
+            Face(info, infoNeiCoarser, icode[f], icode2));
         send_buffer_size[infoNeiCoarserrank] += V;
-      } else if (treef(tree, info.level, info.Znei[1 + code[0]][1 + code[1]]) ==
-                 -1) {
+      } else if (treef(tree, info->level,
+                       info->Znei[1 + code[0]][1 + code[1]]) == -1) {
         Info *infoNei =
-            getf(all, info.level, info.Znei[1 + code[0]][1 + code[1]]);
+            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         int Bstep = 1;
         for (int B = 0; B <= 1; B += Bstep) {
           const int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
@@ -1250,7 +1253,7 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
           Info *infoNeiFiner = getf(all, infoNei->level + 1, nFine);
           int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
           buf->recv_faces[infoNeiFinerrank].push_back(
-              Face(infoNeiFiner, &info, icode2, icode[f]));
+              Face(infoNeiFiner, info, icode2, icode[f]));
           assert(0 <= infoNeiFinerrank);
           assert(infoNeiFinerrank < sim.size);
           assert(recv_buffer_size.size() == sim.size);
@@ -1260,8 +1263,8 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     }
     if (stored) {
       BlockCase *c = (BlockCase *)malloc(sizeof(BlockCase));
-      c->level = info.level;
-      c->Z = info.Z;
+      c->level = info->level;
+      c->Z = info->Z;
       for (int i = 0; i < 4; i++)
         c->d[i] =
             storeFace[i] ? (Real *)malloc(_BS_ * dim * sizeof(Real)) : nullptr;
@@ -1273,14 +1276,14 @@ static void prepare0(Buffers *buf, std::vector<Info> *infos,
     for (auto &info : *infos) {
       if (Cases_index == buf->Cases.size())
         break;
-      if (buf->Cases[Cases_index]->level == info.level &&
-          buf->Cases[Cases_index]->Z == info.Z) {
+      if (buf->Cases[Cases_index]->level == info->level &&
+          buf->Cases[Cases_index]->Z == info->Z) {
         buf->Map.insert(std::pair<std::array<long long, 2>, BlockCase *>(
             {buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z},
             buf->Cases[Cases_index]));
         getf(all, buf->Cases[Cases_index]->level, buf->Cases[Cases_index]->Z)
             ->auxiliary = buf->Cases[Cases_index];
-        info.auxiliary = buf->Cases[Cases_index];
+        info->auxiliary = buf->Cases[Cases_index];
         Cases_index++;
       }
     }
@@ -1496,7 +1499,7 @@ static Synchronizer *sync1(const Stencil &stencil,
                            std::map<Stencil, Synchronizer *> *synchronizers,
                            std::unordered_map<long long, int> *tree,
                            std::unordered_map<long long, Info *> *all,
-                           std::vector<Info> *infos, size_t *timestamp,
+                           std::vector<Info *> *infos, size_t *timestamp,
                            int dim) {
   Synchronizer *s;
   auto itSynchronizerMPI = synchronizers->find(stencil);
@@ -1664,10 +1667,10 @@ static Synchronizer *sync1(const Stencil &stencil,
   *timestamp = (*timestamp + 1) % 32768;
   return s;
 }
-static void dealloc(int m, long long n, std::vector<Info> *infos) {
+static void dealloc(int m, long long n, std::vector<Info *> *infos) {
   for (size_t j = 0; j < infos->size(); j++) {
-    if ((*infos)[j].level == m && (*infos)[j].Z == n) {
-      free((*infos)[j].block);
+    if ((*infos)[j]->level == m && (*infos)[j]->Z == n) {
+      free((*infos)[j]->block);
       infos->erase(infos->begin() + j);
       return;
     }
@@ -1685,29 +1688,29 @@ static Real *avail1(int ix, int iy, int m,
 }
 static void _alloc(int level, long long Z,
                    std::unordered_map<long long, Info *> *all,
-                   std::vector<Info> *infos,
+                   std::vector<Info *> *infos,
                    std::unordered_map<long long, int> *tree, int dim) {
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-  { infos->push_back(*new_info); }
+  { infos->push_back(new_info); }
   treef(tree, level, Z) = sim.rank;
 }
 
 static void dealloc_many(std::vector<long long> &ids,
-                         std::vector<Info> *infos) {
+                         std::vector<Info *> *infos) {
   for (size_t j = 0; j < infos->size(); j++)
-    (*infos)[j].changed2 = false;
+    (*infos)[j]->changed2 = false;
   for (size_t i = 0; i < ids.size(); i++)
     for (size_t j = 0; j < infos->size(); j++) {
-      if ((*infos)[j].id2 == ids[i]) {
-        (*infos)[j].changed2 = true;
-        free((*infos)[j].block);
+      if ((*infos)[j]->id2 == ids[i]) {
+        (*infos)[j]->changed2 = true;
+        free((*infos)[j]->block);
         break;
       }
     }
   infos->erase(std::remove_if(infos->begin(), infos->end(),
-                              [](const Info &x) { return x.changed2; }),
+                              [](const Info *x) { return x->changed2; }),
                infos->end());
 }
 
@@ -1721,7 +1724,7 @@ struct Grid {
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
   std::vector<Info *> boundary;
-  std::vector<Info> infos;
+  std::vector<Info *> infos;
 };
 
 static void LI(Real *a0, Real *b0, Real *c0) {
@@ -2539,7 +2542,7 @@ static void AddBlock(int dim, Grid *grid, int level, long long Z,
   grid->all[sim.levels[level] + Z] = info;
   info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-  { grid->infos.push_back(*info); }
+  { grid->infos.push_back(info); }
   treef(&grid->tree, level, Z) = sim.rank;
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
@@ -2766,15 +2769,15 @@ static struct {
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
                              const Info *info, const Info *) {
   Stencil stencil{-1, -1, 2, 2, false};
-  const std::vector<Info> &tmpInfo = var.tmp->infos;
-  const std::vector<Info> &chiInfo = var.chi->infos;
+  const std::vector<Info *> &tmpInfo = var.tmp->infos;
+  const std::vector<Info *> &chiInfo = var.chi->infos;
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
   int nm = _BS_ + stencil.ex - stencil.sx - 1;
   const Real h = info->h;
   const Real facDiv = 0.5 * h / sim.dt;
-  Real *TMP = tmpInfo[info->id].block;
-  Real *CHI = chiInfo[info->id].block;
+  Real *TMP = tmpInfo[info->id]->block;
+  Real *CHI = chiInfo[info->id]->block;
   for (int iy = 0; iy < _BS_; ++iy)
     for (int ix = 0; ix < _BS_; ++ix) {
       int ip0 = ix - stencil.sx;
@@ -2795,7 +2798,7 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
           facDiv * (*v0 - *v1 + *v2 - *v3) -
           facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
     }
-  BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id].auxiliary);
+  BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id]->auxiliary);
   Real *faceXm = nullptr;
   Real *faceXp = nullptr;
   Real *faceYm = nullptr;
@@ -2886,9 +2889,9 @@ struct Obstacle {
 struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info> &tmpInfo = var.tmp->infos;
+    const std::vector<Info *> &tmpInfo = var.tmp->infos;
     const Real i2h = 0.5 * (1 << info->level) * _BS_;
-    Real *TMP = tmpInfo[info->id].block;
+    Real *TMP = tmpInfo[info->id]->block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < _BS_; ++j)
       for (int i = 0; i < _BS_; ++i) {
@@ -2906,7 +2909,7 @@ struct KernelVorticity {
       }
   }
 };
-static void dump(Real time, Info *infos, char *path) {
+static void dump(Real time, Info **infos, char *path) {
   long i, j, k, x, y, offset, nblock;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   MPI_File mpi_file;
@@ -2974,7 +2977,7 @@ static void dump(Real time, Info *infos, char *path) {
   MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
                 MPI_INFO_NULL, &mpi_file);
   for (i = 0; i < nblock; i++) {
-    Info *info = &infos[i];
+    Info *info = infos[i];
     k = 0;
     for (y = 0; y < _BS_; y++)
       for (x = 0; x < _BS_; x++) {
@@ -3002,7 +3005,6 @@ static void dump(Real time, Info *infos, char *path) {
     if (var.F[i].prefix != NULL) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
-      Info *inf = g->infos.data();
       snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
       MPI_File_open(MPI_COMM_WORLD, attr_path,
                     MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL,
@@ -3010,7 +3012,7 @@ static void dump(Real time, Info *infos, char *path) {
       for (j = 0; j < nblock; j++)
         MPI_File_write_at(
             mpi_file, (offset + j) * dim * _BS_ * _BS_ * sizeof(Real),
-            inf[j].block, dim * _BS_ * _BS_, MPI_Real, MPI_STATUS_IGNORE);
+            g->infos[j]->block, dim * _BS_ * _BS_, MPI_Real, MPI_STATUS_IGNORE);
       MPI_File_close(&mpi_file);
     }
 }
@@ -3040,7 +3042,7 @@ struct Shape {
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    std::vector<Info> &chiInfo = var.chi->infos;
+    std::vector<Info *> &chiInfo = var.chi->infos;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -3052,7 +3054,7 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      Real *CHI = chiInfo[info->id].block;
+      Real *CHI = chiInfo[info->id]->block;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < _BS_; iy++)
@@ -3096,13 +3098,13 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  std::vector<Info> &tmpInfo = var.tmp->infos;
-  std::vector<Info> &chiInfo = var.chi->infos;
+  std::vector<Info *> &tmpInfo = var.tmp->infos;
+  std::vector<Info *> &chiInfo = var.chi->infos;
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(chiInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
-    std::fill(tmpInfo[i].block, tmpInfo[i].block + _BS_ * _BS_, -1.0);
+    memset(chiInfo[i]->block, 0, _BS_ * _BS_ * sizeof(Real));
+    std::fill(tmpInfo[i]->block, tmpInfo[i]->block + _BS_ * _BS_, -1.0);
   }
   for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -3112,7 +3114,7 @@ static void ongrid() {
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < tmpInfo.size(); ++i) {
-      const Info *info = &tmpInfo[i];
+      const Info *info = tmpInfo[i];
       Obstacle *const block = new Obstacle();
       shape->obstacleBlocks[info->id] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
@@ -3121,10 +3123,10 @@ static void ongrid() {
     }
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < tmpInfo.size(); i++) {
-      Obstacle *const block = shape->obstacleBlocks[tmpInfo[i].id];
+      Obstacle *const block = shape->obstacleBlocks[tmpInfo[i]->id];
       assert(block not_eq nullptr);
-      const Info *info = &tmpInfo[i];
-      Real *b = tmpInfo[i].block;
+      const Info *info = tmpInfo[i];
+      Real *b = tmpInfo[i]->block;
       Obstacle *const o = block;
       const Real h = info->h;
       std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
@@ -3182,8 +3184,8 @@ static void ongrid() {
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
     for (size_t i = 0; i < chiInfo.size(); i++) {
-      const Real hsq = std::pow(chiInfo[i].h, 2);
-      const auto pos = shape->obstacleBlocks[chiInfo[i].id];
+      const Real hsq = std::pow(chiInfo[i]->h, 2);
+      const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
       if (pos == nullptr)
         continue;
       Real *CHI = (Real *)pos->chi;
@@ -3194,8 +3196,8 @@ static void ongrid() {
           if (CHI[j] <= 0)
             continue;
           Real p[2];
-          p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
-          p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
+          p[0] = chiInfo[i]->origin[0] + chiInfo[i]->h * (ix + 0.5);
+          p[1] = chiInfo[i]->origin[1] + chiInfo[i]->h * (iy + 0.5);
           const Real chi = CHI[j] * hsq;
           p[0] -= shape->x;
           p[1] -= shape->y;
@@ -3224,14 +3226,14 @@ static void ongrid() {
     Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < chiInfo.size(); i++) {
-      const auto pos = shape->obstacleBlocks[chiInfo[i].id];
+      const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
       if (pos == nullptr)
         continue;
       for (int iy = 0; iy < _BS_; ++iy)
         for (int ix = 0; ix < _BS_; ++ix) {
           Real p[2];
-          p[0] = chiInfo[i].origin[0] + chiInfo[i].h * (ix + 0.5);
-          p[1] = chiInfo[i].origin[1] + chiInfo[i].h * (iy + 0.5);
+          p[0] = chiInfo[i]->origin[0] + chiInfo[i]->h * (ix + 0.5);
+          p[1] = chiInfo[i]->origin[1] + chiInfo[i]->h * (iy + 0.5);
           p[0] -= shape->x;
           p[1] -= shape->y;
           pos->udef[iy][ix][0] -= I.u - I.a * p[1];
@@ -3244,8 +3246,8 @@ struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info> &tmpInfo = var.tmp->infos;
-    Real *TMP = tmpInfo[info->id].block;
+    const std::vector<Info *> &tmpInfo = var.tmp->infos;
+    Real *TMP = tmpInfo[info->id]->block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
@@ -3330,10 +3332,10 @@ static void adapt() {
   var.tmp->boundary = *halo;
   if (tmp > 0) {
     int levelMin = 0;
-    std::vector<Info> &I = var.tmp->infos;
+    std::vector<Info *> &I = var.tmp->infos;
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
-      Info *info = &I[j];
+      Info *info = I[j];
       if ((info->state == Refine && info->level == sim.levelMax - 1) ||
           (info->state == Compress && info->level == levelMin)) {
         info->state = Leave;
@@ -3347,7 +3349,7 @@ static void adapt() {
     bool clean_boundary = true;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < I.size(); j++) {
-        Info *info = &I[j];
+        Info *info = I[j];
         if (info->level == m && info->state != Refine &&
             info->level != sim.levelMax - 1) {
           int TwoPower = 1 << info->level;
@@ -3401,7 +3403,7 @@ static void adapt() {
       if (m == levelMin)
         break;
       for (size_t j = 0; j < I.size(); j++) {
-        Info *info = &I[j];
+        Info *info = I[j];
         if (info->level == m && info->state == Compress) {
           int aux = 1 << info->level;
           bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
@@ -3433,7 +3435,7 @@ static void adapt() {
       }
     }
     for (size_t jjj = 0; jjj < I.size(); jjj++) {
-      Info *info = &I[jjj];
+      Info *info = I[jjj];
       int m = info->level;
       bool found = false;
       for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
@@ -3471,7 +3473,7 @@ static void adapt() {
   }
   struct {
     std::unordered_map<long long, Info *> *all;
-    std::vector<Info> &I2;
+    std::vector<Info *> &I2;
   } args[] = {
       {&var.chi->all, var.chi->infos},   {&var.pres->all, var.pres->infos},
       {&var.pold->all, var.pold->infos}, {&var.vel->all, var.vel->infos},
@@ -3479,7 +3481,7 @@ static void adapt() {
   };
   for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
     for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
-      Info *ary0 = &args[iarg].I2[i1];
+      Info *ary0 = args[iarg].I2[i1];
       Info *info = getf(args[iarg].all, ary0->level, ary0->Z);
       for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
            i++)
@@ -3494,8 +3496,8 @@ static void adapt() {
     }
 #pragma omp parallel for
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
-      const Info *info1 = &var.tmp->infos[i];
-      Info *info2 = &args[iarg].I2[i];
+      const Info *info1 = var.tmp->infos[i];
+      Info *info2 = args[iarg].I2[i];
       Info *info3 = getf(args[iarg].all, info2->level, info2->Z);
       info2->state = info1->state;
       info3->state = info1->state;
@@ -3530,20 +3532,20 @@ static void adapt() {
     std::vector<int> m_ref;
     std::vector<long long> n_com;
     std::vector<long long> n_ref;
-    std::vector<Info> &I = g->infos;
+    std::vector<Info *> &I = g->infos;
     long long blocks_after = I.size();
     for (auto &info : I) {
-      if (info.state == Refine) {
-        m_ref.push_back(info.level);
-        n_ref.push_back(info.Z);
+      if (info->state == Refine) {
+        m_ref.push_back(info->level);
+        n_ref.push_back(info->Z);
         blocks_after += (1 << 2) - 1;
         r++;
-      } else if (info.state == Compress && info.index[0] % 2 == 0 &&
-                 info.index[1] % 2 == 0 && info.index[2] % 2 == 0) {
-        m_com.push_back(info.level);
-        n_com.push_back(info.Z);
+      } else if (info->state == Compress && info->index[0] % 2 == 0 &&
+                 info->index[1] % 2 == 0 && info->index[2] % 2 == 0) {
+        m_com.push_back(info->level);
+        n_com.push_back(info->Z);
         c++;
-      } else if (info.state == Compress) {
+      } else if (info->state == Compress) {
         blocks_after--;
       }
     }
@@ -3660,14 +3662,14 @@ static void adapt() {
     std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
       const long long nBlock =
-          forward(b.level, 2 * (b.index[0] / 2), 2 * (b.index[1] / 2));
-      const Info *base = getf(&g->all, b.level, nBlock);
+          forward(b->level, 2 * (b->index[0] / 2), 2 * (b->index[1] / 2));
+      const Info *base = getf(&g->all, b->level, nBlock);
       if (!(Tree1(base, &g->tree) >= 0) || base->state != Compress)
         continue;
-      const Info *bCopy = getf(&g->all, b.level, b.Z);
-      const int baserank = treef(&g->tree, b.level, nBlock);
-      const int brank = treef(&g->tree, b.level, b.Z);
-      if (b.Z != nBlock) {
+      const Info *bCopy = getf(&g->all, b->level, b->Z);
+      const int baserank = treef(&g->tree, b->level, nBlock);
+      const int brank = treef(&g->tree, b->level, b->Z);
+      if (b->Z != nBlock) {
         if (baserank != sim.rank && brank == sim.rank) {
           MPI_Block x;
           x.level = bCopy->level;
@@ -3675,22 +3677,22 @@ static void adapt() {
           std::memcpy(&x.data[0], bCopy->block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
-          treef(&g->tree, b.level, b.Z) = baserank;
+          treef(&g->tree, b->level, b->Z) = baserank;
         }
       } else {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
             const long long n =
-                forward(b.level, b.index[0] + i, b.index[1] + j);
+                forward(b->level, b->index[0] + i, b->index[1] + j);
             if (n == nBlock)
               continue;
-            const int temprank = treef(&g->tree, b.level, n);
+            const int temprank = treef(&g->tree, b->level, n);
             if (temprank != sim.rank) {
               MPI_Block x;
               x.level = bCopy->level;
               x.Z = bCopy->Z;
               recv_blocks[temprank].push_back(x);
-              treef(&g->tree, b.level, n) = baserank;
+              treef(&g->tree, b->level, n) = baserank;
             }
           }
       }
@@ -3781,10 +3783,10 @@ static void adapt() {
               forward(level, info->index[0] + I, info->index[1] + J);
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
-              if (level == g->infos[j].level && n == g->infos[j].Z) {
+              if (level == g->infos[j]->level && n == g->infos[j]->Z) {
                 Info *correct_info = getf(&g->all, level - 1, np);
                 correct_info->state = Leave;
-                g->infos[j] = *correct_info;
+                g->infos[j] = correct_info;
                 break;
               }
           } else {
@@ -3867,7 +3869,7 @@ static void adapt() {
       for (int r = 0; r < sim.rank; r++)
         if (send_blocks[r].size() != 0) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            Info *info = &g->infos[counter_S + i];
+            Info *info = g->infos[counter_S + i];
             MPI_Block *x = &send_blocks[r][i];
             x->level = info->level;
             x->Z = info->Z;
@@ -3883,7 +3885,7 @@ static void adapt() {
       for (int r = sim.size - 1; r > sim.rank; r--)
         if (send_blocks[r].size() != 0) {
           for (size_t i = 0; i < send_blocks[r].size(); i++) {
-            Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
+            Info *info = g->infos[g->infos.size() - 1 - (counter_E + i)];
             MPI_Block *x = &send_blocks[r][i];
             x->level = info->level;
             x->Z = info->Z;
@@ -3904,14 +3906,14 @@ static void adapt() {
         if (send_blocks[r].size() != 0) {
           if (r < sim.rank) {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info *info = &g->infos[counter_S + i];
+              Info *info = g->infos[counter_S + i];
               deallocIDs.push_back(info->id2);
               treef(&g->tree, info->level, info->Z) = r;
             }
             counter_S += send_blocks[r].size();
           } else {
             for (size_t i = 0; i < send_blocks[r].size(); i++) {
-              Info *info = &g->infos[g->infos.size() - 1 - (counter_E + i)];
+              Info *info = g->infos[g->infos.size() - 1 - (counter_E + i)];
               deallocIDs.push_back(info->id2);
               treef(&g->tree, info->level, info->Z) = r;
             }
@@ -3960,7 +3962,7 @@ static void adapt() {
         send_left.resize(flux_left);
 #pragma omp parallel for schedule(runtime)
         for (int i = 0; i < flux_left; i++) {
-          Info *info = &g->infos[i];
+          Info *info = g->infos[i];
           MPI_Block *x = &send_left[i];
           x->level = info->level;
           x->Z = info->Z;
@@ -3981,7 +3983,7 @@ static void adapt() {
         send_right.resize(flux_right);
 #pragma omp parallel for schedule(runtime)
         for (int i = 0; i < flux_right; i++) {
-          Info *info = &g->infos[my_blocks - i - 1];
+          Info *info = g->infos[my_blocks - i - 1];
           MPI_Block *x = &send_right[i];
           x->level = info->level;
           x->Z = info->Z;
@@ -3999,12 +4001,12 @@ static void adapt() {
                   MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
       }
       for (int i = 0; i < flux_right; i++) {
-        Info *info = &g->infos[my_blocks - i - 1];
+        Info *info = g->infos[my_blocks - i - 1];
         dealloc(info->level, info->Z, &g->infos);
         treef(&g->tree, info->level, info->Z) = right;
       }
       for (int i = 0; i < flux_left; i++) {
-        Info *info = &g->infos[i];
+        Info *info = g->infos[i];
         dealloc(info->level, info->Z, &g->infos);
         treef(&g->tree, info->level, info->Z) = left;
       }
@@ -4044,11 +4046,11 @@ static void adapt() {
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
   void operator()(Real *um, Info *info) {
-    std::vector<Info> &tmpVInfo = var.tmpV->infos;
+    std::vector<Info *> &tmpVInfo = var.tmpV->infos;
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    Real *TMP = tmpVInfo[info->id].block;
+    Real *TMP = tmpVInfo[info->id]->block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -4103,7 +4105,7 @@ struct KernelAdvectDiffuse {
             afac * (u * dvdx + v * dvdy) +
             dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
       }
-    BlockCase *tempCase = tmpVInfo[info->id].auxiliary;
+    BlockCase *tempCase = tmpVInfo[info->id]->auxiliary;
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
@@ -4420,8 +4422,8 @@ struct Solver {
     }
   }
   void getVec() {
-    std::vector<Info> &RhsInfo = var.tmp->infos;
-    std::vector<Info> &zInfo = var.pres->infos;
+    std::vector<Info *> &RhsInfo = var.tmp->infos;
+    std::vector<Info *> &zInfo = var.pres->infos;
     int Nblocks = RhsInfo.size();
     std::vector<double> &x = sim.mat->x_;
     std::vector<double> &b = sim.mat->b_;
@@ -4429,13 +4431,13 @@ struct Solver {
     long long shift = -sim.nrows[sim.rank];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
-      Real *rhs = RhsInfo[i].block;
-      Real *p = zInfo[i].block;
-      h2[i] = RhsInfo[i].h * RhsInfo[i].h;
+      Real *rhs = RhsInfo[i]->block;
+      Real *p = zInfo[i]->block;
+      h2[i] = RhsInfo[i]->h * RhsInfo[i]->h;
       for (int iy = 0; iy < _BS_; iy++)
         for (int ix = 0; ix < _BS_; ix++) {
           int j = iy * _BS_ + ix;
-          long long sfc_loc = GenericCell.This(&RhsInfo[i], ix, iy) + shift;
+          long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy) + shift;
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
         }
@@ -4445,10 +4447,10 @@ struct Solver {
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info> &tmpVInfo = var.tmpV->infos;
+    const std::vector<Info *> &tmpVInfo = var.tmpV->infos;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = tmpVInfo[info->id].block;
+    Real *tmpV = tmpVInfo[info->id]->block;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
         int ip0 = ix - stencil.sx;
@@ -4464,7 +4466,7 @@ struct pressureCorrectionKernel {
         tmpV[2 * (_BS_ * iy + ix)] = pFac * (*p0 - *p1);
         tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (*p2 - *p3);
       }
-    BlockCase *tempCase = tmpVInfo[info->id].auxiliary;
+    BlockCase *tempCase = tmpVInfo[info->id]->auxiliary;
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
@@ -4529,7 +4531,7 @@ struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    Real *TMP = var.tmp->infos[info->id].block;
+    Real *TMP = var.tmp->infos[info->id]->block;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < _BS_; ++iy)
       for (int ix = 0; ix < _BS_; ++ix) {
@@ -4546,7 +4548,7 @@ struct pressure_rhs1 {
         Real *l4 = um + nm * jp1 + ip0;
         TMP[_BS_ * iy + ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
       }
-    BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info->id].auxiliary);
+    BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info->id]->auxiliary);
     Real *faceXm = nullptr;
     Real *faceXp = nullptr;
     Real *faceYm = nullptr;
@@ -4763,7 +4765,7 @@ int main(int argc, char **argv) {
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
       info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
-      g->infos.push_back(*info);
+      g->infos.push_back(info);
       g->tree[aux] = sim.rank;
       int p[2];
       sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
@@ -4781,7 +4783,7 @@ int main(int argc, char **argv) {
     }
     std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
     for (size_t j = 0; j < g->infos.size(); j++)
-      g->infos[j].id = j;
+      g->infos[j]->id = j;
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     update_blocks(false, &g->infos, &g->all, &g->tree);
@@ -4793,17 +4795,17 @@ int main(int argc, char **argv) {
       break;
     adapt();
   }
-  std::vector<Info> &velInfo = var.vel->infos;
+  std::vector<Info *> &velInfo = var.vel->infos;
   for (auto &shape : sim.shapes) {
     std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      if (oblock[var.tmpV->infos[i].id] == nullptr)
+      if (oblock[var.tmpV->infos[i]->id] == nullptr)
         continue;
-      Real *udef = (Real *)oblock[var.tmpV->infos[i].id]->udef;
-      Real *chi = (Real *)oblock[var.tmpV->infos[i].id]->chi;
-      Real *UDEF = var.tmpV->infos[i].block;
-      Real *CHI = var.chi->infos[i].block;
+      Real *udef = (Real *)oblock[var.tmpV->infos[i]->id]->udef;
+      Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
+      Real *UDEF = var.tmpV->infos[i]->block;
+      Real *CHI = var.chi->infos[i]->block;
       for (int j = 0; j < _BS_ * _BS_; j++) {
         if (chi[j] < CHI[j])
           continue;
@@ -4814,9 +4816,9 @@ int main(int argc, char **argv) {
   }
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < velInfo.size(); i++) {
-    Real *UF = velInfo[i].block;
-    Real *US = var.tmpV->infos[i].block;
-    Real *X = var.chi->infos[i].block;
+    Real *UF = velInfo[i]->block;
+    Real *US = var.tmpV->infos[i]->block;
+    Real *X = var.chi->infos[i]->block;
     for (int j = 0; j < _BS_ * _BS_; j++) {
       UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
@@ -4831,12 +4833,12 @@ int main(int argc, char **argv) {
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
-      h = std::min(var.vel->infos[i].h, h);
+      h = std::min(var.vel->infos[i]->h, h);
     MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real *vel = velInfo[i].block;
+      Real *vel = velInfo[i]->block;
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
@@ -4867,7 +4869,7 @@ int main(int argc, char **argv) {
     ongrid();
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
-      memcpy(var.vold->infos[i].block, velInfo[i].block,
+      memcpy(var.vold->infos[i]->block, velInfo[i]->block,
              2 * _BS_ * _BS_ * sizeof(Real));
     if (var.tmpV->UpdateFluxCorrection) {
       prepare0(var.buf2, &var.tmpV->infos, &var.tmpV->all, &var.tmpV->tree, 2);
@@ -4877,10 +4879,10 @@ int main(int argc, char **argv) {
     fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real *V = velInfo[i].block;
-      Real *Vold = var.vold->infos[i].block;
-      Real *tmpV = var.tmpV->infos[i].block;
-      Real ih2 = 0.5 / (velInfo[i].h * velInfo[i].h);
+      Real *V = velInfo[i]->block;
+      Real *Vold = var.vold->infos[i]->block;
+      Real *tmpV = var.tmpV->infos[i]->block;
+      Real ih2 = 0.5 / (velInfo[i]->h * velInfo[i]->h);
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
@@ -4892,10 +4894,10 @@ int main(int argc, char **argv) {
     fillcases(var.buf2, &var.tmpV->tree, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real *V = velInfo[i].block;
-      Real *Vold = var.vold->infos[i].block;
-      Real *tmpV = var.tmpV->infos[i].block;
-      Real ih2 = 1.0 / (velInfo[i].h * velInfo[i].h);
+      Real *V = velInfo[i]->block;
+      Real *Vold = var.vold->infos[i]->block;
+      Real *tmpV = var.tmpV->infos[i]->block;
+      Real ih2 = 1.0 / (velInfo[i]->h * velInfo[i]->h);
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
@@ -4904,12 +4906,12 @@ int main(int argc, char **argv) {
       Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0, AM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (size_t i = 0; i < velInfo.size(); i++) {
-        const Real *VEL = velInfo[i].block;
-        const Real hsq = velInfo[i].h * velInfo[i].h;
-        if (oblock[velInfo[i].id] == nullptr)
+        const Real *VEL = velInfo[i]->block;
+        const Real hsq = velInfo[i]->h * velInfo[i]->h;
+        if (oblock[velInfo[i]->id] == nullptr)
           continue;
-        const Real *chi = (Real *)oblock[velInfo[i].id]->chi;
-        const Real *udef = (Real *)oblock[velInfo[i].id]->udef;
+        const Real *chi = (Real *)oblock[velInfo[i]->id]->chi;
+        const Real *udef = (Real *)oblock[velInfo[i]->id]->udef;
         const Real lambdt = sim.lambda * sim.dt;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
@@ -4921,8 +4923,8 @@ int main(int argc, char **argv) {
             const Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
             const Real F = hsq * Xlamdt / (1 + Xlamdt);
             Real p[2];
-            p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
-            p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
+            p[0] = velInfo[i]->origin[0] + velInfo[i]->h * (ix + 0.5);
+            p[1] = velInfo[i]->origin[1] + velInfo[i]->h * (iy + 0.5);
             p[0] -= shape->x;
             p[1] -= shape->y;
             PM += F;
@@ -4964,15 +4966,15 @@ int main(int argc, char **argv) {
           auto &jSDF = jBlocks[k]->dist;
           ScalarBlock &iChi = iBlocks[k]->chi;
           ScalarBlock &jChi = jBlocks[k]->chi;
-          Real h = 1.0 / _BS_ / (1 << infos[k].level);
+          Real h = 1.0 / _BS_ / (1 << infos[k]->level);
           Real hsq = h * h;
           for (int iy = 0; iy < _BS_; ++iy)
             for (int ix = 0; ix < _BS_; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                 continue;
               Real pos[2];
-              pos[0] = infos[k].origin[0] + h * (ix + 0.5);
-              pos[1] = infos[k].origin[1] + h * (iy + 0.5);
+              pos[0] = infos[k]->origin[0] + h * (ix + 0.5);
+              pos[1] = infos[k]->origin[1] + h * (iy + 0.5);
               coll.iM += iChi[iy][ix] * hsq;
               coll.iPosX += iChi[iy][ix] * pos[0] * hsq;
               coll.iPosY += iChi[iy][ix] * pos[1] * hsq;
@@ -5070,18 +5072,18 @@ int main(int argc, char **argv) {
         }
       }
     }
-    std::vector<Info> &chiInfo = var.chi->infos;
+    std::vector<Info *> &chiInfo = var.chi->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
       for (auto &shape : sim.shapes) {
         std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-        Obstacle *o = oblock[velInfo[i].id];
+        Obstacle *o = oblock[velInfo[i]->id];
         if (o == nullptr)
           continue;
         Real *X = (Real *)o->chi;
         Real *UDEF = (Real *)o->udef;
-        Real *CHI = chiInfo[i].block;
-        Real *V = velInfo[i].block;
+        Real *CHI = chiInfo[i]->block;
+        Real *V = velInfo[i]->block;
         for (int iy = 0; iy < _BS_; ++iy)
           for (int ix = 0; ix < _BS_; ++ix) {
             int j = _BS_ * iy + ix;
@@ -5090,8 +5092,8 @@ int main(int argc, char **argv) {
             if (X[j] <= 0)
               continue;
             Real p[2];
-            p[0] = velInfo[i].origin[0] + velInfo[i].h * (ix + 0.5);
-            p[1] = velInfo[i].origin[1] + velInfo[i].h * (iy + 0.5);
+            p[0] = velInfo[i]->origin[0] + velInfo[i]->h * (ix + 0.5);
+            p[1] = velInfo[i]->origin[1] + velInfo[i]->h * (iy + 0.5);
             p[0] -= shape->x;
             p[1] -= shape->y;
             Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
@@ -5101,20 +5103,20 @@ int main(int argc, char **argv) {
             V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
           }
       }
-    std::vector<Info> &tmpVInfo = var.tmpV->infos;
+    std::vector<Info *> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
-      memset(tmpVInfo[i].block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
+      memset(tmpVInfo[i]->block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
       for (size_t i = 0; i < velInfo.size(); i++) {
-        if (oblock[tmpVInfo[i].id] == nullptr)
+        if (oblock[tmpVInfo[i]->id] == nullptr)
           continue;
-        Real *udef = (Real *)oblock[tmpVInfo[i].id]->udef;
-        Real *chi = (Real *)oblock[tmpVInfo[i].id]->chi;
-        Real *UDEF = tmpVInfo[i].block;
-        Real *CHI = chiInfo[i].block;
+        Real *udef = (Real *)oblock[tmpVInfo[i]->id]->udef;
+        Real *chi = (Real *)oblock[tmpVInfo[i]->id]->chi;
+        Real *UDEF = tmpVInfo[i]->block;
+        Real *CHI = chiInfo[i]->block;
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
             int j = _BS_ * iy + ix;
@@ -5136,7 +5138,7 @@ int main(int argc, char **argv) {
     Synchronizer *Synch2 =
         sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
               &var.tmpV->infos, &var.tmpV->timestamp, 2);
-    std::vector<Info> &blk = var.vel->infos;
+    std::vector<Info *> &blk = var.vel->infos;
     std::vector<bool> ready(blk.size(), false);
     std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
     std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
@@ -5184,12 +5186,13 @@ int main(int argc, char **argv) {
       }
     }
     fillcases(var.buf1, &var.tmp->tree, 1);
-    std::vector<Info> &presInfo = var.pres->infos;
-    std::vector<Info> &poldInfo = var.pold->infos;
+    std::vector<Info *> &presInfo = var.pres->infos;
+    std::vector<Info *> &poldInfo = var.pold->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      memcpy(poldInfo[i].block, presInfo[i].block, _BS_ * _BS_ * sizeof(Real));
-      memset(presInfo[i].block, 0, _BS_ * _BS_ * sizeof(Real));
+      memcpy(poldInfo[i]->block, presInfo[i]->block,
+             _BS_ * _BS_ * sizeof(Real));
+      memset(presInfo[i]->block, 0, _BS_ * _BS_ * sizeof(Real));
     }
     if (var.tmp->UpdateFluxCorrection) {
       prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
@@ -5204,7 +5207,7 @@ int main(int argc, char **argv) {
       var.pres->UpdateFluxCorrection = false;
 
       update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
-      std::vector<Info> &RhsInfo = var.tmp->infos;
+      std::vector<Info *> &RhsInfo = var.tmp->infos;
       const int Nblocks = RhsInfo.size();
       const int N = _BS_ * _BS_ * Nblocks;
       sim.mat->reserve(N);
@@ -5221,42 +5224,42 @@ int main(int argc, char **argv) {
         sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
       }
       for (int i = 0; i < Nblocks; i++) {
-        const Info &rhs_info = RhsInfo[i];
-        const int aux = 1 << rhs_info.level;
+        Info *&rhs_info = RhsInfo[i];
+        const int aux = 1 << rhs_info->level;
         const int MAX_X_BLOCKS = aux - 1;
         const int MAX_Y_BLOCKS = aux - 1;
         std::array<bool, 4> isBoundary;
-        isBoundary[0] = (rhs_info.index[0] == 0);
-        isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS);
-        isBoundary[2] = (rhs_info.index[1] == 0);
-        isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS);
+        isBoundary[0] = (rhs_info->index[0] == 0);
+        isBoundary[1] = (rhs_info->index[0] == MAX_X_BLOCKS);
+        isBoundary[2] = (rhs_info->index[1] == 0);
+        isBoundary[3] = (rhs_info->index[1] == MAX_Y_BLOCKS);
         std::array<const Info *, 4> rhsNei;
         rhsNei[0] =
-            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 - 1][1]);
+            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
         rhsNei[1] =
-            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1 + 1][1]);
+            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
         rhsNei[2] =
-            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 - 1]);
+            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
         rhsNei[3] =
-            getf(&var.tmp->all, rhs_info.level, rhs_info.Znei[1][1 + 1]);
+            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
             const long long sfc_idx =
-                sim.solver->GenericCell.This(&rhs_info, ix, iy);
+                sim.solver->GenericCell.This(rhs_info, ix, iy);
             if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
               sim.mat->cooPushBackVal(
                   1, sfc_idx,
-                  sim.solver->GenericCell.This(&rhs_info, ix, iy - 1));
+                  sim.solver->GenericCell.This(rhs_info, ix, iy - 1));
               sim.mat->cooPushBackVal(
                   1, sfc_idx,
-                  sim.solver->GenericCell.This(&rhs_info, ix - 1, iy));
+                  sim.solver->GenericCell.This(rhs_info, ix - 1, iy));
               sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
               sim.mat->cooPushBackVal(
                   1, sfc_idx,
-                  sim.solver->GenericCell.This(&rhs_info, ix + 1, iy));
+                  sim.solver->GenericCell.This(rhs_info, ix + 1, iy));
               sim.mat->cooPushBackVal(
                   1, sfc_idx,
-                  sim.solver->GenericCell.This(&rhs_info, ix, iy + 1));
+                  sim.solver->GenericCell.This(rhs_info, ix, iy + 1));
             } else {
               std::array<bool, 4> validNei;
               validNei[0] = ix > 0;
@@ -5264,17 +5267,17 @@ int main(int argc, char **argv) {
               validNei[2] = iy > 0;
               validNei[3] = iy < _BS_ - 1;
               std::array<long long, 4> idxNei;
-              idxNei[0] = sim.solver->GenericCell.This(&rhs_info, ix - 1, iy);
-              idxNei[1] = sim.solver->GenericCell.This(&rhs_info, ix + 1, iy);
-              idxNei[2] = sim.solver->GenericCell.This(&rhs_info, ix, iy - 1);
-              idxNei[3] = sim.solver->GenericCell.This(&rhs_info, ix, iy + 1);
-              SpRowInfo row(Tree1(&rhs_info, &var.tmp->tree), sfc_idx, 8);
+              idxNei[0] = sim.solver->GenericCell.This(rhs_info, ix - 1, iy);
+              idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
+              idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
+              idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
+              SpRowInfo row(Tree1(rhs_info, &var.tmp->tree), sfc_idx, 8);
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  sim.solver->makeFlux(&rhs_info, ix, iy, rhsNei[j],
+                  sim.solver->makeFlux(rhs_info, ix, iy, rhsNei[j],
                                        sim.solver->edgeIndexers[j], row);
                 }
               }
@@ -5289,7 +5292,7 @@ int main(int argc, char **argv) {
       sim.solver->getVec();
       sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
-    std::vector<Info> &zInfo = var.pres->infos;
+    std::vector<Info *> &zInfo = var.pres->infos;
     const int NB = zInfo.size();
     const std::vector<double> &x = sim.mat->x_;
     Real avg, avg1, quantities[2];
@@ -5297,8 +5300,8 @@ int main(int argc, char **argv) {
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (int i = 0; i < NB; i++) {
-      Real *P = zInfo[i].block;
-      const double vv = zInfo[i].h * zInfo[i].h;
+      Real *P = zInfo[i]->block;
+      const double vv = zInfo[i]->h * zInfo[i]->h;
       for (int j = 0; j < _BS_ * _BS_; j++) {
         P[j] = x[i * _BS_ * _BS_ + j];
         avg += P[j] * vv;
@@ -5314,7 +5317,7 @@ int main(int argc, char **argv) {
     avg = avg / avg1;
 #pragma omp parallel for
     for (int i = 0; i < NB; i++) {
-      Real *P = zInfo[i].block;
+      Real *P = zInfo[i]->block;
       for (int j = 0; j < _BS_ * _BS_; j++)
         P[j] += -avg;
     }
@@ -5322,8 +5325,8 @@ int main(int argc, char **argv) {
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real *P = presInfo[i].block;
-      Real vv = presInfo[i].h * presInfo[i].h;
+      Real *P = presInfo[i]->block;
+      Real vv = presInfo[i]->h * presInfo[i]->h;
       for (int j = 0; j < _BS_ * _BS_; j++) {
         avg += P[j] * vv;
         avg1 += vv;
@@ -5338,8 +5341,8 @@ int main(int argc, char **argv) {
     avg = avg / avg1;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real *pres = presInfo[i].block;
-      Real *pold = poldInfo[i].block;
+      Real *pres = presInfo[i]->block;
+      Real *pold = poldInfo[i]->block;
       for (int j = 0; j < _BS_ * _BS_; j++)
         pres[j] += pold[j] - avg;
     }
@@ -5351,9 +5354,9 @@ int main(int argc, char **argv) {
     fillcases(var.buf1, &var.tmp->tree, 1);
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
-      Real ih2 = 1.0 / velInfo[i].h / velInfo[i].h;
-      Real *V = velInfo[i].block;
-      Real *tmpV = tmpVInfo[i].block;
+      Real ih2 = 1.0 / velInfo[i]->h / velInfo[i]->h;
+      Real *V = velInfo[i]->block;
+      Real *tmpV = tmpVInfo[i]->block;
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         V[j] += tmpV[j] * ih2;
     }
