@@ -1578,6 +1578,8 @@ static Synchronizer *sync1(const Stencil &stencil,
       MPI_Irecv(buf, s->buf->recv_buffer_size[r] * dim, MPI_Real, r, *timestamp,
                 MPI_COMM_WORLD, req);
       s->mapofrequests[r] = req;
+      s->reqs.push_back(req);
+      s->bufs.push_back(buf);
     }
   for (int r = 0; r < sim.size; r++)
     if (s->buf->send_buffer_size[r] != 0) {
