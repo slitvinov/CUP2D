@@ -3922,6 +3922,12 @@ static void adapt() {
         }
       dealloc_many(deallocIDs, &g->infos);
       MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+      /****************/
+      for (Info* b : g->infos) {
+	long long key = sim.levels[b->level] + b->Z;
+	assert(g->all.find(key) != g->all.end());
+      }
+      /***************/
 #pragma omp parallel
       {
         for (int r = 0; r < sim.size; r++)
