@@ -1717,9 +1717,7 @@ static void _alloc(int level, long long Z,
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-  {
-    infos->push_back(*new_info);
-  }
+  { infos->push_back(*new_info); }
   treef(tree, level, Z) = sim.rank;
 }
 
@@ -3162,7 +3160,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3636,9 +3634,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      {
-        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
-      }
+      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3788,9 +3784,7 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
-            }
+            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4175,8 +4169,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
-        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -5076,7 +5070,7 @@ int main(int argc, char **argv) {
         std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
         Obstacle *o = oblock[velInfo[i].id];
         if (o == nullptr)
-          continue;        
+          continue;
         Real *X = (Real *)o->chi;
         Real *UDEF = (Real *)o->udef;
         Real *CHI = chiInfo[i].block;
