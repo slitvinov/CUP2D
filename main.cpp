@@ -305,8 +305,7 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
       if (retval1 == all->end()) {
         Info *dumm = new Info;
         fill(dumm, m, Z);
-	/* TODO */
-        dumm->block = (Real *)calloc(max_dim * _BS_ * _BS_, sizeof(Real));
+        /* TODO: does not allocate a block */
         (*all)[aux] = dumm;
       }
     }
@@ -2535,8 +2534,11 @@ public:
 };
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
                      uint8_t *data) {
-  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
   Info *info = getf(&grid->all, level, Z);
+  info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+#pragma omp critical
+  { grid->infos.push_back(*info); }
+  treef(&grid->tree, level, Z) = sim.rank;
   memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
   int p[2];
   sfc_inverse(Z, level, &p[0], &p[1]);
