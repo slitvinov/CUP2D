@@ -849,7 +849,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
     }
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
-    buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim);
+    buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim); /* TODO */
     buf->send_packinfos[r].clear();
     ToBeAveragedDown[r].clear();
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
@@ -2163,6 +2163,11 @@ public:
           Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
                            offset[0] + (sC[1] - offset[1]) * nc[0]) *
                               dim;
+
+          /**/
+          /* assert(buf->recv_buffer_size[r] * dim ==  */
+          /**/
+
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nc[0]);
@@ -2536,7 +2541,7 @@ public:
 };
 static void _alloc(int level, long long Z,
                    std::unordered_map<long long, Info *> *all,
-                   std::vector<Info*> *infos,
+                   std::vector<Info *> *infos,
                    std::unordered_map<long long, int> *tree, int dim) {
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
@@ -3183,7 +3188,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3598,7 +3603,9 @@ static void adapt() {
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-          { g->infos.push_back(info); }
+          {
+            g->infos.push_back(info);
+          }
           treef(&g->tree, level + 1, Z) = -2;
           Blocks[j * 2 + i] = info->block;
         }
@@ -3659,7 +3666,9 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
+      {
+        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
+      }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3749,7 +3758,9 @@ static void adapt() {
         Info *info = getf(&g->all, level, Z);
         info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-        { g->infos.push_back(info); }
+        {
+          g->infos.push_back(info);
+        }
         treef(&g->tree, level, Z) = sim.rank;
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
@@ -3811,7 +3822,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
+            {
+              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
+            }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4196,8 +4209,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
+        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {

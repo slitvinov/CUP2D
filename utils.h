@@ -39,29 +39,13 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
 static void unpack_subregion(Real *pack, Real *dstbase, int dim, int srcxstart,
                              int srcystart, int LX, int dstxend, int dstyend,
                              int xsize) {
-  if (dim == 1) {
-    int mod = dstxend % 4;
-    for (int yd = 0; yd < dstyend; ++yd) {
-      int offset = srcxstart + LX * (yd + srcystart);
-      int offset_dst = xsize * yd;
-      for (int xd = 0; xd < dstxend - mod; xd += 4) {
-        dstbase[xd + 0 + offset_dst] = pack[xd + 0 + offset];
-        dstbase[xd + 1 + offset_dst] = pack[xd + 1 + offset];
-        dstbase[xd + 2 + offset_dst] = pack[xd + 2 + offset];
-        dstbase[xd + 3 + offset_dst] = pack[xd + 3 + offset];
-      }
-      for (int xd = dstxend - mod; xd < dstxend; ++xd)
-        dstbase[xd + offset_dst] = pack[xd + offset];
+  for (int yd = 0; yd < dstyend; ++yd)
+    for (int xd = 0; xd < dstxend; ++xd) {
+      Real *dst = dstbase + dim * (xd + xsize * yd);
+      Real *src = pack + dim * (xd + srcxstart + LX * (yd + srcystart));
+      for (int c = 0; c < dim; ++c)
+        dst[c] = src[c];
     }
-  } else {
-    for (int yd = 0; yd < dstyend; ++yd)
-      for (int xd = 0; xd < dstxend; ++xd) {
-        Real *dst = dstbase + dim * (xd + xsize * yd);
-        Real *src = pack + dim * (xd + srcxstart + LX * (yd + srcystart));
-        for (int c = 0; c < dim; ++c)
-          dst[c] = src[c];
-      }
-  }
 }
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
