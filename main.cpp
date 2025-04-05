@@ -434,42 +434,6 @@ static void FixDuplicates2(std::array<Range, 3 * 27> &AllStencils,
   *sz = 0;
 }
 
-static std::vector<Info *> *avail_next(
-    std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups,
-    std::unordered_map<int, MPI_Request *> &mapofrequests,
-    std::vector<Info *> &dummy_vector) {
-  std::vector<Info *> *halo_next;
-  for (;;) {
-    bool all;
-    all = true;
-    for (auto &it : mapofHaloBlockGroups) {
-      if (it.second.ready == false) {
-        std::set<int> ranks = it.second.myranks;
-        int flag = 0;
-        for (auto r : ranks) {
-          const auto retval = mapofrequests.find(r);
-          MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
-          if (flag == false)
-            break;
-        }
-        if (flag == 1) {
-          it.second.ready = true;
-          halo_next = &it.second.myblocks;
-          goto done;
-        }
-      }
-      all = all && it.second.ready;
-    }
-    if (all) {
-      halo_next = &dummy_vector;
-      goto done;
-    }
-  }
-
-done:
-  return halo_next;
-}
-
 struct SyncBuf {
   std::set<int> Neighbors;
   std::vector<Info *> halo_blocks;
@@ -2607,8 +2571,36 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
-      halo_next = avail_next(Synch->mapofHaloBlockGroups, Synch->mapofrequests,
-                             Synch->dummy_vector);
+      {
+        for (;;) {
+          bool all;
+          all = true;
+          for (auto &it : Synch->mapofHaloBlockGroups) {
+            if (it.second.ready == false) {
+              std::set<int> ranks = it.second.myranks;
+              int flag = 0;
+              for (auto r : ranks) {
+                const auto retval = Synch->mapofrequests.find(r);
+                MPI_Test(retval->second, &flag, MPI_STATUS_IGNORE);
+                if (flag == false)
+                  break;
+              }
+              if (flag == 1) {
+                it.second.ready = true;
+                halo_next = &it.second.myblocks;
+                goto done;
+              }
+            }
+            all = all && it.second.ready;
+          }
+          if (all) {
+            halo_next = &Synch->dummy_vector;
+            goto done;
+          }
+        }
+
+      done:;
+      }
 #pragma omp barrier
 #pragma omp for nowait
       for (std::size_t i = 0; i < halo_next->size(); ++i) {
