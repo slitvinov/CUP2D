@@ -305,6 +305,8 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
       if (retval1 == all->end()) {
         Info *dumm = new Info;
         fill(dumm, m, Z);
+	/* TODO */
+        dumm->block = (Real *)calloc(max_dim * _BS_ * _BS_, sizeof(Real));
         (*all)[aux] = dumm;
       }
     }
