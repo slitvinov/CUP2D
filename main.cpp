@@ -2191,10 +2191,11 @@ public:
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             assert(unpack->CoarseVersionx == 0);
             assert(unpack->CoarseVersiony == 0);
+	    assert(unpack-CoarseVersionLY == 0);
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-              MEM(unpack->CoarseVersionx);
+              MEM(unpack->CoarseVersionLY);
             }
           }
         } else if (unpack->level < info->level) {
