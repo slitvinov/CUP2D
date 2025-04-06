@@ -2208,7 +2208,7 @@ public:
                       cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2};
           Real *dstbase =
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
-          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                           dim * (unpack->x + unpack->LX * unpack->y);
           int req = dim * (unpack->LX * unpack->ly + unpack->lx - unpack->LX);
           assert(unpack->lx == 0 || req + unpack->offset <=
