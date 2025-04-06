@@ -24,7 +24,7 @@ enum { max_dim = 2 };
 
 #define CHECK                                                                  \
   do {                                                                         \
-    assert(unpack->LX <= unpack->lx);                                          \
+    assert(unpack->lx <= unpack->LX);                                          \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
     if (1 || (dim * buf->recv_buffer_size[otherrank] - unpack->offset) <       \
