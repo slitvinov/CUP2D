@@ -22,6 +22,27 @@
 #include "cuda.h"
 enum { max_dim = 2 };
 
+#define CHECK                                                                  \
+  do {                                                                         \
+    int req = (unpack->lx + unpack->LX * (unpack->ly - 1));                    \
+    if (buf->recv_buffer[otherrank].size() !=                                  \
+            dim * buf->recv_buffer_size[otherrank] ||                          \
+        dim * buf->recv_buffer_size[otherrank] - unpack->offset <=             \
+            dim * req) {                                                       \
+      fprintf(stderr,                                                          \
+              "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
+              "  otherrank = %d\n"                                             \
+              "  recv_buffer[%d].size() = %zu\n"                               \
+              "  recv_buffer_size[%d]   = %d\n"                                \
+              "  req                    = %d\n"                                \
+              "  dim                    = %d\n",                               \
+              sim.rank, otherrank, otherrank,                                  \
+              buf->recv_buffer[otherrank].size(), otherrank,                   \
+              buf->recv_buffer_size[otherrank], req, dim);                     \
+      MPI_Abort(MPI_COMM_WORLD, 1);                                            \
+    }                                                                          \
+  } while (0)
+
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -2155,6 +2176,7 @@ public:
                       dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
+          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
@@ -2191,6 +2213,7 @@ public:
           int req = dim * (unpack->LX * unpack->ly + unpack->lx - unpack->LX);
           assert(unpack->lx == 0 || req + unpack->offset <=
                                         dim * buf->recv_buffer_size[otherrank]);
+          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
@@ -2238,22 +2261,7 @@ public:
                   dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
-          int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
-          if (buf->recv_buffer[otherrank].size() !=
-                  dim * buf->recv_buffer_size[otherrank] ||
-              dim * buf->recv_buffer_size[otherrank] - unpack - offset <=
-                  dim * req) {
-            fprintf(stderr,
-                    "ERROR: recv_buffer size mismatch on rank %d:\n"
-                    "  otherrank = %d\n"
-                    "  recv_buffer[%d].size() = %zu\n"
-                    "  recv_buffer_size[%d]   = %d\n",
-                    "  req                    = %d\n",
-                    "  dim                    = %d\n", sim.rank, otherrank,
-                    otherrank, buf->recv_buffer[otherrank].size(), otherrank,
-                    buf->recv_buffer_size[otherrank], req, dim);
-            MPI_Abort(MPI_COMM_WORLD, 1);
-          }
+          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
