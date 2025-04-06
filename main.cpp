@@ -1833,58 +1833,50 @@ public:
       myblocks[icode] = nullptr;
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
-      int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
-      if (code[0] == xskip && xskin)
+      int cx = icode % 3 - 1;
+      int cy = (icode / 3) % 3 - 1;
+      if (cx == xskip && xskin)
         continue;
-      if (code[1] == yskip && yskin)
+      if (cy == yskip && yskin)
         continue;
       const auto &TreeNei =
-          treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
+          treef(tree, info->level, info->Znei[1 + cx][1 + cy]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        int infoNei_index[2] = {(xi + code[0] + n) % n,
-                                (yi + code[1] + n) % n};
-        int infoNei_index_true[2] = {(xi + code[0]),
-                                     (yi + code[1])};
+        int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
+        int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
                          info->level - 1, tree, all);
         if (b == nullptr)
           continue;
-        int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-                    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
-        int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2))
-                                : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
-                    code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2))
-                                : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
+        int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
+                    cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
+        int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2))
+                           : (_BS_ / 2) + (end[0]) / 2 + (2) - 1,
+                    cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2))
+                           : (_BS_ / 2) + (end[1]) / 2 + (2) - 1};
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
-        int base[2] = {(xi + code[0]) % 2,
-                       (yi + code[1]) % 2};
+        int base[2] = {(xi + cx) % 2, (yi + cy) % 2};
         int CoarseEdge[2];
-        CoarseEdge[0] = code[0] == 0 ? 0
-                        : (((xi % 2 == 0) &&
-                            (infoNei_index_true[0] > xi)) ||
-                           ((xi % 2 == 1) &&
-                            (infoNei_index_true[0] < xi)))
+        CoarseEdge[0] = cx == 0 ? 0
+                        : (((xi % 2 == 0) && (infoNei_index_true[0] > xi)) ||
+                           ((xi % 2 == 1) && (infoNei_index_true[0] < xi)))
                             ? 1
                             : 0;
-        CoarseEdge[1] = code[1] == 0 ? 0
-                        : (((yi % 2 == 0) &&
-                            (infoNei_index_true[1] > yi)) ||
-                           ((yi % 2 == 1) &&
-                            (infoNei_index_true[1] < yi)))
+        CoarseEdge[1] = cy == 0 ? 0
+                        : (((yi % 2 == 0) && (infoNei_index_true[1] > yi)) ||
+                           ((yi % 2 == 1) && (infoNei_index_true[1] < yi)))
                             ? 1
                             : 0;
-        int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
-                            (1 - abs(code[0])) * base[0] * _BS_ / 2 -
-                            code[0] * _BS_ + CoarseEdge[0] * code[0] * _BS_ / 2,
-                        std::max(code[1], 0) * _BS_ / 2 +
-                            (1 - abs(code[1])) * base[1] * _BS_ / 2 -
-                            code[1] * _BS_ +
-                            CoarseEdge[1] * code[1] * _BS_ / 2};
+        int start[2] = {
+            std::max(cx, 0) * _BS_ / 2 + (1 - abs(cx)) * base[0] * _BS_ / 2 -
+                cx * _BS_ + CoarseEdge[0] * cx * _BS_ / 2,
+            std::max(cy, 0) * _BS_ / 2 + (1 - abs(cy)) * base[1] * _BS_ / 2 -
+                cy * _BS_ + CoarseEdge[1] * cy * _BS_ / 2};
         int i = s[0] - offset[0];
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -1919,20 +1911,19 @@ public:
           memcpy(p, q, bytes);
         }
       }
-      if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
+      if (!istensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_, 0};
-      int e[3] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
-                  code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1,
-                  1};
+      int s[3] = {cx < 1 ? (cx < 0 ? start[0] : 0) : _BS_,
+                  cy < 1 ? (cy < 0 ? start[1] : 0) : _BS_, 0};
+      int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
+                  cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + end[1] - 1, 1};
       if (TreeNei >= 0) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
-        int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+        int icode = (cx + 1) + 3 * (cy + 1) + 9;
         myblocks[icode] =
-            avail(info->level, info->Znei[1 + code[0]][1 + code[1]], tree, all);
+            avail(info->level, info->Znei[1 + cx][1 + cy], tree, all);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -1943,11 +1934,11 @@ public:
           int i1 = i + (iy + 1 - start[1]) * nm[0];
           int i2 = i + (iy + 2 - start[1]) * nm[0];
           int i3 = i + (iy + 3 - start[1]) * nm[0];
-          int x0 = s[0] - code[0] * _BS_;
-          int y0 = iy - code[1] * _BS_;
-          int y1 = iy + 1 - code[1] * _BS_;
-          int y2 = iy + 2 - code[1] * _BS_;
-          int y3 = iy + 3 - code[1] * _BS_;
+          int x0 = s[0] - cx * _BS_;
+          int y0 = iy - cy * _BS_;
+          int y1 = iy + 1 - cy * _BS_;
+          int y2 = iy + 2 - cy * _BS_;
+          int y3 = iy + 3 - cy * _BS_;
           Real *p0 = &m[dim * i0];
           Real *p1 = &m[dim * i1];
           Real *p2 = &m[dim * i2];
@@ -1963,67 +1954,67 @@ public:
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
           int i0 = i + (iy - start[1]) * nm[0];
-          int x0 = s[0] - code[0] * _BS_;
-          int y0 = iy - code[1] * _BS_;
+          int x0 = s[0] - cx * _BS_;
+          int y0 = iy - cy * _BS_;
           Real *p = &m[dim * i0];
           Real *q = &b[dim * (_BS_ * y0 + x0)];
           memcpy(p, q, bytes);
         }
       } else if (TreeNei == -1) {
-        int bytes = (abs(code[0]) * (e[0] - s[0]) +
-                     (1 - abs(code[0])) * ((e[0] - s[0]) / 2)) *
-                    dim * sizeof(Real);
+        int bytes =
+            (abs(cx) * (e[0] - s[0]) + (1 - abs(cx)) * ((e[0] - s[0]) / 2)) *
+            dim * sizeof(Real);
         if (!bytes)
           continue;
-        int ys = (code[1] == 0) ? 2 : 1;
+        int ys = (cy == 0) ? 2 : 1;
         int mod = ((e[1] - s[1]) / ys) % 4;
         int Bstep = 1;
-        if ((abs(code[0]) + abs(code[1]) == 2))
+        if ((abs(cx) + abs(cy) == 2))
           Bstep = 3;
-        else if ((abs(code[0]) + abs(code[1]) == 3))
+        else if ((abs(cx) + abs(cy) == 3))
           Bstep = 4;
         for (int B = 0; B <= 3; B += Bstep) {
-          int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-          Real *b = avail1(2 * xi + std::max(code[0], 0) + code[0] +
-                               (B % 2) * std::max(0, 1 - abs(code[0])),
-                           2 * yi + std::max(code[1], 0) + code[1] +
-                               aux * std::max(0, 1 - abs(code[1])),
+          int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
+          Real *b = avail1(2 * xi + std::max(cx, 0) + cx +
+                               (B % 2) * std::max(0, 1 - abs(cx)),
+                           2 * yi + std::max(cy, 0) + cy +
+                               aux * std::max(0, 1 - abs(cy)),
                            info->level + 1, tree, all);
           if (b == nullptr)
             continue;
-          int i = abs(code[0]) * (s[0] - start[0]) +
-                  (1 - abs(code[0])) *
-                      (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
-          int x = s[0] - code[0] * _BS_ + std::min(0, code[0]) * (e[0] - s[0]);
+          int i =
+              abs(cx) * (s[0] - start[0]) +
+              (1 - abs(cx)) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
+          int x = s[0] - cx * _BS_ + std::min(0, cx) * (e[0] - s[0]);
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-            int k0 = i + (abs(code[1]) * (iy + 0 * ys - start[1]) +
-                          (1 - abs(code[1])) * ((iy + 0 * ys) / 2 - start[1] +
-                                                aux * (e[1] - s[1]) / 2)) *
+            int k0 = i + (abs(cy) * (iy + 0 * ys - start[1]) +
+                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k1 = i + (abs(code[1]) * (iy + 1 * ys - start[1]) +
-                          (1 - abs(code[1])) * ((iy + 1 * ys) / 2 - start[1] +
-                                                aux * (e[1] - s[1]) / 2)) *
+            int k1 = i + (abs(cy) * (iy + 1 * ys - start[1]) +
+                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k2 = i + (abs(code[1]) * (iy + 2 * ys - start[1]) +
-                          (1 - abs(code[1])) * ((iy + 2 * ys) / 2 - start[1] +
-                                                aux * (e[1] - s[1]) / 2)) *
+            int k2 = i + (abs(cy) * (iy + 2 * ys - start[1]) +
+                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k3 = i + (abs(code[1]) * (iy + 3 * ys - start[1]) +
-                          (1 - abs(code[1])) * ((iy + 3 * ys) / 2 - start[1] +
-                                                aux * (e[1] - s[1]) / 2)) *
+            int k3 = i + (abs(cy) * (iy + 3 * ys - start[1]) +
+                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - start[1] +
+                                           aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int y0 = (abs(code[1]) == 1) ? 2 * (iy + 0 * ys - code[1] * _BS_) +
-                                               std::min(0, code[1]) * _BS_
-                                         : iy + 0 * ys;
-            int y1 = (abs(code[1]) == 1) ? 2 * (iy + 1 * ys - code[1] * _BS_) +
-                                               std::min(0, code[1]) * _BS_
-                                         : iy + 1 * ys;
-            int y2 = (abs(code[1]) == 1) ? 2 * (iy + 2 * ys - code[1] * _BS_) +
-                                               std::min(0, code[1]) * _BS_
-                                         : iy + 2 * ys;
-            int y3 = (abs(code[1]) == 1) ? 2 * (iy + 3 * ys - code[1] * _BS_) +
-                                               std::min(0, code[1]) * _BS_
-                                         : iy + 3 * ys;
+            int y0 = (abs(cy) == 1) ? 2 * (iy + 0 * ys - cy * _BS_) +
+                                          std::min(0, cy) * _BS_
+                                    : iy + 0 * ys;
+            int y1 = (abs(cy) == 1) ? 2 * (iy + 1 * ys - cy * _BS_) +
+                                          std::min(0, cy) * _BS_
+                                    : iy + 1 * ys;
+            int y2 = (abs(cy) == 1) ? 2 * (iy + 2 * ys - cy * _BS_) +
+                                          std::min(0, cy) * _BS_
+                                    : iy + 2 * ys;
+            int y3 = (abs(cy) == 1) ? 2 * (iy + 3 * ys - cy * _BS_) +
+                                          std::min(0, cy) * _BS_
+                                    : iy + 3 * ys;
             /* int z0 = y0 + 1; */
             int z1 = y1 + 1;
             int z2 = y2 + 1;
@@ -2040,8 +2031,8 @@ public:
             Real *q12 = b + dim * (_BS_ * z2 + x);
             Real *q03 = b + dim * (_BS_ * y3 + x);
             Real *q13 = b + dim * (_BS_ * z3 + x);
-            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+            for (int ee = 0; ee < (abs(cx) * (e[0] - s[0]) +
+                                   (1 - abs(cx)) * ((e[0] - s[0]) / 2));
                  ee++) {
               Real *q000 = q00 + dim * 2 * ee;
               Real *q001 = q00 + dim * (2 * ee + 1);
@@ -2070,19 +2061,19 @@ public:
             }
           }
           for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-            int k = i + (abs(code[1]) * (iy - start[1]) +
-                         (1 - abs(code[1])) *
+            int k = i + (abs(cy) * (iy - start[1]) +
+                         (1 - abs(cy)) *
                              (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
                             nm[0];
-            int y = (abs(code[1]) == 1) ? 2 * (iy - code[1] * _BS_) +
-                                              std::min(0, code[1]) * _BS_
-                                        : iy;
+            int y = (abs(cy) == 1)
+                        ? 2 * (iy - cy * _BS_) + std::min(0, cy) * _BS_
+                        : iy;
             int z = y + 1;
             Real *p = m + dim * k;
             Real *q0 = b + dim * (_BS_ * y + x);
             Real *q1 = b + dim * (_BS_ * z + x);
-            for (int ee = 0; ee < (abs(code[0]) * (e[0] - s[0]) +
-                                   (1 - abs(code[0])) * ((e[0] - s[0]) / 2));
+            for (int ee = 0; ee < (abs(cx) * (e[0] - s[0]) +
+                                   (1 - abs(cx)) * ((e[0] - s[0]) / 2));
                  ee++) {
               Real *q00 = q0 + dim * 2 * ee;
               Real *q01 = q0 + dim * (2 * ee + 1);
@@ -2099,12 +2090,11 @@ public:
     if (coarsened_nei_codes_size > 0)
       for (int i = 0; i < k; ++i) {
         int icode = icodes[i];
-        int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
-        int infoNei_index[3] = {(xi + code[0] + n) % n,
-                                (yi + code[1] + n) % n,
-				0};
+        int cx = icode % 3 - 1;
+        int cy = (icode / 3) % 3 - 1;
+        int infoNei_index[3] = {(xi + cx + n) % n, (yi + cy + n) % n, 0};
         if (UseCoarseStencil0(info, infoNei_index)) {
-          FillCoarseVersion(code);
+          FillCoarseVersion(cx, cy);
           coarsened = true;
         }
       }
@@ -2115,16 +2105,15 @@ public:
       UnPackInfo *unpacks = buf->myunpacks[id].data();
       for (size_t jj = 0; jj < buf->myunpacks[id].size(); jj++) {
         UnPackInfo *unpack = &unpacks[jj];
-        int code[3] = {unpack->icode % 3 - 1, (unpack->icode / 3) % 3 - 1,
-                       (unpack->icode / 9) % 3 - 1};
+        int cx = unpack->icode % 3 - 1;
+        int cy = (unpack->icode / 3) % 3 - 1;
         int otherrank = unpack->rank;
-        int s[3] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
-                    code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_,
-                    code[2] < 1 ? (code[2] < 0 ? 0 : 0) : 1};
-        int e[3] = {
-            code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
-            code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
-            code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
+        int s[3] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : _BS_,
+                    cy < 1 ? (cy < 0 ? stencil.sy : 0) : _BS_,
+                    0 < 1 ? (0 < 0 ? 0 : 0) : 1};
+        int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
+                    cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
+                    0 < 1 ? (0 < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
           Real *dstbase =
               m + ((s[2] - 0) * nm[0] * nm[1] + (s[1] - stencil.sy) * nm[0] +
@@ -2140,15 +2129,14 @@ public:
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                              (0 - 1) / 2 + 0};
-            int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-                         code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-                         code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
+            int sC[3] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : _BS_ / 2,
+                         cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2,
+                         0 < 1 ? (0 < 0 ? offset[2] : 0) : 1 / 2};
             Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
                               (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                  dim;
             int L[3];
-            int icode =
-                (-code[0] + 1) + 3 * (-code[1] + 1) + 9 * (-code[2] + 1);
+            int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             L[2] = sLength[3 * (icode + 2 * 27) + 2];
@@ -2160,8 +2148,8 @@ public:
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
-          int C[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-                      code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
+          int C[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : _BS_ / 2,
+                      cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2};
           Real *dstbase =
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
@@ -2173,13 +2161,13 @@ public:
           }
         } else {
           int B;
-          if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
+          if ((abs(cx) + abs(cy) + abs(0) == 3))
             B = 0;
-          else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
+          else if ((abs(cx) + abs(cy) + abs(0) == 2)) {
             int t;
-            if (code[0] == 0)
+            if (cx == 0)
               t = unpack->index_0 - 2 * xi;
-            else if (code[1] == 0)
+            else if (cy == 0)
               t = unpack->index_1 - 2 * yi;
             else
               t = -2 * 0;
@@ -2187,10 +2175,10 @@ public:
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
-            if (abs(code[0]) == 1) {
+            if (abs(cx) == 1) {
               Bmod = unpack->index_1 - 2 * yi;
               Bdiv = -2 * 0;
-            } else if (abs(code[1]) == 1) {
+            } else if (abs(cy) == 1) {
               Bmod = unpack->index_0 - 2 * xi;
               Bdiv = -2 * 0;
             } else {
@@ -2199,18 +2187,17 @@ public:
             }
             B = 2 * Bdiv + Bmod;
           }
-          int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
+          int aux1 = (abs(cx) == 1) ? (B % 2) : (B / 2);
           Real *dstbase =
               m +
-              ((abs(code[2]) * (s[2] - 0) +
-                (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
+              ((abs(0) * (s[2] - 0) +
+                (1 - abs(0)) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
                    nm[0] * nm[1] +
-               (abs(code[1]) * (s[1] - stencil.sy) +
-                (1 - abs(code[1])) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
+               (abs(cy) * (s[1] - stencil.sy) +
+                (1 - abs(cy)) * (-stencil.sy + aux1 * (e[1] - s[1]) / 2)) *
                    nm[0] +
-               abs(code[0]) * (s[0] - stencil.sx) +
-               (1 - abs(code[0])) *
-                   (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
+               abs(cx) * (s[0] - stencil.sx) +
+               (1 - abs(cx)) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
@@ -2504,24 +2491,23 @@ public:
           }
     return false;
   }
-  void FillCoarseVersion(int *code) {
-    int icode = (code[0] + 1) + 3 * (code[1] + 1) + 9;
+  void FillCoarseVersion(int cx, int cy) {
+    int icode = (cx + 1) + 3 * (cy + 1) + 9;
     if (myblocks[icode] == nullptr)
       return;
     Real *b = myblocks[icode];
     int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
-    int s[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : (_BS_ / 2),
-                code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : (_BS_ / 2)};
-    int e[2] = {
-        code[0] < 1 ? (code[0] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
-        code[1] < 1 ? (code[1] < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
+    int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
+                cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
+    int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
+                cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
     int bytes = (e[0] - s[0]) * dim * sizeof(Real);
     if (!bytes)
       return;
-    int start[2] = {s[0] + std::max(code[0], 0) * (_BS_ / 2) - code[0] * _BS_ +
-                        std::min(0, code[0]) * (e[0] - s[0]),
-                    s[1] + std::max(code[1], 0) * (_BS_ / 2) - code[1] * _BS_ +
-                        std::min(0, code[1]) * (e[1] - s[1])};
+    int start[2] = {s[0] + std::max(cx, 0) * (_BS_ / 2) - cx * _BS_ +
+                        std::min(0, cx) * (e[0] - s[0]),
+                    s[1] + std::max(cy, 0) * (_BS_ / 2) - cy * _BS_ +
+                        std::min(0, cy) * (e[1] - s[1])};
     int i = s[0] - offset[0];
     int x = start[0];
     for (int iy = s[1]; iy < e[1]; iy++) {
