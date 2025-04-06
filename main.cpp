@@ -2203,17 +2203,16 @@ public:
             int sC[3] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : _BS_ / 2,
                          cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2,
                          0 < 1 ? (0 < 0 ? offset[2] : 0) : 1 / 2};
-            Real *dst1 = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
+            Real *dstbase = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
                               (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
                                  dim;
-            int L[3];
+            int L[2];
             int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
-            L[2] = sLength[3 * (icode + 2 * 27) + 2];
             unpack_subregion(buf->recv_buffer[otherrank] +
 			     unpack->CoarseVersionOffset,
-                             &dst1[0], dim, unpack->CoarseVersionx,
+                             dstbase, dim, unpack->CoarseVersionx,
                              unpack->CoarseVersiony, unpack->CoarseVersionLX,
                              L[0], L[1], nc[0]);
           }
