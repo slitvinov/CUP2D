@@ -22,34 +22,6 @@
 #include "cuda.h"
 enum { max_dim = 2 };
 
-#define CHECK                                                                  \
-  do {                                                                         \
-    assert(unpack->lx <= unpack->LX);                                          \
-    assert(unpack->LX >= 0);                                                   \
-    int req =                                                                  \
-        unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    int cond =                                                                 \
-        dim * buf->recv_buffer_size[otherrank] < dim * req + unpack->offset;   \
-    if (cond) {                                                                \
-      fprintf(stderr,                                                          \
-              "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
-              "  otherrank = %d\n"                                             \
-              "  recv_buffer_size[%d]   = %d\n"                                \
-              "  unpack->offset         = %d\n"                                \
-              "  req                    = %d\n"                                \
-              "  dim                    = %d\n"                                \
-              "  buf                    = %g\n"                                \
-              "  cond                   = %d\n"                                \
-              "  unpack->lx                   = %d\n"                          \
-              "  unpack->LX                   = %d\n",                         \
-              sim.rank, otherrank, otherrank,                                  \
-              buf->recv_buffer_size[otherrank], unpack->offset, req, dim,      \
-              buf->recv_buffer[otherrank][unpack->offset + dim * req - 1],     \
-              cond, unpack->lx, unpack->LX);                                   \
-      MPI_Abort(MPI_COMM_WORLD, 1);                                            \
-    }                                                                          \
-  } while (0)
-
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -2191,7 +2163,6 @@ public:
                    s[0] - stencil.sx) *
                       dim;
           Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
@@ -2226,7 +2197,6 @@ public:
           Real *dstbase =
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
           Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
@@ -2273,7 +2243,6 @@ public:
                (1 - abs(cx)) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
           Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
