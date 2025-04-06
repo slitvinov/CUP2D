@@ -26,8 +26,8 @@ enum { max_dim = 2 };
   do {                                                                         \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    if (1 || (dim * buf->recv_buffer_size[otherrank] - unpack->offset) <            \
-        dim * req) {                                                           \
+    if (1 || (dim * buf->recv_buffer_size[otherrank] - unpack->offset) <       \
+                 dim * req) {                                                  \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
@@ -38,7 +38,7 @@ enum { max_dim = 2 };
               "  buf                    = %g\n",                               \
               sim.rank, otherrank, otherrank,                                  \
               buf->recv_buffer_size[otherrank], unpack->offset, req, dim,      \
-              buf->recv_buffer[otherrank][dim * req]);                         \
+              buf->recv_buffer[otherrank][unpack->offset + dim * req]);        \
       MPI_Abort(MPI_COMM_WORLD, 1);                                            \
     }                                                                          \
   } while (0)
