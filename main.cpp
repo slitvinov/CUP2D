@@ -1833,8 +1833,7 @@ public:
       myblocks[icode] = nullptr;
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
-      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
-      assert(code[2] == 0);
+      int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
       if (code[0] == xskip && xskin)
         continue;
       if (code[1] == yskip && yskin)
