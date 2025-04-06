@@ -321,15 +321,15 @@ static void DetermineStencilLength(int *sLength, int level_sender,
   if (level_sender == level_receiver) {
     L[0] = sLength[3 * icode + 0];
     L[1] = sLength[3 * icode + 1];
-    L[2] = 1;
+    L[2] = 0;
   } else if (level_sender > level_receiver) {
     L[0] = sLength[3 * (icode + 27) + 0];
     L[1] = sLength[3 * (icode + 27) + 1];
-    L[2] = 1;
+    L[2] = 0;
   } else {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
-    L[2] = 1;
+    L[2] = 0;
   }
 }
 
@@ -2195,8 +2195,7 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * L[0] * yd;
-	      memset(dst, 0, sizeof(Real) * dim * L[0]);
-	      //MEM(unpack->CoarseVersionLX);
+	      MEM(unpack->CoarseVersionLX);
             }
           }
         } else if (unpack->level < info->level) {
