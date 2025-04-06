@@ -2211,8 +2211,8 @@ public:
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             L[2] = sLength[3 * (icode + 2 * 27) + 2];
-            unpack_subregion(buf->recv_buffer[otherrank] + unpack->offset +
-                                 unpack->CoarseVersionOffset,
+            unpack_subregion(buf->recv_buffer[otherrank] +
+			     unpack->CoarseVersionOffset,
                              &dst1[0], dim, unpack->CoarseVersionx,
                              unpack->CoarseVersiony, unpack->CoarseVersionLX,
                              L[0], L[1], nc[0]);
