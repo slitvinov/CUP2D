@@ -2188,6 +2188,8 @@ public:
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
+          int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
+          assert(req <= buf->recv_buffer_size[otherrank]);
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
