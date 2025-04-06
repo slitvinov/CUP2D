@@ -2196,7 +2196,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
@@ -2233,7 +2233,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         } else {
           int B;
@@ -2281,7 +2281,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         }
       }
@@ -3726,7 +3726,7 @@ static void adapt() {
           MPI_Block x;
           x.level = bCopy->level;
           x.Z = bCopy->Z;
-          std::memcpy(&x.data[0], bCopy->block,
+          memcpy(&x.data[0], bCopy->block,
                       _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
           treef(&g->tree, b->level, b->Z) = baserank;
@@ -3785,7 +3785,7 @@ static void adapt() {
 #pragma omp critical
         { g->infos.push_back(info); }
         treef(&g->tree, level, Z) = sim.rank;
-        std::memcpy(info->block, recv_blocks[r][i].data,
+        memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
       }
     dealloc_IDs.clear();
@@ -3927,7 +3927,7 @@ static void adapt() {
             MPI_Block *x = &send_blocks[r][i];
             x->level = info->level;
             x->Z = info->Z;
-            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+            memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
           }
           counter_S += send_blocks[r].size();
           MPI_Request req{};
@@ -3943,7 +3943,7 @@ static void adapt() {
             MPI_Block *x = &send_blocks[r][i];
             x->level = info->level;
             x->Z = info->Z;
-            std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+            memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
           }
           counter_E += send_blocks[r].size();
           MPI_Request req{};
@@ -4020,7 +4020,7 @@ static void adapt() {
           MPI_Block *x = &send_left[i];
           x->level = info->level;
           x->Z = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         MPI_Request req{};
         request.push_back(req);
@@ -4041,7 +4041,7 @@ static void adapt() {
           MPI_Block *x = &send_right[i];
           x->level = info->level;
           x->Z = info->Z;
-          std::memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
+          memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
         }
         MPI_Request req{};
         request.push_back(req);
