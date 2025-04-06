@@ -2185,7 +2185,7 @@ public:
             Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                             unpack->CoarseVersionOffset;
             int L[2];
-            int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
+            int icode = unpack->icode;
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             assert(unpack->CoarseVersionx == 0);
