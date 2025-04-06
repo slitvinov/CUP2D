@@ -26,7 +26,7 @@ typedef double Real;
 #define MPI_Real MPI_DOUBLE
 #define MEM(lx)                                                                \
   do {                                                                         \
-    memcpy(dst, src, sizeof(Real) * dim * (lx));			\
+    memcpy(dst, src, sizeof(Real) * dim * (lx));                               \
   } while (0)
 
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
@@ -2191,11 +2191,12 @@ public:
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             assert(unpack->CoarseVersionx == 0);
             assert(unpack->CoarseVersiony == 0);
-	    assert(unpack->CoarseVersionLY == 0);
+            assert(unpack->CoarseVersionLY == L[1]);
+            assert(unpack->CoarseVersionLX == L[0]);
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-	      memset(dst, 0, sizeof(Real) * dim * L[0]);
+              MEM(L[0]);
             }
           }
         } else if (unpack->level < info->level) {
