@@ -28,9 +28,10 @@ enum { max_dim = 2 };
     assert(unpack->LX >= 0);                                                   \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    int cond =                                                                 \
-        dim * buf->recv_buffer_size[otherrank] < (dim * req + unpack->offset); \
-    if (1 || cond) {                                                           \
+    int cond = dim * buf->recv_buffer_size[otherrank] <                        \
+               (dim * req + unpack->offset +                                   \
+                dim * (unpack->x + unpack->LX * unpack->y));                   \
+    if (cond) {                                                           \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
