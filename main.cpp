@@ -2235,6 +2235,8 @@ public:
                   dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
+          int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
+          assert(req <= buf->recv_buffer_size[otherrank]);
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
