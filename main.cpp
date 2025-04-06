@@ -2203,7 +2203,7 @@ public:
                 &dstbase[0], dim, 0,
                 0, 0,
                 unpack->CoarseVersionLX, unpack->CoarseVersionLY, 0, 0, 0, L[0],
-                L[1], 0, nc[0], nc[1]);
+                L[1], 1, nc[0], nc[1]);
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
