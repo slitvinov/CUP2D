@@ -2194,7 +2194,7 @@ public:
             B = 2 * Bdiv + Bmod;
           }
           int aux1 = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-          Real *dst =
+          Real *dstbase =
               m +
               ((abs(code[2]) * (s[2] - 0) +
                 (1 - abs(code[2])) * (0 + (B / 2) * (e[2] - s[2]) / 2)) *
@@ -2206,9 +2206,13 @@ public:
                (1 - abs(code[0])) *
                    (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
-          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dst[0], dim, unpack->x, unpack->y, unpack->LX,
-                           unpack->lx, unpack->ly, nm[0]);
+          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+                          dim * (unpack->x + unpack->LX * unpack->y);
+          for (int yd = 0; yd < unpack->ly; ++yd) {
+            Real *dst = dstbase + dim * nc[0] * yd;
+            Real *src = srcbase + dim * unpack->LX * yd;
+            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+          }
         }
       }
     }
