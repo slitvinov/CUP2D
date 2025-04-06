@@ -7,6 +7,7 @@ import xml.etree.ElementTree
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import statistics
+
 plt.rcParams['image.cmap'] = 'RdBu'
 for path in sys.argv[1:]:
     path = re.sub("[.]xdmf2$", "", path)
@@ -18,6 +19,7 @@ for path in sys.argv[1:]:
     chi_path = path + ".chi.raw"
     vel_path = path + ".vel.raw"
     tmp_path = path + ".tmp.raw"
+    rank_path = path + ".rank.raw"
     if not os.path.isfile(png_path):
         sys.stderr.write(f"post.py: {path}\n")
         root = xml.etree.ElementTree.parse(xdmf_path)
@@ -25,6 +27,7 @@ for path in sys.argv[1:]:
         xyz = np.memmap(xyz_path, "float32", "r")
         xyz = xyz.reshape(-1, 4, 2)
         ncell = len(xyz)
+        rank = np.memmap(rank_path, "uint32", "r")
         chi = np.memmap(chi_path, "float64", "r")
         tmp = np.memmap(tmp_path, "float64", "r")
         vel = np.memmap(vel_path, "float64", "r")
@@ -32,7 +35,7 @@ for path in sys.argv[1:]:
         patches = []
         color = []
         for i in range(ncell):
-            if chi[i] < 0.5:
+            if chi[i] < 0.5 and rank[i] == 0:
                 x = xyz[i, 0, 0]
                 y = xyz[i, 0, 1]
                 lx = xyz[i, 2, 0] - x
@@ -41,7 +44,7 @@ for path in sys.argv[1:]:
                 patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
         p = matplotlib.collections.PatchCollection(patches,
                                                    edgecolor='black',
-                                                   linewidth=0.1)            
+                                                   linewidth=0.1)
         vmax = np.nanquantile(np.abs(color), 0.95)
         p.set_array(color)
         p.set_norm(matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax))
