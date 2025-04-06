@@ -2128,9 +2128,13 @@ public:
           Real *dstbase = m + ((s[2] - 0) * nm[0] * nm[1] +
                            (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                               dim;
-          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dstbase, dim, unpack->x, unpack->y, unpack->LX,
-                           unpack->lx, unpack->ly, nm[0]);
+          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+                          dim * (unpack->x + unpack->LX * unpack->y);
+          for (int yd = 0; yd < unpack->ly; ++yd) {
+            Real *dst = dstbase + dim * nc[0] * yd;
+            Real *src = srcbase + dim * unpack->LX * yd;
+            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+          }
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                              (0 - 1) / 2 + 0};
