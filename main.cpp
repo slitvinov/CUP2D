@@ -2129,8 +2129,8 @@ public:
                            (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                               dim;
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dst[0], dim, unpack->x, unpack->y,
-                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
+                           &dst[0], dim, unpack->x, unpack->y, unpack->LX,
+                           unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                              (0 - 1) / 2 + 0};
@@ -2149,9 +2149,8 @@ public:
             unpack_subregion(
                 &buf->recv_buffer[otherrank]
                                  [unpack->offset + unpack->CoarseVersionOffset],
-                &dst1[0], dim, unpack->CoarseVersionx,
-                unpack->CoarseVersiony, unpack->CoarseVersionLX, L[0],
-                L[1], nc[0]);
+                &dst1[0], dim, unpack->CoarseVersionx, unpack->CoarseVersiony,
+                unpack->CoarseVersionLX, L[0], L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
@@ -2159,8 +2158,8 @@ public:
                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
           Real *dstbase =
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
-          int sh = dim * (unpack->x + unpack->LX * unpack->y);
-          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] + sh;
+          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+                          dim * (unpack->x + unpack->LX * unpack->y);
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
@@ -2208,8 +2207,8 @@ public:
                    (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dst[0], dim, unpack->x, unpack->y,
-                           unpack->LX, unpack->lx, unpack->ly, nm[0]);
+                           &dst[0], dim, unpack->x, unpack->y, unpack->LX,
+                           unpack->lx, unpack->ly, nm[0]);
         }
       }
     }
@@ -2541,9 +2540,7 @@ static void _alloc(int level, long long Z,
   Info *new_info = getf(all, level, Z);
   new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-  {
-    infos->push_back(new_info);
-  }
+  { infos->push_back(new_info); }
   treef(tree, level, Z) = sim.rank;
 }
 static void AddBlock(int dim, Grid *grid, int level, long long Z,
@@ -3183,7 +3180,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -3598,9 +3595,7 @@ static void adapt() {
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-          {
-            g->infos.push_back(info);
-          }
+          { g->infos.push_back(info); }
           treef(&g->tree, level + 1, Z) = -2;
           Blocks[j * 2 + i] = info->block;
         }
@@ -3661,9 +3656,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      {
-        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
-      }
+      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -3753,9 +3746,7 @@ static void adapt() {
         Info *info = getf(&g->all, level, Z);
         info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-        {
-          g->infos.push_back(info);
-        }
+        { g->infos.push_back(info); }
         treef(&g->tree, level, Z) = sim.rank;
         std::memcpy(info->block, recv_blocks[r][i].data,
                     _BS_ * _BS_ * dim * sizeof(Real));
@@ -3817,9 +3808,7 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
-            }
+            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -4204,8 +4193,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
-        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
