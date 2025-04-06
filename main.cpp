@@ -1539,8 +1539,12 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf->send_packinfos.resize(sim.size);
     s->buf->send_buffer_size.resize(sim.size);
     s->buf->recv_buffer_size.resize(sim.size);
-    s->buf->send_buffer = (Real **)calloc(sim.size, sizeof(Real *));
-    s->buf->recv_buffer = (Real **)calloc(sim.size, sizeof(Real *));
+    s->buf->send_buffer = (Real **)malloc(sim.size * sizeof(Real *));
+    s->buf->recv_buffer = (Real **)malloc(sim.size * sizeof(Real *));
+    for (int i = 0; i < sim.size; i++) {
+      s->buf->send_buffer[i] = NULL;
+      s->buf->recv_buffer[i] = NULL;
+    }
 
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
