@@ -2166,7 +2166,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+	    //            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
@@ -2187,7 +2187,7 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-              memcpy(dst, src, sizeof(Real) * dim * L[0]);
+              //memcpy(dst, src, sizeof(Real) * dim * L[0]);
             }
           }
         } else if (unpack->level < info->level) {
@@ -2200,7 +2200,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            //memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         } else {
           int B;
@@ -2246,7 +2246,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            ///memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         }
       }
