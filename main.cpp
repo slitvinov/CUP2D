@@ -39,7 +39,7 @@ enum { max_dim = 2 };
               "  req                    = %d\n"                                \
               "  dim                    = %d\n"                                \
               "  buf                    = %g\n",                               \
-              "  cond                   = %d\n",                               \	      
+              "  cond                   = %d\n",                               \
               sim.rank,                                                        \
               otherrank, otherrank, buf->recv_buffer_size[otherrank],          \
               unpack->offset, req, dim,                                        \
