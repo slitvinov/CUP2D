@@ -1808,7 +1808,7 @@ public:
     int n = 1 << info->level;
     assert(m != NULL);
     Real *p = info->block;
-    for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
+    for (int iy = -stencil.sy; iy < -stencil.sy + _BS_; iy += 4) {
       Real *q = m + dim * iy * nm[0] - dim * start[0];
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
           p += dim * _BS_;
