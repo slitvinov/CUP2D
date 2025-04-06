@@ -2231,8 +2231,6 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            fprintf(stderr, "dst: %g\n", dst[dim * unpack->lx - 1]);
-            fprintf(stderr, "src: %g\n", src[dim * unpack->lx - 1]);
             memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         } else {
