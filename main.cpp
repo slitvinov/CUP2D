@@ -2961,7 +2961,7 @@ static void dump(Real time, Info **infos, char *path) {
   MPI_File mpi_file;
   float xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
-  snprintf(rank_path, sizeof xyz_path, "rank.xyz.raw", path);
+  snprintf(rank_path, sizeof rank_path, "%.rank.raw", path);
 
   nblock = var.vel->infos.size();
   MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
