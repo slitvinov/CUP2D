@@ -701,7 +701,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       for (int r = 0; r < sim.size; r++)
         if (DM.sizes[r] > 0) {
           std::vector<Interface> &f = buf->send_interfaces[r];
-          int &total_size = buf->send_buffer_size[r];
           bool skip_needed = false;
           std::sort(f.begin() + DM.positions[r],
                     f.begin() + DM.sizes[r] + DM.positions[r]);
@@ -732,13 +731,13 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
             DetermineStencilLength(sLength, f[k].infos[0]->level,
                                    f[k].infos[1]->level, f[k].icode[1], L);
             const int V = L[0] * L[1];
-            total_size += V;
+            buf->send_buffer_size[r] += V;
             f[k].dis = offsets[r];
             if (f[k].CoarseStencil) {
               Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
               Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
               int Vc = Lc[0] * Lc[1];
-              total_size += Vc;
+              buf->send_buffer_size[r] += Vc;
               offsets[r] += Vc * dim;
             }
             offsets[r] += V * dim;
