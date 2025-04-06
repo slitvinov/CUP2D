@@ -26,7 +26,7 @@ enum { max_dim = 2 };
   do {                                                                         \
     int req = 0;                                                               \
     for (int yd = 0; yd < unpack->ly; ++yd)                                    \
-      req = std::max(0, dim * unpack->LX * yd + unpack->lx);             \
+      req = std::max(req, unpack->LX * yd + unpack->lx);                       \
     if (buf->recv_buffer[otherrank].size() !=                                  \
             dim * buf->recv_buffer_size[otherrank] ||                          \
         (dim * buf->recv_buffer_size[otherrank] - unpack->offset <             \
