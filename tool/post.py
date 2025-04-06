@@ -35,7 +35,7 @@ for path in sys.argv[1:]:
         patches = []
         color = []
         for i in range(ncell):
-            if chi[i] < 0.5 and rank[i] == 0:
+            if chi[i] < 0.5:
                 x = xyz[i, 0, 0]
                 y = xyz[i, 0, 1]
                 lx = xyz[i, 2, 0] - x
