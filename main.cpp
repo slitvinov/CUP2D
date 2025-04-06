@@ -870,7 +870,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     if (buf->recv_buffer[r] != NULL)
       free(buf->recv_buffer[r]);
     buf->recv_buffer[r] =
-        (Real *)malloc(dim * buf->recv_buffer_size[r] * sizeof(Real));
+      (Real *)malloc((1 + dim * buf->recv_buffer_size[r]) * sizeof(Real));
     buf->send_packinfos[r].clear();
     ToBeAveragedDown[r].clear();
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
