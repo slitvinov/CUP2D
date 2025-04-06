@@ -24,7 +24,9 @@ enum { max_dim = 2 };
 
 #define CHECK                                                                  \
   do {                                                                         \
-    int req = unpack->lx + unpack->LX * unpack->ly;                            \
+    int req = 0;                                                               \
+    for (int yd = 0; yd < unpack->ly; ++yd)                                    \
+      req = std::max(0, dim * unpack->LX * yd + dim * unpack->lx);             \
     if (buf->recv_buffer[otherrank].size() !=                                  \
             dim * buf->recv_buffer_size[otherrank] ||                          \
         (dim * buf->recv_buffer_size[otherrank] - unpack->offset <             \
