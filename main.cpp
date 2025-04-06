@@ -2189,8 +2189,8 @@ public:
             int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
-            assert(unpack->CoarseVersionx == L[0]);
-            assert(unpack->CoarseVersiony == L[1]);
+            assert(unpack->CoarseVersionx == 0);
+            assert(unpack->CoarseVersiony == 0);
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
