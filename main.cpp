@@ -2238,18 +2238,19 @@ public:
                   dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
-          /* int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
-	     assert(req <= buf->recv_buffer[otherrank].size()); */
+          int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
           if (buf->recv_buffer[otherrank].size() !=
-              dim * buf->recv_buffer_size[otherrank]) {
+                  dim * buf->recv_buffer_size[otherrank] ||
+              dim * buf->recv_buffer_size[otherrank] <= req) {
             fprintf(stderr,
                     "ERROR: recv_buffer size mismatch on rank %d:\n"
                     "  otherrank = %d\n"
                     "  recv_buffer[%d].size() = %zu\n"
-                    "  recv_buffer_size[%d]    = %d\n",
-                    sim.rank, otherrank, otherrank,
-                    buf->recv_buffer[otherrank].size(), otherrank,
-                    buf->recv_buffer_size[otherrank]);
+                    "  recv_buffer_size[%d]   = %d\n",
+                    "  req                    = %d\n",
+                    "  dim                    = %d\n", sim.rank, otherrank,
+                    otherrank, buf->recv_buffer[otherrank].size(), otherrank,
+                    buf->recv_buffer_size[otherrank], req, dim);
             MPI_Abort(MPI_COMM_WORLD, 1);
           }
           for (int yd = 0; yd < unpack->ly; ++yd) {
