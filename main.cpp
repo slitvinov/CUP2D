@@ -2193,10 +2193,10 @@ public:
             assert(unpack->CoarseVersiony == 0);
             assert(unpack->CoarseVersionLY == L[1]);
             assert(unpack->CoarseVersionLX == L[0]);
-            for (int yd = 0; yd < nc[1]; ++yd) {
+            for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
-              Real *src = srcbase + dim * nc[0] * yd;
-              MEM(nc[0]);
+              Real *src = srcbase + dim * L[0] * yd;
+              MEM(L[0]);
             }
           }
         } else if (unpack->level < info->level) {
