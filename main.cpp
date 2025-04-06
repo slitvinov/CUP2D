@@ -34,9 +34,11 @@ enum { max_dim = 2 };
               "  recv_buffer_size[%d]   = %d\n"                                \
               "  unpack->offset         = %d\n"                                \
               "  req                    = %d\n"                                \
-              "  dim                    = %d\n",                               \
+              "  dim                    = %d\n"                                \
+              "  buf                    = %g\n",                               \
               sim.rank, otherrank, otherrank,                                  \
-              buf->recv_buffer_size[otherrank], unpack->offset, req, dim);     \
+              buf->recv_buffer_size[otherrank], unpack->offset, req, dim,      \
+              buf->recv_buffer[otherrank][dim * req]);                         \
       MPI_Abort(MPI_COMM_WORLD, 1);                                            \
     }                                                                          \
   } while (0)
