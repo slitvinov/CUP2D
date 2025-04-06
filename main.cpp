@@ -464,7 +464,7 @@ struct SyncBuf {
   std::vector<std::vector<Interface>> send_interfaces;
   std::vector<std::vector<PackInfo>> send_packinfos;
   Real **recv_buffer;
-  std::vector<std::vector<Real>> send_buffer;
+  Real **send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
 };
 static void
@@ -866,7 +866,9 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
         }
       }
     }
-    buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
+    free(buf->send_buffer[r]);
+    buf->send_buffer[r] =
+        (Real *)malloc(dim * buf->send_buffer_size[r] * sizeof(Real));
     free(buf->recv_buffer[r]);
     buf->recv_buffer[r] =
         (Real *)malloc(dim * buf->recv_buffer_size[r] * sizeof(Real));
@@ -1537,7 +1539,7 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf->send_packinfos.resize(sim.size);
     s->buf->send_buffer_size.resize(sim.size);
     s->buf->recv_buffer_size.resize(sim.size);
-    s->buf->send_buffer.resize(sim.size);
+    s->buf->send_buffer = (Real **)calloc(sim.size, sizeof(Real *));
     s->buf->recv_buffer = (Real **)calloc(sim.size, sizeof(Real *));
 
     s->ToBeAveragedDown.resize(sim.size);
@@ -1614,7 +1616,7 @@ static Synchronizer *sync1(const Stencil &stencil,
           int code[3] = {-(f.icode[0] % 3 - 1), -((f.icode[0] / 3) % 3 - 1),
                          -((f.icode[0] / 9) % 3 - 1)};
           if (f.CoarseStencil) {
-            Real *dst = s->buf->send_buffer[r].data() + d;
+            Real *dst = s->buf->send_buffer[r] + d;
             const Info *const info = f.infos[0];
             int eC[2] = {(stencil.ex) / 2 + 2, (stencil.ey) / 2 + 2};
             int sC[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
@@ -1647,7 +1649,7 @@ static Synchronizer *sync1(const Stencil &stencil,
               }
             }
           } else {
-            Real *dst = s->buf->send_buffer[r].data() + d;
+            Real *dst = s->buf->send_buffer[r] + d;
             const Info *const info = f.infos[0];
             int s[2] = {code[0] < 1 ? (code[0] < 0 ? stencil.sx : 0) : _BS_,
                         code[1] < 1 ? (code[1] < 0 ? stencil.sy : 0) : _BS_};
