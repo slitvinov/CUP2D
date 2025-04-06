@@ -26,20 +26,17 @@ enum { max_dim = 2 };
   do {                                                                         \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    if (buf->recv_buffer[otherrank].size() !=                                  \
-            dim * buf->recv_buffer_size[otherrank] ||                          \
-        (dim * buf->recv_buffer_size[otherrank] - unpack->offset <             \
-         dim * req)) {                                                         \
+    if ((dim * buf->recv_buffer_size[otherrank] - unpack->offset) <	\
+	dim * req) {							\
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
-              "  recv_buffer[%d].size() = %zu\n"                               \
               "  recv_buffer_size[%d]   = %d\n"                                \
               "  unpack->offset         = %d\n"                                \
               "  req                    = %d\n"                                \
               "  dim                    = %d\n",                               \
-              sim.rank, otherrank, otherrank,                                  \
-              buf->recv_buffer[otherrank].size(), otherrank,                   \
+              sim.rank, otherrank,                                  \
+              otherrank,                   \
               buf->recv_buffer_size[otherrank], unpack->offset, req, dim);     \
       MPI_Abort(MPI_COMM_WORLD, 1);                                            \
     }                                                                          \
@@ -467,7 +464,7 @@ struct SyncBuf {
   std::vector<std::vector<Interface>> recv_interfaces;
   std::vector<std::vector<Interface>> send_interfaces;
   std::vector<std::vector<PackInfo>> send_packinfos;
-  std::vector<std::vector<Real>> recv_buffer;
+  std::vector<Real *> recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
 };
@@ -871,7 +868,8 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
     }
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
-    buf->recv_buffer[r].resize(buf->recv_buffer_size[r] * dim); /* TODO */
+    buf->recv_buffer[r] = (Real *)malloc(buf->recv_buffer_size[r] * dim *
+                                         sizeof(Real)); /* TODO */
     buf->send_packinfos[r].clear();
     ToBeAveragedDown[r].clear();
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
