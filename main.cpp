@@ -151,15 +151,15 @@ struct UnPackInfo {
   int offset;
   int lx;
   int ly;
-  int srcxstart;
-  int srcystart;
+  int x;
+  int y;
   int LX;
   int LY;
   int CoarseVersionOffset;
   int CoarseVersionLX;
   int CoarseVersionLY;
-  int CoarseVersionsrcxstart;
-  int CoarseVersionsrcystart;
+  int CoarseVersionx;
+  int CoarseVersiony;
   int level;
   int icode;
   int rank;
@@ -316,15 +316,15 @@ static void DetermineStencilLength(int *sLength, int level_sender,
   if (level_sender == level_receiver) {
     L[0] = sLength[3 * icode + 0];
     L[1] = sLength[3 * icode + 1];
-    L[2] = sLength[3 * icode + 2];
+    L[2] = 1;
   } else if (level_sender > level_receiver) {
     L[0] = sLength[3 * (icode + 27) + 0];
     L[1] = sLength[3 * (icode + 27) + 1];
-    L[2] = sLength[3 * (icode + 27) + 2];
+    L[2] = 1;
   } else {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
-    L[2] = sLength[3 * (icode + 2 * 27) + 2];
+    L[2] = 1;
   }
 }
 
@@ -790,7 +790,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
         int Lc[2] = {0, 0};
         DetermineStencilLength(sLength, f[k].infos[0]->level,
                                f[k].infos[1]->level, f[k].icode[1], L);
-        const int V = L[0] * L[1] * L[2];
+        const int V = L[0] * L[1];
         int Vc = 0;
         total_size += V;
         f[k].dis = offsets_recv[otherrank];
@@ -2130,7 +2130,7 @@ public:
                            (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
                               dim;
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           &dst[0], dim, unpack->x, unpack->y,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
@@ -2150,32 +2150,23 @@ public:
             unpack_subregion(
                 &buf->recv_buffer[otherrank]
                                  [unpack->offset + unpack->CoarseVersionOffset],
-                &dst1[0], dim, unpack->CoarseVersionsrcxstart,
-                unpack->CoarseVersionsrcystart, unpack->CoarseVersionLX, L[0],
+                &dst1[0], dim, unpack->CoarseVersionx,
+                unpack->CoarseVersiony, unpack->CoarseVersionLX, L[0],
                 L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
-          int sC[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
-          Real *dst =
-              c + (sC[0] - offset[0] + (sC[1] - offset[1]) * nc[0]) * dim;
-	  /*
-          long len0 = dim * (unpack->lx + unpack->srcxstart + unpack->LX * (unpack->ly + unpack->srcystart)) + dim - 1;
-          long len1 = buf->recv_buffer_size[otherrank] * dim - unpack->offset;
-          if (len0 - 2 > len1) {
-            fprintf(stderr, "main.cpp: error: %ld > %ld\n", len0, len1);
-            fprintf(stderr,
-                    "main.cpp: error: dim, nc[0], unpack->lx, unpack->ly, "
-                    "unpack->offset: %d "
-                    "%d %d %d %d %d %g\n",
-                    dim, nc[0], unpack->lx, unpack->ly, unpack->offset,
-                    buf->recv_buffer[otherrank][unpack->offset + len0 - 1]);
-            MPI_Abort(MPI_COMM_WORLD, 2);
-	    } */
-          unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           dst, dim, unpack->srcxstart, unpack->srcystart,
-                           unpack->LX, unpack->lx, unpack->ly, nc[0]);
+          int C[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                      code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
+          Real *dstbase =
+              c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
+          int sh = dim * (unpack->x + unpack->LX * unpack->y);
+          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] + sh;
+          for (int yd = 0; yd < unpack->ly; ++yd) {
+            Real *dst = dstbase + dim * nc[0] * yd;
+            Real *src = srcbase + dim * unpack->LX * yd;
+            std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+          }
         } else {
           int B;
           if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
@@ -2218,7 +2209,7 @@ public:
                    (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
-                           &dst[0], dim, unpack->srcxstart, unpack->srcystart,
+                           &dst[0], dim, unpack->x, unpack->y,
                            unpack->LX, unpack->lx, unpack->ly, nm[0]);
         }
       }
