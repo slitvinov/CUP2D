@@ -2954,7 +2954,7 @@ struct KernelVorticity {
         TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
       }
   }
-}
+};
 static void dump(Real time, Info **infos, char *path) {
   long i, j, k, x, y, offset, nblock;
   char xyz_path[FILENAME_MAX], rank_path[FILENAME_MAX], attr_path[FILENAME_MAX];
