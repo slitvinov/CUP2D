@@ -24,7 +24,7 @@ enum { max_dim = 2 };
 
 #define CHECK                                                                  \
   do {                                                                         \
-    int req = (unpack->lx + unpack->LX * (unpack->ly - 1));                    \
+    int req = unpack->lx + unpack->LX * unpack->ly;                            \
     if (buf->recv_buffer[otherrank].size() !=                                  \
             dim * buf->recv_buffer_size[otherrank] ||                          \
         (dim * buf->recv_buffer_size[otherrank] - unpack->offset <             \
