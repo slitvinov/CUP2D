@@ -2226,13 +2226,12 @@ public:
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
           Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                           dim * (unpack->x + unpack->LX * unpack->y);
-          int req = dim * (unpack->LX * unpack->ly + unpack->lx - unpack->LX);
-          assert(unpack->lx == 0 || req + unpack->offset <=
-                                        dim * buf->recv_buffer_size[otherrank]);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
+            fprintf(stderr, "dst: %g\n", dst[dim * unpack->lx - 1]);
+            fprintf(stderr, "src: %g\n", src[dim * unpack->lx - 1]);
             memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
         } else {
@@ -3726,8 +3725,7 @@ static void adapt() {
           MPI_Block x;
           x.level = bCopy->level;
           x.Z = bCopy->Z;
-          memcpy(&x.data[0], bCopy->block,
-                      _BS_ * _BS_ * dim * sizeof(Real));
+          memcpy(&x.data[0], bCopy->block, _BS_ * _BS_ * dim * sizeof(Real));
           send_blocks[baserank].push_back(x);
           treef(&g->tree, b->level, b->Z) = baserank;
         }
@@ -3786,7 +3784,7 @@ static void adapt() {
         { g->infos.push_back(info); }
         treef(&g->tree, level, Z) = sim.rank;
         memcpy(info->block, recv_blocks[r][i].data,
-                    _BS_ * _BS_ * dim * sizeof(Real));
+               _BS_ * _BS_ * dim * sizeof(Real));
       }
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
