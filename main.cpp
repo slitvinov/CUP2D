@@ -28,8 +28,9 @@ enum { max_dim = 2 };
     assert(unpack->LX >= 0);                                                   \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    int cond =                                                                 \
-        dim * buf->recv_buffer_size[otherrank] < dim * req + unpack->offset;   \
+    int cond = dim * buf->recv_buffer_size[otherrank] <                        \
+               dim * req + unpack->offset +                                    \
+                   dim * (unpack->x + unpack->LX * unpack->y);                 \
     if (cond) {                                                                \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
@@ -2190,9 +2191,8 @@ public:
               m + ((s[2] - 0) * nm[0] * nm[1] + (s[1] - stencil.sy) * nm[0] +
                    s[0] - stencil.sx) *
                       dim;
-          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          //                          dim * (unpack->x + unpack->LX *
-          //                          unpack->y);
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
+                          dim * (unpack->x + unpack->LX * unpack->y);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
@@ -2225,9 +2225,8 @@ public:
                       cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2};
           Real *dstbase =
               c + dim * (C[0] - offset[0] + (C[1] - offset[1]) * nc[0]);
-          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          //                          dim * (unpack->x + unpack->LX *
-          //                          unpack->y);
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
+                          dim * (unpack->x + unpack->LX * unpack->y);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
@@ -2274,9 +2273,8 @@ public:
                abs(cx) * (s[0] - stencil.sx) +
                (1 - abs(cx)) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
-          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset;
-          //                          dim * (unpack->x + unpack->LX *
-          //                          unpack->y);
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
+                          dim * (unpack->x + unpack->LX * unpack->y);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
