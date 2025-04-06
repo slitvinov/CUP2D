@@ -2239,9 +2239,20 @@ public:
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
           int req = (unpack->lx + unpack->LX * (unpack->ly - 1));
-          assert(req <= buf->recv_buffer_size[otherrank]);
-          assert(buf->recv_buffer[otherrank].size() ==
-                 buf->recv_buffer_size[otherrank]);
+          assert(req <= buf->recv_buffer[otherrank].size());
+          if (buf->recv_buffer[otherrank].size() !=
+              buf->recv_buffer_size[otherrank]) {
+            fprintf(stderr,
+                    "ERROR: recv_buffer size mismatch on rank %d:\n"
+                    "  otherrank = %d\n"
+                    "  recv_buffer[%d].size() = %zu\n"
+                    "  recv_buffer_size[%d]    = %d\n",
+                    sim.rank, otherrank, otherrank,
+                    buf->recv_buffer[otherrank].size(), otherrank,
+                    buf->recv_buffer_size[otherrank]);
+
+            MPI_Abort(MPI_COMM_WORLD, 1);
+          }
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
