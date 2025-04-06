@@ -27,14 +27,13 @@ enum { max_dim = 2 };
     int req = (unpack->lx + unpack->LX * (unpack->ly - 1));                    \
     if (buf->recv_buffer[otherrank].size() !=                                  \
             dim * buf->recv_buffer_size[otherrank] ||                          \
-        dim * buf->recv_buffer_size[otherrank] - unpack->offset <=             \
-            dim * req) {                                                       \
+        dim * buf->recv_buffer_size[otherrank] - unpack->offset < dim * req) { \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
               "  recv_buffer[%d].size() = %zu\n"                               \
               "  recv_buffer_size[%d]   = %d\n"                                \
-              "   unpack->offset        = %d\n"                                \
+              "  unpack->offset         = %d\n"                                \
               "  req                    = %d\n"                                \
               "  dim                    = %d\n",                               \
               sim.rank, otherrank, otherrank,                                  \
