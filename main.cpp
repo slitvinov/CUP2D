@@ -1805,7 +1805,6 @@ public:
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, SyncBuf *buf,
             const Stencil &stencil, Info *info, bool applybc, int *sLength) {
-    int n = 1 << info->level;
     assert(m != NULL);
     Real *p = info->block;
     for (int iy = -start[1]; iy < -start[1] + _BS_; iy += 4) {
@@ -1820,8 +1819,8 @@ public:
           p += dim * _BS_;
     }
     coarsened = false;
-    bool xskin = info->index[0] == 0 || info->index[0] == n - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == n - 1;
+    bool xskin = info->index[0] == 0 || info->index[0] + 1 == (1 << info->level);
+    bool yskin = info->index[1] == 0 || info->index[1] + 1 == (1 << info->level);
     int xskip = info->index[0] == 0 ? -1 : 1;
     int yskip = info->index[1] == 0 ? -1 : 1;
     int icodes[8];
