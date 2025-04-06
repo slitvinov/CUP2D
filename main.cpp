@@ -1769,7 +1769,7 @@ private:
 
 public:
   unsigned int nm[2], nc[2];
-  int end[3], start[3];
+  int end[3], start0[3];
   Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
@@ -1782,24 +1782,24 @@ public:
   void prepare(const Stencil &stencil) {
     istensorial = stencil.tensorial;
     coarsened = false;
-    start[0] = stencil.sx;
-    start[1] = stencil.sy;
-    start[2] = 0;
+    start0[0] = stencil.sx;
+    start0[1] = stencil.sy;
+    start0[2] = 0;
     end[0] = stencil.ex;
     end[1] = stencil.ey;
     end[2] = 1;
-    nm[0] = _BS_ + end[0] - start[0] - 1;
-    nm[1] = _BS_ + end[1] - start[1] - 1;
+    nm[0] = _BS_ + end[0] - start0[0] - 1;
+    nm[1] = _BS_ + end[1] - start0[1] - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
-    offset[0] = (start[0] - 1) / 2 - 1;
-    offset[1] = (start[1] - 1) / 2 - 1;
-    offset[2] = (start[2] - 1) / 2;
+    offset[0] = (start0[0] - 1) / 2 - 1;
+    offset[1] = (start0[1] - 1) / 2 - 1;
+    offset[2] = (start0[2] - 1) / 2;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
-    use_averages = istensorial || start[0] < -2 || start[1] < -2 ||
+    use_averages = istensorial || start0[0] < -2 || start0[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
   }
   void load(std::unordered_map<long long, int> *tree,
@@ -1811,7 +1811,7 @@ public:
     assert(m != NULL);
     Real *p = info->block;
     for (int iy = -stencil.sy; iy < -stencil.sy + _BS_; iy += 4) {
-      Real *q = m + dim * iy * nm[0] - dim * start[0];
+      Real *q = m + dim * iy * nm[0] - dim * start0[0];
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
           p += dim * _BS_;
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
@@ -1913,8 +1913,8 @@ public:
       }
       if (!istensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {cx < 1 ? (cx < 0 ? start[0] : 0) : _BS_,
-                  cy < 1 ? (cy < 0 ? start[1] : 0) : _BS_, 0};
+      int s[3] = {cx < 1 ? (cx < 0 ? start0[0] : 0) : _BS_,
+                  cy < 1 ? (cy < 0 ? start0[1] : 0) : _BS_, 0};
       int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
                   cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + end[1] - 1, 1};
       if (TreeNei >= 0) {
@@ -1927,13 +1927,13 @@ public:
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
-        int i = s[0] - start[0];
+        int i = s[0] - start0[0];
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-          int i0 = i + (iy - start[1]) * nm[0];
-          int i1 = i + (iy + 1 - start[1]) * nm[0];
-          int i2 = i + (iy + 2 - start[1]) * nm[0];
-          int i3 = i + (iy + 3 - start[1]) * nm[0];
+          int i0 = i + (iy - start0[1]) * nm[0];
+          int i1 = i + (iy + 1 - start0[1]) * nm[0];
+          int i2 = i + (iy + 2 - start0[1]) * nm[0];
+          int i3 = i + (iy + 3 - start0[1]) * nm[0];
           int x0 = s[0] - cx * _BS_;
           int y0 = iy - cy * _BS_;
           int y1 = iy + 1 - cy * _BS_;
@@ -1953,7 +1953,7 @@ public:
           memcpy(p3, q3, bytes);
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
-          int i0 = i + (iy - start[1]) * nm[0];
+          int i0 = i + (iy - start0[1]) * nm[0];
           int x0 = s[0] - cx * _BS_;
           int y0 = iy - cy * _BS_;
           Real *p = &m[dim * i0];
@@ -1983,24 +1983,24 @@ public:
           if (b == nullptr)
             continue;
           int i =
-              abs(cx) * (s[0] - start[0]) +
-              (1 - abs(cx)) * (s[0] - start[0] + (B % 2) * (e[0] - s[0]) / 2);
+              abs(cx) * (s[0] - start0[0]) +
+              (1 - abs(cx)) * (s[0] - start0[0] + (B % 2) * (e[0] - s[0]) / 2);
           int x = s[0] - cx * _BS_ + std::min(0, cx) * (e[0] - s[0]);
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-            int k0 = i + (abs(cy) * (iy + 0 * ys - start[1]) +
-                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - start[1] +
+            int k0 = i + (abs(cy) * (iy + 0 * ys - start0[1]) +
+                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - start0[1] +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k1 = i + (abs(cy) * (iy + 1 * ys - start[1]) +
-                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - start[1] +
+            int k1 = i + (abs(cy) * (iy + 1 * ys - start0[1]) +
+                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - start0[1] +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k2 = i + (abs(cy) * (iy + 2 * ys - start[1]) +
-                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - start[1] +
+            int k2 = i + (abs(cy) * (iy + 2 * ys - start0[1]) +
+                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - start0[1] +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k3 = i + (abs(cy) * (iy + 3 * ys - start[1]) +
-                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - start[1] +
+            int k3 = i + (abs(cy) * (iy + 3 * ys - start0[1]) +
+                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - start0[1] +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
             int y0 = (abs(cy) == 1) ? 2 * (iy + 0 * ys - cy * _BS_) +
@@ -2061,9 +2061,9 @@ public:
             }
           }
           for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-            int k = i + (abs(cy) * (iy - start[1]) +
+            int k = i + (abs(cy) * (iy - start0[1]) +
                          (1 - abs(cy)) *
-                             (iy / 2 - start[1] + aux * (e[1] - s[1]) / 2)) *
+                             (iy / 2 - start0[1] + aux * (e[1] - s[1]) / 2)) *
                             nm[0];
             int y = (abs(cy) == 1)
                         ? 2 * (iy - cy * _BS_) + std::min(0, cy) * _BS_
@@ -2254,8 +2254,8 @@ public:
         for (int i = 0; i < _BS_ / 2; i++) {
           if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
             continue;
-          int ix = 2 * i - start[0];
-          int iy = 2 * j - start[1];
+          int ix = 2 * i - start0[0];
+          int iy = 2 * j - start0[1];
           int i00 = ix + nm[0] * iy;
           int i10 = ix + 1 + nm[0] * iy;
           int i01 = ix + nm[0] * (iy + 1);
@@ -2293,13 +2293,13 @@ public:
         continue;
       if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
         continue;
-      int s[2] = {code[0] < 1 ? (code[0] < 0 ? start[0] : 0) : _BS_,
-                  code[1] < 1 ? (code[1] < 0 ? start[1] : 0) : _BS_};
+      int s[2] = {code[0] < 1 ? (code[0] < 0 ? start0[0] : 0) : _BS_,
+                  code[1] < 1 ? (code[1] < 0 ? start0[1] : 0) : _BS_};
       int e[2] = {code[0] < 1 ? (code[0] < 0 ? 0 : _BS_) : _BS_ + end[0] - 1,
                   code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + end[1] - 1};
       int sC[2] = {
-          code[0] < 1 ? (code[0] < 0 ? ((start[0] - 1) / 2) : 0) : (_BS_ / 2),
-          code[1] < 1 ? (code[1] < 0 ? ((start[1] - 1) / 2) : 0) : (_BS_ / 2)};
+          code[0] < 1 ? (code[0] < 0 ? ((start0[0] - 1) / 2) : 0) : (_BS_ / 2),
+          code[1] < 1 ? (code[1] < 0 ? ((start0[1] - 1) / 2) : 0) : (_BS_ / 2)};
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
@@ -2319,7 +2319,7 @@ public:
                     XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
                 Test[i][j] = c + dim * i0;
               }
-            int i1 = ix - start[0] + nm[0] * (iy - start[1]);
+            int i1 = ix - start0[0] + nm[0] * (iy - start0[1]);
             for (int d = 0; d < dim; d++)
               TestInterp(
                   Test, m + dim * i1 + d,
@@ -2358,10 +2358,10 @@ public:
             int i6 = XX + 1 + nc[0] * (YY);
             int i7 = XX - 1 + nc[0] * (YY);
             int i8 = XX - 2 + nc[0] * (YY);
-            int j0 = ix - start[0] + nm[0] * (iy - start[1]);
-            int j1 = ix - start[0] + nm[0] * (iy - start[1] + iyp);
-            int j2 = ix - start[0] + ixp + nm[0] * (iy - start[1]);
-            int j3 = ix - start[0] + ixp + nm[0] * (iy - start[1] + iyp);
+            int j0 = ix - start0[0] + nm[0] * (iy - start0[1]);
+            int j1 = ix - start0[0] + nm[0] * (iy - start0[1] + iyp);
+            int j2 = ix - start0[0] + ixp + nm[0] * (iy - start0[1]);
+            int j3 = ix - start0[0] + ixp + nm[0] * (iy - start0[1] + iyp);
             for (int d = 0; d < dim; d++) {
               if (code[0] != 0) {
                 Real dudy, dudy2;
@@ -2429,19 +2429,19 @@ public:
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
               continue;
-            int k0 = ix - start[0] + nm[0] * (iy - start[1] - 1);
-            int k1 = ix - start[0] + nm[0] * (iy - start[1] - 2);
-            int k2 = ix - start[0] + nm[0] * (iy - start[1] + 1);
-            int k3 = ix - start[0] + nm[0] * (iy - start[1] + 2);
-            int k4 = ix - start[0] + nm[0] * (iy - start[1] + 3);
-            int k5 = ix - start[0] - 1 + nm[0] * (iy - start[1]);
-            int k6 = ix - start[0] - 2 + nm[0] * (iy - start[1]);
-            int k7 = ix - start[0] - 3 + nm[0] * (iy - start[1]);
-            int k8 = ix - start[0] + 1 + nm[0] * (iy - start[1]);
-            int k9 = ix - start[0] + 2 + nm[0] * (iy - start[1]);
-            int k10 = ix - start[0] + 3 + nm[0] * (iy - start[1]);
-            int k11 = ix - start[0] + nm[0] * (iy - start[1] - 3);
-            int k12 = ix - start[0] + nm[0] * (iy - start[1]);
+            int k0 = ix - start0[0] + nm[0] * (iy - start0[1] - 1);
+            int k1 = ix - start0[0] + nm[0] * (iy - start0[1] - 2);
+            int k2 = ix - start0[0] + nm[0] * (iy - start0[1] + 1);
+            int k3 = ix - start0[0] + nm[0] * (iy - start0[1] + 2);
+            int k4 = ix - start0[0] + nm[0] * (iy - start0[1] + 3);
+            int k5 = ix - start0[0] - 1 + nm[0] * (iy - start0[1]);
+            int k6 = ix - start0[0] - 2 + nm[0] * (iy - start0[1]);
+            int k7 = ix - start0[0] - 3 + nm[0] * (iy - start0[1]);
+            int k8 = ix - start0[0] + 1 + nm[0] * (iy - start0[1]);
+            int k9 = ix - start0[0] + 2 + nm[0] * (iy - start0[1]);
+            int k10 = ix - start0[0] + 3 + nm[0] * (iy - start0[1]);
+            int k11 = ix - start0[0] + nm[0] * (iy - start0[1] - 3);
+            int k12 = ix - start0[0] + nm[0] * (iy - start0[1]);
             int x =
                 abs(ix - s[0] - std::min(0, code[0]) * ((e[0] - s[0]) % 2)) % 2;
             int y =
@@ -2642,7 +2642,7 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
   const int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    const int *const stenBeg = lab->start;
+    const int *const stenBeg = lab->start0;
     const int *const stenEnd = lab->end;
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
     s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
@@ -2663,8 +2663,8 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
     const int eI[3] = {(lab->end[0]) / 2 + 1 + (2) - 1,
                        (lab->end[1]) / 2 + 1 + (2) - 1,
                        (lab->end[2]) / 2 + 1 + (1) - 1};
-    const int sI[3] = {(lab->start[0] - 1) / 2 + (-1),
-                       (lab->start[1] - 1) / 2 + (-1), (lab->start[2] - 1) / 2};
+    const int sI[3] = {(lab->start0[0] - 1) / 2 + (-1),
+                       (lab->start0[1] - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
     const int *const stenBeg = sI;
     const int *const stenEnd = eI;
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -2717,15 +2717,15 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
   if (!coarse) {
     stenEnd[0] = lab->end[0];
     stenEnd[1] = lab->end[1];
-    stenBeg[0] = lab->start[0];
-    stenBeg[1] = lab->start[1];
+    stenBeg[0] = lab->start0[0];
+    stenBeg[1] = lab->start0[1];
     bsize[0] = _BS_;
     bsize[1] = _BS_;
   } else {
     stenEnd[0] = (lab->end[0]) / 2 + 1 + (2) - 1;
     stenEnd[1] = (lab->end[1]) / 2 + 1 + (2) - 1;
-    stenBeg[0] = (lab->start[0] - 1) / 2 + (-1);
-    stenBeg[1] = (lab->start[1] - 1) / 2 + (-1);
+    stenBeg[0] = (lab->start0[0] - 1) / 2 + (-1);
+    stenBeg[1] = (lab->start0[1] - 1) / 2 + (-1);
     bsize[0] = _BS_ / 2;
     bsize[1] = _BS_ / 2;
   }
