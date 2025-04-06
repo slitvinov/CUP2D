@@ -2168,7 +2168,7 @@ public:
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
           for (int yd = 0; yd < unpack->ly; ++yd) {
-            Real *dst = dstbase + dim * nm[0] * yd;
+            Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
             std::memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
           }
