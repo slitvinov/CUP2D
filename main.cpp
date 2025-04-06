@@ -24,6 +24,12 @@ enum { max_dim = 2 };
 
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
+#define MEM(lx)                                                                \
+  do {                                                                         \
+    /* memcpy(dst, src, sizeof(Real) * dim * lx); */                           \
+    memset(dst, 0, sizeof(Real) * dim * lx);                                   \
+  } while (0)
+
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
@@ -2166,7 +2172,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-	    //            memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            MEM(unpack->lx);
           }
           if (unpack->CoarseVersionOffset >= 0) {
             int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
@@ -2187,7 +2193,7 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-              //memcpy(dst, src, sizeof(Real) * dim * L[0]);
+              MEM(unpack->L[0]);
             }
           }
         } else if (unpack->level < info->level) {
@@ -2200,7 +2206,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nc[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            //memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            MEM(unpack->lx);
           }
         } else {
           int B;
@@ -2246,7 +2252,7 @@ public:
           for (int yd = 0; yd < unpack->ly; ++yd) {
             Real *dst = dstbase + dim * nm[0] * yd;
             Real *src = srcbase + dim * unpack->LX * yd;
-            ///memcpy(dst, src, sizeof(Real) * dim * unpack->lx);
+            MEM(unpack->lx);
           }
         }
       }
