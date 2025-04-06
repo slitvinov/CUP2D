@@ -10,11 +10,11 @@ ${main=./main} \
 -poissonTol 1e-3 \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
--tdump 0.5 \
--tend 10.0 \
+-tdump 1.0 \
+-tend 100.0 \
 -shapes '
-   scale=0.25 orientation=0 omega=-0.05 xcenter=0.359375 ycenter=0.5 sdf=box.raw
-   scale=0.25 orientation=0 omega=+0.05 xcenter=0.640625 ycenter=0.5 sdf=box.raw
+   scale=0.15 orientation=0 omega=-0.01 xcenter=0.359375 ycenter=0.5 sdf=box.raw
+   scale=0.15 orientation=0 omega=+0.01 xcenter=0.640625 ycenter=0.5 sdf=box.raw
 '
 
 # -shapes '
