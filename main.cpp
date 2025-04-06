@@ -2101,7 +2101,7 @@ public:
         int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, icode / 9 - 1};
 	assert(code[2] == 0);
 	assert(info->index[2] == 0);
-	assert(1);
+	assert(0);
         int infoNei_index[3] = {(info->index[0] + code[0] + n) % n,
                                 (info->index[1] + code[1] + n) % n,
                                 (info->index[2] + code[2] + n) % n};
