@@ -2954,13 +2954,15 @@ struct KernelVorticity {
         TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
       }
   }
-};
+}
 static void dump(Real time, Info **infos, char *path) {
   long i, j, k, x, y, offset, nblock;
-  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
+  char xyz_path[FILENAME_MAX], rank_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   MPI_File mpi_file;
   float xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
+  snprintf(rank_path, sizeof xyz_path, "rank.xyz.raw", path);
+
   nblock = var.vel->infos.size();
   MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
   if (sim.rank == 0)
@@ -3015,6 +3017,18 @@ static void dump(Real time, Info **infos, char *path) {
                 _BS_ * _BS_ * nblock_total, dim, sizeof(Real),
                 attr_path + (xyz_path - xyz_base));
       }
+    fprintf(xdmf,
+            "       <Attribute\n"
+            "           Name=\"rank\"\n"
+            "           Center=\"Cell\">\n"
+            "         <DataItem\n"
+            "             Dimensions=\"%ld 1\"\n"
+            "             NumberType=\"UInt\"\n"
+            "             Format=\"Binary\">\n"
+            "           %s\n"
+            "         </DataItem>\n"
+            "       </Attribute>\n",
+            _BS_ * _BS_ * nblock_total, rank_path + (xyz_path - xyz_base));
     fprintf(xdmf, "    </Grid>\n"
                   "  </Domain>\n"
                   "</Xdmf>\n");
@@ -3061,6 +3075,16 @@ static void dump(Real time, Info **infos, char *path) {
             g->infos[j]->block, dim * _BS_ * _BS_, MPI_Real, MPI_STATUS_IGNORE);
       MPI_File_close(&mpi_file);
     }
+
+  uint32_t rank[_BS_ * _BS_];
+  for (i = 0; i < _BS_ * _BS_; i++)
+    rank[i] = sim.rank;
+  MPI_File_open(MPI_COMM_WORLD, rank_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                MPI_INFO_NULL, &mpi_file);
+  for (j = 0; j < nblock; j++)
+    MPI_File_write_at(mpi_file, (offset + j) * _BS_ * _BS_ * sizeof(*rank),
+                      rank, _BS_ * _BS_, MPI_UINT32_T, MPI_STATUS_IGNORE);
+  MPI_File_close(&mpi_file);
 }
 struct Integrals {
   const Real x, y, m, j, u, v, a;
