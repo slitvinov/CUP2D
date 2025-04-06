@@ -28,8 +28,8 @@ enum { max_dim = 2 };
     assert(unpack->LX >= 0);                                                   \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    int cond = dim * buf->recv_buffer_size[otherrank] <                        \
-      dim * req + unpack->offset;					\
+    int cond =                                                                 \
+        dim * buf->recv_buffer_size[otherrank] < dim * req + unpack->offset;   \
     if (cond) {                                                                \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
@@ -2203,18 +2203,21 @@ public:
             int sC[3] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : _BS_ / 2,
                          cy < 1 ? (cy < 0 ? offset[1] : 0) : _BS_ / 2,
                          0 < 1 ? (0 < 0 ? offset[2] : 0) : 1 / 2};
-            Real *dstbase = c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
-                              (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
-                                 dim;
+            Real *dstbase =
+                c + ((sC[2] - offset[2]) * nc[0] * nc[1] +
+                     (sC[1] - offset[1]) * nc[0] + sC[0] - offset[0]) *
+                        dim;
+            Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
+                            unpack->CoarseVersionOffset;
             int L[2];
             int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
-	    for (int yd = 0; yd < L[1]; ++yd) {
-	      Real *dst = dstbase + dim * nc[0] * yd;
-	      Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-	      memcpy(dst, src, sizeof(Real) * dim * L[0]);
-	    }
+            for (int yd = 0; yd < L[1]; ++yd) {
+              Real *dst = dstbase + dim * nc[0] * yd;
+              Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
+              memcpy(dst, src, sizeof(Real) * dim * L[0]);
+            }
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
