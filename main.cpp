@@ -2125,9 +2125,10 @@ public:
             code[1] < 1 ? (code[1] < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1,
             code[2] < 1 ? (code[2] < 0 ? 0 : 1) : 1};
         if (unpack->level == info->level) {
-          Real *dstbase = m + ((s[2] - 0) * nm[0] * nm[1] +
-                           (s[1] - stencil.sy) * nm[0] + s[0] - stencil.sx) *
-                              dim;
+          Real *dstbase =
+              m + ((s[2] - 0) * nm[0] * nm[1] + (s[1] - stencil.sy) * nm[0] +
+                   s[0] - stencil.sx) *
+                      dim;
           Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
                           dim * (unpack->x + unpack->LX * unpack->y);
           for (int yd = 0; yd < unpack->ly; ++yd) {
