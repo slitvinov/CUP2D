@@ -2666,7 +2666,8 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
                        (lab->end[1]) / 2 + 1 + (2) - 1,
                        (lab->end[2]) / 2 + 1 + (1) - 1};
     const int sI[3] = {(lab->start0[0] - 1) / 2 + (-1),
-                       (lab->start0[1] - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
+                       (lab->start0[1] - 1) / 2 + (-1),
+                       (lab->start0[2] - 1) / 2};
     const int *const stenBeg = sI;
     const int *const stenEnd = eI;
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
