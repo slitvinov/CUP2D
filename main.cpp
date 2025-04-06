@@ -2210,11 +2210,11 @@ public:
             int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
-            unpack_subregion(buf->recv_buffer[otherrank] +
-			     unpack->offset + unpack->CoarseVersionOffset,
-                             dstbase, dim, unpack->CoarseVersionx,
-                             unpack->CoarseVersiony, unpack->CoarseVersionLX,
-                             L[0], L[1], nc[0]);
+	    for (int yd = 0; yd < L[1]; ++yd) {
+	      Real *dst = dstbase + dim * nc[0] * yd;
+	      Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
+	      memcpy(dst, src, sizeof(Real) * dim * L[0]);
+	    }
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};

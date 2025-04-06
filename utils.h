@@ -36,15 +36,6 @@ static void pack(Real *srcbase, Real *dst, int dim, int xstart, int ystart,
       }
   }
 }
-static void unpack_subregion(Real *srcbase, Real *dstbase, int dim,
-                             int x, int y, int LX, int lx,
-                             int ly, int nc) {
-  for (int yd = 0; yd < ly; ++yd) {
-    Real *dst = dstbase + dim * nc * yd;
-    Real *src = srcbase + dim * LX * yd;
-    memcpy(dst, src, sizeof(Real) * dim * lx);
-  }
-}
 static Real weno5_plus(Real um2, Real um1, Real u, Real up1, Real up2) {
   Real exponent = 2, e = 1e-6;
   Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
