@@ -1806,6 +1806,8 @@ public:
             std::unordered_map<long long, Info *> *all, SyncBuf *buf,
             const Stencil &stencil, Info *info, bool applybc, int *sLength) {
     int n = 1 << info->level;
+    int xi, yi;
+    sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = info->block;
     for (int iy = -stencil.sy; iy < -stencil.sy + _BS_; iy += 4) {
