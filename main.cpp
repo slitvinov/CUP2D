@@ -2155,14 +2155,23 @@ public:
                 L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
-          int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1}
-          int sC[2] = {
-	    code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-	    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
-          Real *dst = c + (sC[0] - offset[0] + (sC[1] - offset[1]) * nc[0]) * dim;
-          size_t len0 = dim * (unpack->ly * nc[0] + unpack->lx);
-          size_t len1 = buf->recv_buffer_size[otherrank] * dim;
-          assert(len0 <= len1);
+          int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
+          int sC[2] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
+          Real *dst =
+              c + (sC[0] - offset[0] + (sC[1] - offset[1]) * nc[0]) * dim;
+          size_t len0 = dim * (unpack->ly * nc[0] - nc[0] + unpack->lx) - 1;
+          size_t len1 = buf->recv_buffer_size[otherrank] * dim - unpack->offset;
+          if (len0 > len1) {
+            fprintf(stderr, "main.cpp: error: %ld > %ld\n", len0, len1);
+            fprintf(stderr,
+                    "main.cpp: error: dim, nc[0], unpack->lx, unpack->ly, "
+                    "unpack->offset: %d "
+                    "%d %d %d %d %d %g\n",
+                    dim, nc[0], unpack->lx, unpack->ly, unpack->offset,
+                    buf->recv_buffer[otherrank][unpack->offset + len0]);
+            MPI_Abort(MPI_COMM_WORLD, 2);
+          }
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nc[0]);
