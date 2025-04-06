@@ -321,15 +321,15 @@ static void DetermineStencilLength(int *sLength, int level_sender,
   if (level_sender == level_receiver) {
     L[0] = sLength[3 * icode + 0];
     L[1] = sLength[3 * icode + 1];
-    L[2] = 0;
+    L[2] = 1;
   } else if (level_sender > level_receiver) {
     L[0] = sLength[3 * (icode + 27) + 0];
     L[1] = sLength[3 * (icode + 27) + 1];
-    L[2] = 0;
+    L[2] = 1;
   } else {
     L[0] = sLength[3 * (icode + 2 * 27) + 0];
     L[1] = sLength[3 * (icode + 2 * 27) + 1];
-    L[2] = 0;
+    L[2] = 1;
   }
 }
 
