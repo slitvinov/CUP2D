@@ -40,11 +40,13 @@ enum { max_dim = 2 };
               "  dim                    = %d\n"                                \
               "  buf                    = %g\n"                                \
               "  cond                   = %d\n",                               \
-              sim.rank, otherrank, otherrank,                                  \
-              buf->recv_buffer_size[otherrank], unpack->offset, req, dim,      \
+              "  unpack->lx                   = %d\n",                         \
+              "  unpack->LX                   = %d\n", sim.rank, otherrank,    \
+              otherrank, buf->recv_buffer_size[otherrank], unpack->offset,     \
+              req, dim,                                                        \
               buf->recv_buffer[otherrank][unpack->offset + dim * req - 1],     \
-              cond);                                                           \
-      /*      MPI_Abort(MPI_COMM_WORLD, 1);	*/			       \
+              cond, unpack->lx, unpack - LX);                                  \
+      /*      MPI_Abort(MPI_COMM_WORLD, 1);	*/                                 \
     }                                                                          \
   } while (0)
 
