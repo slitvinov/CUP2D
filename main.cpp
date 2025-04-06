@@ -1822,10 +1822,10 @@ public:
           p += dim * _BS_;
     }
     coarsened = false;
-    bool xskin = info->index[0] == 0 || info->index[0] == n - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == n - 1;
-    int xskip = info->index[0] == 0 ? -1 : 1;
-    int yskip = info->index[1] == 0 ? -1 : 1;
+    bool xskin = xi == 0 || xi == n - 1;
+    bool yskin = yi == 0 || yi == n - 1;
+    int xskip = xi == 0 ? -1 : 1;
+    int yskip = yi == 0 ? -1 : 1;
     int icodes[8];
     int k = 0;
     coarsened_nei_codes_size = 0;
@@ -1845,10 +1845,10 @@ public:
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        int infoNei_index[2] = {(info->index[0] + code[0] + n) % n,
-                                (info->index[1] + code[1] + n) % n};
-        int infoNei_index_true[2] = {(info->index[0] + code[0]),
-                                     (info->index[1] + code[1])};
+        int infoNei_index[2] = {(xi + code[0] + n) % n,
+                                (yi + code[1] + n) % n};
+        int infoNei_index_true[2] = {(xi + code[0]),
+                                     (yi + code[1])};
         Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
                          info->level - 1, tree, all);
         if (b == nullptr)
@@ -1862,21 +1862,21 @@ public:
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
-        int base[2] = {(info->index[0] + code[0]) % 2,
-                       (info->index[1] + code[1]) % 2};
+        int base[2] = {(xi + code[0]) % 2,
+                       (yi + code[1]) % 2};
         int CoarseEdge[2];
         CoarseEdge[0] = code[0] == 0 ? 0
-                        : (((info->index[0] % 2 == 0) &&
-                            (infoNei_index_true[0] > info->index[0])) ||
-                           ((info->index[0] % 2 == 1) &&
-                            (infoNei_index_true[0] < info->index[0])))
+                        : (((xi % 2 == 0) &&
+                            (infoNei_index_true[0] > xi)) ||
+                           ((xi % 2 == 1) &&
+                            (infoNei_index_true[0] < xi)))
                             ? 1
                             : 0;
         CoarseEdge[1] = code[1] == 0 ? 0
-                        : (((info->index[1] % 2 == 0) &&
-                            (infoNei_index_true[1] > info->index[1])) ||
-                           ((info->index[1] % 2 == 1) &&
-                            (infoNei_index_true[1] < info->index[1])))
+                        : (((yi % 2 == 0) &&
+                            (infoNei_index_true[1] > yi)) ||
+                           ((yi % 2 == 1) &&
+                            (infoNei_index_true[1] < yi)))
                             ? 1
                             : 0;
         int start[2] = {std::max(code[0], 0) * _BS_ / 2 +
@@ -1985,9 +1985,9 @@ public:
           Bstep = 4;
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-          Real *b = avail1(2 * info->index[0] + std::max(code[0], 0) + code[0] +
+          Real *b = avail1(2 * xi + std::max(code[0], 0) + code[0] +
                                (B % 2) * std::max(0, 1 - abs(code[0])),
-                           2 * info->index[1] + std::max(code[1], 0) + code[1] +
+                           2 * yi + std::max(code[1], 0) + code[1] +
                                aux * std::max(0, 1 - abs(code[1])),
                            info->level + 1, tree, all);
           if (b == nullptr)
@@ -2101,8 +2101,8 @@ public:
       for (int i = 0; i < k; ++i) {
         int icode = icodes[i];
         int code[2] = {icode % 3 - 1, (icode / 3) % 3 - 1};
-        int infoNei_index[3] = {(info->index[0] + code[0] + n) % n,
-                                (info->index[1] + code[1] + n) % n,
+        int infoNei_index[3] = {(xi + code[0] + n) % n,
+                                (yi + code[1] + n) % n,
 				0};
         if (UseCoarseStencil0(info, infoNei_index)) {
           FillCoarseVersion(code);
@@ -2179,24 +2179,24 @@ public:
           else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2)) {
             int t;
             if (code[0] == 0)
-              t = unpack->index_0 - 2 * info->index[0];
+              t = unpack->index_0 - 2 * xi;
             else if (code[1] == 0)
-              t = unpack->index_1 - 2 * info->index[1];
+              t = unpack->index_1 - 2 * yi;
             else
-              t = -2 * info->index[2];
+              t = -2 * 0;
             assert(t == 0 || t == 1);
             B = (t == 1) ? 3 : 0;
           } else {
             int Bmod, Bdiv;
             if (abs(code[0]) == 1) {
-              Bmod = unpack->index_1 - 2 * info->index[1];
-              Bdiv = -2 * info->index[2];
+              Bmod = unpack->index_1 - 2 * yi;
+              Bdiv = -2 * 0;
             } else if (abs(code[1]) == 1) {
-              Bmod = unpack->index_0 - 2 * info->index[0];
-              Bdiv = -2 * info->index[2];
+              Bmod = unpack->index_0 - 2 * xi;
+              Bdiv = -2 * 0;
             } else {
-              Bmod = unpack->index_0 - 2 * info->index[0];
-              Bdiv = unpack->index_1 - 2 * info->index[1];
+              Bmod = unpack->index_0 - 2 * xi;
+              Bdiv = unpack->index_1 - 2 * yi;
             }
             B = 2 * Bdiv + Bmod;
           }
