@@ -764,7 +764,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
       counter = j;
       std::vector<Interface> &f = buf->recv_interfaces[r];
-      int &total_size = buf->recv_buffer_size[r];
       int otherrank = r;
       bool skip_needed = false;
       for (size_t i = 0; i < sizeof compass / sizeof *compass; i++)
@@ -792,7 +791,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                                f[k].infos[1]->level, f[k].icode[1], L);
         const int V = L[0] * L[1];
         int Vc = 0;
-        total_size += V;
+        buf->recv_buffer_size[r] += V;
         f[k].dis = offsets_recv[otherrank];
         UnPackInfo info = {f[k].dis,
                            L[0],
@@ -815,7 +814,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
           Lc[0] = sLength[3 * (f[k].icode[1] + 2 * 27) + 0];
           Lc[1] = sLength[3 * (f[k].icode[1] + 2 * 27) + 1];
           Vc = Lc[0] * Lc[1];
-          total_size += Vc;
+          buf->recv_buffer_size[r] += Vc;
           offsets_recv[otherrank] += Vc * dim;
           info.CoarseVersionOffset = V * dim;
           info.CoarseVersionLX = Lc[0];
