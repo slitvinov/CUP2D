@@ -2155,19 +2155,14 @@ public:
                 L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
-          int offset[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-                           (0 - 1) / 2 + 0};
-          int sC[3] = {code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
-                       code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2,
-                       code[2] < 1 ? (code[2] < 0 ? offset[2] : 0) : 1 / 2};
-          Real *dst = c + ((sC[2] - offset[2]) * nc[0] * nc[1] + sC[0] -
-                           offset[0] + (sC[1] - offset[1]) * nc[0]) *
-                              dim;
-
-          /**/
-          /* assert(buf->recv_buffer_size[r] * dim ==  */
-          /**/
-
+          int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1}
+          int sC[2] = {
+	    code[0] < 1 ? (code[0] < 0 ? offset[0] : 0) : _BS_ / 2,
+	    code[1] < 1 ? (code[1] < 0 ? offset[1] : 0) : _BS_ / 2};
+          Real *dst = c + (sC[0] - offset[0] + (sC[1] - offset[1]) * nc[0]) * dim;
+          size_t len0 = dim * (unpack->ly * nc[0] + unpack->lx);
+          size_t len1 = buf->recv_buffer_size[otherrank] * dim;
+          assert(len0 <= len1);
           unpack_subregion(&buf->recv_buffer[otherrank][unpack->offset],
                            &dst[0], dim, unpack->srcxstart, unpack->srcystart,
                            unpack->LX, unpack->lx, unpack->ly, nc[0]);
