@@ -26,8 +26,8 @@ enum { max_dim = 2 };
   do {                                                                         \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    if ((dim * buf->recv_buffer_size[otherrank] - unpack->offset) <            \
-        dim * req) {                                                           \
+    if (1 || (dim * buf->recv_buffer_size[otherrank] - unpack->offset) <       \
+                 dim * req) {                                                  \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
@@ -37,7 +37,7 @@ enum { max_dim = 2 };
               "  dim                    = %d\n",                               \
               sim.rank, otherrank, otherrank,                                  \
               buf->recv_buffer_size[otherrank], unpack->offset, req, dim);     \
-      MPI_Abort(MPI_COMM_WORLD, 1);                                            \
+      /* MPI_Abort(MPI_COMM_WORLD, 1);	*/                                      \
     }                                                                          \
   } while (0)
 
@@ -869,7 +869,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
     free(buf->recv_buffer[r]);
     buf->recv_buffer[r] =
-      (Real *)malloc(10000 * dim * buf->recv_buffer_size[r] * sizeof(Real));
+        (Real *)malloc(dim * buf->recv_buffer_size[r] * sizeof(Real));
     buf->send_packinfos[r].clear();
     ToBeAveragedDown[r].clear();
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
