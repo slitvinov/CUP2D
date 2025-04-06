@@ -26,8 +26,8 @@ enum { max_dim = 2 };
   do {                                                                         \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
-    if ((dim * buf->recv_buffer_size[otherrank] - unpack->offset) <	\
-	dim * req) {							\
+    if ((dim * buf->recv_buffer_size[otherrank] - unpack->offset) <            \
+        dim * req) {                                                           \
       fprintf(stderr,                                                          \
               "ERROR: recv_buffer size mismatch on rank %d:\n"                 \
               "  otherrank = %d\n"                                             \
@@ -35,8 +35,7 @@ enum { max_dim = 2 };
               "  unpack->offset         = %d\n"                                \
               "  req                    = %d\n"                                \
               "  dim                    = %d\n",                               \
-              sim.rank, otherrank,                                  \
-              otherrank,                   \
+              sim.rank, otherrank, otherrank,                                  \
               buf->recv_buffer_size[otherrank], unpack->offset, req, dim);     \
       MPI_Abort(MPI_COMM_WORLD, 1);                                            \
     }                                                                          \
@@ -2174,7 +2173,7 @@ public:
               m + ((s[2] - 0) * nm[0] * nm[1] + (s[1] - stencil.sy) * nm[0] +
                    s[0] - stencil.sx) *
                       dim;
-          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                           dim * (unpack->x + unpack->LX * unpack->y);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
@@ -2196,11 +2195,11 @@ public:
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             L[2] = sLength[3 * (icode + 2 * 27) + 2];
-            unpack_subregion(
-                &buf->recv_buffer[otherrank]
-                                 [unpack->offset + unpack->CoarseVersionOffset],
-                &dst1[0], dim, unpack->CoarseVersionx, unpack->CoarseVersiony,
-                unpack->CoarseVersionLX, L[0], L[1], nc[0]);
+            unpack_subregion(buf->recv_buffer[otherrank] + unpack->offset +
+                                 unpack->CoarseVersionOffset,
+                             &dst1[0], dim, unpack->CoarseVersionx,
+                             unpack->CoarseVersiony, unpack->CoarseVersionLX,
+                             L[0], L[1], nc[0]);
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
@@ -2259,7 +2258,7 @@ public:
                abs(cx) * (s[0] - stencil.sx) +
                (1 - abs(cx)) * (-stencil.sx + (B % 2) * (e[0] - s[0]) / 2)) *
                   dim;
-          Real *srcbase = &buf->recv_buffer[otherrank][unpack->offset] +
+          Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                           dim * (unpack->x + unpack->LX * unpack->y);
           CHECK;
           for (int yd = 0; yd < unpack->ly; ++yd) {
