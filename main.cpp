@@ -2194,7 +2194,7 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * unpack->CoarseVersionLX * yd;
-              MEM(L[0]);
+              MEM(unpack->CoarseVersionx);
             }
           }
         } else if (unpack->level < info->level) {
