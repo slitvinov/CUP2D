@@ -2185,7 +2185,7 @@ public:
             Real *srcbase = buf->recv_buffer[otherrank] + unpack->offset +
                             unpack->CoarseVersionOffset;
             int L[2];
-            int icode = unpack->icode;
+            int icode = (-cx + 1) + 3 * (-cy + 1) + 9 * (-0 + 1);
             L[0] = sLength[3 * (icode + 2 * 27) + 0];
             L[1] = sLength[3 * (icode + 2 * 27) + 1];
             assert(unpack->CoarseVersionx == 0);
@@ -2195,8 +2195,15 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * L[0] * yd;
-	      MEM(unpack->CoarseVersionLX);
+	      //MEM(unpack->CoarseVersionLX);
             }
+            unpack_subregion(
+                &buf->recv_buffer[otherrank]
+                                  [unpack->offset + unpack->CoarseVersionOffset],
+                &dstbase[0], dim, 0,
+                0, 0,
+                unpack->CoarseVersionLX, unpack->CoarseVersionLY, 0, 0, 0, L[0],
+                L[1], L[2], nc[0], nc[1]);
           }
         } else if (unpack->level < info->level) {
           int offset[2] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1};
