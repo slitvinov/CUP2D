@@ -2493,38 +2493,38 @@ public:
   }
   void FillCoarseVersion(int cx, int cy) {
     int icode = (cx + 1) + 3 * (cy + 1) + 9;
-    if (myblocks[icode] == nullptr)
-      return;
-    Real *b = myblocks[icode];
-    int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
-    int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
-                cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
-    int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
-                cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
-    int bytes = (e[0] - s[0]) * dim * sizeof(Real);
-    if (!bytes)
-      return;
-    int start[2] = {s[0] + std::max(cx, 0) * (_BS_ / 2) - cx * _BS_ +
-                        std::min(0, cx) * (e[0] - s[0]),
-                    s[1] + std::max(cy, 0) * (_BS_ / 2) - cy * _BS_ +
-                        std::min(0, cy) * (e[1] - s[1])};
-    int i = s[0] - offset[0];
-    int x = start[0];
-    for (int iy = s[1]; iy < e[1]; iy++) {
-      int i0 = i + (iy - offset[1]) * nc[0];
-      Real *p1 = c + dim * i0;
-      int y0 = 2 * (iy - s[1]) + start[1];
-      int y1 = y0 + 1;
-      Real *q0 = b + dim * (_BS_ * y0 + x);
-      Real *q1 = b + dim * (_BS_ * y1 + x);
-      for (int ee = 0; ee < e[0] - s[0]; ee++) {
-        Real *q00 = q0 + dim * 2 * ee;
-        Real *q01 = q0 + dim * (2 * ee + 1);
-        Real *q10 = q1 + dim * 2 * ee;
-        Real *q11 = q1 + dim * (2 * ee + 1);
-        for (int d = 0; d < dim; d++)
-          *(p1 + dim * ee + d) =
-              (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+    if (myblocks[icode] != nullptr) {
+      Real *b = myblocks[icode];
+      int eC[2] = {(end[0]) / 2 + (2), (end[1]) / 2 + (2)};
+      int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
+                  cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
+      int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
+                  cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
+      int bytes = (e[0] - s[0]) * dim * sizeof(Real);
+      if (bytes) {
+        int start[2] = {s[0] + std::max(cx, 0) * (_BS_ / 2) - cx * _BS_ +
+                            std::min(0, cx) * (e[0] - s[0]),
+                        s[1] + std::max(cy, 0) * (_BS_ / 2) - cy * _BS_ +
+                            std::min(0, cy) * (e[1] - s[1])};
+        int i = s[0] - offset[0];
+        int x = start[0];
+        for (int iy = s[1]; iy < e[1]; iy++) {
+          int i0 = i + (iy - offset[1]) * nc[0];
+          Real *p1 = c + dim * i0;
+          int y0 = 2 * (iy - s[1]) + start[1];
+          int y1 = y0 + 1;
+          Real *q0 = b + dim * (_BS_ * y0 + x);
+          Real *q1 = b + dim * (_BS_ * y1 + x);
+          for (int ee = 0; ee < e[0] - s[0]; ee++) {
+            Real *q00 = q0 + dim * 2 * ee;
+            Real *q01 = q0 + dim * (2 * ee + 1);
+            Real *q10 = q1 + dim * 2 * ee;
+            Real *q11 = q1 + dim * (2 * ee + 1);
+            for (int d = 0; d < dim; d++)
+              *(p1 + dim * ee + d) =
+                  (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
+          }
+        }
       }
     }
   }
