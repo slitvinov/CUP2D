@@ -24,6 +24,7 @@ enum { max_dim = 2 };
 
 #define CHECK                                                                  \
   do {                                                                         \
+    assert(unpack->LX <= unpack->lx);                                          \
     int req =                                                                  \
         unpack->ly == 0 ? 0 : unpack->LX * (unpack->ly - 1) + unpack->lx;      \
     if (1 || (dim * buf->recv_buffer_size[otherrank] - unpack->offset) <       \
@@ -38,8 +39,8 @@ enum { max_dim = 2 };
               "  buf                    = %g\n",                               \
               sim.rank, otherrank, otherrank,                                  \
               buf->recv_buffer_size[otherrank], unpack->offset, req, dim,      \
-              buf->recv_buffer[otherrank][unpack->offset + dim * req - 1]);        \
-      /* MPI_Abort(MPI_COMM_WORLD, 1); */				\
+              buf->recv_buffer[otherrank][unpack->offset + dim * req - 1]);    \
+      /* MPI_Abort(MPI_COMM_WORLD, 1); */                                      \
     }                                                                          \
   } while (0)
 
