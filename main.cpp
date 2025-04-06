@@ -867,8 +867,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
     }
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
-    if (buf->recv_buffer[r] != NULL)
-      free(buf->recv_buffer[r]);
+    free(buf->recv_buffer[r]);
     buf->recv_buffer[r] =
       (Real *)malloc(dim * dim * buf->recv_buffer_size[r] * sizeof(Real));
     buf->send_packinfos[r].clear();
