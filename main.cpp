@@ -463,7 +463,7 @@ struct SyncBuf {
   std::vector<std::vector<Interface>> recv_interfaces;
   std::vector<std::vector<Interface>> send_interfaces;
   std::vector<std::vector<PackInfo>> send_packinfos;
-  std::vector<Real *> recv_buffer;
+  Real **recv_buffer;
   std::vector<std::vector<Real>> send_buffer;
   std::vector<std::vector<UnPackInfo>> myunpacks;
 };
@@ -867,8 +867,10 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       }
     }
     buf->send_buffer[r].resize(buf->send_buffer_size[r] * dim);
-    buf->recv_buffer[r] = (Real *)malloc(buf->recv_buffer_size[r] * dim *
-                                         sizeof(Real)); /* TODO */
+    if (buf->recv_buffer[r] != NULL)
+      free(buf->recv_buffer[r]);
+    buf->recv_buffer[r] =
+        (Real *)malloc(dim * buf->recv_buffer_size[r] * sizeof(Real));
     buf->send_packinfos[r].clear();
     ToBeAveragedDown[r].clear();
     for (int i = 0; i < (int)buf->send_interfaces[r].size(); i++) {
@@ -1537,7 +1539,8 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf->send_buffer_size.resize(sim.size);
     s->buf->recv_buffer_size.resize(sim.size);
     s->buf->send_buffer.resize(sim.size);
-    s->buf->recv_buffer.resize(sim.size);
+    s->buf->recv_buffer = (Real **)calloc(sim.size, sizeof(Real *));
+
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
