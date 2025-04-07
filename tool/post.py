@@ -19,7 +19,6 @@ for path in sys.argv[1:]:
     chi_path = path + ".chi.raw"
     vel_path = path + ".vel.raw"
     tmp_path = path + ".tmp.raw"
-    rank_path = path + ".rank.raw"
     if not os.path.isfile(png_path):
         sys.stderr.write(f"post.py: {path}\n")
         root = xml.etree.ElementTree.parse(xdmf_path)
@@ -27,7 +26,6 @@ for path in sys.argv[1:]:
         xyz = np.memmap(xyz_path, "float32", "r")
         xyz = xyz.reshape(-1, 4, 2)
         ncell = len(xyz)
-        rank = np.memmap(rank_path, "uint32", "r")
         chi = np.memmap(chi_path, "float64", "r")
         tmp = np.memmap(tmp_path, "float64", "r")
         vel = np.memmap(vel_path, "float64", "r")
