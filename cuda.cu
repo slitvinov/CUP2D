@@ -128,6 +128,7 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
 
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
+  cudaUUID_t u = prop.uuid;
   fprintf(stderr,
           "cuda.cu: rank %d: %s (UUID: "
           "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
