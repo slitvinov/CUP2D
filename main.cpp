@@ -103,34 +103,6 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-struct Interface {
-  Info *infos[2];
-  int icode[2];
-  bool CoarseStencil;
-  bool ToBeKept;
-  int dis;
-  Interface(Info *i0, Info *i1, int a_icode0, int a_icode1) {
-    infos[0] = i0;
-    infos[1] = i1;
-    icode[0] = a_icode0;
-    icode[1] = a_icode1;
-    CoarseStencil = false;
-    ToBeKept = true;
-    dis = 0;
-  }
-  bool operator<(const Interface &other) const {
-    if (infos[0]->id2 == other.infos[0]->id2) {
-      if (icode[0] == other.icode[0]) {
-        if (infos[1]->id2 == other.infos[1]->id2) {
-          return (icode[1] < other.icode[1]);
-        }
-        return (infos[1]->id2 < other.infos[1]->id2);
-      }
-      return (icode[0] < other.icode[0]);
-    }
-    return (infos[0]->id2 < other.infos[0]->id2);
-  }
-};
 struct Range {
   std::vector<int> removed;
   int index;
@@ -224,8 +196,6 @@ struct SyncBuf {
   std::vector<int> recv_buffer_size;
   std::vector<int> send_buffer_size;
   std::vector<MPI_Request> requests;
-  std::vector<std::vector<Interface>> recv_interfaces;
-  std::vector<std::vector<Interface>> send_interfaces;
   std::vector<std::vector<PackInfo>> send_packinfos;
   Real **recv_buffer;
   Real **send_buffer;
@@ -246,8 +216,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
   buf->inner_blocks.clear();
   buf->halo_blocks.clear();
   for (int r = 0; r < sim.size; r++) {
-    buf->send_interfaces[r].clear();
-    buf->recv_interfaces[r].clear();
     buf->send_buffer_size[r] = 0;
   }
   std::vector<Range> compass[27];
@@ -725,8 +693,6 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
-    s->buf->send_interfaces.resize(sim.size);
-    s->buf->recv_interfaces.resize(sim.size);
     s->buf->send_packinfos.resize(sim.size);
     s->buf->send_buffer_size.resize(sim.size);
     s->buf->recv_buffer_size.resize(sim.size);
