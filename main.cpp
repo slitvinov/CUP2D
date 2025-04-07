@@ -1822,35 +1822,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
         for (;;) {
           bool all;
           all = true;
-          for (auto &it : Synch->mapofHaloBlockGroups) {
-            if (it.second.ready == false) {
-              std::set<int> ranks = it.second.myranks;
-              int flag = 0;
-              for (auto r : ranks) {
-                const auto retval = Synch->mapofrequests.find(r);
-                MPI_Status status;
-                int err;
-                if ((err = MPI_Test(retval->second, &flag, &status)) !=
-                    MPI_SUCCESS) {
-                  int len;
-                  char err_string[MPI_MAX_ERROR_STRING];
-                  MPI_Error_string(err, err_string, &len);
-                  fprintf(stderr, "%s:%d: error: %s\n", __FILE__, __LINE__,
-                          err_string);
-                  MPI_Abort(MPI_COMM_WORLD, 1);
-                }
-                if (flag == false)
-                  break;
-              }
-              if (flag == 1) {
-                it.second.ready = true;
-                halo_next = &it.second.myblocks;
-                goto done;
-              }
-            }
-            all = all && it.second.ready;
-          }
-          if (all) {
+	  if (all) {
             halo_next = &Synch->dummy_vector;
             goto done;
           }
