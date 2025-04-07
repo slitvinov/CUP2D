@@ -300,36 +300,6 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
           }
         }
   }
-  std::vector<int> neighbors;
-  double *boxes;
-  double box[4] = {DBL_MAX, DBL_MAX, -DBL_MAX, -DBL_MAX};
-  for (auto &info : *infos) {
-    double h = 1.0 / _BS_ / (1 << info->level);
-    box[0] = std::min(box[0], info->origin[0] - 1.5 * h);
-    box[1] = std::min(box[1], info->origin[1] - 1.5 * h);
-    box[2] = std::max(box[2], info->origin[0] + h * _BS_ + 1.5 * h);
-    box[3] = std::max(box[3], info->origin[1] + h * _BS_ + 1.5 * h);
-  }
-  boxes = (double *)malloc(sim.size * sizeof box);
-  MPI_Allgather(box, 4, MPI_DOUBLE, boxes, 4, MPI_DOUBLE, MPI_COMM_WORLD);
-  for (int i = 0; i < sim.size; i++) {
-    if (i == sim.rank)
-      continue;
-  }
-  free(boxes);
-  std::vector<std::vector<long long>> recv_buffer(neighbors.size());
-  std::vector<std::vector<long long>> send_buffer(neighbors.size());
-  std::vector<int> recv_size(neighbors.size());
-  std::vector<MPI_Request> size_requests(2 * neighbors.size());
-  int mysize = (int)myData.size();
-  int kk = 0;
-  kk = 0;
-  MPI_Waitall(size_requests.size(), size_requests.data(), MPI_STATUSES_IGNORE);
-  std::vector<MPI_Request> requests(2 * neighbors.size());
-  kk = 0;
-  MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-  kk = -1;
-  int increment = UpdateIDs ? 3 : 2;
 }
 
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
