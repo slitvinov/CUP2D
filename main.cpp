@@ -148,45 +148,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     return getf(all, m, Z);
   }
 }
-static void update_blocks(std::vector<Info *> *infos,
-                          std::unordered_map<long long, Info *> *all,
-                          std::unordered_map<long long, int> *tree) {
-  std::vector<long long> myData;
-  for (auto &info : *infos) {
-    int aux = 1 << info->level;
-    bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
-    int xskip = info->index[0] == 0 ? -1 : 1;
-    int yskip = info->index[1] == 0 ? -1 : 1;
-    for (int x = -1; x < 2; x++)
-      for (int y = -1; y < 2; y++)
-        if (x != 0 || y != 0) {
-          if (x == xskip && xskin)
-            continue;
-          if (y == yskip && yskin)
-            continue;
-          Info *infoNei = getf(all, info->level, info->Znei[1 + x][1 + y]);
-          int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
-          if (infoNeiTree == -2) {
-            long long nCoarse = infoNei->Zparent;
-            treef(tree, infoNei->level - 1, nCoarse);
-          } else if (infoNeiTree == -1) {
-            int Bstep = 1;
-            if ((abs(x) + abs(y) == 2))
-              Bstep = 3;
-            for (int B = 0; B <= 3; B += Bstep) {
-              int temp = (abs(x) == 1) ? (B % 2) : (B / 2);
-              long long nFine =
-                  infoNei->Zchild[std::max(-x, 0) +
-                                  (B % 2) * std::max(0, 1 - abs(x))]
-                                 [std::max(-y, 0) +
-                                  temp * std::max(0, 1 - abs(y))];
-              treef(tree, infoNei->level + 1, nFine);
-            }
-          }
-        }
-  }
-}
 
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
 static void fill_pos(std::vector<Info *> *infos,
@@ -1906,7 +1867,6 @@ static void adapt() {
     fill_pos(&g->infos, &g->all);
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
-      update_blocks(&g->infos, &g->all, &g->tree);
     }
     //    delete lab;
   }
@@ -2416,7 +2376,6 @@ int main(int argc, char **argv) {
     for (size_t j = 0; j < g->infos.size(); j++)
       g->infos[j]->id = j;
     g->UpdateFluxCorrection = true;
-    update_blocks(&g->infos, &g->all, &g->tree);
   }
   for (int i = 0;; i++) {
     ongrid();
@@ -2784,8 +2743,6 @@ int main(int argc, char **argv) {
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
     if (var.pres->UpdateFluxCorrection) {
       var.pres->UpdateFluxCorrection = false;
-
-      update_blocks(&var.tmp->infos, &var.tmp->all, &var.tmp->tree);
       std::vector<Info *> &RhsInfo = var.tmp->infos;
       const int Nblocks = RhsInfo.size();
       const int N = _BS_ * _BS_ * Nblocks;
