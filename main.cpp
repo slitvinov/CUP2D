@@ -802,11 +802,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   } else {
     s = itSynchronizerMPI->second;
   }
-  auto it = s->mapofHaloBlockGroups.begin();
-  while (it != s->mapofHaloBlockGroups.end()) {
-    (it->second).ready = false;
-    it++;
-  }
   s->reqs.clear();
   s->bufs.clear();
   s->mapofrequests.clear();
