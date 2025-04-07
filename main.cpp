@@ -160,10 +160,6 @@ static void fill_pos(std::vector<Info *> *infos,
     (*infos)[j] = info;
   }
 }
-static Real *avail(int level, long long Z,
-                   std::unordered_map<long long, Info *> *all) {
-  return getf(all, level, Z)->block;
-}
 static void dealloc_many(std::vector<long long> &ids,
                          std::vector<Info *> *infos) {
   for (size_t j = 0; j < infos->size(); j++)
@@ -359,7 +355,7 @@ public:
         if (!bytes)
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
-        myblocks[icode] = getf(all, info->level, info->Znei[1 + cx][1 + cy]);
+        myblocks[icode] = getf(all, info->level, info->Znei[1 + cx][1 + cy])->block;
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
