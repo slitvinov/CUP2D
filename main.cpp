@@ -2760,48 +2760,6 @@ static void adapt() {
     std::vector<MPI_Block> send_right;
     std::vector<MPI_Block> recv_right;
     std::vector<MPI_Request> request;
-    if (flux_left > 0) {
-      send_left.resize(flux_left);
-#pragma omp parallel for schedule(runtime)
-      for (int i = 0; i < flux_left; i++) {
-        Info *info = g->infos[i];
-        MPI_Block *x = &send_left[i];
-        x->level = info->level;
-        x->Z = info->Z;
-        memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-      }
-      MPI_Request req{};
-      request.push_back(req);
-      MPI_Isend(&send_left[0], send_left.size() * sizeof(send_left[0]),
-                MPI_UINT8_T, left, 7890, MPI_COMM_WORLD, &request.back());
-    } else if (flux_left < 0) {
-      recv_left.resize(abs(flux_left));
-      MPI_Request req{};
-      request.push_back(req);
-      MPI_Irecv(&recv_left[0], recv_left.size() * sizeof(recv_left[0]),
-                MPI_UINT8_T, left, 4560, MPI_COMM_WORLD, &request.back());
-    }
-    if (flux_right > 0) {
-      send_right.resize(flux_right);
-#pragma omp parallel for schedule(runtime)
-      for (int i = 0; i < flux_right; i++) {
-        Info *info = g->infos[my_blocks - i - 1];
-        MPI_Block *x = &send_right[i];
-        x->level = info->level;
-        x->Z = info->Z;
-        memcpy(x->data, info->block, _BS_ * _BS_ * dim * sizeof(Real));
-      }
-      MPI_Request req{};
-      request.push_back(req);
-      MPI_Isend(&send_right[0], send_right.size() * sizeof(send_right[0]),
-                MPI_UINT8_T, right, 4560, MPI_COMM_WORLD, &request.back());
-    } else if (flux_right < 0) {
-      recv_right.resize(abs(flux_right));
-      MPI_Request req{};
-      request.push_back(req);
-      MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
-                MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
-    }
     if (request.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
