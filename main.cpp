@@ -359,7 +359,7 @@ public:
         if (!bytes)
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
-        myblocks[icode] = avail(info->level, info->Znei[1 + cx][1 + cy], all);
+        myblocks[icode] = getf(all, info->level, info->Znei[1 + cx][1 + cy]);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
