@@ -669,7 +669,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   bd_cooColA_int_.resize(bd_nnz_);
   for (int i = 0; i < bd_nnz_; i++)
     bd_cooColA_int_[i] = bd_reindex_map[bd_cooColA_long_[i]];
-  MPI_Waitall(recv_ranks_.size(), send_requests.data(), MPI_STATUS_IGNORE);
 #pragma omp parallel for
   for (size_t i = 0; i < send_pack_idx_.size(); i++)
     send_pack_idx_[i] = (int)(send_pack_idx_long[i] + shift);
