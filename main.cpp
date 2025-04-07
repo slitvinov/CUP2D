@@ -278,9 +278,9 @@ public:
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
-	int ix = (infoNei_index[0]) / 2;
-	int iy = (infoNei_index[1]) / 2;
-	const long long Z = forward(info->level - 1, ix, iy);
+        int ix = (infoNei_index[0]) / 2;
+        int iy = (infoNei_index[1]) / 2;
+        const long long Z = forward(info->level - 1, ix, iy);
         Real *b = getf(all, info->level - 1, Z)->block;
         if (b == nullptr)
           continue;
@@ -355,7 +355,8 @@ public:
         if (!bytes)
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
-        myblocks[icode] = getf(all, info->level, info->Znei[1 + cx][1 + cy])->block;
+        myblocks[icode] =
+            getf(all, info->level, info->Znei[1 + cx][1 + cy])->block;
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -407,12 +408,12 @@ public:
           Bstep = 4;
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
-	  int ix = 2 * xi + std::max(cx, 0) + cx +
-	    (B % 2) * std::max(0, 1 - abs(cx));
-	  int iy = 2 * yi + std::max(cy, 0) + cy +
-	    aux * std::max(0, 1 - abs(cy));
-	  const long long Z = forward(info->level + 1, ix, iy);
-	  Real * b = getf(all, info->level + 1, Z)->block;
+          int ix = 2 * xi + std::max(cx, 0) + cx +
+                   (B % 2) * std::max(0, 1 - abs(cx));
+          int iy =
+              2 * yi + std::max(cy, 0) + cy + aux * std::max(0, 1 - abs(cy));
+          const long long Z = forward(info->level + 1, ix, iy);
+          Real *b = getf(all, info->level + 1, Z)->block;
           if (b == nullptr)
             continue;
           int i =
