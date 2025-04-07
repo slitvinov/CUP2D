@@ -175,7 +175,6 @@ struct SyncBuf {
   std::set<int> Neighbors;
   std::vector<Info *> halo_blocks;
   std::vector<Info *> inner_blocks;
-  std::vector<int> recv_buffer_size;
   std::vector<int> send_buffer_size;
   std::vector<MPI_Request> requests;
   Real **recv_buffer;
@@ -669,7 +668,6 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
     s->buf->send_buffer_size.resize(sim.size);
-    s->buf->recv_buffer_size.resize(sim.size);
     s->buf->send_buffer = (Real **)malloc(sim.size * sizeof(Real *));
     s->buf->recv_buffer = (Real **)malloc(sim.size * sizeof(Real *));
     for (int i = 0; i < sim.size; i++) {
