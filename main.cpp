@@ -172,7 +172,7 @@ struct Grid {
   std::vector<Info *> infos;
 };
 struct BlockLab;
-static void bc_scalar(BlockLab *, Info *, bool coarse);
+static void bc_scalar(BlockLab *, const Stencil * stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
 
 struct BlockLab {
@@ -605,7 +605,7 @@ public:
     }
     if (applybc) {
       if (dim == 1)
-        bc_scalar(this, info, true);
+        bc_scalar(this, &stencil, info, true);
       else
         bc_vector(this, info, true);
     }
@@ -813,7 +813,7 @@ public:
     }
     if (applybc) {
       if (dim == 1)
-        bc_scalar(this, info, false);
+        bc_scalar(this, &stencil, info, false);
       else
         bc_vector(this, info, false);
     }
@@ -906,22 +906,23 @@ static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
       applyBCface<1, 1>(lab, coarse);
   }
 }
-template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
+template <int dir, int side> void Neumann2D(BlockLab *lab, const Stencil *stencil,
+					    bool coarse) {
   int stenBeg[2];
   int stenEnd[2];
   int bsize[2];
   if (!coarse) {
-    stenEnd[0] = lab->end[0];
-    stenEnd[1] = lab->end[1];
-    stenBeg[0] = lab->start0[0];
-    stenBeg[1] = lab->start0[1];
+    stenEnd[0] = stencil->ex;
+    stenEnd[1] = stencil->ey;
+    stenBeg[0] = stencil->sx;
+    stenBeg[1] = stencil->sy;
     bsize[0] = _BS_;
     bsize[1] = _BS_;
   } else {
-    stenEnd[0] = (lab->end[0]) / 2 + 1 + (2) - 1;
-    stenEnd[1] = (lab->end[1]) / 2 + 1 + (2) - 1;
-    stenBeg[0] = (lab->start0[0] - 1) / 2 + (-1);
-    stenBeg[1] = (lab->start0[1] - 1) / 2 + (-1);
+    stenEnd[0] = (stencil->ex) / 2 + 1 + (2) - 1;
+    stenEnd[1] = (stencil->ey) / 2 + 1 + (2) - 1;
+    stenBeg[0] = (stencil->sx - 1) / 2 + (-1);
+    stenBeg[1] = (stencil->sy - 1) / 2 + (-1);
     bsize[0] = _BS_ / 2;
     bsize[1] = _BS_ / 2;
   }
@@ -943,16 +944,16 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
                      stenBeg[1])];
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
-void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
+void bc_scalar(BlockLab *lab, const Stencil * stencil, Info *info, bool coarse) {
   int n = 1 << info->level;
   if (info->index[0] == 0)
-    Neumann2D<0, 0>(lab, coarse);
+    Neumann2D<0, 0>(lab, stencil, coarse);
   if (info->index[0] == n - 1)
-    Neumann2D<0, 1>(lab, coarse);
+    Neumann2D<0, 1>(lab, stencil, coarse);
   if (info->index[1] == 0)
-    Neumann2D<1, 0>(lab, coarse);
+    Neumann2D<1, 0>(lab, stencil, coarse);
   if (info->index[1] == n - 1)
-    Neumann2D<1, 1>(lab, coarse);
+    Neumann2D<1, 1>(lab, stencil, coarse);
 }
 static struct {
   Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
