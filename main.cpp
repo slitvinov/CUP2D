@@ -74,7 +74,7 @@ struct Info {
   double h, origin[2];
   enum State state;
   int index[3], level;
-  long long id, id2, halo_id, Z, Zchild[2][2], Znei[3][3], Zparent;
+  long long id, id2, Z, Zchild[2][2], Znei[3][3], Zparent;
   Real *block = NULL;
   BlockCase *auxiliary;
 };
