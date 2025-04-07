@@ -3060,7 +3060,6 @@ struct LineParser : public CommandlineParser {
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
-  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   CommandlineParser parser(argc, argv);
   MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
   MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
@@ -3109,14 +3108,14 @@ int main(int argc, char **argv) {
       FILE *file = fopen(path, "r");
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        exit(1);
       }
       char tag[3] = {0};
       float area, J, length, rmax;
       fread(tag, sizeof *tag, sizeof tag, file);
       if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
         fprintf(stderr, "main.cpp: error: not and sdf file\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        exit(1);
       }
       if (fread(&length, sizeof(length), 1, file) != 1 ||
           fread(&area, sizeof(area), 1, file) != 1 ||
@@ -3126,12 +3125,12 @@ int main(int argc, char **argv) {
           fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
         fprintf(stderr,
                 "main.cpp: error: fail to read shape header from file.\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        exit(1);
       }
       size_t ncount = shape->nr * shape->np;
       if ((shape->sdf = (float *)malloc(ncount * sizeof(float))) == NULL) {
         fprintf(stderr, "main.cpp: error: malloc() failed\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
+        exit(1);
       }
       if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
