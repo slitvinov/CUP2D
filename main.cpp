@@ -2075,7 +2075,6 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
-  bool movedBlocks = false;
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   Stencil stencil{-1, -1, 2, 2, true};
@@ -2537,37 +2536,16 @@ static void adapt() {
     }
     dealloc_many(dealloc_IDs, &g->infos);
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
-    movedBlocks = false;
     long long max_b = block_distribution[0];
     long long min_b = block_distribution[0];
     for (auto &b : block_distribution) {
       max_b = std::max(max_b, b);
       min_b = std::min(min_b, b);
     }
-    const double ratio = static_cast<double>(max_b) / min_b;
-    const int right = (sim.rank == sim.size - 1) ? MPI_PROC_NULL : sim.rank + 1;
-    const int left = (sim.rank == 0) ? MPI_PROC_NULL : sim.rank - 1;
     const int my_blocks = g->infos.size();
-    int right_blocks, left_blocks;
-    MPI_Request reqs[4];
-    MPI_Irecv(&left_blocks, 1, MPI_INT, left, 123, MPI_COMM_WORLD, &reqs[0]);
-    MPI_Irecv(&right_blocks, 1, MPI_INT, right, 456, MPI_COMM_WORLD, &reqs[1]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, left, 456, MPI_COMM_WORLD, &reqs[2]);
-    MPI_Isend(&my_blocks, 1, MPI_INT, right, 123, MPI_COMM_WORLD, &reqs[3]);
-    MPI_Waitall(4, &reqs[0], MPI_STATUSES_IGNORE);
     const int nu = 4;
-    const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
-    const int flux_right =
-        (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-    std::vector<MPI_Request> request;
-    int temp0 = movedBlocks ? 1 : 0;
-    MPI_Request request_reduction;
-    MPI_Iallreduce(MPI_IN_PLACE, &temp0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                   &request_reduction);
-    MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
-    movedBlocks = (temp0 >= 1);
     fill_pos(&g->infos, &g->all);
-    if (result[0] > 0 || result[1] > 0 || movedBlocks) {
+    if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
