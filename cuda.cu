@@ -370,12 +370,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
                                      cusparseDnVecDescr_t spDescrBdOp,
                                      double *d_res_hd,
                                      cusparseDnVecDescr_t spDescrRes) {
-  const std::vector<int> &recv_ranks = LocalLS_.recv_ranks_;
-  const std::vector<int> &recv_offset = LocalLS_.recv_offset_;
-  const std::vector<int> &recv_sz = LocalLS_.recv_sz_;
-  const std::vector<int> &send_ranks = LocalLS_.send_ranks_;
-  const std::vector<int> &send_offset = LocalLS_.send_offset_;
-  const std::vector<int> &send_sz = LocalLS_.send_sz_;
   if (comm_size_ > 1) {
     send_buff_pack<<<8 * 56, 32, 0, solver_stream_>>>(
         send_buff_sz_, d_send_pack_idx_, d_send_buff_, d_op_hd);
