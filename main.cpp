@@ -1449,7 +1449,7 @@ static void adapt() {
                             info->Znei[1 + x][1 + y]) == -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
-                      getf0(&var.tmp->all, info->level, info->Z)->state = Leave;
+		      assert(getf(&var.tmp->all, info->level, info->Z) == info);
                     }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
