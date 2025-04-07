@@ -539,7 +539,33 @@ public:
         int cy = (icode / 3) % 3 - 1;
         int infoNei_index[3] = {(xi + cx + n) % n, (yi + cy + n) % n, 0};
         if (info->level > 0 && use_averages) {
-          if (UseCoarseStencil0(info, infoNei_index)) {
+          int imin[3];
+          int imax[3];
+          int aux = 1 << info->level;
+          int blocks[3] = {aux - 1, aux - 1, aux - 1};
+          bool cond;
+          for (int d = 0; d < 3; d++) {
+            imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
+            imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
+            if (info->index[d] == 0 && infoNei_index[d] == 0)
+              imin[d] = 0;
+            if (info->index[d] == blocks[d] && infoNei_index[d] == blocks[d])
+              imax[d] = 0;
+          }
+          for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
+            for (int i2 = imin[2]; i2 <= imax[2]; i2++)
+              for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+                for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+                  int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
+                  if (coarsened_nei_codes[itest] == icode_test) {
+                    cond = true;
+                    goto end;
+                  }
+                }
+          cond = false;
+        end:
+
+          if (cond) {
             int icode = (cx + 1) + 3 * (cy + 1) + 9;
             if (myblocks[icode] != nullptr) {
               Real *b = myblocks[icode];
@@ -829,34 +855,6 @@ public:
       else
         bc_vector(this, info, false);
     }
-  }
-  bool UseCoarseStencil0(Info *info, int *infoNei_index) {
-    int imin[3];
-    int imax[3];
-    int aux = 1 << info->level;
-    int blocks[3] = {aux - 1, aux - 1, aux - 1};
-    bool cond;
-    for (int d = 0; d < 3; d++) {
-      imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
-      imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
-      if (info->index[d] == 0 && infoNei_index[d] == 0)
-        imin[d] = 0;
-      if (info->index[d] == blocks[d] && infoNei_index[d] == blocks[d])
-        imax[d] = 0;
-    }
-    for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
-      for (int i2 = imin[2]; i2 <= imax[2]; i2++)
-        for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-          for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-            int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
-            if (coarsened_nei_codes[itest] == icode_test) {
-              cond = true;
-              goto end;
-            }
-          }
-    cond = false;
-  end:
-    return cond;
   }
 };
 template <typename Kernel>
