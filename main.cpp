@@ -40,7 +40,6 @@ struct Stencil {
 };
 struct Shape;
 struct Solver;
-struct Synchronizer;
 static struct {
   int AdaptSteps;
   int levelMax;
@@ -209,9 +208,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
     getf(all, info->level, info->Z)->halo_id = info->halo_id;
   }
 }
-struct Synchronizer {
-  struct SyncBuf *buf;
-};
 struct Face {
   Info *infos[2];
   int icode[2];
@@ -552,23 +548,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
     for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
       fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
 }
-static Synchronizer *sync1(const Stencil &stencil,
-                           std::map<Stencil, Synchronizer *> *synchronizers,
-                           std::unordered_map<long long, int> *tree,
-                           std::unordered_map<long long, Info *> *all,
-                           std::vector<Info *> *infos, size_t *timestamp) {
-  Synchronizer *s;
-  auto itSynchronizerMPI = synchronizers->find(stencil);
-  if (itSynchronizerMPI == synchronizers->end()) {
-    s = new Synchronizer;
-    Setup(tree, all, infos, s->buf);
-    (*synchronizers)[stencil] = s;
-  } else {
-    s = itSynchronizerMPI->second;
-  }
-  *timestamp = (*timestamp + 1) % 32768;
-  return s;
-}
 static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
                    std::unordered_map<long long, Info *> *all) {
   return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
@@ -603,7 +582,6 @@ static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
 struct Grid {
   bool UpdateFluxCorrection{true};
   size_t timestamp;
-  std::map<Stencil, Synchronizer *> *synchronizers;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
   std::vector<Info *> infos;
@@ -1301,8 +1279,6 @@ public:
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   std::vector<Info *> dummy_vector;
-  Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
-                              &g->all, &g->infos, &g->timestamp);
   std::vector<Info *> *inner = &g->infos;
   std::vector<Info *> *halo_next;
   bool done = false;
@@ -1956,9 +1932,6 @@ static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   Stencil stencil{-1, -1, 2, 2, true};
-  Synchronizer *Synch =
-      sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
-            &var.tmp->infos, &var.tmp->timestamp);
   bool CallValidStates = false;
   bool Reduction = false;
   int tmp;
@@ -2170,12 +2143,7 @@ static void adapt() {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
-    Synchronizer *Synch = nullptr;
     const Stencil stencil{-1, -1, 2, 2, true};
-    if (basic == false) {
-      Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
-                    &g->timestamp);
-    }
     int r = 0;
     int c = 0;
     std::vector<int> m_com;
@@ -2394,11 +2362,6 @@ static void adapt() {
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
       update_blocks(&g->infos, &g->all, &g->tree);
-      auto it = g->synchronizers->begin();
-      while (it != g->synchronizers->end()) {
-        Setup(&g->tree, &g->all, &g->infos, it->second->buf);
-        it++;
-      }
     }
     //    delete lab;
   }
@@ -3085,7 +3048,6 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid;
-    g->synchronizers = new std::map<Stencil, Synchronizer *>;
     for (size_t i = 0; i < my_blocks; i++) {
       long long Z = i;
       long long aux = sim.levels[sim.levelStart] + Z;
@@ -3451,12 +3413,6 @@ int main(int argc, char **argv) {
       var.tmp->UpdateFluxCorrection = false;
     }
     Stencil stencil{-1, -1, 2, 2, false};
-    Synchronizer *Synch =
-        sync1(stencil, var.vel->synchronizers, &var.vel->tree, &var.vel->all,
-              &var.vel->infos, &var.vel->timestamp);
-    Synchronizer *Synch2 =
-        sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
-              &var.tmpV->infos, &var.tmpV->timestamp);
     std::vector<Info *> &blk = var.vel->infos;
     std::vector<bool> ready(blk.size(), false);
     std::vector<Info *> &avail0 = var.vel->infos;
