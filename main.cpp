@@ -453,8 +453,7 @@ public:
         if (!bytes)
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
-        myblocks[icode] =
-            avail(info->level, info->Znei[1 + cx][1 + cy], all);
+        myblocks[icode] = avail(info->level, info->Znei[1 + cx][1 + cy], all);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -664,10 +663,7 @@ public:
           coarsened = true;
         }
       }
-    post_load(info, applybc);
-  }
-
-  void post_load(Info *info, bool applybc) {
+    /* was post load */
     if (coarsened) {
       for (int j = 0; j < _BS_ / 2; j++) {
         for (int i = 0; i < _BS_ / 2; i++) {
@@ -694,11 +690,6 @@ public:
       else
         bc_vector(this, info, true);
     }
-    int aux = 1 << info->level;
-    bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
-    bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
-    int xskip = info->index[0] == 0 ? -1 : 1;
-    int yskip = info->index[1] == 0 ? -1 : 1;
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
