@@ -3063,9 +3063,9 @@ static void adapt() {
       movedBlocks = true;
       MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
     }
-    int temp = movedBlocks ? 1 : 0;
+    int temp0 = movedBlocks ? 1 : 0;
     MPI_Request request_reduction;
-    MPI_Iallreduce(MPI_IN_PLACE, &temp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
+    MPI_Iallreduce(MPI_IN_PLACE, &temp0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &request_reduction);
     for (int i = 0; i < -flux_left; i++)
       AddBlock(dim, g, recv_left[i].level, recv_left[i].Z, recv_left[i].data);
@@ -3073,7 +3073,7 @@ static void adapt() {
       AddBlock(dim, g, recv_right[i].level, recv_right[i].Z,
                recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
-    movedBlocks = (temp >= 1);
+    movedBlocks = (temp0 >= 1);
     fill_pos(&g->infos, &g->all);
     if (result[0] > 0 || result[1] > 0 || movedBlocks) {
       g->UpdateFluxCorrection = true;
