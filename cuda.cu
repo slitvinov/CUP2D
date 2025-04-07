@@ -637,7 +637,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
               &recv_idx_list[recv_offset_[i]]);
     memcpy(&send_pack_idx_long[send_offset_[i]], /* TODO */
 	   &recv_idx_list[recv_offset_[i]],
-	   n * sizeof(long));
+	   n * sizeof(send_pack_idx_long[send_offset_[i]]));
   }
   const long long shift = -Nrows_xcumsum[rank_];
   loc_cooRowA_int_.resize(loc_nnz_);
