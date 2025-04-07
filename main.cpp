@@ -148,24 +148,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     return getf(all, m, Z);
   }
 }
-struct Face {
-  Info *infos[2];
-  int icode[2];
-  int offset;
-  Face(Info *i0, Info *i1, int a_icode0, int a_icode1) {
-    infos[0] = i0;
-    infos[1] = i1;
-    icode[0] = a_icode0;
-    icode[1] = a_icode1;
-  }
-  bool operator<(const Face &other) const {
-    if (infos[0]->id2 == other.infos[0]->id2) {
-      return (icode[0] < other.icode[0]);
-    } else {
-      return (infos[0]->id2 < other.infos[0]->id2);
-    }
-  }
-};
 static void update_blocks(std::vector<Info *> *infos,
                           std::unordered_map<long long, Info *> *all,
                           std::unordered_map<long long, int> *tree) {
@@ -290,9 +272,8 @@ static void bc_scalar(BlockLab *, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
 
 struct BlockLab {
-  const int dim;
-
 private:
+  const int dim;
   bool coarsened, istensorial, use_averages;
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
@@ -1003,7 +984,6 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
   }
 }
 static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
-  assert(lab->dim == 2);
   int n = 1 << info->level;
   if (!coarse) {
     if (info->index[0] == 0)
@@ -1064,7 +1044,6 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, bool coarse) {
 template <int, int> void Neumann2D(BlockLab *, bool);
 void bc_scalar(BlockLab *lab, Info *info, bool coarse) {
   int n = 1 << info->level;
-  assert(lab->dim == 1);
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, coarse);
   if (info->index[0] == n - 1)
