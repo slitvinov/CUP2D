@@ -611,10 +611,6 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
                                  [std::max(-y, 0) +
                                   temp * std::max(0, 1 - abs(y))];
               int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
-              if (infoNeiFinerrank != sim.rank) {
-                myflag = true;
-                goto end;
-              }
             }
           } else if (infoNeiTree < 0) {
             myflag = true;
