@@ -531,60 +531,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
                              [std::max(-code[1], 0) +
                               temp * std::max(0, 1 - abs(code[1]))];
           int infoNeiFinerrank = treef(tree, info->level + 1, nFine);
-          if (infoNeiFinerrank != sim.rank) {
-            isInner = false;
-            buf->Neighbors.insert(infoNeiFinerrank);
-            Info *infoNeiFiner = getf(all, info->level + 1, nFine);
-            int icode2 =
-                (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-            buf->send_interfaces[infoNeiFinerrank].push_back(
-                {info, infoNeiFiner, icode, icode2});
-            buf->recv_interfaces[infoNeiFinerrank].push_back(
-                {infoNeiFiner, info, icode2, icode});
-            DM.add(infoNeiFinerrank,
-                   (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-            if (Bstep == 1) {
-              int d0 = abs(code[1] + 2 * code[2]);
-              int d1 = (d0 + 1) % 3;
-              int d2 = (d0 + 2) % 3;
-              int code3[3];
-              code3[d0] = -code[d0];
-              code3[d1] = -2 * (infoNeiFiner->index[d1] % 2) + 1;
-              code3[d2] = -2 * (infoNeiFiner->index[d2] % 2) + 1;
-              int icode3 =
-                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-              int code4[3];
-              code4[d0] = -code[d0];
-              code4[d1] = code3[d1];
-              code4[d2] = 0;
-              int icode4 =
-                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-              int code5[3];
-              code5[d0] = -code[d0];
-              code5[d1] = 0;
-              code5[d2] = code3[d2];
-              int icode5 =
-                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-              if (code3[2] == 0) {
-                buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(info, infoNeiFiner, icode, icode3));
-                DM.add(infoNeiFinerrank,
-                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-              }
-              if (code4[2] == 0) {
-                buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(info, infoNeiFiner, icode, icode4));
-                DM.add(infoNeiFinerrank,
-                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-              }
-              if (code5[2] == 0) {
-                buf->send_interfaces[infoNeiFinerrank].push_back(
-                    Interface(info, infoNeiFiner, icode, icode5));
-                DM.add(infoNeiFinerrank,
-                       (int)buf->send_interfaces[infoNeiFinerrank].size() - 1);
-              }
-            }
-          }
         }
       }
     }
