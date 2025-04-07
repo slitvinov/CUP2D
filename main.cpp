@@ -2907,14 +2907,7 @@ static void adapt() {
       const int baserank = treef(&g->tree, b->level, nBlock);
       const int brank = treef(&g->tree, b->level, b->Z);
       if (b->Z != nBlock) {
-        if (baserank != sim.rank && brank == sim.rank) {
-          MPI_Block x;
-          x.level = bCopy->level;
-          x.Z = bCopy->Z;
-          memcpy(&x.data[0], bCopy->block, _BS_ * _BS_ * dim * sizeof(Real));
-          send_blocks[baserank].push_back(x);
-          treef(&g->tree, b->level, b->Z) = baserank;
-        }
+	/**/
       } else {
         for (int j = 0; j < 2; j++)
           for (int i = 0; i < 2; i++) {
