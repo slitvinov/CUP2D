@@ -1388,7 +1388,7 @@ static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   bool Reduction = false;
-  int tmp;
+  int tmp = 0;
   std::vector<Info *> *I = &var.tmp->infos;
 #pragma omp parallel
   {
