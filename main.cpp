@@ -612,18 +612,8 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
                                   temp * std::max(0, 1 - abs(y))];
               int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
             }
-          } else if (infoNeiTree < 0) {
-            myflag = true;
-            goto end;
           }
         }
-  end:
-    if (myflag) {
-      myData.push_back(info->level);
-      myData.push_back(info->Z);
-      if (UpdateIDs)
-        myData.push_back(info->id);
-    }
   }
   std::vector<int> neighbors;
   double *boxes;
