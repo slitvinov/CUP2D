@@ -2263,16 +2263,11 @@ static void adapt() {
         blocks_after--;
       }
     }
-    MPI_Request requests[2];
     int temp[2] = {r, c};
     int result[2];
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     std::vector<long long> block_distribution(size);
-    MPI_Iallreduce(&temp, &result, 2, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                   &requests[0]);
-    MPI_Iallgather(&blocks_after, 1, MPI_LONG_LONG, block_distribution.data(),
-                   1, MPI_LONG_LONG, MPI_COMM_WORLD, &requests[1]);
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
     if (Synch != nullptr)
@@ -2460,7 +2455,6 @@ static void adapt() {
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
-    MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
     long long max_b = block_distribution[0];
     long long min_b = block_distribution[0];
     for (auto &b : block_distribution) {
