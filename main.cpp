@@ -4046,10 +4046,6 @@ int main(int argc, char **argv) {
       for (int j = 0; j < _BS_ * _BS_; j++)
         pres[j] += pold[j] - avg;
     }
-    if (var.tmp->UpdateFluxCorrection) {
-      prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
-      var.tmp->UpdateFluxCorrection = false;
-    }
     computeA(pressureCorrectionKernel(), var.pres, 1);
     fillcases(var.buf1, &var.tmp->tree, 1);
 #pragma omp parallel for
