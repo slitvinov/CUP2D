@@ -2916,34 +2916,10 @@ static void adapt() {
             if (n == nBlock)
               continue;
             const int temprank = treef(&g->tree, b->level, n);
-            if (temprank != sim.rank) {
-              MPI_Block x;
-              x.level = bCopy->level;
-              x.Z = bCopy->Z;
-              recv_blocks[temprank].push_back(x);
-              treef(&g->tree, b->level, n) = baserank;
-            }
           }
       }
     }
     std::vector<MPI_Request> requests0;
-    for (int r = 0; r < sim.size; r++)
-      if (r != sim.rank) {
-        if (recv_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Irecv(&recv_blocks[r][0],
-                    recv_blocks[r].size() * sizeof(recv_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-        if (send_blocks[r].size() != 0) {
-          MPI_Request req{};
-          requests0.push_back(req);
-          MPI_Isend(&send_blocks[r][0],
-                    send_blocks[r].size() * sizeof(send_blocks[r][0]),
-                    MPI_UINT8_T, r, 2468, MPI_COMM_WORLD, &requests0.back());
-        }
-      }
     for (int r = 0; r < sim.size; r++)
       for (int i = 0; i < (int)send_blocks[r].size(); i++) {
         dealloc(send_blocks[r][i].level, send_blocks[r][i].Z, &g->infos);
