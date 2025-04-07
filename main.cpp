@@ -2797,4 +2797,5 @@ int main(int argc, char **argv) {
     free(shape->sdf);
     delete shape;
   }
+  fprintf(stderr, "main.cpp: end\n");
 }
