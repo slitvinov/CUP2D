@@ -177,8 +177,7 @@ struct SyncBuf {
 };
 static void Setup(std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
-                  std::vector<Info *> *infos, struct SyncBuf *buf
-                  ) {
+                  std::vector<Info *> *infos, struct SyncBuf *buf) {
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
   buf->inner_blocks.clear();
@@ -1387,9 +1386,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
-      {
-	halo_next = &Synch->dummy_vector;
-      }
+      { halo_next = &Synch->dummy_vector; }
 #pragma omp barrier
 #pragma omp single
       {
@@ -1680,73 +1677,63 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, Info **infos, char *path) {
-  long i, j, k, x, y, offset, nblock;
+  long i, j, k, x, y, nblock;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
-  MPI_File mpi_file;
+  FILE *file;
   float xyz[8 * _BS_ * _BS_];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
-
   nblock = var.vel->infos.size();
-  MPI_Exscan(&nblock, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-  if (sim.rank == 0)
-    offset = 0;
-  if (sim.rank == sim.size - 1) {
-    char *xyz_base, xdmf_path[FILENAME_MAX];
-    long nblock_total = nblock + offset;
-    FILE *xdmf;
-    snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
-    xyz_base = xyz_path;
-    for (j = 0; xyz_path[j] != '\0'; j++)
-      if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0')
-        xyz_base = &xyz_path[j + 1];
-    xdmf = fopen(xdmf_path, "w");
-    fprintf(xdmf,
-            "<Xdmf\n"
-            "    Version=\"2.0\">\n"
-            "  <Domain>\n"
-            "    <Grid>\n"
-            "      <Time Value=\"%.16e\"/>\n"
-            "      <Topology\n"
-            "          Dimensions=\"%ld\"\n"
-            "          TopologyType=\"Quadrilateral\"/>\n"
-            "     <Geometry\n"
-            "         GeometryType=\"XY\">\n"
-            "       <DataItem\n"
-            "           Dimensions=\"%ld 2\"\n"
-            "           Format=\"Binary\">\n"
-            "         %s\n"
-            "       </DataItem>\n"
-            "     </Geometry>\n",
-            time, _BS_ * _BS_ * nblock_total, 4 * _BS_ * _BS_ * nblock_total,
-            xyz_base);
-    for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
-      if (var.F[i].prefix != NULL) {
-        snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
-                 var.F[i].prefix);
-        int dim = var.F[i].dim;
-        fprintf(xdmf,
-                "       <Attribute\n"
-                "           AttributeType=\"%s\"\n"
-                "           Name=\"%s\"\n"
-                "           Center=\"Cell\">\n"
-                "         <DataItem\n"
-                "             Dimensions=\"%ld %d\"\n"
-                "             Precision=\"%ld\"\n"
-                "             Format=\"Binary\">\n"
-                "           %s\n"
-                "         </DataItem>\n"
-                "       </Attribute>\n",
-                dim == 2 ? "Vector" : "Scalar", var.F[i].prefix,
-                _BS_ * _BS_ * nblock_total, dim, sizeof(Real),
-                attr_path + (xyz_path - xyz_base));
-      }
-    fprintf(xdmf, "    </Grid>\n"
-                  "  </Domain>\n"
-                  "</Xdmf>\n");
-    fclose(xdmf);
-  }
-  MPI_File_open(MPI_COMM_WORLD, xyz_path, MPI_MODE_CREATE | MPI_MODE_WRONLY,
-                MPI_INFO_NULL, &mpi_file);
+  char *xyz_base, xdmf_path[FILENAME_MAX];
+  FILE *xdmf;
+  snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
+  xyz_base = xyz_path;
+  for (j = 0; xyz_path[j] != '\0'; j++)
+    if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0')
+      xyz_base = &xyz_path[j + 1];
+  xdmf = fopen(xdmf_path, "w");
+  fprintf(xdmf,
+          "<Xdmf\n"
+          "    Version=\"2.0\">\n"
+          "  <Domain>\n"
+          "    <Grid>\n"
+          "      <Time Value=\"%.16e\"/>\n"
+          "      <Topology\n"
+          "          Dimensions=\"%ld\"\n"
+          "          TopologyType=\"Quadrilateral\"/>\n"
+          "     <Geometry\n"
+          "         GeometryType=\"XY\">\n"
+          "       <DataItem\n"
+          "           Dimensions=\"%ld 2\"\n"
+          "           Format=\"Binary\">\n"
+          "         %s\n"
+          "       </DataItem>\n"
+          "     </Geometry>\n",
+          time, _BS_ * _BS_ * nblock, 4 * _BS_ * _BS_ * nblock, xyz_base);
+  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
+    if (var.F[i].prefix != NULL) {
+      snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
+      int dim = var.F[i].dim;
+      fprintf(xdmf,
+              "       <Attribute\n"
+              "           AttributeType=\"%s\"\n"
+              "           Name=\"%s\"\n"
+              "           Center=\"Cell\">\n"
+              "         <DataItem\n"
+              "             Dimensions=\"%ld %d\"\n"
+              "             Precision=\"%ld\"\n"
+              "             Format=\"Binary\">\n"
+              "           %s\n"
+              "         </DataItem>\n"
+              "       </Attribute>\n",
+              dim == 2 ? "Vector" : "Scalar", var.F[i].prefix,
+              _BS_ * _BS_ * nblock, dim, sizeof(Real),
+              attr_path + (xyz_path - xyz_base));
+    }
+  fprintf(xdmf, "    </Grid>\n"
+                "  </Domain>\n"
+                "</Xdmf>\n");
+  fclose(xdmf);
+  file = fopen(xyz_path, "wb");
   for (i = 0; i < nblock; i++) {
     Info *info = infos[i];
     k = 0;
@@ -1767,24 +1754,19 @@ static void dump(Real time, Info **infos, char *path) {
         xyz[k++] = u1;
         xyz[k++] = v0;
       }
-    MPI_File_write_at(mpi_file, (offset + i) * sizeof xyz, xyz,
-                      sizeof xyz / sizeof *xyz, MPI_FLOAT, MPI_STATUS_IGNORE);
+    fwrite(xyz, sizeof xyz, 1, file);
   }
-  MPI_File_close(&mpi_file);
+  fclose(file);
 
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
       snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
-      MPI_File_open(MPI_COMM_WORLD, attr_path,
-                    MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL,
-                    &mpi_file);
+      file = fopen(attr_path, "wb");
       for (j = 0; j < nblock; j++)
-        MPI_File_write_at(
-            mpi_file, (offset + j) * dim * _BS_ * _BS_ * sizeof(Real),
-            g->infos[j]->block, dim * _BS_ * _BS_, MPI_Real, MPI_STATUS_IGNORE);
-      MPI_File_close(&mpi_file);
+        fwrite(g->infos[j]->block, sizeof(Real), dim * _BS_ * _BS_, file);
+      fclose(file);
     }
 }
 struct Integrals {
