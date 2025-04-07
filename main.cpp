@@ -140,7 +140,7 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   if (retval != all->end()) {
     return retval->second;
   } else {
-    exit(1);
+    assert(0);
   }
 }
 
