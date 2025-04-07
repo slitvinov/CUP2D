@@ -141,25 +141,6 @@ struct Range {
   bool needed{true};
   bool avg_down{true};
 };
-struct UnPackInfo {
-  int offset;
-  int lx;
-  int ly;
-  int x;
-  int y;
-  int LX;
-  int LY;
-  int CoarseVersionOffset;
-  int CoarseVersionLX;
-  int CoarseVersionLY;
-  int CoarseVersionx;
-  int CoarseVersiony;
-  int level;
-  int icode;
-  int rank;
-  int index_0;
-  int index_1;
-};
 struct HaloBlockGroup {
   std::vector<Info *> myblocks;
   std::set<int> myranks;
@@ -248,7 +229,6 @@ struct SyncBuf {
   std::vector<std::vector<PackInfo>> send_packinfos;
   Real **recv_buffer;
   Real **send_buffer;
-  std::vector<std::vector<UnPackInfo>> myunpacks;
 };
 static void
 Setup(int dim, std::unordered_map<long long, int> *tree,
@@ -270,9 +250,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     buf->recv_interfaces[r].clear();
     buf->send_buffer_size[r] = 0;
   }
-  for (size_t i = 0; i < buf->myunpacks.size(); i++)
-    buf->myunpacks[i].clear();
-  buf->myunpacks.clear();
   std::vector<Range> compass[27];
   for (Info *info : *infos) {
     info->halo_id = -1;
@@ -334,7 +311,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     }
     getf(all, info->level, info->Z)->halo_id = info->halo_id;
   }
-  buf->myunpacks.resize(buf->halo_blocks.size());
   mapofHaloBlockGroups.clear();
 }
 struct Synchronizer {
