@@ -1491,7 +1491,7 @@ static void adapt() {
               continue;
             if (code[2] != 0)
               continue;
-            Info *infoNei = getf0(&var.tmp->all, info->level,
+            Info *infoNei = getf(&var.tmp->all, info->level,
                                  info->Znei[1 + code[0]][1 + code[1]]);
             if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
                 infoNei->state == Refine) {
