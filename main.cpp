@@ -159,14 +159,10 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     return getf(all, m, Z);
   }
 }
-struct SyncBuf {
-  std::vector<Info *> inner_blocks;
-};
 static void Setup(std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
                   std::vector<Info *> *infos, struct SyncBuf *buf) {
   std::vector<int> offsets(sim.size, 0);
-  buf->inner_blocks.clear();
   for (Info *info : *infos) {
     info->halo_id = -1;
     bool xskin =
@@ -209,7 +205,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
     }
     if (isInner) {
       info->halo_id = -1;
-      buf->inner_blocks.push_back(info);
     }
     getf(all, info->level, info->Z)->halo_id = info->halo_id;
   }
@@ -566,7 +561,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   auto itSynchronizerMPI = synchronizers->find(stencil);
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer;
-    s->buf = new SyncBuf;
     Setup(tree, all, infos, s->buf);
     (*synchronizers)[stencil] = s;
   } else {
@@ -1309,7 +1303,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
   std::vector<Info *> dummy_vector;
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
                               &g->all, &g->infos, &g->timestamp);
-  std::vector<Info *> *inner = &Synch->buf->inner_blocks;
+  std::vector<Info *> *inner = &g->infos;
   std::vector<Info *> *halo_next;
   bool done = false;
 #pragma omp parallel
@@ -1968,7 +1962,7 @@ static void adapt() {
   bool CallValidStates = false;
   bool Reduction = false;
   int tmp;
-  std::vector<Info *> *I = &Synch->buf->inner_blocks;
+  std::vector<Info *> *I = &var.tmp->infos;
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
@@ -3465,8 +3459,8 @@ int main(int argc, char **argv) {
               &var.tmpV->infos, &var.tmpV->timestamp);
     std::vector<Info *> &blk = var.vel->infos;
     std::vector<bool> ready(blk.size(), false);
-    std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
-    std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
+    std::vector<Info *> &avail0 = var.vel->infos;
+    std::vector<Info *> &avail02 = var.tmpV->infos;
     const int Ninner = avail0.size();
 #pragma omp parallel
     {
