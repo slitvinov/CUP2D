@@ -3191,7 +3191,6 @@ int main(int argc, char **argv) {
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     update_blocks(false, &g->infos, &g->all, &g->tree);
-    MPI_Barrier(MPI_COMM_WORLD);
   }
   for (int i = 0;; i++) {
     ongrid();
