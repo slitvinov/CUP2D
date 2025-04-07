@@ -164,12 +164,6 @@ static Real *avail(int level, long long Z,
                    std::unordered_map<long long, Info *> *all) {
   return getf(all, level, Z)->block;
 }
-static Real *avail1(int ix, int iy, int level,
-                    std::unordered_map<long long, Info *> *all) {
-  const long long Z = forward(level, ix, iy);
-  return getf(all, level, Z)->block;
-}
-
 static void dealloc_many(std::vector<long long> &ids,
                          std::vector<Info *> *infos) {
   for (size_t j = 0; j < infos->size(); j++)
@@ -417,11 +411,12 @@ public:
           Bstep = 4;
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
-          Real *b = avail1(2 * xi + std::max(cx, 0) + cx +
-                               (B % 2) * std::max(0, 1 - abs(cx)),
-                           2 * yi + std::max(cy, 0) + cy +
-                               aux * std::max(0, 1 - abs(cy)),
-                           info->level + 1, all);
+	  int ix = 2 * xi + std::max(cx, 0) + cx +
+	    (B % 2) * std::max(0, 1 - abs(cx));
+	  int iy = 2 * yi + std::max(cy, 0) + cy +
+	    aux * std::max(0, 1 - abs(cy));
+	  const long long Z = forward(info->level + 1, ix, iy);
+	  Real * b = getf(all, info->level + 1, Z)->block;
           if (b == nullptr)
             continue;
           int i =
