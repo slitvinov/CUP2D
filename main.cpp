@@ -4,6 +4,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstring>
+#include <fenv.h>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -3050,9 +3051,6 @@ struct LineParser : public CommandlineParser {
     }
   }
 };
-
-#include <fenv.h>
-#include <unistd.h>
 
 int main(int argc, char **argv) {
   CommandlineParser parser(argc, argv);
