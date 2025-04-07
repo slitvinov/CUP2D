@@ -543,7 +543,6 @@ public:
           int imax[3];
           int aux = 1 << info->level;
           int blocks[3] = {aux - 1, aux - 1, aux - 1};
-          bool cond;
           for (int d = 0; d < 3; d++) {
             imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
             imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
@@ -552,6 +551,7 @@ public:
             if (info->index[d] == blocks[d] && infoNei_index[d] == blocks[d])
               imax[d] = 0;
           }
+          bool cond;
           for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
             for (int i2 = imin[2]; i2 <= imax[2]; i2++)
               for (int i1 = imin[1]; i1 <= imax[1]; i1++)
@@ -564,7 +564,6 @@ public:
                 }
           cond = false;
         end:
-
           if (cond) {
             int icode = (cx + 1) + 3 * (cy + 1) + 9;
             if (myblocks[icode] != nullptr) {
