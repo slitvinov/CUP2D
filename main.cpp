@@ -173,14 +173,6 @@ struct PackInfo {
   int ex;
   int ey;
 };
-static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
-  std::vector<Range *> retval;
-  for (int i = 0; i < 27; i++)
-    for (size_t j = 0; j < compass[i].size(); j++)
-      if (compass[i][j].needed)
-        retval.push_back(&compass[i][j]);
-  return retval;
-}
 struct DuplicatesManager {
   std::vector<int> positions;
   std::vector<size_t> sizes;
