@@ -1734,24 +1734,6 @@ static void adapt() {
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
-    for (auto &b : I) {
-      const long long nBlock =
-          forward(b->level, 2 * (b->index[0] / 2), 2 * (b->index[1] / 2));
-      const Info *base = getf(&g->all, b->level, nBlock);
-      if (!(Tree1(base, &g->tree) >= 0) || base->state != Compress)
-        continue;
-      if (b->Z != nBlock) {
-        /**/
-      } else {
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            const long long n =
-                forward(b->level, b->index[0] + i, b->index[1] + j);
-            if (n == nBlock)
-              continue;
-          }
-      }
-    }
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
@@ -2590,12 +2572,12 @@ int main(int argc, char **argv) {
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
-	  printf("Collision between objects %ld and %ld\n"
-		 " iM %g %g\n"
-		 " jM %g %g\n"
-		 " Normal vector = %g %g\n",
-		 i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-		 collisions[j].iM, NX, NY);
+          printf("Collision between objects %ld and %ld\n"
+                 " iM %g %g\n"
+                 " jM %g %g\n"
+                 " Normal vector = %g %g\n",
+                 i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
+                 collisions[j].iM, NX, NY);
         }
       }
     }
