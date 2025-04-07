@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <memory>
 #include <array>
 #include <cassert>
 #include <cfloat>
@@ -9,6 +8,7 @@
 #include <iomanip>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -1409,9 +1409,7 @@ static void adapt() {
       info->state = (*I)[i]->state;
       if (info->state != Leave) {
 #pragma omp critical
-        {
-	  Reduction = true;
-        }
+        { Reduction = true; }
       }
     }
   }
@@ -1423,7 +1421,7 @@ static void adapt() {
       Info *info = I[j];
       if (info->state != Leave) {
         info->changed2 = true;
-	assert(getf(&var.tmp->all, info->level, info->Z) == info);
+        assert(getf(&var.tmp->all, info->level, info->Z) == info);
       }
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
@@ -1449,7 +1447,7 @@ static void adapt() {
                             info->Znei[1 + x][1 + y]) == -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
-		      assert(getf(&var.tmp->all, info->level, info->Z) == info);
+                      assert(getf(&var.tmp->all, info->level, info->Z) == info);
                     }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
@@ -1463,10 +1461,11 @@ static void adapt() {
                       State NeiState = FinerNei->state;
                       if (NeiState == Refine) {
                         info->state = Refine;
-                        getf(&var.tmp->all, info->level, info->Z)->state =
+                        getf0(&var.tmp->all, info->level, info->Z)->state =
                             Refine;
+
                         info->changed2 = true;
-                        getf(&var.tmp->all, info->level, info->Z)->changed2 =
+                        getf0(&var.tmp->all, info->level, info->Z)->changed2 =
                             true;
                         goto end;
                       }
