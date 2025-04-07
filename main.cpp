@@ -3686,7 +3686,7 @@ int main(int argc, char **argv) {
     std::vector<Info *> &zInfo = var.pres->infos;
     const int NB = zInfo.size();
     const std::vector<double> &x = sim.mat->x_;
-    Real avg, avg1, quantities[2];
+    Real avg, avg1;
     avg = 0;
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
@@ -3699,10 +3699,6 @@ int main(int argc, char **argv) {
         avg1 += vv;
       }
     }
-    quantities[0] = avg;
-    quantities[1] = avg1;
-    avg = quantities[0];
-    avg1 = quantities[1];
     avg = avg / avg1;
 #pragma omp parallel for
     for (int i = 0; i < NB; i++) {
@@ -3721,10 +3717,6 @@ int main(int argc, char **argv) {
         avg1 += vv;
       }
     }
-    quantities[0] = avg;
-    quantities[1] = avg1;
-    avg = quantities[0];
-    avg1 = quantities[1];
     avg = avg / avg1;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
