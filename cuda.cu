@@ -418,7 +418,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
     cudaMemcpyAsync(&h_red_res, d_red_res_, sizeof(double),
                     cudaMemcpyDeviceToHost, solver_stream_);
     cudaStreamSynchronize(solver_stream_);
-    MPI_Allreduce(MPI_IN_PLACE, &h_red_res, 1, MPI_DOUBLE, MPI_SUM, m_comm_);
     if (bMeanRow_ >= 0)
       cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double),
                       cudaMemcpyHostToDevice, solver_stream_);
@@ -448,8 +447,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
   cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1),
                   2 * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_);
   cudaStreamSynchronize(solver_stream_);
-  MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_MAX,
-                m_comm_);
   error = h_coeffs_->buff_2;
   error_init = error;
   error_opt = error;
@@ -469,8 +466,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     cudaStreamSynchronize(solver_stream_);
     h_coeffs_->buff_1 *= h_coeffs_->buff_1;
     h_coeffs_->buff_2 *= h_coeffs_->buff_2;
-    MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->rho_curr), 3, MPI_DOUBLE, MPI_SUM,
-                  m_comm_);
     cudaMemcpyAsync(&(d_coeffs_->rho_curr), &(h_coeffs_->rho_curr),
                     sizeof(double), cudaMemcpyHostToDevice, solver_stream_);
     const bool serious_breakdown =
@@ -490,8 +485,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
                       sizeof(double), cudaMemcpyDeviceToHost, solver_stream_);
       cudaStreamSynchronize(solver_stream_);
       h_coeffs_->rho_curr *= h_coeffs_->rho_curr;
-      MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->rho_curr), 1, MPI_DOUBLE,
-                    MPI_SUM, m_comm_);
       cudaMemcpyAsync(&(d_coeffs_->rho_curr), &(h_coeffs_->rho_curr),
                       sizeof(double), cudaMemcpyHostToDevice, solver_stream_);
       cudaMemsetAsync(d_nu_, 0, m_ * sizeof(double), solver_stream_);
@@ -513,8 +506,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1), sizeof(double),
                     cudaMemcpyDeviceToHost, solver_stream_);
     cudaStreamSynchronize(solver_stream_);
-    MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 1, MPI_DOUBLE, MPI_SUM,
-                  m_comm_);
     cudaMemcpyAsync(&(d_coeffs_->buff_1), &(h_coeffs_->buff_1), sizeof(double),
                     cudaMemcpyHostToDevice, solver_stream_);
     set_alpha<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
@@ -535,8 +526,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1),
                     2 * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_);
     cudaStreamSynchronize(solver_stream_);
-    MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_SUM,
-                  m_comm_);
     cudaMemcpyAsync(&(d_coeffs_->buff_1), &(h_coeffs_->buff_1),
                     2 * sizeof(double), cudaMemcpyHostToDevice, solver_stream_);
     set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
@@ -555,7 +544,6 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
     cudaMemcpyAsync(h_coeffs_, d_coeffs_, sizeof(BiCGSTABScalars),
                     cudaMemcpyDeviceToHost, solver_stream_);
     cudaStreamSynchronize(solver_stream_);
-    MPI_Allreduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_MAX, m_comm_);
     if (error < error_opt) {
       error_opt = error;
       cudaMemcpyAsync(d_x_opt_, d_x_, m_ * sizeof(double),
