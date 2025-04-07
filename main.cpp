@@ -203,8 +203,7 @@ static void bc_vector(BlockLab *, Info *, bool coarse);
 struct BlockLab {
 private:
   const int dim;
-  bool coarsened;
-  int coarsened_nei_codes_size, offset[3];
+  int offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
 
@@ -221,7 +220,6 @@ public:
     free(c);
   }
   void prepare(const Stencil &stencil) {
-    coarsened = false;
     start0[0] = stencil.sx;
     start0[1] = stencil.sy;
     start0[2] = 0;
@@ -243,6 +241,8 @@ public:
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
+    int coarsened_nei_codes_size;
+    bool coarsened = false;
     bool use_averages;
     use_averages = stencil.tensorial || start0[0] < -2 || start0[1] < -2 ||
                    end[0] > 3 || end[1] > 3;
@@ -645,7 +645,8 @@ public:
         continue;
       if (code[1] == yskip && yskin)
         continue;
-      if (!stencil.tensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
+      if (!stencil.tensorial && !use_averages &&
+          abs(code[0]) + abs(code[1]) > 1)
         continue;
       int s[2] = {code[0] < 1 ? (code[0] < 0 ? start0[0] : 0) : _BS_,
                   code[1] < 1 ? (code[1] < 0 ? start0[1] : 0) : _BS_};
