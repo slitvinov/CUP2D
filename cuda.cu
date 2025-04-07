@@ -385,27 +385,6 @@ void BiCGSTABSolver::hd_cusparseSpMV(double *d_op_hd,
   cusparseSpMV(cusparse_handle_, CUSPARSE_OPERATION_NON_TRANSPOSE, d_eye_,
                spDescrLocA_, spDescrLocOp, d_nil_, spDescrRes, CUDA_R_64F,
                CUSPARSE_SPMV_ALG_DEFAULT, locSpMVBuff_);
-  if (comm_size_ > 1) {
-    cudaStreamWaitEvent(copy_stream_, sync_event_, 0);
-    cudaMemcpyAsync(h_send_buff_, d_send_buff_, send_buff_sz_ * sizeof(double),
-                    cudaMemcpyDeviceToHost, copy_stream_);
-    cudaStreamSynchronize(copy_stream_);
-    std::vector<MPI_Request> recv_requests(recv_ranks.size());
-    for (size_t i(0); i < recv_ranks.size(); i++)
-      MPI_Irecv(&h_recv_buff_[recv_offset[i]], recv_sz[i], MPI_DOUBLE,
-                recv_ranks[i], 978, m_comm_, &recv_requests[i]);
-    std::vector<MPI_Request> send_requests(send_ranks.size());
-    for (size_t i(0); i < send_ranks.size(); i++)
-      MPI_Isend(&h_send_buff_[send_offset[i]], send_sz[i], MPI_DOUBLE,
-                send_ranks[i], 978, m_comm_, &send_requests[i]);
-    MPI_Waitall(send_ranks.size(), send_requests.data(), MPI_STATUS_IGNORE);
-    MPI_Waitall(recv_ranks.size(), recv_requests.data(), MPI_STATUS_IGNORE);
-    cudaMemcpyAsync(&d_op_hd[m_], h_recv_buff_, halo_ * sizeof(double),
-                    cudaMemcpyHostToDevice, solver_stream_);
-    cusparseSpMV(cusparse_handle_, CUSPARSE_OPERATION_NON_TRANSPOSE, d_eye_,
-                 spDescrBdA_, spDescrBdOp, d_eye_, spDescrRes, CUDA_R_64F,
-                 CUSPARSE_SPMV_ALG_DEFAULT, bdSpMVBuff_);
-  }
   if (bMeanConstraint_) {
     cudaMemcpyAsync(d_red_, d_op_hd, m_ * sizeof(double),
                     cudaMemcpyDeviceToDevice, solver_stream_);
