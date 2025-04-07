@@ -226,7 +226,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
   }
 }
 struct Synchronizer {
-  std::array<Range, 3 * 27> AllStencils;
   std::vector<Info *> dummy_vector;
   struct SyncBuf *buf;
 };
@@ -580,28 +579,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer;
     s->buf = new SyncBuf;
-    const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
-                       (0 - 1) / 2 + 0};
-    const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
-    for (int icode = 0; icode < 27; icode++) {
-      const int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                           (icode / 9) % 3 - 1};
-      Range &range0 = s->AllStencils[icode];
-      range0.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + stencil.sx : 0) : 0;
-      range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
-      range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
-      range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
-      Range &range1 = s->AllStencils[icode + 27];
-      range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
-      range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
-      range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
-      range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
-      Range &range2 = s->AllStencils[icode + 2 * 27];
-      range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
-      range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
-      range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
-      range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
-    }
     Setup(tree, all, infos, s->buf);
     (*synchronizers)[stencil] = s;
   } else {
