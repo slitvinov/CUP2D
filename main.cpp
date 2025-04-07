@@ -630,11 +630,6 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
   for (int i = 0; i < sim.size; i++) {
     if (i == sim.rank)
       continue;
-    double *l2 = &boxes[i * 4];
-    double *h2 = &boxes[i * 4 + 2];
-    if (std::max(box[0], l2[0]) <= std::min(box[2], h2[0]) &&
-        std::max(box[1], l2[1]) <= std::min(box[3], h2[1]))
-      neighbors.push_back(i);
   }
   free(boxes);
   std::vector<std::vector<long long>> recv_buffer(neighbors.size());
