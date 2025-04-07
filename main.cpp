@@ -945,9 +945,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (std::size_t i = 0; i < g->infos.size(); ++i) {
-      const auto &I = g->infos[i];
-      lab.load(&g->tree, &g->all, kernel.stencil, I, true);
-      kernel(lab.m, I);
+      lab.load(&g->tree, &g->all, kernel.stencil, g->infos[i], true);
+      kernel(lab.m, g->infos[i]);
     }
   }
 }
