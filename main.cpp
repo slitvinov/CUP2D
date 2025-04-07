@@ -1454,16 +1454,6 @@ public:
     return false;
   }
 };
-static void _alloc(int level, long long Z,
-                   std::unordered_map<long long, Info *> *all,
-                   std::vector<Info *> *infos,
-                   std::unordered_map<long long, int> *tree, int dim) {
-  Info *new_info = getf(all, level, Z);
-  new_info->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
-#pragma omp critical
-  { infos->push_back(new_info); }
-  treef(tree, level, Z) = sim.rank;
-}
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
