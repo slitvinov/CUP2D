@@ -45,7 +45,6 @@ static struct {
   int levelStart;
   int maxPoissonRestarts;
   const int rank = 0;
-  const int size = 1;
   int step = 0;
   int dump_count = 0;
   Real CFL;
