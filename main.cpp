@@ -2261,8 +2261,7 @@ static void adapt() {
         blocks_after--;
       }
     }
-    int temp[2] = {r, c};
-    int result[2];
+    int result[2] = {r, c};
     int size = 1;
     std::vector<long long> block_distribution(size);
     std::vector<long long> dealloc_IDs;
