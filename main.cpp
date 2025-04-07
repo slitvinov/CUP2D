@@ -2024,7 +2024,6 @@ static void adapt() {
             &var.tmp->infos, &var.tmp->timestamp, 1);
   bool CallValidStates = false;
   bool Reduction = false;
-  MPI_Request Reduction_req;
   int tmp;
   std::vector<Info *> *I = &Synch->buf->inner_blocks;
 #pragma omp parallel
@@ -2052,14 +2051,11 @@ static void adapt() {
           if (!Reduction) {
             tmp = 1;
             Reduction = true;
-            MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                           MPI_COMM_WORLD, &Reduction_req);
           }
         }
       }
     }
   }
-  MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
   if (tmp > 0) {
     int levelMin = 0;
     std::vector<Info *> &I = var.tmp->infos;
