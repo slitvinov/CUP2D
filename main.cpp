@@ -3892,16 +3892,6 @@ int main(int argc, char **argv) {
       }
 #pragma omp barrier
       const int Nhalo = avail1.size();
-#pragma omp for
-      for (int i = 0; i < Nhalo; i++) {
-        Info *I = avail1[i];
-        Info *I2 = avail12[i];
-        lab.load(&var.vel->tree, &var.vel->all, Synch->buf, stencil, I, true,
-                 Synch->sLength);
-        lab2.load(&var.tmpV->tree, &var.tmpV->all, Synch2->buf, stencil, I2,
-                  true, Synch->sLength);
-        pressure_rhs_fun(lab, lab2, I, I2);
-      }
     }
     fillcases(var.buf1, &var.tmp->tree, 1);
     std::vector<Info *> &presInfo = var.pres->infos;
