@@ -228,7 +228,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
 struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   std::vector<Info *> dummy_vector;
-  std::vector<std::vector<int>> ToBeAveragedDown;
   struct SyncBuf *buf;
 };
 struct Face {
@@ -581,7 +580,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer;
     s->buf = new SyncBuf;
-    s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
     const int eC[3] = {stencil.ex / 2 + 2, stencil.ey / 2 + 2, 1 / 2 + 1};
