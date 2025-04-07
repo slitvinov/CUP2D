@@ -197,35 +197,6 @@ struct Grid {
   std::unordered_map<long long, int> tree;
   std::vector<Info *> infos;
 };
-
-static void LI(Real *a0, Real *b0, Real *c0) {
-  Real a = *a0;
-  Real b = *b0;
-  Real c = *c0;
-  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Real lambda = (b - c) - kappa;
-  *a0 = (4.0 * kappa + 2.0 * lambda) + c;
-}
-static void LE(Real *a0, Real *b0, Real *c0) {
-  Real a = *a0;
-  Real b = *b0;
-  Real c = *c0;
-  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Real lambda = (b - c) - kappa;
-  *a0 = (9.0 * kappa + 3.0 * lambda) + c;
-}
-static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
-  double dx = 0.25 * (2 * x - 1);
-  double dy = 0.25 * (2 * y - 1);
-  Real dudx = 0.5 * ((*C[2][1]) - (*C[0][1]));
-  Real dudy = 0.5 * ((*C[1][2]) - (*C[1][0]));
-  Real dudxdy = 0.25 * (((*C[0][0]) + (*C[2][2])) - ((*C[2][0]) + (*C[0][2])));
-  Real dudx2 = ((*C[0][1]) + (*C[2][1])) - 2.0 * (*C[1][1]);
-  Real dudy2 = ((*C[1][0]) + (*C[1][2])) - 2.0 * (*C[1][1]);
-  *R = (*C[1][1] + (dx * dudx + dy * dudy)) +
-       (((0.5 * dx * dx) * dudx2 + (0.5 * dy * dy) * dudy2) +
-        (dx * dy) * dudxdy);
-}
 struct BlockLab;
 static void bc_scalar(BlockLab *, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
