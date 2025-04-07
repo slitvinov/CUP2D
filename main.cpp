@@ -230,15 +230,14 @@ static void fill_pos(std::vector<Info *> *infos,
     (*infos)[j] = info;
   }
 }
-static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
+static Real *avail(int m, long long n,
                    std::unordered_map<long long, Info *> *all) {
-  return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
+  return getf(all, m, n)->block;
 }
 static Real *avail1(int ix, int iy, int m,
-                    std::unordered_map<long long, int> *tree,
                     std::unordered_map<long long, Info *> *all) {
   const long long n = forward(m, ix, iy);
-  return avail(m, n, tree, all);
+  return avail(m, n, all);
 }
 
 static void dealloc_many(std::vector<long long> &ids,
@@ -391,7 +390,7 @@ public:
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-                         info->level - 1, tree, all);
+                         info->level - 1, all);
         if (b == nullptr)
           continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -466,7 +465,7 @@ public:
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
         myblocks[icode] =
-            avail(info->level, info->Znei[1 + cx][1 + cy], tree, all);
+            avail(info->level, info->Znei[1 + cx][1 + cy], all);
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -522,7 +521,7 @@ public:
                                (B % 2) * std::max(0, 1 - abs(cx)),
                            2 * yi + std::max(cy, 0) + cy +
                                aux * std::max(0, 1 - abs(cy)),
-                           info->level + 1, tree, all);
+                           info->level + 1, all);
           if (b == nullptr)
             continue;
           int i =
