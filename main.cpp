@@ -511,61 +511,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
         Info *infoNei =
             getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         int infoNeiCoarserrank = treef(tree, info->level - 1, infoNei->Zparent);
-        if (infoNeiCoarserrank != sim.rank) {
-          isInner = false;
-          buf->Neighbors.insert(infoNeiCoarserrank);
-          Info *infoNeiCoarser =
-              getf(all, infoNei->level - 1, infoNei->Zparent);
-          int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-          int Bmax[3] = {1 << (info->level - 1), 1 << (info->level - 1),
-                         1 << (info->level - 1)};
-          int test_idx[3] = {
-              (infoNeiCoarser->index[0] - code[0] + Bmax[0]) % Bmax[0],
-              (infoNeiCoarser->index[1] - code[1] + Bmax[1]) % Bmax[1],
-              (infoNeiCoarser->index[2] - code[2] + Bmax[2]) % Bmax[2]};
-          if (info->index[0] / 2 == test_idx[0] &&
-              info->index[1] / 2 == test_idx[1] &&
-              info->index[2] / 2 == test_idx[2]) {
-            buf->send_interfaces[infoNeiCoarserrank].push_back(
-                {info, infoNeiCoarser, icode, icode2});
-            buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                {infoNeiCoarser, info, icode2, icode});
-            DM.add(infoNeiCoarserrank,
-                   (int)buf->send_interfaces[infoNeiCoarserrank].size() - 1);
-            if (abs(code[0]) + abs(code[1]) + abs(code[2]) == 1) {
-              int d0 = abs(code[1] + 2 * code[2]);
-              int d1 = (d0 + 1) % 3;
-              int d2 = (d0 + 2) % 3;
-              int code3[3];
-              code3[d0] = code[d0];
-              code3[d1] = -2 * (info->index[d1] % 2) + 1;
-              code3[d2] = -2 * (info->index[d2] % 2) + 1;
-              int icode3 =
-                  (code3[0] + 1) + (code3[1] + 1) * 3 + (code3[2] + 1) * 9;
-              int code4[3];
-              code4[d0] = code[d0];
-              code4[d1] = code3[d1];
-              code4[d2] = 0;
-              int icode4 =
-                  (code4[0] + 1) + (code4[1] + 1) * 3 + (code4[2] + 1) * 9;
-              int code5[3];
-              code5[d0] = code[d0];
-              code5[d1] = 0;
-              code5[d2] = code3[d2];
-              int icode5 =
-                  (code5[0] + 1) + (code5[1] + 1) * 3 + (code5[2] + 1) * 9;
-              if (code3[2] == 0)
-                buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode3});
-              if (code4[2] == 0)
-                buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode4});
-              if (code5[2] == 0)
-                buf->recv_interfaces[infoNeiCoarserrank].push_back(
-                    {infoNeiCoarser, info, icode2, icode5});
-            }
-          }
-        }
       } else if (infoNeiTree == -1) {
         Info *infoNei =
             getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
