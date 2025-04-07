@@ -506,23 +506,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
         continue;
       int &infoNeiTree =
           treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-      if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-        isInner = false;
-        buf->Neighbors.insert(infoNeiTree);
-        Info *infoNei =
-            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-        int icode2 = (-code[0] + 1) + (-code[1] + 1) * 3 + (-code[2] + 1) * 9;
-        buf->send_interfaces[infoNeiTree].push_back(
-            {info, infoNei, icode, icode2});
-        buf->recv_interfaces[infoNeiTree].push_back(
-            {infoNei, info, icode2, icode});
-        ToBeChecked.push_back(infoNeiTree);
-        ToBeChecked.push_back((int)buf->send_interfaces[infoNeiTree].size() -
-                              1);
-        ToBeChecked.push_back((int)buf->recv_interfaces[infoNeiTree].size() -
-                              1);
-        DM.add(infoNeiTree, (int)buf->send_interfaces[infoNeiTree].size() - 1);
-      } else if (infoNeiTree == -2) {
+if (infoNeiTree == -2) {
         Coarsened = true;
         Info *infoNei =
             getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
