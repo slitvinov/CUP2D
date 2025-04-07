@@ -45,8 +45,8 @@ static struct {
   int levelMax;
   int levelStart;
   int maxPoissonRestarts;
-  int rank;
-  int size;
+  const int rank = 0;
+  const int size = 1;
   int step = 0;
   int dump_count = 0;
   Real CFL;
@@ -3056,8 +3056,6 @@ struct LineParser : public CommandlineParser {
 
 int main(int argc, char **argv) {
   CommandlineParser parser(argc, argv);
-  sim.size = 1;
-  sim.rank = 0;
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
