@@ -173,15 +173,6 @@ struct PackInfo {
   int ex;
   int ey;
 };
-struct DuplicatesManager {
-  std::vector<int> positions;
-  std::vector<size_t> sizes;
-  void add(int r, int index) {
-    if (sizes[r] == 0)
-      positions[r] = index;
-    sizes[r]++;
-  }
-};
 static int &treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
   long long aux = sim.levels[m] + n;
@@ -269,11 +260,8 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
       std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups
 
 ) {
-  DuplicatesManager DM;
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
-  DM.positions.resize(sim.size);
-  DM.sizes.resize(sim.size);
   buf->Neighbors.clear();
   buf->inner_blocks.clear();
   buf->halo_blocks.clear();
