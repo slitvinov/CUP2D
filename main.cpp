@@ -1479,11 +1479,6 @@ static void _alloc(int level, long long Z,
   { infos->push_back(new_info); }
   treef(tree, level, Z) = sim.rank;
 }
-struct MPI_Block {
-  long long level;
-  long long Z;
-  uint8_t data[_BS_ * _BS_ * max_dim * sizeof(Real)];
-};
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
@@ -2570,8 +2565,6 @@ static void adapt() {
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
-    std::vector<std::vector<MPI_Block>> send_blocks(sim.size);
-    std::vector<std::vector<MPI_Block>> recv_blocks(sim.size);
     for (auto &b : I) {
       const long long nBlock =
           forward(b->level, 2 * (b->index[0] / 2), 2 * (b->index[1] / 2));
@@ -2683,10 +2676,6 @@ static void adapt() {
         (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
     if (flux_right != 0 || flux_left != 0)
       std::sort(g->infos.begin(), g->infos.end(), info_cmp);
-    std::vector<MPI_Block> send_left;
-    std::vector<MPI_Block> recv_left;
-    std::vector<MPI_Block> send_right;
-    std::vector<MPI_Block> recv_right;
     std::vector<MPI_Request> request;
     if (request.size() != 0) {
       movedBlocks = true;
