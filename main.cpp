@@ -176,7 +176,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
                   std::vector<Info *> *infos, struct SyncBuf *buf) {
   std::vector<int> offsets(sim.size, 0);
-  std::vector<int> offsets_recv(sim.size, 0);
   buf->inner_blocks.clear();
   std::vector<Range> compass[27];
   for (Info *info : *infos) {
