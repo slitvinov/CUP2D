@@ -1306,6 +1306,7 @@ public:
 };
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
+  std::vector<Info *> dummy_vector;
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
                               &g->all, &g->infos, &g->timestamp);
   std::vector<Info *> *inner = &Synch->buf->inner_blocks;
@@ -1324,7 +1325,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
     while (done == false) {
 #pragma omp master
-      { halo_next = &Synch->dummy_vector; }
+      { halo_next = &dummy_vector; }
 #pragma omp barrier
 #pragma omp single
       {
