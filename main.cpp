@@ -23,7 +23,6 @@
 enum { max_dim = 2 };
 
 typedef double Real;
-#define MPI_Real MPI_DOUBLE
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
@@ -1928,7 +1927,6 @@ static void ongrid() {
       com[1] += oblock[i]->COM_x;
       com[2] += oblock[i]->COM_y;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 3, MPI_Real, MPI_SUM, MPI_COMM_WORLD);
     shape->x += com[1] / com[0];
     shape->y += com[2] / com[0];
   }
@@ -1964,8 +1962,6 @@ static void ongrid() {
         }
     }
     Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
-    MPI_Allreduce(MPI_IN_PLACE, quantities, 7, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
     _x = quantities[0];
     _y = quantities[1];
     _m = quantities[2];
@@ -3264,7 +3260,6 @@ int main(int argc, char **argv) {
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       h = std::min(var.vel->infos[i]->h, h);
-    MPI_Allreduce(MPI_IN_PLACE, &h, 1, MPI_Real, MPI_MIN, MPI_COMM_WORLD);
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < velInfo.size(); i++) {
@@ -3272,7 +3267,6 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * _BS_ * _BS_; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
-    MPI_Allreduce(MPI_IN_PLACE, &umax, 1, MPI_Real, MPI_MAX, MPI_COMM_WORLD);
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
     Real dtAdvection = h / (umax + 1e-8);
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
@@ -3365,9 +3359,6 @@ int main(int argc, char **argv) {
           }
       }
       Real quantities[] = {PM, PX, PY, UM, VM};
-      MPI_Allreduce(MPI_IN_PLACE, quantities,
-                    sizeof quantities / sizeof *quantities, MPI_Real, MPI_SUM,
-                    MPI_COMM_WORLD);
       PM = quantities[0];
       PX = quantities[1];
       PY = quantities[2];
@@ -3456,8 +3447,6 @@ int main(int argc, char **argv) {
       buffer[20 * i + 17] = coll.jvecX;
       buffer[20 * i + 18] = coll.jvecY;
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
     for (size_t i = 0; i < N; i++) {
       auto &coll = collisions[i];
       coll.iM = buffer[20 * i];
@@ -3712,8 +3701,6 @@ int main(int argc, char **argv) {
     }
     quantities[0] = avg;
     quantities[1] = avg1;
-    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
     avg = quantities[0];
     avg1 = quantities[1];
     avg = avg / avg1;
@@ -3736,8 +3723,6 @@ int main(int argc, char **argv) {
     }
     quantities[0] = avg;
     quantities[1] = avg1;
-    MPI_Allreduce(MPI_IN_PLACE, &quantities, 2, MPI_Real, MPI_SUM,
-                  MPI_COMM_WORLD);
     avg = quantities[0];
     avg1 = quantities[1];
     avg = avg / avg1;
