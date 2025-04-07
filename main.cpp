@@ -1475,15 +1475,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     while (done == false) {
 #pragma omp master
       {
-        for (;;) {
-          bool all;
-          all = true;
-          if (all) {
-            halo_next = &Synch->dummy_vector;
-            goto done;
-          }
-        }
-      done:;
+	halo_next = &Synch->dummy_vector;
       }
 #pragma omp barrier
 #pragma omp single
