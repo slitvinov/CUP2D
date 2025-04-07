@@ -203,7 +203,7 @@ static void bc_vector(BlockLab *, Info *, bool coarse);
 struct BlockLab {
 private:
   const int dim;
-  bool coarsened, istensorial, use_averages;
+  bool coarsened;
   int coarsened_nei_codes_size, offset[3];
   std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
@@ -221,7 +221,6 @@ public:
     free(c);
   }
   void prepare(const Stencil &stencil) {
-    istensorial = stencil.tensorial;
     coarsened = false;
     start0[0] = stencil.sx;
     start0[1] = stencil.sy;
@@ -240,12 +239,13 @@ public:
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
-    use_averages = istensorial || start0[0] < -2 || start0[1] < -2 ||
-                   end[0] > 3 || end[1] > 3;
   }
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
+    bool use_averages;
+    use_averages = stencil.tensorial || start0[0] < -2 || start0[1] < -2 ||
+                   end[0] > 3 || end[1] > 3;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -354,7 +354,7 @@ public:
           memcpy(p, q, bytes);
         }
       }
-      if (!istensorial && !use_averages && abs(cx) + abs(cy) > 1)
+      if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
       int s[3] = {cx < 1 ? (cx < 0 ? start0[0] : 0) : _BS_,
                   cy < 1 ? (cy < 0 ? start0[1] : 0) : _BS_, 0};
@@ -645,7 +645,7 @@ public:
         continue;
       if (code[1] == yskip && yskin)
         continue;
-      if (!istensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
+      if (!stencil.tensorial && !use_averages && abs(code[0]) + abs(code[1]) > 1)
         continue;
       int s[2] = {code[0] < 1 ? (code[0] < 0 ? start0[0] : 0) : _BS_,
                   code[1] < 1 ? (code[1] < 0 ? start0[1] : 0) : _BS_};
