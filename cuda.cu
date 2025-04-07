@@ -7,7 +7,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <mpi.h>
 #include <set>
 #include <stdexcept>
 #include <stdint.h>
@@ -34,7 +33,7 @@ struct BiCGSTABScalars {
 };
 class BiCGSTABSolver {
 public:
-  BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS, const int BLEN,
+  BiCGSTABSolver(LocalSpMatDnVec &LocalLS, const int BLEN,
                  const bool bMeanConstraint, const std::vector<double> &P_inv);
   ~BiCGSTABSolver();
   void solveWithUpdate(const double max_error, const double max_rel_error,
@@ -58,7 +57,6 @@ private:
   cusparseHandle_t cusparse_handle_;
   bool dirty_ = false;
   int rank_;
-  MPI_Comm m_comm_;
   int comm_size_;
   int m_;
   int halo_;
@@ -111,13 +109,13 @@ private:
   size_t bdSpMVBuffSz_;
   void *bdSpMVBuff_;
 };
-BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
+BiCGSTABSolver::BiCGSTABSolver(LocalSpMatDnVec &LocalLS,
                                const int BLEN, const bool bMeanConstraint,
                                const std::vector<double> &P_inv)
-    : m_comm_(m_comm), BLEN_(BLEN), bMeanConstraint_(bMeanConstraint),
+    : BLEN_(BLEN), bMeanConstraint_(bMeanConstraint),
       LocalLS_(LocalLS) {
-  MPI_Comm_rank(m_comm_, &rank_);
-  MPI_Comm_size(m_comm_, &comm_size_);
+  rank_ = 0;
+  comm_size_ = 0;
   int device;
   if (cudaGetDevice(&device) != cudaSuccess) {
     fprintf(stderr,
@@ -531,12 +529,12 @@ void BiCGSTABSolver::main(const double max_error, const double max_rel_error,
   cudaMemcpyAsync(LocalLS_.x_.data(), d_x_opt_, m_ * sizeof(double),
                   cudaMemcpyDeviceToHost, solver_stream_);
 }
-LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN,
+LocalSpMatDnVec::LocalSpMatDnVec(const int BLEN,
                                  const bool bMeanConstraint,
                                  const std::vector<double> &P_inv)
-    : m_comm_(m_comm), BLEN_(BLEN) {
-  MPI_Comm_rank(m_comm_, &rank_);
-  MPI_Comm_size(m_comm_, &comm_size_);
+    : BLEN_(BLEN) {
+  rank_ = 0;
+  comm_size_ = 1;
   bd_recv_set_.resize(comm_size_);
   bd_recv_vec_.resize(comm_size_);
   recv_ranks_.reserve(comm_size_);
@@ -545,7 +543,7 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN,
   send_ranks_.reserve(comm_size_);
   send_offset_.reserve(comm_size_);
   send_sz_.reserve(comm_size_);
-  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN,
+  solver_ = std::make_unique<BiCGSTABSolver>(*this, BLEN,
                                              bMeanConstraint, P_inv);
 }
 LocalSpMatDnVec::~LocalSpMatDnVec() {}

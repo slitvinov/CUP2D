@@ -24,7 +24,7 @@ public:
 };
 class BiCGSTABSolver;
 struct LocalSpMatDnVec {
-  LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const bool bMeanConstraint,
+  LocalSpMatDnVec(const int BLEN, const bool bMeanConstraint,
                   const std::vector<double> &P_inv);
   ~LocalSpMatDnVec();
   void reserve(const int N);
@@ -38,7 +38,6 @@ struct LocalSpMatDnVec {
                      const int max_restarts);
   friend class BiCGSTABSolver;
   int rank_;
-  MPI_Comm m_comm_;
   int comm_size_;
   const int BLEN_;
   int m_;

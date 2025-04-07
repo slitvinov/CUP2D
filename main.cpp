@@ -3228,7 +3228,7 @@ int main(int argc, char **argv) {
     }
   }
   std::vector<double> P_inv = precond();
-  sim.mat = new LocalSpMatDnVec(MPI_COMM_WORLD, _BS_ * _BS_, 0, P_inv);
+  sim.mat = new LocalSpMatDnVec(_BS_ * _BS_, 0, P_inv);
   sim.solver = new Solver;
   while (1) {
     if (sim.rank == 0 && sim.step % 5 == 0)
