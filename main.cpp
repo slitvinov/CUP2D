@@ -1143,13 +1143,6 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
           facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
     }
 };
-struct Skin {
-  size_t n;
-  std::vector<Real> xSurf, ySurf, normXSurf, normYSurf, midX, midY;
-  Skin(size_t n)
-      : n(n), xSurf(n), ySurf(n), normXSurf(n), normYSurf(n), midX(n), midY(n) {
-  }
-};
 struct Obstacle {
   Real chi[_BS_][_BS_];
   Real dist[_BS_][_BS_];
