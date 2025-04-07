@@ -719,10 +719,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
     fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
   for (int r = 0; r < sim.size; r++)
-    if (r != sim.rank)
-      for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
-        fillcase0(&buf->recv_faces[r][index], buf, tree, dim);
-  for (int r = 0; r < sim.size; r++)
     for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
       fillcase1(&buf->recv_faces[r][index], 1, 0, buf, dim);
   for (int r = 0; r < sim.size; r++)
