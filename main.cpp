@@ -1580,24 +1580,6 @@ static void _alloc(int level, long long Z,
   { infos->push_back(new_info); }
   treef(tree, level, Z) = sim.rank;
 }
-static void AddBlock(int dim, Grid *grid, int level, long long Z,
-                     uint8_t *data) {
-  _alloc(level, Z, &grid->all, &grid->infos, &grid->tree, dim);
-  Info *info = getf(&grid->all, level, Z);
-  memcpy(info->block, data, _BS_ * _BS_ * dim * sizeof(Real));
-  int p[2];
-  sfc_inverse(Z, level, &p[0], &p[1]);
-  if (level < sim.levelMax - 1)
-    for (int j1 = 0; j1 < 2; j1++)
-      for (int i1 = 0; i1 < 2; i1++) {
-        long long nc = forward(level + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-        treef(&grid->tree, level + 1, nc) = -2;
-      }
-  if (level > 0) {
-    long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-    treef(&grid->tree, level - 1, nf) = -1;
-  }
-}
 struct MPI_Block {
   long long level;
   long long Z;
@@ -2862,11 +2844,6 @@ static void adapt() {
     MPI_Request request_reduction;
     MPI_Iallreduce(MPI_IN_PLACE, &temp0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
                    &request_reduction);
-    for (int i = 0; i < -flux_left; i++)
-      AddBlock(dim, g, recv_left[i].level, recv_left[i].Z, recv_left[i].data);
-    for (int i = 0; i < -flux_right; i++)
-      AddBlock(dim, g, recv_right[i].level, recv_right[i].Z,
-               recv_right[i].data);
     MPI_Wait(&request_reduction, MPI_STATUS_IGNORE);
     movedBlocks = (temp0 >= 1);
     fill_pos(&g->infos, &g->all);
