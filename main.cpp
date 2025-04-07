@@ -1388,7 +1388,6 @@ static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   bool Reduction = false;
-  int tmp = 0;
   std::vector<Info *> *I = &var.tmp->infos;
 #pragma omp parallel
   {
@@ -1411,15 +1410,12 @@ static void adapt() {
       if (info->state != Leave) {
 #pragma omp critical
         {
-          if (!Reduction) {
-            tmp = 1;
-            Reduction = true;
-          }
+	  Reduction = true;
         }
       }
     }
   }
-  if (tmp > 0) {
+  if (Reduction) {
     int levelMin = 0;
     std::vector<Info *> &I = var.tmp->infos;
 #pragma omp parallel for
