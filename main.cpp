@@ -288,8 +288,10 @@ public:
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
-        Real *b = avail1((infoNei_index[0]) / 2, (infoNei_index[1]) / 2,
-                         info->level - 1, all);
+	int ix = (infoNei_index[0]) / 2;
+	int iy = (infoNei_index[1]) / 2;
+	const long long Z = forward(info->level - 1, ix, iy);
+        Real *b = getf(all, info->level - 1, Z)->block;
         if (b == nullptr)
           continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
