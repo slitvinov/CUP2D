@@ -42,7 +42,6 @@ static struct {
   int levelMax;
   int levelStart;
   int maxPoissonRestarts;
-  const int rank = 0;
   int step = 0;
   int dump_count = 0;
   Real CFL;
@@ -1729,7 +1728,7 @@ static void adapt() {
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info *Child = getf(&g->all, level + 1, nc);
-          Tree1(Child, &g->tree) = sim.rank;
+          Tree1(Child, &g->tree) = 0;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
@@ -1793,7 +1792,7 @@ static void adapt() {
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf(&g->all, level - 1, np);
-      treef(&g->tree, parent->level, parent->Z) = sim.rank;
+      treef(&g->tree, parent->level, parent->Z) = 0;
       parent->block = info->block;
       parent->state = Leave;
       if (level - 2 >= 0)
@@ -2150,7 +2149,7 @@ struct Solver {
     std::vector<double> &x = sim.mat->x_;
     std::vector<double> &b = sim.mat->b_;
     std::vector<double> &h2 = sim.mat->h2_;
-    long long shift = -sim.nrows[sim.rank];
+    long long shift = -sim.nrows[0];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       Real *rhs = RhsInfo[i]->block;
@@ -2222,8 +2221,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel
   {
 #pragma omp master
-    if (sim.rank == 0)
-      fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
+    fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
   }
 #endif
   sim.levelMax = parser("levelMax").asInt();
@@ -2318,7 +2316,7 @@ int main(int argc, char **argv) {
       fill(info, sim.levelStart, Z);
       info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
       g->infos.push_back(info);
-      g->tree[aux] = sim.rank;
+      g->tree[aux] = 0;
       int p[2];
       sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
       if (sim.levelStart < sim.levelMax - 1)
@@ -2377,7 +2375,7 @@ int main(int argc, char **argv) {
   sim.mat = new LocalSpMatDnVec(_BS_ * _BS_, 0, P_inv);
   sim.solver = new Solver;
   while (1) {
-    if (sim.rank == 0 && sim.step % 5 == 0)
+    if (sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d\n", sim.step);
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
@@ -2600,13 +2598,12 @@ int main(int argc, char **argv) {
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
-          if (sim.rank == 0)
-            printf("Collision between objects %ld and %ld\n"
-                   " iM %g %g\n"
-                   " jM %g %g\n"
-                   " Normal vector = %g %g\n",
-                   i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                   collisions[j].iM, NX, NY);
+	  printf("Collision between objects %ld and %ld\n"
+		 " iM %g %g\n"
+		 " jM %g %g\n"
+		 " Normal vector = %g %g\n",
+		 i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
+		 collisions[j].iM, NX, NY);
         }
       }
     }
