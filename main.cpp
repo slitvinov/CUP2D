@@ -146,6 +146,16 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
   }
 }
 
+static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
+                  long long Z) {
+  auto retval = all->find(sim.levels[m] + Z);
+  if (retval != all->end()) {
+    return retval->second;
+  } else {
+    exit(1);
+  }
+}
+
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
 static void fill_pos(std::vector<Info *> *infos,
                      std::unordered_map<long long, Info *> *all) {
@@ -281,7 +291,7 @@ public:
         int ix = (infoNei_index[0]) / 2;
         int iy = (infoNei_index[1]) / 2;
         const long long Z = forward(info->level - 1, ix, iy);
-        Real *b = getf(all, info->level - 1, Z)->block;
+        Real *b = getf0(all, info->level - 1, Z)->block;
         if (b == nullptr)
           continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -356,7 +366,7 @@ public:
           continue;
         int icode = (cx + 1) + 3 * (cy + 1) + 9;
         myblocks[icode] =
-            getf(all, info->level, info->Znei[1 + cx][1 + cy])->block;
+            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block;
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -420,6 +430,7 @@ public:
               abs(cx) * (s[0] - start0[0]) +
               (1 - abs(cx)) * (s[0] - start0[0] + (B % 2) * (e[0] - s[0]) / 2);
           int x = s[0] - cx * _BS_ + std::min(0, cx) * (e[0] - s[0]);
+
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
             int k0 = i + (abs(cy) * (iy + 0 * ys - start0[1]) +
                           (1 - abs(cy)) * ((iy + 0 * ys) / 2 - start0[1] +
