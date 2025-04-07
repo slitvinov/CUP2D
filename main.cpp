@@ -918,21 +918,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   }
   std::vector<MPI_Request> send_requests;
   std::vector<MPI_Request> recv_requests;
-  for (int r = 0; r < sim.size; r++)
-    if (r != sim.rank) {
-      if (buf->recv_buffer[r].size() != 0) {
-        MPI_Request req{};
-        recv_requests.push_back(req);
-        MPI_Irecv(&buf->recv_buffer[r][0], buf->recv_buffer[r].size(), MPI_Real,
-                  r, 123456, MPI_COMM_WORLD, &recv_requests.back());
-      }
-      if (buf->send_buffer[r].size() != 0) {
-        MPI_Request req{};
-        send_requests.push_back(req);
-        MPI_Isend(&buf->send_buffer[r][0], buf->send_buffer[r].size(), MPI_Real,
-                  r, 123456, MPI_COMM_WORLD, &send_requests.back());
-      }
-    }
   if (buf->recv_buffer[sim.rank].size() > 0 &&
       buf->send_buffer[sim.rank].size() > 0)
     memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
