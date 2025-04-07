@@ -746,7 +746,7 @@ public:
   }
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all,
-            const Stencil &stencil, Info *info, bool applybc, int *sLength) {
+            const Stencil &stencil, Info *info, bool applybc) {
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -1371,8 +1371,8 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
 #pragma omp for nowait
     for (std::size_t i = 0; i < inner->size(); ++i) {
       const auto &I = (*inner)[i];
-      lab.load(&g->tree, &g->all, kernel.stencil, I, true,
-               Synch->sLength);
+      lab.load(&g->tree, &g->all, kernel.stencil, I, true
+               );
       kernel(lab.m, I);
     }
     while (done == false) {
@@ -2271,8 +2271,7 @@ static void adapt() {
       Info *parent = getf(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
-        lab.load(&g->tree, &g->all, stencil, parent, true,
-                 Synch->sLength);
+        lab.load(&g->tree, &g->all, stencil, parent, true);
       const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
@@ -3536,10 +3535,10 @@ int main(int argc, char **argv) {
       for (int i = 0; i < Ninner; i++) {
         Info *I = avail0[i];
         Info *I2 = avail02[i];
-        lab.load(&var.vel->tree, &var.vel->all, stencil, I, true,
-                 Synch->sLength);
+        lab.load(&var.vel->tree, &var.vel->all, stencil, I, true
+                 );
         lab2.load(&var.tmpV->tree, &var.tmpV->all, stencil, I2,
-                  true, Synch2->sLength);
+                  true);
         pressure_rhs_fun(lab, lab2, I, I2);
         ready[I->id] = true;
       }
