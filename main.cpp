@@ -1482,16 +1482,14 @@ static void adapt() {
           for (int icode = 0; icode < 27; icode++) {
             if (icode == 1 * 1 + 3 * 1 + 9 * 1)
               continue;
-            int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1,
-                           (icode / 9) % 3 - 1};
-            if (code[0] == xskip && xskin)
+	    int cx = icode % 3 - 1;
+	    int cy = (icode / 3) % 3 - 1;
+            if (cx == xskip && xskin)
               continue;
-            if (code[1] == yskip && yskin)
-              continue;
-            if (code[2] != 0)
+            if (cy == yskip && yskin)
               continue;
             Info *infoNei = getf(&var.tmp->all, info->level,
-                                 info->Znei[1 + code[0]][1 + code[1]]);
+                                 info->Znei[1 + cx][1 + cy]);
             if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
                 infoNei->state == Refine) {
               info->state = Leave;
