@@ -144,19 +144,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
 }
 
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
-static void fill_pos(std::vector<Info *> *infos,
-                     std::unordered_map<long long, Info *> *all) {
-  std::sort(infos->begin(), infos->end(), info_cmp);
-  for (size_t j = 0; j < infos->size(); j++) {
-    int m = (*infos)[j]->level;
-    long long Z = (*infos)[j]->Z;
-    auto retval = all->find(sim.levels[m] + Z);
-    assert(retval != all->end());
-    Info *info = retval->second;
-    info->id = j;
-    (*infos)[j] = info;
-  }
-}
 static void dealloc_many(std::vector<long long> &ids,
                          std::vector<Info *> *infos) {
   for (size_t j = 0; j < infos->size(); j++)
@@ -1795,11 +1782,19 @@ static void adapt() {
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
-    fill_pos(&g->infos, &g->all);
+    std::sort(g->infos.begin(), g->infos.end(), info_cmp);
+    for (size_t j = 0; j < g->infos.size(); j++) {
+      int m = g->infos[j]->level;
+      long long Z = g->infos[j]->Z;
+      auto retval = g->all.find(sim.levels[m] + Z);
+      assert(retval != g->all.end());
+      Info *info = retval->second;
+      info->id = j;
+      g->infos[j] = info;
+    }
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
     }
-    //    delete lab;
   }
 }
 struct KernelAdvectDiffuse {
