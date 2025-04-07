@@ -123,7 +123,7 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
     fprintf(stderr,
             "cuda.cu: error: no CUDA-capable devices found on rank %d\n",
             rank_);
-    MPI_Abort(m_comm_, 1);
+    exit(1);
   }
 
   cudaDeviceProp prop;
