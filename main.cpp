@@ -1634,8 +1634,6 @@ static void adapt() {
       }
     }
     int result[2] = {r, c};
-    int size = 1;
-    std::vector<long long> block_distribution(size);
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
     if (basic == false)
@@ -1818,12 +1816,6 @@ static void adapt() {
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
-    long long max_b = block_distribution[0];
-    long long min_b = block_distribution[0];
-    for (auto &b : block_distribution) {
-      max_b = std::max(max_b, b);
-      min_b = std::min(min_b, b);
-    }
     fill_pos(&g->infos, &g->all);
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
