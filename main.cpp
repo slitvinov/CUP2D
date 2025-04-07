@@ -171,7 +171,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
   }
 }
 struct SyncBuf {
-  std::vector<Info *> halo_blocks;
   std::vector<Info *> inner_blocks;
 };
 static void Setup(std::unordered_map<long long, int> *tree,
@@ -180,7 +179,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
   buf->inner_blocks.clear();
-  buf->halo_blocks.clear();
   std::vector<Range> compass[27];
   for (Info *info : *infos) {
     info->halo_id = -1;
@@ -3553,8 +3551,6 @@ int main(int argc, char **argv) {
     std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
     std::vector<Info *> &avail02 = Synch2->buf->inner_blocks;
     const int Ninner = avail0.size();
-    std::vector<Info *> avail1;
-    std::vector<Info *> avail12;
 #pragma omp parallel
     {
       BlockLab lab(2);
@@ -3572,13 +3568,6 @@ int main(int argc, char **argv) {
         pressure_rhs_fun(lab, lab2, I, I2);
         ready[I->id] = true;
       }
-#pragma omp master
-      {
-        avail1 = Synch->buf->halo_blocks;
-        avail12 = Synch2->buf->halo_blocks;
-      }
-#pragma omp barrier
-      const int Nhalo = avail1.size();
     }
     fillcases(var.buf1, &var.tmp->tree, 1);
     std::vector<Info *> &presInfo = var.pres->infos;
