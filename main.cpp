@@ -179,7 +179,6 @@ struct BlockLab {
 private:
   const int dim;
   int offset[3];
-  std::array<Real *, 27> myblocks;
   std::array<int, 27> coarsened_nei_codes;
 
 public:
@@ -216,6 +215,7 @@ public:
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
+    std::array<Real *, 27> myblocks;
     int coarsened_nei_codes_size;
     bool coarsened = false;
     bool use_averages;
