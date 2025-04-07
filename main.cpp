@@ -2557,12 +2557,6 @@ static void adapt() {
     MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
                 MPI_STATUSES_IGNORE);
   }
-  if (!Reduction) {
-    tmp = CallValidStates ? 1 : 0;
-    Reduction = true;
-    MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
-                   &Reduction_req);
-  }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
   var.tmp->boundary = *halo;
   if (tmp > 0) {
