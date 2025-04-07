@@ -175,7 +175,7 @@ struct SyncBuf {
   std::vector<Info *> halo_blocks;
   std::vector<Info *> inner_blocks;
 };
-static void Setup(int dim, std::unordered_map<long long, int> *tree,
+static void Setup(std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
                   std::vector<Info *> *infos, struct SyncBuf *buf,
                   bool &use_averages, std::array<Range, 3 * 27> &AllStencils,
@@ -199,7 +199,6 @@ static void Setup(int dim, std::unordered_map<long long, int> *tree,
 
     bool isInner = true;
     std::vector<int> ToBeChecked;
-    bool Coarsened = false;
     for (int icode = 0; icode < 27; icode++) {
       if (icode == 1 * 1 + 3 * 1 + 9 * 1)
         continue;
@@ -213,13 +212,7 @@ static void Setup(int dim, std::unordered_map<long long, int> *tree,
       int &infoNeiTree =
           treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
       if (infoNeiTree == -2) {
-        Coarsened = true;
-        Info *infoNei =
-            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-        int infoNeiCoarserrank = treef(tree, info->level - 1, infoNei->Zparent);
       } else if (infoNeiTree == -1) {
-        Info *infoNei =
-            getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
         int Bstep = 1;
         if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
           Bstep = 3;
@@ -230,13 +223,6 @@ static void Setup(int dim, std::unordered_map<long long, int> *tree,
             continue;
           if (Bstep > 1 && B >= 1)
             continue;
-          int temp = (abs(code[0]) == 1) ? (B % 2) : (B / 2);
-          long long nFine =
-              infoNei->Zchild[std::max(-code[0], 0) +
-                              (B % 2) * std::max(0, 1 - abs(code[0]))]
-                             [std::max(-code[1], 0) +
-                              temp * std::max(0, 1 - abs(code[1]))];
-          int infoNeiFinerrank = treef(tree, info->level + 1, nFine);
         }
       }
     }
@@ -686,7 +672,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
-    Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
+    Setup(tree, all, infos, s->buf, s->use_averages, s->AllStencils,
           s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown);
     (*synchronizers)[stencil] = s;
   } else {
@@ -2621,7 +2607,7 @@ static void adapt() {
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
-        Setup(dim, &g->tree, &g->all, &g->infos, it->second->buf,
+        Setup(&g->tree, &g->all, &g->infos, it->second->buf,
 
               it->second->use_averages, it->second->AllStencils,
               it->second->Coarse_Range, stencil, it->second->sLength,
