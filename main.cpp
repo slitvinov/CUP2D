@@ -66,7 +66,6 @@ static struct {
 } sim;
 #include "utils.h"
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
-struct BlockCase;
 struct Info {
   bool changed2;
   double h, origin[2];
@@ -74,12 +73,6 @@ struct Info {
   int index[3], level;
   long long id, id2, Z, Zchild[2][2], Znei[3][3], Zparent;
   Real *block = NULL;
-  BlockCase *auxiliary;
-};
-struct BlockCase {
-  Real *d[4];
-  int level;
-  long long Z;
 };
 struct CollisionInfo {
   Real iM = 0;
@@ -120,7 +113,6 @@ static void fill(Info *b, int level, long long Z) {
   b->origin[1] = (Real)j / (1 << level);
   b->state = Leave;
   b->changed2 = true;
-  b->auxiliary = nullptr;
   sfc_inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
   Bmax[0] = 1 << level;
@@ -1150,73 +1142,6 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
           facDiv * (*v0 - *v1 + *v2 - *v3) -
           facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
     }
-  BlockCase *tempCase = (BlockCase *)(tmpInfo[info->id]->auxiliary);
-  Real *faceXm = nullptr;
-  Real *faceXp = nullptr;
-  Real *faceYm = nullptr;
-  Real *faceYp = nullptr;
-  if (tempCase != nullptr) {
-    faceXm = tempCase->d[0];
-    faceXp = tempCase->d[1];
-    faceYm = tempCase->d[2];
-    faceYp = tempCase->d[3];
-  }
-  if (faceXm != nullptr) {
-    int ix = 0;
-    for (int iy = 0; iy < _BS_; ++iy) {
-      int ip0 = ix - stencil.sx;
-      int jp0 = iy - stencil.sy;
-      int im1 = ip0 - 1;
-      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-      Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-      Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-      Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-      faceXm[iy] =
-          facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-    }
-  }
-  if (faceXp != nullptr) {
-    int ix = _BS_ - 1;
-    for (int iy = 0; iy < _BS_; ++iy) {
-      int ip0 = ix - stencil.sx;
-      int jp0 = iy - stencil.sy;
-      int ip1 = ip0 + 1;
-      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 0;
-      Real *u0 = um + 2 * (nm * jp0 + ip0) + 0;
-      Real *v1 = vm + 2 * (nm * jp0 + ip1) + 0;
-      Real *u1 = um + 2 * (nm * jp0 + ip1) + 0;
-      faceXp[iy] =
-          -facDiv * (*v1 + *v0) + (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-    }
-  }
-  if (faceYm != nullptr) {
-    int iy = 0;
-    for (int ix = 0; ix < _BS_; ++ix) {
-      int ip0 = ix - stencil.sx;
-      int jp0 = iy - stencil.sy;
-      int jm1 = jp0 - 1;
-      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-      Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-      Real *v1 = vm + 2 * (nm * jm1 + ip0) + 1;
-      Real *u1 = um + 2 * (nm * jm1 + ip0) + 1;
-      faceYm[ix] =
-          facDiv * (*v1 + *v0) - (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-    }
-  }
-  if (faceYp != nullptr) {
-    int iy = _BS_ - 1;
-    for (int ix = 0; ix < _BS_; ++ix) {
-      int ip0 = ix - stencil.sx;
-      int jp0 = iy - stencil.sy;
-      int jp1 = jp0 + 1;
-      Real *v0 = vm + 2 * (nm * jp0 + ip0) + 1;
-      Real *u0 = um + 2 * (nm * jp0 + ip0) + 1;
-      Real *v1 = vm + 2 * (nm * jp1 + ip0) + 1;
-      Real *u1 = um + 2 * (nm * jp1 + ip0) + 1;
-      faceYp[ix] =
-          -facDiv * (*v1 + *v0) + (facDiv * CHI[_BS_ * iy + ix]) * (*u1 + *u0);
-    }
-  }
 };
 struct Skin {
   size_t n;
@@ -2099,73 +2024,6 @@ struct KernelAdvectDiffuse {
             afac * (u * dvdx + v * dvdy) +
             dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
       }
-    BlockCase *tempCase = tmpVInfo[info->id]->auxiliary;
-    Real *faceXm = nullptr;
-    Real *faceXp = nullptr;
-    Real *faceYm = nullptr;
-    Real *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
-    }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int im1 = ip0 - 1;
-        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *l1 = um + 2 * (nm * jp0 + im1) + 0;
-        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *l3 = um + 2 * (nm * jp0 + im1) + 1;
-        faceXm[2 * iy] = dfac * (*l0 - *l1);
-        faceXm[2 * iy + 1] = dfac * (*l2 - *l3);
-      }
-    }
-    if (faceXp != nullptr) {
-      int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *l1 = um + 2 * (nm * jp0 + ip1) + 0;
-        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *l3 = um + 2 * (nm * jp0 + ip1) + 1;
-        faceXp[2 * iy] = dfac * (*l0 - *l1);
-        faceXp[2 * iy + 1] = dfac * (*l2 - *l3);
-      }
-    }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jm1 = jp0 - 1;
-        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *l1 = um + 2 * (nm * jm1 + ip0) + 0;
-        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *l3 = um + 2 * (nm * jm1 + ip0) + 1;
-        faceYm[2 * ix] = dfac * (*l0 - *l1);
-        faceYm[2 * ix + 1] = dfac * (*l2 - *l3);
-      }
-    }
-    if (faceYp != nullptr) {
-      int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jp1 = jp0 + 1;
-        Real *l0 = um + 2 * (nm * jp0 + ip0) + 0;
-        Real *l1 = um + 2 * (nm * jp1 + ip0) + 0;
-        Real *l2 = um + 2 * (nm * jp0 + ip0) + 1;
-        Real *l3 = um + 2 * (nm * jp1 + ip0) + 1;
-        faceYp[2 * ix] = dfac * (*l0 - *l1);
-        faceYp[2 * ix + 1] = dfac * (*l2 - *l3);
-      }
-    }
   }
 };
 struct Solver {
@@ -2460,65 +2318,6 @@ struct pressureCorrectionKernel {
         tmpV[2 * (_BS_ * iy + ix)] = pFac * (*p0 - *p1);
         tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (*p2 - *p3);
       }
-    BlockCase *tempCase = tmpVInfo[info->id]->auxiliary;
-    Real *faceXm = nullptr;
-    Real *faceXp = nullptr;
-    Real *faceYm = nullptr;
-    Real *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
-    }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int im1 = ip0 - 1;
-        Real *p0 = um + nm * jp0 + ip0;
-        Real *p1 = um + nm * jp0 + im1;
-        faceXm[2 * iy] = pFac * (*p1 + *p0);
-        faceXm[2 * iy + 1] = 0;
-      }
-    }
-    if (faceXp != nullptr) {
-      int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        Real *p0 = um + nm * jp0 + ip0;
-        Real *p1 = um + nm * jp0 + ip1;
-        faceXp[2 * iy] = -pFac * (*p1 + *p0);
-        faceXp[2 * iy + 1] = 0;
-      }
-    }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jm1 = jp0 - 1;
-        Real *p0 = um + nm * jp0 + ip0;
-        Real *p1 = um + nm * jm1 + ip0;
-        faceYm[2 * ix] = 0;
-        faceYm[2 * ix + 1] = pFac * (*p1 + *p0);
-      }
-    }
-    if (faceYp != nullptr) {
-      int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jp1 = jp0 + 1;
-        Real *p0 = um + nm * jp0 + ip0;
-        Real *p1 = um + nm * jp1 + ip0;
-        faceYp[2 * ix] = 0;
-        faceYp[2 * ix + 1] = -pFac * (*p1 + *p0);
-      }
-    }
   }
 };
 struct pressure_rhs1 {
@@ -2542,61 +2341,6 @@ struct pressure_rhs1 {
         Real *l4 = um + nm * jp1 + ip0;
         TMP[_BS_ * iy + ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
       }
-    BlockCase *tempCase = (BlockCase *)(var.tmp->infos[info->id]->auxiliary);
-    Real *faceXm = nullptr;
-    Real *faceXp = nullptr;
-    Real *faceYm = nullptr;
-    Real *faceYp = nullptr;
-    if (tempCase != nullptr) {
-      faceXm = tempCase->d[0];
-      faceXp = tempCase->d[1];
-      faceYm = tempCase->d[2];
-      faceYp = tempCase->d[3];
-    }
-    if (faceXm != nullptr) {
-      int ix = 0;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int im1 = ip0 - 1;
-        Real *l0 = um + nm * jp0 + ip0;
-        Real *l1 = um + nm * jp0 + im1;
-        faceXm[iy] = *l1 - *l0;
-      }
-    }
-    if (faceXp != nullptr) {
-      int ix = _BS_ - 1;
-      for (int iy = 0; iy < _BS_; ++iy) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int ip1 = ip0 + 1;
-        Real *l0 = um + nm * jp0 + ip0;
-        Real *l1 = um + nm * jp0 + ip1;
-        faceXp[iy] = *l1 - *l0;
-      }
-    }
-    if (faceYm != nullptr) {
-      int iy = 0;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jm1 = jp0 - 1;
-        Real *l0 = um + nm * jp0 + ip0;
-        Real *l1 = um + nm * jm1 + ip0;
-        faceYm[ix] = *l1 - *l0;
-      }
-    }
-    if (faceYp != nullptr) {
-      int iy = _BS_ - 1;
-      for (int ix = 0; ix < _BS_; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sy;
-        int jp1 = jp0 + 1;
-        Real *l0 = um + nm * jp0 + ip0;
-        Real *l1 = um + nm * jp1 + ip0;
-        faceYp[ix] = *l1 - *l0;
-      }
-    }
   }
 };
 static std::string trim(std::string str) {
