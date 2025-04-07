@@ -596,16 +596,9 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
             continue;
           Info *infoNei = getf(all, info->level, info->Znei[1 + x][1 + y]);
           int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
-          if (infoNeiTree >= 0 && infoNeiTree != sim.rank) {
-            myflag = true;
-            goto end;
-          } else if (infoNeiTree == -2) {
+	  if (infoNeiTree == -2) {
             long long nCoarse = infoNei->Zparent;
             int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
-            if (infoNeiCoarserrank != sim.rank) {
-              myflag = true;
-              goto end;
-            }
           } else if (infoNeiTree == -1) {
             int Bstep = 1;
             if ((abs(x) + abs(y) == 2))
