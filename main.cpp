@@ -579,8 +579,7 @@ static Synchronizer *sync1(const Stencil &stencil,
                            std::map<Stencil, Synchronizer *> *synchronizers,
                            std::unordered_map<long long, int> *tree,
                            std::unordered_map<long long, Info *> *all,
-                           std::vector<Info *> *infos, size_t *timestamp,
-                           int dim) {
+                           std::vector<Info *> *infos, size_t *timestamp) {
   Synchronizer *s;
   auto itSynchronizerMPI = synchronizers->find(stencil);
   if (itSynchronizerMPI == synchronizers->end()) {
@@ -1362,7 +1361,7 @@ public:
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   Synchronizer *Synch = sync1(kernel.stencil, g->synchronizers, &g->tree,
-                              &g->all, &g->infos, &g->timestamp, dim);
+                              &g->all, &g->infos, &g->timestamp);
   std::vector<Info *> *inner = &Synch->buf->inner_blocks;
   std::vector<Info *> *halo_next;
   bool done = false;
@@ -2018,7 +2017,7 @@ static void adapt() {
   Stencil stencil{-1, -1, 2, 2, true};
   Synchronizer *Synch =
       sync1(stencil, var.tmp->synchronizers, &var.tmp->tree, &var.tmp->all,
-            &var.tmp->infos, &var.tmp->timestamp, 1);
+            &var.tmp->infos, &var.tmp->timestamp);
   bool CallValidStates = false;
   bool Reduction = false;
   int tmp;
@@ -2235,7 +2234,7 @@ static void adapt() {
     const Stencil stencil{-1, -1, 2, 2, true};
     if (basic == false) {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
-                    &g->timestamp, dim);
+                    &g->timestamp);
     }
     int r = 0;
     int c = 0;
@@ -3519,10 +3518,10 @@ int main(int argc, char **argv) {
     Stencil stencil{-1, -1, 2, 2, false};
     Synchronizer *Synch =
         sync1(stencil, var.vel->synchronizers, &var.vel->tree, &var.vel->all,
-              &var.vel->infos, &var.vel->timestamp, 2);
+              &var.vel->infos, &var.vel->timestamp);
     Synchronizer *Synch2 =
         sync1(stencil, var.tmpV->synchronizers, &var.tmpV->tree, &var.tmpV->all,
-              &var.tmpV->infos, &var.tmpV->timestamp, 2);
+              &var.tmpV->infos, &var.tmpV->timestamp);
     std::vector<Info *> &blk = var.vel->infos;
     std::vector<bool> ready(blk.size(), false);
     std::vector<Info *> &avail0 = Synch->buf->inner_blocks;
