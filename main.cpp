@@ -1,4 +1,3 @@
-#define OMPI_SKIP_MPICXX 1
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -10,7 +9,6 @@
 #include <limits>
 #include <map>
 #include <memory>
-#include <mpi.h>
 #include <numeric>
 #include <set>
 #include <string>
@@ -2265,8 +2263,7 @@ static void adapt() {
     }
     int temp[2] = {r, c};
     int result[2];
-    int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int size = 1;
     std::vector<long long> block_distribution(size);
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
@@ -3059,10 +3056,9 @@ struct LineParser : public CommandlineParser {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  MPI_Init(&argc, &argv);
   CommandlineParser parser(argc, argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &sim.size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &sim.rank);
+  sim.size = 1;
+  sim.rank = 0;
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
@@ -3724,5 +3720,4 @@ int main(int argc, char **argv) {
   }
   delete var.buf1;
   delete var.buf2;
-  MPI_Finalize();
 }
