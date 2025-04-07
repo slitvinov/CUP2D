@@ -2913,28 +2913,6 @@ static void adapt() {
           }
       }
     }
-    std::vector<MPI_Request> requests0;
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)send_blocks[r].size(); i++) {
-        dealloc(send_blocks[r][i].level, send_blocks[r][i].Z, &g->infos);
-        treef(&g->tree, send_blocks[r][i].level, send_blocks[r][i].Z) = -2;
-      }
-    if (requests0.size() != 0) {
-      movedBlocks = true;
-      MPI_Waitall(requests0.size(), &requests0[0], MPI_STATUSES_IGNORE);
-    }
-    for (int r = 0; r < sim.size; r++)
-      for (int i = 0; i < (int)recv_blocks[r].size(); i++) {
-        const int level = (int)recv_blocks[r][i].level;
-        const long long Z = recv_blocks[r][i].Z;
-        Info *info = getf(&g->all, level, Z);
-        info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
-#pragma omp critical
-        { g->infos.push_back(info); }
-        treef(&g->tree, level, Z) = sim.rank;
-        memcpy(info->block, recv_blocks[r][i].data,
-               _BS_ * _BS_ * dim * sizeof(Real));
-      }
     dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
