@@ -158,56 +158,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
     return getf(all, m, Z);
   }
 }
-static void Setup(std::unordered_map<long long, int> *tree,
-                  std::unordered_map<long long, Info *> *all,
-                  std::vector<Info *> *infos, struct SyncBuf *buf) {
-  std::vector<int> offsets(sim.size, 0);
-  for (Info *info : *infos) {
-    info->halo_id = -1;
-    bool xskin =
-        info->index[0] == 0 || info->index[0] == ((1 << info->level) - 1);
-    bool yskin =
-        info->index[1] == 0 || info->index[1] == ((1 << info->level) - 1);
-    int xskip = info->index[0] == 0 ? -1 : 1;
-    int yskip = info->index[1] == 0 ? -1 : 1;
-    assert(xskip);
-    assert(yskip);
-
-    bool isInner = true;
-    std::vector<int> ToBeChecked;
-    for (int icode = 0; icode < 27; icode++) {
-      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-        continue;
-      int code[3] = {icode % 3 - 1, (icode / 3) % 3 - 1, (icode / 9) % 3 - 1};
-      if (code[2] != 0)
-        continue;
-      if (code[0] == xskip && xskin)
-        continue;
-      if (code[1] == yskip && yskin)
-        continue;
-      int &infoNeiTree =
-          treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-      if (infoNeiTree == -2) {
-      } else if (infoNeiTree == -1) {
-        int Bstep = 1;
-        if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 2))
-          Bstep = 3;
-        else if ((abs(code[0]) + abs(code[1]) + abs(code[2]) == 3))
-          Bstep = 4;
-        for (int B = 0; B <= 3; B += Bstep) {
-          if (Bstep == 1 && B >= 2)
-            continue;
-          if (Bstep > 1 && B >= 1)
-            continue;
-        }
-      }
-    }
-    if (isInner) {
-      info->halo_id = -1;
-    }
-    getf(all, info->level, info->Z)->halo_id = info->halo_id;
-  }
-}
 struct Face {
   Info *infos[2];
   int icode[2];
@@ -1931,7 +1881,6 @@ struct GradChiOnTmp {
 static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
-  Stencil stencil{-1, -1, 2, 2, true};
   bool CallValidStates = false;
   bool Reduction = false;
   int tmp;
