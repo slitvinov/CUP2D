@@ -628,8 +628,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   std::vector<int> recv_sz_allranks(comm_size_);
   for (int r(0); r < comm_size_; r++)
     recv_sz_allranks[r] = bd_recv_set_[r].size();
-  MPI_Alltoall(recv_sz_allranks.data(), 1, MPI_INT, send_sz_allranks.data(), 1,
-               MPI_INT, m_comm_);
+  send_sz_allranks[0] = recv_sz_allranks[0];
   recv_ranks_.clear();
   recv_offset_.clear();
   recv_sz_.clear();
