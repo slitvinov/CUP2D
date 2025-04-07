@@ -229,7 +229,6 @@ struct Synchronizer {
   std::array<Range, 3 * 27> AllStencils;
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
-  struct Range Coarse_Range;
   struct SyncBuf *buf;
 };
 struct Face {
