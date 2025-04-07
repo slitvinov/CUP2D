@@ -506,7 +506,7 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
         continue;
       int &infoNeiTree =
           treef(tree, info->level, info->Znei[1 + code[0]][1 + code[1]]);
-if (infoNeiTree == -2) {
+      if (infoNeiTree == -2) {
         Coarsened = true;
         Info *infoNei =
             getf(all, info->level, info->Znei[1 + code[0]][1 + code[1]]);
@@ -2179,7 +2179,7 @@ public:
             for (int yd = 0; yd < L[1]; ++yd) {
               Real *dst = dstbase + dim * nc[0] * yd;
               Real *src = srcbase + dim * L[0] * yd;
-	      //MEM(unpack->CoarseVersionLX);
+              // MEM(unpack->CoarseVersionLX);
             }
           }
         } else if (unpack->level < info->level) {
