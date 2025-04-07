@@ -635,7 +635,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
     std::copy(bd_recv_set_[recv_ranks_[i]].begin(),
               bd_recv_set_[recv_ranks_[i]].end(),
               &recv_idx_list[recv_offset_[i]]);
-    memcpy(&send_pack_idx_long[send_offset_[i]],
+    memcpy(&send_pack_idx_long[send_offset_[i]], /* TODO */
 	   &recv_idx_list[recv_offset_[i]],
 	   n * sizeof(long));
   }
