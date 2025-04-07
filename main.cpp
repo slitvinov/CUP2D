@@ -2323,11 +2323,6 @@ static void adapt() {
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
       Info *info = I[j];
-      if ((info->state == Refine && info->level == sim.levelMax - 1) ||
-          (info->state == Compress && info->level == levelMin)) {
-        info->state = Leave;
-        getf(&var.tmp->all, info->level, info->Z)->state = Leave;
-      }
       if (info->state != Leave) {
         info->changed2 = true;
         (getf(&var.tmp->all, info->level, info->Z))->changed2 = info->changed2;
