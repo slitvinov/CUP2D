@@ -6,11 +6,8 @@
 #include <cstring>
 #include <fenv.h>
 #include <iomanip>
-#include <iostream>
 #include <limits>
 #include <map>
-#include <memory>
-#include <numeric>
 #include <set>
 #include <string>
 #include <unordered_map>
