@@ -944,28 +944,7 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
   std::vector<MPI_Request> requests;
   long long dummy = 0;
   std::vector<std::vector<long long>> recv_buffer(sim.size);
-  for (int r : Neighbors)
-    if (r != sim.rank) {
-      int recv_size;
-      MPI_Status status;
-      MPI_Probe(r, 123, MPI_COMM_WORLD, &status);
-      MPI_Get_count(&status, MPI_LONG_LONG, &recv_size);
-      if (recv_size > 0) {
-        recv_buffer[r].resize(recv_size);
-        requests.resize(requests.size() + 1);
-        MPI_Irecv(&recv_buffer[r][0], recv_buffer[r].size(), MPI_LONG_LONG, r,
-                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
-      }
-    }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-  for (int r = 0; r < sim.size; r++)
-    if (recv_buffer[r].size() > 1)
-      for (int index = 0; index < (int)recv_buffer[r].size(); index += 3) {
-        int level = recv_buffer[r][index];
-        long long Z = recv_buffer[r][index + 1];
-        getf(all, level, Z)->state =
-            (recv_buffer[r][index + 2] == 1) ? Compress : Refine;
-      }
 };
 static Synchronizer *sync1(const Stencil &stencil,
                            std::map<Stencil, Synchronizer *> *synchronizers,
