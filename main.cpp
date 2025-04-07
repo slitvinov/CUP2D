@@ -228,7 +228,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
 struct Synchronizer {
   bool use_averages;
   std::array<Range, 3 * 27> AllStencils;
-  std::vector<Real *> bufs;
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
   struct Range Coarse_Range;
@@ -614,7 +613,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   } else {
     s = itSynchronizerMPI->second;
   }
-  s->bufs.clear();
   *timestamp = (*timestamp + 1) % 32768;
   return s;
 }
