@@ -1614,7 +1614,7 @@ static void adapt() {
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
-      Info *parent = getf(&g->all, level, Z);
+      Info *parent = getf0(&g->all, level, Z);
       parent->state = Leave;
       if (basic == false)
         lab.load(&g->tree, &g->all, stencil, parent, true);
