@@ -215,7 +215,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
   }
 }
 struct Synchronizer {
-  std::vector<Info *> dummy_vector;
   struct SyncBuf *buf;
 };
 struct Face {
