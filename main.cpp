@@ -3794,11 +3794,6 @@ int main(int argc, char **argv) {
       const int N = _BS_ * _BS_ * Nblocks;
       sim.mat->reserve(N);
       const long long Nblocks_long = Nblocks;
-      MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, sim.nblocks.data(), 1,
-                    MPI_LONG_LONG, MPI_COMM_WORLD);
-      for (int i(sim.nblocks.size() - 1); i > 0; i--) {
-        sim.nblocks[i] = sim.nblocks[i - 1];
-      }
       sim.nblocks[0] = 0;
       sim.nrows[0] = 0;
       for (int i = 0; i < Nblocks; i++) {
