@@ -227,7 +227,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
 }
 struct Synchronizer {
   bool use_averages;
-  int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
   std::vector<Real *> bufs;
   std::vector<Info *> dummy_vector;
@@ -599,25 +598,16 @@ static Synchronizer *sync1(const Stencil &stencil,
       range0.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + stencil.sy : 0) : 0;
       range0.ex = code[0] < 1 ? _BS_ : stencil.ex - 1;
       range0.ey = code[1] < 1 ? _BS_ : stencil.ey - 1;
-      s->sLength[3 * icode + 0] = range0.ex - range0.sx;
-      s->sLength[3 * icode + 1] = range0.ey - range0.sy;
-      s->sLength[3 * icode + 2] = 1;
       Range &range1 = s->AllStencils[icode + 27];
       range1.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ + 2 * stencil.sx : 0) : 0;
       range1.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ + 2 * stencil.sy : 0) : 0;
       range1.ex = code[0] < 1 ? _BS_ : 2 * (stencil.ex - 1);
       range1.ey = code[1] < 1 ? _BS_ : 2 * (stencil.ey - 1);
-      s->sLength[3 * (icode + 27) + 0] = (range1.ex - range1.sx) / 2;
-      s->sLength[3 * (icode + 27) + 1] = (range1.ey - range1.sy) / 2;
-      s->sLength[3 * (icode + 27) + 2] = 1;
       Range &range2 = s->AllStencils[icode + 2 * 27];
       range2.sx = code[0] < 1 ? (code[0] < 0 ? _BS_ / 2 + sC[0] : 0) : 0;
       range2.sy = code[1] < 1 ? (code[1] < 0 ? _BS_ / 2 + sC[1] : 0) : 0;
       range2.ex = code[0] < 1 ? _BS_ / 2 : eC[0] - 1;
       range2.ey = code[1] < 1 ? _BS_ / 2 : eC[1] - 1;
-      s->sLength[3 * (icode + 2 * 27) + 0] = range2.ex - range2.sx;
-      s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
-      s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
     Setup(tree, all, infos, s->buf);
     (*synchronizers)[stencil] = s;
