@@ -2227,7 +2227,6 @@ static void adapt() {
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
-    bool boundary_needed = var.F[i].boundary_needed;
     int dim = var.F[i].dim;
     Synchronizer *Synch = nullptr;
     const Stencil stencil{-1, -1, 2, 2, true};
@@ -2367,9 +2366,6 @@ static void adapt() {
       const Info *base = getf(&g->all, b->level, nBlock);
       if (!(Tree1(base, &g->tree) >= 0) || base->state != Compress)
         continue;
-      const Info *bCopy = getf(&g->all, b->level, b->Z);
-      const int baserank = treef(&g->tree, b->level, nBlock);
-      const int brank = treef(&g->tree, b->level, b->Z);
       if (b->Z != nBlock) {
         /**/
       } else {
@@ -2379,7 +2375,6 @@ static void adapt() {
                 forward(b->level, b->index[0] + i, b->index[1] + j);
             if (n == nBlock)
               continue;
-            const int temprank = treef(&g->tree, b->level, n);
           }
       }
     }
@@ -3565,7 +3560,6 @@ int main(int argc, char **argv) {
       const int Nblocks = RhsInfo.size();
       const int N = _BS_ * _BS_ * Nblocks;
       sim.mat->reserve(N);
-      const long long Nblocks_long = Nblocks;
       sim.nblocks[0] = 0;
       sim.nrows[0] = 0;
       for (int i = 0; i < Nblocks; i++) {
