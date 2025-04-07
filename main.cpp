@@ -253,12 +253,11 @@ struct Face {
     }
   }
 };
-static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
+static void update_blocks(std::vector<Info *> *infos,
                           std::unordered_map<long long, Info *> *all,
                           std::unordered_map<long long, int> *tree) {
   std::vector<long long> myData;
   for (auto &info : *infos) {
-    bool myflag = false;
     int aux = 1 << info->level;
     bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
     bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
@@ -275,7 +274,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
           int &infoNeiTree = treef(tree, infoNei->level, infoNei->Z);
           if (infoNeiTree == -2) {
             long long nCoarse = infoNei->Zparent;
-            int infoNeiCoarserrank = treef(tree, infoNei->level - 1, nCoarse);
+            treef(tree, infoNei->level - 1, nCoarse);
           } else if (infoNeiTree == -1) {
             int Bstep = 1;
             if ((abs(x) + abs(y) == 2))
@@ -287,7 +286,7 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
                                   (B % 2) * std::max(0, 1 - abs(x))]
                                  [std::max(-y, 0) +
                                   temp * std::max(0, 1 - abs(y))];
-              int infoNeiFinerrank = treef(tree, infoNei->level + 1, nFine);
+              treef(tree, infoNei->level + 1, nFine);
             }
           }
         }
@@ -2460,7 +2459,7 @@ static void adapt() {
     fill_pos(&g->infos, &g->all);
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
-      update_blocks(false, &g->infos, &g->all, &g->tree);
+      update_blocks(&g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
         Setup(&g->tree, &g->all, &g->infos, it->second->buf);
@@ -3180,7 +3179,7 @@ int main(int argc, char **argv) {
       g->infos[j]->id = j;
     g->timestamp = 0;
     g->UpdateFluxCorrection = true;
-    update_blocks(false, &g->infos, &g->all, &g->tree);
+    update_blocks(&g->infos, &g->all, &g->tree);
   }
   for (int i = 0;; i++) {
     ongrid();
@@ -3564,7 +3563,7 @@ int main(int argc, char **argv) {
     if (var.pres->UpdateFluxCorrection) {
       var.pres->UpdateFluxCorrection = false;
 
-      update_blocks(true, &var.tmp->infos, &var.tmp->all, &var.tmp->tree);
+      update_blocks(&var.tmp->infos, &var.tmp->all, &var.tmp->tree);
       std::vector<Info *> &RhsInfo = var.tmp->infos;
       const int Nblocks = RhsInfo.size();
       const int N = _BS_ * _BS_ * Nblocks;
