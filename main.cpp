@@ -160,9 +160,9 @@ static void fill_pos(std::vector<Info *> *infos,
     (*infos)[j] = info;
   }
 }
-static Real *avail(int m, long long n,
+static Real *avail(int level, long long Z,
                    std::unordered_map<long long, Info *> *all) {
-  return getf(all, m, n)->block;
+  return getf(all, level, Z)->block;
 }
 static Real *avail1(int ix, int iy, int m,
                     std::unordered_map<long long, Info *> *all) {
