@@ -173,7 +173,24 @@ struct CommandlineParser {
     return mapArguments[key];
   }
 };
-
+static std::string trim(std::string str) {
+  size_t i = 0, j = str.length();
+  while (i < j && isspace(str[i]))
+    i++;
+  while (j > i && isspace(str[j - 1]))
+    j--;
+  return str.substr(i, j - i);
+}
+struct LineParser : public CommandlineParser {
+  LineParser(std::istringstream &is_line) : CommandlineParser(0, NULL) {
+    std::string key, value;
+    while (std::getline(is_line, key, '=')) {
+      if (std::getline(is_line, value, ' ')) {
+        mapArguments[trim(key)] = Value(trim(value));
+      }
+    }
+  }
+};
 std::vector<double> precond() {
   std::vector<double> L[_BS_ * _BS_];
   std::vector<double> L_inv[_BS_ * _BS_];
