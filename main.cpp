@@ -172,13 +172,8 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
   }
 }
 struct SyncBuf {
-  std::set<int> Neighbors;
   std::vector<Info *> halo_blocks;
   std::vector<Info *> inner_blocks;
-  std::vector<int> send_buffer_size;
-  std::vector<MPI_Request> requests;
-  Real **recv_buffer;
-  Real **send_buffer;
 };
 static void Setup(int dim, std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
@@ -188,12 +183,8 @@ static void Setup(int dim, std::unordered_map<long long, int> *tree,
                   std::vector<std::vector<int>> &ToBeAveragedDown) {
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
-  buf->Neighbors.clear();
   buf->inner_blocks.clear();
   buf->halo_blocks.clear();
-  for (int r = 0; r < sim.size; r++) {
-    buf->send_buffer_size[r] = 0;
-  }
   std::vector<Range> compass[27];
   for (Info *info : *infos) {
     info->halo_id = -1;
@@ -260,11 +251,7 @@ struct Synchronizer {
   bool use_averages;
   int sLength[3 * 27 * 3];
   std::array<Range, 3 * 27> AllStencils;
-  std::unordered_map<int, MPI_Request *> mapofrequests;
-
-  std::vector<MPI_Request *> reqs;
   std::vector<Real *> bufs;
-
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
   struct Range Coarse_Range;
@@ -667,14 +654,6 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
-    s->buf->send_buffer_size.resize(sim.size);
-    s->buf->send_buffer = (Real **)malloc(sim.size * sizeof(Real *));
-    s->buf->recv_buffer = (Real **)malloc(sim.size * sizeof(Real *));
-    for (int i = 0; i < sim.size; i++) {
-      s->buf->send_buffer[i] = NULL;
-      s->buf->recv_buffer[i] = NULL;
-    }
-
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
@@ -713,11 +692,7 @@ static Synchronizer *sync1(const Stencil &stencil,
   } else {
     s = itSynchronizerMPI->second;
   }
-  s->reqs.clear();
   s->bufs.clear();
-  s->mapofrequests.clear();
-  s->buf->requests.clear();
-  s->buf->requests.reserve(2 * sim.size);
   *timestamp = (*timestamp + 1) % 32768;
   return s;
 }
@@ -1483,8 +1458,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
       }
     }
   }
-  MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-              MPI_STATUSES_IGNORE);
 }
 typedef Real ScalarBlock[_BS_][_BS_];
 template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
@@ -2200,8 +2173,6 @@ static void adapt() {
     }
     if (iii == 1)
       break;
-    MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                MPI_STATUSES_IGNORE);
   }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
   var.tmp->boundary = *halo;
@@ -2390,8 +2361,6 @@ static void adapt() {
     if (basic == false) {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
                     &g->timestamp, dim);
-      MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                  MPI_STATUSES_IGNORE);
       g->boundary = Synch->buf->halo_blocks;
       if (boundary_needed)
         update_boundary(false, &g->boundary, &g->all, &g->tree);
@@ -3758,12 +3727,7 @@ int main(int argc, char **argv) {
       }
 #pragma omp master
       {
-        MPI_Waitall(Synch->buf->requests.size(), Synch->buf->requests.data(),
-                    MPI_STATUSES_IGNORE);
         avail1 = Synch->buf->halo_blocks;
-
-        MPI_Waitall(Synch2->buf->requests.size(), Synch2->buf->requests.data(),
-                    MPI_STATUSES_IGNORE);
         avail12 = Synch2->buf->halo_blocks;
       }
 #pragma omp barrier
