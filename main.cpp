@@ -167,7 +167,7 @@ static Real *avail(int level, long long Z,
 static Real *avail1(int ix, int iy, int level,
                     std::unordered_map<long long, Info *> *all) {
   const long long Z = forward(level, ix, iy);
-  return avail(level, Z, all);
+  return getf(all, level, Z)->block;
 }
 
 static void dealloc_many(std::vector<long long> &ids,
