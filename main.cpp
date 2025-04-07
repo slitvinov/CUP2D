@@ -215,7 +215,7 @@ public:
   void load(std::unordered_map<long long, int> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
-    std::array<Real *, 27> myblocks;
+    Real *myblocks[27];
     int coarsened_nei_codes_size;
     bool coarsened = false;
     bool use_averages;
@@ -2264,7 +2264,7 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid;
-    for (size_t i = 0; i < my_blocks; i++) {
+    for (size_t i = 0; i < (size_t)my_blocks; i++) {
       long long Z = i;
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
