@@ -4686,8 +4686,6 @@ int main(int argc, char **argv) {
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
-  if (sim.rank == 0)
-    fprintf(stderr, "main.cpp: %d ranks\n", sim.size);
 #ifdef _OPENMP
 #pragma omp parallel
   {
@@ -4771,17 +4769,13 @@ int main(int argc, char **argv) {
     }
   }
 
-  sim.nblocks.resize(sim.size + 1);
-  sim.nrows.resize(sim.size + 1);
+  sim.nblocks.resize(1);
+  sim.nrows.resize(1);
   sim.levels.resize(sim.levelMax);
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
-  long long total_blocks = 1LL << (2 * sim.levelStart);
-  long long base = total_blocks / sim.size;
-  long long rema = total_blocks % sim.size;
-  long long my_blocks = base + (sim.rank < rema ? 1 : 0);
-  long long n_start = sim.rank * base + (sim.rank < rema ? sim.rank : rema);
+  long long my_blocks = 1LL << (2 * sim.levelStart);
   var.buf1 = new Buffers;
   var.buf2 = new Buffers;
 
@@ -4790,7 +4784,7 @@ int main(int argc, char **argv) {
     Grid *g = *var.F[i].g = new Grid;
     g->synchronizers = new std::map<Stencil, Synchronizer *>;
     for (size_t i = 0; i < my_blocks; i++) {
-      long long Z = n_start + i;
+      long long Z = i;
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
