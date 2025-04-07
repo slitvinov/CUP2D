@@ -128,27 +128,19 @@ BiCGSTABSolver::BiCGSTABSolver(MPI_Comm m_comm, LocalSpMatDnVec &LocalLS,
 
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
-  for (int i = 0;;) {
-    if (i == rank_) {
-      cudaUUID_t u = prop.uuid;
-      fprintf(stderr,
-              "cuda.cu: rank %d: %s (UUID: "
-              "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
-              "02x%02x%02x)\n",
-              rank_, prop.name, (unsigned char)u.bytes[0],
-              (unsigned char)u.bytes[1], (unsigned char)u.bytes[2],
-              (unsigned char)u.bytes[3], (unsigned char)u.bytes[4],
-              (unsigned char)u.bytes[5], (unsigned char)u.bytes[6],
-              (unsigned char)u.bytes[7], (unsigned char)u.bytes[8],
-              (unsigned char)u.bytes[9], (unsigned char)u.bytes[10],
-              (unsigned char)u.bytes[11], (unsigned char)u.bytes[12],
-              (unsigned char)u.bytes[13], (unsigned char)u.bytes[14],
-              (unsigned char)u.bytes[15]);
-    }
-    if (++i == comm_size_)
-      break;
-    MPI_Barrier(m_comm_);
-  }
+  fprintf(stderr,
+          "cuda.cu: rank %d: %s (UUID: "
+          "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
+          "02x%02x%02x)\n",
+          rank_, prop.name, (unsigned char)u.bytes[0],
+          (unsigned char)u.bytes[1], (unsigned char)u.bytes[2],
+          (unsigned char)u.bytes[3], (unsigned char)u.bytes[4],
+          (unsigned char)u.bytes[5], (unsigned char)u.bytes[6],
+          (unsigned char)u.bytes[7], (unsigned char)u.bytes[8],
+          (unsigned char)u.bytes[9], (unsigned char)u.bytes[10],
+          (unsigned char)u.bytes[11], (unsigned char)u.bytes[12],
+          (unsigned char)u.bytes[13], (unsigned char)u.bytes[14],
+          (unsigned char)u.bytes[15]);
   cudaStreamCreate(&solver_stream_);
   cudaStreamCreate(&copy_stream_);
   cudaEventCreate(&sync_event_);
