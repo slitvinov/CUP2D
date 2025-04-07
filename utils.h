@@ -168,7 +168,7 @@ struct CommandlineParser {
   Value &operator()(std::string key) {
     if (mapArguments.find(key) == mapArguments.end()) {
       fprintf(stderr, "main.cpp: error: option %s is not set\n", key.data());
-      MPI_Abort(MPI_COMM_WORLD, 1);
+      exit(1);
     }
     return mapArguments[key];
   }
