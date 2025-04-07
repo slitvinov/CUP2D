@@ -629,16 +629,15 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   }
   std::vector<long long> send_pack_idx_long(offset);
   send_pack_idx_.resize(offset);
-  for (size_t i(0); i < send_ranks_.size(); i++)
-    MPI_Recv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG,
-	     send_ranks_[i], 546, m_comm_, MPI_STATUS_IGNORE);
   std::vector<long long> recv_idx_list(halo_);
-  for (size_t i(0); i < recv_ranks_.size(); i++) {
+  for (size_t i(0); i < send_ranks_.size(); i++) {
+    MPI_Recv(&send_pack_idx_long[send_offset_[i]], send_sz_[i], MPI_LONG_LONG,
+             send_ranks_[i], 546, m_comm_, MPI_STATUS_IGNORE);
     std::copy(bd_recv_set_[recv_ranks_[i]].begin(),
               bd_recv_set_[recv_ranks_[i]].end(),
               &recv_idx_list[recv_offset_[i]]);
     MPI_Send(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG,
-	     recv_ranks_[i], 546, m_comm_);
+             recv_ranks_[i], 546, m_comm_);
   }
   const long long shift = -Nrows_xcumsum[rank_];
   loc_cooRowA_int_.resize(loc_nnz_);
