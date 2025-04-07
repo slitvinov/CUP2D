@@ -262,7 +262,6 @@ static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
-  size_t timestamp;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
   std::vector<Info *> infos;
@@ -2744,7 +2743,6 @@ int main(int argc, char **argv) {
     std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
     for (size_t j = 0; j < g->infos.size(); j++)
       g->infos[j]->id = j;
-    g->timestamp = 0;
     g->UpdateFluxCorrection = true;
     update_blocks(&g->infos, &g->all, &g->tree);
   }
