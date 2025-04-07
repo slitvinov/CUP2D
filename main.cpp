@@ -397,7 +397,7 @@ public:
           int iy =
               2 * yi + std::max(cy, 0) + cy + aux * std::max(0, 1 - abs(cy));
           const long long Z = forward(info->level + 1, ix, iy);
-          Real *b = getf(all, info->level + 1, Z)->block;
+          Real *b = getf0(all, info->level + 1, Z)->block;
           if (b == nullptr)
             continue;
           int i =
@@ -1393,7 +1393,7 @@ static void adapt() {
   {
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < I->size(); i++) {
-      Info *info = getf(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
+      Info *info = getf0(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
       Real *b = info->block;
       double Linf = 0.0;
       for (int j = 0; j < _BS_ * _BS_; j++)
@@ -1452,7 +1452,7 @@ static void adapt() {
                             info->Znei[1 + x][1 + y]) == -1) {
                     if (info->state == Compress) {
                       info->state = Leave;
-                      getf(&var.tmp->all, info->level, info->Z)->state = Leave;
+                      getf0(&var.tmp->all, info->level, info->Z)->state = Leave;
                     }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
@@ -1462,7 +1462,7 @@ static void adapt() {
                       int jNei = 2 * info->index[1] + std::max(y, 0) + y +
                                  aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
-                      Info *FinerNei = getf(&var.tmp->all, m + 1, zzz);
+                      Info *FinerNei = getf0(&var.tmp->all, m + 1, zzz);
                       State NeiState = FinerNei->state;
                       if (NeiState == Refine) {
                         info->state = Refine;
