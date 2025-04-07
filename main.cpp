@@ -141,17 +141,6 @@ struct Range {
   bool needed{true};
   bool avg_down{true};
 };
-static void remove(Range *q, Range *p) {
-  q->removed.insert(q->removed.end(), p->removed.begin(), p->removed.end());
-}
-static bool contains(Range *q, Range *r) {
-  if (q->avg_down != r->avg_down)
-    return false;
-  int V = (q->ey - q->sy) * (q->ex - q->sx);
-  int Vr = (r->ey - r->sy) * (r->ex - r->sx);
-  return q->sx <= r->sx && r->ex <= q->ex && q->sy <= r->sy && r->ey <= q->ey &&
-         Vr < V;
-}
 struct UnPackInfo {
   int offset;
   int lx;
@@ -191,58 +180,6 @@ static std::vector<Range *> keepEl(std::vector<Range> compass[27]) {
       if (compass[i][j].needed)
         retval.push_back(&compass[i][j]);
   return retval;
-}
-static void needed0(std::vector<Range> compass[27], std::vector<int> &v) {
-  static constexpr std::array<int, 3> faces_and_edges[18] = {
-      {0, 1, 1}, {2, 1, 1}, {1, 0, 1}, {1, 2, 1}, {1, 1, 0}, {1, 1, 2},
-      {0, 0, 1}, {0, 2, 1}, {2, 0, 1}, {2, 2, 1}, {1, 0, 0}, {1, 0, 2},
-      {1, 2, 0}, {1, 2, 2}, {0, 1, 0}, {0, 1, 2}, {2, 1, 0}, {2, 1, 2}};
-  for (auto &f : faces_and_edges)
-    if (compass[f[0] + f[1] * 3 + f[2] * 9].size() != 0) {
-      bool needme = false;
-      auto &me = compass[f[0] + f[1] * 3 + f[2] * 9];
-      for (size_t j1 = 0; j1 < me.size(); j1++)
-        if (me[j1].needed) {
-          needme = true;
-          for (size_t j2 = 0; j2 < me.size(); j2++)
-            if (me[j2].needed && contains(&me[j2], &me[j1])) {
-              me[j1].needed = false;
-              me[j2].removed.push_back(me[j1].index);
-              remove(&me[j2], &me[j1]);
-              v.push_back(me[j1].index);
-              break;
-            }
-        }
-      if (!needme)
-        continue;
-      int imax = (f[0] == 1) ? 2 : f[0];
-      int imin = (f[0] == 1) ? 0 : f[0];
-      int jmax = (f[1] == 1) ? 2 : f[1];
-      int jmin = (f[1] == 1) ? 0 : f[1];
-      int kmax = (f[2] == 1) ? 2 : f[2];
-      int kmin = (f[2] == 1) ? 0 : f[2];
-      for (int k = kmin; k <= kmax; k++)
-        for (int j = jmin; j <= jmax; j++)
-          for (int i = imin; i <= imax; i++) {
-            if (i == f[0] && j == f[1] && k == f[2])
-              continue;
-            auto &other = compass[i + j * 3 + k * 9];
-            for (size_t j1 = 0; j1 < other.size(); j1++) {
-              auto &o = other[j1];
-              if (o.needed)
-                for (size_t k1 = 0; k1 < me.size(); k1++) {
-                  auto &m = me[k1];
-                  if (m.needed && contains(&m, &o)) {
-                    o.needed = false;
-                    m.removed.push_back(o.index);
-                    remove(&m, &o);
-                    v.push_back(o.index);
-                    break;
-                  }
-                }
-            }
-          }
-    }
 }
 struct DuplicatesManager {
   std::vector<int> positions;
