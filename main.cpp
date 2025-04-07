@@ -22,7 +22,6 @@
 enum { max_dim = 2 };
 
 typedef double Real;
-static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
   int sx, sy, ex, ey;
