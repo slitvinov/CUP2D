@@ -96,16 +96,6 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-struct Range {
-  std::vector<int> removed;
-  int index;
-  int sx;
-  int sy;
-  int ex;
-  int ey;
-  bool needed{true};
-  bool avg_down{true};
-};
 static int &treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
   long long aux = sim.levels[m] + n;
@@ -177,7 +167,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
                   std::vector<Info *> *infos, struct SyncBuf *buf) {
   std::vector<int> offsets(sim.size, 0);
   buf->inner_blocks.clear();
-  std::vector<Range> compass[27];
   for (Info *info : *infos) {
     info->halo_id = -1;
     bool xskin =
