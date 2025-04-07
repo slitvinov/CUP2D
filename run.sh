@@ -13,8 +13,8 @@ ${main=./main} \
 -tdump 0.5 \
 -tend 2.0 \
 -shapes '
-   scale=0.15 orientation=0 omega=-1 xcenter=0.359375 ycenter=0.5 sdf=box.raw
-   scale=0.15 orientation=0 omega=1 xcenter=0.640625 ycenter=0.5 sdf=box.raw
+   scale=0.25 orientation=0 omega=-1 xcenter=0.3 ycenter=0.5 sdf=box.raw
+   scale=0.25 orientation=0 omega=1 xcenter=0.6 ycenter=0.5 sdf=box.raw
 '
 
 # -shapes '
