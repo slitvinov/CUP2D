@@ -1830,13 +1830,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
       done:;
       }
 #pragma omp barrier
-#pragma omp for nowait
-      for (std::size_t i = 0; i < halo_next->size(); ++i) {
-        const auto &I = (*halo_next)[i];
-        lab.load(&g->tree, &g->all, Synch->buf, kernel.stencil, I, true,
-                 Synch->sLength);
-        kernel(lab.m, I);
-      }
 #pragma omp single
       {
         if (halo_next->size() == 0)
