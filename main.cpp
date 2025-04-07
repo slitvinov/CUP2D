@@ -24,16 +24,6 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
-  bool operator<(Stencil s) const {
-    int me[] = {sx, sy, ex, ey, tensorial};
-    int you[] = {s.sx, s.sy, s.ex, s.ey, s.tensorial};
-    for (size_t i = 0; i < sizeof me / sizeof *me; ++i)
-      if (me[i] < you[i])
-        return true;
-      else if (me[i] > you[i])
-        return false;
-    return false;
-  }
 };
 struct Shape;
 struct Solver;
