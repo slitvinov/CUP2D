@@ -939,14 +939,13 @@ public:
 };
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  std::vector<Info *> *inner = &g->infos;
 #pragma omp parallel
   {
     BlockLab lab(dim);
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
-    for (std::size_t i = 0; i < inner->size(); ++i) {
-      const auto &I = (*inner)[i];
+    for (std::size_t i = 0; i < g->infos.size(); ++i) {
+      const auto &I = g->infos[i];
       lab.load(&g->tree, &g->all, kernel.stencil, I, true);
       kernel(lab.m, I);
     }
