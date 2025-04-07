@@ -939,13 +939,17 @@ public:
 };
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  BlockLab lab(dim);
-  lab.prepare(kernel.stencil);
-  size_t n = g->infos.size();
-#pragma omp parallel for
-  for (std::size_t i = 0; i < n; ++i) {
-    lab.load(&g->tree, &g->all, kernel.stencil, g->infos[i], true);
-    kernel(lab.m, g->infos[i]);
+  std::vector<Info *> *inner = &g->infos;
+#pragma omp parallel
+  {
+    BlockLab lab(dim);
+    lab.prepare(kernel.stencil);
+#pragma omp for nowait
+    for (std::size_t i = 0; i < inner->size(); ++i) {
+      const auto &I = (*inner)[i];
+      lab.load(&g->tree, &g->all, kernel.stencil, I, true);
+      kernel(lab.m, I);
+    }
   }
 }
 typedef Real ScalarBlock[_BS_][_BS_];
