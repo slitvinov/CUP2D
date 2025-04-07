@@ -3902,10 +3902,6 @@ int main(int argc, char **argv) {
              _BS_ * _BS_ * sizeof(Real));
       memset(presInfo[i]->block, 0, _BS_ * _BS_ * sizeof(Real));
     }
-    if (var.tmp->UpdateFluxCorrection) {
-      prepare0(var.buf1, &var.tmp->infos, &var.tmp->all, &var.tmp->tree, 1);
-      var.tmp->UpdateFluxCorrection = false;
-    }
     computeA(pressure_rhs1(), var.pold, 1);
     fillcases(var.buf1, &var.tmp->tree, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
