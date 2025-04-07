@@ -2641,8 +2641,6 @@ static void adapt() {
     const int flux_left = (sim.rank == 0) ? 0 : (my_blocks - left_blocks) / nu;
     const int flux_right =
         (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
-    if (flux_right != 0 || flux_left != 0)
-      std::sort(g->infos.begin(), g->infos.end(), info_cmp);
     std::vector<MPI_Request> request;
     if (request.size() != 0) {
       movedBlocks = true;
