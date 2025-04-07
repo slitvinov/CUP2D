@@ -582,17 +582,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
     for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
       fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
 }
-static void update_boundary(bool clean, std::vector<Info *> *boundary,
-                            std::unordered_map<long long, Info *> *all,
-                            std::unordered_map<long long, int> *tree) {
-  std::vector<std::vector<long long>> send_buffer(sim.size);
-  std::vector<Info *> &bbb = *boundary;
-  std::set<int> Neighbors;
-  std::vector<MPI_Request> requests;
-  long long dummy = 0;
-  std::vector<std::vector<long long>> recv_buffer(sim.size);
-  MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
-};
 static Synchronizer *sync1(const Stencil &stencil,
                            std::map<Stencil, Synchronizer *> *synchronizers,
                            std::unordered_map<long long, int> *tree,
@@ -2188,8 +2177,6 @@ static void adapt() {
         end:;
         }
       }
-      update_boundary(clean_boundary, &var.tmp->boundary, &var.tmp->all,
-                      &var.tmp->tree);
       clean_boundary = false;
       if (m == levelMin)
         break;
@@ -2312,8 +2299,6 @@ static void adapt() {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
                     &g->timestamp, dim);
       g->boundary = Synch->buf->halo_blocks;
-      if (boundary_needed)
-        update_boundary(false, &g->boundary, &g->all, &g->tree);
     }
     int r = 0;
     int c = 0;
