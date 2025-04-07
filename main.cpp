@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <memory>
 #include <array>
 #include <cassert>
 #include <cfloat>
