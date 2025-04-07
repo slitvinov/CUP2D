@@ -24,11 +24,6 @@ enum { max_dim = 2 };
 
 typedef double Real;
 #define MPI_Real MPI_DOUBLE
-#define MEM(lx)                                                                \
-  do {                                                                         \
-    memcpy(dst, src, sizeof(Real) * dim * (lx));                               \
-  } while (0)
-
 static constexpr unsigned int sizes[] = {_BS_, _BS_, 1};
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
