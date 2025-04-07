@@ -644,7 +644,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
               bd_recv_set_[recv_ranks_[i]].end(),
               &recv_idx_list[recv_offset_[i]]);
     MPI_Send(&recv_idx_list[recv_offset_[i]], recv_sz_[i], MPI_LONG_LONG,
-	     recv_ranks_[i], 546, m_comm_, MPI_STATUS_IGNORE);
+	     recv_ranks_[i], 546, m_comm_);
   }
   const long long shift = -Nrows_xcumsum[rank_];
   loc_cooRowA_int_.resize(loc_nnz_);
