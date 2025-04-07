@@ -2854,16 +2854,6 @@ static void adapt() {
       MPI_Irecv(&recv_right[0], recv_right.size() * sizeof(recv_right[0]),
                 MPI_UINT8_T, right, 7890, MPI_COMM_WORLD, &request.back());
     }
-    for (int i = 0; i < flux_right; i++) {
-      Info *info = g->infos[my_blocks - i - 1];
-      dealloc(info->level, info->Z, &g->infos);
-      treef(&g->tree, info->level, info->Z) = right;
-    }
-    for (int i = 0; i < flux_left; i++) {
-      Info *info = g->infos[i];
-      dealloc(info->level, info->Z, &g->infos);
-      treef(&g->tree, info->level, info->Z) = left;
-    }
     if (request.size() != 0) {
       movedBlocks = true;
       MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
