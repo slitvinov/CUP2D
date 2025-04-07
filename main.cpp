@@ -3923,10 +3923,6 @@ int main(int argc, char **argv) {
       }
       sim.nblocks[0] = 0;
       sim.nrows[0] = 0;
-      for (size_t i = 1; i < sim.nblocks.size(); i++) {
-        sim.nblocks[i] += sim.nblocks[i - 1];
-        sim.nrows[i] = (_BS_ * _BS_) * sim.nblocks[i];
-      }
       for (int i = 0; i < Nblocks; i++) {
         Info *&rhs_info = RhsInfo[i];
         const int aux = 1 << rhs_info->level;
