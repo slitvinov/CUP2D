@@ -177,10 +177,8 @@ struct SyncBuf {
 };
 static void Setup(std::unordered_map<long long, int> *tree,
                   std::unordered_map<long long, Info *> *all,
-                  std::vector<Info *> *infos, struct SyncBuf *buf,
-                  bool &use_averages, std::array<Range, 3 * 27> &AllStencils,
-                  Range &Coarse_Range, const Stencil &stencil, int *sLength,
-                  std::vector<std::vector<int>> &ToBeAveragedDown) {
+                  std::vector<Info *> *infos, struct SyncBuf *buf
+                  ) {
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
   buf->inner_blocks.clear();
@@ -640,8 +638,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 1] = range2.ey - range2.sy;
       s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
-    Setup(tree, all, infos, s->buf, s->use_averages, s->AllStencils,
-          s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown);
+    Setup(tree, all, infos, s->buf);
     (*synchronizers)[stencil] = s;
   } else {
     s = itSynchronizerMPI->second;
@@ -2575,11 +2572,7 @@ static void adapt() {
       update_blocks(false, &g->infos, &g->all, &g->tree);
       auto it = g->synchronizers->begin();
       while (it != g->synchronizers->end()) {
-        Setup(&g->tree, &g->all, &g->infos, it->second->buf,
-
-              it->second->use_averages, it->second->AllStencils,
-              it->second->Coarse_Range, stencil, it->second->sLength,
-              it->second->ToBeAveragedDown);
+        Setup(&g->tree, &g->all, &g->infos, it->second->buf);
         it++;
       }
     }
