@@ -2642,10 +2642,6 @@ static void adapt() {
     const int flux_right =
         (sim.rank == sim.size - 1) ? 0 : (my_blocks - right_blocks) / nu;
     std::vector<MPI_Request> request;
-    if (request.size() != 0) {
-      movedBlocks = true;
-      MPI_Waitall(request.size(), &request[0], MPI_STATUSES_IGNORE);
-    }
     int temp0 = movedBlocks ? 1 : 0;
     MPI_Request request_reduction;
     MPI_Iallreduce(MPI_IN_PLACE, &temp0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD,
