@@ -1,13 +1,13 @@
 hal/glados
 ```
 module load mpi
-make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' -j
+make 'NVCC =/usr/local/cuda-12.5/bin/nvcc' -j
 ```
 
 With code coverage
 ```
 module load mpi
-make 'NVCC =/usr/local/cuda-12.5/bin/nvcc -ccbin=mpic++' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = ' -j
+make 'NVCC =/usr/local/cuda-12.5/bin/nvcc' 'CXXFLAGS = -coverage -Og -g3' 'LDFLAGS = -Xcompiler -coverage' 'OPENMPFLAGS = ' -j
 sh run.sh
 python -m gcovr --html-details cover.html
 ```
@@ -44,20 +44,19 @@ module load gcc openmpi cuda
 make
 salloc -N 1 -n 2 -c 4 -p seas_gpu --gpus 1 --mem 1Gb
 ...
-OMP_NUM_THREADS=4 main='srun --mpi=pmix ./main' sh -x run.sh
+OMP_NUM_THREADS=4 main='srun ./main' sh -x run.sh
 ```
 
 For hal/glados
 ```
-module load mpi
 scl enable gcc-toolset-12 bash
 PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH
-git clean -fdxq && make 'CXXFLAGS = -Og -g3' && mpirun -n 2 sh run.sh && python3 tool/stat.py *.xdmf2 | tee ref.out
+git clean -fdxq && make 'CXXFLAGS = -Og -g3' && sh run.sh && python3 tool/stat.py *.xdmf2 | tee ref.out
 ```
 
 or
 ```
-PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH && module load mpi && make
+PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH && make
 ```
 
 AddressSanitizer:
