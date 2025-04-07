@@ -939,12 +939,13 @@ public:
 };
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
+  const size_t n = g->infos.size();
 #pragma omp parallel
   {
     BlockLab lab(dim);
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
-    for (std::size_t i = 0; i < g->infos.size(); ++i) {
+    for (std::size_t i = 0; i < n; ++i) {
       lab.load(&g->tree, &g->all, kernel.stencil, g->infos[i], true);
       kernel(lab.m, g->infos[i]);
     }
