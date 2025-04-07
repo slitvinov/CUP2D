@@ -1250,7 +1250,6 @@ static void ongrid() {
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < tmpInfo.size(); i++) {
       Obstacle *const block = shape->obstacleBlocks[tmpInfo[i]->id];
-      assert(block not_eq nullptr);
       const Info *info = tmpInfo[i];
       Real *b = tmpInfo[i]->block;
       Obstacle *const o = block;
@@ -1369,7 +1368,6 @@ struct GradChiOnTmp {
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
-        assert(k >= 0);
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
         if (um[k] > 0.0 && um[k] < threshold) {
@@ -1419,10 +1417,8 @@ static void adapt() {
 #pragma omp parallel for
     for (size_t j = 0; j < I.size(); j++) {
       Info *info = I[j];
-      if (info->state != Leave) {
+      if (info->state != Leave)
         info->changed2 = true;
-        assert(getf(&var.tmp->all, info->level, info->Z) == info);
-      }
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < I.size(); j++) {
@@ -1445,10 +1441,8 @@ static void adapt() {
                     continue;
                   if (treef(&var.tmp->tree, info->level,
                             info->Znei[1 + x][1 + y]) == -1) {
-                    if (info->state == Compress) {
+                    if (info->state == Compress)
                       info->state = Leave;
-                      assert(getf(&var.tmp->all, info->level, info->Z) == info);
-                    }
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
                       int aux = abs(x) == 1 ? B % 2 : B / 2;
