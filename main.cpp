@@ -1881,7 +1881,6 @@ struct GradChiOnTmp {
 static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
-  bool CallValidStates = false;
   bool Reduction = false;
   int tmp;
   std::vector<Info *> *I = &var.tmp->infos;
@@ -1906,7 +1905,6 @@ static void adapt() {
       if (info->state != Leave) {
 #pragma omp critical
         {
-          CallValidStates = true;
           if (!Reduction) {
             tmp = 1;
             Reduction = true;
@@ -1926,7 +1924,6 @@ static void adapt() {
         (getf(&var.tmp->all, info->level, info->Z))->changed2 = info->changed2;
       }
     }
-    bool clean_boundary = true;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < I.size(); j++) {
         Info *info = I[j];
@@ -1977,7 +1974,6 @@ static void adapt() {
         end:;
         }
       }
-      clean_boundary = false;
       if (m == levelMin)
         break;
       for (size_t j = 0; j < I.size(); j++) {
