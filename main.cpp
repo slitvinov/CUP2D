@@ -839,15 +839,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   *timestamp = (*timestamp + 1) % 32768;
   return s;
 }
-static void dealloc(int m, long long n, std::vector<Info *> *infos) {
-  for (size_t j = 0; j < infos->size(); j++) {
-    if ((*infos)[j]->level == m && (*infos)[j]->Z == n) {
-      free((*infos)[j]->block);
-      infos->erase(infos->begin() + j);
-      return;
-    }
-  }
-}
 static Real *avail(int m, long long n, std::unordered_map<long long, int> *tree,
                    std::unordered_map<long long, Info *> *all) {
   return (treef(tree, m, n) == sim.rank) ? getf(all, m, n)->block : nullptr;
