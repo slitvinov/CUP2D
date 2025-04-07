@@ -571,8 +571,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
       }
     }
   }
-  std::vector<MPI_Request> send_requests;
-  std::vector<MPI_Request> recv_requests;
   if (buf->recv_buffer[sim.rank].size() > 0 &&
       buf->send_buffer[sim.rank].size() > 0)
     memcpy(&buf->recv_buffer[sim.rank][0], &buf->send_buffer[sim.rank][0],
