@@ -113,14 +113,6 @@ struct Range {
   bool needed{true};
   bool avg_down{true};
 };
-struct PackInfo {
-  Real *block;
-  Real *pack;
-  int sx;
-  int sy;
-  int ex;
-  int ey;
-};
 static int &treef(std::unordered_map<long long, int> *tree, int m,
                   long long n) {
   long long aux = sim.levels[m] + n;
@@ -191,7 +183,6 @@ struct SyncBuf {
   std::vector<int> recv_buffer_size;
   std::vector<int> send_buffer_size;
   std::vector<MPI_Request> requests;
-  std::vector<std::vector<PackInfo>> send_packinfos;
   Real **recv_buffer;
   Real **send_buffer;
 };
@@ -682,7 +673,6 @@ static Synchronizer *sync1(const Stencil &stencil,
     s->buf = new SyncBuf;
     s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                       stencil.ex > 3 || stencil.ey > 3;
-    s->buf->send_packinfos.resize(sim.size);
     s->buf->send_buffer_size.resize(sim.size);
     s->buf->recv_buffer_size.resize(sim.size);
     s->buf->send_buffer = (Real **)malloc(sim.size * sizeof(Real *));
