@@ -943,17 +943,6 @@ static void update_boundary(bool clean, std::vector<Info *> *boundary,
   std::set<int> Neighbors;
   std::vector<MPI_Request> requests;
   long long dummy = 0;
-  for (int r : Neighbors)
-    if (r != sim.rank) {
-      requests.resize(requests.size() + 1);
-      if (send_buffer[r].size() != 0)
-        MPI_Isend(&send_buffer[r][0], send_buffer[r].size(), MPI_LONG_LONG, r,
-                  123, MPI_COMM_WORLD, &requests[requests.size() - 1]);
-      else {
-        MPI_Isend(&dummy, 1, MPI_LONG_LONG, r, 123, MPI_COMM_WORLD,
-                  &requests[requests.size() - 1]);
-      }
-    }
   std::vector<std::vector<long long>> recv_buffer(sim.size);
   for (int r : Neighbors)
     if (r != sim.rank) {
