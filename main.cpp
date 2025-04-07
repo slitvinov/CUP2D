@@ -113,11 +113,6 @@ struct Range {
   bool needed{true};
   bool avg_down{true};
 };
-struct HaloBlockGroup {
-  std::vector<Info *> myblocks;
-  std::set<int> myranks;
-  bool ready = false;
-};
 struct PackInfo {
   Real *block;
   Real *pack;
@@ -200,16 +195,12 @@ struct SyncBuf {
   Real **recv_buffer;
   Real **send_buffer;
 };
-static void
-Setup(int dim, std::unordered_map<long long, int> *tree,
-      std::unordered_map<long long, Info *> *all, std::vector<Info *> *infos,
-      struct SyncBuf *buf, bool &use_averages,
-      std::array<Range, 3 * 27> &AllStencils, Range &Coarse_Range,
-      const Stencil &stencil, int *sLength,
-      std::vector<std::vector<int>> &ToBeAveragedDown,
-      std::unordered_map<std::string, HaloBlockGroup> &mapofHaloBlockGroups
-
-) {
+static void Setup(int dim, std::unordered_map<long long, int> *tree,
+                  std::unordered_map<long long, Info *> *all,
+                  std::vector<Info *> *infos, struct SyncBuf *buf,
+                  bool &use_averages, std::array<Range, 3 * 27> &AllStencils,
+                  Range &Coarse_Range, const Stencil &stencil, int *sLength,
+                  std::vector<std::vector<int>> &ToBeAveragedDown) {
   std::vector<int> offsets(sim.size, 0);
   std::vector<int> offsets_recv(sim.size, 0);
   buf->Neighbors.clear();
@@ -279,7 +270,6 @@ Setup(int dim, std::unordered_map<long long, int> *tree,
     }
     getf(all, info->level, info->Z)->halo_id = info->halo_id;
   }
-  mapofHaloBlockGroups.clear();
 }
 struct Synchronizer {
   bool use_averages;
@@ -290,7 +280,6 @@ struct Synchronizer {
   std::vector<MPI_Request *> reqs;
   std::vector<Real *> bufs;
 
-  std::unordered_map<std::string, HaloBlockGroup> mapofHaloBlockGroups;
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
   struct Range Coarse_Range;
@@ -736,10 +725,7 @@ static Synchronizer *sync1(const Stencil &stencil,
       s->sLength[3 * (icode + 2 * 27) + 2] = 1;
     }
     Setup(dim, tree, all, infos, s->buf, s->use_averages, s->AllStencils,
-          s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown,
-          s->mapofHaloBlockGroups
-
-    );
+          s->Coarse_Range, stencil, s->sLength, s->ToBeAveragedDown);
     (*synchronizers)[stencil] = s;
   } else {
     s = itSynchronizerMPI->second;
@@ -2722,7 +2708,7 @@ static void adapt() {
 
               it->second->use_averages, it->second->AllStencils,
               it->second->Coarse_Range, stencil, it->second->sLength,
-              it->second->ToBeAveragedDown, it->second->mapofHaloBlockGroups);
+              it->second->ToBeAveragedDown);
         it++;
       }
     }
