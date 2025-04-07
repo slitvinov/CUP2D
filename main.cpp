@@ -226,7 +226,6 @@ static void Setup(std::unordered_map<long long, int> *tree,
   }
 }
 struct Synchronizer {
-  bool use_averages;
   std::array<Range, 3 * 27> AllStencils;
   std::vector<Info *> dummy_vector;
   std::vector<std::vector<int>> ToBeAveragedDown;
@@ -583,8 +582,6 @@ static Synchronizer *sync1(const Stencil &stencil,
   if (itSynchronizerMPI == synchronizers->end()) {
     s = new Synchronizer;
     s->buf = new SyncBuf;
-    s->use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-                      stencil.ex > 3 || stencil.ey > 3;
     s->ToBeAveragedDown.resize(sim.size);
     const int sC[3] = {(stencil.sx - 1) / 2 - 1, (stencil.sy - 1) / 2 - 1,
                        (0 - 1) / 2 + 0};
