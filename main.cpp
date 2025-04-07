@@ -671,7 +671,6 @@ struct Grid {
   std::map<Stencil, Synchronizer *> *synchronizers;
   std::unordered_map<long long, Info *> all;
   std::unordered_map<long long, int> tree;
-  std::vector<Info *> boundary;
   std::vector<Info *> infos;
 };
 
@@ -2029,47 +2028,40 @@ static void adapt() {
   bool Reduction = false;
   MPI_Request Reduction_req;
   int tmp;
-  std::vector<Info *> *halo = &Synch->buf->halo_blocks;
-  std::vector<Info *> *infos[2] = {&Synch->buf->inner_blocks, halo};
-  for (int iii = 0;; iii++) {
-    std::vector<Info *> *I = infos[iii];
+  std::vector<Info *> *I = &Synch->buf->inner_blocks;
 #pragma omp parallel
-    {
+  {
 #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < I->size(); i++) {
-        Info *info = getf(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
-        Real *b = info->block;
-        double Linf = 0.0;
-        for (int j = 0; j < _BS_ * _BS_; j++)
-          Linf = std::max(Linf, std::fabs(b[j]));
-        (*I)[i]->state = Linf > sim.Rtol   ? Refine
-                         : Linf < sim.Ctol ? Compress
-                                           : Leave;
-        const bool maxLevel =
-            (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
-        const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
-        if (maxLevel || minLevel)
-          (*I)[i]->state = Leave;
-        info->state = (*I)[i]->state;
-        if (info->state != Leave) {
+    for (size_t i = 0; i < I->size(); i++) {
+      Info *info = getf(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
+      Real *b = info->block;
+      double Linf = 0.0;
+      for (int j = 0; j < _BS_ * _BS_; j++)
+        Linf = std::max(Linf, std::fabs(b[j]));
+      (*I)[i]->state = Linf > sim.Rtol   ? Refine
+                       : Linf < sim.Ctol ? Compress
+                                         : Leave;
+      const bool maxLevel =
+          (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
+      const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
+      if (maxLevel || minLevel)
+        (*I)[i]->state = Leave;
+      info->state = (*I)[i]->state;
+      if (info->state != Leave) {
 #pragma omp critical
-          {
-            CallValidStates = true;
-            if (!Reduction) {
-              tmp = 1;
-              Reduction = true;
-              MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
-                             MPI_COMM_WORLD, &Reduction_req);
-            }
+        {
+          CallValidStates = true;
+          if (!Reduction) {
+            tmp = 1;
+            Reduction = true;
+            MPI_Iallreduce(MPI_IN_PLACE, &tmp, 1, MPI_INT, MPI_SUM,
+                           MPI_COMM_WORLD, &Reduction_req);
           }
         }
       }
     }
-    if (iii == 1)
-      break;
   }
   MPI_Wait(&Reduction_req, MPI_STATUS_IGNORE);
-  var.tmp->boundary = *halo;
   if (tmp > 0) {
     int levelMin = 0;
     std::vector<Info *> &I = var.tmp->infos;
@@ -2253,7 +2245,6 @@ static void adapt() {
     if (basic == false) {
       Synch = sync1(stencil, g->synchronizers, &g->tree, &g->all, &g->infos,
                     &g->timestamp, dim);
-      g->boundary = Synch->buf->halo_blocks;
     }
     int r = 0;
     int c = 0;
