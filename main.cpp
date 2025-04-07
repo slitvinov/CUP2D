@@ -638,56 +638,13 @@ static void update_blocks(bool UpdateIDs, std::vector<Info *> *infos,
   std::vector<MPI_Request> size_requests(2 * neighbors.size());
   int mysize = (int)myData.size();
   int kk = 0;
-  for (auto r : neighbors) {
-    MPI_Irecv(&recv_size[kk], 1, MPI_INT, r, 0, MPI_COMM_WORLD,
-              &size_requests[2 * kk]);
-    MPI_Isend(&mysize, 1, MPI_INT, r, 0, MPI_COMM_WORLD,
-              &size_requests[2 * kk + 1]);
-    kk++;
-  }
   kk = 0;
-  for (size_t j = 0; j < neighbors.size(); j++) {
-    send_buffer[kk].resize(myData.size());
-    for (size_t i = 0; i < myData.size(); i++)
-      send_buffer[kk][i] = myData[i];
-    kk++;
-  }
   MPI_Waitall(size_requests.size(), size_requests.data(), MPI_STATUSES_IGNORE);
   std::vector<MPI_Request> requests(2 * neighbors.size());
   kk = 0;
-  for (auto r : neighbors) {
-    recv_buffer[kk].resize(recv_size[kk]);
-    MPI_Irecv(recv_buffer[kk].data(), recv_buffer[kk].size(), MPI_LONG_LONG, r,
-              0, MPI_COMM_WORLD, &requests[2 * kk]);
-    MPI_Isend(send_buffer[kk].data(), send_buffer[kk].size(), MPI_LONG_LONG, r,
-              0, MPI_COMM_WORLD, &requests[2 * kk + 1]);
-    kk++;
-  }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
   kk = -1;
   int increment = UpdateIDs ? 3 : 2;
-  for (auto r : neighbors) {
-    kk++;
-    for (size_t index = 0; index < recv_buffer[kk].size(); index += increment) {
-      int level = (int)recv_buffer[kk][index];
-      long long Z = recv_buffer[kk][index + 1];
-      treef(tree, level, Z) = r;
-      if (UpdateIDs)
-        getf(all, level, Z)->id = recv_buffer[kk][index + 2];
-      int p[2];
-      sfc_inverse(Z, level, &p[0], &p[1]);
-      if (level < sim.levelMax - 1)
-        for (int j = 0; j < 2; j++)
-          for (int i = 0; i < 2; i++) {
-            long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-            treef(tree, level + 1, nc) = -2;
-          }
-      if (level > 0) {
-        long long nf = forward(level - 1, p[0] / 2, p[1] / 2);
-        treef(tree, level - 1, nf) = -1;
-      }
-    }
-  }
 }
 
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
