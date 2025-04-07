@@ -2204,7 +2204,7 @@ static void adapt() {
     std::vector<long long> block_distribution(size);
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
-    if (Synch != nullptr)
+    if (basic == false)
       lab.prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
