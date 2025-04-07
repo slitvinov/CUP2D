@@ -19,8 +19,6 @@
 #include <omp.h>
 #endif
 #include "cuda.h"
-enum { max_dim = 2 };
-
 typedef double Real;
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
