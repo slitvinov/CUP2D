@@ -1423,7 +1423,7 @@ static void adapt() {
       Info *info = I[j];
       if (info->state != Leave) {
         info->changed2 = true;
-        (getf(&var.tmp->all, info->level, info->Z))->changed2 = info->changed2;
+	assert(getf(&var.tmp->all, info->level, info->Z) == info);
       }
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
