@@ -924,8 +924,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
            buf->send_buffer[sim.rank].size() * sizeof(Real));
   for (int index = 0; index < (int)buf->recv_faces[sim.rank].size(); index++)
     fillcase0(&buf->recv_faces[sim.rank][index], buf, tree, dim);
-  if (recv_requests.size() > 0)
-    MPI_Waitall(recv_requests.size(), &recv_requests[0], MPI_STATUSES_IGNORE);
   for (int r = 0; r < sim.size; r++)
     if (r != sim.rank)
       for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
@@ -936,8 +934,6 @@ static void fillcases(Buffers *buf, std::unordered_map<long long, int> *tree,
   for (int r = 0; r < sim.size; r++)
     for (int index = 0; index < (int)buf->recv_faces[r].size(); index++)
       fillcase1(&buf->recv_faces[r][index], 0, 1, buf, dim);
-  if (send_requests.size() > 0)
-    MPI_Waitall(send_requests.size(), &send_requests[0], MPI_STATUSES_IGNORE);
 }
 static void update_boundary(bool clean, std::vector<Info *> *boundary,
                             std::unordered_map<long long, Info *> *all,
