@@ -939,10 +939,7 @@ public:
 };
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
-  std::vector<Info *> dummy_vector;
   std::vector<Info *> *inner = &g->infos;
-  std::vector<Info *> *halo_next;
-  bool done = false;
 #pragma omp parallel
   {
     BlockLab lab(dim);
@@ -952,16 +949,6 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
       const auto &I = (*inner)[i];
       lab.load(&g->tree, &g->all, kernel.stencil, I, true);
       kernel(lab.m, I);
-    }
-    while (done == false) {
-#pragma omp master
-      { halo_next = &dummy_vector; }
-#pragma omp barrier
-#pragma omp single
-      {
-        if (halo_next->size() == 0)
-          done = true;
-      }
     }
   }
 }
