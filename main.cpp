@@ -2542,8 +2542,6 @@ static void adapt() {
       max_b = std::max(max_b, b);
       min_b = std::min(min_b, b);
     }
-    const int my_blocks = g->infos.size();
-    const int nu = 4;
     fill_pos(&g->infos, &g->all);
     if (result[0] > 0 || result[1] > 0) {
       g->UpdateFluxCorrection = true;
