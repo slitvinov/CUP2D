@@ -1382,14 +1382,6 @@ static void ongrid() {
           _a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
         }
     }
-    Real quantities[7] = {_x, _y, _m, _j, _u, _v, _a};
-    _x = quantities[0];
-    _y = quantities[1];
-    _m = quantities[2];
-    _j = quantities[3];
-    _u = quantities[4];
-    _v = quantities[5];
-    _a = quantities[6];
     _u /= _m;
     _v /= _m;
     _a /= _j;
