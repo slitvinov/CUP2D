@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <unordered_set>
 #include <array>
 #include <cassert>
 #include <cfloat>
@@ -13,6 +12,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #ifdef _OPENMP
 #include <omp.h>
@@ -144,22 +144,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   }
 }
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
-static void dealloc_many(std::vector<long long> &ids,
-                          std::vector<Info *> *infos) {
-  std::unordered_set<long long> id2set(ids.begin(), ids.end());
-  size_t n = infos->size();
-  size_t i, j;
-  for (i = 0, j = 0; i < n; i++) {
-    if (id2set.find((*infos)[i]->id2) != id2set.end())
-      free((*infos)[i]->block);
-    else {
-      (*infos)[j] = (*infos)[i];
-      j++;
-    }
-  }
-  (*infos).resize(j);
-}
-
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   return treef(tree, info->level, info->Z);
@@ -1554,7 +1538,7 @@ static void adapt() {
     const Stencil stencil{-1, -1, 2, 2, true};
     if (m_com.size() > 0 || m_ref.size() > 0)
       g->UpdateFluxCorrection = true;
-    std::vector<long long> dealloc_IDs;
+    std::unordered_set<long long> dealloc_IDs;
     BlockLab lab(dim);
     if (basic == false)
       lab.prepare(stencil);
@@ -1644,7 +1628,7 @@ static void adapt() {
       const long long Z = n_ref[i];
 #pragma omp critical
       {
-        dealloc_IDs.push_back(getf0(&g->all, level, Z)->id2);
+        dealloc_IDs.insert(getf0(&g->all, level, Z)->id2);
       }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
@@ -1662,8 +1646,6 @@ static void adapt() {
                     RefinedChildren;
         }
     }
-    dealloc_many(dealloc_IDs, &g->infos);
-    dealloc_IDs.clear();
     for (size_t i = 0; i < m_com.size(); i++) {
       const int level = m_com[i];
       const long long Z = n_com[i];
@@ -1721,14 +1703,24 @@ static void adapt() {
           } else {
 #pragma omp critical
             {
-              dealloc_IDs.push_back(getf0(&g->all, level, n)->id2);
+              dealloc_IDs.insert(getf0(&g->all, level, n)->id2);
             }
           }
           treef(&g->tree, level, n) = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
         }
     }
-    dealloc_many(dealloc_IDs, &g->infos);
+    size_t n = g->infos.size();
+    size_t j = 0;
+    for (size_t i = 0; i < n; i++) {
+      if (dealloc_IDs.find(g->infos[i]->id2) != dealloc_IDs.end())
+        free(g->infos[i]->block);
+      else {
+        g->infos[j] = g->infos[i];
+        j++;
+      }
+    }
+    g->infos.resize(j);
     std::sort(g->infos.begin(), g->infos.end(), info_cmp);
     for (size_t j = 0; j < g->infos.size(); j++) {
       int m = g->infos[j]->level;
