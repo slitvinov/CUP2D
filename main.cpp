@@ -1283,8 +1283,8 @@ static void ongrid() {
       com[1] += oblock[i]->COM_x;
       com[2] += oblock[i]->COM_y;
     }
-    shape->x = com[1] / com[0];
-    shape->y = com[2] / com[0];
+    shape->x += com[1] / com[0];
+    shape->y += com[2] / com[0];
   }
   for (Shape *shape : sim.shapes) {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
