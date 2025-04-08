@@ -1518,10 +1518,8 @@ static void adapt() {
             if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
                 infoNei->state != Compress) {
               found = true;
-              if (info->state == Compress) {
+              if (info->state == Compress)
                 info->state = Leave;
-                (getf(&var.tmp->all, info->level, info->Z))->state = Leave;
-              }
               break;
             }
           }
