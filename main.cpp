@@ -1460,8 +1460,7 @@ static void adapt() {
                                  aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
                       Info *FinerNei = getf0(&var.tmp->all, m + 1, zzz);
-                      State NeiState = FinerNei->state;
-                      if (NeiState == Refine) {
+                      if (FinerNei->state == Refine) {
                         info->state = Refine;
                         info->changed2 = true;
                         goto end;
