@@ -1679,7 +1679,7 @@ static void adapt() {
           const int blk = J * 2 + I;
           const long long n =
               forward(level, info->index[0] + I, info->index[1] + J);
-          Blocks[blk] = (getf(&g->all, level, n))->block;
+          Blocks[blk] = getf0(&g->all, level, n)->block;
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
