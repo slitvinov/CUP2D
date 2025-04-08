@@ -2028,7 +2028,7 @@ struct Solver {
       row.mapColVal(sfc_idx, -1.);
     } else if (Tree1(rhsNei, &var.tmp->tree) == -2) {
       Info *rhsNei_c =
-          getf(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
+          getf0(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
       int iy_c = indexer->iy_c(rhs_info, iy);
       long long inward_idx = indexer->neiInward(rhs_info, ix, iy);
