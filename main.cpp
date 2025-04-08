@@ -1519,16 +1519,14 @@ static void adapt() {
     out:;
       if (found)
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
-          for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
-            for (int k = 2 * (info->index[2] / 2);
-                 k <= 2 * (info->index[2] / 2) + 1; k++) {
-              long long Z = forward(info->level, i, j);
-              if (exist(&var.tmp->all, info->level, Z)) {
-                Info *infoNei = getf0(&var.tmp->all, info->level, Z);
-                if (infoNei->state == Compress)
-                  infoNei->state = Leave;
-              }
+          for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
+            long long Z = forward(info->level, i, j);
+            if (exist(&var.tmp->all, info->level, Z)) {
+              Info *infoNei = getf0(&var.tmp->all, info->level, Z);
+              if (infoNei->state == Compress)
+                infoNei->state = Leave;
             }
+          }
     }
   }
   int r = 0;
