@@ -1657,7 +1657,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
-          Info *Child = getf(&g->all, level + 1, nc);
+          Info *Child = getf0(&g->all, level + 1, nc);
           Tree1(Child, &g->tree) = 0;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
