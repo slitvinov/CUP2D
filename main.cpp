@@ -2517,7 +2517,7 @@ int main(int argc, char **argv) {
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
-          printf(stderr,
+          fprintf(stderr,
                  "Collision between objects %ld and %ld\n"
                  " iM %g %g\n"
                  " jM %g %g\n"
