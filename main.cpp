@@ -79,7 +79,7 @@ struct CollisionInfo {
   Real jvecY = 0;
 };
 static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
-                  long long n) {
+                        long long n) {
   long long aux = sim.levels[m] + n;
   auto retval = tree->find(aux);
   if (retval == tree->end()) {
@@ -178,7 +178,8 @@ static void dealloc_many(std::vector<long long> &ids,
                infos->end());
 }
 
-static TreeState &Tree1(const Info *info, std::unordered_map<long long, TreeState> *tree) {
+static TreeState &Tree1(const Info *info,
+                        std::unordered_map<long long, TreeState> *tree) {
   return treef(tree, info->level, info->Z);
 }
 struct Grid {
@@ -1673,7 +1674,8 @@ static void adapt() {
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) = RefinedChildren;
+                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) =
+                    RefinedChildren;
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
