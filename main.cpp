@@ -1536,20 +1536,8 @@ static void adapt() {
   };
   for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
 #pragma omp parallel for
-    for (size_t i = 0; i < var.tmp->infos.size(); i++) {
-      const Info *info1 = var.tmp->infos[i];
-      Info *info2 = args[iarg].I2[i];
-      Info *info3 = getf(args[iarg].all, info2->level, info2->Z);
-      info2->state = info1->state;
-      info3->state = info1->state;
-      if (info2->state == Compress) {
-        const int i2 = 2 * (info2->index[0] / 2);
-        const int j2 = 2 * (info2->index[1] / 2);
-        const long long n = forward(info2->level, i2, j2);
-        Info *infoNei = getf(args[iarg].all, info2->level, n);
-        infoNei->state = Compress;
-      }
-    }
+    for (size_t i = 0; i < var.tmp->infos.size(); i++)
+      args[iarg].I2[i]->state = var.tmp->infos[i]->state;
   }
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
