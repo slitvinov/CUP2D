@@ -1728,7 +1728,7 @@ static void adapt() {
             }
           }
           treef(&g->tree, level, n) = -2;
-          getf(&g->all, level, n)->state = Leave;
+          getf0(&g->all, level, n)->state = Leave;
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
