@@ -990,7 +990,6 @@ struct Obstacle {
   Real udef[_BS_][_BS_][2];
   Real COM_x = 0;
   Real COM_y = 0;
-  Real Mass = 0;
   Obstacle() {
     std::fill(&dist[0][0], &dist[0][0] + _BS_ * _BS_, -1);
     memset(&chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
@@ -1162,7 +1161,6 @@ struct PutChiOnGrid {
       Obstacle &o = *oblock[info->id];
       o.COM_x = 0;
       o.COM_y = 0;
-      o.Mass = 0;
       Real *CHI = chiInfo[info->id]->block;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
@@ -1200,7 +1198,6 @@ struct PutChiOnGrid {
             p[1] = info->origin[1] + info->h * (iy + 0.5);
             o.COM_x += chi[j] * h2 * (p[0] - shape->x);
             o.COM_y += chi[j] * h2 * (p[1] - shape->y);
-            o.Mass += chi[j] * h2;
           }
         }
     }
@@ -1279,7 +1276,6 @@ static void ongrid() {
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
-      com[0] += oblock[i]->Mass;
       com[1] += oblock[i]->COM_x;
       com[2] += oblock[i]->COM_y;
     }
@@ -2158,7 +2154,7 @@ int main(int argc, char **argv) {
       const char *path = path0.c_str();
       FILE *file = fopen(path, "r");
       char tag[3];
-      float area, length, rmax;
+      float length, rmax;
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
         exit(1);
@@ -2172,8 +2168,6 @@ int main(int argc, char **argv) {
         exit(1);
       }
       if (fread(&length, sizeof(length), 1, file) != 1 ||
-          fread(&area, sizeof(area), 1, file) != 1 ||
-          fread(&J, sizeof(J), 1, file) != 1 ||
           fread(&rmax, sizeof(rmax), 1, file) != 1 ||
           fread(&shape->nr, sizeof(shape->nr), 1, file) != 1 ||
           fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
@@ -2191,7 +2185,6 @@ int main(int argc, char **argv) {
                 path);
       }
       shape->length = scale * length;
-      shape->mass = scale * area;
       shape->rmax = scale * rmax;
       for (size_t i = 0; i < ncount; i++)
         shape->sdf[i] *= scale;

@@ -41,7 +41,7 @@ J *= dr * dp
 print(length, area, J)
 with open("box.raw", "wb") as f:
     f.write(b"SDF")
-    f.write(struct.pack("ffffii", length, area, J, rmax, nr, np))
+    f.write(struct.pack("ffii", length, rmax, nr, np))
     assert len(Sdf) == nr * np
     for sdf in Sdf:
         f.write(struct.pack("f", sdf))
