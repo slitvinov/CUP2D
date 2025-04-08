@@ -129,8 +129,7 @@ static int exist(std::unordered_map<long long, Info *> *all, int level,
 static Info getf1(std::unordered_map<long long, Info *> *all, int level,
                   long long Z) {
   Info dummy;
-  dummy.level = level;
-  dummy.Z = Z;
+  fill(&dummy, level, Z);
   auto r = all->find(sim.levels[level] + Z);
   return (r == all->end()) ? dummy : *r->second;
 }
