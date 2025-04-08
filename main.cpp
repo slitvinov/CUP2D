@@ -1417,16 +1417,15 @@ static void adapt() {
   }
   if (Reduction) {
     int levelMin = 0;
-    std::vector<Info *> &I = var.tmp->infos;
 #pragma omp parallel for
-    for (size_t j = 0; j < I.size(); j++) {
-      Info *info = I[j];
+    for (size_t j = 0; j < var.tmp->infos.size(); j++) {
+      Info *info = var.tmp->infos[j];
       if (info->state != Leave)
         info->changed2 = true;
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
-      for (size_t j = 0; j < I.size(); j++) {
-        Info *info = I[j];
+      for (size_t j = 0; j < var.tmp->infos.size(); j++) {
+        Info *info = var.tmp->infos[j];
         if (info->level == m && info->state != Refine &&
             info->level != sim.levelMax - 1) {
           int TwoPower = 1 << info->level;
@@ -1475,8 +1474,8 @@ static void adapt() {
       }
       if (m == levelMin)
         break;
-      for (size_t j = 0; j < I.size(); j++) {
-        Info *info = I[j];
+      for (size_t j = 0; j < var.tmp->infos.size(); j++) {
+        Info *info = var.tmp->infos[j];
         if (info->level == m && info->state == Compress) {
           int aux = 1 << info->level;
           bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
@@ -1486,8 +1485,8 @@ static void adapt() {
           for (int icode = 0; icode < 9; icode++) {
             int cx = icode % 3 - 1;
             int cy = (icode / 3) % 3 - 1;
-	    if (cx == 1 && cy == 1)
-	      continue;
+            if (cx == 1 && cy == 1)
+              continue;
             if (cx == xskip && xskin)
               continue;
             if (cy == yskip && yskin)
@@ -1503,8 +1502,8 @@ static void adapt() {
         }
       }
     }
-    for (size_t jjj = 0; jjj < I.size(); jjj++) {
-      Info *info = I[jjj];
+    for (size_t jjj = 0; jjj < var.tmp->infos.size(); jjj++) {
+      Info *info = var.tmp->infos[jjj];
       int m = info->level;
       bool found = false;
       for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
