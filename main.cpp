@@ -2226,7 +2226,6 @@ int main(int argc, char **argv) {
         shape->sdf[i] *= scale;
       shape->u = 0;
       shape->v = 0;
-
       sim.shapes.push_back(shape);
     }
   }
