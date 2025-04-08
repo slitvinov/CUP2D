@@ -1563,6 +1563,8 @@ static void adapt() {
         blocks_after--;
       }
     }
+    if (r > 0 || c > 0)
+      g->UpdateFluxCorrection = true;
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
     if (basic == false)
@@ -1736,9 +1738,6 @@ static void adapt() {
       Info *info = retval->second;
       info->id = j;
       g->infos[j] = info;
-    }
-    if (r > 0 || c > 0) {
-      g->UpdateFluxCorrection = true;
     }
   }
 }
