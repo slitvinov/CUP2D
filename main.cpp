@@ -1579,6 +1579,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
+          assert(!exist(&g->all, level + 1, Z));
           Info *info = getf(&g->all, level + 1, Z);
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
