@@ -1535,20 +1535,6 @@ static void adapt() {
       {&var.vold->all, var.vold->infos}, {&var.tmpV->all, var.tmpV->infos},
   };
   for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
-    for (size_t i1 = 0; i1 < args[iarg].I2.size(); i1++) {
-      Info *ary0 = args[iarg].I2[i1];
-      Info *info = getf(args[iarg].all, ary0->level, ary0->Z);
-      for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
-           i++)
-        for (int j = 2 * (info->index[1] / 2);
-             j <= 2 * (info->index[1] / 2) + 1; j++) {
-          const long long n = forward(info->level, i, j);
-          Info *infoNei = getf(args[iarg].all, info->level, n);
-          infoNei->state = Leave;
-        }
-      info->state = Leave;
-      ary0->state = Leave;
-    }
 #pragma omp parallel for
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       const Info *info1 = var.tmp->infos[i];
