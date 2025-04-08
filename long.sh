@@ -10,12 +10,12 @@ ${main=./main} \
 -poissonTol 1e-3 \
 -poissonTolRel 0 \
 -Rtol 0.1 \
--tdump 0.25 \
+-tdump 0.1 \
 -tend 600 \
 -shapes '
-   scale=0.08 orientation=0 omega=-1.82 xcenter=0.44 ycenter=0.38 sdf=blob.raw
-   scale=0.08 orientation=0 omega=-1.92 xcenter=0.44 ycenter=0.53 sdf=blob.raw
-   scale=0.08 orientation=0 omega=1.54 xcenter=0.44 ycenter=0.68 sdf=blob.raw
-   scale=0.08 orientation=0 omega=1.98 xcenter=0.59 ycenter=0.38 sdf=blob.raw
-   scale=0.08 orientation=0 omega=-1.12 xcenter=0.59 ycenter=0.53 sdf=blob.raw
+   scale=0.06 orientation=0 omega=-1.82 xcenter=0.44 ycenter=0.38 sdf=blob.raw
+   scale=0.06 orientation=0 omega=-1.92 xcenter=0.44 ycenter=0.53 sdf=blob.raw
+   scale=0.06 orientation=0 omega=1.54 xcenter=0.44 ycenter=0.68 sdf=blob.raw
+   scale=0.06 orientation=0 omega=1.98 xcenter=0.59 ycenter=0.38 sdf=blob.raw
+   scale=0.06 orientation=0 omega=-1.12 xcenter=0.59 ycenter=0.53 sdf=blob.raw
 '
