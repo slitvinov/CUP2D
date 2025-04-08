@@ -1483,12 +1483,11 @@ static void adapt() {
           bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
           int xskip = info->index[0] == 0 ? -1 : 1;
           int yskip = info->index[1] == 0 ? -1 : 1;
-
-          for (int icode = 0; icode < 27; icode++) {
-            if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-              continue;
+          for (int icode = 0; icode < 9; icode++) {
             int cx = icode % 3 - 1;
             int cy = (icode / 3) % 3 - 1;
+	    if (cx == 1 && cy == 1)
+	      continue;
             if (cx == xskip && xskin)
               continue;
             if (cy == yskip && yskin)
