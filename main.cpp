@@ -2281,7 +2281,7 @@ int main(int argc, char **argv) {
   sim.solver = new Solver;
   while (1) {
     if (sim.step % 5 == 0)
-      fprintf(stderr, "main.cpp: %08d\n", sim.step);
+      fprintf(stderr, "main.cpp: %08d %.16e\n", sim.step, sim.time);
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
     for (size_t i = 0; i < var.vel->infos.size(); i++)
