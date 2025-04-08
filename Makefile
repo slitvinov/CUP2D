@@ -12,7 +12,6 @@ OPENMPFLAGS = -fopenmp
 FLAGS =\
 -D_BS_=8\
 $(OPENMPFLAGS)\
--std=c++17\
 
 O =\
 cuda.o\
