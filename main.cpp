@@ -114,6 +114,11 @@ static void fill(Info *b, int level, long long Z) {
   b->id2 = sfc_encode(level, b->index);
   b->id = b->id2;
 }
+static int exist(std::unordered_map<long long, Info *> *all, int level,
+                 long long Z) {
+  long long aux = sim.levels[level] + Z;
+  return all->find(aux) != all->end();
+}
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   long long aux = sim.levels[m] + Z;
@@ -1491,10 +1496,7 @@ static void adapt() {
               continue;
             if (cy == yskip && yskin)
               continue;
-            Info *infoNei =
-                getf(&var.tmp->all, info->level, info->Znei[1 + cx][1 + cy]);
-            if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
-                infoNei->state == Refine) {
+            if (exist(&var.tmp->all, info->level, info->Znei[1 + cx][1 + cy])) {
               info->state = Leave;
               break;
             }
