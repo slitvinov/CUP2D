@@ -153,7 +153,7 @@ static void dealloc_many(std::vector<long long> &ids,
     if (id2set.find((*infos)[i]->id2) != id2set.end())
       free((*infos)[i]->block);
     else {
-      infos[j] = infos[i];
+      (*infos)[j] = (*infos)[i];
       j++;
     }
   }
