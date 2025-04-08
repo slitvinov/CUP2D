@@ -18,18 +18,32 @@ def sdf_fun(xy):
     return jnp.exp(-r0 / s0) + jnp.exp(-r1 / s1) + jnp.exp(-r2 / s2) + jnp.exp(
         -r3 / s2) - 1.0
 
-
 sdf_grad = jax.jacrev(sdf_fun)
 def sdf_ratio(xy):
     s = sdf_fun(xy)
     dx, dy = sdf_grad(xy)
     return s / jnp.hypot(dx, dy)
 
+xh = yh = 10
+xl = yl = -10
+nr, np0 = 800, 800
+n = 256
+length = 2
+rmax = 4 * length
+x = jnp.linspace(-rmax, rmax, n)
+y = jnp.linspace(-rmax, rmax, n)
+XY = jnp.meshgrid(x, y, indexing='ij')
+dx = x[1] - x[0]
+dy = y[1] - y[0]
+phi = sdf_fun(XY)
+inside = phi > 0
+area = jnp.sum(inside) * dx * dy
+X, Y = jnp.meshgrid(x, y, indexing='ij')
+XY = jnp.stack([X, Y], axis=0)
+rc = jnp.sum(jnp.where(inside, XY, 0.0), axis=(1, 2)) * dx * dy / area
+scale = 1 / jnp.sqrt(area)
 
 sdf_ratio_batch = jax.vmap(sdf_ratio)
-nr, np0 = 800, 800
-length = 2 * max(s0, s1)
-rmax = 4 * length
 dr = rmax / nr
 dp = 2 * jnp.pi / (np0 - 1)
 r = jnp.arange(1, nr + 1) * dr
@@ -38,22 +52,13 @@ R, P = jnp.meshgrid(r, p, indexing="ij")
 x = R * jnp.cos(P)
 y = R * jnp.sin(P)
 xy = jnp.stack([x.ravel(), y.ravel()], axis=-1)
-sdf = sdf_ratio_batch(xy).reshape(x.shape)
-mask = sdf > 0
-weights = (R**2) * mask
-area = jnp.sum(weights)
-xc = jnp.sum(weights * x) / area
-yc = jnp.sum(weights * y) / area
-area *=  dr * dp
-scale = 1 / jnp.sqrt(area)
-x_shift = (x + xc) / scale
-y_shift = (y + yc) / scale
-xy_shift = jnp.stack([x_shift.ravel(), y_shift.ravel()], axis=-1)
-sdf_shifted = scale * sdf_ratio_batch(xy_shift).reshape(x.shape)
+sdf = sdf_ratio_batch(xy / scale + rc).reshape(x.shape) * scale
+import sys
+sys.stderr.write("%g\n" % (length * scale))
 with open("blob.raw", "wb") as f:
     f.write(b"SDF")
-    f.write(struct.pack("ffii", float(length * scale), float(rmax * scale), nr, np0))
-    f.write(np.asarray(sdf_shifted, dtype=np.float32).tobytes())
-for xi, yi, si in zip(x.ravel(), y.ravel(), sdf_shifted.ravel()):
+    f.write(struct.pack("ffii", length * scale, rmax, nr, np0))
+    f.write(np.asarray(sdf, dtype=np.float32).tobytes())
+for xi, yi, si in zip(x.ravel(), y.ravel(), sdf.ravel()):
     if si > 0:
         print(xi, yi, si)
