@@ -1724,7 +1724,7 @@ static void adapt() {
           } else {
 #pragma omp critical
             {
-              dealloc_IDs.push_back(getf0(&g->all, level, n)->id2);
+              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
             }
           }
           treef(&g->tree, level, n) = -2;
@@ -2640,7 +2640,7 @@ int main(int argc, char **argv) {
         rhsNei[1] =
             getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
         rhsNei[2] =
-            getf0(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
+            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
         rhsNei[3] =
             getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
         for (int iy = 0; iy < _BS_; iy++)
