@@ -1703,7 +1703,7 @@ static void adapt() {
           }
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
-      Info *parent = getf0(&g->all, level - 1, np);
+      Info *parent = getf(&g->all, level - 1, np);
       treef(&g->tree, parent->level, parent->Z) = 0;
       parent->block = info->block;
       parent->state = Leave;
