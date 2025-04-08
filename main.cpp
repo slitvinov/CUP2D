@@ -2032,12 +2032,12 @@ struct Solver {
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                 const EdgeCellIndexer *indexer, SpRowInfo &row) const {
     long long sfc_idx = indexer->This(rhs_info, ix, iy);
-    if (Tree1(rhsNei, &var.tmp->tree) >= 0) {
+    if (Tree1(rhsNei, &var.tmp->tree) == Active) {
       int nei_rank = Tree1(rhsNei, &var.tmp->tree);
       long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == -2) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == RefinedChildren) {
       Info *rhsNei_c =
           getf0(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
@@ -2047,7 +2047,7 @@ struct Solver {
       interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == -1) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == CoarseNeighbour) {
       Info *rhsNei_f = getf0(&var.tmp->all, rhs_info->level + 1,
                              indexer->Zchild(rhsNei, ix, iy));
       int nei_rank = Tree1(rhsNei_f, &var.tmp->tree);
