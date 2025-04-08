@@ -11,6 +11,9 @@ if sys.argv:
 else:
     xdmf_path = "vel.000000002.xdmf2"
     png_path = "vel.000000002.png"
+if not os.path.isfile(png_path):
+    exit(0)
+sys.stderr.write(f"view.py: {xdmf_path}\n")
 import paraview
 from paraview.simple import *
 
@@ -61,3 +64,4 @@ view.CameraFocalPoint = cx, cy, cz
 view.CameraPosition = cx, cy, cz + 2 * max(dx, dy, dz)
 view.CameraParallelScale = max(dx, dy)
 SaveScreenshot(png_path, view)
+sys.stderr.write(f"view.py: {png_path}\n")
