@@ -1347,14 +1347,13 @@ struct GradChiOnTmp {
     const std::vector<Info *> &tmpInfo = var.tmp->infos;
     Real *TMP = tmpInfo[info->id]->block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-    Real threshold = 1e4;
     int nm = _BS_ + stencil.ex - stencil.sx - 1;
     for (int y = -offset; y < _BS_ + offset; ++y)
       for (int x = -offset; x < _BS_ + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
-        if (um[k] > 0.0 && um[k] < threshold) {
+        if (0.0 < um[k] && um[k] < 0.1) {
           int i = _BS_ / 2;
           int j = _BS_ / 2 - 1;
           TMP[_BS_ * i + j] = 2 * sim.Rtol;
