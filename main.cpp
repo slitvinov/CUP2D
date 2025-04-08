@@ -1140,7 +1140,6 @@ struct Shape {
   int np;
   Real x;
   Real y;
-  Real J;
   Real length;
   Real mass;
   Real omega;
@@ -2191,7 +2190,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
                 path);
       }
-      shape->J = scale * J;
       shape->length = scale * length;
       shape->mass = scale * area;
       shape->rmax = scale * rmax;
