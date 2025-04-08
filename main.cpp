@@ -1724,7 +1724,7 @@ static void adapt() {
           } else {
 #pragma omp critical
             {
-              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
+              dealloc_IDs.push_back(getf0(&g->all, level, n)->id2);
             }
           }
           treef(&g->tree, level, n) = -2;
