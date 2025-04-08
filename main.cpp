@@ -1671,7 +1671,7 @@ static void adapt() {
       const int level = m_com[i];
       const long long Z = n_com[i];
       assert(level > 0);
-      Info *info = getf(&g->all, level, Z);
+      Info *info = getf0(&g->all, level, Z);
       assert(info->state == Compress);
       Real *Blocks[4];
       for (int J = 0; J < 2; J++)
