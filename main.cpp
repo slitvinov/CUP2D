@@ -1578,7 +1578,7 @@ static void adapt() {
           fill(child, level + 1, Z);
           g->all[sim.levels[level + 1] + Z] = child;
           child->state = Leave;
-          child->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+          child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
           {
             g->infos.push_back(child);
