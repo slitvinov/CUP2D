@@ -1477,8 +1477,8 @@ static void adapt() {
         Info *info = var.tmp->infos[j];
         if (info->level == m && info->state == Compress) {
           int n = 1 << info->level;
-	  int ix, iy;
-	  sfc_inverse(info->Z, info->level, &ix, &iy);
+          int ix, iy;
+          sfc_inverse(info->Z, info->level, &ix, &iy);
           bool xskin = ix == 0 || ix == n - 1;
           bool yskin = iy == 0 || iy == n - 1;
           int xskip = ix == 0 ? -1 : 1;
@@ -1502,16 +1502,15 @@ static void adapt() {
     }
     for (size_t jjj = 0; jjj < var.tmp->infos.size(); jjj++) {
       Info *info = var.tmp->infos[jjj];
-      int m = info->level;
+      int ix, iy;
+      sfc_inverse(info->Z, info->level, &ix, &iy);
       bool found = false;
-      for (int i = 2 * (info->index[0] / 2); i <= 2 * (info->index[0] / 2) + 1;
-           i++)
-        for (int j = 2 * (info->index[1] / 2);
-             j <= 2 * (info->index[1] / 2) + 1; j++)
+      for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
+        for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
           for (int k = 2 * (info->index[2] / 2);
                k <= 2 * (info->index[2] / 2) + 1; k++) {
-            long long n = forward(m, i, j);
-            Info *infoNei = getf(&var.tmp->all, m, n);
+            long long n = forward(info->level, i, j);
+            Info *infoNei = getf(&var.tmp->all, info->level, n);
             if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
                 infoNei->state != Compress) {
               found = true;
@@ -1521,14 +1520,12 @@ static void adapt() {
             }
           }
       if (found)
-        for (int i = 2 * (info->index[0] / 2);
-             i <= 2 * (info->index[0] / 2) + 1; i++)
-          for (int j = 2 * (info->index[1] / 2);
-               j <= 2 * (info->index[1] / 2) + 1; j++)
+        for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
+          for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
             for (int k = 2 * (info->index[2] / 2);
                  k <= 2 * (info->index[2] / 2) + 1; k++) {
-              long long n = forward(m, i, j);
-              Info *infoNei = getf(&var.tmp->all, m, n);
+              long long n = forward(info->level, i, j);
+              Info *infoNei = getf(&var.tmp->all, info->level, n);
               if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
                   infoNei->state == Compress)
                 infoNei->state = Leave;
