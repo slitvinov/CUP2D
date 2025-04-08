@@ -1572,13 +1572,14 @@ static void adapt() {
       parent->state = Leave;
       if (basic == false)
         lab.load(&g->tree, &g->all, stencil, parent, true);
-      const int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
+      int px = parent->index[0];
+      int py = parent->index[1];
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
       Real *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          long long Z = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *info = getf(&g->all, level + 1, Z);
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
