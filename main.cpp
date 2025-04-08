@@ -78,7 +78,7 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static int &treef(std::unordered_map<long long, int> *tree, int m,
+static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
                   long long n) {
   long long aux = sim.levels[m] + n;
   auto retval = tree->find(aux);
@@ -87,7 +87,7 @@ static int &treef(std::unordered_map<long long, int> *tree, int m,
     {
       auto retval1 = tree->find(aux);
       if (retval1 == tree->end()) {
-        (*tree)[aux] = -3;
+        (*tree)[aux] = Unknown;
       }
     }
     return treef(tree, m, n);
@@ -178,13 +178,13 @@ static void dealloc_many(std::vector<long long> &ids,
                infos->end());
 }
 
-static int &Tree1(const Info *info, std::unordered_map<long long, int> *tree) {
+static TreeState &Tree1(const Info *info, std::unordered_map<long long, TreeState> *tree) {
   return treef(tree, info->level, info->Z);
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
   std::unordered_map<long long, Info *> all;
-  std::unordered_map<long long, int> tree;
+  std::unordered_map<long long, TreeState> tree;
   std::vector<Info *> infos;
 };
 struct BlockLab;
@@ -228,7 +228,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load(std::unordered_map<long long, int> *tree,
+  void load(std::unordered_map<long long, TreeState> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
     Real *myblocks[27];
@@ -1598,7 +1598,7 @@ static void adapt() {
           {
             g->infos.push_back(info);
           }
-          treef(&g->tree, level + 1, Z) = -2;
+          treef(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = info->block;
         }
       if (basic == false) {
@@ -1662,18 +1662,18 @@ static void adapt() {
         dealloc_IDs.push_back(getf0(&g->all, level, Z)->id2);
       }
       Info *parent = getf0(&g->all, level, Z);
-      Tree1(parent, &g->tree) = -1;
+      Tree1(parent, &g->tree) = CoarseNeighbour;
       parent->state = Leave;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
           Info *Child = getf0(&g->all, level + 1, nc);
-          Tree1(Child, &g->tree) = 0;
+          Tree1(Child, &g->tree) = Active;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) = -2;
+                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) = RefinedChildren;
         }
     }
     dealloc_many(dealloc_IDs, &g->infos);
@@ -1715,11 +1715,11 @@ static void adapt() {
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
-      treef(&g->tree, parent->level, parent->Z) = 0;
+      treef(&g->tree, parent->level, parent->Z) = Active;
       parent->block = info->block;
       parent->state = Leave;
       if (level - 2 >= 0)
-        treef(&g->tree, level - 2, parent->Zparent) = -1;
+        treef(&g->tree, level - 2, parent->Zparent) = CoarseNeighbour;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
@@ -1738,7 +1738,7 @@ static void adapt() {
               dealloc_IDs.push_back(getf0(&g->all, level, n)->id2);
             }
           }
-          treef(&g->tree, level, n) = -2;
+          treef(&g->tree, level, n) = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
         }
     }
@@ -2243,7 +2243,7 @@ int main(int argc, char **argv) {
       fill(info, sim.levelStart, Z);
       info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
       g->infos.push_back(info);
-      g->tree[aux] = 0;
+      g->tree[aux] = Active;
       int p[2];
       sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
       if (sim.levelStart < sim.levelMax - 1)
@@ -2251,11 +2251,11 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             long long n =
                 forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
-            g->tree[sim.levels[sim.levelStart + 1] + n] = -2;
+            g->tree[sim.levels[sim.levelStart + 1] + n] = RefinedChildren;
           }
       if (sim.levelStart > 0) {
         long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
-        g->tree[sim.levels[sim.levelStart - 1] + n] = -1;
+        g->tree[sim.levels[sim.levelStart - 1] + n] = CoarseNeighbour;
       }
     }
     std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
