@@ -13,6 +13,6 @@ ${main=./main} \
 -tdump 0.25 \
 -tend 600 \
 -shapes '
-   scale=0.125 orientation=0 omega=-0.5 xcenter=0.3 ycenter=0.4 sdf=box.raw
-   scale=0.125 orientation=0 omega=0.5 xcenter=0.6 ycenter=0.6 sdf=box.raw
+   scale=0.125 orientation=0 omega=-0.5 xcenter=0.3 ycenter=0.4 sdf=blob.raw
+   scale=0.125 orientation=0 omega=0.5 xcenter=0.6 ycenter=0.6 sdf=blob.raw
 '
