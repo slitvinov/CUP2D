@@ -1506,19 +1506,17 @@ static void adapt() {
       sfc_inverse(info->Z, info->level, &ix, &iy);
       bool found = false;
       for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
-        for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
-          for (int k = 2 * (info->index[2] / 2);
-               k <= 2 * (info->index[2] / 2) + 1; k++) {
-            long long n = forward(info->level, i, j);
-            Info *infoNei = getf(&var.tmp->all, info->level, n);
-            if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
-                infoNei->state != Compress) {
-              found = true;
-              if (info->state == Compress)
-                info->state = Leave;
-              break;
-            }
+        for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
+          long long Z = forward(info->level, i, j);
+          Info *infoNei = getf(&var.tmp->all, info->level, Z);
+          if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
+              infoNei->state != Compress) {
+            found = true;
+            if (info->state == Compress)
+              info->state = Leave;
+            break;
           }
+        }
       if (found)
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
