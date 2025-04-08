@@ -1526,18 +1526,14 @@ static void adapt() {
             }
     }
   }
-  struct {
-    std::unordered_map<long long, Info *> *all;
-    std::vector<Info *> &I2;
-  } args[] = {
-      {&var.chi->all, var.chi->infos},   {&var.pres->all, var.pres->infos},
-      {&var.pold->all, var.pold->infos}, {&var.vel->all, var.vel->infos},
-      {&var.vold->all, var.vold->infos}, {&var.tmpV->all, var.tmpV->infos},
+  std::vector<Info *> *args[] = {
+      &var.chi->infos, &var.pres->infos, &var.pold->infos,
+      &var.vel->infos, &var.vold->infos, &var.tmpV->infos,
   };
   for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
 #pragma omp parallel for
     for (size_t i = 0; i < var.tmp->infos.size(); i++)
-      args[iarg].I2[i]->state = var.tmp->infos[i]->state;
+      (*args[iarg])[i]->state = var.tmp->infos[i]->state;
   }
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
