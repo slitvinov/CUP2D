@@ -1493,7 +1493,7 @@ static void adapt() {
             if (cy == yskip && yskin)
               continue;
             Info *infoNei =
-                getf(&var.tmp->all, info->level, info->Znei[1 + cx][1 + cy]);
+                getf0(&var.tmp->all, info->level, info->Znei[1 + cx][1 + cy]);
             if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
                 infoNei->state == Refine) {
               info->state = Leave;
