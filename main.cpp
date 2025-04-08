@@ -135,7 +135,7 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
         (*all)[aux] = dumm;
       }
     }
-    return getf(all, m, Z);
+    return getf0(all, m, Z);
   }
 }
 
