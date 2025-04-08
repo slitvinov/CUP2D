@@ -18,9 +18,9 @@ def sdf_fun(xy):
         -r3 / s2) - 1.0
 
 
-sdf_grad = jax.jacrev(sdf_box)
+sdf_grad = jax.jacrev(sdf_fun)
 def sdf_ratio(xy):
-    s = sdf_box(xy)
+    s = sdf_fun(xy)
     dx, dy = sdf_grad(xy)
     return s / jnp.hypot(dx, dy)
 
