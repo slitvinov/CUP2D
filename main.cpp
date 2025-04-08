@@ -1526,6 +1526,25 @@ static void adapt() {
             }
     }
   }
+  int r = 0;
+  int c = 0;
+  std::vector<int> m_com;
+  std::vector<int> m_ref;
+  std::vector<long long> n_com;
+  std::vector<long long> n_ref;
+  std::vector<Info *> &I = var.tmp->infos;
+  for (auto &info : I) {
+    if (info->state == Refine) {
+      m_ref.push_back(info->level);
+      n_ref.push_back(info->Z);
+      r++;
+    } else if (info->state == Compress && info->index[0] % 2 == 0 &&
+               info->index[1] % 2 == 0 && info->index[2] % 2 == 0) {
+      m_com.push_back(info->level);
+      n_com.push_back(info->Z);
+      c++;
+    }
+  }
   std::vector<Info *> *args[] = {
       &var.chi->infos, &var.pres->infos, &var.pold->infos,
       &var.vel->infos, &var.vold->infos, &var.tmpV->infos,
@@ -1540,29 +1559,6 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     const Stencil stencil{-1, -1, 2, 2, true};
-    int r = 0;
-    int c = 0;
-    std::vector<int> m_com;
-    std::vector<int> m_ref;
-    std::vector<long long> n_com;
-    std::vector<long long> n_ref;
-    std::vector<Info *> &I = g->infos;
-    long long blocks_after = I.size();
-    for (auto &info : I) {
-      if (info->state == Refine) {
-        m_ref.push_back(info->level);
-        n_ref.push_back(info->Z);
-        blocks_after += (1 << 2) - 1;
-        r++;
-      } else if (info->state == Compress && info->index[0] % 2 == 0 &&
-                 info->index[1] % 2 == 0 && info->index[2] % 2 == 0) {
-        m_com.push_back(info->level);
-        n_com.push_back(info->Z);
-        c++;
-      } else if (info->state == Compress) {
-        blocks_after--;
-      }
-    }
     if (r > 0 || c > 0)
       g->UpdateFluxCorrection = true;
     std::vector<long long> dealloc_IDs;
