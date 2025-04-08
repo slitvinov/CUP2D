@@ -119,6 +119,15 @@ static int exist(std::unordered_map<long long, Info *> *all, int level,
   long long aux = sim.levels[level] + Z;
   return all->find(aux) != all->end();
 }
+static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
+                   long long Z) {
+  auto retval = all->find(sim.levels[m] + Z);
+  if (retval != all->end()) {
+    return retval->second;
+  } else {
+    assert(0);
+  }
+}
 static Info *getf(std::unordered_map<long long, Info *> *all, int m,
                   long long Z) {
   long long aux = sim.levels[m] + Z;
@@ -136,16 +145,6 @@ static Info *getf(std::unordered_map<long long, Info *> *all, int m,
       }
     }
     return getf0(all, m, Z);
-  }
-}
-
-static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
-                   long long Z) {
-  auto retval = all->find(sim.levels[m] + Z);
-  if (retval != all->end()) {
-    return retval->second;
-  } else {
-    assert(0);
   }
 }
 
@@ -1579,7 +1578,7 @@ static void adapt() {
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
-          //assert(!exist(&g->all, level + 1, Z));
+          // assert(!exist(&g->all, level + 1, Z));
           Info *info = getf(&g->all, level + 1, Z);
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
@@ -2038,7 +2037,7 @@ struct Solver {
       row.mapColVal(sfc_idx, -1.);
     } else if (Tree1(rhsNei, &var.tmp->tree) == -1) {
       Info *rhsNei_f = getf0(&var.tmp->all, rhs_info->level + 1,
-                            indexer->Zchild(rhsNei, ix, iy));
+                             indexer->Zchild(rhsNei, ix, iy));
       int nei_rank = Tree1(rhsNei_f, &var.tmp->tree);
       long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
