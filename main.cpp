@@ -1246,8 +1246,8 @@ static void ongrid() {
           Real s = std::sin(shape->orientation);
           Real x = info->origin[0] + h * (ix + 0.5);
           Real y = info->origin[1] + h * (iy + 0.5);
-          x += shape->x;
-          y += shape->y;
+          x -= shape->x;
+          y -= shape->y;
           Real x0 = c * x + s * y;
           Real y0 = -s * x + c * y;
           Real r = sqrt(x0 * x0 + y0 * y0);
