@@ -1628,7 +1628,7 @@ static void adapt() {
       const long long Z = n_ref[i];
 #pragma omp critical
       {
-        dealloc_IDs.insert(getf0(&g->all, level, Z)->id2);
+        dealloc_IDs.insert(sim.levels[level] + Z);
       }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
@@ -1703,7 +1703,7 @@ static void adapt() {
           } else {
 #pragma omp critical
             {
-              dealloc_IDs.insert(getf0(&g->all, level, n)->id2);
+              dealloc_IDs.insert(sim.levels[level] + n);
             }
           }
           treef(&g->tree, level, n) = RefinedChildren;
@@ -1713,7 +1713,8 @@ static void adapt() {
     size_t n = g->infos.size();
     size_t j = 0;
     for (size_t i = 0; i < n; i++) {
-      if (dealloc_IDs.find(g->infos[i]->id2) != dealloc_IDs.end())
+      long long id = sim.levels[g->infos[i]->level] + g->infos[i]->Z;
+      if (dealloc_IDs.find(id) != dealloc_IDs.end())
         free(g->infos[i]->block);
       else {
         g->infos[j] = g->infos[i];
