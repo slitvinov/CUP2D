@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <unordered_set>
 #include <array>
 #include <cassert>
 #include <cfloat>
@@ -144,20 +145,19 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
 }
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
 static void dealloc_many(std::vector<long long> &ids,
-                         std::vector<Info *> *infos) {
-  for (size_t j = 0; j < infos->size(); j++)
-    (*infos)[j]->changed2 = false;
-  for (size_t i = 0; i < ids.size(); i++)
-    for (size_t j = 0; j < infos->size(); j++) {
-      if ((*infos)[j]->id2 == ids[i]) {
-        (*infos)[j]->changed2 = true;
-        free((*infos)[j]->block);
-        break;
-      }
+                          std::vector<Info *> *infos) {
+  std::unordered_set<long long> id2set(ids.begin(), ids.end());
+  size_t n = infos->size();
+  size_t i, j;
+  for (i = 0, j = 0; i < n; i++) {
+    if (id2set.find((*infos)[i]->id2) != id2set.end())
+      free((*infos)[i]->block);
+    else {
+      infos[j] = infos[i];
+      j++;
     }
-  infos->erase(std::remove_if(infos->begin(), infos->end(),
-                              [](const Info *x) { return x->changed2; }),
-               infos->end());
+  }
+  (*infos).resize(j);
 }
 
 static TreeState &Tree1(const Info *info,
