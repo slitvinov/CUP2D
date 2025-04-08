@@ -1508,15 +1508,17 @@ static void adapt() {
       for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
           long long Z = forward(info->level, i, j);
-          Info *infoNei = getf(&var.tmp->all, info->level, Z);
-          if ((Tree1(infoNei, &var.tmp->tree) >= 0) == false ||
-              infoNei->state != Compress) {
-            found = true;
-            if (info->state == Compress)
-              info->state = Leave;
-            break;
-          }
-        }
+	  if (!exist(&var.tmp->all, info->level, Z) ||
+	      getf0(&var.tmp->all, info->level, Z)->state != Compress) {
+	    found = true;
+	    if (info->state == Compress)
+	      info->state = Leave;
+	    else
+	      assert(0);
+	    goto out;
+	  }
+	}
+    out: ;
       if (found)
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
