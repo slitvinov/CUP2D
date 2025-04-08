@@ -2158,7 +2158,7 @@ int main(int argc, char **argv) {
       const char *path = path0.c_str();
       FILE *file = fopen(path, "r");
       char tag[3];
-      float area, J, length, rmax;
+      float area, length, rmax;
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
         exit(1);
