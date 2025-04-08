@@ -2650,15 +2650,15 @@ int main(int argc, char **argv) {
         isBoundary[1] = (rhs_info->index[0] == MAX_X_BLOCKS);
         isBoundary[2] = (rhs_info->index[1] == 0);
         isBoundary[3] = (rhs_info->index[1] == MAX_Y_BLOCKS);
-        Info *rhsNei[4];
+        Info rhsNei[4];
         rhsNei[0] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
+            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
         rhsNei[1] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
+            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
         rhsNei[2] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
+            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
         rhsNei[3] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
+            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
             const long long sfc_idx =
@@ -2694,7 +2694,7 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  sim.solver->makeFlux(rhs_info, ix, iy, rhsNei[j],
+                  sim.solver->makeFlux(rhs_info, ix, iy, &rhsNei[j],
                                        sim.solver->edgeIndexers[j], row);
                 }
               }
