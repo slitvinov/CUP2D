@@ -8,7 +8,7 @@ x2, y2, s2 = -1.0, -1.0, 1.0
 x3, y3, s3 = -1.0, 2.0, 1.0
 
 
-def sdf_box(xy):
+def sdf_fun(xy):
     x, y = xy
     r0 = jnp.hypot(x - x0, y - y0)
     r1 = jnp.hypot(x - x1, y - y1)
@@ -19,8 +19,6 @@ def sdf_box(xy):
 
 
 sdf_grad = jax.jacrev(sdf_box)
-
-
 def sdf_ratio(xy):
     s = sdf_box(xy)
     dx, dy = sdf_grad(xy)
@@ -55,5 +53,3 @@ with open("blob.raw", "wb") as f:
     f.write(struct.pack("ffii", float(length), float(rmax), nr, np0))
     for val in sdf_shifted.ravel():
         f.write(struct.pack("f", float(val)))
-for xi, yi, si in zip(x.ravel(), y.ravel(), sdf.ravel()):
-    print(f"{xi:.6f} {yi:.6f} {si:.6f}")
