@@ -119,6 +119,11 @@ static int exist(std::unordered_map<long long, Info *> *all, int level,
   long long aux = sim.levels[level] + Z;
   return all->find(aux) != all->end();
 }
+static Info *getf1(std::unordered_map<long long, Info *> *all, int level,
+                   long long Z) {
+  auto r = all->find(sim.levels[level] + Z);
+  return (r == all->end()) ? NULL : r->second;
+}
 static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
                    long long Z) {
   auto retval = all->find(sim.levels[m] + Z);
@@ -1050,9 +1055,9 @@ static void dump(Real time, Info **infos, char *path) {
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
   if (snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path) >=
-          sizeof xyz_path ||
+      (long)sizeof xyz_path ||
       snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path) >=
-          sizeof xdmf_path) {
+      (long)sizeof xdmf_path) {
     fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
     exit(1);
   }
@@ -1082,7 +1087,7 @@ static void dump(Real time, Info **infos, char *path) {
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
-                   var.F[i].prefix) > sizeof attr_path) {
+                   var.F[i].prefix) > (long)sizeof attr_path) {
         fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
         exit(1);
       }
@@ -1137,7 +1142,7 @@ static void dump(Real time, Info **infos, char *path) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
-                   var.F[i].prefix) >= sizeof attr_path) {
+                   var.F[i].prefix) >= (long)sizeof attr_path) {
         fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
         exit(1);
       }
