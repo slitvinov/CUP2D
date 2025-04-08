@@ -1477,10 +1477,12 @@ static void adapt() {
         Info *info = var.tmp->infos[j];
         if (info->level == m && info->state == Compress) {
           int aux = 1 << info->level;
-          bool xskin = info->index[0] == 0 || info->index[0] == aux - 1;
-          bool yskin = info->index[1] == 0 || info->index[1] == aux - 1;
-          int xskip = info->index[0] == 0 ? -1 : 1;
-          int yskip = info->index[1] == 0 ? -1 : 1;
+	  int ix, iy;
+	  sfc_inverse(info->Z, info->level, &ix, &iy);
+          bool xskin = ix == 0 || ix == aux - 1;
+          bool yskin = iy == 0 || iy == aux - 1;
+          int xskip = ix == 0 ? -1 : 1;
+          int yskip = iy == 0 ? -1 : 1;
           for (int icode = 0; icode < 9; icode++) {
             int cx = icode % 3 - 1;
             int cy = (icode / 3) % 3 - 1;
