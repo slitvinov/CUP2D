@@ -1463,12 +1463,7 @@ static void adapt() {
                       State NeiState = FinerNei->state;
                       if (NeiState == Refine) {
                         info->state = Refine;
-                        getf0(&var.tmp->all, info->level, info->Z)->state =
-                            Refine;
-
                         info->changed2 = true;
-                        getf0(&var.tmp->all, info->level, info->Z)->changed2 =
-                            true;
                         goto end;
                       }
                     }
