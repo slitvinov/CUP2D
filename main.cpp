@@ -1529,8 +1529,6 @@ static void adapt() {
           }
     }
   }
-  int r = 0;
-  int c = 0;
   std::vector<int> m_com;
   std::vector<int> m_ref;
   std::vector<long long> n_com;
@@ -1540,12 +1538,10 @@ static void adapt() {
     if (info->state == Refine) {
       m_ref.push_back(info->level);
       n_ref.push_back(info->Z);
-      r++;
     } else if (info->state == Compress && info->index[0] % 2 == 0 &&
                info->index[1] % 2 == 0 && info->index[2] % 2 == 0) {
       m_com.push_back(info->level);
       n_com.push_back(info->Z);
-      c++;
     }
   }
   std::vector<Info *> *args[] = {
@@ -1562,7 +1558,7 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     const Stencil stencil{-1, -1, 2, 2, true};
-    if (r > 0 || c > 0)
+    if (m_com.size() > 0 || m_ref.size() > 0)
       g->UpdateFluxCorrection = true;
     std::vector<long long> dealloc_IDs;
     BlockLab lab(dim);
@@ -2518,12 +2514,12 @@ int main(int argc, char **argv) {
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
           fprintf(stderr,
-                 "Collision between objects %ld and %ld\n"
-                 " iM %g %g\n"
-                 " jM %g %g\n"
-                 " Normal vector = %g %g\n",
-                 i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                 collisions[j].iM, NX, NY);
+                  "Collision between objects %ld and %ld\n"
+                  " iM %g %g\n"
+                  " jM %g %g\n"
+                  " Normal vector = %g %g\n",
+                  i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
+                  collisions[j].iM, NX, NY);
         }
       }
     }
