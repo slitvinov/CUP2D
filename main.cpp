@@ -142,26 +142,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
     assert(0);
   }
 }
-static Info *getf(std::unordered_map<long long, Info *> *all, int m,
-                  long long Z) {
-  long long aux = sim.levels[m] + Z;
-  auto retval = all->find(aux);
-  if (retval != all->end()) {
-    return retval->second;
-  } else {
-#pragma omp critical
-    {
-      const auto retval1 = all->find(aux);
-      if (retval1 == all->end()) {
-        Info *dumm = new Info;
-        fill(dumm, m, Z);
-        (*all)[aux] = dumm;
-      }
-    }
-    return getf0(all, m, Z);
-  }
-}
-
 static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
 static void dealloc_many(std::vector<long long> &ids,
                          std::vector<Info *> *infos) {
@@ -1594,15 +1574,17 @@ static void adapt() {
         for (int i = 0; i < 2; i++) {
           long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
           assert(!exist(&g->all, level + 1, Z));
-          Info *info = getf(&g->all, level + 1, Z);
-          info->state = Leave;
-          info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+          Info *child = new Info;
+          fill(child, level + 1, Z);
+          g->all[sim.levels[level + 1] + Z] = child;
+          child->state = Leave;
+          child->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
           {
-            g->infos.push_back(info);
+            g->infos.push_back(child);
           }
           treef(&g->tree, level + 1, Z) = RefinedChildren;
-          Blocks[j * 2 + i] = info->block;
+          Blocks[j * 2 + i] = child->block;
         }
       if (basic == false) {
         int nm = _BS_ + stencil.ex - stencil.sx - 1;
