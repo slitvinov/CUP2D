@@ -1513,6 +1513,8 @@ static void adapt() {
 	    found = true;
 	    if (info->state == Compress)
 	      info->state = Leave;
+	    else
+	      assert(info->state == Leave);
 	    goto out;
 	  }
 	}
