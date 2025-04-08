@@ -2636,13 +2636,13 @@ int main(int argc, char **argv) {
         isBoundary[3] = (rhs_info->index[1] == MAX_Y_BLOCKS);
         std::array<const Info *, 4> rhsNei;
         rhsNei[0] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
+            getf0(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
         rhsNei[1] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
+            getf0(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
         rhsNei[2] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
+            getf0(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
         rhsNei[3] =
-            getf(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
+            getf0(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
         for (int iy = 0; iy < _BS_; iy++)
           for (int ix = 0; ix < _BS_; ix++) {
             const long long sfc_idx =
