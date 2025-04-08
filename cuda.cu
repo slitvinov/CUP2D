@@ -119,19 +119,17 @@ BiCGSTABSolver::BiCGSTABSolver(LocalSpMatDnVec &LocalLS,
   int device;
   if (cudaGetDevice(&device) != cudaSuccess) {
     fprintf(stderr,
-            "cuda.cu: error: no CUDA-capable devices found on rank %d\n",
-            rank_);
+            "cuda.cu: error: no CUDA-capable devices found\n");
     exit(1);
   }
-
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
   cudaUUID_t u = prop.uuid;
   fprintf(stderr,
-          "cuda.cu: rank %d: %s (UUID: "
+          "cuda.cu: %s (UUID: "
           "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%"
           "02x%02x%02x)\n",
-          rank_, prop.name, (unsigned char)u.bytes[0],
+          prop.name, (unsigned char)u.bytes[0],
           (unsigned char)u.bytes[1], (unsigned char)u.bytes[2],
           (unsigned char)u.bytes[3], (unsigned char)u.bytes[4],
           (unsigned char)u.bytes[5], (unsigned char)u.bytes[6],
