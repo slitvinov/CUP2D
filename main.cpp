@@ -1508,25 +1508,26 @@ static void adapt() {
       for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
           long long Z = forward(info->level, i, j);
-	  if (!exist(&var.tmp->all, info->level, Z) ||
-	      getf0(&var.tmp->all, info->level, Z)->state != Compress) {
-	    found = true;
-	    if (info->state == Compress)
-	      info->state = Leave;
-	    goto out;
-	  }
-	}
-    out: ;
+          if (!exist(&var.tmp->all, info->level, Z) ||
+              getf0(&var.tmp->all, info->level, Z)->state != Compress) {
+            found = true;
+            if (info->state == Compress)
+              info->state = Leave;
+            goto out;
+          }
+        }
+    out:;
       if (found)
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++)
             for (int k = 2 * (info->index[2] / 2);
                  k <= 2 * (info->index[2] / 2) + 1; k++) {
-              long long n = forward(info->level, i, j);
-              Info *infoNei = getf(&var.tmp->all, info->level, n);
-              if (Tree1(infoNei, &var.tmp->tree) >= 0 &&
-                  infoNei->state == Compress)
-                infoNei->state = Leave;
+              long long Z = forward(info->level, i, j);
+              if (exist(&var.tmp->all, info->level, Z)) {
+                Info *infoNei = getf0(&var.tmp->all, info->level, Z);
+                if (infoNei->state == Compress)
+                  infoNei->state = Leave;
+              }
             }
     }
   }
@@ -2518,7 +2519,8 @@ int main(int argc, char **argv) {
           sim.shapes[i]->v += dv;
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
-          printf("Collision between objects %ld and %ld\n"
+          printf(stderr,
+                 "Collision between objects %ld and %ld\n"
                  " iM %g %g\n"
                  " jM %g %g\n"
                  " Normal vector = %g %g\n",
