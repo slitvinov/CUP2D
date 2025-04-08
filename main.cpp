@@ -51,6 +51,13 @@ static struct {
 } sim;
 #include "utils.h"
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
+enum TreeState : signed char {
+  Active = 0,
+  CoarseNeighbour = -1,
+  RefinedChildren = -2,
+  Unknown = -3,
+};
+
 struct Info {
   bool changed2;
   double h, origin[2];
@@ -1055,9 +1062,9 @@ static void dump(Real time, Info **infos, char *path) {
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
   if (snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path) >=
-      (long)sizeof xyz_path ||
+          (long)sizeof xyz_path ||
       snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path) >=
-      (long)sizeof xdmf_path) {
+          (long)sizeof xdmf_path) {
     fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
     exit(1);
   }
