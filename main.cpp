@@ -172,7 +172,7 @@ struct Grid {
   std::vector<Info *> infos;
 };
 struct BlockLab;
-static void bc_scalar(BlockLab *, const Stencil * stencil, Info *, bool coarse);
+static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
 
 struct BlockLab {
@@ -906,8 +906,8 @@ static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
       applyBCface<1, 1>(lab, coarse);
   }
 }
-template <int dir, int side> void Neumann2D(BlockLab *lab, const Stencil *stencil,
-					    bool coarse) {
+template <int dir, int side>
+void Neumann2D(BlockLab *lab, const Stencil *stencil, bool coarse) {
   int stenBeg[2];
   int stenEnd[2];
   int bsize[2];
@@ -944,7 +944,7 @@ template <int dir, int side> void Neumann2D(BlockLab *lab, const Stencil *stenci
                      stenBeg[1])];
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
-void bc_scalar(BlockLab *lab, const Stencil * stencil, Info *info, bool coarse) {
+void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
   int n = 1 << info->level;
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, stencil, coarse);
@@ -1374,25 +1374,26 @@ static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   bool Reduction = false;
-  std::vector<Info *> *I = &var.tmp->infos;
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
-    for (size_t i = 0; i < I->size(); i++) {
-      Info *info = getf0(&var.tmp->all, (*I)[i]->level, (*I)[i]->Z);
+    for (size_t i = 0; i < var.tmp->infos.size(); i++) {
+      Info *info =
+          getf0(&var.tmp->all, var.tmp->infos[i]->level, var.tmp->infos[i]->Z);
       Real *b = info->block;
       double Linf = 0.0;
       for (int j = 0; j < _BS_ * _BS_; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
-      (*I)[i]->state = Linf > sim.Rtol   ? Refine
-                       : Linf < sim.Ctol ? Compress
-                                         : Leave;
-      const bool maxLevel =
-          (*I)[i]->state == Refine && (*I)[i]->level == sim.levelMax - 1;
-      const bool minLevel = (*I)[i]->state == Compress && (*I)[i]->level == 0;
+      var.tmp->infos[i]->state = Linf > sim.Rtol   ? Refine
+                                 : Linf < sim.Ctol ? Compress
+                                                   : Leave;
+      const bool maxLevel = var.tmp->infos[i]->state == Refine &&
+                            var.tmp->infos[i]->level == sim.levelMax - 1;
+      const bool minLevel =
+          var.tmp->infos[i]->state == Compress && var.tmp->infos[i]->level == 0;
       if (maxLevel || minLevel)
-        (*I)[i]->state = Leave;
-      info->state = (*I)[i]->state;
+        var.tmp->infos[i]->state = Leave;
+      info->state = var.tmp->infos[i]->state;
       if (info->state != Leave) {
 #pragma omp critical
         { Reduction = true; }
