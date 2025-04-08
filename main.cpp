@@ -1042,11 +1042,16 @@ static void dump(Real time, Info **infos, char *path) {
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
   float xyz[8 * _BS_ * _BS_];
-  snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   nblock = var.vel->infos.size();
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
-  snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
+  if (snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path) >=
+          sizeof xyz_path ||
+      snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path) >=
+          sizeof xdmf_path) {
+    fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
+    exit(1);
+  }
   xyz_base = xyz_path;
   for (j = 0; xyz_path[j] != '\0'; j++)
     if (xyz_path[j] == '/' && xyz_path[j + 1] != '\0')
@@ -1072,7 +1077,11 @@ static void dump(Real time, Info **infos, char *path) {
           time, _BS_ * _BS_ * nblock, 4 * _BS_ * _BS_ * nblock, xyz_base);
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
-      snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
+      if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
+                   var.F[i].prefix) > sizeof attr_path) {
+        fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
+        exit(1);
+      }
       int dim = var.F[i].dim;
       fprintf(xdmf,
               "       <Attribute\n"
@@ -1123,7 +1132,11 @@ static void dump(Real time, Info **infos, char *path) {
     if (var.F[i].prefix != NULL) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
-      snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, var.F[i].prefix);
+      if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
+                   var.F[i].prefix) >= sizeof attr_path) {
+        fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
+        exit(1);
+      }
       file = fopen(attr_path, "wb");
       for (j = 0; j < nblock; j++)
         fwrite(g->infos[j]->block, sizeof(Real), dim * _BS_ * _BS_, file);
@@ -1280,7 +1293,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -1396,7 +1409,9 @@ static void adapt() {
       info->state = var.tmp->infos[i]->state;
       if (info->state != Leave) {
 #pragma omp critical
-        { Reduction = true; }
+        {
+          Reduction = true;
+        }
       }
     }
   }
@@ -1584,7 +1599,9 @@ static void adapt() {
           info->state = Leave;
           info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
 #pragma omp critical
-          { g->infos.push_back(info); }
+          {
+            g->infos.push_back(info);
+          }
           treef(&g->tree, level + 1, Z) = -2;
           Blocks[j * 2 + i] = info->block;
         }
@@ -1645,7 +1662,9 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.push_back(getf(&g->all, level, Z)->id2); }
+      {
+        dealloc_IDs.push_back(getf(&g->all, level, Z)->id2);
+      }
       Info *parent = getf(&g->all, level, Z);
       Tree1(parent, &g->tree) = -1;
       parent->state = Leave;
@@ -1719,7 +1738,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.push_back(getf(&g->all, level, n)->id2); }
+            {
+              dealloc_IDs.push_back(getf(&g->all, level, n)->id2);
+            }
           }
           treef(&g->tree, level, n) = -2;
           getf(&g->all, level, n)->state = Leave;
@@ -1804,8 +1825,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
+        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -2163,15 +2184,18 @@ int main(int argc, char **argv) {
       std::string path0 = p("sdf").asString();
       const char *path = path0.c_str();
       FILE *file = fopen(path, "r");
+      char tag[3] = {0};
+      float area, J, length, rmax;
       if (file == NULL) {
         fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
         exit(1);
       }
-      char tag[3] = {0};
-      float area, J, length, rmax;
-      fread(tag, sizeof *tag, sizeof tag, file);
+      if (fread(tag, sizeof *tag, sizeof tag, file) != sizeof tag) {
+        fprintf(stderr, "main.cpp: error: fail to read '%s'\n", path);
+        exit(1);
+      }
       if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
-        fprintf(stderr, "main.cpp: error: not and sdf file\n");
+        fprintf(stderr, "main.cpp: error: not and sdf file '%s'\n", path);
         exit(1);
       }
       if (fread(&length, sizeof(length), 1, file) != 1 ||

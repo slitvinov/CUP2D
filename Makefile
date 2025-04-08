@@ -3,6 +3,7 @@
 .SUFFIXES: .cpp .cu .o
 
 CXX = g++
+CXXFLAGS = -O2 -g
 NVCC = nvcc
 LINK = $(NVCC)
 LIBS = -lcublas -lcusparse
@@ -22,7 +23,7 @@ main: $O
 .cpp.o:
 	$(CXX) -c $< $(FLAGS) $(CXXFLAGS)
 .cu.o:
-	$(NVCC) -c $< $(NVCCFLAGS) -Xcompiler '$(FLAGS)'
+	$(NVCC) -c $< $(NVCCFLAGS)
 clean:
 	rm -f main $O
 
