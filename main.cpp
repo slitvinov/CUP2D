@@ -1200,7 +1200,7 @@ struct PutChiOnGrid {
             p[1] = info->origin[1] + info->h * (iy + 0.5);
             o.COM_x += chi[j] * h2 * (p[0] - shape->x);
             o.COM_y += chi[j] * h2 * (p[1] - shape->y);
-            o.Mass += chi[j] * h2;
+            o.Mass = chi[j] * h2;
           }
         }
     }
