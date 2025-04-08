@@ -126,10 +126,13 @@ static int exist(std::unordered_map<long long, Info *> *all, int level,
   long long aux = sim.levels[level] + Z;
   return all->find(aux) != all->end();
 }
-static Info *getf1(std::unordered_map<long long, Info *> *all, int level,
-                   long long Z) {
+static Info getf1(std::unordered_map<long long, Info *> *all, int level,
+                  long long Z) {
+  Info dummy;
+  dummy.level = level;
+  dummy.Z = Z;
   auto r = all->find(sim.levels[level] + Z);
-  return (r == all->end()) ? NULL : r->second;
+  return (r == all->end()) ? dummy : *r->second;
 }
 static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
                    long long Z) {
