@@ -1716,7 +1716,7 @@ static void adapt() {
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j]->level && n == g->infos[j]->Z) {
-                Info *correct_info = getf(&g->all, level - 1, np);
+                Info *correct_info = getf0(&g->all, level - 1, np);
                 correct_info->state = Leave;
                 g->infos[j] = correct_info;
                 break;
