@@ -144,9 +144,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   assert(retval != all->end());
   return retval->second;
 }
-static bool info_cmp(Info *a, Info *b) {
-  return sim.levels[a->level] + a->Z < sim.levels[b->level] + b->Z;
-}
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   return treef0(tree, info->level, info->Z);
@@ -1704,7 +1701,6 @@ static void adapt() {
       }
     }
     g->infos.resize(j);
-    std::sort(g->infos.begin(), g->infos.end(), info_cmp);
     for (size_t j = 0; j < g->infos.size(); j++) {
       int m = g->infos[j]->level;
       long long Z = g->infos[j]->Z;
@@ -2212,7 +2208,6 @@ int main(int argc, char **argv) {
         g->tree[sim.levels[sim.levelStart - 1] + n] = CoarseNeighbour;
       }
     }
-    std::sort(std::begin(g->infos), std::end(g->infos), info_cmp);
     for (size_t j = 0; j < g->infos.size(); j++)
       g->infos[j]->id = j;
     g->UpdateFluxCorrection = true;
