@@ -1376,16 +1376,16 @@ static void adapt() {
       double Linf = 0.0;
       for (int j = 0; j < _BS_ * _BS_; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
-      var.tmp->infos[i]->state = Linf > sim.Rtol   ? Refine
+      state[i] = Linf > sim.Rtol   ? Refine
                                  : Linf < sim.Ctol ? Compress
                                                    : Leave;
-      const bool maxLevel = var.tmp->infos[i]->state == Refine &&
+      const bool maxLevel = state[i] == Refine &&
                             var.tmp->infos[i]->level == sim.levelMax - 1;
       const bool minLevel =
-          var.tmp->infos[i]->state == Compress && var.tmp->infos[i]->level == 0;
+          state[i] == Compress && var.tmp->infos[i]->level == 0;
       if (maxLevel || minLevel)
-        var.tmp->infos[i]->state = Leave;
-      if (var.tmp->infos[i]->state != Leave) {
+        state[i] = Leave;
+      if (state[i] != Leave) {
 #pragma omp critical
         {
           Reduction = true;
@@ -1402,7 +1402,7 @@ static void adapt() {
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
         if (var.tmp->infos[j]->level == m &&
-            var.tmp->infos[j]->state != Refine &&
+            state[j] != Refine &&
             var.tmp->infos[j]->level != sim.levelMax - 1) {
           int ix, iy;
           int n = 1 << var.tmp->infos[j]->level;
@@ -1412,7 +1412,7 @@ static void adapt() {
           int xskip = ix == 0 ? -1 : 1;
           int yskip = iy == 0 ? -1 : 1;
 
-          if (var.tmp->infos[j]->state != Refine)
+          if (state[j] != Refine)
             for (int x = -1; x < 2; x++)
               for (int y = -1; y < 2; y++)
                 if (x != 0 || y != 0) {
@@ -1422,8 +1422,8 @@ static void adapt() {
                     continue;
                   if (treef(&var.tmp->tree, var.tmp->infos[j]->level,
                             var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
-                    if (var.tmp->infos[j]->state == Compress)
-                      var.tmp->infos[j]->state = Leave;
+                    if (state[j] == Compress)
+                      state[j] = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
                       int aux = abs(x) == 1 ? B % 2 : B / 2;
@@ -1436,7 +1436,7 @@ static void adapt() {
                       long long zzz = forward(m + 1, iNei, jNei);
                       Info *FinerNei = getf0(&var.tmp->all, m + 1, zzz);
                       if (FinerNei->state == Refine) {
-                        var.tmp->infos[j]->state = Refine;
+                        state[j] = Refine;
                         goto end;
                       }
                     }
@@ -1449,7 +1449,7 @@ static void adapt() {
         break;
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
         if (var.tmp->infos[j]->level == m &&
-            var.tmp->infos[j]->state == Compress) {
+            state[j] == Compress) {
           int n = 1 << var.tmp->infos[j]->level;
           int ix, iy;
           sfc_inverse(var.tmp->infos[j]->Z, var.tmp->infos[j]->level, &ix, &iy);
@@ -1468,7 +1468,7 @@ static void adapt() {
               continue;
             if (exist(&var.tmp->all, var.tmp->infos[j]->level,
                       var.tmp->infos[j]->Znei[1 + cx][1 + cy])) {
-              var.tmp->infos[j]->state = Leave;
+              state[j] = Leave;
               break;
             }
           }
@@ -1486,8 +1486,8 @@ static void adapt() {
               getf0(&var.tmp->all, var.tmp->infos[k]->level, Z)->state !=
                   Compress) {
             found = true;
-            if (var.tmp->infos[k]->state == Compress)
-              var.tmp->infos[k]->state = Leave;
+            if (state[k] == Compress)
+              state[k] = Leave;
             goto out;
           }
         }
@@ -1512,10 +1512,10 @@ static void adapt() {
   for (size_t j = 0; j < var.tmp->infos.size(); j++) {
     int ix, iy;
     sfc_inverse(var.tmp->infos[j]->Z, var.tmp->infos[j]->level, &ix, &iy);
-    if (var.tmp->infos[j]->state == Refine) {
+    if (state[j] == Refine) {
       m_ref.push_back(var.tmp->infos[j]->level);
       n_ref.push_back(var.tmp->infos[j]->Z);
-    } else if (var.tmp->infos[j]->state == Compress && ix % 2 == 0 &&
+    } else if (state[j] == Compress && ix % 2 == 0 &&
                iy % 2 == 0) {
       m_com.push_back(var.tmp->infos[j]->level);
       n_com.push_back(var.tmp->infos[j]->Z);
