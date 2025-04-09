@@ -78,13 +78,6 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static TreeState &treef0(std::unordered_map<long long, TreeState> *tree,
-                         int level, long long Z) {
-  long long aux = sim.levels[level] + Z;
-  auto retval = tree->find(aux);
-  assert(retval != tree->end());
-  return retval->second;
-}
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   long long aux = sim.levels[info->level] + info->Z;
@@ -1537,8 +1530,10 @@ static void adapt() {
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-          g->infos.push_back(child);
-          treef0(&g->tree, level + 1, Z) = RefinedChildren;
+          {
+            g->infos.push_back(child);
+            g->tree[sim.levels[level + 1] + Z] = RefinedChildren;
+          }
           Blocks[j * 2 + i] = child->block;
         }
       if (basic == false) {
