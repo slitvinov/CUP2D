@@ -78,7 +78,7 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static TreeState &Tree1(const Info *info,
+static TreeState Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   long long aux = sim.levels[info->level] + info->Z;
   auto retval = tree->find(aux);
