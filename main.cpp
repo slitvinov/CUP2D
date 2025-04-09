@@ -1512,8 +1512,8 @@ static void adapt() {
       Info *parent = getf0(&g->all, level, Z);
       if (basic == false)
         lab.load(&g->tree, &g->all, stencil, parent, true);
-      int px = parent->index[0];
-      int py = parent->index[1];
+      int px, py;
+      sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
       Real *Blocks[4];
