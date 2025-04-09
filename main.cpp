@@ -1511,15 +1511,16 @@ static void adapt() {
   std::vector<int> m_ref;
   std::vector<long long> n_com;
   std::vector<long long> n_ref;
-  std::vector<Info *> &I = var.tmp->infos;
-  for (auto &info : I) {
-    if (info->state == Refine) {
-      m_ref.push_back(info->level);
-      n_ref.push_back(info->Z);
-    } else if (info->state == Compress && info->index[0] % 2 == 0 &&
-               info->index[1] % 2 == 0 && info->index[2] % 2 == 0) {
-      m_com.push_back(info->level);
-      n_com.push_back(info->Z);
+  for (size_t j = 0; j < var.tmp->infos.size(); j++) {
+    int ix, iy;
+    sfc_inverse(var.tmp->infos[j]->Z, var.tmp->infos[j]->level, &ix, &iy);
+    if (var.tmp->infos[j]->state == Refine) {
+      m_ref.push_back(var.tmp->infos[j]->level);
+      n_ref.push_back(var.tmp->infos[j]->Z);
+    } else if (var.tmp->infos[j]->state == Compress && ix % 2 == 0 &&
+               iy % 2 == 0) {
+      m_com.push_back(var.tmp->infos[j]->level);
+      n_com.push_back(var.tmp->infos[j]->Z);
     }
   }
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
