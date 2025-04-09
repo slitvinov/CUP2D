@@ -228,11 +228,11 @@ public:
         continue;
       if (cy == yskip && yskin)
         continue;
-      const auto &TreeNei =
+      TreeState TreeNei =
           treef0(tree, info->level, info->Znei[1 + cx][1 + cy]);
-      if (TreeNei >= 0) {
+      if (TreeNei == Active) {
         icodes[k++] = icode;
-      } else if (TreeNei == -2) {
+      } else if (TreeNei == RefinedChildren) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
@@ -351,7 +351,7 @@ public:
           Real *q = &b[dim * (_BS_ * y0 + x0)];
           memcpy(p, q, bytes);
         }
-      } else if (TreeNei == -1) {
+      } else if (TreeNei == CoarseNeighbour) {
         int bytes =
             (abs(cx) * (e[0] - s[0]) + (1 - abs(cx)) * ((e[0] - s[0]) / 2)) *
             dim * sizeof(Real);
@@ -1609,7 +1609,7 @@ static void adapt() {
           const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
 #pragma omp critical
-          Tree1(Child, &g->tree) = Active;
+	  g->tree[sim.levels[Child->level] + Child->Z] = Active;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
