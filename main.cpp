@@ -1372,9 +1372,7 @@ static void adapt() {
   {
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
-      Info *info =
-          getf0(&var.tmp->all, var.tmp->infos[i]->level, var.tmp->infos[i]->Z);
-      Real *b = info->block;
+      Real *b = var.tmp->infos[i]->block;
       double Linf = 0.0;
       for (int j = 0; j < _BS_ * _BS_; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
@@ -1387,7 +1385,7 @@ static void adapt() {
           var.tmp->infos[i]->state == Compress && var.tmp->infos[i]->level == 0;
       if (maxLevel || minLevel)
         var.tmp->infos[i]->state = Leave;
-      if (info->state != Leave) {
+      if (var.tmp->infos[i]->state != Leave) {
 #pragma omp critical
         {
           Reduction = true;
