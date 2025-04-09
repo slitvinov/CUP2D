@@ -160,7 +160,6 @@ static void bc_vector(BlockLab *, Info *, bool coarse);
 struct BlockLab {
 private:
   const int dim;
-  int offset[3];
   std::array<int, 27> coarsened_nei_codes;
 
 public:
@@ -176,6 +175,7 @@ public:
     free(c);
   }
   void prepare(const Stencil &stencil) {
+    int offset[2];
     start0[0] = stencil.sx;
     start0[1] = stencil.sy;
     start0[2] = 0;
@@ -186,9 +186,8 @@ public:
     nm[1] = _BS_ + end[1] - start0[1] - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
-    offset[0] = (start0[0] - 1) / 2 - 1;
-    offset[1] = (start0[1] - 1) / 2 - 1;
-    offset[2] = (start0[2] - 1) / 2;
+    offset[0] = (stencil.sx - 1) / 2 - 1;
+    offset[1] = (stencil.sy - 1) / 2 - 1;
     nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
     nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
@@ -197,10 +196,15 @@ public:
   void load(std::unordered_map<long long, TreeState> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
+    int offset[3];
     Real *myblocks[27];
     int coarsened_nei_codes_size;
     bool coarsened = false;
     bool use_averages;
+    offset[0] = (stencil.sx - 1) / 2 - 1;
+    offset[1] = (stencil.sy - 1) / 2 - 1;
+    offset[2] = 0;
+
     use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                    stencil.ex > 3 || stencil.ey > 3;
     int n = 1 << info->level;
