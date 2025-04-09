@@ -141,9 +141,7 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   }
 }
 static bool info_cmp(Info *a, Info *b) {
-  return
-    sim.levels[a->level] + a->Z <
-    sim.levels[b->level] + b->Z;
+  return sim.levels[a->level] + a->Z < sim.levels[b->level] + b->Z;
 }
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
@@ -1276,7 +1274,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -1369,6 +1367,7 @@ static void adapt() {
   computeA(KernelVorticity(), var.vel, 2);
   computeA(GradChiOnTmp(), var.chi, 1);
   bool Reduction = false;
+  std::vector<enum State> state(var.tmp->infos.size());
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
@@ -1390,7 +1389,9 @@ static void adapt() {
         var.tmp->infos[i]->state = Leave;
       if (info->state != Leave) {
 #pragma omp critical
-        { Reduction = true; }
+        {
+          Reduction = true;
+        }
       }
     }
   }
@@ -1402,16 +1403,18 @@ static void adapt() {
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
-        Info *info = var.tmp->infos[j];
-        if (info->level == m && info->state != Refine &&
-            info->level != sim.levelMax - 1) {
-          int TwoPower = 1 << info->level;
-          bool xskin = info->index[0] == 0 || info->index[0] == TwoPower - 1;
-          bool yskin = info->index[1] == 0 || info->index[1] == TwoPower - 1;
-          int xskip = info->index[0] == 0 ? -1 : 1;
-          int yskip = info->index[1] == 0 ? -1 : 1;
+        if (var.tmp->infos[j]->level == m &&
+            var.tmp->infos[j]->state != Refine &&
+            var.tmp->infos[j]->level != sim.levelMax - 1) {
+          int ix, iy;
+          int n = 1 << var.tmp->infos[j]->level;
+          sfc_inverse(var.tmp->infos[j]->Z, var.tmp->infos[j]->level, &ix, &iy);
+          bool xskin = ix == 0 || ix == n - 1;
+          bool yskin = iy == 0 || iy == n - 1;
+          int xskip = ix == 0 ? -1 : 1;
+          int yskip = iy == 0 ? -1 : 1;
 
-          if (info->state != Refine)
+          if (var.tmp->infos[j]->state != Refine)
             for (int x = -1; x < 2; x++)
               for (int y = -1; y < 2; y++)
                 if (x != 0 || y != 0) {
@@ -1419,21 +1422,23 @@ static void adapt() {
                     continue;
                   if (y == yskip && yskin)
                     continue;
-                  if (treef(&var.tmp->tree, info->level,
-                            info->Znei[1 + x][1 + y]) == -1) {
-                    if (info->state == Compress)
-                      info->state = Leave;
+                  if (treef(&var.tmp->tree, var.tmp->infos[j]->level,
+                            var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
+                    if (var.tmp->infos[j]->state == Compress)
+                      var.tmp->infos[j]->state = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
                       int aux = abs(x) == 1 ? B % 2 : B / 2;
-                      int iNei = 2 * info->index[0] + std::max(x, 0) + x +
+                      int iNei = 2 * var.tmp->infos[j]->index[0] +
+                                 std::max(x, 0) + x +
                                  (B % 2) * std::max(0, 1 - abs(x));
-                      int jNei = 2 * info->index[1] + std::max(y, 0) + y +
+                      int jNei = 2 * var.tmp->infos[j]->index[1] +
+                                 std::max(y, 0) + y +
                                  aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
                       Info *FinerNei = getf0(&var.tmp->all, m + 1, zzz);
                       if (FinerNei->state == Refine) {
-                        info->state = Refine;
+                        var.tmp->infos[j]->state = Refine;
                         goto end;
                       }
                     }
@@ -1500,6 +1505,7 @@ static void adapt() {
           }
     }
   }
+
   std::vector<int> m_com;
   std::vector<int> m_ref;
   std::vector<long long> n_com;
@@ -1547,7 +1553,9 @@ static void adapt() {
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-          { g->infos.push_back(child); }
+          {
+            g->infos.push_back(child);
+          }
           treef(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = child->block;
         }
@@ -1608,7 +1616,9 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.insert(sim.levels[level] + Z); }
+      {
+        dealloc_IDs.insert(sim.levels[level] + Z);
+      }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
@@ -1679,7 +1689,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.insert(sim.levels[level] + n); }
+            {
+              dealloc_IDs.insert(sim.levels[level] + n);
+            }
           }
           treef(&g->tree, level, n) = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
@@ -1775,8 +1787,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
-        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
+        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
