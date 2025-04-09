@@ -1690,7 +1690,7 @@ static void adapt() {
 #pragma omp critical
             { dealloc_IDs.insert(sim.levels[level] + n); }
           }
-          treef(&g->tree, level, n) = RefinedChildren;
+          g->tree[sim.levels[level] + n] = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
         }
     }
