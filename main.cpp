@@ -229,7 +229,7 @@ public:
       if (cy == yskip && yskin)
         continue;
       TreeState TreeNei =
-          treef0(tree, info->level, info->Znei[1 + cx][1 + cy]);
+          g->tree[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
       if (TreeNei == Active) {
         icodes[k++] = icode;
       } else if (TreeNei == RefinedChildren) {
@@ -308,7 +308,7 @@ public:
                   cy < 1 ? (cy < 0 ? stencil.sy : 0) : _BS_, 0};
       int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
                   cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1, 1};
-      if (TreeNei >= 0) {
+      if (TreeNei == Active) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
@@ -1609,7 +1609,7 @@ static void adapt() {
           const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
 #pragma omp critical
-	  g->tree[sim.levels[Child->level] + Child->Z] = Active;
+          g->tree[sim.levels[Child->level] + Child->Z] = Active;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
