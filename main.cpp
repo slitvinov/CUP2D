@@ -78,6 +78,13 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
+static TreeState &treef0(std::unordered_map<long long, TreeState> *tree, int m,
+                         long long n) {
+  long long aux = sim.levels[m] + n;
+  auto retval = tree->find(aux);
+  assert(retval != tree->end());
+  return retval->second;
+}
 static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
                         long long n) {
   long long aux = sim.levels[m] + n;
@@ -90,7 +97,7 @@ static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
         (*tree)[aux] = Unknown;
       }
     }
-    return treef(tree, m, n);
+    return treef0(tree, m, n);
   } else {
     return retval->second;
   }
@@ -1278,7 +1285,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -1390,18 +1397,12 @@ static void adapt() {
         var.tmp->infos[i]->state = Leave;
       if (var.tmp->infos[i]->state != Leave) {
 #pragma omp critical
-        {
-          Reduction = true;
-        }
+        { Reduction = true; }
       }
     }
   }
   if (Reduction) {
     int levelMin = 0;
-#pragma omp parallel for
-    for (size_t j = 0; j < var.tmp->infos.size(); j++) {
-      Info *info = var.tmp->infos[j];
-    }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
         if (var.tmp->infos[j]->level == m &&
@@ -1556,9 +1557,7 @@ static void adapt() {
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-          {
-            g->infos.push_back(child);
-          }
+          { g->infos.push_back(child); }
           treef(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = child->block;
         }
@@ -1619,9 +1618,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      {
-        dealloc_IDs.insert(sim.levels[level] + Z);
-      }
+      { dealloc_IDs.insert(sim.levels[level] + Z); }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
@@ -1692,9 +1689,7 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.insert(sim.levels[level] + n);
-            }
+            { dealloc_IDs.insert(sim.levels[level] + n); }
           }
           treef(&g->tree, level, n) = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
@@ -1790,8 +1785,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
-        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
