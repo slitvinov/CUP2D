@@ -60,7 +60,6 @@ enum TreeState : signed char {
 };
 
 struct Info {
-  bool changed2;
   double h, origin[2];
   enum State state;
   int index[3], level;
@@ -105,7 +104,6 @@ static void fill(Info *b, int level, long long Z) {
   b->origin[0] = (Real)i / (1 << level);
   b->origin[1] = (Real)j / (1 << level);
   b->state = Leave;
-  b->changed2 = true;
   sfc_inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
   Bmax[0] = 1 << level;
@@ -1402,8 +1400,6 @@ static void adapt() {
 #pragma omp parallel for
     for (size_t j = 0; j < var.tmp->infos.size(); j++) {
       Info *info = var.tmp->infos[j];
-      if (info->state != Leave)
-        info->changed2 = true;
     }
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
@@ -1439,7 +1435,6 @@ static void adapt() {
                       Info *FinerNei = getf0(&var.tmp->all, m + 1, zzz);
                       if (FinerNei->state == Refine) {
                         info->state = Refine;
-                        info->changed2 = true;
                         goto end;
                       }
                     }
