@@ -1275,7 +1275,7 @@ static void ongrid() {
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-#pragma omp parallel for reduction(+ : com[ : 3])
+#pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -1390,9 +1390,7 @@ static void adapt() {
       info->state = var.tmp->infos[i]->state;
       if (info->state != Leave) {
 #pragma omp critical
-        {
-          Reduction = true;
-        }
+        { Reduction = true; }
       }
     }
   }
@@ -1562,9 +1560,7 @@ static void adapt() {
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-          {
-            g->infos.push_back(child);
-          }
+          { g->infos.push_back(child); }
           treef(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = child->block;
         }
@@ -1625,9 +1621,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      {
-        dealloc_IDs.insert(sim.levels[level] + Z);
-      }
+      { dealloc_IDs.insert(sim.levels[level] + Z); }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
       parent->state = Leave;
@@ -1700,9 +1694,7 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            {
-              dealloc_IDs.insert(sim.levels[level] + n);
-            }
+            { dealloc_IDs.insert(sim.levels[level] + n); }
           }
           treef(&g->tree, level, n) = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
@@ -1798,8 +1790,8 @@ struct KernelAdvectDiffuse {
 };
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(), YmaxCell(),
-        edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
@@ -2303,9 +2295,6 @@ int main(int argc, char **argv) {
       shape->x += sim.dt * shape->u;
       shape->y += sim.dt * shape->v;
       shape->orientation += sim.dt * shape->omega;
-      shape->orientation = shape->orientation > M_PI
-                               ? shape->orientation - 2 * M_PI
-                               : shape->orientation;
       shape->orientation = shape->orientation < -M_PI
                                ? shape->orientation + 2 * M_PI
                                : shape->orientation;
