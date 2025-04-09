@@ -1405,7 +1405,8 @@ static void adapt() {
                   if (y == yskip && yskin)
                     continue;
                   if (treef0(&var.tmp->tree, var.tmp->infos[j]->level,
-                             var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
+                             var.tmp->infos[j]->Znei[1 + x][1 + y]) ==
+                      CoarseNeighbour) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
