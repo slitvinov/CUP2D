@@ -2363,12 +2363,6 @@ int main(int argc, char **argv) {
             VM += F * udiff[1];
           }
       }
-      Real quantities[] = {PM, PX, PY, UM, VM};
-      PM = quantities[0];
-      PX = quantities[1];
-      PY = quantities[2];
-      UM = quantities[3];
-      VM = quantities[4];
       if (PM != 0) {
         shape->u = (PY * shape->omega + UM) / PM;
         shape->v = (VM - PX * shape->omega) / PM;
