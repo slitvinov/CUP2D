@@ -85,23 +85,6 @@ static TreeState &treef0(std::unordered_map<long long, TreeState> *tree,
   assert(retval != tree->end());
   return retval->second;
 }
-static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
-                        long long n) {
-  long long aux = sim.levels[m] + n;
-  auto retval = tree->find(aux);
-  if (retval == tree->end()) {
-#pragma omp critical
-    {
-      auto retval1 = tree->find(aux);
-      if (retval1 == tree->end()) {
-        (*tree)[aux] = Unknown;
-      }
-    }
-    return treef0(tree, m, n);
-  } else {
-    return retval->second;
-  }
-}
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   long long aux = sim.levels[info->level] + info->Z;
@@ -1628,6 +1611,7 @@ static void adapt() {
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
+#pragma omp critical
                 g->tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
                     RefinedChildren;
         }
@@ -1669,9 +1653,11 @@ static void adapt() {
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
+#pragma omp critical
       g->tree[sim.levels[parent->level] + parent->Z] = Active;
       parent->block = info->block;
       if (level - 2 >= 0) {
+#pragma omp critical
         g->tree[sim.levels[level - 2] + parent->Zparent] = CoarseNeighbour;
       }
       for (int J = 0; J < 2; J++)
@@ -1688,8 +1674,9 @@ static void adapt() {
               }
           } else {
 #pragma omp critical
-            { dealloc_IDs.insert(sim.levels[level] + n); }
+            dealloc_IDs.insert(sim.levels[level] + n);
           }
+#pragma omp critical
           g->tree[sim.levels[level] + n] = RefinedChildren;
           getf0(&g->all, level, n)->state = Leave;
         }
@@ -2198,6 +2185,7 @@ int main(int argc, char **argv) {
       fill(info, sim.levelStart, Z);
       info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
       g->infos.push_back(info);
+#pragma omp critical
       g->tree[aux] = Active;
       int p[2];
       sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
@@ -2206,10 +2194,12 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             long long n =
                 forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+#pragma omp critical
             g->tree[sim.levels[sim.levelStart + 1] + n] = RefinedChildren;
           }
       if (sim.levelStart > 0) {
         long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+#pragma omp critical
         g->tree[sim.levels[sim.levelStart - 1] + n] = CoarseNeighbour;
       }
     }
