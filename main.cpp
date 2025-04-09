@@ -79,7 +79,7 @@ struct CollisionInfo {
   Real jvecY = 0;
 };
 static TreeState Tree1(const Info *info,
-                        std::unordered_map<long long, TreeState> *tree) {
+                       std::unordered_map<long long, TreeState> *tree) {
   return (*tree)[sim.levels[info->level] + info->Z];
 }
 static void fill(Info *b, int level, long long Z) {
@@ -2181,18 +2181,17 @@ int main(int argc, char **argv) {
       g->infos.push_back(info);
 #pragma omp critical
       g->tree[aux] = Active;
-      int p[2];
-      sfc_inverse(Z, sim.levelStart, &p[0], &p[1]);
+      int px, py;
+      sfc_inverse(Z, sim.levelStart, &px, &py);
       if (sim.levelStart < sim.levelMax - 1)
         for (int j1 = 0; j1 < 2; j1++)
           for (int i1 = 0; i1 < 2; i1++) {
-            long long n =
-                forward(sim.levelStart + 1, 2 * p[0] + i1, 2 * p[1] + j1);
+            long long n = forward(sim.levelStart + 1, 2 * px + i1, 2 * py + j1);
 #pragma omp critical
             g->tree[sim.levels[sim.levelStart + 1] + n] = RefinedChildren;
           }
       if (sim.levelStart > 0) {
-        long long n = forward(sim.levelStart - 1, p[0] / 2, p[1] / 2);
+        long long n = forward(sim.levelStart - 1, px / 2, py / 2);
 #pragma omp critical
         g->tree[sim.levels[sim.levelStart - 1] + n] = CoarseNeighbour;
       }
