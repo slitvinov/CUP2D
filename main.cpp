@@ -78,9 +78,9 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static TreeState &treef0(std::unordered_map<long long, TreeState> *tree, int m,
-                         long long n) {
-  long long aux = sim.levels[m] + n;
+static TreeState &treef0(std::unordered_map<long long, TreeState> *tree, int level,
+                         long long Z) {
+  long long aux = sim.levels[level] + Z;
   auto retval = tree->find(aux);
   assert(retval != tree->end());
   return retval->second;
@@ -101,6 +101,13 @@ static TreeState &treef(std::unordered_map<long long, TreeState> *tree, int m,
   } else {
     return retval->second;
   }
+}
+static TreeState &Tree1(const Info *info,
+                        std::unordered_map<long long, TreeState> *tree) {
+  long long aux = sim.levels[info->level] + info->Z;
+  auto retval = tree->find(aux);
+  assert(retval != tree->end());
+  return retval->second;
 }
 static void fill(Info *b, int level, long long Z) {
   int i, j, Bmax[2];
@@ -143,10 +150,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   auto retval = all->find(sim.levels[m] + Z);
   assert(retval != all->end());
   return retval->second;
-}
-static TreeState &Tree1(const Info *info,
-                        std::unordered_map<long long, TreeState> *tree) {
-  return treef0(tree, info->level, info->Z);
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
