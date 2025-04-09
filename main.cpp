@@ -1600,13 +1600,15 @@ static void adapt() {
 #pragma omp critical
       dealloc_IDs.insert(sim.levels[level] + Z);
       Info *parent = getf0(&g->all, level, Z);
-      Tree1(parent, &g->tree) = CoarseNeighbour;
+#pragma omp critical
+      g->tree[sim.levels[parent->level] + parent->Z] = CoarseNeighbour;
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
+#pragma omp critical
           Tree1(Child, &g->tree) = Active;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
