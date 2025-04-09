@@ -1377,7 +1377,7 @@ static void adapt() {
         var.tmp->infos[i]->state = Leave;
       if (var.tmp->infos[i]->state != Leave) {
 #pragma omp critical
-        { Reduction = true; }
+        Reduction = true;
       }
     }
   }
@@ -1537,7 +1537,7 @@ static void adapt() {
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
-          { g->infos.push_back(child); }
+          g->infos.push_back(child);
           treef0(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = child->block;
         }
@@ -1598,7 +1598,7 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
 #pragma omp critical
-      { dealloc_IDs.insert(sim.levels[level] + Z); }
+      dealloc_IDs.insert(sim.levels[level] + Z);
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
       int px, py;
