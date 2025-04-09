@@ -78,8 +78,8 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static TreeState &treef0(std::unordered_map<long long, TreeState> *tree, int level,
-                         long long Z) {
+static TreeState &treef0(std::unordered_map<long long, TreeState> *tree,
+                         int level, long long Z) {
   long long aux = sim.levels[level] + Z;
   auto retval = tree->find(aux);
   assert(retval != tree->end());
@@ -1422,7 +1422,7 @@ static void adapt() {
                   if (y == yskip && yskin)
                     continue;
                   if (treef0(&var.tmp->tree, var.tmp->infos[j]->level,
-                            var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
+                             var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
@@ -1628,7 +1628,7 @@ static void adapt() {
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
-                treef(&g->tree, level + 2, Child->Zchild[i0][i1]) =
+                g->tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
                     RefinedChildren;
         }
     }
@@ -1672,7 +1672,7 @@ static void adapt() {
       g->tree[sim.levels[parent->level] + parent->Z] = Active;
       parent->block = info->block;
       if (level - 2 >= 0) {
-	g->tree[sim.levels[level - 2] + parent->Zparent] = CoarseNeighbour;
+        g->tree[sim.levels[level - 2] + parent->Zparent] = CoarseNeighbour;
       }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
