@@ -64,7 +64,7 @@ struct Info {
   double h, origin[2];
   enum State state;
   int index[3], level;
-  long long id, id2, Z, Zchild[2][2], Znei[3][3], Zparent;
+  long long id, Z, Zchild[2][2], Znei[3][3], Zparent;
   Real *block = NULL;
 };
 struct CollisionInfo {
@@ -119,8 +119,7 @@ static void fill(Info *b, int level, long long Z) {
       b->Zchild[i][j] =
           sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
   b->Zparent = Z >> 2;
-  b->id2 = sfc_encode(level, b->index);
-  b->id = b->id2;
+  b->id = sfc_encode(level, b->index);
 }
 static int exist(std::unordered_map<long long, Info *> *all, int level,
                  long long Z) {
@@ -143,7 +142,11 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
     assert(0);
   }
 }
-static bool info_cmp(Info *a, Info *b) { return a->id2 < b->id2; }
+static bool info_cmp(Info *a, Info *b) {
+  return
+    sim.levels[a->level] + a->Z <
+    sim.levels[b->level] + b->Z;
+}
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
   return treef(tree, info->level, info->Z);
