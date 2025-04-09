@@ -2110,10 +2110,8 @@ int main(int argc, char **argv) {
 
 #ifdef _OPENMP
 #pragma omp parallel
-  {
 #pragma omp master
-    fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
-  }
+  fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
 #endif
   sim.levelMax = parser("levelMax").asInt();
   sim.Rtol = parser("Rtol").asDouble();
