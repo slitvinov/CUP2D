@@ -1388,7 +1388,6 @@ static void adapt() {
           var.tmp->infos[i]->state == Compress && var.tmp->infos[i]->level == 0;
       if (maxLevel || minLevel)
         var.tmp->infos[i]->state = Leave;
-      info->state = var.tmp->infos[i]->state;
       if (info->state != Leave) {
 #pragma omp critical
         { Reduction = true; }
