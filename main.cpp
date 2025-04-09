@@ -80,10 +80,7 @@ struct CollisionInfo {
 };
 static TreeState Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
-  long long aux = sim.levels[info->level] + info->Z;
-  auto retval = tree->find(aux);
-  assert(retval != tree->end());
-  return retval->second;
+  return (*tree)[sim.levels[info->level] + info->Z];
 }
 static void fill(Info *b, int level, long long Z) {
   int i, j, Bmax[2];
