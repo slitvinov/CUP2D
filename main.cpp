@@ -1504,13 +1504,13 @@ static void adapt() {
       g->UpdateFluxCorrection = true;
     std::unordered_set<long long> dealloc_IDs;
     BlockLab lab(dim);
-    if (basic == false)
+    if (!basic)
       lab.prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
-      if (basic == false)
+      if (!basic)
         lab.load(&g->tree, &g->all, stencil, parent, true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
@@ -1533,7 +1533,7 @@ static void adapt() {
           }
           Blocks[j * 2 + i] = child->block;
         }
-      if (basic == false) {
+      if (!basic) {
         int nm = _BS_ + stencil.ex - stencil.sx - 1;
         int offsetX[2] = {0, _BS_ / 2};
         int offsetY[2] = {0, _BS_ / 2};
@@ -1626,7 +1626,7 @@ static void adapt() {
         }
       const int offsetX[2] = {0, _BS_ / 2};
       const int offsetY[2] = {0, _BS_ / 2};
-      if (basic == false)
+      if (!basic)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = Blocks[J * 2 + I];
