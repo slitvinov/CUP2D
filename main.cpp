@@ -249,7 +249,7 @@ public:
       if (cy == yskip && yskin)
         continue;
       const auto &TreeNei =
-          treef(tree, info->level, info->Znei[1 + cx][1 + cy]);
+          treef0(tree, info->level, info->Znei[1 + cx][1 + cy]);
       if (TreeNei >= 0) {
         icodes[k++] = icode;
       } else if (TreeNei == -2) {
@@ -1424,7 +1424,7 @@ static void adapt() {
                     continue;
                   if (y == yskip && yskin)
                     continue;
-                  if (treef(&var.tmp->tree, var.tmp->infos[j]->level,
+                  if (treef0(&var.tmp->tree, var.tmp->infos[j]->level,
                             var.tmp->infos[j]->Znei[1 + x][1 + y]) == -1) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
@@ -1558,7 +1558,7 @@ static void adapt() {
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
 #pragma omp critical
           { g->infos.push_back(child); }
-          treef(&g->tree, level + 1, Z) = RefinedChildren;
+          treef0(&g->tree, level + 1, Z) = RefinedChildren;
           Blocks[j * 2 + i] = child->block;
         }
       if (basic == false) {
