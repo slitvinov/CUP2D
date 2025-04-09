@@ -143,7 +143,19 @@ struct Grid {
 struct BlockLab;
 static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
-
+static struct {
+  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
+  struct {
+    Grid **g;
+    int dim;
+    bool basic;
+    bool boundary_needed;
+    const char *prefix;
+  } F[7] = {{&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
+            {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
+            {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
+            {&tmpV, 2, true, false, NULL}};
+} var;
 struct BlockLab {
 private:
   const int dim;
@@ -229,7 +241,7 @@ public:
       if (cy == yskip && yskin)
         continue;
       TreeState TreeNei =
-          g->tree[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
       if (TreeNei == Active) {
         icodes[k++] = icode;
       } else if (TreeNei == RefinedChildren) {
@@ -928,19 +940,6 @@ void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
   if (info->index[1] == n - 1)
     Neumann2D<1, 1>(lab, stencil, coarse);
 }
-static struct {
-  Grid *chi, *vel, *vold, *pres, *tmpV, *tmp, *pold;
-  struct {
-    Grid **g;
-    int dim;
-    bool basic;
-    bool boundary_needed;
-    const char *prefix;
-  } F[7] = {{&tmp, 1, false, true, "tmp"},    {&chi, 1, false, false, "chi"},
-            {&vel, 2, false, false, "vel"},   {&vold, 2, false, false, NULL},
-            {&pres, 1, false, false, "pres"}, {&pold, 1, false, false, NULL},
-            {&tmpV, 2, true, false, NULL}};
-} var;
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
                              const Info *info, const Info *) {
   Stencil stencil{-1, -1, 2, 2, false};
@@ -1404,8 +1403,8 @@ static void adapt() {
                     continue;
                   if (y == yskip && yskin)
                     continue;
-                  if (treef0(&var.tmp->tree, var.tmp->infos[j]->level,
-                             var.tmp->infos[j]->Znei[1 + x][1 + y]) ==
+                  if (var.tmp->tree[sim.levels[var.tmp->infos[j]->level] +
+                                    var.tmp->infos[j]->Znei[1 + x][1 + y]] ==
                       CoarseNeighbour) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
