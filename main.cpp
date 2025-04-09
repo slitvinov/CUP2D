@@ -2432,33 +2432,6 @@ int main(int argc, char **argv) {
             }
         }
       }
-    std::vector<Real> buffer(20 * N);
-    for (size_t i = 0; i < N; i++) {
-      auto &coll = collisions[i];
-      buffer[20 * i] = coll.iM;
-      buffer[20 * i + 1] = coll.iPosX;
-      buffer[20 * i + 2] = coll.iPosY;
-      buffer[20 * i + 7] = coll.ivecX;
-      buffer[20 * i + 8] = coll.ivecY;
-      buffer[20 * i + 10] = coll.jM;
-      buffer[20 * i + 11] = coll.jPosX;
-      buffer[20 * i + 12] = coll.jPosY;
-      buffer[20 * i + 17] = coll.jvecX;
-      buffer[20 * i + 18] = coll.jvecY;
-    }
-    for (size_t i = 0; i < N; i++) {
-      auto &coll = collisions[i];
-      coll.iM = buffer[20 * i];
-      coll.iPosX = buffer[20 * i + 1];
-      coll.iPosY = buffer[20 * i + 2];
-      coll.ivecX = buffer[20 * i + 7];
-      coll.ivecY = buffer[20 * i + 8];
-      coll.jM = buffer[20 * i + 10];
-      coll.jPosX = buffer[20 * i + 11];
-      coll.jPosY = buffer[20 * i + 12];
-      coll.jvecX = buffer[20 * i + 17];
-      coll.jvecY = buffer[20 * i + 18];
-    }
     // #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < N; ++i) {
       for (size_t j = i + 1; j < N; ++j) {
