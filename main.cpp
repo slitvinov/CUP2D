@@ -1540,7 +1540,6 @@ static void adapt() {
       const int level = m_ref[i];
       const long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
-      parent->state = Leave;
       if (basic == false)
         lab.load(&g->tree, &g->all, stencil, parent, true);
       int px = parent->index[0];
@@ -1622,7 +1621,6 @@ static void adapt() {
       { dealloc_IDs.insert(sim.levels[level] + Z); }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
-      parent->state = Leave;
       int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
@@ -1675,7 +1673,6 @@ static void adapt() {
       Info *parent = getf0(&g->all, level - 1, np);
       treef(&g->tree, parent->level, parent->Z) = Active;
       parent->block = info->block;
-      parent->state = Leave;
       if (level - 2 >= 0)
         treef(&g->tree, level - 2, parent->Zparent) = CoarseNeighbour;
       for (int J = 0; J < 2; J++)
