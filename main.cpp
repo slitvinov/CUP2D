@@ -1450,11 +1450,11 @@ static void adapt() {
       if (m == levelMin)
         break;
       for (size_t j = 0; j < var.tmp->infos.size(); j++) {
-        Info *info = var.tmp->infos[j];
-        if (info->level == m && info->state == Compress) {
-          int n = 1 << info->level;
+        if (var.tmp->infos[j]->level == m &&
+            var.tmp->infos[j]->state == Compress) {
+          int n = 1 << var.tmp->infos[j]->level;
           int ix, iy;
-          sfc_inverse(info->Z, info->level, &ix, &iy);
+          sfc_inverse(var.tmp->infos[j]->Z, var.tmp->infos[j]->level, &ix, &iy);
           bool xskin = ix == 0 || ix == n - 1;
           bool yskin = iy == 0 || iy == n - 1;
           int xskip = ix == 0 ? -1 : 1;
@@ -1468,8 +1468,9 @@ static void adapt() {
               continue;
             if (cy == yskip && yskin)
               continue;
-            if (exist(&var.tmp->all, info->level, info->Znei[1 + cx][1 + cy])) {
-              info->state = Leave;
+            if (exist(&var.tmp->all, var.tmp->infos[j]->level,
+                      var.tmp->infos[j]->Znei[1 + cx][1 + cy])) {
+              var.tmp->infos[j]->state = Leave;
               break;
             }
           }
