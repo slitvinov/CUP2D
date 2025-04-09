@@ -1615,10 +1615,11 @@ static void adapt() {
       { dealloc_IDs.insert(sim.levels[level] + Z); }
       Info *parent = getf0(&g->all, level, Z);
       Tree1(parent, &g->tree) = CoarseNeighbour;
-      int p[3] = {parent->index[0], parent->index[1], parent->index[2]};
+      int px, py;
+      sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          const long long nc = forward(level + 1, 2 * p[0] + i, 2 * p[1] + j);
+          const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
           Tree1(Child, &g->tree) = Active;
           if (level + 2 < sim.levelMax)
