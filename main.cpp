@@ -1516,15 +1516,6 @@ static void adapt() {
       n_com.push_back(info->Z);
     }
   }
-  std::vector<Info *> *args[] = {
-      &var.chi->infos, &var.pres->infos, &var.pold->infos,
-      &var.vel->infos, &var.vold->infos, &var.tmpV->infos,
-  };
-  for (size_t iarg = 0; iarg < sizeof args / sizeof *args; iarg++) {
-#pragma omp parallel for
-    for (size_t i = 0; i < var.tmp->infos.size(); i++)
-      (*args[iarg])[i]->state = var.tmp->infos[i]->state;
-  }
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
