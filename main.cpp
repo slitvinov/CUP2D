@@ -1478,18 +1478,18 @@ static void adapt() {
       }
     }
     for (size_t k = 0; k < var.tmp->infos.size(); k++) {
-      Info *info = var.tmp->infos[k];
       int ix, iy;
-      sfc_inverse(info->Z, info->level, &ix, &iy);
+      sfc_inverse(var.tmp->infos[k]->Z, var.tmp->infos[k]->level, &ix, &iy);
       bool found = false;
       for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
-          long long Z = forward(info->level, i, j);
-          if (!exist(&var.tmp->all, info->level, Z) ||
-              getf0(&var.tmp->all, info->level, Z)->state != Compress) {
+          long long Z = forward(var.tmp->infos[k]->level, i, j);
+          if (!exist(&var.tmp->all, var.tmp->infos[k]->level, Z) ||
+              getf0(&var.tmp->all, var.tmp->infos[k]->level, Z)->state !=
+                  Compress) {
             found = true;
-            if (info->state == Compress)
-              info->state = Leave;
+            if (var.tmp->infos[k]->state == Compress)
+              var.tmp->infos[k]->state = Leave;
             goto out;
           }
         }
@@ -1497,9 +1497,9 @@ static void adapt() {
       if (found)
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
-            long long Z = forward(info->level, i, j);
-            if (exist(&var.tmp->all, info->level, Z)) {
-              Info *infoNei = getf0(&var.tmp->all, info->level, Z);
+            long long Z = forward(var.tmp->infos[k]->level, i, j);
+            if (exist(&var.tmp->all, var.tmp->infos[k]->level, Z)) {
+              Info *infoNei = getf0(&var.tmp->all, var.tmp->infos[k]->level, Z);
               if (infoNei->state == Compress)
                 infoNei->state = Leave;
             }
