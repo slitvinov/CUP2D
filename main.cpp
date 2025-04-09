@@ -1669,10 +1669,11 @@ static void adapt() {
       const long long np =
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
-      treef(&g->tree, parent->level, parent->Z) = Active;
+      Tree1(parent, &g->tree) = Active;
       parent->block = info->block;
-      if (level - 2 >= 0)
-        treef(&g->tree, level - 2, parent->Zparent) = CoarseNeighbour;
+      if (level - 2 >= 0) {
+	g->tree[sim.levels[level - 2] + parent->Zparent] = CoarseNeighbour;
+      }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           const long long n =
