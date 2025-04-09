@@ -1477,8 +1477,8 @@ static void adapt() {
         }
       }
     }
-    for (size_t jjj = 0; jjj < var.tmp->infos.size(); jjj++) {
-      Info *info = var.tmp->infos[jjj];
+    for (size_t k = 0; k < var.tmp->infos.size(); k++) {
+      Info *info = var.tmp->infos[k];
       int ix, iy;
       sfc_inverse(info->Z, info->level, &ix, &iy);
       bool found = false;
