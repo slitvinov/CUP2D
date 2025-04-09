@@ -152,7 +152,7 @@ static bool info_cmp(Info *a, Info *b) {
 }
 static TreeState &Tree1(const Info *info,
                         std::unordered_map<long long, TreeState> *tree) {
-  return treef(tree, info->level, info->Z);
+  return treef0(tree, info->level, info->Z);
 }
 struct Grid {
   bool UpdateFluxCorrection{true};
