@@ -141,11 +141,8 @@ static Info getf1(std::unordered_map<long long, Info *> *all, int level,
 static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
                    long long Z) {
   auto retval = all->find(sim.levels[m] + Z);
-  if (retval != all->end()) {
-    return retval->second;
-  } else {
-    assert(0);
-  }
+  assert(retval != all->end());
+  return retval->second;
 }
 static bool info_cmp(Info *a, Info *b) {
   return sim.levels[a->level] + a->Z < sim.levels[b->level] + b->Z;
