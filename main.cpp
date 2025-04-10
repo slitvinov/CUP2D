@@ -56,7 +56,6 @@ enum TreeState : signed char {
   Active = 0,
   CoarseNeighbour = -1,
   RefinedChildren = -2,
-  Unknown = -3,
 };
 
 struct Info {
