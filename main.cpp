@@ -383,7 +383,7 @@ public:
         else if ((abs(cx) + abs(cy) == 3))
           Bstep = 4;
 
-        //        assert(Bstep == pattern->Bstep);
+	assert(Bstep == pattern->Bstep);
 
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
