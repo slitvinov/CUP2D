@@ -54,8 +54,8 @@ static struct {
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 enum TreeState : signed char {
   Active = 0,
-  CoarseNeighbour = -1,
-  RefinedChildren = -2,
+  Refined = -1,
+  ParentIsActive = -2,
 };
 
 struct Info {
@@ -228,7 +228,7 @@ public:
         continue;
       if (nei[1 + cx][1 + cy] == Active) {
         icodes[k++] = icode;
-      } else if (nei[1 + cx][1 + cy] == RefinedChildren) {
+      } else if (nei[1 + cx][1 + cy] == ParentIsActive) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         int ix = (xi + cx + n) % n / 2;
@@ -346,7 +346,7 @@ public:
           Real *q = &b[dim * (_BS_ * y0 + x0)];
           memcpy(p, q, bytes);
         }
-      } else if (nei[1 + cx][1 + cy] == CoarseNeighbour) {
+      } else if (nei[1 + cx][1 + cy] == Refined) {
         int bytes =
             (abs(cx) * (e[0] - s[0]) + (1 - abs(cx)) * ((e[0] - s[0]) / 2)) *
             dim * sizeof(Real);
@@ -1413,7 +1413,7 @@ static void adapt() {
                     continue;
                   if (var.tmp->tree[sim.levels[var.tmp->infos[j]->level] +
                                     var.tmp->infos[j]->Znei[1 + x][1 + y]] ==
-                      CoarseNeighbour) {
+                      Refined) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
@@ -1548,7 +1548,7 @@ static void adapt() {
 #pragma omp critical
           {
             g->infos.push_back(child);
-            g->tree[sim.levels[level + 1] + Z] = RefinedChildren;
+            g->tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
           Blocks[j * 2 + i] = child->block;
         }
@@ -1612,7 +1612,7 @@ static void adapt() {
       dealloc_IDs.insert(sim.levels[level] + Z);
       Info *parent = getf0(&g->all, level, Z);
 #pragma omp critical
-      g->tree[sim.levels[parent->level] + parent->Z] = CoarseNeighbour;
+      g->tree[sim.levels[parent->level] + parent->Z] = Refined;
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
@@ -1626,7 +1626,7 @@ static void adapt() {
               for (int i1 = 0; i1 < 2; i1++)
 #pragma omp critical
                 g->tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
-                    RefinedChildren;
+                    ParentIsActive;
         }
     }
     for (size_t i = 0; i < m_com.size(); i++) {
@@ -1671,7 +1671,7 @@ static void adapt() {
       parent->block = info->block;
       if (level - 2 >= 0) {
 #pragma omp critical
-        g->tree[sim.levels[level - 2] + parent->Zparent] = CoarseNeighbour;
+        g->tree[sim.levels[level - 2] + parent->Zparent] = Refined;
       }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
@@ -1690,7 +1690,7 @@ static void adapt() {
             dealloc_IDs.insert(sim.levels[level] + n);
           }
 #pragma omp critical
-          g->tree[sim.levels[level] + n] = RefinedChildren;
+          g->tree[sim.levels[level] + n] = ParentIsActive;
           getf0(&g->all, level, n)->state = Leave;
         }
     }
@@ -1999,7 +1999,7 @@ struct Solver {
       long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == RefinedChildren) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == ParentIsActive) {
       Info rhsNei_c =
           getf1(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
@@ -2009,7 +2009,7 @@ struct Solver {
       interpolate(&rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == CoarseNeighbour) {
+    } else if (Tree1(rhsNei, &var.tmp->tree) == Refined) {
       Info *rhsNei_f = getf0(&var.tmp->all, rhs_info->level + 1,
                              indexer->Zchild(rhsNei, ix, iy));
       int nei_rank = Tree1(rhsNei_f, &var.tmp->tree);
@@ -2207,12 +2207,12 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             long long n = forward(sim.levelStart + 1, 2 * px + i1, 2 * py + j1);
 #pragma omp critical
-            g->tree[sim.levels[sim.levelStart + 1] + n] = RefinedChildren;
+            g->tree[sim.levels[sim.levelStart + 1] + n] = ParentIsActive;
           }
       if (sim.levelStart > 0) {
         long long n = forward(sim.levelStart - 1, px / 2, py / 2);
 #pragma omp critical
-        g->tree[sim.levels[sim.levelStart - 1] + n] = CoarseNeighbour;
+        g->tree[sim.levels[sim.levelStart - 1] + n] = Refined;
       }
     }
     for (size_t j = 0; j < g->infos.size(); j++)
