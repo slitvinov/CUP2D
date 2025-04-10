@@ -75,31 +75,3 @@ Paraview
 ```
 for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi; done | xargs -r -P `nproc` -n 2 sh -xc 'pvbatch tool/view.py "$@"' sh
 ```
-
-
-```
-struct ChildNeighborPattern {
-  int cx, cy; // Direction of the neighbor
-  int Bstep;  // Loop step: 1 (normal), 3 (diagonal), 4 (corner)
-  int ys;     // Vertical stride step (usually 1 or 2)
-  std::pair<int, int> child_offset[4]; // Relative (dx, dy) of children
-  int count; // How many child_offset entries are valid
-};
-static constexpr ChildNeighborPattern childNeighborTable[] = {
-    // cx, cy, Bstep, ys, children[], count
-    {-1, -1, 3, 1, {{-1, -1}, {}, {}, {}}, 1},    // SW
-    {0, -1, 1, 1, {{0, -1}, {1, -1}, {}, {}}, 2}, // S
-    {1, -1, 3, 1, {{2, -1}, {}, {}, {}}, 1},      // SE
-    {-1, 0, 1, 2, {{-1, 0}, {-1, 1}, {}, {}}, 2}, // W
-    {1, 0, 1, 2, {{2, 0}, {2, 1}, {}, {}}, 2},    // E
-    {-1, 1, 3, 1, {{-1, 2}, {}, {}, {}}, 1},      // NW
-    {0, 1, 1, 1, {{0, 2}, {1, 2}, {}, {}}, 2},    // N
-    {1, 1, 3, 1, {{2, 2}, {}, {}, {}}, 1},        // NE
-};
-const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
-  for (const auto &entry : childNeighborTable)
-    if (entry.cx == cx && entry.cy == cy)
-      return &entry;
-  return NULL;
-}
-```

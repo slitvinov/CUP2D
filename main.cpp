@@ -382,7 +382,7 @@ public:
           Bstep = 3;
         else if ((abs(cx) + abs(cy) == 3))
           Bstep = 4;
-
+	assert(ys == pattern->ys);
 	assert(Bstep == pattern->Bstep);
 
         for (int B = 0; B <= 3; B += Bstep) {
