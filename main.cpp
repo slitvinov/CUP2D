@@ -182,17 +182,16 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(std::unordered_map<long long, TreeState> *tree,
-            std::unordered_map<long long, Info *> *all, const Stencil &stencil,
-            Info *info, bool applybc) {
+  void load0(TreeState nei[3][3], std::unordered_map<long long, Info *> *all,
+             const Stencil &stencil, Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
     offset[0] = (stencil.sx - 1) / 2 - 1;
     offset[1] = (stencil.sy - 1) / 2 - 1;
     offset[2] = 0;
 
-    bool use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
-                   stencil.ex > 3 || stencil.ey > 3;
+    bool use_averages = stencil.tensorial || stencil.sx < -2 ||
+                        stencil.sy < -2 || stencil.ex > 3 || stencil.ey > 3;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -227,11 +226,9 @@ public:
         continue;
       if (cx == 0 && cy == 0)
         continue;
-      TreeState TreeNei =
-          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
-      if (TreeNei == Active) {
+      if (nei[1 + cx][1 + cy] == Active) {
         icodes[k++] = icode;
-      } else if (TreeNei == RefinedChildren) {
+      } else if (nei[1 + cx][1 + cy] == RefinedChildren) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         int ix = (xi + cx + n) % n / 2;
@@ -306,7 +303,7 @@ public:
                   cy < 1 ? (cy < 0 ? stencil.sy : 0) : _BS_, 0};
       int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
                   cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1, 1};
-      if (TreeNei == Active) {
+      if (nei[1 + cx][1 + cy] == Active) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
@@ -349,7 +346,7 @@ public:
           Real *q = &b[dim * (_BS_ * y0 + x0)];
           memcpy(p, q, bytes);
         }
-      } else if (TreeNei == CoarseNeighbour) {
+      } else if (nei[1 + cx][1 + cy] == CoarseNeighbour) {
         int bytes =
             (abs(cx) * (e[0] - s[0]) + (1 - abs(cx)) * ((e[0] - s[0]) / 2)) *
             dim * sizeof(Real);
@@ -789,9 +786,29 @@ public:
     }
   }
   void load(std::unordered_map<long long, TreeState> *tree,
-	    std::unordered_map<long long, Info *> *all0, const Stencil &stencil,
-	    Info *info, bool applybc) {
-    load0(tree, all0, stencil, info, applybc);
+            std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+            Info *info, bool applybc) {
+    TreeState nei[3][3];
+    int xi, yi;
+    int n = 1 << info->level;
+    sfc_inverse(info->Z, info->level, &xi, &yi);
+    bool xskin = xi == 0 || xi == n - 1;
+    bool yskin = yi == 0 || yi == n - 1;
+    int xskip = xi == 0 ? -1 : 1;
+    int yskip = yi == 0 ? -1 : 1;
+    for (int icode = 0; icode < 9; icode++) {
+      int cx = icode % 3 - 1;
+      int cy = icode / 3 - 1;
+      if (cx == xskip && xskin)
+        continue;
+      if (cy == yskip && yskin)
+        continue;
+      if (cx == 0 && cy == 0)
+        continue;
+      nei[1 + cx][1 + cy] =
+          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+    }
+    load0(nei, all, stencil, info, applybc);
   }
 };
 
