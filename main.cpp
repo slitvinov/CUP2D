@@ -181,8 +181,9 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(TreeState nei[3][3], std::unordered_map<long long, Info *> *all,
-             const Stencil &stencil, Info *info, bool applybc) {
+  void load0(Real *p0, TreeState nei[3][3],
+             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+             Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
     offset[0] = (stencil.sx - 1) / 2 - 1;
@@ -195,7 +196,7 @@ public:
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
-    Real *p = info->block;
+    Real *p = p0;
     for (int iy = -stencil.sy; iy < -stencil.sy + _BS_; iy += 4) {
       Real *q = m + dim * iy * nm[0] - dim * stencil.sx;
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
@@ -807,7 +808,7 @@ public:
       nei[1 + cx][1 + cy] =
           (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
     }
-    load0(nei, all, stencil, info, applybc);
+    load0(info->block, nei, all, stencil, info, applybc);
   }
 };
 
