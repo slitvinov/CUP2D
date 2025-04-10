@@ -1452,7 +1452,7 @@ static void adapt() {
           for (int icode = 0; icode < 9; icode++) {
             int cx = icode % 3 - 1;
             int cy = icode / 3 - 1;
-            if (cx == 1 && cy == 1)
+            if (cx == 0 && cy == 0)
               continue;
             if (cx == xskip && xskin)
               continue;
