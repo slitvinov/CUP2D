@@ -375,9 +375,8 @@ public:
           continue;
         int ys = (cy == 0) ? 2 : 1;
         int mod = ((e[1] - s[1]) / ys) % 4;
-        //        const ChildNeighborPattern *pattern = get_child_pattern(cx,
-        //        cy);
-        //	assert(pattern);
+	const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
+	assert(pattern);
         int Bstep = 1;
         if ((abs(cx) + abs(cy) == 2))
           Bstep = 3;
