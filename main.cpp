@@ -149,7 +149,7 @@ static struct {
 struct BlockLab {
 private:
   const int dim;
-  std::array<int, 27> coarsened_nei_codes;
+  std::array<int, 9> coarsened_nei_codes;
 
 public:
   unsigned int nm[2], nc[2];
@@ -186,7 +186,7 @@ public:
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
     int offset[3];
-    Real *myblocks[27];
+    Real *myblocks[9];
     int coarsened_nei_codes_size;
     bool coarsened = false;
     bool use_averages;
@@ -220,15 +220,15 @@ public:
     int icodes[8];
     int k = 0;
     coarsened_nei_codes_size = 0;
-    for (int icode = 9; icode < 18; icode++) {
+    for (int icode = 0; icode < 9; icode++) {
       myblocks[icode] = nullptr;
-      if (icode == 1 * 1 + 3 * 1 + 9 * 1)
-        continue;
       int cx = icode % 3 - 1;
-      int cy = (icode / 3) % 3 - 1;
+      int cy = icode / 3 - 1;
       if (cx == xskip && xskin)
         continue;
       if (cy == yskip && yskin)
+        continue;
+      if (cx == 0 && cy == 0)
         continue;
       TreeState TreeNei =
           (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
@@ -486,7 +486,7 @@ public:
       for (int i = 0; i < k; ++i) {
         int icode = icodes[i];
         int cx = icode % 3 - 1;
-        int cy = (icode / 3) % 3 - 1;
+        int cy = icode / 3 - 1;
         int infoNei_index[3] = {(xi + cx + n) % n, (yi + cy + n) % n, 0};
         if (info->level > 0 && use_averages) {
           int imin[3];
@@ -503,15 +503,14 @@ public:
           }
           bool cond;
           for (int itest = 0; itest < coarsened_nei_codes_size; itest++)
-            for (int i2 = imin[2]; i2 <= imax[2]; i2++)
-              for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-                for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
-                  int icode_test = (i0 + 1) + 3 * (i1 + 1) + 9 * (i2 + 1);
-                  if (coarsened_nei_codes[itest] == icode_test) {
-                    cond = true;
-                    goto end;
-                  }
+            for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+              for (int i0 = imin[0]; i0 <= imax[0]; i0++) {
+                int icode_test = (i0 + 1) + 3 * (i1 + 1);
+                if (coarsened_nei_codes[itest] == icode_test) {
+                  cond = true;
+                  goto end;
                 }
+              }
           cond = false;
         end:
           if (cond) {
