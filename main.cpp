@@ -387,6 +387,7 @@ public:
 
 	int count = 0;
         for (int B = 0; B <= 3; B += Bstep) {
+	  count++;
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           int ix = 2 * xi + std::max(cx, 0) + cx +
                    (B % 2) * std::max(0, 1 - abs(cx));
@@ -499,7 +500,6 @@ public:
                     (*(q00 + d) + *(q10 + d) + *(q01 + d) + *(q11 + d)) / 4;
             }
           }
-	  count++;
         }
 	assert(pattern->count == count);
       }
