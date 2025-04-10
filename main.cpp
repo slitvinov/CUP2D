@@ -789,6 +789,7 @@ public:
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
     TreeState nei[3][3];
+    Real *blocks[3][3][4];
     int xi, yi;
     int n = 1 << info->level;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -805,8 +806,29 @@ public:
         continue;
       if (cx == 0 && cy == 0)
         continue;
-      nei[1 + cx][1 + cy] =
+      TreeState state = nei[1 + cx][1 + cy] =
           (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+      switch (state) {
+      case Active:
+        break;
+      case ParentIsActive:
+        blocks[1 + cx][1 + cy][0] = (*all)[sim.levels[info->level - 1] +
+                                           (info->Znei[1 + cx][1 + cy] >> 2)]
+                                        ->block;
+        break;
+      case ChildrenAreActive:
+        long long id = sim.levels[info->level + 1] + info->Znei[1 + cx][1 + cy];
+        Info *nn = (*all)[id];
+        blocks[1 + cx][1 + cy][0] =
+            (*all)[sim.levels[info->level + 1] + nn->Znei[0][0]]->block;
+        blocks[1 + cx][1 + cy][1] =
+            (*all)[sim.levels[info->level + 1] + nn->Znei[0][1]]->block;
+        blocks[1 + cx][1 + cy][2] =
+            (*all)[sim.levels[info->level + 1] + nn->Znei[1][0]]->block;
+        blocks[1 + cx][1 + cy][3] =
+            (*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block;
+        break;
+      }
     }
     load0(info->block, nei, all, stencil, info, applybc);
   }
