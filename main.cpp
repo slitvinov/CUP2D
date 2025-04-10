@@ -182,7 +182,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load(std::unordered_map<long long, TreeState> *tree,
+  void load0(std::unordered_map<long long, TreeState> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
     int offset[3];
@@ -789,7 +789,13 @@ public:
         bc_vector(this, info, false);
     }
   }
+  void load(std::unordered_map<long long, TreeState> *tree,
+	    std::unordered_map<long long, Info *> *all0, const Stencil &stencil,
+	    Info *info, bool applybc) {
+    load0(tree, all0, stencil, info, applybc);
+  }
 };
+
 template <typename Kernel>
 static void computeA(Kernel &&kernel, Grid *g, int dim) {
   const size_t n = g->infos.size();
