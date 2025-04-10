@@ -233,10 +233,9 @@ public:
         icodes[k++] = icode;
       } else if (TreeNei == RefinedChildren) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
-        int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
-        int ix = (infoNei_index[0]) / 2;
-        int iy = (infoNei_index[1]) / 2;
+        int ix = (xi + cx + n) % n / 2;
+        int iy = (yi + cy + n) % n / 2;
         const long long Z = forward(info->level - 1, ix, iy);
         Real *b = getf0(all, info->level - 1, Z)->block;
         if (b == nullptr)
