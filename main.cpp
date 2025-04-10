@@ -507,7 +507,7 @@ public:
           cond = false;
         end:
           if (cond) {
-            int icode = (cx + 1) + 3 * (cy + 1) + 9;
+            int icode = (cx + 1) + 3 * (cy + 1);
             if (myblocks[icode] != nullptr) {
               Real *b = myblocks[icode];
               int eC[2] = {(stencil.ex) / 2 + (2), (stencil.ey) / 2 + (2)};
