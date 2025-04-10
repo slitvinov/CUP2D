@@ -373,13 +373,13 @@ public:
             dim * sizeof(Real);
         if (!bytes)
           continue;
-        int mod = ((e[1] - s[1]) / ys) % 4;
-	const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
+        const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
         int ys = pattern->ys;
-	assert(pattern);
-	int count = 0;
+        int mod = ((e[1] - s[1]) / ys) % 4;
+        assert(pattern);
+        int count = 0;
         for (int B = 0; B <= 3; B += pattern->Bstep) {
-	  count++;
+          count++;
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           int ix = 2 * xi + std::max(cx, 0) + cx +
                    (B % 2) * std::max(0, 1 - abs(cx));
@@ -493,7 +493,7 @@ public:
             }
           }
         }
-	//	assert(pattern->count == count);
+        //	assert(pattern->count == count);
       }
     }
     if (coarsened_nei_codes_size > 0)
