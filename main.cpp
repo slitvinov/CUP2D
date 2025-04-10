@@ -20,6 +20,30 @@
 #include "cuda.h"
 typedef double Real;
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+struct ChildNeighborPattern {
+  int cx, cy; // Direction of the neighbor
+  int Bstep;  // Loop step: 1 (normal), 3 (diagonal), 4 (corner)
+  int ys;     // Vertical stride step (usually 1 or 2)
+  std::pair<int, int> child_offset[4]; // Relative (dx, dy) of children
+  int count; // How many child_offset entries are valid
+};
+static constexpr ChildNeighborPattern childNeighborTable[] = {
+    // cx, cy, Bstep, ys, children[], count
+    {-1, -1, 3, 1, {{-1, -1}, {}, {}, {}}, 1},    // SW
+    {0, -1, 1, 1, {{0, -1}, {1, -1}, {}, {}}, 2}, // S
+    {1, -1, 3, 1, {{2, -1}, {}, {}, {}}, 1},      // SE
+    {-1, 0, 1, 2, {{-1, 0}, {-1, 1}, {}, {}}, 2}, // W
+    {1, 0, 1, 2, {{2, 0}, {2, 1}, {}, {}}, 2},    // E
+    {-1, 1, 3, 1, {{-1, 2}, {}, {}, {}}, 1},      // NW
+    {0, 1, 1, 1, {{0, 2}, {1, 2}, {}, {}}, 2},    // N
+    {1, 1, 3, 1, {{2, 2}, {}, {}, {}}, 1},        // NE
+};
+const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
+  for (const auto &entry : childNeighborTable)
+    if (entry.cx == cx && entry.cy == cy)
+      return &entry;
+  return NULL;
+}
 struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
@@ -351,11 +375,17 @@ public:
           continue;
         int ys = (cy == 0) ? 2 : 1;
         int mod = ((e[1] - s[1]) / ys) % 4;
+        //        const ChildNeighborPattern *pattern = get_child_pattern(cx,
+        //        cy);
+        //	assert(pattern);
         int Bstep = 1;
         if ((abs(cx) + abs(cy) == 2))
           Bstep = 3;
         else if ((abs(cx) + abs(cy) == 3))
           Bstep = 4;
+
+        //        assert(Bstep == pattern->Bstep);
+
         for (int B = 0; B <= 3; B += Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           int ix = 2 * xi + std::max(cx, 0) + cx +
@@ -808,6 +838,8 @@ public:
           (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
       switch (state) {
       case Active:
+        blocks[1 + cx][1 + cy][0] =
+            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block;
         break;
       case ParentIsActive:
         ix = (xi + cx + n) % n / 2;
@@ -825,7 +857,7 @@ public:
         blocks[1 + cx][1 + cy][2] =
             (*all)[sim.levels[info->level + 1] + nn->Znei[1][0]]->block;
         blocks[1 + cx][1 + cy][3] =
-	(*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block; */
+        (*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block; */
         break;
       }
     }

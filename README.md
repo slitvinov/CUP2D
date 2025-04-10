@@ -78,51 +78,28 @@ for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi
 
 
 ```
-  void load(std::unordered_map<long long, TreeState> *tree,
-            std::unordered_map<long long, Info *> *all, const Stencil &stencil,
-            Info *info, bool applybc) {
-    TreeState nei[3][3];
-    Real *blocks[3][3][4];
-    int xi, yi;
-    int n = 1 << info->level;
-    sfc_inverse(info->Z, info->level, &xi, &yi);
-    bool xskin = xi == 0 || xi == n - 1;
-    bool yskin = yi == 0 || yi == n - 1;
-    int xskip = xi == 0 ? -1 : 1;
-    int yskip = yi == 0 ? -1 : 1;
-    for (int icode = 0; icode < 9; icode++) {
-      int cx = icode % 3 - 1;
-      int cy = icode / 3 - 1;
-      if (cx == xskip && xskin)
-        continue;
-      if (cy == yskip && yskin)
-        continue;
-      if (cx == 1 && cy == 1)
-        continue;
-      TreeState state = nei[1 + cx][1 + cy] =
-          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
-      switch (state) {
-      case Active:
-        break;
-      case ParentIsActive:
-        blocks[1 + cx][1 + cy][0] = (*all)[sim.levels[info->level - 1] +
-                                           (info->Znei[1 + cx][1 + cy] >> 2)]
-                                        ->block;
-        break;
-      case ChildrenAreActive:
-        long long id = sim.levels[info->level + 1] + info->Znei[1 + cx][1 + cy];
-        Info *nn = (*all)[id];
-        blocks[1 + cx][1 + cy][0] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][0]]->block;
-        blocks[1 + cx][1 + cy][1] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][1]]->block;
-        blocks[1 + cx][1 + cy][2] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[1][0]]->block;
-        blocks[1 + cx][1 + cy][3] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block;
-        break;
-      }
-    }
-    load0(info->block, blocks, nei, all, stencil, info, applybc);
-  }
+struct ChildNeighborPattern {
+  int cx, cy; // Direction of the neighbor
+  int Bstep;  // Loop step: 1 (normal), 3 (diagonal), 4 (corner)
+  int ys;     // Vertical stride step (usually 1 or 2)
+  std::pair<int, int> child_offset[4]; // Relative (dx, dy) of children
+  int count; // How many child_offset entries are valid
+};
+static constexpr ChildNeighborPattern childNeighborTable[] = {
+    // cx, cy, Bstep, ys, children[], count
+    {-1, -1, 3, 1, {{-1, -1}, {}, {}, {}}, 1},    // SW
+    {0, -1, 1, 1, {{0, -1}, {1, -1}, {}, {}}, 2}, // S
+    {1, -1, 3, 1, {{2, -1}, {}, {}, {}}, 1},      // SE
+    {-1, 0, 1, 2, {{-1, 0}, {-1, 1}, {}, {}}, 2}, // W
+    {1, 0, 1, 2, {{2, 0}, {2, 1}, {}, {}}, 2},    // E
+    {-1, 1, 3, 1, {{-1, 2}, {}, {}, {}}, 1},      // NW
+    {0, 1, 1, 1, {{0, 2}, {1, 2}, {}, {}}, 2},    // N
+    {1, 1, 3, 1, {{2, 2}, {}, {}, {}}, 1},        // NE
+};
+const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
+  for (const auto &entry : childNeighborTable)
+    if (entry.cx == cx && entry.cy == cy)
+      return &entry;
+  return NULL;
+}
 ```
