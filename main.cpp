@@ -817,7 +817,7 @@ public:
                                         ->block;
         break;
       case ChildrenAreActive:
-        long long id = sim.levels[info->level + 1] + info->Znei[1 + cx][1 + cy];
+        long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
         Info *nn = (*all)[id];
         blocks[1 + cx][1 + cy][0] =
             (*all)[sim.levels[info->level + 1] + nn->Znei[0][0]]->block;
