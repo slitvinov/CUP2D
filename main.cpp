@@ -373,11 +373,10 @@ public:
             dim * sizeof(Real);
         if (!bytes)
           continue;
-        int ys = (cy == 0) ? 2 : 1;
         int mod = ((e[1] - s[1]) / ys) % 4;
 	const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
+        int ys = pattern->ys;
 	assert(pattern);
-	assert(ys == pattern->ys);
 	int count = 0;
         for (int B = 0; B <= 3; B += pattern->Bstep) {
 	  count++;
