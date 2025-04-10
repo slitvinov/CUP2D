@@ -1541,6 +1541,7 @@ static void adapt() {
           assert(!exist(&g->all, level + 1, Z));
           Info *child = new Info;
           fill(child, level + 1, Z);
+#pragma omp critical
           g->all[sim.levels[level + 1] + Z] = child;
           child->state = Leave;
           child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
