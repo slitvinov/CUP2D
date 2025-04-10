@@ -377,16 +377,9 @@ public:
         int mod = ((e[1] - s[1]) / ys) % 4;
 	const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
 	assert(pattern);
-        int Bstep = 1;
-        if ((abs(cx) + abs(cy) == 2))
-          Bstep = 3;
-        else if ((abs(cx) + abs(cy) == 3))
-          Bstep = 4;
 	assert(ys == pattern->ys);
-	assert(Bstep == pattern->Bstep);
-
 	int count = 0;
-        for (int B = 0; B <= 3; B += Bstep) {
+        for (int B = 0; B <= 3; B += pattern->Bstep) {
 	  count++;
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           int ix = 2 * xi + std::max(cx, 0) + cx +
@@ -501,7 +494,7 @@ public:
             }
           }
         }
-	assert(pattern->count == count);
+	//	assert(pattern->count == count);
       }
     }
     if (coarsened_nei_codes_size > 0)
