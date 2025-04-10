@@ -815,17 +815,17 @@ public:
         Z = forward(info->level - 1, ix, iy);
         blocks[1 + cx][1 + cy][0] = getf0(all, info->level - 1, Z)->block;
         break;
-      case ChildrenAreActive: /*
-        long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
+      case ChildrenAreActive:
+        long long id = sim.levels[info->level] + info->Zchild[1 + cx][1 + cy];
         Info *nn = (*all)[id];
         blocks[1 + cx][1 + cy][0] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][0]]->block;
+            (*all)[sim.levels[info->level + 1] + nn->Zchild[0][0]]->block;
         blocks[1 + cx][1 + cy][1] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][1]]->block;
+            (*all)[sim.levels[info->level + 1] + nn->Zchild[0][1]]->block;
         blocks[1 + cx][1 + cy][2] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[1][0]]->block;
+            (*all)[sim.levels[info->level + 1] + nn->Zchild[1][0]]->block;
         blocks[1 + cx][1 + cy][3] =
-	(*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block; */
+	(*all)[sim.levels[info->level + 1] + nn->Zchild[1][1]]->block;
         break;
       }
     }
