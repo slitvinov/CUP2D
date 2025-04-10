@@ -247,9 +247,9 @@ public:
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
                     cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
         int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2))
-                           : (_BS_ / 2) + (stencil.ex) / 2 + (2) - 1,
+                           : (_BS_ / 2) + (stencil.ex) / 2 + 1,
                     cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2))
-                           : (_BS_ / 2) + (stencil.ey) / 2 + (2) - 1};
+                           : (_BS_ / 2) + (stencil.ey) / 2 + 1};
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
