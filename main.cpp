@@ -187,14 +187,11 @@ public:
             Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
-    int coarsened_nei_codes_size;
-    bool coarsened = false;
-    bool use_averages;
     offset[0] = (stencil.sx - 1) / 2 - 1;
     offset[1] = (stencil.sy - 1) / 2 - 1;
     offset[2] = 0;
 
-    use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
+    bool use_averages = stencil.tensorial || stencil.sx < -2 || stencil.sy < -2 ||
                    stencil.ex > 3 || stencil.ey > 3;
     int n = 1 << info->level;
     int xi, yi;
@@ -212,14 +209,14 @@ public:
       memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
           p += dim * _BS_;
     }
-    coarsened = false;
+    bool coarsened = false;
     bool xskin = xi == 0 || xi == n - 1;
     bool yskin = yi == 0 || yi == n - 1;
     int xskip = xi == 0 ? -1 : 1;
     int yskip = yi == 0 ? -1 : 1;
     int icodes[8];
     int k = 0;
-    coarsened_nei_codes_size = 0;
+    int coarsened_nei_codes_size = 0;
     for (int icode = 0; icode < 9; icode++) {
       myblocks[icode] = nullptr;
       int cx = icode % 3 - 1;
