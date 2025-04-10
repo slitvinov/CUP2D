@@ -181,7 +181,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(Real *p0, TreeState nei[3][3],
+  void load0(Real *p0, Real *block[3][3][4], TreeState nei[3][3],
              std::unordered_map<long long, Info *> *all, const Stencil &stencil,
              Info *info, bool applybc) {
     int offset[3];
@@ -231,10 +231,7 @@ public:
       } else if (nei[1 + cx][1 + cy] == ParentIsActive) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
-        int ix = (xi + cx + n) % n / 2;
-        int iy = (yi + cy + n) % n / 2;
-        const long long Z = forward(info->level - 1, ix, iy);
-        Real *b = getf0(all, info->level - 1, Z)->block;
+        Real *b = block[1 + cx][1 + cy][0];
         if (b == nullptr)
           continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
@@ -790,7 +787,8 @@ public:
             Info *info, bool applybc) {
     TreeState nei[3][3];
     Real *blocks[3][3][4];
-    int xi, yi;
+    int xi, yi, ix, iy;
+    long long Z;
     int n = 1 << info->level;
     sfc_inverse(info->Z, info->level, &xi, &yi);
     bool xskin = xi == 0 || xi == n - 1;
@@ -812,9 +810,10 @@ public:
       case Active:
         break;
       case ParentIsActive:
-        blocks[1 + cx][1 + cy][0] = (*all)[sim.levels[info->level - 1] +
-                                           (info->Znei[1 + cx][1 + cy] >> 2)]
-                                        ->block;
+        ix = (xi + cx + n) % n / 2;
+        iy = (yi + cy + n) % n / 2;
+        Z = forward(info->level - 1, ix, iy);
+        blocks[1 + cx][1 + cy][0] = getf0(all, info->level - 1, Z)->block;
         break;
       case ChildrenAreActive:
         long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
@@ -830,7 +829,7 @@ public:
         break;
       }
     }
-    load0(info->block, nei, all, stencil, info, applybc);
+    load0(info->block, blocks, nei, all, stencil, info, applybc);
   }
 };
 
