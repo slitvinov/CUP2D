@@ -307,7 +307,7 @@ public:
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
-        int icode = (cx + 1) + 3 * (cy + 1) + 9;
+        int icode = (cx + 1) + 3 * (cy + 1);
         myblocks[icode] =
             getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block;
         if (myblocks[icode] == nullptr)
