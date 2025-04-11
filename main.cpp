@@ -19,6 +19,8 @@
 #endif
 #include "cuda.h"
 typedef double Real;
+enum {BS = 8};
+
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct ChildNeighborPattern {
   int cx, cy; // Direction of the neighbor
@@ -109,7 +111,7 @@ static void fill(Info *b, int level, long long Z) {
   int i, j, Bmax[2];
   b->level = level;
   b->Z = Z;
-  b->h = 1.0 / _BS_ / (1 << level);
+  b->h = 1.0 / BS / (1 << level);
   sfc_inverse(Z, level, &i, &j);
   b->origin[0] = (Real)i / (1 << level);
   b->origin[1] = (Real)j / (1 << level);
@@ -194,14 +196,14 @@ public:
     end[0] = stencil.ex;
     end[1] = stencil.ey;
     end[2] = 1;
-    nm[0] = _BS_ + end[0] - start0[0] - 1;
-    nm[1] = _BS_ + end[1] - start0[1] - 1;
+    nm[0] = BS + end[0] - start0[0] - 1;
+    nm[1] = BS + end[1] - start0[1] - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (stencil.sx - 1) / 2 - 1;
     offset[1] = (stencil.sy - 1) / 2 - 1;
-    nc[0] = _BS_ / 2 + end[0] / 2 + 1 - offset[0];
-    nc[1] = _BS_ / 2 + end[1] / 2 + 1 - offset[1];
+    nc[0] = BS / 2 + end[0] / 2 + 1 - offset[0];
+    nc[1] = BS / 2 + end[1] / 2 + 1 - offset[1];
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
@@ -221,16 +223,16 @@ public:
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = p0;
-    for (int iy = -stencil.sy; iy < -stencil.sy + _BS_; iy += 4) {
+    for (int iy = -stencil.sy; iy < -stencil.sy + BS; iy += 4) {
       Real *q = m + dim * iy * nm[0] - dim * stencil.sx;
-      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-          p += dim * _BS_;
-      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-          p += dim * _BS_;
-      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-          p += dim * _BS_;
-      memcpy(q, p, sizeof(Real) * dim * _BS_), q += dim * nm[0],
-          p += dim * _BS_;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0],
+          p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0],
+          p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0],
+          p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0],
+          p += dim * BS;
     }
     bool coarsened = false;
     bool xskin = xi == 0 || xi == n - 1;
@@ -258,12 +260,12 @@ public:
         Real *b = block[1 + cx][1 + cy][0];
         if (b == nullptr)
           continue;
-        int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
-                    cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
-        int e[2] = {cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2))
-                           : (_BS_ / 2) + (stencil.ex) / 2 + 1,
-                    cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2))
-                           : (_BS_ / 2) + (stencil.ey) / 2 + 1};
+        int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
+                    cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
+        int e[2] = {cx < 1 ? (cx < 0 ? 0 : (BS / 2))
+                           : (BS / 2) + (stencil.ex) / 2 + 1,
+                    cy < 1 ? (cy < 0 ? 0 : (BS / 2))
+                           : (BS / 2) + (stencil.ey) / 2 + 1};
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
@@ -280,10 +282,10 @@ public:
                             ? 1
                             : 0;
         int start[2] = {
-            std::max(cx, 0) * _BS_ / 2 + (1 - abs(cx)) * base[0] * _BS_ / 2 -
-                cx * _BS_ + CoarseEdge[0] * cx * _BS_ / 2,
-            std::max(cy, 0) * _BS_ / 2 + (1 - abs(cy)) * base[1] * _BS_ / 2 -
-                cy * _BS_ + CoarseEdge[1] * cy * _BS_ / 2};
+            std::max(cx, 0) * BS / 2 + (1 - abs(cx)) * base[0] * BS / 2 -
+                cx * BS + CoarseEdge[0] * cx * BS / 2,
+            std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
+                cy * BS + CoarseEdge[1] * cy * BS / 2};
         int i = s[0] - offset[0];
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
@@ -300,10 +302,10 @@ public:
           Real *p1 = c + dim * i1;
           Real *p2 = c + dim * i2;
           Real *p3 = c + dim * i3;
-          Real *q0 = b + dim * (_BS_ * y0 + x);
-          Real *q1 = b + dim * (_BS_ * y1 + x);
-          Real *q2 = b + dim * (_BS_ * y2 + x);
-          Real *q3 = b + dim * (_BS_ * y3 + x);
+          Real *q0 = b + dim * (BS * y0 + x);
+          Real *q1 = b + dim * (BS * y1 + x);
+          Real *q2 = b + dim * (BS * y2 + x);
+          Real *q3 = b + dim * (BS * y3 + x);
           memcpy(p0, q0, bytes);
           memcpy(p1, q1, bytes);
           memcpy(p2, q2, bytes);
@@ -314,16 +316,16 @@ public:
           int y0 = iy + start[1];
           int x = s[0] + start[0];
           Real *p = c + dim * i0;
-          Real *q = b + dim * (_BS_ * y0 + x);
+          Real *q = b + dim * (BS * y0 + x);
           memcpy(p, q, bytes);
         }
       }
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : _BS_,
-                  cy < 1 ? (cy < 0 ? stencil.sy : 0) : _BS_, 0};
-      int e[3] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
-                  cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1, 1};
+      int s[3] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : BS,
+                  cy < 1 ? (cy < 0 ? stencil.sy : 0) : BS, 0};
+      int e[3] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + stencil.ex - 1,
+                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + stencil.ey - 1, 1};
       if (nei[1 + cx][1 + cy] == Active) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
@@ -341,19 +343,19 @@ public:
           int i1 = i + (iy + 1 - stencil.sy) * nm[0];
           int i2 = i + (iy + 2 - stencil.sy) * nm[0];
           int i3 = i + (iy + 3 - stencil.sy) * nm[0];
-          int x0 = s[0] - cx * _BS_;
-          int y0 = iy - cy * _BS_;
-          int y1 = iy + 1 - cy * _BS_;
-          int y2 = iy + 2 - cy * _BS_;
-          int y3 = iy + 3 - cy * _BS_;
+          int x0 = s[0] - cx * BS;
+          int y0 = iy - cy * BS;
+          int y1 = iy + 1 - cy * BS;
+          int y2 = iy + 2 - cy * BS;
+          int y3 = iy + 3 - cy * BS;
           Real *p0 = &m[dim * i0];
           Real *p1 = &m[dim * i1];
           Real *p2 = &m[dim * i2];
           Real *p3 = &m[dim * i3];
-          Real *q0 = &b[dim * (_BS_ * y0 + x0)];
-          Real *q1 = &b[dim * (_BS_ * y1 + x0)];
-          Real *q2 = &b[dim * (_BS_ * y2 + x0)];
-          Real *q3 = &b[dim * (_BS_ * y3 + x0)];
+          Real *q0 = &b[dim * (BS * y0 + x0)];
+          Real *q1 = &b[dim * (BS * y1 + x0)];
+          Real *q2 = &b[dim * (BS * y2 + x0)];
+          Real *q3 = &b[dim * (BS * y3 + x0)];
           memcpy(p0, q0, bytes);
           memcpy(p1, q1, bytes);
           memcpy(p2, q2, bytes);
@@ -361,10 +363,10 @@ public:
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
           int i0 = i + (iy - stencil.sy) * nm[0];
-          int x0 = s[0] - cx * _BS_;
-          int y0 = iy - cy * _BS_;
+          int x0 = s[0] - cx * BS;
+          int y0 = iy - cy * BS;
           Real *p = &m[dim * i0];
-          Real *q = &b[dim * (_BS_ * y0 + x0)];
+          Real *q = &b[dim * (BS * y0 + x0)];
           memcpy(p, q, bytes);
         }
       } else if (nei[1 + cx][1 + cy] == ChildrenAreActive) {
@@ -392,7 +394,7 @@ public:
           int i =
               abs(cx) * (s[0] - stencil.sx) +
               (1 - abs(cx)) * (s[0] - stencil.sx + (B % 2) * (e[0] - s[0]) / 2);
-          int x = s[0] - cx * _BS_ + std::min(0, cx) * (e[0] - s[0]);
+          int x = s[0] - cx * BS + std::min(0, cx) * (e[0] - s[0]);
 
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
             int k0 = i + (abs(cy) * (iy + 0 * ys - stencil.sy) +
@@ -411,17 +413,17 @@ public:
                           (1 - abs(cy)) * ((iy + 3 * ys) / 2 - stencil.sy +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int y0 = (abs(cy) == 1) ? 2 * (iy + 0 * ys - cy * _BS_) +
-                                          std::min(0, cy) * _BS_
+            int y0 = (abs(cy) == 1) ? 2 * (iy + 0 * ys - cy * BS) +
+                                          std::min(0, cy) * BS
                                     : iy + 0 * ys;
-            int y1 = (abs(cy) == 1) ? 2 * (iy + 1 * ys - cy * _BS_) +
-                                          std::min(0, cy) * _BS_
+            int y1 = (abs(cy) == 1) ? 2 * (iy + 1 * ys - cy * BS) +
+                                          std::min(0, cy) * BS
                                     : iy + 1 * ys;
-            int y2 = (abs(cy) == 1) ? 2 * (iy + 2 * ys - cy * _BS_) +
-                                          std::min(0, cy) * _BS_
+            int y2 = (abs(cy) == 1) ? 2 * (iy + 2 * ys - cy * BS) +
+                                          std::min(0, cy) * BS
                                     : iy + 2 * ys;
-            int y3 = (abs(cy) == 1) ? 2 * (iy + 3 * ys - cy * _BS_) +
-                                          std::min(0, cy) * _BS_
+            int y3 = (abs(cy) == 1) ? 2 * (iy + 3 * ys - cy * BS) +
+                                          std::min(0, cy) * BS
                                     : iy + 3 * ys;
             /* int z0 = y0 + 1; */
             int z1 = y1 + 1;
@@ -431,14 +433,14 @@ public:
             Real *p1 = m + dim * k1;
             Real *p2 = m + dim * k2;
             Real *p3 = m + dim * k3;
-            Real *q00 = b + dim * (_BS_ * y0 + x);
-            // Real *q10 = b + dim * (_BS_ * z0 + x);
-            Real *q01 = b + dim * (_BS_ * y1 + x);
-            Real *q11 = b + dim * (_BS_ * z1 + x);
-            Real *q02 = b + dim * (_BS_ * y2 + x);
-            Real *q12 = b + dim * (_BS_ * z2 + x);
-            Real *q03 = b + dim * (_BS_ * y3 + x);
-            Real *q13 = b + dim * (_BS_ * z3 + x);
+            Real *q00 = b + dim * (BS * y0 + x);
+            // Real *q10 = b + dim * (BS * z0 + x);
+            Real *q01 = b + dim * (BS * y1 + x);
+            Real *q11 = b + dim * (BS * z1 + x);
+            Real *q02 = b + dim * (BS * y2 + x);
+            Real *q12 = b + dim * (BS * z2 + x);
+            Real *q03 = b + dim * (BS * y3 + x);
+            Real *q13 = b + dim * (BS * z3 + x);
             for (int ee = 0; ee < (abs(cx) * (e[0] - s[0]) +
                                    (1 - abs(cx)) * ((e[0] - s[0]) / 2));
                  ee++) {
@@ -474,12 +476,12 @@ public:
                              (iy / 2 - stencil.sy + aux * (e[1] - s[1]) / 2)) *
                             nm[0];
             int y = (abs(cy) == 1)
-                        ? 2 * (iy - cy * _BS_) + std::min(0, cy) * _BS_
+                        ? 2 * (iy - cy * BS) + std::min(0, cy) * BS
                         : iy;
             int z = y + 1;
             Real *p = m + dim * k;
-            Real *q0 = b + dim * (_BS_ * y + x);
-            Real *q1 = b + dim * (_BS_ * z + x);
+            Real *q0 = b + dim * (BS * y + x);
+            Real *q1 = b + dim * (BS * z + x);
             for (int ee = 0; ee < (abs(cx) * (e[0] - s[0]) +
                                    (1 - abs(cx)) * ((e[0] - s[0]) / 2));
                  ee++) {
@@ -532,17 +534,17 @@ public:
             if (myblocks[icode] != nullptr) {
               Real *b = myblocks[icode];
               int eC[2] = {(stencil.ex) / 2 + (2), (stencil.ey) / 2 + (2)};
-              int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (_BS_ / 2),
-                          cy < 1 ? (cy < 0 ? offset[1] : 0) : (_BS_ / 2)};
+              int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
+                          cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
               int e[2] = {
-                  cx < 1 ? (cx < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[0] - 1,
-                  cy < 1 ? (cy < 0 ? 0 : (_BS_ / 2)) : (_BS_ / 2) + eC[1] - 1};
+                  cx < 1 ? (cx < 0 ? 0 : (BS / 2)) : (BS / 2) + eC[0] - 1,
+                  cy < 1 ? (cy < 0 ? 0 : (BS / 2)) : (BS / 2) + eC[1] - 1};
               int bytes = (e[0] - s[0]) * dim * sizeof(Real);
               if (bytes) {
-                int start[2] = {s[0] + std::max(cx, 0) * (_BS_ / 2) -
-                                    cx * _BS_ + std::min(0, cx) * (e[0] - s[0]),
-                                s[1] + std::max(cy, 0) * (_BS_ / 2) -
-                                    cy * _BS_ +
+                int start[2] = {s[0] + std::max(cx, 0) * (BS / 2) -
+                                    cx * BS + std::min(0, cx) * (e[0] - s[0]),
+                                s[1] + std::max(cy, 0) * (BS / 2) -
+                                    cy * BS +
                                     std::min(0, cy) * (e[1] - s[1])};
                 int i = s[0] - offset[0];
                 int x = start[0];
@@ -551,8 +553,8 @@ public:
                   Real *p1 = c + dim * i0;
                   int y0 = 2 * (iy - s[1]) + start[1];
                   int y1 = y0 + 1;
-                  Real *q0 = b + dim * (_BS_ * y0 + x);
-                  Real *q1 = b + dim * (_BS_ * y1 + x);
+                  Real *q0 = b + dim * (BS * y0 + x);
+                  Real *q1 = b + dim * (BS * y1 + x);
                   for (int ee = 0; ee < e[0] - s[0]; ee++) {
                     Real *q00 = q0 + dim * 2 * ee;
                     Real *q01 = q0 + dim * (2 * ee + 1);
@@ -572,9 +574,9 @@ public:
       }
     /* was post load */
     if (coarsened) {
-      for (int j = 0; j < _BS_ / 2; j++) {
-        for (int i = 0; i < _BS_ / 2; i++) {
-          if (i > 1 && i < _BS_ / 2 - 2 && j > 2 && j < _BS_ / 2 - 2)
+      for (int j = 0; j < BS / 2; j++) {
+        for (int i = 0; i < BS / 2; i++) {
+          if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2)
             continue;
           int ix = 2 * i - stencil.sx;
           int iy = 2 * j - stencil.sy;
@@ -609,12 +611,12 @@ public:
         continue;
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[2] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : _BS_,
-                  cy < 1 ? (cy < 0 ? stencil.sy : 0) : _BS_};
-      int e[2] = {cx < 1 ? (cx < 0 ? 0 : _BS_) : _BS_ + stencil.ex - 1,
-                  cy < 1 ? (cy < 0 ? 0 : _BS_) : _BS_ + stencil.ey - 1};
-      int sC[2] = {cx < 1 ? (cx < 0 ? ((stencil.sx - 1) / 2) : 0) : (_BS_ / 2),
-                   cy < 1 ? (cy < 0 ? ((stencil.sy - 1) / 2) : 0) : (_BS_ / 2)};
+      int s[2] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : BS,
+                  cy < 1 ? (cy < 0 ? stencil.sy : 0) : BS};
+      int e[2] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + stencil.ex - 1,
+                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + stencil.ey - 1};
+      int sC[2] = {cx < 1 ? (cx < 0 ? ((stencil.sx - 1) / 2) : 0) : (BS / 2),
+                   cy < 1 ? (cy < 0 ? ((stencil.sy - 1) / 2) : 0) : (BS / 2)};
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
@@ -654,7 +656,7 @@ public:
             int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
             int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
             double dx = 0.25 * (2 * x - 1);
-            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+            if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
             int i0 = XX + nc[0] * (YY + 2);
             int i1 = XX + nc[0] * (YY);
@@ -677,7 +679,7 @@ public:
                          2.0 * c[dim * i2 + d];
                   dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
                           2.0 * c[dim * i2 + d];
-                } else if (YY + offset[1] == (_BS_ / 2) - 1) {
+                } else if (YY + offset[1] == (BS / 2) - 1) {
                   dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
                          2.0 * c[dim * i4 + d];
                   dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
@@ -706,7 +708,7 @@ public:
                          2.0 * c[dim * i6 + d];
                   dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
                           2.0 * c[dim * i6 + d];
-                } else if (XX + offset[0] == (_BS_ / 2) - 1) {
+                } else if (XX + offset[0] == (BS / 2) - 1) {
                   dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
                          2.0 * c[dim * i7 + d];
                   dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
@@ -734,7 +736,7 @@ public:
         }
         for (int iy = s[1]; iy < e[1]; iy += 1) {
           for (int ix = s[0]; ix < e[0]; ix += 1) {
-            if (ix < -2 || iy < -2 || ix > _BS_ + 1 || iy > _BS_ + 1)
+            if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
             int k0 = ix - stencil.sx + nm[0] * (iy - stencil.sy - 1);
             int k1 = ix - stencil.sx + nm[0] * (iy - stencil.sy - 2);
@@ -873,23 +875,23 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     }
   }
 }
-typedef Real ScalarBlock[_BS_][_BS_];
+typedef Real ScalarBlock[BS][BS];
 template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
   const int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
     const int *const stenBeg = lab->start0;
     const int *const stenEnd = lab->end;
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_) : stenBeg[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ + stenEnd[0] - 1)
-                    : _BS_ + stenEnd[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ + stenEnd[1] - 1)
-                    : _BS_ + stenEnd[1] - 1;
+    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS) : stenBeg[0];
+    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS) : stenBeg[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS + stenEnd[0] - 1)
+                    : BS + stenEnd[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS + stenEnd[1] - 1)
+                    : BS + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        const int x = (dir == 0 ? (side == 0 ? 0 : _BS_ - 1) : ix) - stenBeg[0];
-        const int y = (dir == 1 ? (side == 0 ? 0 : _BS_ - 1) : iy) - stenBeg[1];
+        const int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stenBeg[0];
+        const int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stenBeg[1];
         int i0 = ix - stenBeg[0] + lab->nm[0] * (iy - stenBeg[1]);
         int i1 = x + lab->nm[0] * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
@@ -905,18 +907,18 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
     const int *const stenBeg = sI;
     const int *const stenEnd = eI;
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : _BS_ / 2) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : _BS_ / 2) : stenBeg[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[0] - 1)
-                    : _BS_ / 2 + stenEnd[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : _BS_ / 2 + stenEnd[1] - 1)
-                    : _BS_ / 2 + stenEnd[1] - 1;
+    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS / 2) : stenBeg[0];
+    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS / 2) : stenBeg[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS / 2 + stenEnd[0] - 1)
+                    : BS / 2 + stenEnd[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS / 2 + stenEnd[1] - 1)
+                    : BS / 2 + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
         const int x =
-            (dir == 0 ? (side == 0 ? 0 : _BS_ / 2 - 1) : ix) - stenBeg[0];
+            (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - stenBeg[0];
         const int y =
-            (dir == 1 ? (side == 0 ? 0 : _BS_ / 2 - 1) : iy) - stenBeg[1];
+            (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - stenBeg[1];
         int i0 = ix - stenBeg[0] + lab->nc[0] * (iy - stenBeg[1]);
         int i1 = x + lab->nc[0] * (y);
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
@@ -956,15 +958,15 @@ void Neumann2D(BlockLab *lab, const Stencil *stencil, bool coarse) {
     stenEnd[1] = stencil->ey;
     stenBeg[0] = stencil->sx;
     stenBeg[1] = stencil->sy;
-    bsize[0] = _BS_;
-    bsize[1] = _BS_;
+    bsize[0] = BS;
+    bsize[1] = BS;
   } else {
     stenEnd[0] = (stencil->ex) / 2 + 1 + (2) - 1;
     stenEnd[1] = (stencil->ey) / 2 + 1 + (2) - 1;
     stenBeg[0] = (stencil->sx - 1) / 2 + (-1);
     stenBeg[1] = (stencil->sy - 1) / 2 + (-1);
-    bsize[0] = _BS_ / 2;
-    bsize[1] = _BS_ / 2;
+    bsize[0] = BS / 2;
+    bsize[1] = BS / 2;
   }
   Real *cb = coarse ? lab->c : lab->m;
   const unsigned int *n = coarse ? lab->nc : lab->nm;
@@ -1002,13 +1004,13 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
   const std::vector<Info *> &chiInfo = var.chi->infos;
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
-  int nm = _BS_ + stencil.ex - stencil.sx - 1;
+  int nm = BS + stencil.ex - stencil.sx - 1;
   const Real h = info->h;
   const Real facDiv = 0.5 * h / sim.dt;
   Real *TMP = tmpInfo[info->id]->block;
   Real *CHI = chiInfo[info->id]->block;
-  for (int iy = 0; iy < _BS_; ++iy)
-    for (int ix = 0; ix < _BS_; ++ix) {
+  for (int iy = 0; iy < BS; ++iy)
+    for (int ix = 0; ix < BS; ++ix) {
       int ip0 = ix - stencil.sx;
       int jp0 = iy - stencil.sy;
       int ip1 = ip0 + 1;
@@ -1023,33 +1025,33 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
       Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
       Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
       Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
-      TMP[_BS_ * iy + ix] =
+      TMP[BS * iy + ix] =
           facDiv * (*v0 - *v1 + *v2 - *v3) -
-          facDiv * CHI[_BS_ * iy + ix] * (*u0 - *u1 + *u2 - *u3);
+          facDiv * CHI[BS * iy + ix] * (*u0 - *u1 + *u2 - *u3);
     }
 };
 struct Obstacle {
-  Real chi[_BS_][_BS_];
-  Real dist[_BS_][_BS_];
-  Real udef[_BS_][_BS_][2];
+  Real chi[BS][BS];
+  Real dist[BS][BS];
+  Real udef[BS][BS][2];
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
   Obstacle() {
-    std::fill(&dist[0][0], &dist[0][0] + _BS_ * _BS_, -1);
-    memset(&chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-    memset(&udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
+    std::fill(&dist[0][0], &dist[0][0] + BS * BS, -1);
+    memset(&chi[0][0], 0, sizeof(Real) * BS * BS);
+    memset(&udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
   }
 };
 struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
     const std::vector<Info *> &tmpInfo = var.tmp->infos;
-    const Real i2h = 0.5 * (1 << info->level) * _BS_;
+    const Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = tmpInfo[info->id]->block;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    for (int j = 0; j < _BS_; ++j)
-      for (int i = 0; i < _BS_; ++i) {
+    int nm = BS + stencil.ex - stencil.sx - 1;
+    for (int j = 0; j < BS; ++j)
+      for (int i = 0; i < BS; ++i) {
         int x0 = i - stencil.sx;
         int y0 = j - stencil.sy;
         int xp = x0 + 1;
@@ -1060,7 +1062,7 @@ struct KernelVorticity {
         Real *e1 = um + 2 * (nm * yp + x0) + 0;
         Real *e2 = um + 2 * (nm * y0 + xp) + 1;
         Real *e3 = um + 2 * (nm * y0 + xm) + 1;
-        TMP[j * _BS_ + i] = i2h * (*e0 - *e1 + *e2 - *e3);
+        TMP[j * BS + i] = i2h * (*e0 - *e1 + *e2 - *e3);
       }
   }
 };
@@ -1068,7 +1070,7 @@ static void dump(Real time, Info **infos, char *path) {
   long i, j, k, x, y, nblock;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
-  float xyz[8 * _BS_ * _BS_];
+  float xyz[8 * BS * BS];
   nblock = var.vel->infos.size();
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
@@ -1101,7 +1103,7 @@ static void dump(Real time, Info **infos, char *path) {
           "         %s\n"
           "       </DataItem>\n"
           "     </Geometry>\n",
-          time, _BS_ * _BS_ * nblock, 4 * _BS_ * _BS_ * nblock, xyz_base);
+          time, BS * BS * nblock, 4 * BS * BS * nblock, xyz_base);
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
@@ -1123,7 +1125,7 @@ static void dump(Real time, Info **infos, char *path) {
               "         </DataItem>\n"
               "       </Attribute>\n",
               dim == 2 ? "Vector" : "Scalar", var.F[i].prefix,
-              _BS_ * _BS_ * nblock, dim, sizeof(Real),
+              BS * BS * nblock, dim, sizeof(Real),
               attr_path + (xyz_path - xyz_base));
     }
   fprintf(xdmf, "    </Grid>\n"
@@ -1134,10 +1136,10 @@ static void dump(Real time, Info **infos, char *path) {
   for (i = 0; i < nblock; i++) {
     Info *info = infos[i];
     k = 0;
-    for (y = 0; y < _BS_; y++)
-      for (x = 0; x < _BS_; x++) {
+    for (y = 0; y < BS; y++)
+      for (x = 0; x < BS; x++) {
         double u0, v0, u1, v1, h;
-        h = 1.0 / _BS_ / (1 << info->level);
+        h = 1.0 / BS / (1 << info->level);
         u0 = info->origin[0] + h * x;
         v0 = info->origin[1] + h * y;
         u1 = u0 + h;
@@ -1166,7 +1168,7 @@ static void dump(Real time, Info **infos, char *path) {
       }
       file = fopen(attr_path, "wb");
       for (j = 0; j < nblock; j++)
-        fwrite(g->infos[j]->block, sizeof(Real), dim * _BS_ * _BS_, file);
+        fwrite(g->infos[j]->block, sizeof(Real), dim * BS * BS, file);
       fclose(file);
     }
 }
@@ -1196,12 +1198,12 @@ struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
     std::vector<Info *> &chiInfo = var.chi->infos;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
       if (oblock[info->id] == nullptr)
         continue;
-      Real h = 1.0 / _BS_ / (1 << info->level);
+      Real h = 1.0 / BS / (1 << info->level);
       Real h2 = h * h;
       Obstacle &o = *oblock[info->id];
       o.COM_x = 0;
@@ -1210,9 +1212,9 @@ struct PutChiOnGrid {
       Real *CHI = chiInfo[info->id]->block;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          int j = _BS_ * iy + ix;
+      for (int iy = 0; iy < BS; iy++)
+        for (int ix = 0; ix < BS; ix++) {
+          int j = BS * iy + ix;
           int x0 = ix - stencil.sx;
           int y0 = iy - stencil.sy;
           int xp = x0 + 1;
@@ -1256,8 +1258,8 @@ static void ongrid() {
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(chiInfo[i]->block, 0, _BS_ * _BS_ * sizeof(Real));
-    std::fill(tmpInfo[i]->block, tmpInfo[i]->block + _BS_ * _BS_, -1.0);
+    memset(chiInfo[i]->block, 0, BS * BS * sizeof(Real));
+    std::fill(tmpInfo[i]->block, tmpInfo[i]->block + BS * BS, -1.0);
   }
   for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -1270,9 +1272,9 @@ static void ongrid() {
       const Info *info = tmpInfo[i];
       Obstacle *const block = new Obstacle();
       shape->obstacleBlocks[info->id] = block;
-      std::fill(&block->dist[0][0], &block->dist[0][0] + _BS_ * _BS_, -1);
-      memset(&block->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-      memset(&block->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
+      std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
+      memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
+      memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < tmpInfo.size(); i++) {
@@ -1281,11 +1283,11 @@ static void ongrid() {
       Real *b = tmpInfo[i]->block;
       Obstacle *const o = block;
       const Real h = info->h;
-      std::fill(&o->dist[0][0], &o->dist[0][0] + _BS_ * _BS_, -1);
-      memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
-      memset(&o->udef[0][0][0], 0, sizeof(Real) * _BS_ * _BS_ * 2);
-      for (int iy = 0; iy < _BS_; ++iy) {
-        for (int ix = 0; ix < _BS_; ++ix) {
+      std::fill(&o->dist[0][0], &o->dist[0][0] + BS * BS, -1);
+      memset(&o->chi[0][0], 0, sizeof(Real) * BS * BS);
+      memset(&o->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
+      for (int iy = 0; iy < BS; ++iy) {
+        for (int ix = 0; ix < BS; ++ix) {
           Real c = std::cos(shape->orientation);
           Real s = std::sin(shape->orientation);
           Real x = info->origin[0] + h * (ix + 0.5);
@@ -1306,12 +1308,12 @@ static void ongrid() {
             j = shape->np - 1;
           Real dist = shape->sdf[i * shape->np + j];
           o->dist[iy][ix] = dist;
-          b[iy * _BS_ + ix] = std::max(b[iy * _BS_ + ix], dist);
+          b[iy * BS + ix] = std::max(b[iy * BS + ix], dist);
           o->udef[iy][ix][0] = 0;
           o->udef[iy][ix][1] = 0;
         }
       }
-      memset(&o->chi[0][0], 0, sizeof(Real) * _BS_ * _BS_);
+      memset(&o->chi[0][0], 0, sizeof(Real) * BS * BS);
     }
   }
 
@@ -1341,9 +1343,9 @@ static void ongrid() {
         continue;
       Real *CHI = (Real *)pos->chi;
       Real *UDEF = (Real *)pos->udef;
-      for (int iy = 0; iy < _BS_; ++iy)
-        for (int ix = 0; ix < _BS_; ++ix) {
-          int j = _BS_ * iy + ix;
+      for (int iy = 0; iy < BS; ++iy)
+        for (int ix = 0; ix < BS; ++ix) {
+          int j = BS * iy + ix;
           if (CHI[j] <= 0)
             continue;
           Real p[2];
@@ -1370,8 +1372,8 @@ static void ongrid() {
       const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
       if (pos == nullptr)
         continue;
-      for (int iy = 0; iy < _BS_; ++iy)
-        for (int ix = 0; ix < _BS_; ++ix) {
+      for (int iy = 0; iy < BS; ++iy)
+        for (int ix = 0; ix < BS; ++ix) {
           Real p[2];
           p[0] = chiInfo[i]->origin[0] + chiInfo[i]->h * (ix + 0.5);
           p[1] = chiInfo[i]->origin[1] + chiInfo[i]->h * (iy + 0.5);
@@ -1390,19 +1392,19 @@ struct GradChiOnTmp {
     const std::vector<Info *> &tmpInfo = var.tmp->infos;
     Real *TMP = tmpInfo[info->id]->block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    for (int y = -offset; y < _BS_ + offset; ++y)
-      for (int x = -offset; x < _BS_ + offset; ++x) {
+    int nm = BS + stencil.ex - stencil.sx - 1;
+    for (int y = -offset; y < BS + offset; ++y)
+      for (int x = -offset; x < BS + offset; ++x) {
         int k = nm * (y - stencil.sy) + x - stencil.sx;
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
         if (0.0 < um[k] && um[k] < 0.1) {
-          int i = _BS_ / 2;
-          int j = _BS_ / 2 - 1;
-          TMP[_BS_ * i + j] = 2 * sim.Rtol;
-          TMP[_BS_ * j + j] = 2 * sim.Rtol;
-          TMP[_BS_ * i + i] = 2 * sim.Rtol;
-          TMP[_BS_ * j + i] = 2 * sim.Rtol;
+          int i = BS / 2;
+          int j = BS / 2 - 1;
+          TMP[BS * i + j] = 2 * sim.Rtol;
+          TMP[BS * j + j] = 2 * sim.Rtol;
+          TMP[BS * i + i] = 2 * sim.Rtol;
+          TMP[BS * j + i] = 2 * sim.Rtol;
           break;
         }
       }
@@ -1418,7 +1420,7 @@ static void adapt() {
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       Real *b = var.tmp->infos[i]->block;
       double Linf = 0.0;
-      for (int j = 0; j < _BS_ * _BS_; j++)
+      for (int j = 0; j < BS * BS; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
       var.tmp->infos[i]->state = Linf > sim.Rtol   ? Refine
                                  : Linf < sim.Ctol ? Compress
@@ -1591,7 +1593,7 @@ static void adapt() {
 #pragma omp critical
           g->all[sim.levels[level + 1] + Z] = child;
           child->state = Leave;
-          child->block = (Real *)malloc(dim * _BS_ * _BS_ * sizeof(Real));
+          child->block = (Real *)malloc(dim * BS * BS * sizeof(Real));
 #pragma omp critical
           {
             g->infos.push_back(child);
@@ -1600,26 +1602,26 @@ static void adapt() {
           Blocks[j * 2 + i] = child->block;
         }
       if (!basic) {
-        int nm = _BS_ + stencil.ex - stencil.sx - 1;
-        int offsetX[2] = {0, _BS_ / 2};
-        int offsetY[2] = {0, _BS_ / 2};
+        int nm = BS + stencil.ex - stencil.sx - 1;
+        int offsetX[2] = {0, BS / 2};
+        int offsetY[2] = {0, BS / 2};
         Real *um = lab.m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = Blocks[J * 2 + I];
-            memset(b, 0, dim * _BS_ * _BS_ * sizeof(Real));
-            for (int j = 0; j < _BS_; j += 2)
-              for (int i = 0; i < _BS_; i += 2) {
+            memset(b, 0, dim * BS * BS * sizeof(Real));
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
                 int i0 = i / 2 + offsetX[I] - stencil.sx;
                 int j0 = j / 2 + offsetY[J] - stencil.sy;
                 int im = i0 - 1;
                 int ip = i0 + 1;
                 int jm = j0 - 1;
                 int jp = j0 + 1;
-                int o0 = _BS_ * j + i;
-                int o1 = _BS_ * j + i + 1;
-                int o2 = _BS_ * (j + 1) + i;
-                int o3 = _BS_ * (j + 1) + i + 1;
+                int o0 = BS * j + i;
+                int o1 = BS * j + i + 1;
+                int o2 = BS * (j + 1) + i;
+                int o3 = BS * (j + 1) + i + 1;
                 for (int d = 0; d < dim; d++) {
                   Real l00 = um[dim * (nm * j0 + i0) + d];
                   Real l0p = um[dim * (nm * jp + i0) + d];
@@ -1690,19 +1692,19 @@ static void adapt() {
               forward(level, info->index[0] + I, info->index[1] + J);
           Blocks[blk] = getf0(&g->all, level, n)->block;
         }
-      const int offsetX[2] = {0, _BS_ / 2};
-      const int offsetY[2] = {0, _BS_ / 2};
+      const int offsetX[2] = {0, BS / 2};
+      const int offsetY[2] = {0, BS / 2};
       if (!basic)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = Blocks[J * 2 + I];
-            for (int j = 0; j < _BS_; j += 2)
-              for (int i = 0; i < _BS_; i += 2) {
-                int i00 = _BS_ * j + i;
-                int i01 = _BS_ * (j + 1) + i;
-                int i10 = _BS_ * j + i + 1;
-                int i11 = _BS_ * (j + 1) + i + 1;
-                int o = _BS_ * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i00 = BS * j + i;
+                int i01 = BS * (j + 1) + i;
+                int i10 = BS * j + i + 1;
+                int i11 = BS * (j + 1) + i + 1;
+                int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
                 for (int d = 0; d < dim; d++)
                   ((Real *)Blocks[0])[dim * o + d] =
                       (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
@@ -1772,9 +1774,9 @@ struct KernelAdvectDiffuse {
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = tmpVInfo[info->id]->block;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
+    int nm = BS + stencil.ex - stencil.sx - 1;
+    for (int iy = 0; iy < BS; ++iy)
+      for (int ix = 0; ix < BS; ++ix) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
@@ -1819,10 +1821,10 @@ struct KernelAdvectDiffuse {
         Real dudy = derivative(v, um3y0, um2y0, um1y0, u, up1y0, up2y0, up3y0);
         Real dvdx = derivative(u, um3x1, um2x1, um1x1, v, up1x1, up2x1, up3x1);
         Real dvdy = derivative(v, um3y1, um2y1, um1y1, v, up1y1, up2y1, up3y1);
-        TMP[2 * (_BS_ * iy + ix)] =
+        TMP[2 * (BS * iy + ix)] =
             afac * (u * dudx + v * dudy) +
             dfac * (up1x0 + um1x0 + up1y0 + um1y0 - 4 * u);
-        TMP[2 * (_BS_ * iy + ix) + 1] =
+        TMP[2 * (BS * iy + ix) + 1] =
             afac * (u * dvdx + v * dvdy) +
             dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
       }
@@ -1835,26 +1837,26 @@ struct Solver {
   struct CellIndexer {
     ~CellIndexer() = default;
     long long This(const Info *info, int ix, int iy) const {
-      return blockOffset(info) + (long long)(iy * _BS_ + ix);
+      return blockOffset(info) + (long long)(iy * BS + ix);
     }
     long long Xmin(const Info *info, int, int iy, int offset) const {
-      return blockOffset(info) + (long long)(iy * _BS_ + offset);
+      return blockOffset(info) + (long long)(iy * BS + offset);
     }
     long long Xmax(const Info *info, int, int iy, int offset = 0) const {
-      return blockOffset(info) + (long long)(iy * _BS_ + (_BS_ - 1 - offset));
+      return blockOffset(info) + (long long)(iy * BS + (BS - 1 - offset));
     }
     long long Ymin(const Info *info, int ix, int, int offset = 0) const {
-      return blockOffset(info) + (long long)(offset * _BS_ + ix);
+      return blockOffset(info) + (long long)(offset * BS + ix);
     }
     long long Ymax(const Info *info, int ix, int, int offset = 0) const {
-      return blockOffset(info) + (long long)((_BS_ - 1 - offset) * _BS_ + ix);
+      return blockOffset(info) + (long long)((BS - 1 - offset) * BS + ix);
     }
     long long blockOffset(const Info *info) const {
       return (info->id + sim.nblocks[Tree1(info, &var.tmp->tree)]) *
-             (_BS_ * _BS_);
+             (BS * BS);
     }
-    static int ix_f(int ix) { return (ix % (_BS_ / 2)) * 2; }
-    static int iy_f(int iy) { return (iy % (_BS_ / 2)) * 2; }
+    static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
+    static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
   };
   struct EdgeCellIndexer : public CellIndexer {
     EdgeCellIndexer() : CellIndexer() {}
@@ -1862,10 +1864,10 @@ struct Solver {
     virtual long long neiInward(const Info *info, int ix, int iy) const = 0;
     virtual double taylorSign(int ix, int iy) const = 0;
     virtual int ix_c(const Info *info, int ix) const {
-      return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + _BS_ / 2;
+      return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
     }
     virtual int iy_c(const Info *info, int iy) const {
-      return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + _BS_ / 2;
+      return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
     }
     virtual long long neiFine1(const Info *nei_info, int ix, int iy,
                                int offset = 0) const = 0;
@@ -1882,9 +1884,9 @@ struct Solver {
       return iy % 2 == 0 ? -1. : 1.;
     }
     bool isBD(int, int iy) const override {
-      return iy == _BS_ - 1 || iy == _BS_ / 2 - 1;
+      return iy == BS - 1 || iy == BS / 2 - 1;
     }
-    bool isFD(int, int iy) const override { return iy == 0 || iy == _BS_ / 2; }
+    bool isFD(int, int iy) const override { return iy == 0 || iy == BS / 2; }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
       return This(info, ix, iy + dist);
     }
@@ -1897,7 +1899,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix + 1, iy);
     }
-    int ix_c(const Info *, int) const override { return _BS_ - 1; }
+    int ix_c(const Info *, int) const override { return BS - 1; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -1907,7 +1909,7 @@ struct Solver {
       return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
     long long Zchild(const Info *nei_info, int, int iy) const override {
-      return nei_info->Zchild[1][int(iy >= _BS_ / 2)];
+      return nei_info->Zchild[1][int(iy >= BS / 2)];
     }
   };
   struct XmaxIndexer : public XbaseIndexer {
@@ -1928,7 +1930,7 @@ struct Solver {
       return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
     }
     long long Zchild(const Info *nei_info, int, int iy) const override {
-      return nei_info->Zchild[0][int(iy >= _BS_ / 2)];
+      return nei_info->Zchild[0][int(iy >= BS / 2)];
     }
   };
   struct YbaseIndexer : public EdgeCellIndexer {
@@ -1937,9 +1939,9 @@ struct Solver {
       return ix % 2 == 0 ? -1. : 1.;
     }
     bool isBD(int ix, int) const override {
-      return ix == _BS_ - 1 || ix == _BS_ / 2 - 1;
+      return ix == BS - 1 || ix == BS / 2 - 1;
     }
-    bool isFD(int ix, int) const override { return ix == 0 || ix == _BS_ / 2; }
+    bool isFD(int ix, int) const override { return ix == 0 || ix == BS / 2; }
     long long Nei(const Info *info, int ix, int iy, int dist) const override {
       return This(info, ix + dist, iy);
     }
@@ -1952,7 +1954,7 @@ struct Solver {
     long long neiInward(const Info *info, int ix, int iy) const override {
       return This(info, ix, iy + 1);
     }
-    int iy_c(const Info *, int) const override { return _BS_ - 1; }
+    int iy_c(const Info *, int) const override { return BS - 1; }
     long long neiFine1(const Info *nei_info, int ix, int iy,
                        int offset = 0) const override {
       return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
@@ -1962,7 +1964,7 @@ struct Solver {
       return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
     long long Zchild(const Info *nei_info, int ix, int) const override {
-      return nei_info->Zchild[int(ix >= _BS_ / 2)][1];
+      return nei_info->Zchild[int(ix >= BS / 2)][1];
     }
   };
   struct YmaxIndexer : public YbaseIndexer {
@@ -1983,7 +1985,7 @@ struct Solver {
       return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
     }
     long long Zchild(const Info *nei_info, int ix, int) const override {
-      return nei_info->Zchild[int(ix >= _BS_ / 2)][0];
+      return nei_info->Zchild[int(ix >= BS / 2)][0];
     }
   };
   CellIndexer GenericCell;
@@ -2088,9 +2090,9 @@ struct Solver {
       Real *rhs = RhsInfo[i]->block;
       Real *p = zInfo[i]->block;
       h2[i] = RhsInfo[i]->h * RhsInfo[i]->h;
-      for (int iy = 0; iy < _BS_; iy++)
-        for (int ix = 0; ix < _BS_; ix++) {
-          int j = iy * _BS_ + ix;
+      for (int iy = 0; iy < BS; iy++)
+        for (int ix = 0; ix < BS; ix++) {
+          int j = iy * BS + ix;
           long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy) + shift;
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
@@ -2102,11 +2104,11 @@ struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
     const std::vector<Info *> &tmpVInfo = var.tmpV->infos;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = tmpVInfo[info->id]->block;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
+    for (int iy = 0; iy < BS; ++iy)
+      for (int ix = 0; ix < BS; ++ix) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
@@ -2117,8 +2119,8 @@ struct pressureCorrectionKernel {
         Real *p1 = um + nm * jp0 + im1;
         Real *p2 = um + nm * jp1 + ip0;
         Real *p3 = um + nm * jm1 + ip0;
-        tmpV[2 * (_BS_ * iy + ix)] = pFac * (*p0 - *p1);
-        tmpV[2 * (_BS_ * iy + ix) + 1] = pFac * (*p2 - *p3);
+        tmpV[2 * (BS * iy + ix)] = pFac * (*p0 - *p1);
+        tmpV[2 * (BS * iy + ix) + 1] = pFac * (*p2 - *p3);
       }
   }
 };
@@ -2127,9 +2129,9 @@ struct pressure_rhs1 {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
     Real *TMP = var.tmp->infos[info->id]->block;
-    int nm = _BS_ + stencil.ex - stencil.sx - 1;
-    for (int iy = 0; iy < _BS_; ++iy)
-      for (int ix = 0; ix < _BS_; ++ix) {
+    int nm = BS + stencil.ex - stencil.sx - 1;
+    for (int iy = 0; iy < BS; ++iy)
+      for (int ix = 0; ix < BS; ++ix) {
         int ip0 = ix - stencil.sx;
         int jp0 = iy - stencil.sy;
         int ip1 = ip0 + 1;
@@ -2141,7 +2143,7 @@ struct pressure_rhs1 {
         Real *l2 = um + nm * jp0 + ip1;
         Real *l3 = um + nm * jm1 + ip0;
         Real *l4 = um + nm * jp1 + ip0;
-        TMP[_BS_ * iy + ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
+        TMP[BS * iy + ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
       }
   }
 };
@@ -2243,7 +2245,7 @@ int main(int argc, char **argv) {
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
-      info->block = (Real *)calloc(dim * _BS_ * _BS_, sizeof(Real));
+      info->block = (Real *)calloc(dim * BS * BS, sizeof(Real));
       g->infos.push_back(info);
 #pragma omp critical
       g->tree[aux] = Active;
@@ -2283,7 +2285,7 @@ int main(int argc, char **argv) {
       Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
       Real *UDEF = var.tmpV->infos[i]->block;
       Real *CHI = var.chi->infos[i]->block;
-      for (int j = 0; j < _BS_ * _BS_; j++) {
+      for (int j = 0; j < BS * BS; j++) {
         if (chi[j] < CHI[j])
           continue;
         UDEF[2 * j] += udef[2 * j];
@@ -2296,13 +2298,13 @@ int main(int argc, char **argv) {
     Real *UF = velInfo[i]->block;
     Real *US = var.tmpV->infos[i]->block;
     Real *X = var.chi->infos[i]->block;
-    for (int j = 0; j < _BS_ * _BS_; j++) {
+    for (int j = 0; j < BS * BS; j++) {
       UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
     }
   }
   std::vector<double> P_inv = precond();
-  sim.mat = new LocalSpMatDnVec(_BS_ * _BS_, 0, P_inv);
+  sim.mat = new LocalSpMatDnVec(BS * BS, 0, P_inv);
   sim.solver = new Solver;
   while (1) {
     if (sim.step % 5 == 0)
@@ -2315,7 +2317,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < velInfo.size(); i++) {
       Real *vel = velInfo[i]->block;
-      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+      for (int j = 0; j < 2 * BS * BS; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
@@ -2342,7 +2344,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
       memcpy(var.vold->infos[i]->block, velInfo[i]->block,
-             2 * _BS_ * _BS_ * sizeof(Real));
+             2 * BS * BS * sizeof(Real));
     if (var.tmpV->UpdateFluxCorrection) {
       var.tmpV->UpdateFluxCorrection = false;
     }
@@ -2353,7 +2355,7 @@ int main(int argc, char **argv) {
       Real *Vold = var.vold->infos[i]->block;
       Real *tmpV = var.tmpV->infos[i]->block;
       Real ih2 = 0.5 / (velInfo[i]->h * velInfo[i]->h);
-      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+      for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
     if (var.tmpV->UpdateFluxCorrection) {
@@ -2366,7 +2368,7 @@ int main(int argc, char **argv) {
       Real *Vold = var.vold->infos[i]->block;
       Real *tmpV = var.tmpV->infos[i]->block;
       Real ih2 = 1.0 / (velInfo[i]->h * velInfo[i]->h);
-      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+      for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
     for (auto &shape : sim.shapes) {
@@ -2381,9 +2383,9 @@ int main(int argc, char **argv) {
         Real *chi = (Real *)oblock[velInfo[i]->id]->chi;
         Real *udef = (Real *)oblock[velInfo[i]->id]->udef;
         Real lambdt = sim.lambda * sim.dt;
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            int j = _BS_ * iy + ix;
+        for (int iy = 0; iy < BS; ++iy)
+          for (int ix = 0; ix < BS; ++ix) {
+            int j = BS * iy + ix;
             if (chi[j] <= 0)
               continue;
             Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
@@ -2425,10 +2427,10 @@ int main(int argc, char **argv) {
           auto &jSDF = jBlocks[k]->dist;
           ScalarBlock &iChi = iBlocks[k]->chi;
           ScalarBlock &jChi = jBlocks[k]->chi;
-          Real h = 1.0 / _BS_ / (1 << infos[k]->level);
+          Real h = 1.0 / BS / (1 << infos[k]->level);
           Real hsq = h * h;
-          for (int iy = 0; iy < _BS_; ++iy)
-            for (int ix = 0; ix < _BS_; ++ix) {
+          for (int iy = 0; iy < BS; ++iy)
+            for (int ix = 0; ix < BS; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                 continue;
               Real pos[2];
@@ -2445,7 +2447,7 @@ int main(int argc, char **argv) {
               if (ix == 0) {
                 dSDFdx_i = iSDF[iy][ix + 1] - iSDF[iy][ix];
                 dSDFdx_j = jSDF[iy][ix + 1] - jSDF[iy][ix];
-              } else if (ix == _BS_ - 1) {
+              } else if (ix == BS - 1) {
                 dSDFdx_i = iSDF[iy][ix] - iSDF[iy][ix - 1];
                 dSDFdx_j = jSDF[iy][ix] - jSDF[iy][ix - 1];
               } else {
@@ -2457,7 +2459,7 @@ int main(int argc, char **argv) {
               if (iy == 0) {
                 dSDFdy_i = iSDF[iy + 1][ix] - iSDF[iy][ix];
                 dSDFdy_j = jSDF[iy + 1][ix] - jSDF[iy][ix];
-              } else if (iy == _BS_ - 1) {
+              } else if (iy == BS - 1) {
                 dSDFdy_i = iSDF[iy][ix] - iSDF[iy - 1][ix];
                 dSDFdy_j = jSDF[iy][ix] - jSDF[iy - 1][ix];
               } else {
@@ -2514,9 +2516,9 @@ int main(int argc, char **argv) {
         Real *UDEF = (Real *)o->udef;
         Real *CHI = chiInfo[i]->block;
         Real *V = velInfo[i]->block;
-        for (int iy = 0; iy < _BS_; ++iy)
-          for (int ix = 0; ix < _BS_; ++ix) {
-            int j = _BS_ * iy + ix;
+        for (int iy = 0; iy < BS; ++iy)
+          for (int ix = 0; ix < BS; ++ix) {
+            int j = BS * iy + ix;
             if (CHI[j] > X[j])
               continue;
             if (X[j] <= 0)
@@ -2536,7 +2538,7 @@ int main(int argc, char **argv) {
     std::vector<Info *> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++)
-      memset(tmpVInfo[i]->block, 0, 2 * _BS_ * _BS_ * sizeof(Real));
+      memset(tmpVInfo[i]->block, 0, 2 * BS * BS * sizeof(Real));
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
@@ -2547,9 +2549,9 @@ int main(int argc, char **argv) {
         Real *chi = (Real *)oblock[tmpVInfo[i]->id]->chi;
         Real *UDEF = tmpVInfo[i]->block;
         Real *CHI = chiInfo[i]->block;
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++) {
-            int j = _BS_ * iy + ix;
+        for (int iy = 0; iy < BS; iy++)
+          for (int ix = 0; ix < BS; ix++) {
+            int j = BS * iy + ix;
             if (chi[j] < CHI[j])
               continue;
             UDEF[2 * j + 0] += udef[2 * j + 0];
@@ -2587,8 +2589,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (size_t i = 0; i < velInfo.size(); i++) {
       memcpy(poldInfo[i]->block, presInfo[i]->block,
-             _BS_ * _BS_ * sizeof(Real));
-      memset(presInfo[i]->block, 0, _BS_ * _BS_ * sizeof(Real));
+             BS * BS * sizeof(Real));
+      memset(presInfo[i]->block, 0, BS * BS * sizeof(Real));
     }
     computeA(pressure_rhs1(), var.pold, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
@@ -2598,7 +2600,7 @@ int main(int argc, char **argv) {
       var.pres->UpdateFluxCorrection = false;
       std::vector<Info *> &RhsInfo = var.tmp->infos;
       const int Nblocks = RhsInfo.size();
-      const int N = _BS_ * _BS_ * Nblocks;
+      const int N = BS * BS * Nblocks;
       sim.mat->reserve(N);
       sim.nblocks[0] = 0;
       sim.nrows[0] = 0;
@@ -2621,11 +2623,11 @@ int main(int argc, char **argv) {
             getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
         rhsNei[3] =
             getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
-        for (int iy = 0; iy < _BS_; iy++)
-          for (int ix = 0; ix < _BS_; ix++) {
+        for (int iy = 0; iy < BS; iy++)
+          for (int ix = 0; ix < BS; ix++) {
             const long long sfc_idx =
                 sim.solver->GenericCell.This(rhs_info, ix, iy);
-            if ((ix > 0 && ix < _BS_ - 1) && (iy > 0 && iy < _BS_ - 1)) {
+            if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
               sim.mat->cooPushBackVal(
                   1, sfc_idx,
                   sim.solver->GenericCell.This(rhs_info, ix, iy - 1));
@@ -2642,9 +2644,9 @@ int main(int argc, char **argv) {
             } else {
               std::array<bool, 4> validNei;
               validNei[0] = ix > 0;
-              validNei[1] = ix < _BS_ - 1;
+              validNei[1] = ix < BS - 1;
               validNei[2] = iy > 0;
-              validNei[3] = iy < _BS_ - 1;
+              validNei[3] = iy < BS - 1;
               std::array<long long, 4> idxNei;
               idxNei[0] = sim.solver->GenericCell.This(rhs_info, ix - 1, iy);
               idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
@@ -2681,8 +2683,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < NB; i++) {
       Real *P = zInfo[i]->block;
       const double vv = zInfo[i]->h * zInfo[i]->h;
-      for (int j = 0; j < _BS_ * _BS_; j++) {
-        P[j] = x[i * _BS_ * _BS_ + j];
+      for (int j = 0; j < BS * BS; j++) {
+        P[j] = x[i * BS * BS + j];
         avg += P[j] * vv;
         avg1 += vv;
       }
@@ -2691,7 +2693,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (int i = 0; i < NB; i++) {
       Real *P = zInfo[i]->block;
-      for (int j = 0; j < _BS_ * _BS_; j++)
+      for (int j = 0; j < BS * BS; j++)
         P[j] += -avg;
     }
     avg = 0;
@@ -2700,7 +2702,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < velInfo.size(); i++) {
       Real *P = presInfo[i]->block;
       Real vv = presInfo[i]->h * presInfo[i]->h;
-      for (int j = 0; j < _BS_ * _BS_; j++) {
+      for (int j = 0; j < BS * BS; j++) {
         avg += P[j] * vv;
         avg1 += vv;
       }
@@ -2710,7 +2712,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < velInfo.size(); i++) {
       Real *pres = presInfo[i]->block;
       Real *pold = poldInfo[i]->block;
-      for (int j = 0; j < _BS_ * _BS_; j++)
+      for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
     computeA(pressureCorrectionKernel(), var.pres, 1);
@@ -2719,7 +2721,7 @@ int main(int argc, char **argv) {
       Real ih2 = 1.0 / velInfo[i]->h / velInfo[i]->h;
       Real *V = velInfo[i]->block;
       Real *tmpV = tmpVInfo[i]->block;
-      for (int j = 0; j < 2 * _BS_ * _BS_; j++)
+      for (int j = 0; j < 2 * BS * BS; j++)
         V[j] += tmpV[j] * ih2;
     }
     sim.time += sim.dt;

@@ -9,10 +9,6 @@ LINK = $(NVCC)
 LIBS = -lcublas -lcusparse
 OPENMPFLAGS = -fopenmp
 
-FLAGS =\
--D_BS_=8\
-$(OPENMPFLAGS)\
-
 O =\
 cuda.o\
 main.o\
@@ -20,7 +16,7 @@ main.o\
 main: $O
 	$(LINK) -o main $O $(LDFLAGS) -Xcompiler '$(OPENMPFLAGS)' $(LIBS)
 .cpp.o:
-	$(CXX) -c $< $(FLAGS) $(CXXFLAGS)
+	$(CXX) -c $< $(OPENMPFLAGS) $(CXXFLAGS)
 .cu.o:
 	$(NVCC) -c $< $(NVCCFLAGS)
 clean:

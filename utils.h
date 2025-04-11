@@ -27,10 +27,10 @@ static void TestInterp(Real *C[3][3], Real *R, int x, int y) {
         (dx * dy) * dudxdy);
 }
 static double getA_local(int I1, int I2) {
-  int j1 = I1 / _BS_;
-  int i1 = I1 % _BS_;
-  int j2 = I2 / _BS_;
-  int i2 = I2 % _BS_;
+  int j1 = I1 / BS;
+  int i1 = I1 % BS;
+  int j2 = I2 / BS;
+  int i2 = I2 % BS;
   if (i1 == i2 && j1 == j2)
     return 4.0;
   else if (abs(i1 - i2) + abs(j1 - j2) == 1)
@@ -220,43 +220,43 @@ struct LineParser : public CommandlineParser {
   }
 };
 std::vector<double> precond() {
-  std::vector<double> L[_BS_ * _BS_];
-  std::vector<double> L_inv[_BS_ * _BS_];
-  for (int i = 0; i < _BS_ * _BS_; i++) {
+  std::vector<double> L[BS * BS];
+  std::vector<double> L_inv[BS * BS];
+  for (int i = 0; i < BS * BS; i++) {
     L[i].resize(i + 1);
     L_inv[i].resize(i + 1);
     for (int j = 0; j <= i; j++)
       L_inv[i][j] = i == j ? 1. : 0.;
   }
-  for (int i = 0; i < _BS_ * _BS_; i++) {
+  for (int i = 0; i < BS * BS; i++) {
     double s1 = 0;
     for (int k = 0; k <= i - 1; k++)
       s1 += L[i][k] * L[i][k];
     L[i][i] = sqrt(getA_local(i, i) - s1);
-    for (int j = i + 1; j < _BS_ * _BS_; j++) {
+    for (int j = i + 1; j < BS * BS; j++) {
       double s2 = 0;
       for (int k = 0; k <= i - 1; k++)
         s2 += L[i][k] * L[j][k];
       L[j][i] = (getA_local(j, i) - s2) / L[i][i];
     }
   }
-  for (int br = 0; br < _BS_ * _BS_; br++) {
+  for (int br = 0; br < BS * BS; br++) {
     double bsf = 1. / L[br][br];
     for (int c = 0; c <= br; c++)
       L_inv[br][c] *= bsf;
-    for (int wr = br + 1; wr < _BS_ * _BS_; wr++) {
+    for (int wr = br + 1; wr < BS * BS; wr++) {
       double wsf = L[wr][br];
       for (int c = 0; c <= br; c++)
         L_inv[wr][c] -= wsf * L_inv[br][c];
     }
   }
-  std::vector<double> P_inv(_BS_ * _BS_ * _BS_ * _BS_);
-  for (int i = 0; i < _BS_ * _BS_; i++)
-    for (int j = 0; j < _BS_ * _BS_; j++) {
+  std::vector<double> P_inv(BS * BS * BS * BS);
+  for (int i = 0; i < BS * BS; i++)
+    for (int j = 0; j < BS * BS; j++) {
       double aux = 0.;
-      for (int k = 0; k < _BS_ * _BS_; k++)
+      for (int k = 0; k < BS * BS; k++)
         aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
-      P_inv[i * _BS_ * _BS_ + j] = -aux;
+      P_inv[i * BS * BS + j] = -aux;
     };
 
   return P_inv;
