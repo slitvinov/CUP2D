@@ -815,16 +815,12 @@ public:
           (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
     }
   }
-
-  void load(std::unordered_map<long long, TreeState> *tree,
-            std::unordered_map<long long, Info *> *all, const Stencil &stencil,
-            Info *info, bool applybc) {
-    TreeState nei[3][3];
+  void load1(TreeState nei[3][3], std::unordered_map<long long, Info *> *all,
+             const Stencil &stencil, Info *info, bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
     long long Z;
     int n = 1 << info->level;
-    get_states(tree, info, nei);
     sfc_inverse(info->Z, info->level, &xi, &yi);
     bool xskin = xi == 0 || xi == n - 1;
     bool yskin = yi == 0 || yi == n - 1;
@@ -839,8 +835,7 @@ public:
         continue;
       if (cx == 0 && cy == 0)
         continue;
-      TreeState state = nei[1 + cx][1 + cy] =
-          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+      TreeState state = nei[1 + cx][1 + cy];
       switch (state) {
       case Active:
         blocks[1 + cx][1 + cy][0] =
@@ -864,6 +859,14 @@ public:
       }
     }
     load0(info->block, blocks, nei, stencil, info, applybc);
+  }
+
+  void load(std::unordered_map<long long, TreeState> *tree,
+            std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+            Info *info, bool applybc) {
+    TreeState nei[3][3];
+    get_states(tree, info, nei);
+    load1(nei, all, stencil, info, applybc);
   }
 };
 
