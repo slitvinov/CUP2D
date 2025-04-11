@@ -207,8 +207,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
-             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+  void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3], const Stencil &stencil,
              Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
@@ -326,8 +325,7 @@ public:
         if (!bytes)
           continue;
         int icode = (cx + 1) + 3 * (cy + 1);
-        myblocks[icode] =
-            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block;
+        myblocks[icode] = blocks[1 + cx][1 + cy][0];
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
@@ -841,7 +839,7 @@ public:
         break;
       }
     }
-    load0(info->block, blocks, nei, all, stencil, info, applybc);
+    load0(info->block, blocks, nei, stencil, info, applybc);
   }
 };
 
