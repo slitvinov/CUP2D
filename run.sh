@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ${main=./main} \
 -AdaptSteps 20 \
 -CFL 0.5 \
