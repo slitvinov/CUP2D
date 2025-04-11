@@ -207,7 +207,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(Real *p0, Real *block[3][3][4], TreeState nei[3][3],
+  void load0(Real *p0, Real *blocks[3][3][4], TreeState nei[3][3],
              std::unordered_map<long long, Info *> *all, const Stencil &stencil,
              Info *info, bool applybc) {
     int offset[3];
@@ -253,7 +253,7 @@ public:
       } else if (nei[1 + cx][1 + cy] == ParentIsActive) {
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
-        Real *b = block[1 + cx][1 + cy][0];
+        Real *b = blocks[1 + cx][1 + cy][0];
         if (b == nullptr)
           continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
@@ -376,11 +376,8 @@ public:
         assert(pattern);
         int B = 0;
         for (int cnt = 0; cnt < pattern->count; cnt++, B += pattern->Bstep) {
-          int ix = 2 * xi + pattern->offset[cnt][0];
-          int iy = 2 * yi + pattern->offset[cnt][1];
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
-          const long long Z = forward(info->level + 1, ix, iy);
-          Real *b = getf0(all, info->level + 1, Z)->block;
+          Real *b = blocks[1 + cx][1 + cy][cnt];
           if (b == nullptr)
             continue;
           int i =
@@ -833,17 +830,14 @@ public:
         Z = forward(info->level - 1, ix, iy);
         blocks[1 + cx][1 + cy][0] = getf0(all, info->level - 1, Z)->block;
         break;
-      case ChildrenAreActive: /*
-        long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
-        Info *nn = (*all)[id];
-        blocks[1 + cx][1 + cy][0] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][0]]->block;
-        blocks[1 + cx][1 + cy][1] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[0][1]]->block;
-        blocks[1 + cx][1 + cy][2] =
-            (*all)[sim.levels[info->level + 1] + nn->Znei[1][0]]->block;
-        blocks[1 + cx][1 + cy][3] =
-        (*all)[sim.levels[info->level + 1] + nn->Znei[1][1]]->block; */
+      case ChildrenAreActive:
+        const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
+        for (int cnt = 0; cnt < pattern->count; cnt++) {
+          int ix = 2 * xi + pattern->offset[cnt][0];
+          int iy = 2 * yi + pattern->offset[cnt][1];
+          const long long Z = forward(info->level + 1, ix, iy);
+          blocks[1 + cx][1 + cy][cnt] = getf0(all, info->level + 1, Z)->block;
+        }
         break;
       }
     }
