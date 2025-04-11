@@ -23,11 +23,11 @@ enum { BS = 8 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct ChildNeighborPattern {
-  int cx, cy;       // Direction of the neighbor
-  int Bstep;        // Loop step: 1 (normal), 3 (diagonal), 4 (corner)
-  int ys;           // Vertical stride step (usually 1 or 2)
-  int offset[2][2]; // Relative (dx, dy) of children
-  int count;        // How many child_offset entries are valid
+  int cx, cy;
+  int Bstep;
+  int ys;
+  int offset[2][2];
+  int count;
 };
 static constexpr ChildNeighborPattern childNeighborTable[] = {
     // cx, cy, Bstep, ys, children[], count
