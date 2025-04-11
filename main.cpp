@@ -207,8 +207,8 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3], const Stencil &stencil,
-             Info *info, bool applybc) {
+  void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
+             const Stencil &stencil, Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
     offset[0] = (stencil.sx - 1) / 2 - 1;
@@ -793,6 +793,29 @@ public:
         bc_vector(this, info, false);
     }
   }
+  void get_states(std::unordered_map<long long, TreeState> *tree, Info *info,
+                  TreeState nei[3][3]) {
+    int xi, yi;
+    int n = 1 << info->level;
+    sfc_inverse(info->Z, info->level, &xi, &yi);
+    bool xskin = xi == 0 || xi == n - 1;
+    bool yskin = yi == 0 || yi == n - 1;
+    int xskip = xi == 0 ? -1 : 1;
+    int yskip = yi == 0 ? -1 : 1;
+    for (int icode = 0; icode < 9; icode++) {
+      int cx = icode % 3 - 1;
+      int cy = icode / 3 - 1;
+      if (cx == xskip && xskin)
+        continue;
+      if (cy == yskip && yskin)
+        continue;
+      if (cx == 0 && cy == 0)
+        continue;
+      nei[1 + cx][1 + cy] =
+          (*tree)[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+    }
+  }
+
   void load(std::unordered_map<long long, TreeState> *tree,
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
@@ -801,6 +824,7 @@ public:
     int xi, yi, ix, iy;
     long long Z;
     int n = 1 << info->level;
+    get_states(tree, info, nei);
     sfc_inverse(info->Z, info->level, &xi, &yi);
     bool xskin = xi == 0 || xi == n - 1;
     bool yskin = yi == 0 || yi == n - 1;
@@ -1528,6 +1552,7 @@ static void adapt() {
 
   std::vector<int> m_com;
   std::vector<int> m_ref;
+  std::vector<TreeState[3][3]> m_tree;
   std::vector<long long> n_com;
   std::vector<long long> n_ref;
   for (size_t j = 0; j < var.tmp->infos.size(); j++) {
