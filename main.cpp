@@ -50,6 +50,12 @@ struct Stencil {
   int sx, sy, ex, ey;
   bool tensorial;
 };
+enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
+enum TreeState : signed char {
+  Active = 0,
+  ChildrenAreActive = -1,
+  ParentIsActive = -2,
+};
 struct Shape;
 struct Solver;
 static struct {
@@ -75,15 +81,9 @@ static struct {
   std::vector<Shape *> shapes;
   struct Solver *solver;
   struct LocalSpMatDnVec *mat;
+  std::unordered_map<long long, TreeState> tree;
 } sim;
 #include "utils.h"
-enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
-enum TreeState : signed char {
-  Active = 0,
-  ChildrenAreActive = -1,
-  ParentIsActive = -2,
-};
-
 struct Info {
   double h, origin[2];
   enum State state;
