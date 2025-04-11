@@ -362,14 +362,14 @@ public:
           int y1 = iy + 1 - cy * BS;
           int y2 = iy + 2 - cy * BS;
           int y3 = iy + 3 - cy * BS;
-          Real *p0 = &m[dim * i0];
-          Real *p1 = &m[dim * i1];
-          Real *p2 = &m[dim * i2];
-          Real *p3 = &m[dim * i3];
-          Real *q0 = &b[dim * (BS * y0 + x0)];
-          Real *q1 = &b[dim * (BS * y1 + x0)];
-          Real *q2 = &b[dim * (BS * y2 + x0)];
-          Real *q3 = &b[dim * (BS * y3 + x0)];
+          Real *p0 = m + dim * i0;
+          Real *p1 = m + dim * i1;
+          Real *p2 = m + dim * i2;
+          Real *p3 = m + dim * i3;
+          Real *q0 = b + dim * (BS * y0 + x0);
+          Real *q1 = b + dim * (BS * y1 + x0);
+          Real *q2 = b + dim * (BS * y2 + x0);
+          Real *q3 = b + dim * (BS * y3 + x0);
           memcpy(p0, q0, bytes);
           memcpy(p1, q1, bytes);
           memcpy(p2, q2, bytes);
@@ -379,8 +379,8 @@ public:
           int i0 = i + (iy - stencil.sy) * nm[0];
           int x0 = s[0] - cx * BS;
           int y0 = iy - cy * BS;
-          Real *p = &m[dim * i0];
-          Real *q = &b[dim * (BS * y0 + x0)];
+          Real *p = m + dim * i0;
+          Real *q = b + dim * (BS * y0 + x0);
           memcpy(p, q, bytes);
         }
       } else if (nei[1 + cx][1 + cy] == ChildrenAreActive) {
