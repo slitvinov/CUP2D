@@ -152,7 +152,6 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
 struct Grid {
   bool UpdateFluxCorrection{true};
   std::unordered_map<long long, Info *> all;
-  std::unordered_map<long long, TreeState> tree;
   std::vector<Info *> infos;
 };
 struct BlockLab;
@@ -881,7 +880,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (std::size_t i = 0; i < n; ++i) {
-      lab.load(&g->tree, &g->all, kernel.stencil, g->infos[i], true);
+      lab.load(&sim.tree, &g->all, kernel.stencil, g->infos[i], true);
       kernel(lab.m, g->infos[i]);
     }
   }
@@ -1469,8 +1468,8 @@ static void adapt() {
                     continue;
                   if (y == yskip && yskin)
                     continue;
-                  if (var.tmp->tree[sim.levels[var.tmp->infos[j]->level] +
-                                    var.tmp->infos[j]->Znei[1 + x][1 + y]] ==
+                  if (sim.tree[sim.levels[var.tmp->infos[j]->level] +
+                               var.tmp->infos[j]->Znei[1 + x][1 + y]] ==
                       ChildrenAreActive) {
                     if (var.tmp->infos[j]->state == Compress)
                       var.tmp->infos[j]->state = Leave;
@@ -1570,7 +1569,7 @@ static void adapt() {
       m_ref.push_back(var.tmp->infos[j]->level);
       n_ref.push_back(var.tmp->infos[j]->Z);
       TreeStateMatrix nei;
-      get_states(&var.tmp->tree, var.tmp->infos[j], nei.nei);
+      get_states(&sim.tree, var.tmp->infos[j], nei.nei);
       m_tree.push_back(nei);
     } else if (var.tmp->infos[j]->state == Compress && ix % 2 == 0 &&
                iy % 2 == 0) {
@@ -1613,7 +1612,7 @@ static void adapt() {
 #pragma omp critical
           {
             g->infos.push_back(child);
-            g->tree[sim.levels[level + 1] + Z] = ParentIsActive;
+            sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
           Blocks[j * 2 + i] = child->block;
         }
@@ -1677,7 +1676,7 @@ static void adapt() {
       dealloc_IDs.insert(sim.levels[level] + Z);
       Info *parent = getf0(&g->all, level, Z);
 #pragma omp critical
-      g->tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
+      sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
@@ -1685,12 +1684,12 @@ static void adapt() {
           const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
 #pragma omp critical
-          g->tree[sim.levels[Child->level] + Child->Z] = Active;
+          sim.tree[sim.levels[Child->level] + Child->Z] = Active;
           if (level + 2 < sim.levelMax)
             for (int i0 = 0; i0 < 2; i0++)
               for (int i1 = 0; i1 < 2; i1++)
 #pragma omp critical
-                g->tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
+                sim.tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
                     ParentIsActive;
         }
     }
@@ -1732,11 +1731,11 @@ static void adapt() {
           forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
 #pragma omp critical
-      g->tree[sim.levels[parent->level] + parent->Z] = Active;
+      sim.tree[sim.levels[parent->level] + parent->Z] = Active;
       parent->block = info->block;
       if (level - 2 >= 0) {
 #pragma omp critical
-        g->tree[sim.levels[level - 2] + parent->Zparent] = ChildrenAreActive;
+        sim.tree[sim.levels[level - 2] + parent->Zparent] = ChildrenAreActive;
       }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
@@ -1755,7 +1754,7 @@ static void adapt() {
             dealloc_IDs.insert(sim.levels[level] + n);
           }
 #pragma omp critical
-          g->tree[sim.levels[level] + n] = ParentIsActive;
+          sim.tree[sim.levels[level] + n] = ParentIsActive;
           getf0(&g->all, level, n)->state = Leave;
         }
     }
@@ -1868,7 +1867,7 @@ struct Solver {
       return blockOffset(info) + (long long)((BS - 1 - offset) * BS + ix);
     }
     long long blockOffset(const Info *info) const {
-      return (info->id + sim.nblocks[Tree1(info, &var.tmp->tree)]) * (BS * BS);
+      return (info->id + sim.nblocks[Tree1(info, &sim.tree)]) * (BS * BS);
     }
     static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
@@ -2041,8 +2040,8 @@ struct Solver {
                    long long fine_close_idx, long long fine_far_idx,
                    double signInt, double signTaylor,
                    const EdgeCellIndexer *indexer, SpRowInfo &row) const {
-    int rank_c = Tree1(info_c, &var.tmp->tree);
-    int rank_f = Tree1(info_f, &var.tmp->tree);
+    int rank_c = Tree1(info_c, &sim.tree);
+    int rank_f = Tree1(info_f, &sim.tree);
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
@@ -2058,12 +2057,12 @@ struct Solver {
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                 const EdgeCellIndexer *indexer, SpRowInfo &row) const {
     long long sfc_idx = indexer->This(rhs_info, ix, iy);
-    if (Tree1(rhsNei, &var.tmp->tree) == Active) {
-      int nei_rank = Tree1(rhsNei, &var.tmp->tree);
+    if (Tree1(rhsNei, &sim.tree) == Active) {
+      int nei_rank = Tree1(rhsNei, &sim.tree);
       long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
       row.mapColVal(nei_rank, nei_idx, 1.);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == ParentIsActive) {
+    } else if (Tree1(rhsNei, &sim.tree) == ParentIsActive) {
       Info rhsNei_c =
           getf1(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
       int ix_c = indexer->ix_c(rhs_info, ix);
@@ -2073,10 +2072,10 @@ struct Solver {
       interpolate(&rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                   signTaylor, indexer, row);
       row.mapColVal(sfc_idx, -1.);
-    } else if (Tree1(rhsNei, &var.tmp->tree) == ChildrenAreActive) {
+    } else if (Tree1(rhsNei, &sim.tree) == ChildrenAreActive) {
       Info *rhsNei_f = getf0(&var.tmp->all, rhs_info->level + 1,
                              indexer->Zchild(rhsNei, ix, iy));
-      int nei_rank = Tree1(rhsNei_f, &var.tmp->tree);
+      int nei_rank = Tree1(rhsNei_f, &sim.tree);
       long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
       long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
       row.mapColVal(nei_rank, fine_close_idx, 1.);
@@ -2263,7 +2262,7 @@ int main(int argc, char **argv) {
       info->block = (Real *)calloc(dim * BS * BS, sizeof(Real));
       g->infos.push_back(info);
 #pragma omp critical
-      g->tree[aux] = Active;
+      sim.tree[aux] = Active;
       int px, py;
       sfc_inverse(Z, sim.levelStart, &px, &py);
       if (sim.levelStart < sim.levelMax - 1)
@@ -2271,12 +2270,12 @@ int main(int argc, char **argv) {
           for (int i1 = 0; i1 < 2; i1++) {
             long long n = forward(sim.levelStart + 1, 2 * px + i1, 2 * py + j1);
 #pragma omp critical
-            g->tree[sim.levels[sim.levelStart + 1] + n] = ParentIsActive;
+            sim.tree[sim.levels[sim.levelStart + 1] + n] = ParentIsActive;
           }
       if (sim.levelStart > 0) {
         long long n = forward(sim.levelStart - 1, px / 2, py / 2);
 #pragma omp critical
-        g->tree[sim.levels[sim.levelStart - 1] + n] = ChildrenAreActive;
+        sim.tree[sim.levels[sim.levelStart - 1] + n] = ChildrenAreActive;
       }
     }
     for (size_t j = 0; j < g->infos.size(); j++)
@@ -2593,8 +2592,8 @@ int main(int argc, char **argv) {
       for (int i = 0; i < Ninner; i++) {
         Info *I = avail0[i];
         Info *I2 = avail02[i];
-        lab.load(&var.vel->tree, &var.vel->all, stencil, I, true);
-        lab2.load(&var.tmpV->tree, &var.tmpV->all, stencil, I2, true);
+        lab.load(&sim.tree, &var.vel->all, stencil, I, true);
+        lab2.load(&sim.tree, &var.tmpV->all, stencil, I2, true);
         pressure_rhs_fun(lab, lab2, I, I2);
         ready[I->id] = true;
       }
@@ -2666,7 +2665,7 @@ int main(int argc, char **argv) {
               idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
               idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
               idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
-              SpRowInfo row(Tree1(rhs_info, &var.tmp->tree), sfc_idx, 8);
+              SpRowInfo row(Tree1(rhs_info, &sim.tree), sfc_idx, 8);
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
                   row.mapColVal(idxNei[j], 1);
