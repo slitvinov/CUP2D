@@ -375,8 +375,7 @@ public:
         int mod = ((e[1] - s[1]) / ys) % 4;
         assert(pattern);
         int B = 0;
-        for (int cnt = 0; cnt < pattern->count; cnt++) {
-          B += pattern->Bstep;
+        for (int cnt = 0; cnt < pattern->count; cnt++, B += pattern->Bstep) {
           int ix = 2 * xi + pattern->offset[cnt][0];
           int iy = 2 * yi + pattern->offset[cnt][1];
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
