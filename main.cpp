@@ -1253,14 +1253,14 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
+  std::vector<Info *> &tmpInfo = var.tmp->infos;
+  std::vector<Info *> &chiInfo = var.chi->infos;
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(var.chi->infos[i]->block, 0, BS * BS * sizeof(Real));
-    std::fill(var.tmp->infos[i]->block, var.tmp->infos[i]->block + BS * BS, -1.0);
+    memset(chiInfo[i]->block, 0, BS * BS * sizeof(Real));
+    std::fill(tmpInfo[i]->block, tmpInfo[i]->block + BS * BS, -1.0);
   }
-  std::vector<Info *> &tmpInfo = var.tmp->infos;
-  std::vector<Info *> &chiInfo = var.chi->infos;
   for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
