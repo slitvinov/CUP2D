@@ -207,7 +207,7 @@ public:
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
-  void load0(Real *p0, Real *blocks[3][3][4], TreeState nei[3][3],
+  void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
              std::unordered_map<long long, Info *> *all, const Stencil &stencil,
              Info *info, bool applybc) {
     int offset[3];
@@ -799,7 +799,7 @@ public:
             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
             Info *info, bool applybc) {
     TreeState nei[3][3];
-    Real *blocks[3][3][4];
+    Real *blocks[3][3][2];
     int xi, yi, ix, iy;
     long long Z;
     int n = 1 << info->level;
