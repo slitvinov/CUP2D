@@ -11,8 +11,8 @@ import statistics
 plt.rcParams['image.cmap'] = 'RdBu'
 for path in sys.argv[1:]:
     path = re.sub("[.]xdmf2$", "", path)
-    path = re.sub("[.]chi\.raw$", "", path)
-    path = re.sub("[.]xyz\.raw$", "", path)
+    path = re.sub("[.]chi[.]raw$", "", path)
+    path = re.sub("[.]xyz[.]raw$", "", path)
     png_path = path + ".png"
     xdmf_path = path + ".xdmf2"
     xyz_path = path + ".xyz.raw"

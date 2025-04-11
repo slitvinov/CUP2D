@@ -1276,7 +1276,7 @@ static void ongrid() {
       memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for
     for (size_t i = 0; i < tmpInfo.size(); i++) {
       Obstacle *const block = shape->obstacleBlocks[tmpInfo[i]->id];
       const Info *info = tmpInfo[i];
