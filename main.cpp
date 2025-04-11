@@ -1594,7 +1594,7 @@ static void adapt() {
       const long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
       if (!basic)
-        lab.load(&g->tree, &g->all, stencil, parent, true);
+        lab.load1(m_tree[i].nei, &g->all, stencil, parent, true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
