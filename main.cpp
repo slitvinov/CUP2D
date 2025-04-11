@@ -1337,7 +1337,7 @@ static void ongrid() {
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
     for (size_t i = 0; i < chiInfo.size(); i++) {
-      const Real hsq = std::pow(chiInfo[i]->h, 2);
+      const Real hsq = chiInfo[i]->h * chiInfo[i]->h;
       const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
       if (pos == nullptr)
         continue;

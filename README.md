@@ -6,7 +6,7 @@ nvcc -O3 -Xcompiler -fopenmp,-march=native,-mtune=native cuda.cu main.cpp -lcubl
 
 or
 ```
-clang++ -O3 -fopenmp -march=native -mtune=native -x cuda main.cpp -x cuda cuda.cu -lcublas -lcusparse -lcudart
+clang++ -O3 -fopenmp -march=native -mtune=native -x cuda main.cpp cuda.cu -lcublas -lcusparse -lcudart
 ```
 
 hal/glados
