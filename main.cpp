@@ -1444,9 +1444,9 @@ static void adapt() {
       var.tmp->infos[i]->state = Linf > sim.Rtol   ? Refine
                                  : Linf < sim.Ctol ? Compress
                                                    : Leave;
-      const bool maxLevel = var.tmp->infos[i]->state == Refine &&
-                            var.tmp->infos[i]->level == sim.levelMax - 1;
-      const bool minLevel =
+      bool maxLevel = var.tmp->infos[i]->state == Refine &&
+                      var.tmp->infos[i]->level == sim.levelMax - 1;
+      bool minLevel =
           var.tmp->infos[i]->state == Compress && var.tmp->infos[i]->level == 0;
       if (maxLevel || minLevel)
         var.tmp->infos[i]->state = Leave;
@@ -1596,7 +1596,7 @@ static void adapt() {
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     int offset = var.F[i].offset;
-    const Stencil stencil{-1, -1, 2, 2, true};
+    Stencil stencil{-1, -1, 2, 2, true};
     if (m_com.size() > 0 || m_ref.size() > 0)
       g->UpdateFluxCorrection = true;
     std::unordered_set<long long> dealloc_IDs;
@@ -1604,8 +1604,8 @@ static void adapt() {
     if (!basic)
       lab.prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
-      const int level = m_ref[i];
-      const long long Z = n_ref[i];
+      int level = m_ref[i];
+      long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
       if (!basic)
         lab.load1(offset, m_tree[i].nei, &g->all, stencil, parent, true);
@@ -1683,8 +1683,8 @@ static void adapt() {
       }
     }
     for (size_t i = 0; i < m_ref.size(); i++) {
-      const int level = m_ref[i];
-      const long long Z = n_ref[i];
+      int level = m_ref[i];
+      long long Z = n_ref[i];
 #pragma omp critical
       dealloc_IDs.insert(sim.levels[level] + Z);
       Info *parent = getf0(&g->all, level, Z);
@@ -1694,7 +1694,7 @@ static void adapt() {
       sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          const long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
+          long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
           Info *Child = getf0(&g->all, level + 1, nc);
 #pragma omp critical
           sim.tree[sim.levels[Child->level] + Child->Z] = Active;
@@ -1707,21 +1707,20 @@ static void adapt() {
         }
     }
     for (size_t i = 0; i < m_com.size(); i++) {
-      const int level = m_com[i];
-      const long long Z = n_com[i];
+      int level = m_com[i];
+      long long Z = n_com[i];
       assert(level > 0);
       Info *info = getf0(&g->all, level, Z);
       assert(info->state == Compress);
       Real *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          const int blk = J * 2 + I;
-          const long long n =
-              forward(level, info->index[0] + I, info->index[1] + J);
+          int blk = J * 2 + I;
+          long long n = forward(level, info->index[0] + I, info->index[1] + J);
           Blocks[blk] = getf0(&g->all, level, n)->block + offset * BS * BS;
         }
-      const int offsetX[2] = {0, BS / 2};
-      const int offsetY[2] = {0, BS / 2};
+      int offsetX[2] = {0, BS / 2};
+      int offsetY[2] = {0, BS / 2};
       if (!basic)
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -1740,8 +1739,7 @@ static void adapt() {
                       4;
               }
           }
-      const long long np =
-          forward(level - 1, info->index[0] / 2, info->index[1] / 2);
+      long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
 #pragma omp critical
       sim.tree[sim.levels[parent->level] + parent->Z] = Active;
@@ -1752,8 +1750,7 @@ static void adapt() {
       }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          const long long n =
-              forward(level, info->index[0] + I, info->index[1] + J);
+          long long n = forward(level, info->index[0] + I, info->index[1] + J);
           if (I + J == 0) {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j]->level && n == g->infos[j]->Z) {
