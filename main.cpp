@@ -173,9 +173,9 @@ static struct {
     bool basic;
     const char *prefix;
   } F[7] = {{&vel, off_vel, 2, false, "vel"},
+	    {&vold, off_vold, 2, false, NULL},
 	    {&tmp, off_tmp, 1, false, "tmp"},
             {&chi, off_chi, 1, false, "chi"},
-            {&vold, off_vold, 2, false, NULL},
             {&pres, off_pres, 1, false, "pres"},
             {&pold, off_pold, 1, false, NULL},
             {&tmpV, off_tmpV, 2, true, NULL}};
