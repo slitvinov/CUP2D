@@ -2094,7 +2094,7 @@ struct Solver {
     for (int i = 0; i < Nblocks; i++) {
       Real h = var.tmp->infos[i]->h;
       sim.mat->h2_[i] = h * h;
-      long offset = var.tmp->infos[i]->id * BS * BS;
+      long long offset = var.tmp->infos[i]->id * BS * BS;
       memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block,
              BS * BS * sizeof(Real));
       memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block,
