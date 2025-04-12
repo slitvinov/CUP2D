@@ -1714,6 +1714,7 @@ static void adapt() {
       for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
+            Real *c = Blocks[0] + offset * BS * BS;
             Real *b = Blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
@@ -1723,10 +1724,9 @@ static void adapt() {
                 int i11 = BS * (j + 1) + i + 1;
                 int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
                 for (int d = 0; d < dim; d++)
-                  Blocks[0][dim * o + d] =
-                      (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
-                       b[dim * i11 + d]) /
-                      4;
+                  c[dim * o + d] = (b[dim * i00 + d] + b[dim * i01 + d] +
+                                    b[dim * i10 + d] + b[dim * i11 + d]) /
+                                   4;
               }
           }
       }
