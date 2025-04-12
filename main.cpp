@@ -900,11 +900,11 @@ static void computeA(Kernel &&kernel, Grid *g, int offset, int dim) {
 }
 typedef Real ScalarBlock[BS][BS];
 template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
-  const int A = 1 - dir;
+  int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    const int *const stenBeg = lab->start0;
-    const int *const stenEnd = lab->end;
+    int *stenBeg = lab->start0;
+    int *stenEnd = lab->end;
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS) : stenBeg[0];
     s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS) : stenBeg[1];
     e[0] =
@@ -913,22 +913,21 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
         dir == 1 ? (side == 0 ? 0 : BS + stenEnd[1] - 1) : BS + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        const int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stenBeg[0];
-        const int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stenBeg[1];
+        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stenBeg[0];
+        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stenBeg[1];
         int i0 = ix - stenBeg[0] + lab->nm[0] * (iy - stenBeg[1]);
         int i1 = x + lab->nm[0] * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
   } else {
-    const int eI[3] = {(lab->end[0]) / 2 + 1 + (2) - 1,
-                       (lab->end[1]) / 2 + 1 + (2) - 1,
-                       (lab->end[2]) / 2 + 1 + (1) - 1};
-    const int sI[3] = {(lab->start0[0] - 1) / 2 + (-1),
-                       (lab->start0[1] - 1) / 2 + (-1),
-                       (lab->start0[2] - 1) / 2};
-    const int *const stenBeg = sI;
-    const int *const stenEnd = eI;
+    int eI[3] = {(lab->end[0]) / 2 + 1 + (2) - 1,
+                 (lab->end[1]) / 2 + 1 + (2) - 1,
+                 (lab->end[2]) / 2 + 1 + (1) - 1};
+    int sI[3] = {(lab->start0[0] - 1) / 2 + (-1),
+                 (lab->start0[1] - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
+    int *stenBeg = sI;
+    int *stenEnd = eI;
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
     s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS / 2) : stenBeg[0];
     s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS / 2) : stenBeg[1];
@@ -938,10 +937,8 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
                     : BS / 2 + stenEnd[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        const int x =
-            (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - stenBeg[0];
-        const int y =
-            (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - stenBeg[1];
+        int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - stenBeg[0];
+        int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - stenBeg[1];
         int i0 = ix - stenBeg[0] + lab->nc[0] * (iy - stenBeg[1]);
         int i1 = x + lab->nc[0] * (y);
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
