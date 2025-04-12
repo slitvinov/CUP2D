@@ -2000,18 +2000,18 @@ struct Solver {
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
   std::array<std::pair<long long, double>, 3> static D2(
-      const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) {
-    if (indexer->isBD(ix, iy))
-      return {{{indexer->Nei(info, ix, iy, -2), 1. / 32.},
-               {indexer->Nei(info, ix, iy, -1), -1. / 16.},
-               {This(info, ix, iy), 1. / 32.}}};
-    else if (indexer->isFD(ix, iy))
-      return {{{indexer->Nei(info, ix, iy, 2), 1. / 32.},
-               {indexer->Nei(info, ix, iy, 1), -1. / 16.},
-               {This(info, ix, iy), 1. / 32.}}};
-    return {{{indexer->Nei(info, ix, iy, -1), 1. / 32.},
-             {indexer->Nei(info, ix, iy, 1), 1. / 32.},
-             {This(info, ix, iy), -1. / 16.}}};
+      const Info *info_c, const EdgeCellIndexer *indexer, int ix_c, int iy_c) {
+    if (indexer->isBD(ix_c, iy_c))
+      return {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 32.},
+               {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
+               {This(info_c, ix_c, iy_c), 1. / 32.}}};
+    else if (indexer->isFD(ix_c, iy_c))
+      return {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
+               {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
+               {This(info_c, ix_c, iy_c), 1. / 32.}}};
+    return {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
+             {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
+             {This(info_c, ix_c, iy_c), -1. / 16.}}};
   }
   void interpolate(const Info *info_c, int ix_c, int iy_c, const Info *info_f,
                    long long fine_close_idx, long long fine_far_idx,
