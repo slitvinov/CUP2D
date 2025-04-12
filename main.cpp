@@ -1569,6 +1569,7 @@ static void adapt() {
   std::vector<int> m_ref;
   struct TreeStateMatrix {
     TreeState nei[3][3];
+    Real *blocks[4];
   };
   std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> n_com;
@@ -1581,6 +1582,8 @@ static void adapt() {
       n_ref.push_back(var.tmp->infos[j]->Z);
       TreeStateMatrix nei;
       get_states(var.tmp->infos[j], nei.nei);
+      for (int k = 0; k < 4; k++)
+        nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
       m_tree.push_back(nei);
     } else if (var.tmp->infos[j]->state == Compress && ix % 2 == 0 &&
                iy % 2 == 0) {
@@ -1610,7 +1613,6 @@ static void adapt() {
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
-      Real *Blocks[4];
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
           long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
@@ -1620,13 +1622,12 @@ static void adapt() {
 #pragma omp critical
           g->all[sim.levels[level + 1] + Z] = child;
           child->state = Leave;
-          child->block = (Real *)malloc(off_n * BS * BS * sizeof(Real));
+          child->block = m_tree[i].blocks[j * 2 + i];
 #pragma omp critical
           {
             g->infos.push_back(child);
             sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
-          Blocks[j * 2 + i] = child->block;
         }
       if (!basic) {
         int nm = BS + stencil.ex - stencil.sx - 1;
@@ -1635,7 +1636,7 @@ static void adapt() {
         Real *um = lab.m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *b = Blocks[J * 2 + I] + offset * BS * BS;
+            Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
             memset(b, 0, dim * BS * BS * sizeof(Real));
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
@@ -1774,9 +1775,9 @@ static void adapt() {
     size_t j = 0;
     for (size_t i = 0; i < n; i++) {
       long long id = sim.levels[g->infos[i]->level] + g->infos[i]->Z;
-      if (dealloc_IDs.find(id) != dealloc_IDs.end())
-        free(g->infos[i]->block);
-      else {
+      if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
+        /* free(g->infos[i]->block); */
+      } else {
         g->infos[j] = g->infos[i];
         j++;
       }
