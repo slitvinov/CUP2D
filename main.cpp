@@ -2080,13 +2080,16 @@ static void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
         "Neighbour doesn't exist, isn't coarser, nor finer...");
   }
 }
-
-XmaxIndexer XminCell;
-XmaxIndexer XmaxCell;
-YminIndexer YminCell;
-YmaxIndexer YmaxCell;
-std::array<const EdgeCellIndexer *, 4> edgeIndexers = {&XminCell, &XmaxCell, &YminCell, &YmaxCell};
-
+struct Solver {
+  Solver()
+      : XminCell(), XmaxCell(), YminCell(),
+        YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
+  XminIndexer XminCell;
+  XmaxIndexer XmaxCell;
+  YminIndexer YminCell;
+  YmaxIndexer YmaxCell;
+  std::array<const EdgeCellIndexer *, 4> edgeIndexers;
+};
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
@@ -2289,6 +2292,7 @@ int main(int argc, char **argv) {
   }
   std::vector<double> P_inv = precond();
   sim.mat = new LocalSpMatDnVec(BS * BS, 0, P_inv);
+  sim.solver = new Solver;
   while (1) {
     if (sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d %.16e\n", sim.step, sim.time);
@@ -2630,7 +2634,7 @@ int main(int argc, char **argv) {
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
                   makeFlux(rhs_info, ix, iy, &rhsNei[j],
-                           edgeIndexers[j], row);
+                           sim.solver->edgeIndexers[j], row);
                 }
               }
               sim.mat->cooPushBackRow(row);
@@ -2702,6 +2706,7 @@ int main(int argc, char **argv) {
   }
 
   delete sim.mat;
+  delete sim.solver;
   for (Shape *shape : sim.shapes) {
     for (Obstacle *oblock : shape->obstacleBlocks)
       delete oblock;
