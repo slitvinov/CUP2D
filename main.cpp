@@ -1613,16 +1613,16 @@ static void adapt() {
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
       assert(level <= sim.levelMax - 1);
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          long long Z = forward(level + 1, 2 * px + i, 2 * py + j);
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
           assert(!exist(&g->all, level + 1, Z));
           Info *child = new Info;
           fill(child, level + 1, Z);
 #pragma omp critical
           g->all[sim.levels[level + 1] + Z] = child;
           child->state = Leave;
-          child->block = m_tree[i].blocks[j * 2 + i];
+          child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
           {
             g->infos.push_back(child);
