@@ -1731,7 +1731,7 @@ static void adapt() {
                 int i11 = BS * (j + 1) + i + 1;
                 int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
                 for (int d = 0; d < dim; d++)
-                  ((Real *)Blocks[0])[dim * o + d] =
+                  Blocks[0][dim * o + d] =
                       (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
                        b[dim * i11 + d]) /
                       4;
