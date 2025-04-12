@@ -1991,6 +1991,46 @@ struct YmaxIndexer : public YbaseIndexer {
   }
 };
 
+static void interpolate(const Info *info_c, int ix_c, int iy_c,
+                        const Info *info_f, long long fine_close_idx,
+                        long long fine_far_idx, double signInt,
+                        double signTaylor, const EdgeCellIndexer *indexer,
+                        SpRowInfo &row) {
+  int rank_c = Tree1(info_c);
+  int rank_f = Tree1(info_f);
+  row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
+  row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
+  const double tf = signInt * 8. / 15.;
+  row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
+  std::array<std::pair<long long, double>, 3> D;
+  if (indexer->isBD(ix_c, iy_c))
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
+          {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
+          {This(info_c, ix_c, iy_c), 3. / 8.}}};
+  else if (indexer->isFD(ix_c, iy_c))
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
+          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
+          {This(info_c, ix_c, iy_c), -3. / 8.}}};
+  D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
+        {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
+        {This(info_c, ix_c, iy_c), 0.}}};
+  for (int i = 0; i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
+
+  if (indexer->isBD(ix_c, iy_c))
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 32.},
+          {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
+          {This(info_c, ix_c, iy_c), 1. / 32.}}};
+  else if (indexer->isFD(ix_c, iy_c))
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
+          {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
+          {This(info_c, ix_c, iy_c), 1. / 32.}}};
+  D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
+        {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
+        {This(info_c, ix_c, iy_c), -1. / 16.}}};
+  for (int i = 0; i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+}
 struct Solver {
   Solver()
       : XminCell(), XmaxCell(), YminCell(),
@@ -2000,45 +2040,7 @@ struct Solver {
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
-  void interpolate(const Info *info_c, int ix_c, int iy_c, const Info *info_f,
-                   long long fine_close_idx, long long fine_far_idx,
-                   double signInt, double signTaylor,
-                   const EdgeCellIndexer *indexer, SpRowInfo &row) const {
-    int rank_c = Tree1(info_c);
-    int rank_f = Tree1(info_f);
-    row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
-    row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
-    const double tf = signInt * 8. / 15.;
-    row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
-    std::array<std::pair<long long, double>, 3> D;
-    if (indexer->isBD(ix_c, iy_c))
-      D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
-            {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
-            {This(info_c, ix_c, iy_c), 3. / 8.}}};
-    else if (indexer->isFD(ix_c, iy_c))
-      D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
-            {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
-            {This(info_c, ix_c, iy_c), -3. / 8.}}};
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
-          {This(info_c, ix_c, iy_c), 0.}}};
-    for (int i = 0; i < 3; i++)
-      row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
 
-    if (indexer->isBD(ix_c, iy_c))
-      D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 32.},
-            {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
-            {This(info_c, ix_c, iy_c), 1. / 32.}}};
-    else if (indexer->isFD(ix_c, iy_c))
-      D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
-            {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
-            {This(info_c, ix_c, iy_c), 1. / 32.}}};
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
-          {This(info_c, ix_c, iy_c), -1. / 16.}}};
-    for (int i = 0; i < 3; i++)
-      row.mapColVal(rank_c, D[i].first, tf * D[i].second);
-  }
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                 const EdgeCellIndexer *indexer, SpRowInfo &row) const {
     long long sfc_idx = This(rhs_info, ix, iy);
