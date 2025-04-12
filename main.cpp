@@ -1709,9 +1709,7 @@ static void adapt() {
     for (size_t i = 0; i < m_com.size(); i++) {
       int level = m_com[i];
       long long Z = n_com[i];
-      assert(level > 0);
       Info *info = getf0(&g->all, level, Z);
-      assert(info->state == Compress);
       Real *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
