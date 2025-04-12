@@ -2031,6 +2031,19 @@ static void interpolate(const Info *info_c, int ix_c, int iy_c,
   for (int i = 0; i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
+static void getVec() {
+  int Nblocks = var.tmp->infos.size();
+#pragma omp parallel for
+  for (int i = 0; i < Nblocks; i++) {
+    Real h = var.tmp->infos[i]->h;
+    sim.mat->h2_[i] = h * h;
+    long long offset = var.tmp->infos[i]->id * BS * BS;
+    memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block,
+           BS * BS * sizeof(Real));
+    memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block,
+           BS * BS * sizeof(Real));
+  }
+}
 static void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                      const EdgeCellIndexer *indexer, SpRowInfo &row) {
   long long sfc_idx = This(rhs_info, ix, iy);
@@ -2076,20 +2089,6 @@ struct Solver {
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
-
-  void getVec() {
-    int Nblocks = var.tmp->infos.size();
-#pragma omp parallel for
-    for (int i = 0; i < Nblocks; i++) {
-      Real h = var.tmp->infos[i]->h;
-      sim.mat->h2_[i] = h * h;
-      long long offset = var.tmp->infos[i]->id * BS * BS;
-      memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block,
-             BS * BS * sizeof(Real));
-      memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block,
-             BS * BS * sizeof(Real));
-    }
-  }
 };
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
@@ -2634,8 +2633,8 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  sim.solver->makeFlux(rhs_info, ix, iy, &rhsNei[j],
-                                       sim.solver->edgeIndexers[j], row);
+                  makeFlux(rhs_info, ix, iy, &rhsNei[j],
+                           sim.solver->edgeIndexers[j], row);
                 }
               }
               sim.mat->cooPushBackRow(row);
@@ -2643,10 +2642,10 @@ int main(int argc, char **argv) {
           }
       }
       sim.mat->make();
-      sim.solver->getVec();
+      getVec();
       sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
     } else {
-      sim.solver->getVec();
+      getVec();
       sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
     std::vector<Info *> &zInfo = var.pres->infos;
