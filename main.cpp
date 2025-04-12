@@ -1263,11 +1263,10 @@ struct PutChiOnGrid {
 };
 static void ongrid() {
   std::vector<Info *> &tmpInfo = var.tmp->infos;
-  std::vector<Info *> &chiInfo = var.chi->infos;
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(chiInfo[i]->block, 0, BS * BS * sizeof(Real));
+    memset(var.chi->infos[i]->block, 0, BS * BS * sizeof(Real));
     std::fill(tmpInfo[i]->block, tmpInfo[i]->block + BS * BS, -1.0);
   }
   for (Shape *shape : sim.shapes) {
@@ -1345,9 +1344,9 @@ static void ongrid() {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
-    for (size_t i = 0; i < chiInfo.size(); i++) {
-      const Real hsq = chiInfo[i]->h * chiInfo[i]->h;
-      const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
+    for (size_t i = 0; i < var.chi->infos.size(); i++) {
+      const Real hsq = var.chi->infos[i]->h * var.chi->infos[i]->h;
+      const auto pos = shape->obstacleBlocks[var.chi->infos[i]->id];
       if (pos == nullptr)
 	continue;
       Real *CHI = (Real *)pos->chi;
@@ -1358,8 +1357,8 @@ static void ongrid() {
 	  if (CHI[j] <= 0)
 	    continue;
 	  Real p[2];
-	  p[0] = chiInfo[i]->origin[0] + chiInfo[i]->h * (ix + 0.5);
-	  p[1] = chiInfo[i]->origin[1] + chiInfo[i]->h * (iy + 0.5);
+	  p[0] = var.chi->infos[i]->origin[0] + var.chi->infos[i]->h * (ix + 0.5);
+	  p[1] = var.chi->infos[i]->origin[1] + var.chi->infos[i]->h * (iy + 0.5);
 	  const Real chi = CHI[j] * hsq;
 	  p[0] -= shape->x;
 	  p[1] -= shape->y;
@@ -1377,15 +1376,15 @@ static void ongrid() {
     _a /= _j;
     Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
 #pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < chiInfo.size(); i++) {
-      const auto pos = shape->obstacleBlocks[chiInfo[i]->id];
+    for (size_t i = 0; i < var.chi->infos.size(); i++) {
+      const auto pos = shape->obstacleBlocks[var.chi->infos[i]->id];
       if (pos == nullptr)
 	continue;
       for (int iy = 0; iy < BS; ++iy)
 	for (int ix = 0; ix < BS; ++ix) {
 	  Real p[2];
-	  p[0] = chiInfo[i]->origin[0] + chiInfo[i]->h * (ix + 0.5);
-	  p[1] = chiInfo[i]->origin[1] + chiInfo[i]->h * (iy + 0.5);
+	  p[0] = var.chi->infos[i]->origin[0] + var.chi->infos[i]->h * (ix + 0.5);
+	  p[1] = var.chi->infos[i]->origin[1] + var.chi->infos[i]->h * (iy + 0.5);
 	  p[0] -= shape->x;
 	  p[1] -= shape->y;
 	  pos->udef[iy][ix][0] -= I.u - I.a * p[1];
