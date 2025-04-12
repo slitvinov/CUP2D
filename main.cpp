@@ -1707,13 +1707,13 @@ static void adapt() {
         for (int I = 0; I < 2; I++) {
           int blk = J * 2 + I;
           long long n = forward(level, info->index[0] + I, info->index[1] + J);
-          Blocks[blk] = getf0(&g->all, level, n)->block + offset * BS * BS;
+          Blocks[blk] = getf0(&g->all, level, n)->block;
         }
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          Real *b = Blocks[J * 2 + I];
+          Real *b = Blocks[J * 2 + I]  + offset * BS * BS;;
           for (int j = 0; j < BS; j += 2)
             for (int i = 0; i < BS; i += 2) {
               int i00 = BS * j + i;
