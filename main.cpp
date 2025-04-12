@@ -2587,6 +2587,7 @@ int main(int argc, char **argv) {
 		  TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
                   if (state == Active) {
                     int nei_rank = Tree1(rhsNei);
+		    assert(nei_rank == 0);
                     long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
                     row.mapColVal(nei_rank, nei_idx, 1.);
                     row.mapColVal(sfc_idx, -1.);
