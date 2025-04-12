@@ -169,13 +169,11 @@ static struct {
     Grid **g;
     int offset;
     int dim;
-    bool basic;
     const char *prefix;
-  } F[7] = {
-      {&vel, off_vel, 2, false, "vel"}, {&pres, off_pres, 1, false, "pres"},
-      {&chi, off_chi, 1, false, "chi"}, {&vold, off_vold, 2, false, NULL},
-      {&tmp, off_tmp, 1, false, "tmp"}, {&pold, off_pold, 1, false, NULL},
-      {&tmpV, off_tmpV, 2, true, NULL}};
+  } F[7] = {{&vel, off_vel, 2, "vel"}, {&pres, off_pres, 1, "pres"},
+            {&chi, off_chi, 1, "chi"}, {&vold, off_vold, 2, NULL},
+            {&tmp, off_tmp, 1, "tmp"}, {&pold, off_pold, 1, NULL},
+            {&tmpV, off_tmpV, 2, NULL}};
 } var;
 
 static void get_states(Info *info, TreeState nei[3][3]) {
@@ -1589,7 +1587,6 @@ static void adapt() {
   }
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
-    bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
     int offset = var.F[i].offset;
     Stencil stencil{-1, -1, 2, 2, true};
@@ -1597,14 +1594,12 @@ static void adapt() {
       g->UpdateFluxCorrection = true;
     std::unordered_set<long long> dealloc_IDs;
     BlockLab lab(dim);
-    if (!basic)
-      lab.prepare(stencil);
+    lab.prepare(stencil);
     for (size_t i = 0; i < m_ref.size(); i++) {
       int level = m_ref[i];
       long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
-      if (!basic)
-        lab.load1(offset, m_tree[i].nei, &g->all, stencil, parent, true);
+      lab.load1(offset, m_tree[i].nei, &g->all, stencil, parent, true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
@@ -1624,58 +1619,52 @@ static void adapt() {
             sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
         }
-      if (!basic) {
-        int nm = BS + stencil.ex - stencil.sx - 1;
-        int offsetX[2] = {0, BS / 2};
-        int offsetY[2] = {0, BS / 2};
-        Real *um = lab.m;
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
-            memset(b, 0, dim * BS * BS * sizeof(Real));
-            for (int j = 0; j < BS; j += 2)
-              for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + offsetX[I] - stencil.sx;
-                int j0 = j / 2 + offsetY[J] - stencil.sy;
-                int im = i0 - 1;
-                int ip = i0 + 1;
-                int jm = j0 - 1;
-                int jp = j0 + 1;
-                int o0 = BS * j + i;
-                int o1 = BS * j + i + 1;
-                int o2 = BS * (j + 1) + i;
-                int o3 = BS * (j + 1) + i + 1;
-                for (int d = 0; d < dim; d++) {
-                  Real l00 = um[dim * (nm * j0 + i0) + d];
-                  Real l0p = um[dim * (nm * jp + i0) + d];
-                  Real lm0 = um[dim * (nm * j0 + im) + d];
-                  Real lmm = um[dim * (nm * jm + im) + d];
-                  Real lmp = um[dim * (nm * jp + im) + d];
-                  Real lp0 = um[dim * (nm * j0 + ip) + d];
-                  Real lpm = um[dim * (nm * jm + ip) + d];
-                  Real lpp = um[dim * (nm * jp + ip) + d];
-                  Real l0m = um[dim * (nm * jm + i0) + d];
-                  Real x = 0.5 * (lp0 - lm0);
-                  Real y = 0.5 * (l0p - l0m);
-                  Real x2 = (lp0 + lm0) - 2.0 * l00;
-                  Real y2 = (l0p + l0m) - 2.0 * l00;
-                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                  b[dim * o0 + d] =
-                      (l00 + (-0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[dim * o1 + d] =
-                      (l00 + (+0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o2 + d] =
-                      (l00 + (-0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o3 + d] =
-                      (l00 + (+0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                }
+      int nm = BS + stencil.ex - stencil.sx - 1;
+      int offsetX[2] = {0, BS / 2};
+      int offsetY[2] = {0, BS / 2};
+      Real *um = lab.m;
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
+          memset(b, 0, dim * BS * BS * sizeof(Real));
+          for (int j = 0; j < BS; j += 2)
+            for (int i = 0; i < BS; i += 2) {
+              int i0 = i / 2 + offsetX[I] - stencil.sx;
+              int j0 = j / 2 + offsetY[J] - stencil.sy;
+              int im = i0 - 1;
+              int ip = i0 + 1;
+              int jm = j0 - 1;
+              int jp = j0 + 1;
+              int o0 = BS * j + i;
+              int o1 = BS * j + i + 1;
+              int o2 = BS * (j + 1) + i;
+              int o3 = BS * (j + 1) + i + 1;
+              for (int d = 0; d < dim; d++) {
+                Real l00 = um[dim * (nm * j0 + i0) + d];
+                Real l0p = um[dim * (nm * jp + i0) + d];
+                Real lm0 = um[dim * (nm * j0 + im) + d];
+                Real lmm = um[dim * (nm * jm + im) + d];
+                Real lmp = um[dim * (nm * jp + im) + d];
+                Real lp0 = um[dim * (nm * j0 + ip) + d];
+                Real lpm = um[dim * (nm * jm + ip) + d];
+                Real lpp = um[dim * (nm * jp + ip) + d];
+                Real l0m = um[dim * (nm * jm + i0) + d];
+                Real x = 0.5 * (lp0 - lm0);
+                Real y = 0.5 * (l0p - l0m);
+                Real x2 = (lp0 + lm0) - 2.0 * l00;
+                Real y2 = (l0p + l0m) - 2.0 * l00;
+                Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                b[dim * o0 + d] = (l00 + (-0.25 * x - 0.25 * y)) +
+                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                b[dim * o1 + d] = (l00 + (+0.25 * x - 0.25 * y)) +
+                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                b[dim * o2 + d] = (l00 + (-0.25 * x + 0.25 * y)) +
+                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                b[dim * o3 + d] = (l00 + (+0.25 * x + 0.25 * y)) +
+                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
               }
-          }
-      }
+            }
+        }
     }
     for (size_t i = 0; i < m_ref.size(); i++) {
       int level = m_ref[i];
@@ -1714,24 +1703,22 @@ static void adapt() {
         }
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
-      if (!basic)
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            Real *b = Blocks[J * 2 + I];
-            for (int j = 0; j < BS; j += 2)
-              for (int i = 0; i < BS; i += 2) {
-                int i00 = BS * j + i;
-                int i01 = BS * (j + 1) + i;
-                int i10 = BS * j + i + 1;
-                int i11 = BS * (j + 1) + i + 1;
-                int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
-                for (int d = 0; d < dim; d++)
-                  Blocks[0][dim * o + d] =
-                      (b[dim * i00 + d] + b[dim * i01 + d] + b[dim * i10 + d] +
-                       b[dim * i11 + d]) /
-                      4;
-              }
-          }
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          Real *b = Blocks[J * 2 + I];
+          for (int j = 0; j < BS; j += 2)
+            for (int i = 0; i < BS; i += 2) {
+              int i00 = BS * j + i;
+              int i01 = BS * (j + 1) + i;
+              int i10 = BS * j + i + 1;
+              int i11 = BS * (j + 1) + i + 1;
+              int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+              for (int d = 0; d < dim; d++)
+                Blocks[0][dim * o + d] = (b[dim * i00 + d] + b[dim * i01 + d] +
+                                          b[dim * i10 + d] + b[dim * i11 + d]) /
+                                         4;
+            }
+        }
       long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
       Info *parent = getf0(&g->all, level - 1, np);
 #pragma omp critical
