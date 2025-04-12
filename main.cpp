@@ -1784,13 +1784,7 @@ static void adapt() {
     }
     g->infos.resize(j);
     for (size_t j = 0; j < g->infos.size(); j++) {
-      int m = g->infos[j]->level;
-      long long Z = g->infos[j]->Z;
-      auto retval = g->all.find(sim.levels[m] + Z);
-      assert(retval != g->all.end());
-      Info *info = retval->second;
-      info->id = j;
-      g->infos[j] = info;
+      g->infos[j]->id = j;
     }
   }
 }
