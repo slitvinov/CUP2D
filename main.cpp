@@ -1860,140 +1860,141 @@ static long long Ymax(const Info *info, int ix, int, int offset = 0) {
 static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
 static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
 
+struct EdgeCellIndexer {
+  EdgeCellIndexer() {}
+  virtual long long neiUnif(const Info *nei_info, int ix, int iy) const = 0;
+  virtual long long neiInward(const Info *info, int ix, int iy) const = 0;
+  virtual double taylorSign(int ix, int iy) const = 0;
+  virtual int ix_c(const Info *info, int ix) const {
+    return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
+  }
+  virtual int iy_c(const Info *info, int iy) const {
+    return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
+  }
+  virtual long long neiFine1(const Info *nei_info, int ix, int iy,
+                             int offset = 0) const = 0;
+  virtual long long neiFine2(const Info *nei_info, int ix, int iy,
+                             int offset = 0) const = 0;
+  virtual bool isBD(int ix, int iy) const = 0;
+  virtual bool isFD(int ix, int iy) const = 0;
+  virtual long long Nei(const Info *info, int ix, int iy, int dist) const = 0;
+  virtual long long Zchild(const Info *nei_info, int ix, int iy) const = 0;
+};
+struct XbaseIndexer : public EdgeCellIndexer {
+  XbaseIndexer() : EdgeCellIndexer() {}
+  double taylorSign(int, int iy) const override {
+    return iy % 2 == 0 ? -1. : 1.;
+  }
+  bool isBD(int, int iy) const override {
+    return iy == BS - 1 || iy == BS / 2 - 1;
+  }
+  bool isFD(int, int iy) const override { return iy == 0 || iy == BS / 2; }
+  long long Nei(const Info *info, int ix, int iy, int dist) const override {
+    return This(info, ix, iy + dist);
+  }
+};
+struct XminIndexer : public XbaseIndexer {
+  XminIndexer() : XbaseIndexer() {}
+  long long neiUnif(const Info *nei_info, int ix, int iy) const override {
+    return Xmax(nei_info, ix, iy);
+  }
+  long long neiInward(const Info *info, int ix, int iy) const override {
+    return This(info, ix + 1, iy);
+  }
+  int ix_c(const Info *, int) const override { return BS - 1; }
+  long long neiFine1(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
+  }
+  long long neiFine2(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
+  }
+  long long Zchild(const Info *nei_info, int, int iy) const override {
+    return nei_info->Zchild[1][int(iy >= BS / 2)];
+  }
+};
+struct XmaxIndexer : public XbaseIndexer {
+  XmaxIndexer() : XbaseIndexer() {}
+  long long neiUnif(const Info *nei_info, int ix, int iy) const override {
+    return Xmin(nei_info, ix, iy, 0);
+  }
+  long long neiInward(const Info *info, int ix, int iy) const override {
+    return This(info, ix - 1, iy);
+  }
+  int ix_c(const Info *, int) const override { return 0; }
+  long long neiFine1(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
+  }
+  long long neiFine2(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
+  }
+  long long Zchild(const Info *nei_info, int, int iy) const override {
+    return nei_info->Zchild[0][int(iy >= BS / 2)];
+  }
+};
+struct YbaseIndexer : public EdgeCellIndexer {
+  YbaseIndexer() : EdgeCellIndexer() {}
+  double taylorSign(int ix, int) const override {
+    return ix % 2 == 0 ? -1. : 1.;
+  }
+  bool isBD(int ix, int) const override {
+    return ix == BS - 1 || ix == BS / 2 - 1;
+  }
+  bool isFD(int ix, int) const override { return ix == 0 || ix == BS / 2; }
+  long long Nei(const Info *info, int ix, int iy, int dist) const override {
+    return This(info, ix + dist, iy);
+  }
+};
+struct YminIndexer : public YbaseIndexer {
+  YminIndexer() : YbaseIndexer() {}
+  long long neiUnif(const Info *nei_info, int ix, int iy) const override {
+    return Ymax(nei_info, ix, iy);
+  }
+  long long neiInward(const Info *info, int ix, int iy) const override {
+    return This(info, ix, iy + 1);
+  }
+  int iy_c(const Info *, int) const override { return BS - 1; }
+  long long neiFine1(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
+  }
+  long long neiFine2(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
+  }
+  long long Zchild(const Info *nei_info, int ix, int) const override {
+    return nei_info->Zchild[int(ix >= BS / 2)][1];
+  }
+};
+struct YmaxIndexer : public YbaseIndexer {
+  YmaxIndexer() : YbaseIndexer() {}
+  long long neiUnif(const Info *nei_info, int ix, int iy) const override {
+    return Ymin(nei_info, ix, iy);
+  }
+  long long neiInward(const Info *info, int ix, int iy) const override {
+    return This(info, ix, iy - 1);
+  }
+  int iy_c(const Info *, int) const override { return 0; }
+  long long neiFine1(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
+  }
+  long long neiFine2(const Info *nei_info, int ix, int iy,
+                     int offset = 0) const override {
+    return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
+  }
+  long long Zchild(const Info *nei_info, int ix, int) const override {
+    return nei_info->Zchild[int(ix >= BS / 2)][0];
+  }
+};
+
 struct Solver {
   Solver()
       : XminCell(), XmaxCell(), YminCell(),
         YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
-  struct EdgeCellIndexer {
-    EdgeCellIndexer() {}
-    virtual long long neiUnif(const Info *nei_info, int ix, int iy) const = 0;
-    virtual long long neiInward(const Info *info, int ix, int iy) const = 0;
-    virtual double taylorSign(int ix, int iy) const = 0;
-    virtual int ix_c(const Info *info, int ix) const {
-      return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
-    }
-    virtual int iy_c(const Info *info, int iy) const {
-      return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
-    }
-    virtual long long neiFine1(const Info *nei_info, int ix, int iy,
-                               int offset = 0) const = 0;
-    virtual long long neiFine2(const Info *nei_info, int ix, int iy,
-                               int offset = 0) const = 0;
-    virtual bool isBD(int ix, int iy) const = 0;
-    virtual bool isFD(int ix, int iy) const = 0;
-    virtual long long Nei(const Info *info, int ix, int iy, int dist) const = 0;
-    virtual long long Zchild(const Info *nei_info, int ix, int iy) const = 0;
-  };
-  struct XbaseIndexer : public EdgeCellIndexer {
-    XbaseIndexer() : EdgeCellIndexer() {}
-    double taylorSign(int, int iy) const override {
-      return iy % 2 == 0 ? -1. : 1.;
-    }
-    bool isBD(int, int iy) const override {
-      return iy == BS - 1 || iy == BS / 2 - 1;
-    }
-    bool isFD(int, int iy) const override { return iy == 0 || iy == BS / 2; }
-    long long Nei(const Info *info, int ix, int iy, int dist) const override {
-      return This(info, ix, iy + dist);
-    }
-  };
-  struct XminIndexer : public XbaseIndexer {
-    XminIndexer() : XbaseIndexer() {}
-    long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-      return Xmax(nei_info, ix, iy);
-    }
-    long long neiInward(const Info *info, int ix, int iy) const override {
-      return This(info, ix + 1, iy);
-    }
-    int ix_c(const Info *, int) const override { return BS - 1; }
-    long long neiFine1(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
-    }
-    long long neiFine2(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
-    }
-    long long Zchild(const Info *nei_info, int, int iy) const override {
-      return nei_info->Zchild[1][int(iy >= BS / 2)];
-    }
-  };
-  struct XmaxIndexer : public XbaseIndexer {
-    XmaxIndexer() : XbaseIndexer() {}
-    long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-      return Xmin(nei_info, ix, iy, 0);
-    }
-    long long neiInward(const Info *info, int ix, int iy) const override {
-      return This(info, ix - 1, iy);
-    }
-    int ix_c(const Info *, int) const override { return 0; }
-    long long neiFine1(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
-    }
-    long long neiFine2(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
-    }
-    long long Zchild(const Info *nei_info, int, int iy) const override {
-      return nei_info->Zchild[0][int(iy >= BS / 2)];
-    }
-  };
-  struct YbaseIndexer : public EdgeCellIndexer {
-    YbaseIndexer() : EdgeCellIndexer() {}
-    double taylorSign(int ix, int) const override {
-      return ix % 2 == 0 ? -1. : 1.;
-    }
-    bool isBD(int ix, int) const override {
-      return ix == BS - 1 || ix == BS / 2 - 1;
-    }
-    bool isFD(int ix, int) const override { return ix == 0 || ix == BS / 2; }
-    long long Nei(const Info *info, int ix, int iy, int dist) const override {
-      return This(info, ix + dist, iy);
-    }
-  };
-  struct YminIndexer : public YbaseIndexer {
-    YminIndexer() : YbaseIndexer() {}
-    long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-      return Ymax(nei_info, ix, iy);
-    }
-    long long neiInward(const Info *info, int ix, int iy) const override {
-      return This(info, ix, iy + 1);
-    }
-    int iy_c(const Info *, int) const override { return BS - 1; }
-    long long neiFine1(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
-    }
-    long long neiFine2(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
-    }
-    long long Zchild(const Info *nei_info, int ix, int) const override {
-      return nei_info->Zchild[int(ix >= BS / 2)][1];
-    }
-  };
-  struct YmaxIndexer : public YbaseIndexer {
-    YmaxIndexer() : YbaseIndexer() {}
-    long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-      return Ymin(nei_info, ix, iy);
-    }
-    long long neiInward(const Info *info, int ix, int iy) const override {
-      return This(info, ix, iy - 1);
-    }
-    int iy_c(const Info *, int) const override { return 0; }
-    long long neiFine1(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
-    }
-    long long neiFine2(const Info *nei_info, int ix, int iy,
-                       int offset = 0) const override {
-      return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
-    }
-    long long Zchild(const Info *nei_info, int ix, int) const override {
-      return nei_info->Zchild[int(ix >= BS / 2)][0];
-    }
-  };
   XminIndexer XminCell;
   XmaxIndexer XmaxCell;
   YminIndexer YminCell;
@@ -2012,29 +2013,29 @@ struct Solver {
     std::array<std::pair<long long, double>, 3> D;
     if (indexer->isBD(ix_c, iy_c))
       D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
-               {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
-               {This(info_c, ix_c, iy_c), 3. / 8.}}};
+            {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
+            {This(info_c, ix_c, iy_c), 3. / 8.}}};
     else if (indexer->isFD(ix_c, iy_c))
       D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
-               {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
-               {This(info_c, ix_c, iy_c), -3. / 8.}}};
+            {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
+            {This(info_c, ix_c, iy_c), -3. / 8.}}};
     D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
-             {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
-             {This(info_c, ix_c, iy_c), 0.}}};
+          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
+          {This(info_c, ix_c, iy_c), 0.}}};
     for (int i = 0; i < 3; i++)
       row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
 
     if (indexer->isBD(ix_c, iy_c))
       D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 32.},
-               {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
-               {This(info_c, ix_c, iy_c), 1. / 32.}}};
+            {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
+            {This(info_c, ix_c, iy_c), 1. / 32.}}};
     else if (indexer->isFD(ix_c, iy_c))
       D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
-               {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
-               {This(info_c, ix_c, iy_c), 1. / 32.}}};
+            {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
+            {This(info_c, ix_c, iy_c), 1. / 32.}}};
     D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
-             {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
-             {This(info_c, ix_c, iy_c), -1. / 16.}}};
+          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
+          {This(info_c, ix_c, iy_c), -1. / 16.}}};
     for (int i = 0; i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
