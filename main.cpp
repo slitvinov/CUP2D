@@ -2192,14 +2192,13 @@ int main(int argc, char **argv) {
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
   long long my_blocks = 1LL << (2 * sim.levelStart);
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
-    int dim = var.F[i].dim;
     Grid *g = *var.F[i].g = new Grid;
     for (size_t i = 0; i < (size_t)my_blocks; i++) {
       long long Z = i;
       long long aux = sim.levels[sim.levelStart] + Z;
       Info *info = g->all[aux] = new Info;
       fill(info, sim.levelStart, Z);
-      info->block = (Real *)calloc(dim * BS * BS, sizeof(Real));
+      info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
       g->infos.push_back(info);
 #pragma omp critical
       sim.tree[aux] = Active;
