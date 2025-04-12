@@ -2616,8 +2616,8 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-		  Info rhsNei0 = getf1(&var.tmp->all, info->level, nei[j]);
-                  makeFlux(info, ix, iy, &rhsNei0, edgeIndexers[j], row);
+		  Info *rhsNei0 = getf0(&var.tmp->all, info->level, nei[j]);
+                  makeFlux(info, ix, iy, rhsNei0, edgeIndexers[j], row);
                 }
               }
               sim.mat->cooPushBackRow(row);
