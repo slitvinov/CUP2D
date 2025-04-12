@@ -1028,8 +1028,8 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
   int nm = BS + stencil.ex - stencil.sx - 1;
   const Real h = info->h;
   const Real facDiv = 0.5 * h / sim.dt;
-  Real *TMP = var.tmp->infos[info->id]->block;
-  Real *CHI = var.chi->infos[info->id]->block;
+  Real *TMP = var.tmp->infos[info->id]->block + BS * BS * off_tmp;
+  Real *CHI = var.chi->infos[info->id]->block + BS * BS * off_chi;
   for (int iy = 0; iy < BS; ++iy)
     for (int ix = 0; ix < BS; ++ix) {
       int ip0 = ix - stencil.sx;
@@ -1067,7 +1067,7 @@ struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
     const Real i2h = 0.5 * (1 << info->level) * BS;
-    Real *TMP = var.tmp->infos[info->id]->block;
+    Real *TMP = var.tmp->infos[info->id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < BS; ++j)
       for (int i = 0; i < BS; ++i) {
@@ -1226,7 +1226,7 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      Real *CHI = var.chi->infos[info->id]->block;
+      Real *CHI = var.chi->infos[info->id]->block + BS * BS * off_chi;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < BS; iy++)
@@ -1273,9 +1273,10 @@ static void ongrid() {
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(var.chi->infos[i]->block, 0, BS * BS * sizeof(Real));
-    std::fill(var.tmp->infos[i]->block, var.tmp->infos[i]->block + BS * BS,
-              -1.0);
+    memset(var.chi->infos[i]->block + BS * BS * off_chi, 0,
+           BS * BS * sizeof(Real));
+    std::fill(var.tmp->infos[i]->block + BS * BS * off_tmp,
+              var.tmp->infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
   }
   for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
@@ -1296,7 +1297,7 @@ static void ongrid() {
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
       Obstacle *const block = shape->obstacleBlocks[var.tmp->infos[i]->id];
       const Info *info = var.tmp->infos[i];
-      Real *b = var.tmp->infos[i]->block;
+      Real *b = var.tmp->infos[i]->block + BS * BS * off_tmp;
       Obstacle *const o = block;
       const Real h = info->h;
       std::fill(&o->dist[0][0], &o->dist[0][0] + BS * BS, -1);
@@ -1409,7 +1410,7 @@ struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
   void operator()(Real *um, const Info *info) const {
-    Real *TMP = var.tmp->infos[info->id]->block;
+    Real *TMP = var.tmp->infos[info->id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int y = -offset; y < BS + offset; ++y)
@@ -1437,7 +1438,7 @@ static void adapt() {
   {
 #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < var.tmp->infos.size(); i++) {
-      Real *b = var.tmp->infos[i]->block;
+      Real *b = var.tmp->infos[i]->block + BS * BS * off_tmp;
       double Linf = 0.0;
       for (int j = 0; j < BS * BS; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
@@ -1799,7 +1800,7 @@ struct KernelAdvectDiffuse {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    Real *TMP = var.tmpV->infos[info->id]->block;
+    Real *TMP = var.tmpV->infos[info->id]->block + BS * BS * off_tmpV;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
@@ -2051,9 +2052,9 @@ static void getVec() {
     Real h = var.tmp->infos[i]->h;
     sim.mat->h2_[i] = h * h;
     long long offset = var.tmp->infos[i]->id * BS * BS;
-    memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block,
+    memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block + BS * BS * off_tmp,
            BS * BS * sizeof(Real));
-    memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block,
+    memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block + BS * BS * off_pres,
            BS * BS * sizeof(Real));
   }
 }
@@ -2068,7 +2069,7 @@ struct pressureCorrectionKernel {
   void operator()(Real *um, const Info *info) const {
     int nm = BS + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = var.tmpV->infos[info->id]->block;
+    Real *tmpV = var.tmpV->infos[info->id]->block + BS * BS * off_tmpV;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
         int ip0 = ix - stencil.sx;
@@ -2090,7 +2091,7 @@ struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    Real *TMP = var.tmp->infos[info->id]->block;
+    Real *TMP = var.tmp->infos[info->id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
@@ -2240,8 +2241,8 @@ int main(int argc, char **argv) {
         continue;
       Real *udef = (Real *)oblock[var.tmpV->infos[i]->id]->udef;
       Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
-      Real *UDEF = var.tmpV->infos[i]->block;
-      Real *CHI = var.chi->infos[i]->block;
+      Real *UDEF = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
+      Real *CHI = var.chi->infos[i]->block + BS * BS * off_chi;
       for (int j = 0; j < BS * BS; j++) {
         if (chi[j] < CHI[j])
           continue;
@@ -2252,9 +2253,9 @@ int main(int argc, char **argv) {
   }
 #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < var.vel->infos.size(); i++) {
-    Real *UF = var.vel->infos[i]->block;
-    Real *US = var.tmpV->infos[i]->block;
-    Real *X = var.chi->infos[i]->block;
+    Real *UF = var.vel->infos[i]->block + BS * BS * off_vel;
+    Real *US = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
+    Real *X = var.chi->infos[i]->block + BS * BS * off_chi;
     for (int j = 0; j < BS * BS; j++) {
       UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
       UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
@@ -2272,7 +2273,7 @@ int main(int argc, char **argv) {
     Real umax = 0;
 #pragma omp parallel for schedule(static) reduction(max : umax)
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      Real *vel = var.vel->infos[i]->block;
+      Real *vel = var.vel->infos[i]->block + BS * BS * off_vel;
       for (int j = 0; j < 2 * BS * BS; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
@@ -2299,7 +2300,8 @@ int main(int argc, char **argv) {
     ongrid();
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++)
-      memcpy(var.vold->infos[i]->block, var.vel->infos[i]->block,
+      memcpy(var.vold->infos[i]->block + BS * BS * off_vold,
+             var.vel->infos[i]->block + BS * BS * off_vel,
              2 * BS * BS * sizeof(Real));
     if (var.tmpV->UpdateFluxCorrection) {
       var.tmpV->UpdateFluxCorrection = false;
@@ -2307,9 +2309,9 @@ int main(int argc, char **argv) {
     computeA(KernelAdvectDiffuse(), var.vel, off_vel, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      Real *V = var.vel->infos[i]->block;
-      Real *Vold = var.vold->infos[i]->block;
-      Real *tmpV = var.tmpV->infos[i]->block;
+      Real *V = var.vel->infos[i]->block + BS * BS * off_vel;
+      Real *Vold = var.vold->infos[i]->block + BS * BS * off_vold;
+      Real *tmpV = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
       Real ih2 = 0.5 / (var.vel->infos[i]->h * var.vel->infos[i]->h);
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
@@ -2320,9 +2322,9 @@ int main(int argc, char **argv) {
     computeA(KernelAdvectDiffuse(), var.vel, off_vel, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      Real *V = var.vel->infos[i]->block;
-      Real *Vold = var.vold->infos[i]->block;
-      Real *tmpV = var.tmpV->infos[i]->block;
+      Real *V = var.vel->infos[i]->block + BS * BS * off_vel;
+      Real *Vold = var.vold->infos[i]->block + BS * BS * off_vold;
+      Real *tmpV = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
       Real ih2 = 1.0 / (var.vel->infos[i]->h * var.vel->infos[i]->h);
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
@@ -2332,7 +2334,7 @@ int main(int argc, char **argv) {
       Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (size_t i = 0; i < var.vel->infos.size(); i++) {
-        Real *VEL = var.vel->infos[i]->block;
+        Real *VEL = var.vel->infos[i]->block + BS * BS * off_vel;
         Real hsq = var.vel->infos[i]->h * var.vel->infos[i]->h;
         if (oblock[var.vel->infos[i]->id] == nullptr)
           continue;
@@ -2471,8 +2473,8 @@ int main(int argc, char **argv) {
           continue;
         Real *X = (Real *)o->chi;
         Real *UDEF = (Real *)o->udef;
-        Real *CHI = var.chi->infos[i]->block;
-        Real *V = var.vel->infos[i]->block;
+        Real *CHI = var.chi->infos[i]->block + BS * BS * off_chi;
+        Real *V = var.vel->infos[i]->block + BS * BS * off_vel;
         for (int iy = 0; iy < BS; ++iy)
           for (int ix = 0; ix < BS; ++ix) {
             int j = BS * iy + ix;
@@ -2496,7 +2498,8 @@ int main(int argc, char **argv) {
       }
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++)
-      memset(var.tmpV->infos[i]->block, 0, 2 * BS * BS * sizeof(Real));
+      memset(var.tmpV->infos[i]->block + BS * BS * off_tmpV, 0,
+             2 * BS * BS * sizeof(Real));
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
@@ -2505,8 +2508,8 @@ int main(int argc, char **argv) {
           continue;
         Real *udef = (Real *)oblock[var.tmpV->infos[i]->id]->udef;
         Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
-        Real *UDEF = var.tmpV->infos[i]->block;
-        Real *CHI = var.chi->infos[i]->block;
+        Real *UDEF = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
+        Real *CHI = var.chi->infos[i]->block + BS * BS * off_chi;
         for (int iy = 0; iy < BS; iy++)
           for (int ix = 0; ix < BS; ix++) {
             int j = BS * iy + ix;
@@ -2544,9 +2547,11 @@ int main(int argc, char **argv) {
     }
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      memcpy(var.pold->infos[i]->block, var.pres->infos[i]->block,
+      memcpy(var.pold->infos[i]->block + BS * BS * off_pold,
+             var.pres->infos[i]->block + BS * BS * off_pres,
              BS * BS * sizeof(Real));
-      memset(var.pres->infos[i]->block, 0, BS * BS * sizeof(Real));
+      memset(var.pres->infos[i]->block + BS * BS * off_pres, 0,
+             BS * BS * sizeof(Real));
     }
     computeA(pressure_rhs1(), var.pold, off_pold, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
@@ -2652,7 +2657,7 @@ int main(int argc, char **argv) {
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (size_t i = 0; i < NB; i++) {
-      Real *P = var.pres->infos[i]->block;
+      Real *P = var.pres->infos[i]->block + BS * BS * off_pres;
       const Real vv = var.pres->infos[i]->h * var.pres->infos[i]->h;
       for (int j = 0; j < BS * BS; j++) {
         P[j] = sim.mat->x_[i * BS * BS + j];
@@ -2663,7 +2668,7 @@ int main(int argc, char **argv) {
     avg = avg / avg1;
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
-      Real *P = var.pres->infos[i]->block;
+      Real *P = var.pres->infos[i]->block + BS * BS * off_pres;
       for (int j = 0; j < BS * BS; j++)
         P[j] += -avg;
     }
@@ -2671,7 +2676,7 @@ int main(int argc, char **argv) {
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (size_t i = 0; i < NB; i++) {
-      Real *P = var.pres->infos[i]->block;
+      Real *P = var.pres->infos[i]->block + BS * BS * off_pres;
       Real vv = var.pres->infos[i]->h * var.pres->infos[i]->h;
       for (int j = 0; j < BS * BS; j++) {
         avg += P[j] * vv;
@@ -2681,8 +2686,8 @@ int main(int argc, char **argv) {
     avg = avg / avg1;
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
-      Real *pres = var.pres->infos[i]->block;
-      Real *pold = var.pold->infos[i]->block;
+      Real *pres = var.pres->infos[i]->block + BS * BS * off_pres;
+      Real *pold = var.pold->infos[i]->block + BS * BS * off_pold;
       for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
@@ -2690,8 +2695,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
       Real ih2 = 1.0 / var.vel->infos[i]->h / var.vel->infos[i]->h;
-      Real *V = var.vel->infos[i]->block;
-      Real *tmpV = var.tmpV->infos[i]->block;
+      Real *V = var.vel->infos[i]->block + BS * BS * off_vel;
+      Real *tmpV = var.tmpV->infos[i]->block + BS * BS * off_tmpV;
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] += tmpV[j] * ih2;
     }
