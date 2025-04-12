@@ -139,6 +139,13 @@ static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
   assert(retval != all->end());
   return retval->second;
 }
+static Info getf1(std::unordered_map<long long, Info *> *all, int level,
+                  long long Z) {
+  Info dummy;
+  fill(&dummy, level, Z);
+  auto r = all->find(sim.levels[level] + Z);
+  return (r == all->end()) ? dummy : *r->second;
+}
 struct Grid {
   bool UpdateFluxCorrection{true};
   std::unordered_map<long long, Info *> all;
@@ -2609,7 +2616,7 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  Info *rhsNei = getf0(&var.tmp->all, info->level, nei[j]);
+                  Info *rhsNei = getf1(&var.tmp->all, info->level, nei[j]);
                   const EdgeCellIndexer *indexer = edgeIndexers[j];
                   makeFlux(info, ix, iy, rhsNei, indexer, row);
                 }
