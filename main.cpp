@@ -1262,22 +1262,22 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  std::vector<Info *> &tmpInfo = var.tmp->infos;
+  //  std::vector<Info *> &tmpInfo = var.tmp->infos;
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     memset(var.chi->infos[i]->block, 0, BS * BS * sizeof(Real));
-    std::fill(tmpInfo[i]->block, tmpInfo[i]->block + BS * BS, -1.0);
+    std::fill(var.tmp->infos[i]->block, var.tmp->infos[i]->block + BS * BS, -1.0);
   }
   for (Shape *shape : sim.shapes) {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    const auto N = tmpInfo.size();
+    const auto N = var.tmp->infos.size();
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < tmpInfo.size(); ++i) {
-      const Info *info = tmpInfo[i];
+    for (size_t i = 0; i < var.tmp->infos.size(); ++i) {
+      const Info *info = var.tmp->infos[i];
       Obstacle *const block = new Obstacle();
       shape->obstacleBlocks[info->id] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
@@ -1285,10 +1285,10 @@ static void ongrid() {
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
 #pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < tmpInfo.size(); i++) {
-      Obstacle *const block = shape->obstacleBlocks[tmpInfo[i]->id];
-      const Info *info = tmpInfo[i];
-      Real *b = tmpInfo[i]->block;
+    for (size_t i = 0; i < var.tmp->infos.size(); i++) {
+      Obstacle *const block = shape->obstacleBlocks[var.tmp->infos[i]->id];
+      const Info *info = var.tmp->infos[i];
+      Real *b = var.tmp->infos[i]->block;
       Obstacle *const o = block;
       const Real h = info->h;
       std::fill(&o->dist[0][0], &o->dist[0][0] + BS * BS, -1);
@@ -1784,11 +1784,10 @@ static void adapt() {
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
   void operator()(Real *um, Info *info) {
-    std::vector<Info *> &tmpVInfo = var.tmpV->infos;
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    Real *TMP = tmpVInfo[info->id]->block;
+    Real *TMP = var.tmpV->infos[info->id]->block;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
@@ -2055,10 +2054,9 @@ std::array<const EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell,
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info *> &tmpVInfo = var.tmpV->infos;
     int nm = BS + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = tmpVInfo[info->id]->block;
+    Real *tmpV = var.tmpV->infos[info->id]->block;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
 	int ip0 = ix - stencil.sx;
