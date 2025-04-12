@@ -2633,33 +2633,31 @@ int main(int argc, char **argv) {
       getVec();
       sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
-    std::vector<Info *> &zInfo = var.pres->infos;
-    const int NB = zInfo.size();
-    const std::vector<double> &x = sim.mat->x_;
+    size_t NB = var.pres->infos.size();
     Real avg, avg1;
     avg = 0;
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
-    for (int i = 0; i < NB; i++) {
-      Real *P = zInfo[i]->block;
-      const double vv = zInfo[i]->h * zInfo[i]->h;
+    for (size_t i = 0; i < NB; i++) {
+      Real *P = var.pres->infos[i]->block;
+      const Real vv = var.pres->infos[i]->h * var.pres->infos[i]->h;
       for (int j = 0; j < BS * BS; j++) {
-        P[j] = x[i * BS * BS + j];
+        P[j] = sim.mat->x_[i * BS * BS + j];
         avg += P[j] * vv;
         avg1 += vv;
       }
     }
     avg = avg / avg1;
 #pragma omp parallel for
-    for (int i = 0; i < NB; i++) {
-      Real *P = zInfo[i]->block;
+    for (size_t i = 0; i < NB; i++) {
+      Real *P = var.pres->infos[i]->block;
       for (int j = 0; j < BS * BS; j++)
         P[j] += -avg;
     }
     avg = 0;
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
-    for (size_t i = 0; i < velInfo.size(); i++) {
+    for (size_t i = 0; i < NB; i++) {
       Real *P = presInfo[i]->block;
       Real vv = presInfo[i]->h * presInfo[i]->h;
       for (int j = 0; j < BS * BS; j++) {
@@ -2669,7 +2667,7 @@ int main(int argc, char **argv) {
     }
     avg = avg / avg1;
 #pragma omp parallel for
-    for (size_t i = 0; i < velInfo.size(); i++) {
+    for (size_t i = 0; i < NB; i++) {
       Real *pres = presInfo[i]->block;
       Real *pold = poldInfo[i]->block;
       for (int j = 0; j < BS * BS; j++)
@@ -2677,7 +2675,7 @@ int main(int argc, char **argv) {
     }
     computeA(pressureCorrectionKernel(), var.pres, 1);
 #pragma omp parallel for
-    for (size_t i = 0; i < velInfo.size(); i++) {
+    for (size_t i = 0; i < NB; i++) {
       Real ih2 = 1.0 / velInfo[i]->h / velInfo[i]->h;
       Real *V = velInfo[i]->block;
       Real *tmpV = tmpVInfo[i]->block;
