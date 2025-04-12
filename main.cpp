@@ -77,7 +77,7 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  std::vector<long long> levels, nrows;
+  std::vector<long long> levels;
   std::vector<Shape *> shapes;
   struct Solver *solver;
   struct LocalSpMatDnVec *mat;
@@ -2093,7 +2093,6 @@ struct Solver {
     std::vector<double> &x = sim.mat->x_;
     std::vector<double> &b = sim.mat->b_;
     std::vector<double> &h2 = sim.mat->h2_;
-    long long shift = -sim.nrows[0];
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
       Real *rhs = RhsInfo[i]->block;
@@ -2102,7 +2101,7 @@ struct Solver {
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           int j = iy * BS + ix;
-          long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy) + shift;
+          long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy);
           b[sfc_loc] = rhs[j];
           x[sfc_loc] = p[j];
         }
@@ -2238,7 +2237,6 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-  sim.nrows.resize(1);
   sim.levels.resize(sim.levelMax);
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
@@ -2608,7 +2606,6 @@ int main(int argc, char **argv) {
       const int Nblocks = RhsInfo.size();
       const int N = BS * BS * Nblocks;
       sim.mat->reserve(N);
-      sim.nrows[0] = 0;
       for (int i = 0; i < Nblocks; i++) {
         Info *&rhs_info = RhsInfo[i];
         const int aux = 1 << rhs_info->level;
@@ -2671,7 +2668,7 @@ int main(int argc, char **argv) {
             }
           }
       }
-      sim.mat->make(sim.nrows);
+      sim.mat->make();
       sim.solver->getVec();
       sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
     } else {

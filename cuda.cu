@@ -589,7 +589,7 @@ void LocalSpMatDnVec::cooPushBackRow(const SpRowInfo &row) {
     }
   }
 }
-void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
+void LocalSpMatDnVec::make() {
   loc_nnz_ = loc_cooValA_.size();
   bd_nnz_ = bd_cooValA_.size();
   halo_ = 0;
@@ -635,7 +635,6 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
 	   &recv_idx_list[recv_offset_[i]],
 	   n * sizeof(send_pack_idx_long[send_offset_[i]]));
   }
-  const long long shift = -Nrows_xcumsum[rank_];
   loc_cooRowA_int_.resize(loc_nnz_);
   loc_cooColA_int_.resize(loc_nnz_);
   bd_cooRowA_int_.resize(bd_nnz_);
@@ -643,13 +642,13 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
   {
 #pragma omp for
     for (int i = 0; i < loc_nnz_; i++)
-      loc_cooRowA_int_[i] = (int)(loc_cooRowA_long_[i] + shift);
+      loc_cooRowA_int_[i] = (int)(loc_cooRowA_long_[i]);
 #pragma omp for
     for (int i = 0; i < loc_nnz_; i++)
-      loc_cooColA_int_[i] = (int)(loc_cooColA_long_[i] + shift);
+      loc_cooColA_int_[i] = (int)(loc_cooColA_long_[i]);
 #pragma omp for
     for (int i = 0; i < bd_nnz_; i++)
-      bd_cooRowA_int_[i] = (int)(bd_cooRowA_long_[i] + shift);
+      bd_cooRowA_int_[i] = (int)(bd_cooRowA_long_[i]);
   }
   std::unordered_map<long long, int> bd_reindex_map;
   bd_reindex_map.reserve(halo_);
@@ -660,7 +659,7 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum) {
     bd_cooColA_int_[i] = bd_reindex_map[bd_cooColA_long_[i]];
 #pragma omp parallel for
   for (size_t i = 0; i < send_pack_idx_.size(); i++)
-    send_pack_idx_[i] = (int)(send_pack_idx_long[i] + shift);
+    send_pack_idx_[i] = (int)(send_pack_idx_long[i]);
 }
 void LocalSpMatDnVec::solveWithUpdate(const double max_error,
                                       const double max_rel_error,

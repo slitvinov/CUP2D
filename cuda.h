@@ -31,7 +31,7 @@ struct LocalSpMatDnVec {
   void cooPushBackVal(const double val, const long long row,
                       const long long col);
   void cooPushBackRow(const SpRowInfo &row);
-  void make(const std::vector<long long> &Nrows_xcumsum);
+  void make();
   void solveWithUpdate(const double max_error, const double max_rel_error,
                        const int max_restarts);
   void solveNoUpdate(const double max_error, const double max_rel_error,
