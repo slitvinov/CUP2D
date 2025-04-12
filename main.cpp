@@ -2602,7 +2602,7 @@ int main(int argc, char **argv) {
               idxNei[2] = This(info, ix, iy - 1);
               idxNei[3] = This(info, ix, iy + 1);
               SpRowInfo row(Tree1(info), sfc_idx, 8);
-              long long nei[4] = {info->Znei[0][1], info->Znei[2][2],
+              long long nei[4] = {info->Znei[0][1], info->Znei[2][1],
                                   info->Znei[1][0], info->Znei[1][2]};
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
