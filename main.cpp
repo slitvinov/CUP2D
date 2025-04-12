@@ -2479,19 +2479,18 @@ int main(int argc, char **argv) {
 	    V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
 	  }
       }
-    std::vector<Info *> &tmpVInfo = var.tmpV->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++)
-      memset(tmpVInfo[i]->block, 0, 2 * BS * BS * sizeof(Real));
+      memset(var.tmpV->infos[i]->block, 0, 2 * BS * BS * sizeof(Real));
     for (auto &shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for
       for (size_t i = 0; i < var.vel->infos.size(); i++) {
-	if (oblock[tmpVInfo[i]->id] == nullptr)
+	if (oblock[var.tmpV->infos[i]->id] == nullptr)
 	  continue;
-	Real *udef = (Real *)oblock[tmpVInfo[i]->id]->udef;
-	Real *chi = (Real *)oblock[tmpVInfo[i]->id]->chi;
-	Real *UDEF = tmpVInfo[i]->block;
+	Real *udef = (Real *)oblock[var.tmpV->infos[i]->id]->udef;
+	Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
+	Real *UDEF = var.tmpV->infos[i]->block;
 	Real *CHI = chiInfo[i]->block;
 	for (int iy = 0; iy < BS; iy++)
 	  for (int ix = 0; ix < BS; ix++) {
@@ -2528,11 +2527,10 @@ int main(int argc, char **argv) {
 	ready[I->id] = true;
       }
     }
-    std::vector<Info *> &presInfo = var.pres->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      memcpy(var.pold->infos[i]->block, presInfo[i]->block, BS * BS * sizeof(Real));
-      memset(presInfo[i]->block, 0, BS * BS * sizeof(Real));
+      memcpy(var.pold->infos[i]->block, var.pres->infos[i]->block, BS * BS * sizeof(Real));
+      memset(var.pres->infos[i]->block, 0, BS * BS * sizeof(Real));
     }
     computeA(pressure_rhs1(), var.pold, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
@@ -2657,8 +2655,8 @@ int main(int argc, char **argv) {
     avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (size_t i = 0; i < NB; i++) {
-      Real *P = presInfo[i]->block;
-      Real vv = presInfo[i]->h * presInfo[i]->h;
+      Real *P = var.pres->infos[i]->block;
+      Real vv = var.pres->infos[i]->h * var.pres->infos[i]->h;
       for (int j = 0; j < BS * BS; j++) {
 	avg += P[j] * vv;
 	avg1 += vv;
@@ -2667,7 +2665,7 @@ int main(int argc, char **argv) {
     avg = avg / avg1;
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
-      Real *pres = presInfo[i]->block;
+      Real *pres = var.pres->infos[i]->block;
       Real *pold = var.pold->infos[i]->block;
       for (int j = 0; j < BS * BS; j++)
 	pres[j] += pold[j] - avg;
@@ -2677,7 +2675,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < NB; i++) {
       Real ih2 = 1.0 / var.vel->infos[i]->h / var.vel->infos[i]->h;
       Real *V = var.vel->infos[i]->block;
-      Real *tmpV = tmpVInfo[i]->block;
+      Real *tmpV = var.tmpV->infos[i]->block;
       for (int j = 0; j < 2 * BS * BS; j++)
 	V[j] += tmpV[j] * ih2;
     }
