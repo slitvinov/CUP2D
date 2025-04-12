@@ -1600,7 +1600,8 @@ static void adapt() {
       int level = m_ref[i];
       long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
-      labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent, true);
+      labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent,
+                          true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
@@ -1623,49 +1624,55 @@ static void adapt() {
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
-      Real *um = labs[dim - 1].m;
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
-          memset(b, 0, dim * BS * BS * sizeof(Real));
-          for (int j = 0; j < BS; j += 2)
-            for (int i = 0; i < BS; i += 2) {
-              int i0 = i / 2 + offsetX[I] - stencil.sx;
-              int j0 = j / 2 + offsetY[J] - stencil.sy;
-              int im = i0 - 1;
-              int ip = i0 + 1;
-              int jm = j0 - 1;
-              int jp = j0 + 1;
-              int o0 = BS * j + i;
-              int o1 = BS * j + i + 1;
-              int o2 = BS * (j + 1) + i;
-              int o3 = BS * (j + 1) + i + 1;
-              for (int d = 0; d < dim; d++) {
-                Real l00 = um[dim * (nm * j0 + i0) + d];
-                Real l0p = um[dim * (nm * jp + i0) + d];
-                Real lm0 = um[dim * (nm * j0 + im) + d];
-                Real lmm = um[dim * (nm * jm + im) + d];
-                Real lmp = um[dim * (nm * jp + im) + d];
-                Real lp0 = um[dim * (nm * j0 + ip) + d];
-                Real lpm = um[dim * (nm * jm + ip) + d];
-                Real lpp = um[dim * (nm * jp + ip) + d];
-                Real l0m = um[dim * (nm * jm + i0) + d];
-                Real x = 0.5 * (lp0 - lm0);
-                Real y = 0.5 * (l0p - l0m);
-                Real x2 = (lp0 + lm0) - 2.0 * l00;
-                Real y2 = (l0p + l0m) - 2.0 * l00;
-                Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                b[dim * o0 + d] = (l00 + (-0.25 * x - 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                b[dim * o1 + d] = (l00 + (+0.25 * x - 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                b[dim * o2 + d] = (l00 + (-0.25 * x + 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                b[dim * o3 + d] = (l00 + (+0.25 * x + 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+      for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
+        Real *um = labs[dim - 1].m;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
+            memset(b, 0, dim * BS * BS * sizeof(Real));
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i0 = i / 2 + offsetX[I] - stencil.sx;
+                int j0 = j / 2 + offsetY[J] - stencil.sy;
+                int im = i0 - 1;
+                int ip = i0 + 1;
+                int jm = j0 - 1;
+                int jp = j0 + 1;
+                int o0 = BS * j + i;
+                int o1 = BS * j + i + 1;
+                int o2 = BS * (j + 1) + i;
+                int o3 = BS * (j + 1) + i + 1;
+                for (int d = 0; d < dim; d++) {
+                  Real l00 = um[dim * (nm * j0 + i0) + d];
+                  Real l0p = um[dim * (nm * jp + i0) + d];
+                  Real lm0 = um[dim * (nm * j0 + im) + d];
+                  Real lmm = um[dim * (nm * jm + im) + d];
+                  Real lmp = um[dim * (nm * jp + im) + d];
+                  Real lp0 = um[dim * (nm * j0 + ip) + d];
+                  Real lpm = um[dim * (nm * jm + ip) + d];
+                  Real lpp = um[dim * (nm * jp + ip) + d];
+                  Real l0m = um[dim * (nm * jm + i0) + d];
+                  Real x = 0.5 * (lp0 - lm0);
+                  Real y = 0.5 * (l0p - l0m);
+                  Real x2 = (lp0 + lm0) - 2.0 * l00;
+                  Real y2 = (l0p + l0m) - 2.0 * l00;
+                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                  b[dim * o0 + d] =
+                      (l00 + (-0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[dim * o1 + d] =
+                      (l00 + (+0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o2 + d] =
+                      (l00 + (-0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o3 + d] =
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                }
               }
-            }
-        }
+          }
+      }
     }
     for (size_t i = 0; i < m_ref.size(); i++) {
       int level = m_ref[i];
