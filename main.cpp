@@ -1629,7 +1629,7 @@ static void adapt() {
             g->infos.push_back(child);
             sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
-          Blocks[j * 2 + i] = child->block + offset * BS * BS;
+          Blocks[j * 2 + i] = child->block;
         }
       if (!basic) {
         int nm = BS + stencil.ex - stencil.sx - 1;
@@ -1638,7 +1638,7 @@ static void adapt() {
         Real *um = lab.m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *b = Blocks[J * 2 + I];
+            Real *b = Blocks[J * 2 + I] + offset * BS * BS;
             memset(b, 0, dim * BS * BS * sizeof(Real));
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
