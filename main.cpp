@@ -1613,7 +1613,7 @@ static void adapt() {
 #pragma omp critical
 	  g->all[sim.levels[level + 1] + Z] = child;
 	  child->state = Leave;
-	  child->block = (Real *)malloc(dim * BS * BS * sizeof(Real));
+	  child->block = (Real *)malloc(off_n * BS * BS * sizeof(Real));
 #pragma omp critical
 	  {
 	    g->infos.push_back(child);
