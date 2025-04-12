@@ -2581,31 +2581,27 @@ int main(int argc, char **argv) {
       const int N = BS * BS * Nblocks;
       sim.mat->reserve(N);
       for (int i = 0; i < Nblocks; i++) {
-        Info *&rhs_info = var.tmp->infos[i];
-        const int n = 1 << rhs_info->level;
+        Info *info = var.tmp->infos[i];
+        const int n = 1 << info->level;
         bool isBoundary[4];
-        isBoundary[0] = rhs_info->index[0] == 0;
-        isBoundary[1] = rhs_info->index[0] == n - 1;
-        isBoundary[2] = rhs_info->index[1] == 0;
-        isBoundary[3] = rhs_info->index[1] == n - 1;
+        isBoundary[0] = info->index[0] == 0;
+        isBoundary[1] = info->index[0] == n - 1;
+        isBoundary[2] = info->index[1] == 0;
+        isBoundary[3] = info->index[1] == n - 1;
         Info rhsNei[4];
-        rhsNei[0] =
-            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
-        rhsNei[1] =
-            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 + 1][1]);
-        rhsNei[2] =
-            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 - 1]);
-        rhsNei[3] =
-            getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
+        rhsNei[0] = getf1(&var.tmp->all, info->level, info->Znei[1 - 1][1]);
+        rhsNei[1] = getf1(&var.tmp->all, info->level, info->Znei[1 + 1][1]);
+        rhsNei[2] = getf1(&var.tmp->all, info->level, info->Znei[1][1 - 1]);
+        rhsNei[3] = getf1(&var.tmp->all, info->level, info->Znei[1][1 + 1]);
         for (int iy = 0; iy < BS; iy++)
           for (int ix = 0; ix < BS; ix++) {
-            const long long sfc_idx = This(rhs_info, ix, iy);
+            const long long sfc_idx = This(info, ix, iy);
             if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix, iy - 1));
-              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix - 1, iy));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy - 1));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix - 1, iy));
               sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix + 1, iy));
-              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix, iy + 1));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix + 1, iy));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy + 1));
             } else {
               std::array<bool, 4> validNei;
               validNei[0] = ix > 0;
@@ -2613,17 +2609,17 @@ int main(int argc, char **argv) {
               validNei[2] = iy > 0;
               validNei[3] = iy < BS - 1;
               std::array<long long, 4> idxNei;
-              idxNei[0] = This(rhs_info, ix - 1, iy);
-              idxNei[1] = This(rhs_info, ix + 1, iy);
-              idxNei[2] = This(rhs_info, ix, iy - 1);
-              idxNei[3] = This(rhs_info, ix, iy + 1);
-              SpRowInfo row(Tree1(rhs_info), sfc_idx, 8);
+              idxNei[0] = This(info, ix - 1, iy);
+              idxNei[1] = This(info, ix + 1, iy);
+              idxNei[2] = This(info, ix, iy - 1);
+              idxNei[3] = This(info, ix, iy + 1);
+              SpRowInfo row(Tree1(info), sfc_idx, 8);
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  makeFlux(rhs_info, ix, iy, &rhsNei[j], edgeIndexers[j], row);
+                  makeFlux(info, ix, iy, &rhsNei[j], edgeIndexers[j], row);
                 }
               }
               sim.mat->cooPushBackRow(row);
