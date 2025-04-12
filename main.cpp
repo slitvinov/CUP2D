@@ -21,14 +21,13 @@
 typedef double Real;
 enum { BS = 8 };
 enum {
-  off_tmp = 0,
-  off_chi = 1,
-  off_vel = 2,
+  off_vel = 0,
+  off_pres = 2,
+  off_chi = 3,
   off_vold = 4,
-  off_pres = 6,
+  off_tmp = 6,
   off_pold = 7,
   off_tmpV = 8,
-
   off_n = 10,
 };
 
@@ -172,13 +171,11 @@ static struct {
     int dim;
     bool basic;
     const char *prefix;
-  } F[7] = {{&vel, off_vel, 2, false, "vel"},
-	    {&vold, off_vold, 2, false, NULL},
-	    {&tmp, off_tmp, 1, false, "tmp"},
-            {&chi, off_chi, 1, false, "chi"},
-            {&pres, off_pres, 1, false, "pres"},
-            {&pold, off_pold, 1, false, NULL},
-            {&tmpV, off_tmpV, 2, true, NULL}};
+  } F[7] = {
+      {&vel, off_vel, 2, false, "vel"}, {&pres, off_pres, 1, false, "pres"},
+      {&chi, off_chi, 1, false, "chi"}, {&vold, off_vold, 2, false, NULL},
+      {&tmp, off_tmp, 1, false, "tmp"}, {&pold, off_pold, 1, false, NULL},
+      {&tmpV, off_tmpV, 2, true, NULL}};
 } var;
 
 static void get_states(Info *info, TreeState nei[3][3]) {
