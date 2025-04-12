@@ -1846,13 +1846,13 @@ static long long This(const Info *info, int ix, int iy) {
 static long long Xmin(const Info *info, int, int iy, int offset) {
   return info->id * BS * BS + iy * BS + offset;
 }
-static long long Xmax(const Info *info, int, int iy, int offset = 0) {
+static long long Xmax(const Info *info, int, int iy, int offset) {
   return info->id * BS * BS + iy * BS + (BS - 1 - offset);
 }
-static long long Ymin(const Info *info, int ix, int, int offset = 0) {
+static long long Ymin(const Info *info, int ix, int, int offset) {
   return info->id * BS * BS + offset * BS + ix;
 }
-static long long Ymax(const Info *info, int ix, int, int offset = 0) {
+static long long Ymax(const Info *info, int ix, int, int offset) {
   return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
 }
 static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
@@ -1894,7 +1894,7 @@ struct XbaseIndexer : public EdgeCellIndexer {
 struct XminIndexer : public XbaseIndexer {
   XminIndexer() : XbaseIndexer() {}
   long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-    return Xmax(nei_info, ix, iy);
+    return Xmax(nei_info, ix, iy, 0);
   }
   long long neiInward(const Info *info, int ix, int iy) const override {
     return This(info, ix + 1, iy);
@@ -1949,7 +1949,7 @@ struct YbaseIndexer : public EdgeCellIndexer {
 struct YminIndexer : public YbaseIndexer {
   YminIndexer() : YbaseIndexer() {}
   long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-    return Ymax(nei_info, ix, iy);
+    return Ymax(nei_info, ix, iy, 0);
   }
   long long neiInward(const Info *info, int ix, int iy) const override {
     return This(info, ix, iy + 1);
@@ -1970,7 +1970,7 @@ struct YminIndexer : public YbaseIndexer {
 struct YmaxIndexer : public YbaseIndexer {
   YmaxIndexer() : YbaseIndexer() {}
   long long neiUnif(const Info *nei_info, int ix, int iy) const override {
-    return Ymin(nei_info, ix, iy);
+    return Ymin(nei_info, ix, iy, 0);
   }
   long long neiInward(const Info *info, int ix, int iy) const override {
     return This(info, ix, iy - 1);
