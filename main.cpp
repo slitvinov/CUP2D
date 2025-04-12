@@ -133,13 +133,6 @@ static int exist(std::unordered_map<long long, Info *> *all, int level,
   long long aux = sim.levels[level] + Z;
   return all->find(aux) != all->end();
 }
-static Info getf1(std::unordered_map<long long, Info *> *all, int level,
-                  long long Z) {
-  Info dummy;
-  fill(&dummy, level, Z);
-  auto r = all->find(sim.levels[level] + Z);
-  return (r == all->end()) ? dummy : *r->second;
-}
 static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
                    long long Z) {
   auto retval = all->find(sim.levels[m] + Z);
@@ -2051,12 +2044,12 @@ static void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
     row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
   } else if (Tree1(rhsNei) == ParentIsActive) {
-    Info rhsNei_c = getf1(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
+    Info *rhsNei_c = getf0(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
     int ix_c = indexer->ix_c(rhs_info, ix);
     int iy_c = indexer->iy_c(rhs_info, iy);
     long long inward_idx = indexer->neiInward(rhs_info, ix, iy);
     double signTaylor = indexer->taylorSign(ix, iy);
-    interpolate(&rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
+    interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
                 signTaylor, indexer, row);
     row.mapColVal(sfc_idx, -1.);
   } else if (Tree1(rhsNei) == ChildrenAreActive) {
