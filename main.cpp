@@ -2035,10 +2035,10 @@ struct Solver {
     D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
              {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
              {This(info_c, ix_c, iy_c), 0.}}};
-    for (int i(0); i < 3; i++)
+    for (int i = 0; i < 3; i++)
       row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
     D = D2(info_c, indexer, ix_c, iy_c);
-    for (int i(0); i < 3; i++)
+    for (int i = 0; i < 3; i++)
       row.mapColVal(rank_c, D[i].first, tf * D[i].second);
   }
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
