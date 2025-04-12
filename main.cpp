@@ -1058,9 +1058,8 @@ struct Obstacle {
 struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info *> &tmpInfo = var.tmp->infos;
     const Real i2h = 0.5 * (1 << info->level) * BS;
-    Real *TMP = tmpInfo[info->id]->block;
+    Real *TMP = var.tmp->infos[info->id]->block;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < BS; ++j)
       for (int i = 0; i < BS; ++i) {
