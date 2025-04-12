@@ -1849,19 +1849,19 @@ struct Solver {
   struct CellIndexer {
     ~CellIndexer() = default;
     static long long This(const Info *info, int ix, int iy) {
-      return info->id * BS * BS + (long long)(iy * BS + ix);
+      return info->id * BS * BS + iy * BS + ix;
     }
     static long long Xmin(const Info *info, int, int iy, int offset) {
-      return info->id * BS * BS + (long long)(iy * BS + offset);
+      return info->id * BS * BS + iy * BS + offset;
     }
     static long long Xmax(const Info *info, int, int iy, int offset = 0) {
-      return info->id * BS * BS + (long long)(iy * BS + (BS - 1 - offset));
+      return info->id * BS * BS + iy * BS + (BS - 1 - offset);
     }
     static long long Ymin(const Info *info, int ix, int, int offset = 0) {
-      return info->id * BS * BS + (long long)(offset * BS + ix);
+      return info->id * BS * BS + offset * BS + ix;
     }
     static long long Ymax(const Info *info, int ix, int, int offset = 0) {
-      return info->id * BS * BS + (long long)((BS - 1 - offset) * BS + ix);
+      return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
     }
     static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
