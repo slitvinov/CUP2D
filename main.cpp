@@ -2035,36 +2035,36 @@ static void getVec() {
            BS * BS * sizeof(Real));
   }
 }
-static void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
+static void makeFlux(const Info *info, int ix, int iy, const Info *rhsNei,
                      const EdgeCellIndexer *indexer, SpRowInfo &row) {
-  long long sfc_idx = This(rhs_info, ix, iy);
+  long long sfc_idx = This(info, ix, iy);
   if (Tree1(rhsNei) == Active) {
     int nei_rank = Tree1(rhsNei);
     long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
     row.mapColVal(nei_rank, nei_idx, 1.);
     row.mapColVal(sfc_idx, -1.);
   } else if (Tree1(rhsNei) == ParentIsActive) {
-    Info *rhsNei_c = getf0(&var.tmp->all, rhs_info->level - 1, rhsNei->Zparent);
-    int ix_c = indexer->ix_c(rhs_info, ix);
-    int iy_c = indexer->iy_c(rhs_info, iy);
-    long long inward_idx = indexer->neiInward(rhs_info, ix, iy);
+    Info *rhsNei_c = getf0(&var.tmp->all, info->level - 1, rhsNei->Zparent);
+    int ix_c = indexer->ix_c(info, ix);
+    int iy_c = indexer->iy_c(info, iy);
+    long long inward_idx = indexer->neiInward(info, ix, iy);
     double signTaylor = indexer->taylorSign(ix, iy);
-    interpolate(rhsNei_c, ix_c, iy_c, rhs_info, sfc_idx, inward_idx, 1.,
+    interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx, 1.,
                 signTaylor, indexer, row);
     row.mapColVal(sfc_idx, -1.);
   } else if (Tree1(rhsNei) == ChildrenAreActive) {
-    Info *rhsNei_f = getf0(&var.tmp->all, rhs_info->level + 1,
+    Info *rhsNei_f = getf0(&var.tmp->all, info->level + 1,
                            indexer->Zchild(rhsNei, ix, iy));
     int nei_rank = Tree1(rhsNei_f);
     long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
     long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                 -1., indexer, row);
     fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
     fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(rhs_info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
+    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
                 1., indexer, row);
   } else {
     throw std::runtime_error(
