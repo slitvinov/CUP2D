@@ -1262,7 +1262,6 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  //  std::vector<Info *> &tmpInfo = var.tmp->infos;
   const size_t Nblocks = var.chi->infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
@@ -1397,8 +1396,7 @@ struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
   void operator()(Real *um, const Info *info) const {
-    const std::vector<Info *> &tmpInfo = var.tmp->infos;
-    Real *TMP = tmpInfo[info->id]->block;
+    Real *TMP = var.tmp->infos[info->id]->block;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int y = -offset; y < BS + offset; ++y)
