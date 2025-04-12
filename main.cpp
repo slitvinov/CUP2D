@@ -2590,9 +2590,8 @@ int main(int argc, char **argv) {
                     row.mapColVal(0, nei_idx, 1.);
                     row.mapColVal(sfc_idx, -1.);
                   } else if (state == ParentIsActive) {
-		    assert(rhsNei->Zparent == (nei[j] >> 2));
                     Info *rhsNei_c =
-                        getf0(&var.tmp->all, info->level - 1, rhsNei->Zparent);
+		      getf0(&var.tmp->all, info->level - 1, nei[j] >> 2);
                     int ix_c = indexer->ix_c(info, ix);
                     int iy_c = indexer->iy_c(info, iy);
                     long long inward_idx = indexer->neiInward(info, ix, iy);
