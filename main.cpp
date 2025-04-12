@@ -1848,22 +1848,24 @@ struct Solver {
         YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
   struct CellIndexer {
     ~CellIndexer() = default;
-    long long This(const Info *info, int ix, int iy) const {
+    static long long This(const Info *info, int ix, int iy) {
       return blockOffset(info) + (long long)(iy * BS + ix);
     }
-    long long Xmin(const Info *info, int, int iy, int offset) const {
+    static long long Xmin(const Info *info, int, int iy, int offset) {
       return blockOffset(info) + (long long)(iy * BS + offset);
     }
-    long long Xmax(const Info *info, int, int iy, int offset = 0) const {
+    static long long Xmax(const Info *info, int, int iy, int offset = 0) {
       return blockOffset(info) + (long long)(iy * BS + (BS - 1 - offset));
     }
-    long long Ymin(const Info *info, int ix, int, int offset = 0) const {
+    static long long Ymin(const Info *info, int ix, int, int offset = 0) {
       return blockOffset(info) + (long long)(offset * BS + ix);
     }
-    long long Ymax(const Info *info, int ix, int, int offset = 0) const {
+    static long long Ymax(const Info *info, int ix, int, int offset = 0) {
       return blockOffset(info) + (long long)((BS - 1 - offset) * BS + ix);
     }
-    long long blockOffset(const Info *info) const { return info->id * BS * BS; }
+    static long long blockOffset(const Info *info) {
+      return info->id * BS * BS;
+    }
     static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
   };
