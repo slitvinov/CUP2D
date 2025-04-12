@@ -1621,7 +1621,6 @@ static void adapt() {
           fill(child, level + 1, Z);
 #pragma omp critical
           g->all[sim.levels[level + 1] + Z] = child;
-          child->state = Leave;
           child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
           {
@@ -1753,7 +1752,6 @@ static void adapt() {
             for (size_t j = 0; j < g->infos.size(); j++)
               if (level == g->infos[j]->level && n == g->infos[j]->Z) {
                 Info *correct_info = getf0(&g->all, level - 1, np);
-                correct_info->state = Leave;
                 g->infos[j] = correct_info;
                 break;
               }
@@ -1763,7 +1761,6 @@ static void adapt() {
           }
 #pragma omp critical
           sim.tree[sim.levels[level] + n] = ParentIsActive;
-          getf0(&g->all, level, n)->state = Leave;
         }
     }
     size_t n = g->infos.size();
