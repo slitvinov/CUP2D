@@ -826,8 +826,9 @@ public:
         bc_vector(this, info, false);
     }
   }
-  void load1(TreeState nei[3][3], std::unordered_map<long long, Info *> *all,
-             const Stencil &stencil, Info *info, bool applybc) {
+  void load1(int offset, TreeState nei[3][3],
+             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+             Info *info, bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
     long long Z;
@@ -850,13 +851,15 @@ public:
       switch (state) {
       case Active:
         blocks[1 + cx][1 + cy][0] =
-            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block;
+            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block +
+            BS * BS * offset;
         break;
       case ParentIsActive:
         ix = (xi + cx + n) % n / 2;
         iy = (yi + cy + n) % n / 2;
         Z = forward(info->level - 1, ix, iy);
-        blocks[1 + cx][1 + cy][0] = getf0(all, info->level - 1, Z)->block;
+        blocks[1 + cx][1 + cy][0] =
+            getf0(all, info->level - 1, Z)->block + BS * BS * offset;
         break;
       case ChildrenAreActive:
         const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
@@ -864,24 +867,25 @@ public:
           int ix = 2 * xi + pattern->offset[cnt][0];
           int iy = 2 * yi + pattern->offset[cnt][1];
           const long long Z = forward(info->level + 1, ix, iy);
-          blocks[1 + cx][1 + cy][cnt] = getf0(all, info->level + 1, Z)->block;
+          blocks[1 + cx][1 + cy][cnt] =
+              getf0(all, info->level + 1, Z)->block + BS * BS * offset;
         }
         break;
       }
     }
-    load0(info->block, blocks, nei, stencil, info, applybc);
+    load0(info->block + BS * BS * offset, blocks, nei, stencil, info, applybc);
   }
 
-  void load(std::unordered_map<long long, Info *> *all, const Stencil &stencil,
-            Info *info, bool applybc) {
+  void load(int offset, std::unordered_map<long long, Info *> *all,
+            const Stencil &stencil, Info *info, bool applybc) {
     TreeState nei[3][3];
     get_states(info, nei);
-    load1(nei, all, stencil, info, applybc);
+    load1(offset, nei, all, stencil, info, applybc);
   }
 };
 
 template <typename Kernel>
-static void computeA(Kernel &&kernel, Grid *g, int dim) {
+static void computeA(Kernel &&kernel, Grid *g, int offset, int dim) {
   const size_t n = g->infos.size();
 #pragma omp parallel
   {
@@ -889,7 +893,7 @@ static void computeA(Kernel &&kernel, Grid *g, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (std::size_t i = 0; i < n; ++i) {
-      lab.load(&g->all, kernel.stencil, g->infos[i], true);
+      lab.load(offset, &g->all, kernel.stencil, g->infos[i], true);
       kernel(lab.m, g->infos[i]);
     }
   }
@@ -1329,7 +1333,7 @@ static void ongrid() {
     }
   }
 
-  computeA(PutChiOnGrid(), var.tmp, 1);
+  computeA(PutChiOnGrid(), var.tmp, off_tmp, 1);
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -1426,8 +1430,8 @@ struct GradChiOnTmp {
   }
 };
 static void adapt() {
-  computeA(KernelVorticity(), var.vel, 2);
-  computeA(GradChiOnTmp(), var.chi, 1);
+  computeA(KernelVorticity(), var.vel, off_vel, 2);
+  computeA(GradChiOnTmp(), var.chi, off_chi, 1);
   bool Reduction = false;
 #pragma omp parallel
   {
@@ -1588,6 +1592,7 @@ static void adapt() {
     Grid *g = (*var.F[i].g);
     bool basic = var.F[i].basic;
     int dim = var.F[i].dim;
+    int offset = var.F[i].offset;
     const Stencil stencil{-1, -1, 2, 2, true};
     if (m_com.size() > 0 || m_ref.size() > 0)
       g->UpdateFluxCorrection = true;
@@ -1600,7 +1605,7 @@ static void adapt() {
       const long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
       if (!basic)
-        lab.load1(m_tree[i].nei, &g->all, stencil, parent, true);
+        lab.load1(offset, m_tree[i].nei, &g->all, stencil, parent, true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
@@ -2276,7 +2281,7 @@ int main(int argc, char **argv) {
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
     if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
       sim.nextDumpTime += sim.dumpTime;
-      computeA(KernelVorticity(), var.vel, 2);
+      computeA(KernelVorticity(), var.vel, off_vel, 2);
       char path[FILENAME_MAX];
       snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
       dump(sim.time, var.vel->infos.data(), path);
@@ -2299,7 +2304,7 @@ int main(int argc, char **argv) {
     if (var.tmpV->UpdateFluxCorrection) {
       var.tmpV->UpdateFluxCorrection = false;
     }
-    computeA(KernelAdvectDiffuse(), var.vel, 2);
+    computeA(KernelAdvectDiffuse(), var.vel, off_vel, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
       Real *V = var.vel->infos[i]->block;
@@ -2312,7 +2317,7 @@ int main(int argc, char **argv) {
     if (var.tmpV->UpdateFluxCorrection) {
       var.tmpV->UpdateFluxCorrection = false;
     }
-    computeA(KernelAdvectDiffuse(), var.vel, 2);
+    computeA(KernelAdvectDiffuse(), var.vel, off_vel, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
       Real *V = var.vel->infos[i]->block;
@@ -2531,8 +2536,8 @@ int main(int argc, char **argv) {
       for (int i = 0; i < Ninner; i++) {
         Info *I = avail0[i];
         Info *I2 = avail02[i];
-        lab.load(&var.vel->all, stencil, I, true);
-        lab2.load(&var.tmpV->all, stencil, I2, true);
+        lab.load(off_vel, &var.vel->all, stencil, I, true);
+        lab2.load(off_tmpV, &var.tmpV->all, stencil, I2, true);
         pressure_rhs_fun(lab, lab2, I, I2);
         ready[I->id] = true;
       }
@@ -2543,7 +2548,7 @@ int main(int argc, char **argv) {
              BS * BS * sizeof(Real));
       memset(var.pres->infos[i]->block, 0, BS * BS * sizeof(Real));
     }
-    computeA(pressure_rhs1(), var.pold, 1);
+    computeA(pressure_rhs1(), var.pold, off_pold, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -2681,7 +2686,7 @@ int main(int argc, char **argv) {
       for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
-    computeA(pressureCorrectionKernel(), var.pres, 1);
+    computeA(pressureCorrectionKernel(), var.pres, off_pres, 1);
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
       Real ih2 = 1.0 / var.vel->infos[i]->h / var.vel->infos[i]->h;
