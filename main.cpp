@@ -1179,6 +1179,7 @@ static void dump(Real time, Info **infos, char *path) {
     if (var.F[i].prefix != NULL) {
       Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
+      int offset = var.F[i].offset;
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
                    var.F[i].prefix) >= (long)sizeof attr_path) {
         fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
@@ -1186,7 +1187,8 @@ static void dump(Real time, Info **infos, char *path) {
       }
       file = fopen(attr_path, "wb");
       for (j = 0; j < nblock; j++)
-        fwrite(g->infos[j]->block, sizeof(Real), dim * BS * BS, file);
+        fwrite(g->infos[j]->block + offset * BS * BS, sizeof(Real),
+               dim * BS * BS, file);
       fclose(file);
     }
 }
