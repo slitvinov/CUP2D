@@ -2049,23 +2049,23 @@ static void makeFlux(const Info *info, int ix, int iy, const Info *rhsNei,
     int iy_c = indexer->iy_c(info, iy);
     long long inward_idx = indexer->neiInward(info, ix, iy);
     double signTaylor = indexer->taylorSign(ix, iy);
-    interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx, 1.,
-                signTaylor, indexer, row);
+    interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx, 1., signTaylor,
+                indexer, row);
     row.mapColVal(sfc_idx, -1.);
   } else if (Tree1(rhsNei) == ChildrenAreActive) {
-    Info *rhsNei_f = getf0(&var.tmp->all, info->level + 1,
-                           indexer->Zchild(rhsNei, ix, iy));
+    Info *rhsNei_f =
+        getf0(&var.tmp->all, info->level + 1, indexer->Zchild(rhsNei, ix, iy));
     int nei_rank = Tree1(rhsNei_f);
     long long fine_close_idx = indexer->neiFine1(rhsNei_f, ix, iy, 0);
     long long fine_far_idx = indexer->neiFine1(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                -1., indexer, row);
+    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1., -1.,
+                indexer, row);
     fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
     fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
     row.mapColVal(nei_rank, fine_close_idx, 1.);
-    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1.,
-                1., indexer, row);
+    interpolate(info, ix, iy, rhsNei_f, fine_close_idx, fine_far_idx, -1., 1.,
+                indexer, row);
   } else {
     throw std::runtime_error(
         "Neighbour doesn't exist, isn't coarser, nor finer...");
@@ -2602,15 +2602,16 @@ int main(int argc, char **argv) {
               idxNei[2] = This(info, ix, iy - 1);
               idxNei[3] = This(info, ix, iy + 1);
               SpRowInfo row(Tree1(info), sfc_idx, 8);
-	      long long nei[4] = { info->Znei[0][1], info->Znei[2][2], info->Znei[1][0],
-		info->Znei[1][2] };
+              long long nei[4] = {info->Znei[0][1], info->Znei[2][2],
+                                  info->Znei[1][0], info->Znei[1][2]};
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-		  Info *rhsNei0 = getf0(&var.tmp->all, info->level, nei[j]);
-                  makeFlux(info, ix, iy, rhsNei0, edgeIndexers[j], row);
+                  Info *rhsNei = getf0(&var.tmp->all, info->level, nei[j]);
+                  const EdgeCellIndexer *indexer = edgeIndexers[j];
+                  makeFlux(info, ix, iy, rhsNei, indexer, row);
                 }
               }
               sim.mat->cooPushBackRow(row);
