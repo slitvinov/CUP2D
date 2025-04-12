@@ -1327,7 +1327,7 @@ static void ongrid() {
     }
   }
 
-  computeA(PutChiOnGrid(), var.tmp, off_tmp, 1);
+  computeA(PutChiOnGrid(), var.vel, off_tmp, 1);
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
     const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -1425,7 +1425,7 @@ struct GradChiOnTmp {
 };
 static void adapt() {
   computeA(KernelVorticity(), var.vel, off_vel, 2);
-  computeA(GradChiOnTmp(), var.chi, off_chi, 1);
+  computeA(GradChiOnTmp(), var.vel, off_chi, 1);
   bool Reduction = false;
 #pragma omp parallel
   {
@@ -2512,7 +2512,7 @@ int main(int argc, char **argv) {
       memset(var.vel->infos[i]->block + BS * BS * off_pres, 0,
              BS * BS * sizeof(Real));
     }
-    computeA(pressure_rhs1(), var.pold, off_pold, 1);
+    computeA(pressure_rhs1(), var.vel, off_pold, 1);
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -2650,7 +2650,7 @@ int main(int argc, char **argv) {
       for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
-    computeA(pressureCorrectionKernel(), var.pres, off_pres, 1);
+    computeA(pressureCorrectionKernel(), var.vel, off_pres, 1);
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
       Real ih2 = 1.0 / var.vel->infos[i]->h / var.vel->infos[i]->h;
