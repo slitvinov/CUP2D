@@ -1629,7 +1629,7 @@ static void adapt() {
             g->infos.push_back(child);
             sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
           }
-          Blocks[j * 2 + i] = child->block;
+          Blocks[j * 2 + i] = child->block + offset * BS * BS;
         }
       if (!basic) {
         int nm = BS + stencil.ex - stencil.sx - 1;
