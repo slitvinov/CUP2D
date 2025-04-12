@@ -1168,7 +1168,6 @@ static void dump(Real time, Info **infos, char *path) {
 
   for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
     if (var.F[i].prefix != NULL) {
-      Grid *g = *var.F[i].g;
       int dim = var.F[i].dim;
       int offset = var.F[i].offset;
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
@@ -1178,7 +1177,7 @@ static void dump(Real time, Info **infos, char *path) {
       }
       file = fopen(attr_path, "wb");
       for (j = 0; j < nblock; j++)
-        fwrite(g->infos[j]->block + offset * BS * BS, sizeof(Real),
+        fwrite(var.vel->infos[j]->block + offset * BS * BS, sizeof(Real),
                dim * BS * BS, file);
       fclose(file);
     }
