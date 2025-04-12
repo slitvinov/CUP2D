@@ -1842,32 +1842,30 @@ struct KernelAdvectDiffuse {
       }
   }
 };
+static long long This(const Info *info, int ix, int iy) {
+  return info->id * BS * BS + iy * BS + ix;
+}
+static long long Xmin(const Info *info, int, int iy, int offset) {
+  return info->id * BS * BS + iy * BS + offset;
+}
+static long long Xmax(const Info *info, int, int iy, int offset = 0) {
+  return info->id * BS * BS + iy * BS + (BS - 1 - offset);
+}
+static long long Ymin(const Info *info, int ix, int, int offset = 0) {
+  return info->id * BS * BS + offset * BS + ix;
+}
+static long long Ymax(const Info *info, int ix, int, int offset = 0) {
+  return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
+}
+static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
+static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
+
 struct Solver {
   Solver()
-      : GenericCell(), XminCell(), XmaxCell(), YminCell(),
+      : XminCell(), XmaxCell(), YminCell(),
         YmaxCell(), edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell} {}
-  struct CellIndexer {
-    ~CellIndexer() = default;
-    static long long This(const Info *info, int ix, int iy) {
-      return info->id * BS * BS + iy * BS + ix;
-    }
-    static long long Xmin(const Info *info, int, int iy, int offset) {
-      return info->id * BS * BS + iy * BS + offset;
-    }
-    static long long Xmax(const Info *info, int, int iy, int offset = 0) {
-      return info->id * BS * BS + iy * BS + (BS - 1 - offset);
-    }
-    static long long Ymin(const Info *info, int ix, int, int offset = 0) {
-      return info->id * BS * BS + offset * BS + ix;
-    }
-    static long long Ymax(const Info *info, int ix, int, int offset = 0) {
-      return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
-    }
-    static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
-    static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
-  };
-  struct EdgeCellIndexer : public CellIndexer {
-    EdgeCellIndexer() : CellIndexer() {}
+  struct EdgeCellIndexer {
+    EdgeCellIndexer() {}
     virtual long long neiUnif(const Info *nei_info, int ix, int iy) const = 0;
     virtual long long neiInward(const Info *info, int ix, int iy) const = 0;
     virtual double taylorSign(int ix, int iy) const = 0;
@@ -1996,7 +1994,6 @@ struct Solver {
       return nei_info->Zchild[int(ix >= BS / 2)][0];
     }
   };
-  CellIndexer GenericCell;
   XminIndexer XminCell;
   XmaxIndexer XmaxCell;
   YminIndexer YminCell;
@@ -2007,28 +2004,28 @@ struct Solver {
     if (indexer->isBD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, -2), 1. / 8.},
                {indexer->Nei(info, ix, iy, -1), -1. / 2.},
-               {indexer->This(info, ix, iy), 3. / 8.}}};
+               {This(info, ix, iy), 3. / 8.}}};
     else if (indexer->isFD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, 2), -1. / 8.},
                {indexer->Nei(info, ix, iy, 1), 1. / 2.},
-               {indexer->This(info, ix, iy), -3. / 8.}}};
+               {This(info, ix, iy), -3. / 8.}}};
     return {{{indexer->Nei(info, ix, iy, -1), -1. / 8.},
              {indexer->Nei(info, ix, iy, 1), 1. / 8.},
-             {indexer->This(info, ix, iy), 0.}}};
+             {This(info, ix, iy), 0.}}};
   }
   std::array<std::pair<long long, double>, 3>
   D2(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) const {
     if (indexer->isBD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, -2), 1. / 32.},
                {indexer->Nei(info, ix, iy, -1), -1. / 16.},
-               {indexer->This(info, ix, iy), 1. / 32.}}};
+               {This(info, ix, iy), 1. / 32.}}};
     else if (indexer->isFD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, 2), 1. / 32.},
                {indexer->Nei(info, ix, iy, 1), -1. / 16.},
-               {indexer->This(info, ix, iy), 1. / 32.}}};
+               {This(info, ix, iy), 1. / 32.}}};
     return {{{indexer->Nei(info, ix, iy, -1), 1. / 32.},
              {indexer->Nei(info, ix, iy, 1), 1. / 32.},
-             {indexer->This(info, ix, iy), -1. / 16.}}};
+             {This(info, ix, iy), -1. / 16.}}};
   }
   void interpolate(const Info *info_c, int ix_c, int iy_c, const Info *info_f,
                    long long fine_close_idx, long long fine_far_idx,
@@ -2039,7 +2036,7 @@ struct Solver {
     row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
     row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
     const double tf = signInt * 8. / 15.;
-    row.mapColVal(rank_c, indexer->This(info_c, ix_c, iy_c), tf);
+    row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
     std::array<std::pair<long long, double>, 3> D;
     D = D1(info_c, indexer, ix_c, iy_c);
     for (int i(0); i < 3; i++)
@@ -2050,7 +2047,7 @@ struct Solver {
   }
   void makeFlux(const Info *rhs_info, int ix, int iy, const Info *rhsNei,
                 const EdgeCellIndexer *indexer, SpRowInfo &row) const {
-    long long sfc_idx = indexer->This(rhs_info, ix, iy);
+    long long sfc_idx = This(rhs_info, ix, iy);
     if (Tree1(rhsNei) == Active) {
       int nei_rank = Tree1(rhsNei);
       long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
@@ -2618,22 +2615,13 @@ int main(int argc, char **argv) {
             getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1][1 + 1]);
         for (int iy = 0; iy < BS; iy++)
           for (int ix = 0; ix < BS; ix++) {
-            const long long sfc_idx =
-                sim.solver->GenericCell.This(rhs_info, ix, iy);
+            const long long sfc_idx = This(rhs_info, ix, iy);
             if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-              sim.mat->cooPushBackVal(
-                  1, sfc_idx,
-                  sim.solver->GenericCell.This(rhs_info, ix, iy - 1));
-              sim.mat->cooPushBackVal(
-                  1, sfc_idx,
-                  sim.solver->GenericCell.This(rhs_info, ix - 1, iy));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix, iy - 1));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix - 1, iy));
               sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-              sim.mat->cooPushBackVal(
-                  1, sfc_idx,
-                  sim.solver->GenericCell.This(rhs_info, ix + 1, iy));
-              sim.mat->cooPushBackVal(
-                  1, sfc_idx,
-                  sim.solver->GenericCell.This(rhs_info, ix, iy + 1));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix + 1, iy));
+              sim.mat->cooPushBackVal(1, sfc_idx, This(rhs_info, ix, iy + 1));
             } else {
               std::array<bool, 4> validNei;
               validNei[0] = ix > 0;
@@ -2641,10 +2629,10 @@ int main(int argc, char **argv) {
               validNei[2] = iy > 0;
               validNei[3] = iy < BS - 1;
               std::array<long long, 4> idxNei;
-              idxNei[0] = sim.solver->GenericCell.This(rhs_info, ix - 1, iy);
-              idxNei[1] = sim.solver->GenericCell.This(rhs_info, ix + 1, iy);
-              idxNei[2] = sim.solver->GenericCell.This(rhs_info, ix, iy - 1);
-              idxNei[3] = sim.solver->GenericCell.This(rhs_info, ix, iy + 1);
+              idxNei[0] = This(rhs_info, ix - 1, iy);
+              idxNei[1] = This(rhs_info, ix + 1, iy);
+              idxNei[2] = This(rhs_info, ix, iy - 1);
+              idxNei[3] = This(rhs_info, ix, iy + 1);
               SpRowInfo row(Tree1(rhs_info), sfc_idx, 8);
               for (int j = 0; j < 4; j++) {
                 if (validNei[j]) {
