@@ -77,7 +77,7 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  std::vector<long long> levels, nblocks, nrows;
+  std::vector<long long> levels, nrows;
   std::vector<Shape *> shapes;
   struct Solver *solver;
   struct LocalSpMatDnVec *mat;
@@ -1863,9 +1863,7 @@ struct Solver {
     long long Ymax(const Info *info, int ix, int, int offset = 0) const {
       return blockOffset(info) + (long long)((BS - 1 - offset) * BS + ix);
     }
-    long long blockOffset(const Info *info) const {
-      return (info->id + sim.nblocks[Tree1(info)]) * (BS * BS);
-    }
+    long long blockOffset(const Info *info) const { return info->id * BS * BS; }
     static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
     static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
   };
@@ -2240,8 +2238,6 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-
-  sim.nblocks.resize(1);
   sim.nrows.resize(1);
   sim.levels.resize(sim.levelMax);
   sim.levels[0] = 0;
@@ -2612,7 +2608,6 @@ int main(int argc, char **argv) {
       const int Nblocks = RhsInfo.size();
       const int N = BS * BS * Nblocks;
       sim.mat->reserve(N);
-      sim.nblocks[0] = 0;
       sim.nrows[0] = 0;
       for (int i = 0; i < Nblocks; i++) {
         Info *&rhs_info = RhsInfo[i];
