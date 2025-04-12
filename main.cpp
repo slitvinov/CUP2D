@@ -2576,12 +2576,11 @@ int main(int argc, char **argv) {
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
     if (var.pres->UpdateFluxCorrection) {
       var.pres->UpdateFluxCorrection = false;
-      std::vector<Info *> &RhsInfo = var.tmp->infos;
-      const int Nblocks = RhsInfo.size();
+      const int Nblocks = var.tmp->infos.size();
       const int N = BS * BS * Nblocks;
       sim.mat->reserve(N);
       for (int i = 0; i < Nblocks; i++) {
-        Info *&rhs_info = RhsInfo[i];
+        Info *&rhs_info = var.tmp->infos[i];
         const int aux = 1 << rhs_info->level;
         const int MAX_X_BLOCKS = aux - 1;
         const int MAX_Y_BLOCKS = aux - 1;
