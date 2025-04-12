@@ -1745,23 +1745,13 @@ static void adapt() {
 #pragma omp critical
         sim.tree[sim.levels[level - 2] + (parent->Z >> 2)] = ChildrenAreActive;
       }
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          long long n = forward(level, info->index[0] + I, info->index[1] + J);
-          if (I + J == 0) {
-            for (size_t j = 0; j < g->infos.size(); j++)
-              if (level == g->infos[j]->level && n == g->infos[j]->Z) {
-                Info *correct_info = getf0(&g->all, level - 1, np);
-                g->infos[j] = correct_info;
-                break;
-              }
-          } else {
+      g->infos[info->id] = parent;
 #pragma omp critical
-            dealloc_IDs.insert(sim.levels[level] + n);
-          }
-#pragma omp critical
-          sim.tree[sim.levels[level] + n] = ParentIsActive;
-        }
+      {
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
+      }
     }
     size_t n = g->infos.size();
     size_t j = 0;
