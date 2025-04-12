@@ -86,7 +86,7 @@ struct Info {
   double h, origin[2];
   enum State state;
   int index[3], level;
-  long long id, Z, Zchild[2][2], Znei[3][3], Zparent;
+  long long id, Z, Zchild[2][2], Znei[3][3];
   Real *block = NULL;
 };
 struct CollisionInfo {
@@ -125,7 +125,6 @@ static void fill(Info *b, int level, long long Z) {
     for (j = 0; j < 2; j++)
       b->Zchild[i][j] =
           sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
-  b->Zparent = Z >> 2;
   b->id = sfc_encode(level, b->index);
 }
 static int exist(std::unordered_map<long long, Info *> *all, int level,
@@ -1730,7 +1729,7 @@ static void adapt() {
       parent->block = info->block;
       if (level - 2 >= 0) {
 #pragma omp critical
-        sim.tree[sim.levels[level - 2] + parent->Zparent] = ChildrenAreActive;
+        sim.tree[sim.levels[level - 2] + (parent->Z >> 2)] = ChildrenAreActive;
       }
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
