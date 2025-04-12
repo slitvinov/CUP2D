@@ -1855,8 +1855,7 @@ static long long Ymin(const Info *info, int ix, int, int offset) {
 static long long Ymax(const Info *info, int ix, int, int offset) {
   return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
 }
-static int ix_f(int ix) { return (ix % (BS / 2)) * 2; }
-static int iy_f(int iy) { return (iy % (BS / 2)) * 2; }
+static int i_f(int i) { return (i % (BS / 2)) * 2; }
 
 struct EdgeCellIndexer {
   EdgeCellIndexer() {}
@@ -1902,11 +1901,11 @@ struct XminIndexer : public XbaseIndexer {
   int ix_c(const Info *, int) const override { return BS - 1; }
   long long neiFine1(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Xmax(nei_info, ix_f(ix), iy_f(iy), offset);
+    return Xmax(nei_info, i_f(ix), i_f(iy), offset);
   }
   long long neiFine2(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Xmax(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
+    return Xmax(nei_info, i_f(ix), i_f(iy) + 1, offset);
   }
   long long Zchild(const Info *nei_info, int, int iy) const override {
     return nei_info->Zchild[1][int(iy >= BS / 2)];
@@ -1923,11 +1922,11 @@ struct XmaxIndexer : public XbaseIndexer {
   int ix_c(const Info *, int) const override { return 0; }
   long long neiFine1(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Xmin(nei_info, ix_f(ix), iy_f(iy), offset);
+    return Xmin(nei_info, i_f(ix), i_f(iy), offset);
   }
   long long neiFine2(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Xmin(nei_info, ix_f(ix), iy_f(iy) + 1, offset);
+    return Xmin(nei_info, i_f(ix), i_f(iy) + 1, offset);
   }
   long long Zchild(const Info *nei_info, int, int iy) const override {
     return nei_info->Zchild[0][int(iy >= BS / 2)];
@@ -1957,11 +1956,11 @@ struct YminIndexer : public YbaseIndexer {
   int iy_c(const Info *, int) const override { return BS - 1; }
   long long neiFine1(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Ymax(nei_info, ix_f(ix), iy_f(iy), offset);
+    return Ymax(nei_info, i_f(ix), i_f(iy), offset);
   }
   long long neiFine2(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Ymax(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
+    return Ymax(nei_info, i_f(ix) + 1, i_f(iy), offset);
   }
   long long Zchild(const Info *nei_info, int ix, int) const override {
     return nei_info->Zchild[int(ix >= BS / 2)][1];
@@ -1978,11 +1977,11 @@ struct YmaxIndexer : public YbaseIndexer {
   int iy_c(const Info *, int) const override { return 0; }
   long long neiFine1(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Ymin(nei_info, ix_f(ix), iy_f(iy), offset);
+    return Ymin(nei_info, i_f(ix), i_f(iy), offset);
   }
   long long neiFine2(const Info *nei_info, int ix, int iy,
                      int offset = 0) const override {
-    return Ymin(nei_info, ix_f(ix) + 1, iy_f(iy), offset);
+    return Ymin(nei_info, i_f(ix) + 1, i_f(iy), offset);
   }
   long long Zchild(const Info *nei_info, int ix, int) const override {
     return nei_info->Zchild[int(ix >= BS / 2)][0];
