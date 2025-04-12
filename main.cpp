@@ -2082,7 +2082,8 @@ XminIndexer XminCell;
 XmaxIndexer XmaxCell;
 YminIndexer YminCell;
 YmaxIndexer YmaxCell;
-std::array<const EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell, &YminCell, &YmaxCell};
+std::array<const EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell,
+                                                    &YminCell, &YmaxCell};
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
@@ -2581,14 +2582,12 @@ int main(int argc, char **argv) {
       sim.mat->reserve(N);
       for (int i = 0; i < Nblocks; i++) {
         Info *&rhs_info = var.tmp->infos[i];
-        const int aux = 1 << rhs_info->level;
-        const int MAX_X_BLOCKS = aux - 1;
-        const int MAX_Y_BLOCKS = aux - 1;
-        std::array<bool, 4> isBoundary;
-        isBoundary[0] = (rhs_info->index[0] == 0);
-        isBoundary[1] = (rhs_info->index[0] == MAX_X_BLOCKS);
-        isBoundary[2] = (rhs_info->index[1] == 0);
-        isBoundary[3] = (rhs_info->index[1] == MAX_Y_BLOCKS);
+        const int n = 1 << rhs_info->level;
+        bool isBoundary[4];
+        isBoundary[0] = rhs_info->index[0] == 0;
+        isBoundary[1] = rhs_info->index[0] == n - 1;
+        isBoundary[2] = rhs_info->index[1] == 0;
+        isBoundary[3] = rhs_info->index[1] == n - 1;
         Info rhsNei[4];
         rhsNei[0] =
             getf1(&var.tmp->all, rhs_info->level, rhs_info->Znei[1 - 1][1]);
@@ -2624,8 +2623,7 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  makeFlux(rhs_info, ix, iy, &rhsNei[j],
-                           edgeIndexers[j], row);
+                  makeFlux(rhs_info, ix, iy, &rhsNei[j], edgeIndexers[j], row);
                 }
               }
               sim.mat->cooPushBackRow(row);
