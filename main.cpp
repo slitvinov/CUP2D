@@ -2448,7 +2448,6 @@ int main(int argc, char **argv) {
 	}
       }
     }
-    std::vector<Info *> &chiInfo = var.chi->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++)
       for (auto &shape : sim.shapes) {
@@ -2458,7 +2457,7 @@ int main(int argc, char **argv) {
 	  continue;
 	Real *X = (Real *)o->chi;
 	Real *UDEF = (Real *)o->udef;
-	Real *CHI = chiInfo[i]->block;
+	Real *CHI = var.chi->infos[i]->block;
 	Real *V = var.vel->infos[i]->block;
 	for (int iy = 0; iy < BS; ++iy)
 	  for (int ix = 0; ix < BS; ++ix) {
@@ -2491,7 +2490,7 @@ int main(int argc, char **argv) {
 	Real *udef = (Real *)oblock[var.tmpV->infos[i]->id]->udef;
 	Real *chi = (Real *)oblock[var.tmpV->infos[i]->id]->chi;
 	Real *UDEF = var.tmpV->infos[i]->block;
-	Real *CHI = chiInfo[i]->block;
+	Real *CHI = var.chi->infos[i]->block;
 	for (int iy = 0; iy < BS; iy++)
 	  for (int ix = 0; ix < BS; ix++) {
 	    int j = BS * iy + ix;
