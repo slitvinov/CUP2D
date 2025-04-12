@@ -171,15 +171,14 @@ static struct {
     int offset;
     int dim;
     bool basic;
-    bool boundary_needed;
     const char *prefix;
-  } F[7] = {{&tmp, off_tmp, 1, false, true, "tmp"},
-            {&chi, off_chi, 1, false, false, "chi"},
-            {&vel, off_vel, 2, false, false, "vel"},
-            {&vold, off_vold, 2, false, false, NULL},
-            {&pres, off_pres, 1, false, false, "pres"},
-            {&pold, off_pold, 1, false, false, NULL},
-            {&tmpV, off_tmpV, 2, true, false, NULL}};
+  } F[7] = {{&vel, off_vel, 2, false, "vel"},
+	    {&tmp, off_tmp, 1, false, "tmp"},
+            {&chi, off_chi, 1, false, "chi"},
+            {&vold, off_vold, 2, false, NULL},
+            {&pres, off_pres, 1, false, "pres"},
+            {&pold, off_pold, 1, false, NULL},
+            {&tmpV, off_tmpV, 2, true, NULL}};
 } var;
 
 static void get_states(Info *info, TreeState nei[3][3]) {
