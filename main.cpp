@@ -2087,23 +2087,19 @@ struct Solver {
     }
   }
   void getVec() {
-    std::vector<Info *> &RhsInfo = var.tmp->infos;
-    std::vector<Info *> &zInfo = var.pres->infos;
-    int Nblocks = RhsInfo.size();
-    std::vector<double> &x = sim.mat->x_;
-    std::vector<double> &b = sim.mat->b_;
-    std::vector<double> &h2 = sim.mat->h2_;
+    int Nblocks = var.tmp->infos.size();
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
-      Real *rhs = RhsInfo[i]->block;
-      Real *p = zInfo[i]->block;
-      h2[i] = RhsInfo[i]->h * RhsInfo[i]->h;
+      Real *rhs = var.tmp->infos[i]->block;
+      Real *p = var.pres->infos[i]->block;
+      Real h = var.tmp->infos[i]->h;
+      sim.mat->h2_[i] = h * h;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           int j = iy * BS + ix;
-          long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy);
-          b[sfc_loc] = rhs[j];
-          x[sfc_loc] = p[j];
+          long long sfc_loc = GenericCell.This(var.tmp->infos[i], ix, iy);
+          sim.mat->b_[sfc_loc] = rhs[j];
+          sim.mat->x_[sfc_loc] = p[j];
         }
     }
   }
