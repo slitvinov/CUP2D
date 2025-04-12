@@ -1600,8 +1600,6 @@ static void adapt() {
       int level = m_ref[i];
       long long Z = n_ref[i];
       Info *parent = getf0(&g->all, level, Z);
-      labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent,
-                          true);
       int px, py;
       sfc_inverse(parent->Z, parent->level, &px, &py);
       assert(parent->block != NULL);
@@ -1625,6 +1623,8 @@ static void adapt() {
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
+	labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent,
+			    true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
