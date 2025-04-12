@@ -2000,7 +2000,7 @@ struct Solver {
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
   std::array<std::pair<long long, double>, 3>
-  D1(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) const {
+  static D1(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) {
     if (indexer->isBD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, -2), 1. / 8.},
                {indexer->Nei(info, ix, iy, -1), -1. / 2.},
@@ -2014,7 +2014,7 @@ struct Solver {
              {This(info, ix, iy), 0.}}};
   }
   std::array<std::pair<long long, double>, 3>
-  D2(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) const {
+  static D2(const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) {
     if (indexer->isBD(ix, iy))
       return {{{indexer->Nei(info, ix, iy, -2), 1. / 32.},
                {indexer->Nei(info, ix, iy, -1), -1. / 16.},
