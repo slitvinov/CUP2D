@@ -1207,7 +1207,6 @@ struct Shape {
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, const Info *info) const {
-    std::vector<Info *> &chiInfo = var.chi->infos;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -1219,7 +1218,7 @@ struct PutChiOnGrid {
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      Real *CHI = chiInfo[info->id]->block;
+      Real *CHI = var.chi->infos[info->id]->block;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < BS; iy++)
