@@ -1999,20 +1999,6 @@ struct Solver {
   YminIndexer YminCell;
   YmaxIndexer YmaxCell;
   std::array<const EdgeCellIndexer *, 4> edgeIndexers;
-  std::array<std::pair<long long, double>, 3> static D1(
-      const Info *info_c, const EdgeCellIndexer *indexer, int ix_c, int iy_c) {
-    if (indexer->isBD(ix_c, iy_c))
-      return {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
-               {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
-               {This(info_c, ix_c, iy_c), 3. / 8.}}};
-    else if (indexer->isFD(ix_c, iy_c))
-      return {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
-               {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
-               {This(info_c, ix_c, iy_c), -3. / 8.}}};
-    return {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
-             {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
-             {This(info_c, ix_c, iy_c), 0.}}};
-  }
   std::array<std::pair<long long, double>, 3> static D2(
       const Info *info, const EdgeCellIndexer *indexer, int ix, int iy) {
     if (indexer->isBD(ix, iy))
@@ -2038,7 +2024,17 @@ struct Solver {
     const double tf = signInt * 8. / 15.;
     row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
     std::array<std::pair<long long, double>, 3> D;
-    D = D1(info_c, indexer, ix_c, iy_c);
+    if (indexer->isBD(ix_c, iy_c))
+      D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
+               {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
+               {This(info_c, ix_c, iy_c), 3. / 8.}}};
+    else if (indexer->isFD(ix_c, iy_c))
+      D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
+               {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
+               {This(info_c, ix_c, iy_c), -3. / 8.}}};
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
+             {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
+             {This(info_c, ix_c, iy_c), 0.}}};
     for (int i(0); i < 3; i++)
       row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
     D = D2(info_c, indexer, ix_c, iy_c);
