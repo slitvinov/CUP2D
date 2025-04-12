@@ -2092,17 +2092,13 @@ struct Solver {
     int Nblocks = var.tmp->infos.size();
 #pragma omp parallel for
     for (int i = 0; i < Nblocks; i++) {
-      Real *rhs = var.tmp->infos[i]->block;
-      Real *p = var.pres->infos[i]->block;
       Real h = var.tmp->infos[i]->h;
       sim.mat->h2_[i] = h * h;
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          int j = iy * BS + ix;
-          long long sfc_loc = GenericCell.This(var.tmp->infos[i], ix, iy);
-          sim.mat->b_[sfc_loc] = rhs[j];
-          sim.mat->x_[sfc_loc] = p[j];
-        }
+      long offset = var.tmp->infos[i]->id * BS * BS;
+      memcpy(&sim.mat->b_[offset], var.tmp->infos[i]->block,
+             BS * BS * sizeof(Real));
+      memcpy(&sim.mat->x_[offset], var.pres->infos[i]->block,
+             BS * BS * sizeof(Real));
     }
   }
 };
