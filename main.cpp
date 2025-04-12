@@ -2529,10 +2529,9 @@ int main(int argc, char **argv) {
       }
     }
     std::vector<Info *> &presInfo = var.pres->infos;
-    std::vector<Info *> &poldInfo = var.pold->infos;
 #pragma omp parallel for
     for (size_t i = 0; i < var.vel->infos.size(); i++) {
-      memcpy(poldInfo[i]->block, presInfo[i]->block, BS * BS * sizeof(Real));
+      memcpy(var.pold->infos[i]->block, presInfo[i]->block, BS * BS * sizeof(Real));
       memset(presInfo[i]->block, 0, BS * BS * sizeof(Real));
     }
     computeA(pressure_rhs1(), var.pold, 1);
@@ -2669,7 +2668,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (size_t i = 0; i < NB; i++) {
       Real *pres = presInfo[i]->block;
-      Real *pold = poldInfo[i]->block;
+      Real *pold = var.pold->infos[i]->block;
       for (int j = 0; j < BS * BS; j++)
 	pres[j] += pold[j] - avg;
     }
