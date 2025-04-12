@@ -1015,15 +1015,13 @@ void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
 			     const Info *info, const Info *) {
   Stencil stencil{-1, -1, 2, 2, false};
-  const std::vector<Info *> &tmpInfo = var.tmp->infos;
-  const std::vector<Info *> &chiInfo = var.chi->infos;
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
   int nm = BS + stencil.ex - stencil.sx - 1;
   const Real h = info->h;
   const Real facDiv = 0.5 * h / sim.dt;
-  Real *TMP = tmpInfo[info->id]->block;
-  Real *CHI = chiInfo[info->id]->block;
+  Real *TMP = var.tmp->infos[info->id]->block;
+  Real *CHI = var.chi->infos[info->id]->block;
   for (int iy = 0; iy < BS; ++iy)
     for (int ix = 0; ix < BS; ++ix) {
       int ip0 = ix - stencil.sx;
