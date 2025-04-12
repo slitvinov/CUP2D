@@ -2580,12 +2580,11 @@ int main(int argc, char **argv) {
                   row.mapColVal(idxNei[j], 1);
                   row.mapColVal(sfc_idx, -1);
                 } else if (!isBoundary[j]) {
-                  Info rhsNei0 = getf1(&var.tmp->all, info->level, nei[j]);
-                  Info *rhsNei = &rhsNei0;
                   const EdgeCellIndexer *indexer = edgeIndexers[j];
                   long long sfc_idx = This(info, ix, iy);
 		  TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
                   if (state == Active) {
+		    Info *rhsNei = getf0(&var.tmp->all, info->level, nei[j]);
                     long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
                     row.mapColVal(0, nei_idx, 1.);
                     row.mapColVal(sfc_idx, -1.);
@@ -2600,6 +2599,8 @@ int main(int argc, char **argv) {
                                 1., signTaylor, indexer, row);
                     row.mapColVal(sfc_idx, -1.);
                   } else if (state == ChildrenAreActive) {
+		    Info rhsNei0 = getf1(&var.tmp->all, info->level, nei[j]);
+		    Info *rhsNei = &rhsNei0;
                     Info *rhsNei_f = getf0(&var.tmp->all, info->level + 1,
                                            indexer->Zchild(rhsNei, ix, iy));
                     int nei_rank = Tree1(rhsNei_f);
