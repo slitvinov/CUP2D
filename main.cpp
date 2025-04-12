@@ -2589,10 +2589,10 @@ int main(int argc, char **argv) {
         isBoundary[2] = info->index[1] == 0;
         isBoundary[3] = info->index[1] == n - 1;
         Info rhsNei[4];
-        rhsNei[0] = getf1(&var.tmp->all, info->level, info->Znei[1 - 1][1]);
-        rhsNei[1] = getf1(&var.tmp->all, info->level, info->Znei[1 + 1][1]);
-        rhsNei[2] = getf1(&var.tmp->all, info->level, info->Znei[1][1 - 1]);
-        rhsNei[3] = getf1(&var.tmp->all, info->level, info->Znei[1][1 + 1]);
+        rhsNei[0] = getf1(&var.tmp->all, info->level, info->Znei[0][1]);
+        rhsNei[1] = getf1(&var.tmp->all, info->level, info->Znei[2][1]);
+        rhsNei[2] = getf1(&var.tmp->all, info->level, info->Znei[1][0]);
+        rhsNei[3] = getf1(&var.tmp->all, info->level, info->Znei[1][2]);
         for (int iy = 0; iy < BS; iy++)
           for (int ix = 0; ix < BS; ix++) {
             const long long sfc_idx = This(info, ix, iy);
