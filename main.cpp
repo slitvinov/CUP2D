@@ -1392,7 +1392,8 @@ static int adapt() {
     double Linf = 0.0;
     for (int j = 0; j < BS * BS; j++)
       Linf = std::max(Linf, std::fabs(b[j]));
-    state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
+    /* state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave; */
+    state[i] = Linf > sim.Rtol ? Refine : Compress;
     bool maxLevel =
         state[i] == Refine && sim.infos[i]->level == sim.levelMax - 1;
     bool minLevel = state[i] == Compress && sim.infos[i]->level == 0;
