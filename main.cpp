@@ -1528,36 +1528,34 @@ static int adapt() {
     labs[0].prepare(stencil);
     labs[1].prepare(stencil);
 #pragma omp for
-    for (size_t i = 0; i < level_ref.size(); i++) {
-      int level = level_ref[i];
-      long long Z = Z_ref[i];
+    for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
-      sfc_inverse(Z, level, &px, &py);
-      assert(level <= sim.levelMax - 1);
+      sfc_inverse(Z_ref[k], level_ref[k], &px, &py);
+      assert(level_ref[k] <= sim.levelMax - 1);
       Real *blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
+          long long Z = forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
           Info *child = new Info;
-          fill(child, level + 1, Z);
-          long long id = nprev + 4 * i + 2 * J + I;
+          fill(child, level_ref[k] + 1, Z);
+          long long id = nprev + 4 * k + 2 * J + I;
           sim.infos[id] = child;
           child->block = blocks[2 * J + I] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
 #pragma omp critical
 	  {
-	    assert(!exist(level + 1, Z));
-	    sim.map[sim.levels[level + 1] + Z] = id;
-	    sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
+	    assert(!exist(level_ref[k] + 1, Z));
+	    sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
+	    sim.tree[sim.levels[level_ref[k] + 1] + Z] = ParentIsActive;
 	  }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
-      Info *parent = getf0(level, Z);
+      Info *parent = getf0(level_ref[k], Z_ref[k]);
       for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
         int dim = vars[k].dim;
         int offset = vars[k].offset;
-        labs[dim - 1].load1(offset, m_tree[i].nei, stencil, parent, true);
+        labs[dim - 1].load1(offset, m_tree[k].nei, stencil, parent, true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
