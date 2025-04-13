@@ -6,17 +6,17 @@ ${main=./main} \
 -Ctol 1 \
 -lambda 1e7 \
 -levelMax 6 \
--levelStart 3 \
+-levelStart 4 \
 -maxPoissonRestarts 0 \
 -nu 0.0001 \
 -poissonTol 1e-3 \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
 -tdump 1 \
--tend 128 \
+-tend 10 \
 -shapes '
-   scale=0.125 orientation=0 omega=-0.3 xcenter=0.375 ycenter=0.5 sdf=box.raw
-   scale=0.125 orientation=0 omega=0.3 xcenter=0.525 ycenter=0.5 sdf=box.raw
+   scale=0.125 orientation=0 omega=-0.3 xcenter=0.3 ycenter=0.5 sdf=box.raw
+   scale=0.125 orientation=0 omega=0.3 xcenter=0.6 ycenter=0.5 sdf=box.raw
 '
 
 # -shapes '
