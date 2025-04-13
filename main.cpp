@@ -1525,7 +1525,7 @@ static int adapt() {
   nprev = sim.n;
   sim.n += 4 * m_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-#pragma omp parallel
+  //#pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
