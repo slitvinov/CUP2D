@@ -91,7 +91,7 @@ static struct {
   std::vector<Shape *> shapes;
   struct LocalSpMatDnVec *mat;
   std::unordered_map<long long, TreeState> tree;
-  std::unordered_map<long long, Info *> all;
+  std::unordered_map<long long, Info *> map;
   std::vector<Info *> infos;
 } sim;
 #include "utils.h"
@@ -140,15 +140,13 @@ static void fill(Info *b, int level, long long Z) {
           sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
   b->id = sfc_encode(level, b->index);
 }
-static int exist(std::unordered_map<long long, Info *> *all, int level,
-                 long long Z) {
+static int exist(int level, long long Z) {
   long long aux = sim.levels[level] + Z;
-  return all->find(aux) != all->end();
+  return sim.map.find(aux) != sim.map.end();
 }
-static Info *getf0(std::unordered_map<long long, Info *> *all, int m,
-                   long long Z) {
-  auto retval = all->find(sim.levels[m] + Z);
-  assert(retval != all->end());
+static Info *getf0(int m, long long Z) {
+  auto retval = sim.map.find(sim.levels[m] + Z);
+  assert(retval != sim.map.end());
   return retval->second;
 }
 static Info getf1(std::unordered_map<long long, Info *> *all, int level,
@@ -810,8 +808,7 @@ public:
         bc_vector(this, info, false);
     }
   }
-  void load1(int offset, TreeState nei[3][3],
-             std::unordered_map<long long, Info *> *all, const Stencil &stencil,
+  void load1(int offset, TreeState nei[3][3], const Stencil &stencil,
              Info *info, bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
@@ -835,7 +832,7 @@ public:
       switch (state) {
       case Active:
         blocks[1 + cx][1 + cy][0] =
-            getf0(all, info->level, info->Znei[1 + cx][1 + cy])->block +
+            getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
             BS * BS * offset;
         break;
       case ParentIsActive:
@@ -843,7 +840,7 @@ public:
         iy = (yi + cy + n) % n / 2;
         Z = forward(info->level - 1, ix, iy);
         blocks[1 + cx][1 + cy][0] =
-            getf0(all, info->level - 1, Z)->block + BS * BS * offset;
+            getf0(info->level - 1, Z)->block + BS * BS * offset;
         break;
       case ChildrenAreActive:
         const ChildNeighborPattern *pattern = get_child_pattern(cx, cy);
@@ -852,7 +849,7 @@ public:
           int iy = 2 * yi + pattern->offset[cnt][1];
           const long long Z = forward(info->level + 1, ix, iy);
           blocks[1 + cx][1 + cy][cnt] =
-              getf0(all, info->level + 1, Z)->block + BS * BS * offset;
+              getf0(info->level + 1, Z)->block + BS * BS * offset;
         }
         break;
       }
@@ -860,11 +857,10 @@ public:
     load0(info->block + BS * BS * offset, blocks, nei, stencil, info, applybc);
   }
 
-  void load(int offset, std::unordered_map<long long, Info *> *all,
-            const Stencil &stencil, Info *info, bool applybc) {
+  void load(int offset, const Stencil &stencil, Info *info, bool applybc) {
     TreeState nei[3][3];
     get_states(info, nei);
-    load1(offset, nei, all, stencil, info, applybc);
+    load1(offset, nei, stencil, info, applybc);
   }
 };
 
@@ -877,7 +873,7 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
     for (std::size_t i = 0; i < n; ++i) {
-      lab.load(offset, &sim.all, kernel.stencil, sim.infos[i], true);
+      lab.load(offset, kernel.stencil, sim.infos[i], true);
       kernel(lab.m, sim.infos[i]);
     }
   }
@@ -1469,7 +1465,7 @@ static void adapt() {
                       int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) +
                                  y + aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
-                      Info *FinerNei = getf0(&sim.all, m + 1, zzz);
+                      Info *FinerNei = getf0(m + 1, zzz);
                       if (FinerNei->state == Refine) {
                         sim.infos[j]->state = Refine;
                         goto end;
@@ -1500,7 +1496,7 @@ static void adapt() {
               continue;
             if (cy == yskip && yskin)
               continue;
-            if (exist(&sim.all, sim.infos[j]->level,
+            if (exist(sim.infos[j]->level,
                       sim.infos[j]->Znei[1 + cx][1 + cy])) {
               sim.infos[j]->state = Leave;
               break;
@@ -1516,8 +1512,8 @@ static void adapt() {
       for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
           long long Z = forward(sim.infos[k]->level, i, j);
-          if (!exist(&sim.all, sim.infos[k]->level, Z) ||
-              getf0(&sim.all, sim.infos[k]->level, Z)->state != Compress) {
+          if (!exist(sim.infos[k]->level, Z) ||
+              getf0(sim.infos[k]->level, Z)->state != Compress) {
             found = true;
             if (sim.infos[k]->state == Compress)
               sim.infos[k]->state = Leave;
@@ -1529,8 +1525,8 @@ static void adapt() {
         for (int i = 2 * (ix / 2); i <= 2 * (ix / 2) + 1; i++)
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
             long long Z = forward(sim.infos[k]->level, i, j);
-            if (exist(&sim.all, sim.infos[k]->level, Z)) {
-              Info *infoNei = getf0(&sim.all, sim.infos[k]->level, Z);
+            if (exist(sim.infos[k]->level, Z)) {
+              Info *infoNei = getf0(sim.infos[k]->level, Z);
               if (infoNei->state == Compress)
                 infoNei->state = Leave;
             }
@@ -1571,7 +1567,7 @@ static void adapt() {
   for (size_t i = 0; i < m_ref.size(); i++) {
     int level = m_ref[i];
     long long Z = n_ref[i];
-    Info *parent = getf0(&sim.all, level, Z);
+    Info *parent = getf0(level, Z);
     int px, py;
     sfc_inverse(parent->Z, parent->level, &px, &py);
     assert(parent->block != NULL);
@@ -1579,11 +1575,11 @@ static void adapt() {
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
-        assert(!exist(&sim.all, level + 1, Z));
+        assert(!exist(level + 1, Z));
         Info *child = new Info;
         fill(child, level + 1, Z);
 #pragma omp critical
-        sim.all[sim.levels[level + 1] + Z] = child;
+        sim.map[sim.levels[level + 1] + Z] = child;
         child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
         {
@@ -1597,8 +1593,7 @@ static void adapt() {
     for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
       int dim = vars[k].dim;
       int offset = vars[k].offset;
-      labs[dim - 1].load1(offset, m_tree[i].nei, &sim.all, stencil, parent,
-                          true);
+      labs[dim - 1].load1(offset, m_tree[i].nei, stencil, parent, true);
       Real *um = labs[dim - 1].m;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
@@ -1649,7 +1644,7 @@ static void adapt() {
     long long Z = n_ref[i];
 #pragma omp critical
     dealloc_IDs.insert(sim.levels[level] + Z);
-    Info *parent = getf0(&sim.all, level, Z);
+    Info *parent = getf0(level, Z);
 #pragma omp critical
     sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
     int px, py;
@@ -1657,7 +1652,7 @@ static void adapt() {
     for (int j = 0; j < 2; j++)
       for (int i = 0; i < 2; i++) {
         long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
-        Info *Child = getf0(&sim.all, level + 1, nc);
+        Info *Child = getf0(level + 1, nc);
 #pragma omp critical
         sim.tree[sim.levels[Child->level] + Child->Z] = Active;
         if (level + 2 < sim.levelMax)
@@ -1671,13 +1666,13 @@ static void adapt() {
   for (size_t i = 0; i < m_com.size(); i++) {
     int level = m_com[i];
     long long Z = n_com[i];
-    Info *info = getf0(&sim.all, level, Z);
+    Info *info = getf0(level, Z);
     Real *Blocks[4];
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         int blk = J * 2 + I;
         long long n = forward(level, info->index[0] + I, info->index[1] + J);
-        Blocks[blk] = getf0(&sim.all, level, n)->block;
+        Blocks[blk] = getf0(level, n)->block;
       }
     int offsetX[2] = {0, BS / 2};
     int offsetY[2] = {0, BS / 2};
@@ -1703,7 +1698,7 @@ static void adapt() {
         }
     }
     long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
-    Info *parent = getf0(&sim.all, level - 1, np);
+    Info *parent = getf0(level - 1, np);
 #pragma omp critical
     sim.tree[sim.levels[parent->level] + parent->Z] = Active;
     parent->block = info->block;
@@ -1721,13 +1716,13 @@ static void adapt() {
   }
   size_t n = sim.infos.size();
   size_t j = 0;
-  sim.all.clear();
+  sim.map.clear();
   for (size_t i = 0; i < n; i++) {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
     } else {
-      sim.all[id] = sim.infos[j] = sim.infos[i];
+      sim.map[id] = sim.infos[j] = sim.infos[i];
       sim.infos[j]->id = j;
       j++;
     }
@@ -2140,7 +2135,7 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < (size_t)my_blocks; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
-    Info *info = sim.all[aux] = new Info;
+    Info *info = sim.map[aux] = new Info;
     fill(info, sim.levelStart, Z);
     info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
     sim.infos.push_back(info);
@@ -2461,8 +2456,8 @@ int main(int argc, char **argv) {
       for (int i = 0; i < Ninner; i++) {
         Info *I = avail0[i];
         Info *I2 = avail02[i];
-        lab.load(off_vel, &sim.all, stencil, I, true);
-        lab2.load(off_tmpV, &sim.all, stencil, I2, true);
+        lab.load(off_vel, stencil, I, true);
+        lab2.load(off_tmpV, stencil, I2, true);
         pressure_rhs_fun(lab, lab2, I, I2);
         ready[I->id] = true;
       }
@@ -2521,13 +2516,12 @@ int main(int argc, char **argv) {
                 long long sfc_idx = This(info, ix, iy);
                 TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
                 if (state == Active) {
-                  Info *rhsNei = getf0(&sim.all, info->level, nei[j]);
+                  Info *rhsNei = getf0(info->level, nei[j]);
                   long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
                   row.mapColVal(0, nei_idx, 1.);
                   row.mapColVal(sfc_idx, -1.);
                 } else if (state == ParentIsActive) {
-                  Info *rhsNei_c =
-                      getf0(&sim.all, info->level - 1, nei[j] >> 2);
+                  Info *rhsNei_c = getf0(info->level - 1, nei[j] >> 2);
                   int ix_c = indexer->ix_c(info, ix);
                   int iy_c = indexer->iy_c(info, iy);
                   long long inward_idx = indexer->neiInward(info, ix, iy);
@@ -2536,10 +2530,10 @@ int main(int argc, char **argv) {
                               1., signTaylor, indexer, row);
                   row.mapColVal(sfc_idx, -1.);
                 } else if (state == ChildrenAreActive) {
-                  Info rhsNei0 = getf1(&sim.all, info->level, nei[j]);
+                  Info rhsNei0 = getf1(&sim.map, info->level, nei[j]);
                   Info *rhsNei = &rhsNei0;
-                  Info *rhsNei_f = getf0(&sim.all, info->level + 1,
-                                         indexer->Zchild(rhsNei, ix, iy));
+                  Info *rhsNei_f =
+                      getf0(info->level + 1, indexer->Zchild(rhsNei, ix, iy));
                   int nei_rank = Tree1(rhsNei_f);
                   long long fine_close_idx =
                       indexer->neiFine1(rhsNei_f, ix, iy, 0);
