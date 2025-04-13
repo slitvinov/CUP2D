@@ -1709,7 +1709,7 @@ static void adapt() {
   }
   size_t j = 0;
   sim.map.clear();
-  for (long long i = 0; i < nprev; i++) {
+  for (long long i = 0; i < n.sim; i++) {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
