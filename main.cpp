@@ -1039,7 +1039,7 @@ struct KernelVorticity {
   }
 };
 static void dump(Real time, Info **infos, char *path) {
-  long i, j, k, x, y, nblock;
+  long i, j, k, x, y;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
   float xyz[8 * BS * BS];
@@ -1074,7 +1074,7 @@ static void dump(Real time, Info **infos, char *path) {
           "         %s\n"
           "       </DataItem>\n"
           "     </Geometry>\n",
-          time, BS * BS * nblock, 4 * BS * BS * nblock, xyz_base);
+          time, BS * BS * sim.n, 4 * BS * BS * sim.n, xyz_base);
   for (size_t i = 0; i < sizeof vars / sizeof *vars; i++)
     if (vars[i].prefix != NULL) {
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
@@ -1095,7 +1095,7 @@ static void dump(Real time, Info **infos, char *path) {
               "           %s\n"
               "         </DataItem>\n"
               "       </Attribute>\n",
-              dim == 2 ? "Vector" : "Scalar", vars[i].prefix, BS * BS * nblock,
+              dim == 2 ? "Vector" : "Scalar", vars[i].prefix, BS * BS * sim.n,
               dim, sizeof(Real), attr_path + (xyz_path - xyz_base));
     }
   fprintf(xdmf, "    </Grid>\n"
@@ -1103,7 +1103,7 @@ static void dump(Real time, Info **infos, char *path) {
                 "</Xdmf>\n");
   fclose(xdmf);
   file = fopen(xyz_path, "wb");
-  for (i = 0; i < nblock; i++) {
+  for (i = 0; i < sim.n; i++) {
     Info *info = infos[i];
     k = 0;
     for (y = 0; y < BS; y++)
@@ -1137,7 +1137,7 @@ static void dump(Real time, Info **infos, char *path) {
         exit(1);
       }
       file = fopen(attr_path, "wb");
-      for (j = 0; j < nblock; j++)
+      for (j = 0; j < sim.n; j++)
         fwrite(sim.infos[j]->block + offset * BS * BS, sizeof(Real),
                dim * BS * BS, file);
       fclose(file);
