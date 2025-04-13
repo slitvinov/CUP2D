@@ -1189,11 +1189,11 @@ struct PutChiOnGrid {
         continue;
       Real h = 1.0 / BS / (1 << info->level);
       Real h2 = h * h;
-      Obstacle &o = *oblock[info->id];
+      Obstacle &o = *oblock[id];
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
-      Real *CHI = sim.infos[info->id]->block + BS * BS * off_chi;
+      Real *CHI = sim.infos[id]->block + BS * BS * off_chi;
       Real *chi = (Real *)o.chi;
       Real *dist = (Real *)o.dist;
       for (int iy = 0; iy < BS; iy++)
@@ -1254,7 +1254,7 @@ static void ongrid() {
     for (long long i = 0; i < sim.n; ++i) {
       const Info *info = sim.infos[i];
       Obstacle *const block = new Obstacle();
-      shape->obstacleBlocks[info->id] = block;
+      shape->obstacleBlocks[id] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
       memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
