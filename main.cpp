@@ -867,7 +867,7 @@ public:
 
 template <typename Kernel>
 static void computeA(Kernel &&kernel, int offset, int dim) {
-  const size_t n = sim.infos.size();
+  const size_t n = sim.n;
 #pragma omp parallel
   {
     BlockLab lab(dim);
@@ -1067,7 +1067,7 @@ static void dump(Real time, Info **infos, char *path) {
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
   float xyz[8 * BS * BS];
-  nblock = sim.infos.size();
+  nblock = sim.n;
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
   if (snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path) >=
@@ -1241,7 +1241,7 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  const size_t Nblocks = sim.infos.size();
+  const size_t Nblocks = sim.n;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     memset(sim.infos[i]->block + BS * BS * off_chi, 0, BS * BS * sizeof(Real));
@@ -1252,10 +1252,10 @@ static void ongrid() {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    const auto N = sim.infos.size();
+    const auto N = sim.n;
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < sim.infos.size(); ++i) {
+    for (long long i = 0; i < sim.n; ++i) {
       const Info *info = sim.infos[i];
       Obstacle *const block = new Obstacle();
       shape->obstacleBlocks[info->id] = block;
@@ -1264,7 +1264,7 @@ static void ongrid() {
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
 #pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < sim.infos.size(); i++) {
+    for (long long i = 0; i < sim.n; i++) {
       Obstacle *const block = shape->obstacleBlocks[sim.infos[i]->id];
       const Info *info = sim.infos[i];
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
@@ -1323,7 +1323,7 @@ static void ongrid() {
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
-    for (size_t i = 0; i < sim.infos.size(); i++) {
+    for (long long i = 0; i < sim.n; i++) {
       const Real hsq = sim.infos[i]->h * sim.infos[i]->h;
       const auto pos = shape->obstacleBlocks[sim.infos[i]->id];
       if (pos == nullptr)
@@ -1354,7 +1354,7 @@ static void ongrid() {
     _v /= _m;
     _a /= _j;
 #pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < sim.infos.size(); i++) {
+    for (long long i = 0; i < sim.n; i++) {
       const auto pos = shape->obstacleBlocks[sim.infos[i]->id];
       if (pos == nullptr)
         continue;
@@ -1402,7 +1402,7 @@ static void adapt() {
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
-    for (size_t i = 0; i < sim.infos.size(); i++) {
+    for (long long i = 0; i < sim.n; i++) {
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
       double Linf = 0.0;
       for (int j = 0; j < BS * BS; j++)
@@ -1425,7 +1425,7 @@ static void adapt() {
   if (Reduction) {
     int levelMin = 0;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
-      for (size_t j = 0; j < sim.infos.size(); j++) {
+      for (long long j = 0; j < sim.n; j++) {
         if (sim.infos[j]->level == m && sim.infos[j]->state != Refine &&
             sim.infos[j]->level != sim.levelMax - 1) {
           int ix, iy;
@@ -1470,7 +1470,7 @@ static void adapt() {
       }
       if (m == levelMin)
         break;
-      for (size_t j = 0; j < sim.infos.size(); j++) {
+      for (long long j = 0; j < sim.n; j++) {
         if (sim.infos[j]->level == m && sim.infos[j]->state == Compress) {
           int n = 1 << sim.infos[j]->level;
           int ix, iy;
@@ -1497,7 +1497,7 @@ static void adapt() {
         }
       }
     }
-    for (size_t k = 0; k < sim.infos.size(); k++) {
+    for (long long k = 0; k < sim.n; k++) {
       int ix, iy;
       sfc_inverse(sim.infos[k]->Z, sim.infos[k]->level, &ix, &iy);
       bool found = false;
@@ -1535,7 +1535,7 @@ static void adapt() {
   std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> n_com;
   std::vector<long long> n_ref;
-  for (size_t j = 0; j < sim.infos.size(); j++) {
+  for (long long j = 0; j < sim.n; j++) {
     int ix, iy;
     sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
     if (sim.infos[j]->state == Refine) {
@@ -1707,10 +1707,9 @@ static void adapt() {
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
     }
   }
-  size_t n = sim.infos.size();
   size_t j = 0;
   sim.map.clear();
-  for (size_t i = 0; i < n; i++) {
+  for (long long i = 0; i < sim.n; i++) {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
@@ -1976,7 +1975,7 @@ static void interpolate(const Info *info_c, int ix_c, int iy_c,
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
 static void getVec() {
-  int Nblocks = sim.infos.size();
+  int Nblocks = sim.n;
 #pragma omp parallel for
   for (int i = 0; i < Nblocks; i++) {
     Real h = sim.infos[i]->h;
