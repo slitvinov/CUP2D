@@ -2441,11 +2441,7 @@ int main(int argc, char **argv) {
       }
     }
     Stencil stencil{-1, -1, 2, 2, false};
-    std::vector<Info *> &blk = sim.infos;
-    std::vector<bool> ready(blk.size(), false);
-    std::vector<Info *> &avail0 = sim.infos;
-    std::vector<Info *> &avail02 = sim.infos;
-    const int Ninner = avail0.size();
+    const int Nblocks = sim.infos.size();
 #pragma omp parallel
     {
       BlockLab lab(2);
@@ -2453,13 +2449,10 @@ int main(int argc, char **argv) {
       lab.prepare(stencil);
       lab2.prepare(stencil);
 #pragma omp for
-      for (int i = 0; i < Ninner; i++) {
-        Info *I = avail0[i];
-        Info *I2 = avail02[i];
-        lab.load(off_vel, stencil, I, true);
-        lab2.load(off_tmpV, stencil, I2, true);
-        pressure_rhs_fun(lab, lab2, I);
-        ready[I->id] = true;
+      for (int i = 0; i < Nblocks; i++) {
+        lab.load(off_vel, stencil, sim.infos[i], true);
+        lab2.load(off_tmpV, stencil, sim.infos[i], true);
+        pressure_rhs_fun(lab, lab2, sim.infos[i]);
       }
     }
 #pragma omp parallel for
@@ -2473,7 +2466,6 @@ int main(int argc, char **argv) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    const int Nblocks = sim.infos.size();
     const int N = BS * BS * Nblocks;
     sim.mat->reserve(N);
     for (int i = 0; i < Nblocks; i++) {
