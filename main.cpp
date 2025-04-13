@@ -1398,6 +1398,7 @@ static void adapt() {
   computeA(KernelVorticity(), off_vel, 2);
   computeA(GradChiOnTmp(), off_chi, 1);
   bool Reduction = false;
+  std::vector<State> state(sim.n);
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
