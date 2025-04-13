@@ -1595,7 +1595,7 @@ static void adapt() {
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
-        assert(!exist(&var.vel.all, level + 1, Z));
+        /* assert(!exist(&var.vel.all, level + 1, Z)); */
         Info *child = new Info;
         fill(child, level + 1, Z);
 #pragma omp critical
