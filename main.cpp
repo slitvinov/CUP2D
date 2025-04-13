@@ -2449,14 +2449,14 @@ int main(int argc, char **argv) {
              BS * BS * sizeof(Real));
     }
     computeA(pressure_rhs1(), off_pold, 1);
-    const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
-    const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-    const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    const int N = BS * BS * Nblocks;
+    double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
+    double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
+    int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+    int N = BS * BS * Nblocks;
     sim.mat->reserve(N);
     for (int i = 0; i < Nblocks; i++) {
       Info *info = sim.infos[i];
-      const int n = 1 << info->level;
+      int n = 1 << info->level;
       bool isBoundary[4];
       isBoundary[0] = info->index[0] == 0;
       isBoundary[1] = info->index[0] == n - 1;
@@ -2464,7 +2464,7 @@ int main(int argc, char **argv) {
       isBoundary[3] = info->index[1] == n - 1;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
-          const long long sfc_idx = This(info, ix, iy);
+          long long sfc_idx = This(info, ix, iy);
           if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
             sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy - 1));
             sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix - 1, iy));
