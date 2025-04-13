@@ -1392,8 +1392,7 @@ static int adapt() {
     double Linf = 0.0;
     for (int j = 0; j < BS * BS; j++)
       Linf = std::max(Linf, std::fabs(b[j]));
-    /* state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave; */
-    state[i] = Linf > sim.Rtol ? Refine : Compress;
+    state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
     bool maxLevel =
         state[i] == Refine && sim.infos[i]->level == sim.levelMax - 1;
     bool minLevel = state[i] == Compress && sim.infos[i]->level == 0;
@@ -1521,6 +1520,7 @@ static int adapt() {
       get_states(sim.infos[j], nei.nei);
       m_tree.push_back(nei);
     } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
+      assert(0);
       level_com.push_back(sim.infos[j]->level);
       Z_com.push_back(sim.infos[j]->Z);
     }
