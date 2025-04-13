@@ -1380,12 +1380,12 @@ static int adapt() {
   std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> Z_com;
   std::vector<long long> Z_ref;
-  Stencil stencil{-1, -1, 2, 2, true};
   std::unordered_set<long long> dealloc_IDs;
   computeA(KernelVorticity(), off_vel, 2);
   computeA(GradChiOnTmp(), off_chi, 1);
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
+  Stencil stencil{-1, -1, 2, 2, true};
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
     Real *b = sim.infos[i]->block + BS * BS * off_tmp;
