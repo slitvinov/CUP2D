@@ -1652,15 +1652,12 @@ static int adapt() {
               }
           }
       }
-      long long np =
-          forward(level_com[k] - 1, info->index[0] / 2, info->index[1] / 2);
-      assert(!exist(level_com[k] - 1, np));
-      Info *parent = getf0(level_com[k] - 1, np);
-#pragma omp critical
+      Info *parent = new Info;
+      fill(parent, level_com[k] - 1, Z_com[k] / 4);
       parent->block = info->block;
-      sim.infos[info->id] = parent;
 #pragma omp critical
       {
+        sim.infos[sim.map[info->id]] = parent;
         dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][0]);
         dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[0][1]);
         dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][1]);
