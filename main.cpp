@@ -864,15 +864,14 @@ public:
 
 template <typename Kernel>
 static void computeA(Kernel &&kernel, int offset, int dim) {
-  const size_t n = sim.n;
 #pragma omp parallel
   {
     BlockLab lab(dim);
     lab.prepare(kernel.stencil);
 #pragma omp for nowait
-    for (std::size_t i = 0; i < n; ++i) {
+    for (long long i = 0; i < sim.n; ++i) {
       lab.load(offset, kernel.stencil, sim.infos[i], true);
-      kernel(lab.m, sim.infos[i]);
+      kernel(lab.m, sim.infos[i], i);
     }
   }
 }
@@ -1039,9 +1038,9 @@ struct Obstacle {
 };
 struct KernelVorticity {
   const Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info) const {
+  void operator()(Real *um, const Info *info, long long id) {
     const Real i2h = 0.5 * (1 << info->level) * BS;
-    Real *TMP = sim.infos[info->id]->block + BS * BS * off_tmp;
+    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < BS; ++j)
       for (int i = 0; i < BS; ++i) {
@@ -1182,11 +1181,11 @@ struct Shape {
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info) const {
+  void operator()(Real *um, const Info *info, long long id) {
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
-      if (oblock[info->id] == nullptr)
+      if (oblock[id] == nullptr)
         continue;
       Real h = 1.0 / BS / (1 << info->level);
       Real h2 = h * h;
@@ -1371,8 +1370,8 @@ static void ongrid() {
 struct GradChiOnTmp {
   GradChiOnTmp() {}
   const Stencil stencil{-4, -4, 5, 5, true};
-  void operator()(Real *um, const Info *info) const {
-    Real *TMP = sim.infos[info->id]->block + BS * BS * off_tmp;
+  void operator()(Real *um, const Info *info, long long id) {
+    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int y = -offset; y < BS + offset; ++y)
@@ -1723,11 +1722,11 @@ static void adapt() {
 }
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
-  void operator()(Real *um, Info *info) {
+  void operator()(Real *um, Info *info, long long id) {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
-    Real *TMP = sim.infos[info->id]->block + BS * BS * off_tmpV;
+    Real *TMP = sim.infos[id]->block + BS * BS * off_tmpV;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
@@ -1993,10 +1992,10 @@ std::array<const EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell,
                                                     &YminCell, &YmaxCell};
 struct pressureCorrectionKernel {
   const Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info) const {
+  void operator()(Real *um, const Info *info, long long id) {
     int nm = BS + stencil.ex - stencil.sx - 1;
     const Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = sim.infos[info->id]->block + BS * BS * off_tmpV;
+    Real *tmpV = sim.infos[id]->block + BS * BS * off_tmpV;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
         int ip0 = ix - stencil.sx;
@@ -2017,8 +2016,8 @@ struct pressureCorrectionKernel {
 struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info) const {
-    Real *TMP = sim.infos[info->id]->block + BS * BS * off_tmp;
+  void operator()(Real *um, const Info *, long long id) {
+    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
