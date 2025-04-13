@@ -15,8 +15,8 @@ ${main=./main} \
 -tdump 1 \
 -tend 128 \
 -shapes '
-   scale=0.25 orientation=0 omega=-0.1 xcenter=0.3 ycenter=0.5 sdf=box.raw
-   scale=0.25 orientation=0 omega=0.1 xcenter=0.6 ycenter=0.5 sdf=box.raw
+   scale=0.125 orientation=0 omega=-0.3 xcenter=0.375 ycenter=0.5 sdf=box.raw
+   scale=0.125 orientation=0 omega=0.3 xcenter=0.525 ycenter=0.5 sdf=box.raw
 '
 
 # -shapes '
