@@ -1373,13 +1373,13 @@ struct GradChiOnTmp {
 static int adapt() {
   long long cnt, nprev;
   std::vector<int> m_com;
-  std::vector<int> m_ref;
+  std::vector<int>  level_ref;
   struct TreeStateMatrix {
     TreeState nei[3][3];
   };
   std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> n_com;
-  std::vector<long long> n_ref;
+  std::vector<long long> Z_ref;
   Stencil stencil{-1, -1, 2, 2, true};
   std::unordered_set<long long> dealloc_IDs;
   computeA(KernelVorticity(), off_vel, 2);
@@ -1507,8 +1507,8 @@ static int adapt() {
     int ix, iy;
     sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
     if (state[j] == Refine) {
-      m_ref.push_back(sim.infos[j]->level);
-      n_ref.push_back(sim.infos[j]->Z);
+      level_ref.push_back(sim.infos[j]->level);
+      Z_ref.push_back(sim.infos[j]->Z);
       TreeStateMatrix nei;
       get_states(sim.infos[j], nei.nei);
       m_tree.push_back(nei);
@@ -1517,20 +1517,20 @@ static int adapt() {
       n_com.push_back(sim.infos[j]->Z);
     }
   }
-  if (m_ref.size() == 0 && m_com.size() == 0)
+  if (level_ref.size() == 0 && m_com.size() == 0)
     goto end;
   nprev = sim.n;
-  sim.n += 4 * m_ref.size();
+  sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-#pragma omp parallel
+  //#pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
     labs[1].prepare(stencil);
 #pragma omp for
-    for (size_t i = 0; i < m_ref.size(); i++) {
-      int level = m_ref[i];
-      long long Z = n_ref[i];
+    for (size_t i = 0; i < level_ref.size(); i++) {
+      int level = level_ref[i];
+      long long Z = Z_ref[i];
       int px, py;
       sfc_inverse(Z, level, &px, &py);
       assert(level <= sim.levelMax - 1);
@@ -1607,27 +1607,25 @@ static int adapt() {
       }
     }
   }
-  for (size_t i = 0; i < m_ref.size(); i++) {
-    int level = m_ref[i];
-    long long Z = n_ref[i];
+  for (size_t k = 0; k < level_ref.size(); k++) {
 #pragma omp critical
-    dealloc_IDs.insert(sim.levels[level] + Z);
-    Info *parent = getf0(level, Z);
+    dealloc_IDs.insert(sim.levels[level_ref[k]] + Z_ref[k]);
+    Info *parent = getf0(level_ref[k], Z_ref[k]);
 #pragma omp critical
     sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
     int px, py;
     sfc_inverse(parent->Z, parent->level, &px, &py);
     for (int j = 0; j < 2; j++)
       for (int i = 0; i < 2; i++) {
-        long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
-        Info *Child = getf0(level + 1, nc);
+        long long nc = forward(level_ref[k] + 1, 2 * px + i, 2 * py + j);
+        Info *Child = getf0(level_ref[k] + 1, nc);
 #pragma omp critical
         sim.tree[sim.levels[Child->level] + Child->Z] = Active;
-        if (level + 2 < sim.levelMax)
+        if (level_ref[k] + 2 < sim.levelMax)
           for (int i0 = 0; i0 < 2; i0++)
             for (int i1 = 0; i1 < 2; i1++)
 #pragma omp critical
-              sim.tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
+              sim.tree[sim.levels[level_ref[k] + 2] + Child->Zchild[i0][i1]] =
                   ParentIsActive;
       }
   }
