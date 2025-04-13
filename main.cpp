@@ -1713,7 +1713,7 @@ static void adapt() {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
-      //      delete sim.infos[i];
+      delete sim.infos[i];
     } else {
       sim.map[id] = sim.infos[j] = sim.infos[i];
       sim.infos[j]->id = j;
@@ -2126,7 +2126,7 @@ int main(int argc, char **argv) {
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
   sim.n = 1LL << (2 * sim.levelStart);
-  sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
+  sim.infos = (Info **)malloc(sim.n * sizeof *sim.infos);
   for (long long i = 0; i < sim.n; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
