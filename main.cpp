@@ -799,8 +799,8 @@ public:
         bc_vector(this, info, false);
     }
   }
-  void load1(int offset, TreeState nei[3][3], Stencil &stencil,
-             Info *info, bool applybc) {
+  void load1(int offset, TreeState nei[3][3], Stencil &stencil, Info *info,
+             bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
     long long Z;
@@ -1056,7 +1056,6 @@ static void dump(Real time, Info **infos, char *path) {
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
   float xyz[8 * BS * BS];
-  nblock = sim.n;
   char *xyz_base, xdmf_path[FILENAME_MAX];
   FILE *xdmf;
   if (snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path) >=
@@ -1230,9 +1229,8 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  size_t Nblocks = sim.n;
 #pragma omp parallel for
-  for (size_t i = 0; i < Nblocks; i++) {
+  for (size_t i = 0; i < sim.n; i++) {
     memset(sim.infos[i]->block + BS * BS * off_chi, 0, BS * BS * sizeof(Real));
     std::fill(sim.infos[i]->block + BS * BS * off_tmp,
               sim.infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
@@ -1814,12 +1812,8 @@ struct EdgeCellIndexer {
 };
 struct XbaseIndexer : public EdgeCellIndexer {
   XbaseIndexer() : EdgeCellIndexer() {}
-  double taylorSign(int, int iy) override {
-    return iy % 2 == 0 ? -1. : 1.;
-  }
-  bool isBD(int, int iy) override {
-    return iy == BS - 1 || iy == BS / 2 - 1;
-  }
+  double taylorSign(int, int iy) override { return iy % 2 == 0 ? -1. : 1.; }
+  bool isBD(int, int iy) override { return iy == BS - 1 || iy == BS / 2 - 1; }
   bool isFD(int, int iy) override { return iy == 0 || iy == BS / 2; }
   long long Nei(Info *info, int ix, int iy, int dist) override {
     return This(info, ix, iy + dist);
@@ -1834,12 +1828,10 @@ struct XminIndexer : public XbaseIndexer {
     return This(info, ix + 1, iy);
   }
   int ix_c(Info *, int) override { return BS - 1; }
-  long long neiFine1(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Xmax(nei_info, i_f(ix), i_f(iy), offset);
   }
-  long long neiFine2(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Xmax(nei_info, i_f(ix), i_f(iy) + 1, offset);
   }
   long long Zchild(Info *nei_info, int, int iy) override {
@@ -1855,12 +1847,10 @@ struct XmaxIndexer : public XbaseIndexer {
     return This(info, ix - 1, iy);
   }
   int ix_c(Info *, int) override { return 0; }
-  long long neiFine1(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Xmin(nei_info, i_f(ix), i_f(iy), offset);
   }
-  long long neiFine2(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Xmin(nei_info, i_f(ix), i_f(iy) + 1, offset);
   }
   long long Zchild(Info *nei_info, int, int iy) override {
@@ -1869,12 +1859,8 @@ struct XmaxIndexer : public XbaseIndexer {
 };
 struct YbaseIndexer : public EdgeCellIndexer {
   YbaseIndexer() : EdgeCellIndexer() {}
-  double taylorSign(int ix, int) override {
-    return ix % 2 == 0 ? -1. : 1.;
-  }
-  bool isBD(int ix, int) override {
-    return ix == BS - 1 || ix == BS / 2 - 1;
-  }
+  double taylorSign(int ix, int) override { return ix % 2 == 0 ? -1. : 1.; }
+  bool isBD(int ix, int) override { return ix == BS - 1 || ix == BS / 2 - 1; }
   bool isFD(int ix, int) override { return ix == 0 || ix == BS / 2; }
   long long Nei(Info *info, int ix, int iy, int dist) override {
     return This(info, ix + dist, iy);
@@ -1889,12 +1875,10 @@ struct YminIndexer : public YbaseIndexer {
     return This(info, ix, iy + 1);
   }
   int iy_c(Info *, int) override { return BS - 1; }
-  long long neiFine1(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Ymax(nei_info, i_f(ix), i_f(iy), offset);
   }
-  long long neiFine2(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Ymax(nei_info, i_f(ix) + 1, i_f(iy), offset);
   }
   long long Zchild(Info *nei_info, int ix, int) override {
@@ -1910,12 +1894,10 @@ struct YmaxIndexer : public YbaseIndexer {
     return This(info, ix, iy - 1);
   }
   int iy_c(Info *, int) override { return 0; }
-  long long neiFine1(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Ymin(nei_info, i_f(ix), i_f(iy), offset);
   }
-  long long neiFine2(Info *nei_info, int ix, int iy,
-                     int offset = 0) override {
+  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
     return Ymin(nei_info, i_f(ix) + 1, i_f(iy), offset);
   }
   long long Zchild(Info *nei_info, int ix, int) override {
@@ -1923,11 +1905,10 @@ struct YmaxIndexer : public YbaseIndexer {
   }
 };
 
-static void interpolate(Info *info_c, int ix_c, int iy_c,
-                        Info *info_f, long long fine_close_idx,
-                        long long fine_far_idx, double signInt,
-                        double signTaylor, EdgeCellIndexer *indexer,
-                        SpRowInfo &row) {
+static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
+                        long long fine_close_idx, long long fine_far_idx,
+                        double signInt, double signTaylor,
+                        EdgeCellIndexer *indexer, SpRowInfo &row) {
   int rank_c = Tree1(info_c);
   int rank_f = Tree1(info_f);
   row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
@@ -1964,9 +1945,8 @@ static void interpolate(Info *info_c, int ix_c, int iy_c,
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
 static void getVec() {
-  int Nblocks = sim.n;
 #pragma omp parallel for
-  for (int i = 0; i < Nblocks; i++) {
+  for (int i = 0; i < sim.n; i++) {
     Real h = sim.infos[i]->h;
     sim.mat->h2_[i] = h * h;
     long long offset = sim.infos[i]->id * BS * BS;
@@ -1980,8 +1960,8 @@ XminIndexer XminCell;
 XmaxIndexer XmaxCell;
 YminIndexer YminCell;
 YmaxIndexer YmaxCell;
-std::array<EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell,
-                                                    &YminCell, &YmaxCell};
+std::array<EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell, &YminCell,
+                                              &YmaxCell};
 struct pressureCorrectionKernel {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, Info *info, long long id) {
@@ -2427,7 +2407,6 @@ int main(int argc, char **argv) {
       }
     }
     Stencil stencil{-1, -1, 2, 2, false};
-    int Nblocks = sim.n;
 #pragma omp parallel
     {
       BlockLab lab(2);
@@ -2435,7 +2414,7 @@ int main(int argc, char **argv) {
       lab.prepare(stencil);
       lab2.prepare(stencil);
 #pragma omp for
-      for (int i = 0; i < Nblocks; i++) {
+      for (int i = 0; i < sim.n; i++) {
         lab.load(off_vel, stencil, sim.infos[i], true);
         lab2.load(off_tmpV, stencil, sim.infos[i], true);
         pressure_rhs_fun(lab, lab2, i);
@@ -2452,9 +2431,9 @@ int main(int argc, char **argv) {
     double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    int N = BS * BS * Nblocks;
+    int N = BS * BS * sim.n;
     sim.mat->reserve(N);
-    for (int i = 0; i < Nblocks; i++) {
+    for (int i = 0; i < sim.n; i++) {
       Info *info = sim.infos[i];
       int n = 1 << info->level;
       bool isBoundary[4];
