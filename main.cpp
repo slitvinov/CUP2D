@@ -1,4 +1,3 @@
-#include <array>
 #include <cassert>
 #include <cfloat>
 #include <cmath>
@@ -142,10 +141,8 @@ static int exist(int level, long long Z) {
   long long aux = sim.levels[level] + Z;
   return sim.map.find(aux) != sim.map.end();
 }
-static Info *getf0(int m, long long Z) {
-  auto retval = sim.map.find(sim.levels[m] + Z);
-  assert(retval != sim.map.end());
-  return sim.infos[retval->second];
+static Info *getf0(int level, long long Z) {
+  return sim.infos[sim.map[sim.levels[level] + Z]];
 }
 static Info getf1(int level, long long Z) {
   Info dummy;
