@@ -1740,6 +1740,7 @@ static void adapt() {
       j++;
     }
   }
+  sim.infos.resize(j);
 }
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
