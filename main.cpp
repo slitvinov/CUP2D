@@ -1370,14 +1370,14 @@ struct GradChiOnTmp {
       }
   }
 };
-static void adapt() {
+static int adapt() {
   computeA(KernelVorticity(), off_vel, 2);
   computeA(GradChiOnTmp(), off_chi, 1);
-  bool Reduction = false;
+  int Changed = 0;
   State *state = (State *)malloc(sim.n * sizeof *state);
 #pragma omp parallel
   {
-#pragma omp for schedule(dynamic, 1)
+#pragma omp for schedule(dynamic, 1) reduction(|| : Changed)
     for (long long i = 0; i < sim.n; i++) {
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
       double Linf = 0.0;
@@ -1390,12 +1390,11 @@ static void adapt() {
       if (maxLevel || minLevel)
         state[i] = Leave;
       if (state[i] != Leave) {
-#pragma omp critical
-        Reduction = true;
+        Changed = true || Changed;
       }
     }
   }
-  if (Reduction) {
+  if (Changed) {
     int levelMin = 0;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (long long j = 0; j < sim.n; j++) {
@@ -1497,207 +1496,211 @@ static void adapt() {
             }
           }
     }
-  }
-
-  std::vector<int> m_com;
-  std::vector<int> m_ref;
-  struct TreeStateMatrix {
-    TreeState nei[3][3];
-    Real *blocks[4];
-  };
-  std::vector<TreeStateMatrix> m_tree;
-  std::vector<long long> n_com;
-  std::vector<long long> n_ref;
-  for (long long j = 0; j < sim.n; j++) {
-    int ix, iy;
-    sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
-    if (state[j] == Refine) {
-      m_ref.push_back(sim.infos[j]->level);
-      n_ref.push_back(sim.infos[j]->Z);
-      TreeStateMatrix nei;
-      get_states(sim.infos[j], nei.nei);
-      for (int k = 0; k < 4; k++)
-        nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
-      m_tree.push_back(nei);
-    } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
-      m_com.push_back(sim.infos[j]->level);
-      n_com.push_back(sim.infos[j]->Z);
+    std::vector<int> m_com;
+    std::vector<int> m_ref;
+    struct TreeStateMatrix {
+      TreeState nei[3][3];
+      Real *blocks[4];
+    };
+    std::vector<TreeStateMatrix> m_tree;
+    std::vector<long long> n_com;
+    std::vector<long long> n_ref;
+    for (long long j = 0; j < sim.n; j++) {
+      int ix, iy;
+      sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
+      if (state[j] == Refine) {
+        m_ref.push_back(sim.infos[j]->level);
+        n_ref.push_back(sim.infos[j]->Z);
+        TreeStateMatrix nei;
+        get_states(sim.infos[j], nei.nei);
+        for (int k = 0; k < 4; k++)
+          nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
+        m_tree.push_back(nei);
+      } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
+        m_com.push_back(sim.infos[j]->level);
+        n_com.push_back(sim.infos[j]->Z);
+      }
     }
+    Stencil stencil{-1, -1, 2, 2, true};
+    std::unordered_set<long long> dealloc_IDs;
+    BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
+    labs[0].prepare(stencil);
+    labs[1].prepare(stencil);
+    long long nprev = sim.n;
+    sim.n += 4 * m_ref.size();
+    sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      int level = m_ref[i];
+      long long Z = n_ref[i];
+      Info *parent = getf0(level, Z);
+      int px, py;
+      sfc_inverse(parent->Z, parent->level, &px, &py);
+      assert(parent->block != NULL);
+      assert(level <= sim.levelMax - 1);
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
+          assert(!exist(level + 1, Z));
+          Info *child = new Info;
+          fill(child, level + 1, Z);
+          long long id = nprev + 4 * i + 2 * J + I;
+          sim.infos[id] = child;
+          child->block = m_tree[i].blocks[J * 2 + I];
+#pragma omp critical
+          sim.map[sim.levels[level + 1] + Z] = id;
+#pragma omp critical
+          sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
+        }
+      int nm = BS + stencil.ex - stencil.sx - 1;
+      int offsetX[2] = {0, BS / 2};
+      int offsetY[2] = {0, BS / 2};
+      for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
+        int dim = vars[k].dim;
+        int offset = vars[k].offset;
+        labs[dim - 1].load1(offset, m_tree[i].nei, stencil, parent, true);
+        Real *um = labs[dim - 1].m;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
+            memset(b, 0, dim * BS * BS * sizeof(Real));
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i0 = i / 2 + offsetX[I] - stencil.sx;
+                int j0 = j / 2 + offsetY[J] - stencil.sy;
+                int im = i0 - 1;
+                int ip = i0 + 1;
+                int jm = j0 - 1;
+                int jp = j0 + 1;
+                int o0 = BS * j + i;
+                int o1 = BS * j + i + 1;
+                int o2 = BS * (j + 1) + i;
+                int o3 = BS * (j + 1) + i + 1;
+                for (int d = 0; d < dim; d++) {
+                  Real l00 = um[dim * (nm * j0 + i0) + d];
+                  Real l0p = um[dim * (nm * jp + i0) + d];
+                  Real lm0 = um[dim * (nm * j0 + im) + d];
+                  Real lmm = um[dim * (nm * jm + im) + d];
+                  Real lmp = um[dim * (nm * jp + im) + d];
+                  Real lp0 = um[dim * (nm * j0 + ip) + d];
+                  Real lpm = um[dim * (nm * jm + ip) + d];
+                  Real lpp = um[dim * (nm * jp + ip) + d];
+                  Real l0m = um[dim * (nm * jm + i0) + d];
+                  Real x = 0.5 * (lp0 - lm0);
+                  Real y = 0.5 * (l0p - l0m);
+                  Real x2 = (lp0 + lm0) - 2.0 * l00;
+                  Real y2 = (l0p + l0m) - 2.0 * l00;
+                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
+                  b[dim * o0 + d] =
+                      (l00 + (-0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                  b[dim * o1 + d] =
+                      (l00 + (+0.25 * x - 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o2 + d] =
+                      (l00 + (-0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
+                  b[dim * o3 + d] =
+                      (l00 + (+0.25 * x + 0.25 * y)) +
+                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
+                }
+              }
+          }
+      }
+    }
+    for (size_t i = 0; i < m_ref.size(); i++) {
+      int level = m_ref[i];
+      long long Z = n_ref[i];
+#pragma omp critical
+      dealloc_IDs.insert(sim.levels[level] + Z);
+      Info *parent = getf0(level, Z);
+#pragma omp critical
+      sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
+      int px, py;
+      sfc_inverse(parent->Z, parent->level, &px, &py);
+      for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++) {
+          long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
+          Info *Child = getf0(level + 1, nc);
+#pragma omp critical
+          sim.tree[sim.levels[Child->level] + Child->Z] = Active;
+          if (level + 2 < sim.levelMax)
+            for (int i0 = 0; i0 < 2; i0++)
+              for (int i1 = 0; i1 < 2; i1++)
+#pragma omp critical
+                sim.tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
+                    ParentIsActive;
+        }
+    }
+    for (size_t i = 0; i < m_com.size(); i++) {
+      int level = m_com[i];
+      long long Z = n_com[i];
+      Info *info = getf0(level, Z);
+      Real *Blocks[4];
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          int blk = J * 2 + I;
+          long long n = forward(level, info->index[0] + I, info->index[1] + J);
+          Blocks[blk] = getf0(level, n)->block;
+        }
+      int offsetX[2] = {0, BS / 2};
+      int offsetY[2] = {0, BS / 2};
+      for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
+        int dim = vars[k].dim;
+        int offset = vars[k].offset;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *c = Blocks[0] + offset * BS * BS;
+            Real *b = Blocks[J * 2 + I] + offset * BS * BS;
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i00 = BS * j + i;
+                int i01 = BS * (j + 1) + i;
+                int i10 = BS * j + i + 1;
+                int i11 = BS * (j + 1) + i + 1;
+                int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+                for (int d = 0; d < dim; d++)
+                  c[dim * o + d] = (b[dim * i00 + d] + b[dim * i01 + d] +
+                                    b[dim * i10 + d] + b[dim * i11 + d]) /
+                                   4;
+              }
+          }
+      }
+      long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
+      Info *parent = getf0(level - 1, np);
+#pragma omp critical
+      sim.tree[sim.levels[parent->level] + parent->Z] = Active;
+      parent->block = info->block;
+      if (level - 2 >= 0) {
+#pragma omp critical
+        sim.tree[sim.levels[level - 2] + (parent->Z >> 2)] = ChildrenAreActive;
+      }
+      sim.infos[info->id] = parent;
+#pragma omp critical
+      {
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
+        dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
+      }
+    }
+    long long j = 0;
+    sim.map.clear();
+    for (long long i = 0; i < sim.n; i++) {
+      Info *info = sim.infos[i];
+      long long id = sim.levels[info->level] + info->Z;
+      if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
+        free(info->block);
+        delete info;
+      } else {
+        sim.map[id] = j;
+        sim.infos[j] = info;
+        sim.infos[j]->id = j;
+        j++;
+      }
+    }
+    sim.n = j;
   }
   free(state);
-  Stencil stencil{-1, -1, 2, 2, true};
-  std::unordered_set<long long> dealloc_IDs;
-  BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
-  labs[0].prepare(stencil);
-  labs[1].prepare(stencil);
-  long long nprev = sim.n;
-  sim.n += 4 * m_ref.size();
-  sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-  for (size_t i = 0; i < m_ref.size(); i++) {
-    int level = m_ref[i];
-    long long Z = n_ref[i];
-    Info *parent = getf0(level, Z);
-    int px, py;
-    sfc_inverse(parent->Z, parent->level, &px, &py);
-    assert(parent->block != NULL);
-    assert(level <= sim.levelMax - 1);
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
-        assert(!exist(level + 1, Z));
-        Info *child = new Info;
-        fill(child, level + 1, Z);
-        long long id = nprev + 4 * i + 2 * J + I;
-        sim.infos[id] = child;
-        child->block = m_tree[i].blocks[J * 2 + I];
-#pragma omp critical
-        sim.map[sim.levels[level + 1] + Z] = id;
-#pragma omp critical
-        sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
-      }
-    int nm = BS + stencil.ex - stencil.sx - 1;
-    int offsetX[2] = {0, BS / 2};
-    int offsetY[2] = {0, BS / 2};
-    for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
-      int dim = vars[k].dim;
-      int offset = vars[k].offset;
-      labs[dim - 1].load1(offset, m_tree[i].nei, stencil, parent, true);
-      Real *um = labs[dim - 1].m;
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
-          memset(b, 0, dim * BS * BS * sizeof(Real));
-          for (int j = 0; j < BS; j += 2)
-            for (int i = 0; i < BS; i += 2) {
-              int i0 = i / 2 + offsetX[I] - stencil.sx;
-              int j0 = j / 2 + offsetY[J] - stencil.sy;
-              int im = i0 - 1;
-              int ip = i0 + 1;
-              int jm = j0 - 1;
-              int jp = j0 + 1;
-              int o0 = BS * j + i;
-              int o1 = BS * j + i + 1;
-              int o2 = BS * (j + 1) + i;
-              int o3 = BS * (j + 1) + i + 1;
-              for (int d = 0; d < dim; d++) {
-                Real l00 = um[dim * (nm * j0 + i0) + d];
-                Real l0p = um[dim * (nm * jp + i0) + d];
-                Real lm0 = um[dim * (nm * j0 + im) + d];
-                Real lmm = um[dim * (nm * jm + im) + d];
-                Real lmp = um[dim * (nm * jp + im) + d];
-                Real lp0 = um[dim * (nm * j0 + ip) + d];
-                Real lpm = um[dim * (nm * jm + ip) + d];
-                Real lpp = um[dim * (nm * jp + ip) + d];
-                Real l0m = um[dim * (nm * jm + i0) + d];
-                Real x = 0.5 * (lp0 - lm0);
-                Real y = 0.5 * (l0p - l0m);
-                Real x2 = (lp0 + lm0) - 2.0 * l00;
-                Real y2 = (l0p + l0m) - 2.0 * l00;
-                Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                b[dim * o0 + d] = (l00 + (-0.25 * x - 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                b[dim * o1 + d] = (l00 + (+0.25 * x - 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                b[dim * o2 + d] = (l00 + (-0.25 * x + 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                b[dim * o3 + d] = (l00 + (+0.25 * x + 0.25 * y)) +
-                                  ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-              }
-            }
-        }
-    }
-  }
-  for (size_t i = 0; i < m_ref.size(); i++) {
-    int level = m_ref[i];
-    long long Z = n_ref[i];
-#pragma omp critical
-    dealloc_IDs.insert(sim.levels[level] + Z);
-    Info *parent = getf0(level, Z);
-#pragma omp critical
-    sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
-    int px, py;
-    sfc_inverse(parent->Z, parent->level, &px, &py);
-    for (int j = 0; j < 2; j++)
-      for (int i = 0; i < 2; i++) {
-        long long nc = forward(level + 1, 2 * px + i, 2 * py + j);
-        Info *Child = getf0(level + 1, nc);
-#pragma omp critical
-        sim.tree[sim.levels[Child->level] + Child->Z] = Active;
-        if (level + 2 < sim.levelMax)
-          for (int i0 = 0; i0 < 2; i0++)
-            for (int i1 = 0; i1 < 2; i1++)
-#pragma omp critical
-              sim.tree[sim.levels[level + 2] + Child->Zchild[i0][i1]] =
-                  ParentIsActive;
-      }
-  }
-  for (size_t i = 0; i < m_com.size(); i++) {
-    int level = m_com[i];
-    long long Z = n_com[i];
-    Info *info = getf0(level, Z);
-    Real *Blocks[4];
-    for (int J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
-        int blk = J * 2 + I;
-        long long n = forward(level, info->index[0] + I, info->index[1] + J);
-        Blocks[blk] = getf0(level, n)->block;
-      }
-    int offsetX[2] = {0, BS / 2};
-    int offsetY[2] = {0, BS / 2};
-    for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
-      int dim = vars[k].dim;
-      int offset = vars[k].offset;
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          Real *c = Blocks[0] + offset * BS * BS;
-          Real *b = Blocks[J * 2 + I] + offset * BS * BS;
-          for (int j = 0; j < BS; j += 2)
-            for (int i = 0; i < BS; i += 2) {
-              int i00 = BS * j + i;
-              int i01 = BS * (j + 1) + i;
-              int i10 = BS * j + i + 1;
-              int i11 = BS * (j + 1) + i + 1;
-              int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
-              for (int d = 0; d < dim; d++)
-                c[dim * o + d] = (b[dim * i00 + d] + b[dim * i01 + d] +
-                                  b[dim * i10 + d] + b[dim * i11 + d]) /
-                                 4;
-            }
-        }
-    }
-    long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
-    Info *parent = getf0(level - 1, np);
-#pragma omp critical
-    sim.tree[sim.levels[parent->level] + parent->Z] = Active;
-    parent->block = info->block;
-    if (level - 2 >= 0) {
-#pragma omp critical
-      sim.tree[sim.levels[level - 2] + (parent->Z >> 2)] = ChildrenAreActive;
-    }
-    sim.infos[info->id] = parent;
-#pragma omp critical
-    {
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
-    }
-  }
-  long long j = 0;
-  sim.map.clear();
-  for (long long i = 0; i < sim.n; i++) {
-    Info *info = sim.infos[i];
-    long long id = sim.levels[info->level] + info->Z;
-    if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
-      free(info->block);
-      delete info;
-    } else {
-      sim.map[id] = j;
-      sim.infos[j] = info;
-      sim.infos[j]->id = j;
-      j++;
-    }
-  }
-  sim.n = j;
+  return Changed;
 }
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
