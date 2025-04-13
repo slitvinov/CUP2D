@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cfloat>
@@ -1390,7 +1389,7 @@ static void adapt() {
   computeA(KernelVorticity(), off_vel, 2);
   computeA(GradChiOnTmp(), off_chi, 1);
   bool Reduction = false;
-  State *state = (State*)malloc(sim.n * sizeof *state);
+  State *state = (State *)malloc(sim.n * sizeof *state);
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
@@ -2205,9 +2204,8 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * BS * BS; j++)
         umax = std::max(umax, std::fabs(vel[j]));
     }
-    Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
-    Real dtAdvection = h / (umax + 1e-8);
-    sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
+    sim.dt = real_min(CFL * h / (umax + 1e-8),
+                      0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
     for (const auto &shape : sim.shapes) {

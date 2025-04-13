@@ -1,3 +1,5 @@
+static Real real_min(Real a, Real b) { return a < b ? a : b; }
+
 static void LI(Real *a0, Real *b0, Real *c0) {
   Real a = *a0;
   Real b = *b0;
