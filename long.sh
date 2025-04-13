@@ -12,7 +12,7 @@ ${main=./main} \
 -poissonTol 1e-3 \
 -poissonTolRel 0 \
 -Rtol 0.1 \
--tdump 1 \
+-tdump 10 \
 -tend 2048 \
 -shapes '
    scale=0.06 orientation=0 omega=-1.82 xcenter=0.44 ycenter=0.38 sdf=box.raw
