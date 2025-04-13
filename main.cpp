@@ -93,7 +93,6 @@ static struct {
   std::unordered_map<long long, TreeState> tree;
   std::unordered_map<long long, Info *> all;
   std::vector<Info *> infos;
-  bool UpdateFluxCorrection{true};
 } sim;
 #include "utils.h"
 struct Info {
@@ -1570,8 +1569,6 @@ static void adapt() {
     }
   }
   Stencil stencil{-1, -1, 2, 2, true};
-  if (m_com.size() > 0 || m_ref.size() > 0)
-    sim.UpdateFluxCorrection = true;
   std::unordered_set<long long> dealloc_IDs;
   BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
   labs[0].prepare(stencil);
@@ -2171,7 +2168,6 @@ int main(int argc, char **argv) {
   }
   for (size_t j = 0; j < sim.infos.size(); j++)
     sim.infos[j]->id = j;
-  sim.UpdateFluxCorrection = true;
   for (int i = 0;; i++) {
     ongrid();
     if (i == sim.levelMax)
@@ -2248,9 +2244,6 @@ int main(int argc, char **argv) {
       memcpy(sim.infos[i]->block + BS * BS * off_vold,
              sim.infos[i]->block + BS * BS * off_vel,
              2 * BS * BS * sizeof(Real));
-    if (sim.UpdateFluxCorrection) {
-      sim.UpdateFluxCorrection = false;
-    }
     computeA(KernelAdvectDiffuse(), off_vel, 2);
 #pragma omp parallel for
     for (size_t i = 0; i < sim.infos.size(); i++) {
@@ -2260,9 +2253,6 @@ int main(int argc, char **argv) {
       Real ih2 = 0.5 / (sim.infos[i]->h * sim.infos[i]->h);
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
-    }
-    if (sim.UpdateFluxCorrection) {
-      sim.UpdateFluxCorrection = false;
     }
     computeA(KernelAdvectDiffuse(), off_vel, 2);
 #pragma omp parallel for
@@ -2313,11 +2303,10 @@ int main(int argc, char **argv) {
       }
     }
     auto &infos = sim.infos;
-    size_t N = sim.shapes.size();
-    std::vector<CollisionInfo> collisions(N);
+    std::vector<CollisionInfo> collisions(sim.shapes.size());
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < N; ++i)
-      for (size_t j = 0; j < N; ++j) {
+    for (size_t i = 0; i < sim.shapes.size(); ++i)
+      for (size_t j = 0; j < sim.shapes.size(); ++j) {
         if (i == j)
           continue;
         auto &coll = collisions[i];
@@ -2377,8 +2366,8 @@ int main(int argc, char **argv) {
         }
       }
     // #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < N; ++i) {
-      for (size_t j = i + 1; j < N; ++j) {
+    for (size_t i = 0; i < sim.shapes.size(); ++i) {
+      for (size_t j = i + 1; j < sim.shapes.size(); ++j) {
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
         if (coll.iM > 0 && coll.jM > 0 && coll_other.iM > 0 &&
@@ -2461,9 +2450,6 @@ int main(int argc, char **argv) {
           }
       }
     }
-    if (sim.UpdateFluxCorrection) {
-      sim.UpdateFluxCorrection = false;
-    }
     Stencil stencil{-1, -1, 2, 2, false};
     std::vector<Info *> &blk = sim.infos;
     std::vector<bool> ready(blk.size(), false);
@@ -2497,100 +2483,94 @@ int main(int argc, char **argv) {
     const double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     const double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     const int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    if (sim.UpdateFluxCorrection) {
-      sim.UpdateFluxCorrection = false;
-      const int Nblocks = sim.infos.size();
-      const int N = BS * BS * Nblocks;
-      sim.mat->reserve(N);
-      for (int i = 0; i < Nblocks; i++) {
-        Info *info = sim.infos[i];
-        const int n = 1 << info->level;
-        bool isBoundary[4];
-        isBoundary[0] = info->index[0] == 0;
-        isBoundary[1] = info->index[0] == n - 1;
-        isBoundary[2] = info->index[1] == 0;
-        isBoundary[3] = info->index[1] == n - 1;
-        for (int iy = 0; iy < BS; iy++)
-          for (int ix = 0; ix < BS; ix++) {
-            const long long sfc_idx = This(info, ix, iy);
-            if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy - 1));
-              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix - 1, iy));
-              sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix + 1, iy));
-              sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy + 1));
-            } else {
-              std::array<bool, 4> validNei;
-              validNei[0] = ix > 0;
-              validNei[1] = ix < BS - 1;
-              validNei[2] = iy > 0;
-              validNei[3] = iy < BS - 1;
-              std::array<long long, 4> idxNei;
-              idxNei[0] = This(info, ix - 1, iy);
-              idxNei[1] = This(info, ix + 1, iy);
-              idxNei[2] = This(info, ix, iy - 1);
-              idxNei[3] = This(info, ix, iy + 1);
-              SpRowInfo row(Tree1(info), sfc_idx, 8);
-              long long nei[4] = {info->Znei[0][1], info->Znei[2][1],
-                                  info->Znei[1][0], info->Znei[1][2]};
-              for (int j = 0; j < 4; j++) {
-                if (validNei[j]) {
-                  row.mapColVal(idxNei[j], 1);
-                  row.mapColVal(sfc_idx, -1);
-                } else if (!isBoundary[j]) {
-                  const EdgeCellIndexer *indexer = edgeIndexers[j];
-                  long long sfc_idx = This(info, ix, iy);
-                  TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
-                  if (state == Active) {
-                    Info *rhsNei = getf0(&sim.all, info->level, nei[j]);
-                    long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
-                    row.mapColVal(0, nei_idx, 1.);
-                    row.mapColVal(sfc_idx, -1.);
-                  } else if (state == ParentIsActive) {
-                    Info *rhsNei_c =
-                        getf0(&sim.all, info->level - 1, nei[j] >> 2);
-                    int ix_c = indexer->ix_c(info, ix);
-                    int iy_c = indexer->iy_c(info, iy);
-                    long long inward_idx = indexer->neiInward(info, ix, iy);
-                    double signTaylor = indexer->taylorSign(ix, iy);
-                    interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx,
-                                1., signTaylor, indexer, row);
-                    row.mapColVal(sfc_idx, -1.);
-                  } else if (state == ChildrenAreActive) {
-                    Info rhsNei0 = getf1(&sim.all, info->level, nei[j]);
-                    Info *rhsNei = &rhsNei0;
-                    Info *rhsNei_f = getf0(&sim.all, info->level + 1,
-                                           indexer->Zchild(rhsNei, ix, iy));
-                    int nei_rank = Tree1(rhsNei_f);
-                    long long fine_close_idx =
-                        indexer->neiFine1(rhsNei_f, ix, iy, 0);
-                    long long fine_far_idx =
-                        indexer->neiFine1(rhsNei_f, ix, iy, 1);
-                    row.mapColVal(nei_rank, fine_close_idx, 1.);
-                    interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
-                                fine_far_idx, -1., -1., indexer, row);
-                    fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
-                    fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
-                    row.mapColVal(nei_rank, fine_close_idx, 1.);
-                    interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
-                                fine_far_idx, -1., 1., indexer, row);
-                  } else {
-                    throw std::runtime_error(
-                        "Neighbour doesn't exist, isn't coarser, nor finer...");
-                  }
+    const int Nblocks = sim.infos.size();
+    const int N = BS * BS * Nblocks;
+    sim.mat->reserve(N);
+    for (int i = 0; i < Nblocks; i++) {
+      Info *info = sim.infos[i];
+      const int n = 1 << info->level;
+      bool isBoundary[4];
+      isBoundary[0] = info->index[0] == 0;
+      isBoundary[1] = info->index[0] == n - 1;
+      isBoundary[2] = info->index[1] == 0;
+      isBoundary[3] = info->index[1] == n - 1;
+      for (int iy = 0; iy < BS; iy++)
+        for (int ix = 0; ix < BS; ix++) {
+          const long long sfc_idx = This(info, ix, iy);
+          if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
+            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy - 1));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix - 1, iy));
+            sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
+            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix + 1, iy));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy + 1));
+          } else {
+            std::array<bool, 4> validNei;
+            validNei[0] = ix > 0;
+            validNei[1] = ix < BS - 1;
+            validNei[2] = iy > 0;
+            validNei[3] = iy < BS - 1;
+            std::array<long long, 4> idxNei;
+            idxNei[0] = This(info, ix - 1, iy);
+            idxNei[1] = This(info, ix + 1, iy);
+            idxNei[2] = This(info, ix, iy - 1);
+            idxNei[3] = This(info, ix, iy + 1);
+            SpRowInfo row(Tree1(info), sfc_idx, 8);
+            long long nei[4] = {info->Znei[0][1], info->Znei[2][1],
+                                info->Znei[1][0], info->Znei[1][2]};
+            for (int j = 0; j < 4; j++) {
+              if (validNei[j]) {
+                row.mapColVal(idxNei[j], 1);
+                row.mapColVal(sfc_idx, -1);
+              } else if (!isBoundary[j]) {
+                const EdgeCellIndexer *indexer = edgeIndexers[j];
+                long long sfc_idx = This(info, ix, iy);
+                TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
+                if (state == Active) {
+                  Info *rhsNei = getf0(&sim.all, info->level, nei[j]);
+                  long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
+                  row.mapColVal(0, nei_idx, 1.);
+                  row.mapColVal(sfc_idx, -1.);
+                } else if (state == ParentIsActive) {
+                  Info *rhsNei_c =
+                      getf0(&sim.all, info->level - 1, nei[j] >> 2);
+                  int ix_c = indexer->ix_c(info, ix);
+                  int iy_c = indexer->iy_c(info, iy);
+                  long long inward_idx = indexer->neiInward(info, ix, iy);
+                  double signTaylor = indexer->taylorSign(ix, iy);
+                  interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx,
+                              1., signTaylor, indexer, row);
+                  row.mapColVal(sfc_idx, -1.);
+                } else if (state == ChildrenAreActive) {
+                  Info rhsNei0 = getf1(&sim.all, info->level, nei[j]);
+                  Info *rhsNei = &rhsNei0;
+                  Info *rhsNei_f = getf0(&sim.all, info->level + 1,
+                                         indexer->Zchild(rhsNei, ix, iy));
+                  int nei_rank = Tree1(rhsNei_f);
+                  long long fine_close_idx =
+                      indexer->neiFine1(rhsNei_f, ix, iy, 0);
+                  long long fine_far_idx =
+                      indexer->neiFine1(rhsNei_f, ix, iy, 1);
+                  row.mapColVal(nei_rank, fine_close_idx, 1.);
+                  interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
+                              fine_far_idx, -1., -1., indexer, row);
+                  fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
+                  fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
+                  row.mapColVal(nei_rank, fine_close_idx, 1.);
+                  interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
+                              fine_far_idx, -1., 1., indexer, row);
+                } else {
+                  throw std::runtime_error(
+                      "Neighbour doesn't exist, isn't coarser, nor finer...");
                 }
               }
-              sim.mat->cooPushBackRow(row);
             }
+            sim.mat->cooPushBackRow(row);
           }
-      }
-      sim.mat->make();
-      getVec();
-      sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
-    } else {
-      getVec();
-      sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
+        }
     }
+    sim.mat->make();
+    getVec();
+    sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
     size_t NB = sim.infos.size();
     Real avg, avg1;
     avg = 0;
