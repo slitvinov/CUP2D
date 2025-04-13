@@ -434,7 +434,6 @@ public:
             int y3 = (abs(cy) == 1)
                          ? 2 * (iy + 3 * ys - cy * BS) + std::min(0, cy) * BS
                          : iy + 3 * ys;
-            /* int z0 = y0 + 1; */
             int z1 = y1 + 1;
             int z2 = y2 + 1;
             int z3 = y3 + 1;
@@ -443,7 +442,6 @@ public:
             Real *p2 = m + dim * k2;
             Real *p3 = m + dim * k3;
             Real *q00 = b + dim * (BS * y0 + x);
-            // Real *q10 = b + dim * (BS * z0 + x);
             Real *q01 = b + dim * (BS * y1 + x);
             Real *q11 = b + dim * (BS * z1 + x);
             Real *q02 = b + dim * (BS * y2 + x);
@@ -503,7 +501,6 @@ public:
             }
           }
         }
-        //	assert(pattern->count == count);
       }
     }
     if (coarsened_nei_codes_size > 0)
