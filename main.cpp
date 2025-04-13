@@ -1509,8 +1509,6 @@ static int adapt() {
           }
         }
   }
-  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
-          level_ref.size(), level_com.size());
   for (long long j = 0; j < sim.n; j++) {
     int ix, iy;
     sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
@@ -1525,6 +1523,8 @@ static int adapt() {
       Z_com.push_back(sim.infos[j]->Z);
     }
   }
+  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
+          level_ref.size(), level_com.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
   nprev = sim.n;
