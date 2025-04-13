@@ -2193,6 +2193,15 @@ int main(int argc, char **argv) {
   while (1) {
     if (sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d %.16e\n", sim.step, sim.time);
+    if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
+      sim.nextDumpTime += sim.dumpTime;
+      computeA(KernelVorticity(), off_vel, 2);
+      char path[FILENAME_MAX];
+      snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
+      dump(sim.time, sim.infos, path);
+    }
+    if (sim.endTime > 0 && sim.time >= sim.endTime)
+      break;
     Real CFL = sim.CFL;
     Real h = std::numeric_limits<Real>::infinity();
     for (long long i = 0; i < sim.n; i++)
@@ -2207,13 +2216,6 @@ int main(int argc, char **argv) {
     Real dtDiffusion = 0.25 * h * h / (sim.nu + 0.25 * h * umax);
     Real dtAdvection = h / (umax + 1e-8);
     sim.dt = std::min({dtDiffusion, CFL * dtAdvection});
-    if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
-      sim.nextDumpTime += sim.dumpTime;
-      computeA(KernelVorticity(), off_vel, 2);
-      char path[FILENAME_MAX];
-      snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
-      dump(sim.time, sim.infos, path);
-    }
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
     for (const auto &shape : sim.shapes) {
@@ -2602,8 +2604,6 @@ int main(int argc, char **argv) {
     }
     sim.time += sim.dt;
     sim.step++;
-    if (sim.endTime > 0 && sim.time >= sim.endTime)
-      break;
   }
 
   delete sim.mat;
