@@ -187,7 +187,6 @@ static void get_states(Info *info, TreeState nei[3][3]) {
 struct BlockLab {
 private:
   int dim;
-  std::array<int, 9> coarsened_nei_codes;
 
 public:
   unsigned int nm[2], nc[2];
@@ -217,6 +216,7 @@ public:
              Stencil &stencil, Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
+    int coarsened_nei_codes[9];
     offset[0] = (stencil.sx - 1) / 2 - 1;
     offset[1] = (stencil.sy - 1) / 2 - 1;
     offset[2] = 0;
