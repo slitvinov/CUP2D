@@ -2,11 +2,13 @@ import jax
 import jax.numpy as jnp
 import struct
 import numpy as np
+import sys
 
-x0, y0, s0 = 0.0, 0.0, 1.0
-x1, y1, s1 = 2.0, 1.0, 2.0
-x2, y2, s2 = -1.0, -1.0, 1.0
-x3, y3, s3 = -1.0, 2.0, 1.0
+
+def sdf_ratio(xy):
+    s = sdf_fun(xy)
+    dx, dy = sdf_grad(xy)
+    return s / jnp.hypot(dx, dy)
 
 
 def sdf_fun(xy):
@@ -19,15 +21,11 @@ def sdf_fun(xy):
         -r3 / s2) - 1.0
 
 
+x0, y0, s0 = 0.0, 0.0, 1.0
+x1, y1, s1 = 2.0, 1.0, 2.0
+x2, y2, s2 = -1.0, -1.0, 1.0
+x3, y3, s3 = -1.0, 2.0, 1.0
 sdf_grad = jax.jacrev(sdf_fun)
-
-
-def sdf_ratio(xy):
-    s = sdf_fun(xy)
-    dx, dy = sdf_grad(xy)
-    return s / jnp.hypot(dx, dy)
-
-
 xh = yh = 10
 xl = yl = -10
 nr, np0 = 800, 800
@@ -57,7 +55,6 @@ x = R * jnp.cos(P)
 y = R * jnp.sin(P)
 xy = jnp.stack([x.ravel(), y.ravel()], axis=-1)
 sdf = sdf_ratio_batch(xy / scale + rc).reshape(x.shape) * scale
-import sys
 
 sys.stderr.write("%g\n" % (length * scale))
 with open("blob.raw", "wb") as f:
