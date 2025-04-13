@@ -1261,8 +1261,7 @@ static void ongrid() {
   const size_t Nblocks = sim.infos.size();
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
-    memset(sim.infos[i]->block + BS * BS * off_chi, 0,
-           BS * BS * sizeof(Real));
+    memset(sim.infos[i]->block + BS * BS * off_chi, 0, BS * BS * sizeof(Real));
     std::fill(sim.infos[i]->block + BS * BS * off_tmp,
               sim.infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
   }
@@ -1427,8 +1426,8 @@ static void adapt() {
       for (int j = 0; j < BS * BS; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
       sim.infos[i]->state = Linf > sim.Rtol   ? Refine
-                                : Linf < sim.Ctol ? Compress
-                                                  : Leave;
+                            : Linf < sim.Ctol ? Compress
+                                              : Leave;
       bool maxLevel = sim.infos[i]->state == Refine &&
                       sim.infos[i]->level == sim.levelMax - 1;
       bool minLevel =
@@ -1471,12 +1470,10 @@ static void adapt() {
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
                       int aux = abs(x) == 1 ? B % 2 : B / 2;
-                      int iNei = 2 * sim.infos[j]->index[0] +
-                                 std::max(x, 0) + x +
-                                 (B % 2) * std::max(0, 1 - abs(x));
-                      int jNei = 2 * sim.infos[j]->index[1] +
-                                 std::max(y, 0) + y +
-                                 aux * std::max(0, 1 - abs(y));
+                      int iNei = 2 * sim.infos[j]->index[0] + std::max(x, 0) +
+                                 x + (B % 2) * std::max(0, 1 - abs(x));
+                      int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) +
+                                 y + aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
                       Info *FinerNei = getf0(&sim.all, m + 1, zzz);
                       if (FinerNei->state == Refine) {
@@ -1492,8 +1489,7 @@ static void adapt() {
       if (m == levelMin)
         break;
       for (size_t j = 0; j < sim.infos.size(); j++) {
-        if (sim.infos[j]->level == m &&
-            sim.infos[j]->state == Compress) {
+        if (sim.infos[j]->level == m && sim.infos[j]->state == Compress) {
           int n = 1 << sim.infos[j]->level;
           int ix, iy;
           sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
@@ -1527,8 +1523,7 @@ static void adapt() {
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
           long long Z = forward(sim.infos[k]->level, i, j);
           if (!exist(&sim.all, sim.infos[k]->level, Z) ||
-              getf0(&sim.all, sim.infos[k]->level, Z)->state !=
-                  Compress) {
+              getf0(&sim.all, sim.infos[k]->level, Z)->state != Compress) {
             found = true;
             if (sim.infos[k]->state == Compress)
               sim.infos[k]->state = Leave;
@@ -1569,8 +1564,7 @@ static void adapt() {
       for (int k = 0; k < 4; k++)
         nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
       m_tree.push_back(nei);
-    } else if (sim.infos[j]->state == Compress && ix % 2 == 0 &&
-               iy % 2 == 0) {
+    } else if (sim.infos[j]->state == Compress && ix % 2 == 0 && iy % 2 == 0) {
       m_com.push_back(sim.infos[j]->level);
       n_com.push_back(sim.infos[j]->Z);
     }
@@ -1593,7 +1587,7 @@ static void adapt() {
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
-        /* assert(!exist(&sim.all, level + 1, Z)); */
+        assert(!exist(&sim.all, level + 1, Z));
         Info *child = new Info;
         fill(child, level + 1, Z);
 #pragma omp critical
@@ -2301,10 +2295,8 @@ int main(int argc, char **argv) {
             Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
             Real F = hsq * Xlamdt / (1 + Xlamdt);
             Real p[2];
-            p[0] =
-                sim.infos[i]->origin[0] + sim.infos[i]->h * (ix + 0.5);
-            p[1] =
-                sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
+            p[0] = sim.infos[i]->origin[0] + sim.infos[i]->h * (ix + 0.5);
+            p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
             p[0] -= shape->x;
             p[1] -= shape->y;
             PM += F;
@@ -2433,10 +2425,8 @@ int main(int argc, char **argv) {
             if (X[j] <= 0)
               continue;
             Real p[2];
-            p[0] =
-                sim.infos[i]->origin[0] + sim.infos[i]->h * (ix + 0.5);
-            p[1] =
-                sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
+            p[0] = sim.infos[i]->origin[0] + sim.infos[i]->h * (ix + 0.5);
+            p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
             p[0] -= shape->x;
             p[1] -= shape->y;
             Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
@@ -2498,8 +2488,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (size_t i = 0; i < sim.infos.size(); i++) {
       memcpy(sim.infos[i]->block + BS * BS * off_pold,
-             sim.infos[i]->block + BS * BS * off_pres,
-             BS * BS * sizeof(Real));
+             sim.infos[i]->block + BS * BS * off_pres, BS * BS * sizeof(Real));
       memset(sim.infos[i]->block + BS * BS * off_pres, 0,
              BS * BS * sizeof(Real));
     }
