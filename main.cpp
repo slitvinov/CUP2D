@@ -1482,6 +1482,7 @@ static int adapt() {
       }
     }
   }
+#pragma omp parallel for
   for (long long k = 0; k < sim.n; k++) {
     int ix, iy;
     sfc_inverse(sim.infos[k]->Z, sim.infos[k]->level, &ix, &iy);
@@ -1493,6 +1494,7 @@ static int adapt() {
             state[sim.map[sim.levels[sim.infos[k]->level] + Z]] != Compress) {
           found = true;
           if (state[k] == Compress)
+#pragma omp critical
             state[k] = Leave;
           goto out;
         }
@@ -1505,6 +1507,7 @@ static int adapt() {
           if (exist(sim.infos[k]->level, Z)) {
             long long id = sim.levels[sim.infos[k]->level] + Z;
             if (state[sim.map[id]] == Compress)
+#pragma omp critical
               state[sim.map[id]] = Leave;
           }
         }
