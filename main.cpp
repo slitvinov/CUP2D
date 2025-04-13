@@ -1555,7 +1555,7 @@ static int adapt() {
           {
             assert(!exist(level_ref[k] + 1, Z));
             sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
-            sim.tree[sim.levels[level_ref[k] + 1] + Z] = ParentIsActive;
+	    //            sim.tree[sim.levels[level_ref[k] + 1] + Z] = ParentIsActive;
           }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
