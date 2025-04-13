@@ -1657,13 +1657,7 @@ static int adapt() {
       assert(!exist(level_com[k] - 1, np));
       Info *parent = getf0(level_com[k] - 1, np);
 #pragma omp critical
-      sim.tree[sim.levels[parent->level] + parent->Z] = Active;
       parent->block = info->block;
-      if (level_com[k] - 2 >= 0) {
-#pragma omp critical
-        sim.tree[sim.levels[level_com[k] - 2] + (parent->Z >> 2)] =
-            ChildrenAreActive;
-      }
       sim.infos[info->id] = parent;
 #pragma omp critical
       {
