@@ -820,8 +820,10 @@ public:
             BS * BS * offset;
         break;
       case ParentIsActive:
-        ix = (xi + cx + n) % n / 2;
-        iy = (yi + cy + n) % n / 2;
+        ix = (xi + cx) / 2;
+        iy = (yi + cy) / 2;
+        assert(xi + cx >= 0);
+        assert(yi + cy >= 0);
         Z = forward(info->level - 1, ix, iy);
         blocks[1 + cx][1 + cy][0] =
             getf0(info->level - 1, Z)->block + BS * BS * offset;
