@@ -1529,7 +1529,7 @@ static int adapt() {
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-  //#pragma omp parallel
+#pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
@@ -1553,7 +1553,7 @@ static int adapt() {
           {
             assert(!exist(level_ref[k] + 1, Z));
             sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
-	    sim.tree[sim.levels[level_ref[k] + 1] + Z] = ParentIsActive;
+	    //	    sim.tree[sim.levels[level_ref[k] + 1] + Z] = Active;
           }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
