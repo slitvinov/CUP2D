@@ -1584,7 +1584,7 @@ static void adapt() {
       n_com.push_back(var.vel->infos[j]->Z);
     }
   }
-  for (size_t i = 0; i < 1; i++) {
+  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
     Grid *g = (*var.F[i].g);
     Stencil stencil{-1, -1, 2, 2, true};
     if (m_com.size() > 0 || m_ref.size() > 0)
@@ -1620,10 +1620,10 @@ static void adapt() {
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
-	int dim = var.F[k].dim;
-	int offset = var.F[k].offset;
-	labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent,
-			    true);
+        int dim = var.F[k].dim;
+        int offset = var.F[k].offset;
+        labs[dim - 1].load1(offset, m_tree[i].nei, &g->all, stencil, parent,
+                            true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -1711,8 +1711,8 @@ static void adapt() {
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
-	int dim = var.F[k].dim;
-	int offset = var.F[k].offset;
+        int dim = var.F[k].dim;
+        int offset = var.F[k].offset;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *c = Blocks[0] + offset * BS * BS;
@@ -1753,11 +1753,11 @@ static void adapt() {
     for (size_t i = 0; i < n; i++) {
       long long id = sim.levels[g->infos[i]->level] + g->infos[i]->Z;
       if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
-	g->all.erase(id);
-	/*        free(g->infos[i]->block); */
+        g->all.erase(id);
+        /*        free(g->infos[i]->block); */
       } else {
         g->infos[j] = g->infos[i];
-	g->infos[j]->id = j;
+        g->infos[j]->id = j;
         j++;
       }
     }
