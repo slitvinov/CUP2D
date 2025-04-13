@@ -1531,12 +1531,12 @@ static int adapt() {
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-#pragma omp parallel
+  /* #pragma omp parallel */
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
     labs[1].prepare(stencil);
-/* #pragma omp for */
+#pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
       sfc_inverse(Z_ref[k], level_ref[k], &px, &py);
