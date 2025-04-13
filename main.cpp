@@ -1709,13 +1709,14 @@ static void adapt() {
   }
   long long j = 0;
   sim.map.clear();
-  for (long long i = 0; i < n.sim; i++) {
-    long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
+  for (long long i = 0; i < sim.n; i++) {
+    Info *info = sim.infos[i];
+    long long id = sim.levels[info->level] + info->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
-      free(sim.infos[i]->block);
-      delete sim.infos[i];
+      free(info->block);
+      delete info;
     } else {
-      sim.map[id] = sim.infos[j] = sim.infos[i];
+      sim.map[id] = sim.infos[j] = info;
       sim.infos[j]->id = j;
       j++;
     }
