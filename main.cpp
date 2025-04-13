@@ -890,11 +890,11 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
   } else {
-    int eI[3] = {(lab->end[0]) / 2 + 1 + (2) - 1,
-                 (lab->end[1]) / 2 + 1 + (2) - 1,
+    int eI[3] = {(stencil->ex) / 2 + 1 + (2) - 1,
+                 (stencil->ey) / 2 + 1 + (2) - 1,
                  (lab->end[2]) / 2 + 1 + (1) - 1};
-    int sI[3] = {(lab->start0[0] - 1) / 2 + (-1),
-                 (lab->start0[1] - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
+    int sI[3] = {(stencil->sx - 1) / 2 + (-1),
+                 (stencil->sy - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
     int *stenBeg = sI;
     int *stenEnd = eI;
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
