@@ -1376,7 +1376,6 @@ static int adapt() {
   std::vector<int> m_ref;
   struct TreeStateMatrix {
     TreeState nei[3][3];
-    Real *blocks[4];
   };
   std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> n_com;
@@ -1512,8 +1511,6 @@ static int adapt() {
       n_ref.push_back(sim.infos[j]->Z);
       TreeStateMatrix nei;
       get_states(sim.infos[j], nei.nei);
-      for (int k = 0; k < 4; k++)
-        nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
       m_tree.push_back(nei);
     } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
       m_com.push_back(sim.infos[j]->level);
@@ -1537,6 +1534,7 @@ static int adapt() {
       int px, py;
       sfc_inverse(Z, level, &px, &py);
       assert(level <= sim.levelMax - 1);
+      Real *blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
@@ -1544,7 +1542,7 @@ static int adapt() {
           fill(child, level + 1, Z);
           long long id = nprev + 4 * i + 2 * J + I;
           sim.infos[id] = child;
-          child->block = m_tree[i].blocks[J * 2 + I];
+          child->block = blocks[2 * J + 1] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
 #pragma omp critical
 	  {
 	    assert(!exist(level + 1, Z));
@@ -1563,7 +1561,7 @@ static int adapt() {
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
+            Real *b = blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
                 int i0 = i / 2 + offsetX[I] - stencil.sx;
