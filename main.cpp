@@ -126,7 +126,6 @@ static void fill(Info *b, int level, long long Z) {
   b->index[2] = 0;
   b->origin[0] = (Real)b->index[0] / (1 << level);
   b->origin[1] = (Real)b->index[1] / (1 << level);
-  b->state = Leave;
 
   Bmax[0] = 1 << level;
   Bmax[1] = 1 << level;
@@ -1456,8 +1455,8 @@ static void adapt() {
                       int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) +
                                  y + aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
-                      Info *FinerNei = getf0(m + 1, zzz);
-                      if (FinerNei->state == Refine) {
+		      int id = sim.levels[m + 1] + zzz;
+                      if (state[sim.map[id]] == Refine) {
                         state[j] = Refine;
                         goto end;
                       }
@@ -1504,7 +1503,7 @@ static void adapt() {
         for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
           long long Z = forward(sim.infos[k]->level, i, j);
           if (!exist(sim.infos[k]->level, Z) ||
-              getf0(sim.infos[k]->level, Z)->state != Compress) {
+              state[sim.map[sim.levels[sim.infos[k]->level] + Z]] != Compress) {
             found = true;
             if (state[k] == Compress)
               state[k] = Leave;
@@ -1517,9 +1516,9 @@ static void adapt() {
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
             long long Z = forward(sim.infos[k]->level, i, j);
             if (exist(sim.infos[k]->level, Z)) {
-              Info *infoNei = getf0(sim.infos[k]->level, Z);
-              if (infoNei->state == Compress)
-                infoNei->state = Leave;
+	      long long id = sim.levels[sim.infos[k]->level] + Z;
+              if (state[sim.map[id]] == Compress)
+		state[sim.map[id]] = Leave;
             }
           }
     }
