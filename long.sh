@@ -12,8 +12,8 @@ ${main=./main} \
 -nu 1e-4 \
 -poissonTol 1e-3 \
 -poissonTolRel 0 \
--tdump 0.1 \
--tend 500 \
+-tdump 0.5 \
+-tend 100 \
 -shapes '
    scale=0.06 orientation=0 omega=-1.12 xcenter=0.59 ycenter=0.53 sdf=box.raw
    scale=0.06 orientation=0 omega=1.54 xcenter=0.44 ycenter=0.68 sdf=box.raw
