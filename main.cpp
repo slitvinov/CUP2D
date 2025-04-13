@@ -1526,6 +1526,7 @@ static int adapt() {
   }
   if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
+  assert(level_com.size() == 0);
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
