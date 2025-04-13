@@ -1625,8 +1625,8 @@ static int adapt() {
       sfc_inverse(parent->Z, parent->level, &px, &py);
       for (int j = 0; j < 2; j++)
         for (int i = 0; i < 2; i++) {
-          long long nc = forward(level_ref[k] + 1, 2 * px + i, 2 * py + j);
-          Info *Child = getf0(level_ref[k] + 1, nc);
+          long long Z = forward(level_ref[k] + 1, 2 * px + i, 2 * py + j);
+          Info *Child = getf0(level_ref[k] + 1, Z);
 #pragma omp critical
           sim.tree[sim.levels[Child->level] + Child->Z] = Active;
           if (level_ref[k] + 2 < sim.levelMax)
