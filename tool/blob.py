@@ -18,11 +18,15 @@ def sdf_fun(xy):
     return jnp.exp(-r0 / s0) + jnp.exp(-r1 / s1) + jnp.exp(-r2 / s2) + jnp.exp(
         -r3 / s2) - 1.0
 
+
 sdf_grad = jax.jacrev(sdf_fun)
+
+
 def sdf_ratio(xy):
     s = sdf_fun(xy)
     dx, dy = sdf_grad(xy)
     return s / jnp.hypot(dx, dy)
+
 
 xh = yh = 10
 xl = yl = -10
@@ -54,11 +58,14 @@ y = R * jnp.sin(P)
 xy = jnp.stack([x.ravel(), y.ravel()], axis=-1)
 sdf = sdf_ratio_batch(xy / scale + rc).reshape(x.shape) * scale
 import sys
+
 sys.stderr.write("%g\n" % (length * scale))
 with open("blob.raw", "wb") as f:
     f.write(b"SDF")
     f.write(struct.pack("ffii", length * scale, rmax, nr, np0))
     f.write(np.asarray(sdf, dtype=np.float32).tobytes())
+'''
 for xi, yi, si in zip(x.ravel(), y.ravel(), sdf.ravel()):
     if si > 0:
         print(xi, yi, si)
+'''
