@@ -874,19 +874,17 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
   int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    int *stenBeg = lab->start0;
-    int *stenEnd = lab->end;
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS) : stenBeg[1];
+    s[0] = dir == 0 ? (side == 0 ? stencil->sx : BS) : stencil->sx;
+    s[1] = dir == 1 ? (side == 0 ? stencil->sy : BS) : stencil->sy;
     e[0] =
-        dir == 0 ? (side == 0 ? 0 : BS + stenEnd[0] - 1) : BS + stenEnd[0] - 1;
+        dir == 0 ? (side == 0 ? 0 : BS + stencil->ex - 1) : BS + stencil->ex - 1;
     e[1] =
-        dir == 1 ? (side == 0 ? 0 : BS + stenEnd[1] - 1) : BS + stenEnd[1] - 1;
+        dir == 1 ? (side == 0 ? 0 : BS + stencil->ey - 1) : BS + stencil->ey - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stenBeg[0];
-        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stenBeg[1];
-        int i0 = ix - stenBeg[0] + lab->nm[0] * (iy - stenBeg[1]);
+        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stencil->sx;
+        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stencil->sy;
+        int i0 = ix - stencil->sx + lab->nm[0] * (iy - stencil->sy);
         int i1 = x + lab->nm[0] * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
