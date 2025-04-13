@@ -90,6 +90,7 @@ static struct {
   std::vector<long long> levels;
   std::vector<Shape *> shapes;
   struct LocalSpMatDnVec *mat;
+  long long Nblock;
   std::unordered_map<long long, TreeState> tree;
   std::unordered_map<long long, Info *> map;
   std::vector<Info *> infos;
