@@ -1654,6 +1654,7 @@ static int adapt() {
       }
       long long np =
           forward(level_com[k] - 1, info->index[0] / 2, info->index[1] / 2);
+      assert(!exist(level_com[k] - 1, np));
       Info *parent = getf0(level_com[k] - 1, np);
 #pragma omp critical
       sim.tree[sim.levels[parent->level] + parent->Z] = Active;
