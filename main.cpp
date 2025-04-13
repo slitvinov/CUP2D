@@ -1168,13 +1168,6 @@ static void dump(Real time, Info **infos, char *path) {
       fclose(file);
     }
 }
-struct Integrals {
-  const Real x, y, m, j, u, v, a;
-  Integrals(Real _x, Real _y, Real _m, Real _j, Real _u, Real _v, Real _a)
-      : x(_x), y(_y), m(_m), j(_j), u(_u), v(_v), a(_a) {}
-  Integrals(const Integrals &c)
-      : x(c.x), y(c.y), m(c.m), j(c.j), u(c.u), v(c.v), a(c.a) {}
-};
 struct Shape {
   float rmax;
   float *sdf;
@@ -1360,7 +1353,6 @@ static void ongrid() {
     _u /= _m;
     _v /= _m;
     _a /= _j;
-    Integrals I = Integrals(_x, _y, _m, _j, _u, _v, _a);
 #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < sim.infos.size(); i++) {
       const auto pos = shape->obstacleBlocks[sim.infos[i]->id];
@@ -1373,8 +1365,8 @@ static void ongrid() {
           p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
           p[0] -= shape->x;
           p[1] -= shape->y;
-          pos->udef[iy][ix][0] -= I.u - I.a * p[1];
-          pos->udef[iy][ix][1] -= I.v + I.a * p[0];
+          pos->udef[iy][ix][0] -= _u - _a * p[1];
+          pos->udef[iy][ix][1] -= _v + _a * p[0];
         }
     }
   }
