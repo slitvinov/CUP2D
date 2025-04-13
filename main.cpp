@@ -1544,7 +1544,7 @@ static int adapt() {
       Real *blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          long long Z = forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
+          long long Z = sfc_forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
