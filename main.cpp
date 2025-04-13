@@ -161,15 +161,13 @@ static Info getf1(std::unordered_map<long long, Info *> *all, int level,
 struct BlockLab;
 static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
-static struct {
-  struct {
-    int offset;
-    int dim;
-    const char *prefix;
-  } F[7] = {{off_vel, 2, "vel"}, {off_pres, 1, "pres"}, {off_chi, 1, "chi"},
+struct {
+  int offset;
+  int dim;
+  const char *prefix;
+} vars[] = {{off_vel, 2, "vel"}, {off_pres, 1, "pres"}, {off_chi, 1, "chi"},
             {off_vold, 2, NULL}, {off_tmp, 1, "tmp"},   {off_pold, 1, NULL},
             {off_tmpV, 2, NULL}};
-} var;
 
 static void get_states(Info *info, TreeState nei[3][3]) {
   int xi, yi;
@@ -1106,14 +1104,14 @@ static void dump(Real time, Info **infos, char *path) {
           "       </DataItem>\n"
           "     </Geometry>\n",
           time, BS * BS * nblock, 4 * BS * BS * nblock, xyz_base);
-  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
-    if (var.F[i].prefix != NULL) {
+  for (size_t i = 0; i < sizeof vars / sizeof *vars; i++)
+    if (vars[i].prefix != NULL) {
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
-                   var.F[i].prefix) > (long)sizeof attr_path) {
+                   vars[i].prefix) > (long)sizeof attr_path) {
         fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
         exit(1);
       }
-      int dim = var.F[i].dim;
+      int dim = vars[i].dim;
       fprintf(xdmf,
               "       <Attribute\n"
               "           AttributeType=\"%s\"\n"
@@ -1126,7 +1124,7 @@ static void dump(Real time, Info **infos, char *path) {
               "           %s\n"
               "         </DataItem>\n"
               "       </Attribute>\n",
-              dim == 2 ? "Vector" : "Scalar", var.F[i].prefix, BS * BS * nblock,
+              dim == 2 ? "Vector" : "Scalar", vars[i].prefix, BS * BS * nblock,
               dim, sizeof(Real), attr_path + (xyz_path - xyz_base));
     }
   fprintf(xdmf, "    </Grid>\n"
@@ -1158,12 +1156,12 @@ static void dump(Real time, Info **infos, char *path) {
   }
   fclose(file);
 
-  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++)
-    if (var.F[i].prefix != NULL) {
-      int dim = var.F[i].dim;
-      int offset = var.F[i].offset;
+  for (size_t i = 0; i < sizeof vars / sizeof *vars; i++)
+    if (vars[i].prefix != NULL) {
+      int dim = vars[i].dim;
+      int offset = vars[i].offset;
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
-                   var.F[i].prefix) >= (long)sizeof attr_path) {
+                   vars[i].prefix) >= (long)sizeof attr_path) {
         fprintf(stderr, "main.cpp: output path '%s' is too long\n", path);
         exit(1);
       }
@@ -1596,9 +1594,9 @@ static void adapt() {
     int nm = BS + stencil.ex - stencil.sx - 1;
     int offsetX[2] = {0, BS / 2};
     int offsetY[2] = {0, BS / 2};
-    for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
-      int dim = var.F[k].dim;
-      int offset = var.F[k].offset;
+    for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
+      int dim = vars[k].dim;
+      int offset = vars[k].offset;
       labs[dim - 1].load1(offset, m_tree[i].nei, &sim.all, stencil, parent,
                           true);
       Real *um = labs[dim - 1].m;
@@ -1683,9 +1681,9 @@ static void adapt() {
       }
     int offsetX[2] = {0, BS / 2};
     int offsetY[2] = {0, BS / 2};
-    for (size_t k = 0; k < sizeof var.F / sizeof *var.F; k++) {
-      int dim = var.F[k].dim;
-      int offset = var.F[k].offset;
+    for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
+      int dim = vars[k].dim;
+      int offset = vars[k].offset;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           Real *c = Blocks[0] + offset * BS * BS;
@@ -2565,9 +2563,14 @@ int main(int argc, char **argv) {
           }
         }
     }
+    /*
+      getVec();
+      sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
+    */
     sim.mat->make();
     getVec();
     sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
+
     size_t NB = sim.infos.size();
     Real avg, avg1;
     avg = 0;
