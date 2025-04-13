@@ -93,7 +93,7 @@ static struct {
   long long n;
   std::unordered_map<long long, TreeState> tree;
   std::unordered_map<long long, Info *> map;
-  std::vector<Info *> infos;
+  Info **infos;
 } sim;
 #include "utils.h"
 struct Info {
@@ -1558,7 +1558,7 @@ static void adapt() {
   labs[1].prepare(stencil);
   long long nprev = sim.n;
   sim.n += 4 * m_ref.size();
-  sim.infos.resize(sim.n);
+  sim.infos = (Info**)malloc(sim.n * sizeof *sim.infos);
   for (size_t i = 0; i < m_ref.size(); i++) {
     int level = m_ref[i];
     long long Z = n_ref[i];
@@ -1721,7 +1721,7 @@ static void adapt() {
     }
   }
   sim.n = j;
-  sim.infos.resize(sim.n);
+  // sim.infos.resize(sim.n);
 }
 struct KernelAdvectDiffuse {
   Stencil stencil{-3, -3, 4, 4, true};
@@ -2126,7 +2126,7 @@ int main(int argc, char **argv) {
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
   sim.n = 1LL << (2 * sim.levelStart);
-  sim.infos.resize(sim.n);
+  sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
   for (long long i = 0; i < sim.n; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
@@ -2211,7 +2211,7 @@ int main(int argc, char **argv) {
       computeA(KernelVorticity(), off_vel, 2);
       char path[FILENAME_MAX];
       snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
-      dump(sim.time, sim.infos.data(), path);
+      dump(sim.time, sim.infos, path);
     }
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
