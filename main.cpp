@@ -1540,22 +1540,21 @@ static int adapt() {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Z = forward(level + 1, 2 * px + I, 2 * py + J);
-#pragma omp critical
-          assert(!exist(level + 1, Z));
           Info *child = new Info;
           fill(child, level + 1, Z);
           long long id = nprev + 4 * i + 2 * J + I;
           sim.infos[id] = child;
           child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
-          sim.map[sim.levels[level + 1] + Z] = id;
-#pragma omp critical
-          sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
+	  {
+	    assert(!exist(level + 1, Z));
+	    sim.map[sim.levels[level + 1] + Z] = id;
+	    sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
+	  }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
-#pragma omg critical
       Info *parent = getf0(level, Z);
       for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
         int dim = vars[k].dim;
