@@ -150,12 +150,11 @@ static Info *getf0(int m, long long Z) {
   assert(retval != sim.map.end());
   return retval->second;
 }
-static Info getf1(std::unordered_map<long long, Info *> *all, int level,
-                  long long Z) {
+static Info getf1(int level, long long Z) {
   Info dummy;
   fill(&dummy, level, Z);
-  auto r = all->find(sim.levels[level] + Z);
-  return (r == all->end()) ? dummy : *r->second;
+  auto r = sim.map.find(sim.levels[level] + Z);
+  return (r == sim.map.end()) ? dummy : *r->second;
 }
 struct BlockLab;
 static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
@@ -2520,7 +2519,7 @@ int main(int argc, char **argv) {
                               1., signTaylor, indexer, row);
                   row.mapColVal(sfc_idx, -1.);
                 } else if (state == ChildrenAreActive) {
-                  Info rhsNei0 = getf1(&sim.map, info->level, nei[j]);
+                  Info rhsNei0 = getf1(info->level, nei[j]);
                   Info *rhsNei = &rhsNei0;
                   Info *rhsNei_f =
                       getf0(info->level + 1, indexer->Zchild(rhsNei, ix, iy));
