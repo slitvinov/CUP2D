@@ -191,7 +191,6 @@ private:
 
 public:
   unsigned int nm[2], nc[2];
-  int end[3], start0[3];
   Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
@@ -203,20 +202,14 @@ public:
   }
   void prepare(Stencil &stencil) {
     int offset[2];
-    start0[0] = stencil.sx;
-    start0[1] = stencil.sy;
-    start0[2] = 0;
-    end[0] = stencil.ex;
-    end[1] = stencil.ey;
-    end[2] = 1;
-    nm[0] = BS + end[0] - start0[0] - 1;
-    nm[1] = BS + end[1] - start0[1] - 1;
+    nm[0] = BS + stencil.ex - stencil.sx - 1;
+    nm[1] = BS + stencil.ey - stencil.sy - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
     offset[0] = (stencil.sx - 1) / 2 - 1;
     offset[1] = (stencil.sy - 1) / 2 - 1;
-    nc[0] = BS / 2 + end[0] / 2 + 1 - offset[0];
-    nc[1] = BS / 2 + end[1] / 2 + 1 - offset[1];
+    nc[0] = BS / 2 + stencil.ex / 2 + 1 - offset[0];
+    nc[1] = BS / 2 + stencil.ey / 2 + 1 - offset[1];
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
@@ -876,10 +869,10 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
     s[0] = dir == 0 ? (side == 0 ? stencil->sx : BS) : stencil->sx;
     s[1] = dir == 1 ? (side == 0 ? stencil->sy : BS) : stencil->sy;
-    e[0] =
-        dir == 0 ? (side == 0 ? 0 : BS + stencil->ex - 1) : BS + stencil->ex - 1;
-    e[1] =
-        dir == 1 ? (side == 0 ? 0 : BS + stencil->ey - 1) : BS + stencil->ey - 1;
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS + stencil->ex - 1)
+                    : BS + stencil->ex - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS + stencil->ey - 1)
+                    : BS + stencil->ey - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
         int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stencil->sx;
@@ -890,25 +883,19 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
   } else {
-    int eI[3] = {(stencil->ex) / 2 + 1 + (2) - 1,
-                 (stencil->ey) / 2 + 1 + (2) - 1,
-                 (lab->end[2]) / 2 + 1 + (1) - 1};
-    int sI[3] = {(stencil->sx - 1) / 2 + (-1),
-                 (stencil->sy - 1) / 2 + (-1), (lab->start0[2] - 1) / 2};
-    int *stenBeg = sI;
-    int *stenEnd = eI;
+    int eI[3] = {stencil->ex / 2 + 2, stencil->ey / 2 + 2, 1 / 2 + 1};
+    int sI[3] = {(stencil->sx - 1) / 2 - 1, (stencil->sy - 1) / 2 - 1,
+                 (0 - 1) / 2};
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : BS / 2) : stenBeg[0];
-    s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : BS / 2) : stenBeg[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : BS / 2 + stenEnd[0] - 1)
-                    : BS / 2 + stenEnd[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : BS / 2 + stenEnd[1] - 1)
-                    : BS / 2 + stenEnd[1] - 1;
+    s[0] = dir == 0 ? (side == 0 ? sI[0] : BS / 2) : sI[0];
+    s[1] = dir == 1 ? (side == 0 ? sI[1] : BS / 2) : sI[1];
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS / 2 + eI[0] - 1) : BS / 2 + eI[0] - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS / 2 + eI[1] - 1) : BS / 2 + eI[1] - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - stenBeg[0];
-        int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - stenBeg[1];
-        int i0 = ix - stenBeg[0] + lab->nc[0] * (iy - stenBeg[1]);
+        int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - sI[0];
+        int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - sI[1];
+        int i0 = ix - sI[0] + lab->nc[0] * (iy - sI[1]);
         int i1 = x + lab->nc[0] * (y);
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
         lab->c[2 * i0 + A] = lab->c[2 * i1 + A];
