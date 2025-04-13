@@ -1576,7 +1576,7 @@ static void adapt() {
 #pragma omp critical
         sim.map[sim.levels[level + 1] + Z] = child;
         child->block = m_tree[i].blocks[J * 2 + I];
-        sim.infos[nprev + 2 * J + I] = child;
+        sim.infos[nprev + 4 * m_ref.size() + 2 * J + I] = child;
 #pragma omp critical
         sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
       }
