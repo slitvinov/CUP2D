@@ -1396,7 +1396,7 @@ static void adapt() {
   computeA(KernelVorticity(), off_vel, 2);
   computeA(GradChiOnTmp(), off_chi, 1);
   bool Reduction = false;
-  std::vector<State> state(sim.n);
+  State *state = (State*)malloc(sim.n * sizeof *state);
 #pragma omp parallel
   {
 #pragma omp for schedule(dynamic, 1)
@@ -1546,6 +1546,7 @@ static void adapt() {
       n_com.push_back(sim.infos[j]->Z);
     }
   }
+  free(state);
   Stencil stencil{-1, -1, 2, 2, true};
   std::unordered_set<long long> dealloc_IDs;
   BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
