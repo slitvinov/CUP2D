@@ -269,8 +269,6 @@ public:
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         Real *b = blocks[1 + cx][1 + cy][0];
-        if (b == nullptr)
-          continue;
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
                     cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
         int e[2] = {
@@ -392,8 +390,6 @@ public:
         for (int cnt = 0; cnt < pattern->count; cnt++, B += pattern->Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           Real *b = blocks[1 + cx][1 + cy][cnt];
-          if (b == nullptr)
-            continue;
           int i =
               abs(cx) * (s[0] - stencil.sx) +
               (1 - abs(cx)) * (s[0] - stencil.sx + (B % 2) * (e[0] - s[0]) / 2);
