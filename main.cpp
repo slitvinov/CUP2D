@@ -1534,10 +1534,8 @@ static int adapt() {
     for (size_t i = 0; i < m_ref.size(); i++) {
       int level = m_ref[i];
       long long Z = n_ref[i];
-      Info *parent = getf0(level, Z);
       int px, py;
-      sfc_inverse(parent->Z, parent->level, &px, &py);
-      assert(parent->block != NULL);
+      sfc_inverse(Z, level, &px, &py);
       assert(level <= sim.levelMax - 1);
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
@@ -1557,6 +1555,8 @@ static int adapt() {
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
+#pragma omg critical
+      Info *parent = getf0(level, Z);
       for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
         int dim = vars[k].dim;
         int offset = vars[k].offset;
