@@ -1471,7 +1471,6 @@ static int adapt() {
           if (cy == yskip && yskin)
             continue;
           if (exist(sim.infos[j]->level, sim.infos[j]->Znei[1 + cx][1 + cy])) {
-#pragma omp critical
             state[j] = Leave;
             break;
           }
@@ -1550,7 +1549,6 @@ static int adapt() {
           sim.infos[id] = child;
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
-#pragma omp critical
           assert(!exist(level_ref[k] + 1, Z));
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
