@@ -1404,7 +1404,9 @@ static int adapt() {
   }
   if (!Changed)
     goto end;
+#pragma omp parallel
   for (int m = sim.levelMax - 1; m >= 0; m--) {
+#pragma omp for
     for (long long j = 0; j < sim.n; j++) {
       if (sim.infos[j]->level == m && state[j] != Refine &&
           sim.infos[j]->level != sim.levelMax - 1) {
@@ -1428,6 +1430,7 @@ static int adapt() {
                              sim.infos[j]->Znei[1 + x][1 + y]] ==
                     ChildrenAreActive) {
                   if (state[j] == Compress)
+#pragma omp critical
                     state[j] = Leave;
                   int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                   for (int B = 0; B <= 1; B += Bstep) {
@@ -1439,6 +1442,7 @@ static int adapt() {
                     long long zzz = forward(m + 1, iNei, jNei);
                     int id = sim.levels[m + 1] + zzz;
                     if (state[sim.map[id]] == Refine) {
+#pragma omp critical
                       state[j] = Refine;
                       goto found;
                     }
@@ -1450,6 +1454,7 @@ static int adapt() {
     }
     if (m == 0)
       break;
+#pragma omp parallel
     for (long long j = 0; j < sim.n; j++) {
       if (sim.infos[j]->level == m && state[j] == Compress) {
         int n = 1 << sim.infos[j]->level;
@@ -1469,6 +1474,7 @@ static int adapt() {
           if (cy == yskip && yskin)
             continue;
           if (exist(sim.infos[j]->level, sim.infos[j]->Znei[1 + cx][1 + cy])) {
+#pragma omp critical
             state[j] = Leave;
             break;
           }
