@@ -5,7 +5,7 @@ ${main=./main} \
 -CFL 0.5 \
 -Ctol 1 \
 -lambda 1e7 \
--levelMax 6 \
+-levelMax 5 \
 -levelStart 4 \
 -maxPoissonRestarts 0 \
 -nu 0.0001 \
