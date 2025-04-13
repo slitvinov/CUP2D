@@ -1713,7 +1713,7 @@ static void adapt() {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
-      delete sim.infos[i];
+      //      delete sim.infos[i];
     } else {
       sim.map[id] = sim.infos[j] = sim.infos[i];
       sim.infos[j]->id = j;
