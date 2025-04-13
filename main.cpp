@@ -1546,6 +1546,7 @@ static int adapt() {
           Info *child = new Info;
           fill(child, level + 1, Z);
           long long id = nprev + 4 * i + 2 * J + I;
+#pragma omp critical
           sim.infos[id] = child;
           child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
