@@ -1722,8 +1722,6 @@ static void adapt() {
     sim.infos[info->id] = parent;
 #pragma omp critical
     {
-      sim.all[sim.levels[parent->level] + parent->Z] = parent;
-      sim.all.erase(sim.levels[level] + parent->Zchild[0][0]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
@@ -1731,13 +1729,13 @@ static void adapt() {
   }
   size_t n = sim.infos.size();
   size_t j = 0;
+  sim.all.clear();
   for (size_t i = 0; i < n; i++) {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
-      sim.all.erase(id);
       /* free(sim.infos[i]->block); */
     } else {
-      sim.infos[j] = sim.infos[i];
+      sim.all[id] = sim.infos[j] = sim.infos[i];
       sim.infos[j]->id = j;
       j++;
     }
