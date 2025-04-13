@@ -1564,7 +1564,6 @@ static int adapt() {
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = m_tree[i].blocks[J * 2 + I] + offset * BS * BS;
-            memset(b, 0, dim * BS * BS * sizeof(Real));
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
                 int i0 = i / 2 + offsetX[I] - stencil.sx;
