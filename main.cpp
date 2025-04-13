@@ -98,7 +98,6 @@ static struct {
 #include "utils.h"
 struct Info {
   double h, origin[2];
-  enum State state;
   int index[3], level;
   long long id, Z, Zchild[2][2], Znei[3][3];
   Real *block = NULL;
@@ -1407,16 +1406,16 @@ static void adapt() {
       double Linf = 0.0;
       for (int j = 0; j < BS * BS; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
-      sim.infos[i]->state = Linf > sim.Rtol   ? Refine
+      state[i] = Linf > sim.Rtol   ? Refine
                             : Linf < sim.Ctol ? Compress
                                               : Leave;
-      bool maxLevel = sim.infos[i]->state == Refine &&
+      bool maxLevel = state[i] == Refine &&
                       sim.infos[i]->level == sim.levelMax - 1;
       bool minLevel =
-          sim.infos[i]->state == Compress && sim.infos[i]->level == 0;
+          state[i] == Compress && sim.infos[i]->level == 0;
       if (maxLevel || minLevel)
-        sim.infos[i]->state = Leave;
-      if (sim.infos[i]->state != Leave) {
+        state[i] = Leave;
+      if (state[i] != Leave) {
 #pragma omp critical
         Reduction = true;
       }
@@ -1426,7 +1425,7 @@ static void adapt() {
     int levelMin = 0;
     for (int m = sim.levelMax - 1; m >= levelMin; m--) {
       for (long long j = 0; j < sim.n; j++) {
-        if (sim.infos[j]->level == m && sim.infos[j]->state != Refine &&
+        if (sim.infos[j]->level == m && state[j] != Refine &&
             sim.infos[j]->level != sim.levelMax - 1) {
           int ix, iy;
           int n = 1 << sim.infos[j]->level;
@@ -1436,7 +1435,7 @@ static void adapt() {
           int xskip = ix == 0 ? -1 : 1;
           int yskip = iy == 0 ? -1 : 1;
 
-          if (sim.infos[j]->state != Refine)
+          if (state[j] != Refine)
             for (int x = -1; x < 2; x++)
               for (int y = -1; y < 2; y++)
                 if (x != 0 || y != 0) {
@@ -1447,8 +1446,8 @@ static void adapt() {
                   if (sim.tree[sim.levels[sim.infos[j]->level] +
                                sim.infos[j]->Znei[1 + x][1 + y]] ==
                       ChildrenAreActive) {
-                    if (sim.infos[j]->state == Compress)
-                      sim.infos[j]->state = Leave;
+                    if (state[j] == Compress)
+                      state[j] = Leave;
                     int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                     for (int B = 0; B <= 1; B += Bstep) {
                       int aux = abs(x) == 1 ? B % 2 : B / 2;
@@ -1459,7 +1458,7 @@ static void adapt() {
                       long long zzz = forward(m + 1, iNei, jNei);
                       Info *FinerNei = getf0(m + 1, zzz);
                       if (FinerNei->state == Refine) {
-                        sim.infos[j]->state = Refine;
+                        state[j] = Refine;
                         goto end;
                       }
                     }
@@ -1471,7 +1470,7 @@ static void adapt() {
       if (m == levelMin)
         break;
       for (long long j = 0; j < sim.n; j++) {
-        if (sim.infos[j]->level == m && sim.infos[j]->state == Compress) {
+        if (sim.infos[j]->level == m && state[j] == Compress) {
           int n = 1 << sim.infos[j]->level;
           int ix, iy;
           sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
@@ -1490,7 +1489,7 @@ static void adapt() {
               continue;
             if (exist(sim.infos[j]->level,
                       sim.infos[j]->Znei[1 + cx][1 + cy])) {
-              sim.infos[j]->state = Leave;
+              state[j] = Leave;
               break;
             }
           }
@@ -1507,8 +1506,8 @@ static void adapt() {
           if (!exist(sim.infos[k]->level, Z) ||
               getf0(sim.infos[k]->level, Z)->state != Compress) {
             found = true;
-            if (sim.infos[k]->state == Compress)
-              sim.infos[k]->state = Leave;
+            if (state[k] == Compress)
+              state[k] = Leave;
             goto out;
           }
         }
@@ -1538,7 +1537,7 @@ static void adapt() {
   for (long long j = 0; j < sim.n; j++) {
     int ix, iy;
     sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
-    if (sim.infos[j]->state == Refine) {
+    if (state[j] == Refine) {
       m_ref.push_back(sim.infos[j]->level);
       n_ref.push_back(sim.infos[j]->Z);
       TreeStateMatrix nei;
@@ -1546,7 +1545,7 @@ static void adapt() {
       for (int k = 0; k < 4; k++)
         nei.blocks[k] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
       m_tree.push_back(nei);
-    } else if (sim.infos[j]->state == Compress && ix % 2 == 0 && iy % 2 == 0) {
+    } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
       m_com.push_back(sim.infos[j]->level);
       n_com.push_back(sim.infos[j]->Z);
     }
