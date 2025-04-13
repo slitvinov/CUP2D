@@ -2116,13 +2116,14 @@ int main(int argc, char **argv) {
       sim.tree[sim.levels[sim.levelStart - 1] + n] = ChildrenAreActive;
     }
   }
+  int Changed = 0;
   for (long long j = 0; j < sim.n; j++)
     sim.infos[j]->id = j;
   for (int i = 0;; i++) {
     ongrid();
     if (i == sim.levelMax)
       break;
-    adapt();
+    Changed = adapt() || Changed;
   }
   for (auto &shape : sim.shapes) {
     std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -2180,7 +2181,7 @@ int main(int argc, char **argv) {
     sim.dt = real_min(CFL * h / (umax + 1e-8),
                       0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
-      adapt();
+      Changed = adapt() || Changed;
     for (auto &shape : sim.shapes) {
       shape->x += sim.dt * shape->u;
       shape->y += sim.dt * shape->v;
@@ -2509,13 +2510,15 @@ int main(int argc, char **argv) {
           }
         }
     }
-    /*
+    if (Changed) {
+      sim.mat->make();
+      getVec();
+      sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
+      Changed = 0;
+    } else {
       getVec();
       sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
-    */
-    sim.mat->make();
-    getVec();
-    sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
+    }
     Real avg, avg1;
     avg = 0;
     avg1 = 0;
