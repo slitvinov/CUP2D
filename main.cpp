@@ -1417,7 +1417,6 @@ static int adapt() {
         bool yskin = iy == 0 || iy == n - 1;
         int xskip = ix == 0 ? -1 : 1;
         int yskip = iy == 0 ? -1 : 1;
-
         if (state[j] != Refine)
           for (int x = -1; x < 2; x++)
             for (int y = -1; y < 2; y++)
@@ -1510,6 +1509,8 @@ static int adapt() {
           }
         }
   }
+  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
+          level_ref.size(), level_com.size());
   for (long long j = 0; j < sim.n; j++) {
     int ix, iy;
     sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
@@ -1520,14 +1521,12 @@ static int adapt() {
       get_states(sim.infos[j], nei.nei);
       m_tree.push_back(nei);
     } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
-      assert(0);
       level_com.push_back(sim.infos[j]->level);
       Z_com.push_back(sim.infos[j]->Z);
     }
   }
   if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
-  assert(level_com.size() == 0);
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
@@ -1555,7 +1554,7 @@ static int adapt() {
           {
             assert(!exist(level_ref[k] + 1, Z));
             sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
-	    sim.tree[sim.levels[level_ref[k] + 1] + Z] = Active;
+            sim.tree[sim.levels[level_ref[k] + 1] + Z] = Active;
           }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
