@@ -2153,7 +2153,7 @@ int main(int argc, char **argv) {
   for (size_t i = 0; i < (size_t)my_blocks; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
-    Info *info = sim.infos[aux] = new Info;
+    Info *info = sim.all[aux] = new Info;
     fill(info, sim.levelStart, Z);
     info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
     sim.infos.push_back(info);
