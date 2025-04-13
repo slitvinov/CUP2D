@@ -1372,13 +1372,13 @@ struct GradChiOnTmp {
 };
 static int adapt() {
   long long cnt, nprev;
-  std::vector<int> m_com;
+  std::vector<int> level_com;
   std::vector<int>  level_ref;
   struct TreeStateMatrix {
     TreeState nei[3][3];
   };
   std::vector<TreeStateMatrix> m_tree;
-  std::vector<long long> n_com;
+  std::vector<long long> Z_com;
   std::vector<long long> Z_ref;
   Stencil stencil{-1, -1, 2, 2, true};
   std::unordered_set<long long> dealloc_IDs;
@@ -1513,11 +1513,11 @@ static int adapt() {
       get_states(sim.infos[j], nei.nei);
       m_tree.push_back(nei);
     } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
-      m_com.push_back(sim.infos[j]->level);
-      n_com.push_back(sim.infos[j]->Z);
+      level_com.push_back(sim.infos[j]->level);
+      Z_com.push_back(sim.infos[j]->Z);
     }
   }
-  if (level_ref.size() == 0 && m_com.size() == 0)
+  if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
@@ -1629,16 +1629,14 @@ static int adapt() {
                   ParentIsActive;
       }
   }
-  for (size_t i = 0; i < m_com.size(); i++) {
-    int level = m_com[i];
-    long long Z = n_com[i];
-    Info *info = getf0(level, Z);
+  for (size_t k = 0; k < level_com.size(); k++) {
+    Info *info = getf0(level_com[k], Z_com[k]);
     Real *Blocks[4];
     for (int J = 0; J < 2; J++)
       for (int I = 0; I < 2; I++) {
         int blk = J * 2 + I;
-        long long n = forward(level, info->index[0] + I, info->index[1] + J);
-        Blocks[blk] = getf0(level, n)->block;
+        long long n = forward(level_com[k], info->index[0] + I, info->index[1] + J);
+        Blocks[blk] = getf0(level_com[k], n)->block;
       }
     int offsetX[2] = {0, BS / 2};
     int offsetY[2] = {0, BS / 2};
@@ -1663,21 +1661,21 @@ static int adapt() {
             }
         }
     }
-    long long np = forward(level - 1, info->index[0] / 2, info->index[1] / 2);
-    Info *parent = getf0(level - 1, np);
+    long long np = forward(level_com[k] - 1, info->index[0] / 2, info->index[1] / 2);
+    Info *parent = getf0(level_com[k] - 1, np);
 #pragma omp critical
     sim.tree[sim.levels[parent->level] + parent->Z] = Active;
     parent->block = info->block;
-    if (level - 2 >= 0) {
+    if (level_com[k] - 2 >= 0) {
 #pragma omp critical
-      sim.tree[sim.levels[level - 2] + (parent->Z >> 2)] = ChildrenAreActive;
+      sim.tree[sim.levels[level_com[k] - 2] + (parent->Z >> 2)] = ChildrenAreActive;
     }
     sim.infos[info->id] = parent;
 #pragma omp critical
     {
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
-      dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
+      dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][0]);
+      dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[0][1]);
+      dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][1]);
     }
   }
   cnt = 0;
