@@ -90,7 +90,7 @@ static struct {
   std::vector<long long> levels;
   std::vector<Shape *> shapes;
   struct LocalSpMatDnVec *mat;
-  long long Nblock;
+  long long n;
   std::unordered_map<long long, TreeState> tree;
   std::unordered_map<long long, Info *> map;
   std::vector<Info *> infos;
@@ -998,8 +998,7 @@ void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
   if (info->index[1] == n - 1)
     Neumann2D<1, 1>(lab, stencil, coarse);
 }
-static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
-                             size_t i) {
+static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
   Stencil stencil{-1, -1, 2, 2, false};
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
@@ -2132,14 +2131,15 @@ int main(int argc, char **argv) {
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
-  long long my_blocks = 1LL << (2 * sim.levelStart);
-  for (size_t i = 0; i < (size_t)my_blocks; i++) {
+  sim.n = 1LL << (2 * sim.levelStart);
+  sim.infos.resize(sim.n);
+  for (long long i = 0; i < sim.n; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
     Info *info = sim.map[aux] = new Info;
     fill(info, sim.levelStart, Z);
     info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
-    sim.infos.push_back(info);
+    sim.infos[i] = info;
 #pragma omp critical
     sim.tree[aux] = Active;
     int px, py;
