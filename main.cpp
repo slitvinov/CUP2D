@@ -1405,13 +1405,10 @@ static void adapt() {
       double Linf = 0.0;
       for (int j = 0; j < BS * BS; j++)
         Linf = std::max(Linf, std::fabs(b[j]));
-      state[i] = Linf > sim.Rtol   ? Refine
-                            : Linf < sim.Ctol ? Compress
-                                              : Leave;
-      bool maxLevel = state[i] == Refine &&
-                      sim.infos[i]->level == sim.levelMax - 1;
-      bool minLevel =
-          state[i] == Compress && sim.infos[i]->level == 0;
+      state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
+      bool maxLevel =
+          state[i] == Refine && sim.infos[i]->level == sim.levelMax - 1;
+      bool minLevel = state[i] == Compress && sim.infos[i]->level == 0;
       if (maxLevel || minLevel)
         state[i] = Leave;
       if (state[i] != Leave) {
@@ -1455,7 +1452,7 @@ static void adapt() {
                       int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) +
                                  y + aux * std::max(0, 1 - abs(y));
                       long long zzz = forward(m + 1, iNei, jNei);
-		      int id = sim.levels[m + 1] + zzz;
+                      int id = sim.levels[m + 1] + zzz;
                       if (state[sim.map[id]] == Refine) {
                         state[j] = Refine;
                         goto end;
@@ -1516,9 +1513,9 @@ static void adapt() {
           for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
             long long Z = forward(sim.infos[k]->level, i, j);
             if (exist(sim.infos[k]->level, Z)) {
-	      long long id = sim.levels[sim.infos[k]->level] + Z;
+              long long id = sim.levels[sim.infos[k]->level] + Z;
               if (state[sim.map[id]] == Compress)
-		state[sim.map[id]] = Leave;
+                state[sim.map[id]] = Leave;
             }
           }
     }
@@ -1571,9 +1568,9 @@ static void adapt() {
         assert(!exist(level + 1, Z));
         Info *child = new Info;
         fill(child, level + 1, Z);
-	long long id = nprev + 4 * i + 2 * J + I;
+        long long id = nprev + 4 * i + 2 * J + I;
         sim.infos[id] = child;
-	child->block = m_tree[i].blocks[J * 2 + I];
+        child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
         sim.map[sim.levels[level + 1] + Z] = id;
 #pragma omp critical
