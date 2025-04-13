@@ -1584,7 +1584,7 @@ static void adapt() {
       n_com.push_back(var.vel->infos[j]->Z);
     }
   }
-  for (size_t i = 0; i < sizeof var.F / sizeof *var.F; i++) {
+  for (size_t i = 0; i < 1; i++) {
     Grid *g = (*var.F[i].g);
     Stencil stencil{-1, -1, 2, 2, true};
     if (m_com.size() > 0 || m_ref.size() > 0)
