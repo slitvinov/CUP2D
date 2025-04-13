@@ -998,7 +998,7 @@ void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
     Neumann2D<1, 1>(lab, stencil, coarse);
 }
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
-                             const Info *info, const Info *) {
+                             const Info *info) {
   Stencil stencil{-1, -1, 2, 2, false};
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
@@ -2458,7 +2458,7 @@ int main(int argc, char **argv) {
         Info *I2 = avail02[i];
         lab.load(off_vel, stencil, I, true);
         lab2.load(off_tmpV, stencil, I2, true);
-        pressure_rhs_fun(lab, lab2, I, I2);
+        pressure_rhs_fun(lab, lab2, I);
         ready[I->id] = true;
       }
     }
