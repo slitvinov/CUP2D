@@ -1311,7 +1311,7 @@ static void ongrid() {
 #pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
-	continue;
+        continue;
       com[0] += oblock[i]->Mass;
       com[1] += oblock[i]->COM_x;
       com[2] += oblock[i]->COM_y;
@@ -1556,6 +1556,9 @@ static void adapt() {
   BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
   labs[0].prepare(stencil);
   labs[1].prepare(stencil);
+  long long nprev = sim.n;
+  sim.n += 4 * m_ref.size();
+  sim.infos.resize(sim.n);
   for (size_t i = 0; i < m_ref.size(); i++) {
     int level = m_ref[i];
     long long Z = n_ref[i];
@@ -1573,11 +1576,9 @@ static void adapt() {
 #pragma omp critical
         sim.map[sim.levels[level + 1] + Z] = child;
         child->block = m_tree[i].blocks[J * 2 + I];
+        sim.infos[nprev + 2 * J + I] = child;
 #pragma omp critical
-        {
-          sim.infos.push_back(child);
-          sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
-        }
+        sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
       }
     int nm = BS + stencil.ex - stencil.sx - 1;
     int offsetX[2] = {0, BS / 2};
@@ -1713,6 +1714,7 @@ static void adapt() {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
     if (dealloc_IDs.find(id) != dealloc_IDs.end()) {
       free(sim.infos[i]->block);
+      delete sim.infos[i];
     } else {
       sim.map[id] = sim.infos[j] = sim.infos[i];
       sim.infos[j]->id = j;
