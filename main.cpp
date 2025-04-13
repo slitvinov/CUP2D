@@ -50,7 +50,7 @@ static constexpr ChildNeighborPattern childNeighborTable[] = {
     {1, 1, 3, 1, {{2, 2}, {}}, 1},        // NE
 };
 const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
-  for (const auto &entry : childNeighborTable)
+  for (auto &entry : childNeighborTable)
     if (entry.cx == cx && entry.cy == cy)
       return &entry;
   return NULL;
@@ -113,7 +113,7 @@ struct CollisionInfo {
   Real jvecX = 0;
   Real jvecY = 0;
 };
-static TreeState Tree1(const Info *info) {
+static TreeState Tree1(Info *info) {
   return sim.tree[sim.levels[info->level] + info->Z];
 }
 static void fill(Info *b, int level, long long Z) {
@@ -152,7 +152,7 @@ static Info getf1(int level, long long Z) {
   return (r == sim.map.end()) ? dummy : *sim.infos[r->second];
 }
 struct BlockLab;
-static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
+static void bc_scalar(BlockLab *, Stencil *stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Info *, bool coarse);
 struct {
   int offset;
@@ -186,7 +186,7 @@ static void get_states(Info *info, TreeState nei[3][3]) {
 
 struct BlockLab {
 private:
-  const int dim;
+  int dim;
   std::array<int, 9> coarsened_nei_codes;
 
 public:
@@ -201,7 +201,7 @@ public:
     free(m);
     free(c);
   }
-  void prepare(const Stencil &stencil) {
+  void prepare(Stencil &stencil) {
     int offset[2];
     start0[0] = stencil.sx;
     start0[1] = stencil.sy;
@@ -221,7 +221,7 @@ public:
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
   void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
-             const Stencil &stencil, Info *info, bool applybc) {
+             Stencil &stencil, Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
     offset[0] = (stencil.sx - 1) / 2 - 1;
@@ -799,7 +799,7 @@ public:
         bc_vector(this, info, false);
     }
   }
-  void load1(int offset, TreeState nei[3][3], const Stencil &stencil,
+  void load1(int offset, TreeState nei[3][3], Stencil &stencil,
              Info *info, bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
@@ -838,7 +838,7 @@ public:
         for (int cnt = 0; cnt < pattern->count; cnt++) {
           int ix = 2 * xi + pattern->offset[cnt][0];
           int iy = 2 * yi + pattern->offset[cnt][1];
-          const long long Z = forward(info->level + 1, ix, iy);
+          long long Z = forward(info->level + 1, ix, iy);
           blocks[1 + cx][1 + cy][cnt] =
               getf0(info->level + 1, Z)->block + BS * BS * offset;
         }
@@ -848,7 +848,7 @@ public:
     load0(info->block + BS * BS * offset, blocks, nei, stencil, info, applybc);
   }
 
-  void load(int offset, const Stencil &stencil, Info *info, bool applybc) {
+  void load(int offset, Stencil &stencil, Info *info, bool applybc) {
     TreeState nei[3][3];
     get_states(info, nei);
     load1(offset, nei, stencil, info, applybc);
@@ -939,7 +939,7 @@ static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
   }
 }
 template <int dir, int side>
-void Neumann2D(BlockLab *lab, const Stencil *stencil, bool coarse) {
+void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
   int stenBeg[2];
   int stenEnd[2];
   int bsize[2];
@@ -959,7 +959,7 @@ void Neumann2D(BlockLab *lab, const Stencil *stencil, bool coarse) {
     bsize[1] = BS / 2;
   }
   Real *cb = coarse ? lab->c : lab->m;
-  const unsigned int *n = coarse ? lab->nc : lab->nm;
+  unsigned int *n = coarse ? lab->nc : lab->nm;
   int s[2];
   int e[2];
   s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
@@ -976,7 +976,7 @@ void Neumann2D(BlockLab *lab, const Stencil *stencil, bool coarse) {
                      stenBeg[1])];
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
-void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
+void bc_scalar(BlockLab *lab, Stencil *stencil, Info *info, bool coarse) {
   int n = 1 << info->level;
   if (info->index[0] == 0)
     Neumann2D<0, 0>(lab, stencil, coarse);
@@ -992,8 +992,8 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
   int nm = BS + stencil.ex - stencil.sx - 1;
-  const Real h = sim.infos[i]->h;
-  const Real facDiv = 0.5 * h / sim.dt;
+  Real h = sim.infos[i]->h;
+  Real facDiv = 0.5 * h / sim.dt;
   Real *TMP = sim.infos[i]->block + BS * BS * off_tmp;
   Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
   for (int iy = 0; iy < BS; ++iy)
@@ -1030,9 +1030,9 @@ struct Obstacle {
   }
 };
 struct KernelVorticity {
-  const Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info, long long id) {
-    const Real i2h = 0.5 * (1 << info->level) * BS;
+  Stencil stencil{-1, -1, 2, 2, false};
+  void operator()(Real *um, Info *info, long long id) {
+    Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int j = 0; j < BS; ++j)
@@ -1174,7 +1174,7 @@ struct Shape {
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *info, long long id) {
+  void operator()(Real *um, Info *info, long long id) {
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
       std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
@@ -1230,7 +1230,7 @@ struct PutChiOnGrid {
   }
 };
 static void ongrid() {
-  const size_t Nblocks = sim.n;
+  size_t Nblocks = sim.n;
 #pragma omp parallel for
   for (size_t i = 0; i < Nblocks; i++) {
     memset(sim.infos[i]->block + BS * BS * off_chi, 0, BS * BS * sizeof(Real));
@@ -1241,11 +1241,11 @@ static void ongrid() {
     for (auto &entry : shape->obstacleBlocks)
       delete entry;
     shape->obstacleBlocks.clear();
-    const auto N = sim.n;
+    auto N = sim.n;
     shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (long long i = 0; i < sim.n; ++i) {
-      Obstacle *const block = new Obstacle();
+      Obstacle *block = new Obstacle();
       shape->obstacleBlocks[i] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
       memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
@@ -1253,11 +1253,11 @@ static void ongrid() {
     }
 #pragma omp parallel for schedule(dynamic)
     for (long long i = 0; i < sim.n; i++) {
-      Obstacle *const block = shape->obstacleBlocks[sim.infos[i]->id];
-      const Info *info = sim.infos[i];
+      Obstacle *block = shape->obstacleBlocks[sim.infos[i]->id];
+      Info *info = sim.infos[i];
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
-      Obstacle *const o = block;
-      const Real h = info->h;
+      Obstacle *o = block;
+      Real h = info->h;
       std::fill(&o->dist[0][0], &o->dist[0][0] + BS * BS, -1);
       memset(&o->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&o->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
@@ -1295,7 +1295,7 @@ static void ongrid() {
   computeA(PutChiOnGrid(), off_tmp, 1);
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
-    const std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+    std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
 #pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
@@ -1312,8 +1312,8 @@ static void ongrid() {
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
     for (long long i = 0; i < sim.n; i++) {
-      const Real hsq = sim.infos[i]->h * sim.infos[i]->h;
-      const auto pos = shape->obstacleBlocks[sim.infos[i]->id];
+      Real hsq = sim.infos[i]->h * sim.infos[i]->h;
+      auto pos = shape->obstacleBlocks[sim.infos[i]->id];
       if (pos == nullptr)
         continue;
       Real *CHI = (Real *)pos->chi;
@@ -1326,7 +1326,7 @@ static void ongrid() {
           Real p[2];
           p[0] = sim.infos[i]->origin[0] + sim.infos[i]->h * (ix + 0.5);
           p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
-          const Real chi = CHI[j] * hsq;
+          Real chi = CHI[j] * hsq;
           p[0] -= shape->x;
           p[1] -= shape->y;
           _x += chi * p[0];
@@ -1343,7 +1343,7 @@ static void ongrid() {
     _a /= _j;
 #pragma omp parallel for schedule(dynamic)
     for (long long i = 0; i < sim.n; i++) {
-      const auto pos = shape->obstacleBlocks[sim.infos[i]->id];
+      auto pos = shape->obstacleBlocks[sim.infos[i]->id];
       if (pos == nullptr)
         continue;
       for (int iy = 0; iy < BS; ++iy)
@@ -1361,8 +1361,8 @@ static void ongrid() {
 }
 struct GradChiOnTmp {
   GradChiOnTmp() {}
-  const Stencil stencil{-4, -4, 5, 5, true};
-  void operator()(Real *um, const Info *info, long long id) {
+  Stencil stencil{-4, -4, 5, 5, true};
+  void operator()(Real *um, Info *info, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
     int nm = BS + stencil.ex - stencil.sx - 1;
@@ -2008,7 +2008,7 @@ struct pressureCorrectionKernel {
 struct pressure_rhs1 {
   pressure_rhs1() {}
   Stencil stencil{-1, -1, 2, 2, false};
-  void operator()(Real *um, const Info *, long long id) {
+  void operator()(Real *um, Info *, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int iy = 0; iy < BS; ++iy)
@@ -2206,7 +2206,7 @@ int main(int argc, char **argv) {
                       0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       adapt();
-    for (const auto &shape : sim.shapes) {
+    for (auto &shape : sim.shapes) {
       shape->x += sim.dt * shape->u;
       shape->y += sim.dt * shape->v;
       shape->orientation += sim.dt * shape->omega;
@@ -2427,7 +2427,7 @@ int main(int argc, char **argv) {
       }
     }
     Stencil stencil{-1, -1, 2, 2, false};
-    const int Nblocks = sim.n;
+    int Nblocks = sim.n;
 #pragma omp parallel
     {
       BlockLab lab(2);
@@ -2548,7 +2548,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (long long i = 0; i < sim.n; i++) {
       Real *P = sim.infos[i]->block + BS * BS * off_pres;
-      const Real vv = sim.infos[i]->h * sim.infos[i]->h;
+      Real vv = sim.infos[i]->h * sim.infos[i]->h;
       for (int j = 0; j < BS * BS; j++) {
         P[j] = sim.mat->x_[i * BS * BS + j];
         avg += P[j] * vv;
