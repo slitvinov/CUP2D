@@ -6,7 +6,7 @@ ${main=./main} \
 -Ctol 0.01 \
 -lambda 1e7 \
 -levelMax 5 \
--levelStart 2 \
+-levelStart 3 \
 -maxPoissonRestarts 0 \
 -nu 1e-4 \
 -poissonTol 1e-3 \
