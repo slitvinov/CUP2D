@@ -1219,7 +1219,7 @@ struct PutChiOnGrid {
 };
 static void ongrid() {
 #pragma omp parallel for
-  for (size_t i = 0; i < sim.n; i++) {
+  for (long long i = 0; i < sim.n; i++) {
     memset(sim.infos[i]->block + BS * BS * off_chi, 0, BS * BS * sizeof(Real));
     std::fill(sim.infos[i]->block + BS * BS * off_tmp,
               sim.infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
@@ -1554,7 +1554,6 @@ static int adapt() {
           {
             assert(!exist(level_ref[k] + 1, Z));
             sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
-            sim.tree[sim.levels[level_ref[k] + 1] + Z] = Active;
           }
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
@@ -1617,24 +1616,6 @@ static int adapt() {
     for (size_t k = 0; k < level_ref.size(); k++) {
 #pragma omp critical
       dealloc_IDs.insert(sim.levels[level_ref[k]] + Z_ref[k]);
-      Info *parent = getf0(level_ref[k], Z_ref[k]);
-#pragma omp critical
-      sim.tree[sim.levels[parent->level] + parent->Z] = ChildrenAreActive;
-      int px, py;
-      sfc_inverse(parent->Z, parent->level, &px, &py);
-      for (int j = 0; j < 2; j++)
-        for (int i = 0; i < 2; i++) {
-          long long Z = forward(level_ref[k] + 1, 2 * px + i, 2 * py + j);
-          Info *Child = getf0(level_ref[k] + 1, Z);
-#pragma omp critical
-          sim.tree[sim.levels[Child->level] + Child->Z] = Active;
-          if (level_ref[k] + 2 < sim.levelMax)
-            for (int i0 = 0; i0 < 2; i0++)
-              for (int i1 = 0; i1 < 2; i1++)
-#pragma omp critical
-                sim.tree[sim.levels[level_ref[k] + 2] + Child->Zchild[i0][i1]] =
-                    ParentIsActive;
-        }
     }
 #pragma omp for
     for (size_t k = 0; k < level_com.size(); k++) {
