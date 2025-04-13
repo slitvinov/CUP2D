@@ -998,15 +998,15 @@ void bc_scalar(BlockLab *lab, const Stencil *stencil, Info *info, bool coarse) {
     Neumann2D<1, 1>(lab, stencil, coarse);
 }
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab,
-                             const Info *info) {
+                             size_t i) {
   Stencil stencil{-1, -1, 2, 2, false};
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
   int nm = BS + stencil.ex - stencil.sx - 1;
-  const Real h = info->h;
+  const Real h = sim.infos[i]->h;
   const Real facDiv = 0.5 * h / sim.dt;
-  Real *TMP = sim.infos[info->id]->block + BS * BS * off_tmp;
-  Real *CHI = sim.infos[info->id]->block + BS * BS * off_chi;
+  Real *TMP = sim.infos[i]->block + BS * BS * off_tmp;
+  Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
   for (int iy = 0; iy < BS; ++iy)
     for (int ix = 0; ix < BS; ++ix) {
       int ip0 = ix - stencil.sx;
@@ -2452,7 +2452,7 @@ int main(int argc, char **argv) {
       for (int i = 0; i < Nblocks; i++) {
         lab.load(off_vel, stencil, sim.infos[i], true);
         lab2.load(off_tmpV, stencil, sim.infos[i], true);
-        pressure_rhs_fun(lab, lab2, sim.infos[i]);
+        pressure_rhs_fun(lab, lab2, i);
       }
     }
 #pragma omp parallel for
