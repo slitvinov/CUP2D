@@ -1530,7 +1530,7 @@ static int adapt() {
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-  /* #pragma omp parallel */
+#pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
@@ -1551,10 +1551,7 @@ static int adapt() {
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
 #pragma omp critical
-          {
-            assert(!exist(level_ref[k] + 1, Z));
-            sim.map[sim.levels[level_ref[k] + 1] + Z] = id;
-          }
+          assert(!exist(level_ref[k] + 1, Z));
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
@@ -1695,11 +1692,13 @@ static int adapt() {
     Info *info = sim.infos[i];
     sim.tree[sim.levels[info->level] + info->Z] = Active;
     sfc_inverse(info->Z, info->level, &ix, &iy);
-    for (int i = 0; i < 2; i++)
-      for (int j = 0; j < 2; j++) {
-        long long Zchild = sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
-        sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
-      }
+    if (info->level + 1 < sim.levelMax)
+      for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++) {
+          long long Zchild =
+              sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
+          sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
+        }
     if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0)
       sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
   }
