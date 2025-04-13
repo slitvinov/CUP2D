@@ -1066,12 +1066,12 @@ static void dump(Real time, Info **infos, char *path) {
           "    <Grid>\n"
           "      <Time Value=\"%.16e\"/>\n"
           "      <Topology\n"
-          "          Dimensions=\"%ld\"\n"
+          "          Dimensions=\"%lld\"\n"
           "          TopologyType=\"Quadrilateral\"/>\n"
           "     <Geometry\n"
           "         GeometryType=\"XY\">\n"
           "       <DataItem\n"
-          "           Dimensions=\"%ld 2\"\n"
+          "           Dimensions=\"%lld 2\"\n"
           "           Format=\"Binary\">\n"
           "         %s\n"
           "       </DataItem>\n"
@@ -1091,7 +1091,7 @@ static void dump(Real time, Info **infos, char *path) {
               "           Name=\"%s\"\n"
               "           Center=\"Cell\">\n"
               "         <DataItem\n"
-              "             Dimensions=\"%ld %d\"\n"
+              "             Dimensions=\"%lld %d\"\n"
               "             Precision=\"%ld\"\n"
               "             Format=\"Binary\">\n"
               "           %s\n"
@@ -1523,7 +1523,7 @@ static int adapt() {
       Z_com.push_back(sim.infos[j]->Z);
     }
   }
-  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
+  fprintf(stderr, "%s:%d: com/ref: %ld %ld\n", __FILE__, __LINE__,
           level_ref.size(), level_com.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
