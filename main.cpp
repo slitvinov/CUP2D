@@ -92,7 +92,7 @@ static struct {
   struct LocalSpMatDnVec *mat;
   long long n;
   std::unordered_map<long long, TreeState> tree;
-  std::unordered_map<long long, Info *> map;
+  std::unordered_map<long long, long long> map;
   Info **infos;
 } sim;
 #include "utils.h"
@@ -148,13 +148,13 @@ static int exist(int level, long long Z) {
 static Info *getf0(int m, long long Z) {
   auto retval = sim.map.find(sim.levels[m] + Z);
   assert(retval != sim.map.end());
-  return retval->second;
+  return sim.infos[retval->second];
 }
 static Info getf1(int level, long long Z) {
   Info dummy;
   fill(&dummy, level, Z);
   auto r = sim.map.find(sim.levels[level] + Z);
-  return (r == sim.map.end()) ? dummy : *r->second;
+  return (r == sim.map.end()) ? dummy : *sim.infos[r->second];
 }
 struct BlockLab;
 static void bc_scalar(BlockLab *, const Stencil *stencil, Info *, bool coarse);
@@ -1572,10 +1572,11 @@ static void adapt() {
         assert(!exist(level + 1, Z));
         Info *child = new Info;
         fill(child, level + 1, Z);
+	long long id = nprev + 4 * i + 2 * J + I;
+        sim.infos[id] = child;
+	child->block = m_tree[i].blocks[J * 2 + I];
 #pragma omp critical
-        sim.map[sim.levels[level + 1] + Z] = child;
-        child->block = m_tree[i].blocks[J * 2 + I];
-        sim.infos[nprev + 4 * i + 2 * J + I] = child;
+        sim.map[sim.levels[level + 1] + Z] = id;
 #pragma omp critical
         sim.tree[sim.levels[level + 1] + Z] = ParentIsActive;
       }
@@ -1715,7 +1716,8 @@ static void adapt() {
       free(info->block);
       delete info;
     } else {
-      sim.map[id] = sim.infos[j] = info;
+      sim.map[id] = j;
+      sim.infos[j] = info;
       sim.infos[j]->id = j;
       j++;
     }
@@ -2130,7 +2132,8 @@ int main(int argc, char **argv) {
   for (long long i = 0; i < sim.n; i++) {
     long long Z = i;
     long long aux = sim.levels[sim.levelStart] + Z;
-    Info *info = sim.map[aux] = new Info;
+    Info *info = new Info;
+    sim.map[aux] = i;
     fill(info, sim.levelStart, Z);
     info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
     sim.infos[i] = info;
