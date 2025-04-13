@@ -1558,7 +1558,7 @@ static void adapt() {
   labs[1].prepare(stencil);
   long long nprev = sim.n;
   sim.n += 4 * m_ref.size();
-  sim.infos = (Info**)realloc(sim.infos, sim.n * sizeof *sim.infos);
+  sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
   for (size_t i = 0; i < m_ref.size(); i++) {
     int level = m_ref[i];
     long long Z = n_ref[i];
