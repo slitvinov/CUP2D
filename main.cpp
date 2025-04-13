@@ -1707,7 +1707,7 @@ static void adapt() {
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
     }
   }
-  size_t j = 0;
+  long long j = 0;
   sim.map.clear();
   for (long long i = 0; i < n.sim; i++) {
     long long id = sim.levels[sim.infos[i]->level] + sim.infos[i]->Z;
