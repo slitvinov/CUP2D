@@ -118,24 +118,24 @@ static TreeState Tree1(const Info *info) {
   return sim.tree[sim.levels[info->level] + info->Z];
 }
 static void fill(Info *b, int level, long long Z) {
-  int i, j, Bmax[2];
+  int Bmax[2];
   b->level = level;
   b->Z = Z;
   b->h = 1.0 / BS / (1 << level);
-  sfc_inverse(Z, level, &i, &j);
-  b->origin[0] = (Real)i / (1 << level);
-  b->origin[1] = (Real)j / (1 << level);
-  b->state = Leave;
   sfc_inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
+  b->origin[0] = (Real)b->index[0] / (1 << level);
+  b->origin[1] = (Real)b->index[1] / (1 << level);
+  b->state = Leave;
+
   Bmax[0] = 1 << level;
   Bmax[1] = 1 << level;
-  for (i = -1; i < 2; i++)
-    for (j = -1; j < 2; j++)
+  for (int i = -1; i < 2; i++)
+    for (int j = -1; j < 2; j++)
       b->Znei[i + 1][j + 1] = sfc_forward(level, (b->index[0] + i) % Bmax[0],
                                           (b->index[1] + j) % Bmax[1]);
-  for (i = 0; i < 2; i++)
-    for (j = 0; j < 2; j++)
+  for (int i = 0; i < 2; i++)
+    for (int j = 0; j < 2; j++)
       b->Zchild[i][j] =
           sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
   b->id = sfc_encode(level, b->index);
