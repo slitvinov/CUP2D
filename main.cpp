@@ -1526,7 +1526,7 @@ static int adapt() {
     }
   }
   fprintf(stderr, "%s:%d: com/ref: %ld %ld\n", __FILE__, __LINE__,
-          level_ref.size(), level_com.size());
+          level_com.size(), level_ref.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
     goto end;
   nprev = sim.n;
