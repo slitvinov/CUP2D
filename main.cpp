@@ -1470,7 +1470,10 @@ static int adapt() {
             continue;
           if (cy == yskip && yskin)
             continue;
-          if (exist(sim.infos[j]->level, sim.infos[j]->Znei[1 + cx][1 + cy])) {
+          int id = sim.levels[sim.infos[j]->level] +
+                   sim.infos[j]->Znei[1 + cx][1 + cy];
+          if (sim.map.find(id) != sim.map.end() &&
+              state[sim.map[id]] == Refine) {
             state[j] = Leave;
             break;
           }
