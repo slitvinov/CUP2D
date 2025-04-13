@@ -1542,7 +1542,7 @@ static int adapt() {
           fill(child, level + 1, Z);
           long long id = nprev + 4 * i + 2 * J + I;
           sim.infos[id] = child;
-          child->block = blocks[2 * J + 1] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
+          child->block = blocks[2 * J + I] = (Real *)malloc(off_n * BS * BS * sizeof(Real));
 #pragma omp critical
 	  {
 	    assert(!exist(level + 1, Z));
