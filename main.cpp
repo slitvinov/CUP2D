@@ -153,7 +153,7 @@ static Info getf1(int level, long long Z) {
 }
 struct BlockLab;
 static void bc_scalar(BlockLab *, Stencil *stencil, Info *, bool coarse);
-static void bc_vector(BlockLab *, Info *, bool coarse);
+static void bc_vector(BlockLab *, Stencil *stencil, Info *, bool coarse);
 struct {
   int offset;
   int dim;
@@ -588,7 +588,7 @@ public:
       if (dim == 1)
         bc_scalar(this, &stencil, info, true);
       else
-        bc_vector(this, info, true);
+        bc_vector(this, &stencil, info, true);
     }
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
@@ -796,7 +796,7 @@ public:
       if (dim == 1)
         bc_scalar(this, &stencil, info, false);
       else
-        bc_vector(this, info, false);
+        bc_vector(this, &stencil, info, false);
     }
   }
   void load1(int offset, TreeState nei[3][3], Stencil &stencil, Info *info,
@@ -869,7 +869,8 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
   }
 }
 typedef Real ScalarBlock[BS][BS];
-template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
+template <int dir, int side>
+void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
   int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -916,26 +917,27 @@ template <int dir, int side> void applyBCface(BlockLab *lab, bool coarse) {
       }
   }
 }
-static void bc_vector(BlockLab *lab, Info *info, bool coarse) {
+static void bc_vector(BlockLab *lab, Stencil *stencil, Info *info,
+                      bool coarse) {
   int n = 1 << info->level;
   if (!coarse) {
     if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, false);
+      applyBCface<0, 0>(lab, stencil, false);
     if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, false);
+      applyBCface<0, 1>(lab, stencil, false);
     if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, false);
+      applyBCface<1, 0>(lab, stencil, false);
     if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, false);
+      applyBCface<1, 1>(lab, stencil, false);
   } else {
     if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, coarse);
+      applyBCface<0, 0>(lab, stencil, coarse);
     if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, coarse);
+      applyBCface<0, 1>(lab, stencil, coarse);
     if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, coarse);
+      applyBCface<1, 0>(lab, stencil, coarse);
     if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, coarse);
+      applyBCface<1, 1>(lab, stencil, coarse);
   }
 }
 template <int dir, int side>
