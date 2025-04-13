@@ -1706,6 +1706,23 @@ static int adapt() {
     }
   }
   sim.n = cnt;
+
+  sim.tree.clear();
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    int ix, iy;
+    Info *info = sim.infos[i];
+    sim.tree[sim.levels[info->level] + info->Z] = Active;
+    sfc_inverse(info->Z, info->level, &ix, &iy);
+    for (int i = 0; i < 2; i++)
+      for (int j = 0; j < 2; j++) {
+        long long Zchild = sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
+        sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
+      }
+    if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0)
+      sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
+  }
+
 end:
   free(state);
   return Changed;
