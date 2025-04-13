@@ -3,8 +3,8 @@
 ${main=./main} \
 -AdaptSteps 20 \
 -CFL 0.5 \
--Ctol 0.2 \
--Rtol 0.1 \
+-Ctol 1 \
+-Rtol 2 \
 -lambda 1e7 \
 -levelMax 7 \
 -levelStart 3 \
