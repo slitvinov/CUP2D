@@ -1552,9 +1552,9 @@ static int adapt() {
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       Info *parent = getf0(level_ref[k], Z_ref[k]);
-      for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
-        int dim = vars[k].dim;
-        int offset = vars[k].offset;
+      for (size_t m = 0; m < sizeof vars / sizeof *vars; k++) {
+        int dim = vars[m].dim;
+        int offset = vars[m].offset;
         labs[dim - 1].load1(offset, m_tree[k].nei, stencil, parent, true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
