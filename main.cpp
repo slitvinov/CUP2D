@@ -1722,6 +1722,8 @@ static void adapt() {
     sim.infos[info->id] = parent;
 #pragma omp critical
     {
+      sim.all[sim.levels[parent->level] + parent->Z] = parent;
+      sim.all.erase(sim.levels[level] + parent->Zchild[0][0]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][0]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[0][1]);
       dealloc_IDs.insert(sim.levels[level] + parent->Zchild[1][1]);
