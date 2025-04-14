@@ -1621,9 +1621,6 @@ static int adapt() {
 #pragma omp for
     for (size_t k = 0; k < level_com.size(); k++) {
       Info *info = getf0(level_com[k], Z_com[k]);
-      Info *parent = new Info;
-      parent->block = (Real *)malloc(off_n * BS * BS * sizeof(Real));
-      fill(parent, level_com[k] - 1, Z_com[k] / 4);
       Real *Blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
@@ -1639,7 +1636,7 @@ static int adapt() {
         int offset = vars[k].offset;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *c = parent->block + offset * BS * BS;
+            Real *c = info->block + offset * BS * BS;
             Real *b = Blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
@@ -1657,12 +1654,11 @@ static int adapt() {
       }
 #pragma omp critical
       {
-        sim.infos[sim.map[info->id]] = parent;
-        dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[0][0]);
-        dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[0][1]);
-        dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][0]);
-        dealloc_IDs.insert(sim.levels[level_com[k]] + parent->Zchild[1][1]);
+        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[0][1]);
+        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[1][0]);
+        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[1][1]);
       }
+      fill(info, level_com[k] - 1, Z_com[k] / 4);
     }
   }
   cnt = 0;
