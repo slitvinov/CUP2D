@@ -86,7 +86,7 @@ static struct {
   Real PoissonTolRel;
   Real Rtol;
   Real time = 0;
-  std::vector<long long> levels;
+  long long *levels;
   std::vector<Shape *> shapes;
   struct LocalSpMatDnVec *mat;
   long long n;
@@ -2080,7 +2080,7 @@ int main(int argc, char **argv) {
       sim.shapes.push_back(shape);
     }
   }
-  sim.levels.resize(sim.levelMax);
+  sim.levels = (long long*)malloc(sim.levelMax * sizeof *sim.levels);
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
@@ -2573,5 +2573,6 @@ int main(int argc, char **argv) {
     free(shape->sdf);
     delete shape;
   }
+  free(sim.levels);
   fprintf(stderr, "main.cpp: end\n");
 }
