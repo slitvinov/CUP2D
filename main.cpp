@@ -1457,7 +1457,7 @@ static int adapt() {
     }
     if (m == 0)
       break;
-#pragma omp parallel
+    //#pragma omp parallel
     for (long long j = 0; j < sim.n; j++) {
       if (sim.infos[j]->level == m && state[j] == Compress) {
         int n = 1 << sim.infos[j]->level;
@@ -1488,7 +1488,7 @@ static int adapt() {
       }
     }
   }
-  //#pragma omp parallel for
+#pragma omp parallel for
   for (long long k = 0; k < sim.n; k++) {
     int ix, iy;
     sfc_inverse(sim.infos[k]->Z, sim.infos[k]->level, &ix, &iy);
