@@ -1554,7 +1554,13 @@ static int adapt() {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Z = sfc_forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
-          assert(!exist(level_ref[k] + 1, Z));
+          if (exist(level_ref[k] + 1, Z)) {
+            fprintf(
+                stderr,
+                "main.cpp: error: trying to refine but a child exists: %d %d\n",
+                J, I);
+            assert(0);
+          }
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
@@ -1630,9 +1636,12 @@ static int adapt() {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           int blk = J * 2 + I;
-          long long n =
+          long long Z =
               forward(level_com[k], info->index[0] + I, info->index[1] + J);
-          Blocks[blk] = getf0(level_com[k], n)->block;
+          Blocks[blk] = getf0(level_com[k], Z)->block;
+          if (blk > 0)
+#pragma omp critical
+            dealloc_IDs.insert(sim.levels[level_com[k]] + Z);
         }
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
@@ -1656,12 +1665,6 @@ static int adapt() {
                                    4;
               }
           }
-      }
-#pragma omp critical
-      {
-        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[0][1]);
-        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[1][0]);
-        dealloc_IDs.insert(sim.levels[level_com[k]] + info->Zchild[1][1]);
       }
       fill(info, level_com[k] - 1, Z_com[k] / 4);
     }
@@ -1697,9 +1700,26 @@ static int adapt() {
               sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
           sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
         }
-    if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0)
+    if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0) {
       sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
+    }
   }
+
+  /* TODO */
+  for (int i = 0; i < sim.n; ++i) {
+    Info *info = sim.infos[i];
+    for (int J = 0; J < 2; ++J)
+      for (int I = 0; I < 2; ++I) {
+        long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
+                                  2 * info->index[1] + J);
+        if (exist(info->level + 1, Z)) {
+          fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n", Z,
+                  info->Z);
+          assert(0);
+        }
+      }
+  }
+  /* TODO */
 
 end:
   free(state);
