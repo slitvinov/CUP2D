@@ -1564,6 +1564,7 @@ static int adapt() {
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
+#pragma omp critical
           sim.infos[id] = child;
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
