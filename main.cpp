@@ -1639,7 +1639,7 @@ static int adapt() {
           long long Z =
               forward(level_com[k], info->index[0] + I, info->index[1] + J);
           Blocks[blk] = getf0(level_com[k], Z)->block;
-          if (blk > 0)
+          if (getf0(level_com[k], Z) != info)
 #pragma omp critical
             dealloc_IDs.insert(sim.levels[level_com[k]] + Z);
         }
@@ -1709,7 +1709,8 @@ static int adapt() {
   for (int i = 0; i < sim.n; ++i) {
     Info *info = sim.infos[i];
     for (int J = 0; J < 2; ++J)
-      for (int I = 0; I < 2; ++I) {
+      for (int I = 0; I < 2; ++I)
+	if (info->level + 1 < sim.levelMax) {
         long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
                                   2 * info->index[1] + J);
         if (exist(info->level + 1, Z)) {
