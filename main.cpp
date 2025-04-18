@@ -1165,7 +1165,8 @@ struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + stencil.ex - stencil.sx - 1;
-    for (Shape *shape : sim.shapes) {
+    for (int ishape = 0; ishape < sim.nshape; ishape++) {
+      Shape *shape = sim.shapes[ishape];
       std::vector<Obstacle *> &oblock = shape->blocks;
       if (oblock[id] == nullptr)
         continue;
@@ -1225,7 +1226,8 @@ static void ongrid() {
     std::fill(sim.infos[i]->block + BS * BS * off_tmp,
               sim.infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
   }
-  for (Shape *shape : sim.shapes) {
+  for (int ishape = 0; ishape < sim.nshape; ishape++) {
+    Shape *shape = sim.shapes[ishape];
     for (auto &entry : shape->blocks)
       delete entry;
     shape->blocks.clear();
@@ -1281,7 +1283,8 @@ static void ongrid() {
   }
 
   computeA(PutChiOnGrid(), off_tmp, 1);
-  for (Shape *shape : sim.shapes) {
+  for (int ishape = 0; ishape < sim.nshape; ishape++) {
+    Shape *shape = sim.shapes[ishape];
     Real com[3] = {0.0, 0.0, 0.0};
     std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for reduction(+ : com[:3])
@@ -1295,7 +1298,8 @@ static void ongrid() {
     shape->x += com[1] / com[0];
     shape->y += com[2] / com[0];
   }
-  for (Shape *shape : sim.shapes) {
+  for (int ishape = 0; ishape < sim.nshape; ishape++) {
+    Shape *shape = sim.shapes[ishape];
     Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
 #pragma omp parallel for schedule(dynamic, 1)                                  \
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
