@@ -1408,7 +1408,7 @@ static int adapt() {
   }
   if (!Changed)
     goto end;
-  //#pragma omp parallel
+#pragma omp parallel
   for (int m = sim.levelMax - 1; m >= 0; m--) {
 #pragma omp for
     for (long long j = 0; j < sim.n; j++) {
