@@ -1416,7 +1416,7 @@ static int adapt() {
     Info *info = sim.infos[i];
     long long id = sim.levels[info->level] + info->Z;
     sim.map[id] = i;
-    sim.infos[cnt]->id = i;
+    sim.infos[i]->id = i;
   }
   /**/
 
