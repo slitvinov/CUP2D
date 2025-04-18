@@ -1408,7 +1408,7 @@ static int adapt() {
   }
   if (!Changed)
     goto end;
-#pragma omp parallel
+  //#pragma omp parallel
   for (int m = sim.levelMax - 1; m >= 0; m--) {
 #pragma omp for
     for (long long j = 0; j < sim.n; j++) {
@@ -1457,7 +1457,7 @@ static int adapt() {
     }
     if (m == 0)
       break;
-    //#pragma omp parallel
+#pragma omp parallel
     for (long long j = 0; j < sim.n; j++) {
       if (sim.infos[j]->level == m && state[j] == Compress) {
         int n = 1 << sim.infos[j]->level;
