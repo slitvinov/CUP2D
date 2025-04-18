@@ -1444,8 +1444,8 @@ static int adapt() {
                                aux * std::max(0, 1 - abs(y));
                     long long zzz = forward(m + 1, iNei, jNei);
                     int id = sim.levels[m + 1] + zzz;
-                    if (state[sim.map[id]] == Refine) {
 #pragma omp critical
+                    if (state[sim.map[id]] == Refine) {
                       state[j] = Refine;
                       goto found;
                     }
