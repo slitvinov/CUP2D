@@ -1488,7 +1488,7 @@ static int adapt() {
       }
     }
   }
-#pragma omp parallel for
+  //#pragma omp parallel for
   for (long long k = 0; k < sim.n; k++) {
     int ix, iy;
     sfc_inverse(sim.infos[k]->Z, sim.infos[k]->level, &ix, &iy);
@@ -1550,7 +1550,7 @@ static int adapt() {
   nprev = sim.n;
   sim.n += 4 * level_ref.size();
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-  //#pragma omp parallel
+#pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
     labs[0].prepare(stencil);
