@@ -87,7 +87,7 @@ static struct {
   Real Rtol;
   Real time = 0;
   long long *levels;
-  std::vector<Shape *> shapes;
+  struct Shape **shapes;
   struct LocalSpMatDnVec *mat;
   long long n;
   int nshape;
@@ -2027,6 +2027,7 @@ int main(int argc, char **argv) {
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.dumpTime = parser("tdump").asDouble();
   sim.nshape = 0;
+  sim.shapes = NULL;
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -2082,8 +2083,9 @@ int main(int argc, char **argv) {
         shape->sdf[i] *= scale;
       shape->u = 0;
       shape->v = 0;
-      sim.shapes.push_back(shape);
       sim.nshape++;
+      sim.shapes = (struct Shape**)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
+      sim.shapes[sim.nshape - 1] = shape;
     }
   }
   sim.levels = (long long*)malloc(sim.levelMax * sizeof *sim.levels);
