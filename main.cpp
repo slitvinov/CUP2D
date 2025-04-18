@@ -1706,6 +1706,23 @@ static int adapt() {
     }
   }
 
+  /* TODO */
+  for (int i = 0; i < sim.n; ++i) {
+    Info *info = sim.infos[i];
+    for (int J = 0; J < 2; ++J)
+      for (int I = 0; I < 2; ++I)
+	if (info->level + 1 < sim.levelMax) {
+        long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
+                                  2 * info->index[1] + J);
+        if (exist(info->level + 1, Z)) {
+          fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n", Z,
+                  info->Z);
+          assert(0);
+        }
+      }
+  }
+  /* TODO */
+
 end:
   free(state);
   return Changed;
