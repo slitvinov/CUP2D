@@ -2126,7 +2126,8 @@ int main(int argc, char **argv) {
       break;
     Changed = adapt() || Changed;
   }
-  for (auto &shape : sim.shapes) {
+  for (int ishape = 0; ishape < sim.nshape; ishape++) {
+    Shape *shape = sim.shapes[ishape];
     std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
@@ -2183,7 +2184,8 @@ int main(int argc, char **argv) {
                       0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       Changed = adapt() || Changed;
-    for (auto &shape : sim.shapes) {
+    for (int ishape = 0; ishape < sim.nshape; ishape++) {
+      Shape *shape = sim.shapes[ishape];
       shape->x += sim.dt * shape->u;
       shape->y += sim.dt * shape->v;
       shape->orientation += sim.dt * shape->omega;
@@ -2217,7 +2219,8 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
-    for (auto &shape : sim.shapes) {
+    for (int ishape = 0; ishape < sim.nshape; ishape++) {
+      Shape *shape = sim.shapes[ishape];
       std::vector<Obstacle *> &oblock = shape->blocks;
       Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
@@ -2256,10 +2259,10 @@ int main(int argc, char **argv) {
       }
     }
     auto &infos = sim.infos;
-    std::vector<CollisionInfo> collisions(sim.shapes.size());
+    std::vector<CollisionInfo> collisions(sim.nshape);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < sim.shapes.size(); ++i)
-      for (size_t j = 0; j < sim.shapes.size(); ++j) {
+    for (size_t i = 0; i < sim.nshape; ++i)
+      for (size_t j = 0; j < sim.nshape; ++j) {
         if (i == j)
           continue;
         auto &coll = collisions[i];
@@ -2319,8 +2322,8 @@ int main(int argc, char **argv) {
         }
       }
     // #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < sim.shapes.size(); ++i) {
-      for (size_t j = i + 1; j < sim.shapes.size(); ++j) {
+    for (size_t i = 0; i < sim.nshape; ++i) {
+      for (size_t j = i + 1; j < sim.nshape; ++j) {
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
         if (coll.iM > 0 && coll.jM > 0 && coll_other.iM > 0 &&
@@ -2351,7 +2354,8 @@ int main(int argc, char **argv) {
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++)
-      for (auto &shape : sim.shapes) {
+      for (int ishape = 0; ishape < sim.nshape; ishape++) {
+	Shape *shape = sim.shapes[ishape];
         std::vector<Obstacle *> &oblock = shape->blocks;
         Obstacle *o = oblock[sim.infos[i]->id];
         if (o == nullptr)
@@ -2383,7 +2387,8 @@ int main(int argc, char **argv) {
     for (long long i = 0; i < sim.n; i++)
       memset(sim.infos[i]->block + BS * BS * off_tmpV, 0,
              2 * BS * BS * sizeof(Real));
-    for (auto &shape : sim.shapes) {
+    for (int ishape = 0; ishape < sim.nshape; ishape++) {
+      Shape *shape = sim.shapes[ishape];
       std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
       for (long long i = 0; i < sim.n; i++) {
@@ -2573,7 +2578,8 @@ int main(int argc, char **argv) {
   }
 
   delete sim.mat;
-  for (Shape *shape : sim.shapes) {
+  for (int ishape = 0; ishape < sim.nshape; ishape++) {
+    Shape *shape = sim.shapes[ishape];
     for (Obstacle *oblock : shape->blocks)
       delete oblock;
     free(shape->sdf);
