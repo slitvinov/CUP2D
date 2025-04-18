@@ -1532,6 +1532,17 @@ static int adapt() {
       Z_com.push_back(sim.infos[j]->Z);
     }
   }
+  /* TODO */
+  {
+    std::set<std::pair<int, long long>> seen;
+    for (size_t i = 0; i < level_ref.size(); ++i) {
+      auto key = std::make_pair(level_ref[i], Z_ref[i]);
+      bool inserted = seen.insert(key).second;
+      assert(inserted && "Duplicate (level, Z) pair found in refinement list!");
+    }
+  }
+  /**/
+
   fprintf(stderr, "%s:%d: com/ref: %ld %ld\n", __FILE__, __LINE__,
           level_com.size(), level_ref.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
@@ -1711,15 +1722,15 @@ static int adapt() {
     Info *info = sim.infos[i];
     for (int J = 0; J < 2; ++J)
       for (int I = 0; I < 2; ++I)
-	if (info->level + 1 < sim.levelMax) {
-        long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
-                                  2 * info->index[1] + J);
-        if (exist(info->level + 1, Z)) {
-          fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n", Z,
-                  info->Z);
-          assert(0);
+        if (info->level + 1 < sim.levelMax) {
+          long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
+                                    2 * info->index[1] + J);
+          if (exist(info->level + 1, Z)) {
+            fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n",
+                    Z, info->Z);
+            assert(0);
+          }
         }
-      }
   }
   /* TODO */
 
