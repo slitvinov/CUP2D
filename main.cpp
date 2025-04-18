@@ -1167,12 +1167,11 @@ struct PutChiOnGrid {
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
       Shape *shape = sim.shapes[ishape];
-      std::vector<Obstacle *> &oblock = shape->blocks;
-      if (oblock[id] == nullptr)
+      if (shape->blocks[id] == nullptr)
         continue;
       Real h = 1.0 / BS / (1 << info->level);
       Real h2 = h * h;
-      Obstacle &o = *oblock[id];
+      Obstacle &o = *shape->blocks[id];
       o.COM_x = 0;
       o.COM_y = 0;
       o.Mass = 0;
