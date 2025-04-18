@@ -1547,19 +1547,20 @@ static int adapt() {
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
+      assert(exist(level_ref[k], Z_ref[k]));
       sfc_inverse(Z_ref[k], level_ref[k], &px, &py);
       assert(level_ref[k] <= sim.levelMax - 1);
       Real *blocks[4];
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Z = sfc_forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
+          assert(!exist(level_ref[k] + 1, Z));
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
           sim.infos[id] = child;
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
-          assert(!exist(level_ref[k] + 1, Z));
         }
       int nm = BS + stencil.ex - stencil.sx - 1;
       int offsetX[2] = {0, BS / 2};
@@ -2083,11 +2084,12 @@ int main(int argc, char **argv) {
       shape->u = 0;
       shape->v = 0;
       sim.nshape++;
-      sim.shapes = (struct Shape**)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
+      sim.shapes =
+          (struct Shape **)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
       sim.shapes[sim.nshape - 1] = shape;
     }
   }
-  sim.levels = (long long*)malloc(sim.levelMax * sizeof *sim.levels);
+  sim.levels = (long long *)malloc(sim.levelMax * sizeof *sim.levels);
   sim.levels[0] = 0;
   for (int m = 0; m < sim.levelMax - 1; m++)
     sim.levels[m + 1] = sim.levels[m] + (1 << (2 * m));
@@ -2356,7 +2358,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++)
       for (int ishape = 0; ishape < sim.nshape; ishape++) {
-	Shape *shape = sim.shapes[ishape];
+        Shape *shape = sim.shapes[ishape];
         std::vector<Obstacle *> &oblock = shape->blocks;
         Obstacle *o = oblock[sim.infos[i]->id];
         if (o == nullptr)
