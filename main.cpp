@@ -90,6 +90,7 @@ static struct {
   std::vector<Shape *> shapes;
   struct LocalSpMatDnVec *mat;
   long long n;
+  int nshape;
   std::unordered_map<long long, TreeState> tree;
   std::unordered_map<long long, long long> map;
   Info **infos;
@@ -1158,14 +1159,14 @@ struct Shape {
   Real orientation;
   Real u;
   Real v;
-  std::vector<Obstacle *> obstacleBlocks;
+  std::vector<Obstacle *> blocks;
 };
 struct PutChiOnGrid {
   Stencil stencil{-1, -1, 2, 2, false};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + stencil.ex - stencil.sx - 1;
     for (Shape *shape : sim.shapes) {
-      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      std::vector<Obstacle *> &oblock = shape->blocks;
       if (oblock[id] == nullptr)
         continue;
       Real h = 1.0 / BS / (1 << info->level);
@@ -1225,22 +1226,22 @@ static void ongrid() {
               sim.infos[i]->block + BS * BS * (off_tmp + 1), -1.0);
   }
   for (Shape *shape : sim.shapes) {
-    for (auto &entry : shape->obstacleBlocks)
+    for (auto &entry : shape->blocks)
       delete entry;
-    shape->obstacleBlocks.clear();
+    shape->blocks.clear();
     auto N = sim.n;
-    shape->obstacleBlocks = std::vector<Obstacle *>(N, nullptr);
+    shape->blocks = std::vector<Obstacle *>(N, nullptr);
 #pragma omp parallel for schedule(static)
     for (long long i = 0; i < sim.n; ++i) {
       Obstacle *block = new Obstacle();
-      shape->obstacleBlocks[i] = block;
+      shape->blocks[i] = block;
       std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
       memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
 #pragma omp parallel for schedule(dynamic)
     for (long long i = 0; i < sim.n; i++) {
-      Obstacle *block = shape->obstacleBlocks[sim.infos[i]->id];
+      Obstacle *block = shape->blocks[sim.infos[i]->id];
       Info *info = sim.infos[i];
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
       Obstacle *o = block;
@@ -1282,7 +1283,7 @@ static void ongrid() {
   computeA(PutChiOnGrid(), off_tmp, 1);
   for (Shape *shape : sim.shapes) {
     Real com[3] = {0.0, 0.0, 0.0};
-    std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+    std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for reduction(+ : com[:3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
@@ -1300,7 +1301,7 @@ static void ongrid() {
     reduction(+ : _x, _y, _m, _j, _u, _v, _a)
     for (long long i = 0; i < sim.n; i++) {
       Real hsq = sim.infos[i]->h * sim.infos[i]->h;
-      auto pos = shape->obstacleBlocks[sim.infos[i]->id];
+      auto pos = shape->blocks[sim.infos[i]->id];
       if (pos == nullptr)
         continue;
       Real *CHI = (Real *)pos->chi;
@@ -1330,7 +1331,7 @@ static void ongrid() {
     _a /= _j;
 #pragma omp parallel for schedule(dynamic)
     for (long long i = 0; i < sim.n; i++) {
-      auto pos = shape->obstacleBlocks[sim.infos[i]->id];
+      auto pos = shape->blocks[sim.infos[i]->id];
       if (pos == nullptr)
         continue;
       for (int iy = 0; iy < BS; ++iy)
@@ -2021,7 +2022,7 @@ int main(int argc, char **argv) {
   sim.PoissonTolRel = parser("poissonTolRel").asDouble();
   sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
   sim.dumpTime = parser("tdump").asDouble();
-
+  sim.nshape = 0;
   std::string shapeArg = parser("shapes").asString();
   std::stringstream descriptors(shapeArg);
   std::string lines;
@@ -2078,6 +2079,7 @@ int main(int argc, char **argv) {
       shape->u = 0;
       shape->v = 0;
       sim.shapes.push_back(shape);
+      sim.nshape++;
     }
   }
   sim.levels = (long long*)malloc(sim.levelMax * sizeof *sim.levels);
@@ -2121,7 +2123,7 @@ int main(int argc, char **argv) {
     Changed = adapt() || Changed;
   }
   for (auto &shape : sim.shapes) {
-    std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+    std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       if (oblock[sim.infos[i]->id] == nullptr)
@@ -2212,7 +2214,7 @@ int main(int argc, char **argv) {
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
     for (auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      std::vector<Obstacle *> &oblock = shape->blocks;
       Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
 #pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
       for (long long i = 0; i < sim.n; i++) {
@@ -2257,8 +2259,8 @@ int main(int argc, char **argv) {
         if (i == j)
           continue;
         auto &coll = collisions[i];
-        auto &iBlocks = sim.shapes[i]->obstacleBlocks;
-        auto &jBlocks = sim.shapes[j]->obstacleBlocks;
+        auto &iBlocks = sim.shapes[i]->blocks;
+        auto &jBlocks = sim.shapes[j]->blocks;
         for (size_t k = 0; k < iBlocks.size(); ++k) {
           if (iBlocks[k] == nullptr || jBlocks[k] == nullptr)
             continue;
@@ -2346,7 +2348,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++)
       for (auto &shape : sim.shapes) {
-        std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+        std::vector<Obstacle *> &oblock = shape->blocks;
         Obstacle *o = oblock[sim.infos[i]->id];
         if (o == nullptr)
           continue;
@@ -2378,7 +2380,7 @@ int main(int argc, char **argv) {
       memset(sim.infos[i]->block + BS * BS * off_tmpV, 0,
              2 * BS * BS * sizeof(Real));
     for (auto &shape : sim.shapes) {
-      std::vector<Obstacle *> &oblock = shape->obstacleBlocks;
+      std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
       for (long long i = 0; i < sim.n; i++) {
         if (oblock[sim.infos[i]->id] == nullptr)
@@ -2568,7 +2570,7 @@ int main(int argc, char **argv) {
 
   delete sim.mat;
   for (Shape *shape : sim.shapes) {
-    for (Obstacle *oblock : shape->obstacleBlocks)
+    for (Obstacle *oblock : shape->blocks)
       delete oblock;
     free(shape->sdf);
     delete shape;
