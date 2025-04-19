@@ -181,8 +181,10 @@ static void get_states(Info *info, TreeState nei[3][3]) {
       continue;
     if (cx == 0 && cy == 0)
       continue;
-    nei[1 + cx][1 + cy] =
-        sim.tree[sim.levels[info->level] + info->Znei[1 + cx][1 + cy]];
+    long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
+    nei[1 + cx][1 + cy] = sim.tree[id];
+    if (sim.tree[id] == Active)
+      assert(0 <= sim.map.at(id) && sim.map.at(id) < sim.n);
   }
 }
 
@@ -1492,7 +1494,8 @@ static int adapt() {
       for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
         long long Z = forward(sim.infos[k]->level, i, j);
         if (!exist(sim.infos[k]->level, Z) ||
-            state[sim.map.at(sim.levels[sim.infos[k]->level] + Z)] != Compress) {
+            state[sim.map.at(sim.levels[sim.infos[k]->level] + Z)] !=
+                Compress) {
           found = true;
           if (state[k] == Compress)
 #pragma omp critical
@@ -1683,14 +1686,17 @@ static int adapt() {
     }
   }
   sim.n = cnt;
+  sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
 
   sim.tree.clear();
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     int ix, iy;
     Info *info = sim.infos[i];
+    long long id = sim.levels[info->level] + info->Z;
 #pragma omp critical
-    sim.tree[sim.levels[info->level] + info->Z] = Active;
+    sim.tree[id] = Active;
+    assert(sim.map.at(id) == i);
     sfc_inverse(info->Z, info->level, &ix, &iy);
     if (info->level + 1 < sim.levelMax)
       for (int i = 0; i < 2; i++)
