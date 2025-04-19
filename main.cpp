@@ -1391,7 +1391,7 @@ static int adapt() {
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   Stencil stencil{-1, -1, 2, 2, true};
-  
+
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
     Real *b = sim.infos[i]->block + BS * BS * off_tmp;
@@ -1459,7 +1459,7 @@ static int adapt() {
     }
     if (m == 0)
       break;
-#pragma omp parallel
+#pragma omp for
     for (long long j = 0; j < sim.n; j++) {
       if (sim.infos[j]->level == m && state[j] == Compress) {
         int n = 1 << sim.infos[j]->level;
@@ -1696,6 +1696,7 @@ static int adapt() {
   for (long long i = 0; i < sim.n; i++) {
     int ix, iy;
     Info *info = sim.infos[i];
+#pragma omp critical
     sim.tree[sim.levels[info->level] + info->Z] = Active;
     sfc_inverse(info->Z, info->level, &ix, &iy);
     if (info->level + 1 < sim.levelMax)
@@ -1703,9 +1704,11 @@ static int adapt() {
         for (int j = 0; j < 2; j++) {
           long long Zchild =
               sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
+#pragma omp critical
           sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
         }
     if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0) {
+#pragma omp critical
       sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
     }
   }
