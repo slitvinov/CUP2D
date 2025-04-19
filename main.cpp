@@ -1430,7 +1430,6 @@ static int adapt() {
                              sim.infos[j]->Znei[1 + x][1 + y]] ==
                     ChildrenAreActive) {
                   if (state[j] == Compress)
-#pragma omp critical
                     state[j] = Leave;
                   int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                   for (int B = 0; B <= 1; B += Bstep) {
@@ -1442,7 +1441,6 @@ static int adapt() {
                     long long zzz = forward(m + 1, iNei, jNei);
                     int id = sim.levels[m + 1] + zzz;
                     if (state[sim.map[id]] == Refine) {
-#pragma omp critical
                       state[j] = Refine;
                       goto found;
                     }
@@ -1473,7 +1471,7 @@ static int adapt() {
             continue;
           if (cy == yskip && yskin)
             continue;
-          int id = sim.levels[sim.infos[j]->level] +
+          long long id = sim.levels[sim.infos[j]->level] +
                    sim.infos[j]->Znei[1 + cx][1 + cy];
           if (sim.map.find(id) != sim.map.end() &&
               state[sim.map[id]] == Refine) {
@@ -1552,18 +1550,10 @@ static int adapt() {
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Z = sfc_forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
-#pragma omp critical
-          if (exist(level_ref[k] + 1, Z)) {
-            fprintf(
-                stderr,
-                "main.cpp: error: trying to refine but a child exists: %d %d\n",
-                J, I);
-            assert(0);
-          }
+	  assert(!exist(level_ref[k] + 1, Z));
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
-#pragma omp critical
           sim.infos[id] = child;
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
@@ -1624,9 +1614,8 @@ static int adapt() {
           }
       }
     }
-#pragma omp for
+#pragma omp single
     for (size_t k = 0; k < level_ref.size(); k++) {
-#pragma omp critical
       dealloc_IDs.insert(sim.levels[level_ref[k]] + Z_ref[k]);
     }
 #pragma omp for
@@ -1685,13 +1674,11 @@ static int adapt() {
     }
   }
   sim.n = cnt;
-
   sim.tree.clear();
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     int ix, iy;
     Info *info = sim.infos[i];
-#pragma omp critical
     sim.tree[sim.levels[info->level] + info->Z] = Active;
     sfc_inverse(info->Z, info->level, &ix, &iy);
     if (info->level + 1 < sim.levelMax)
@@ -1699,11 +1686,9 @@ static int adapt() {
         for (int j = 0; j < 2; j++) {
           long long Zchild =
               sfc_forward(info->level + 1, 2 * ix + i, 2 * iy + j);
-#pragma omp critical
           sim.tree[sim.levels[info->level + 1] + Zchild] = ParentIsActive;
         }
     if (info->level > 0 && ix % 2 == 0 && iy % 2 == 0) {
-#pragma omp critical
       sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
     }
   }
