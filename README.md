@@ -69,7 +69,7 @@ PATH=$HOME/.local/bin:/usr/local/cuda-12.5/bin:$PATH && make
 
 AddressSanitizer:
 ```
-scl enable gcc-toolset-12 bash
+scl enable gcc-toolset-12 sh
 make 'NVCCFLAGS = -g -O0 -Xcompiler -fsanitize=address' \
      'CXXFLAGS = -O0 -g3 -fsanitize=address' \
      'LDFLAGS = -Xcompiler -fsanitize=address'
@@ -82,4 +82,10 @@ ASAN_OPTIONS=protect_shadow_gap=0 sh run.sh
 Paraview
 ```
 for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi; done | xargs -r -P `nproc` -n 2 sh -xc 'pvbatch tool/view.py "$@"' sh
+```
+
+
+```
+nvcc cuda.cu -c
+nvcc -o main -Xcompiler -fopenmp,-g3,-fsanitize=address main.cpp cuda.o -lcublas -lcusparse
 ```
