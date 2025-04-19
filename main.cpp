@@ -1508,9 +1508,9 @@ static int adapt() {
           long long Z = forward(sim.infos[k]->level, i, j);
           if (exist(sim.infos[k]->level, Z)) {
             long long id = sim.levels[sim.infos[k]->level] + Z;
-	    //            if (state[sim.map.at(id)] == Compress)
+	    if (state[sim.map.at(id)] == Compress)
 #pragma omp critical
-	    state[sim.map.at(id)] = Leave;
+	      state[sim.map.at(id)] = Leave;
           }
         }
   }
