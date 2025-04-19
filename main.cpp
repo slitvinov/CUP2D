@@ -1300,9 +1300,8 @@ static void ongrid() {
   }
   for (int ishape = 0; ishape < sim.nshape; ishape++) {
     Shape *shape = sim.shapes[ishape];
-    Real _x = 0, _y = 0, _m = 0, _j = 0, _u = 0, _v = 0, _a = 0;
-#pragma omp parallel for schedule(dynamic, 1)                                  \
-    reduction(+ : _x, _y, _m, _j, _u, _v, _a)
+    Real x = 0, y = 0, m = 0, j = 0, u = 0, v = 0, a = 0;
+#pragma omp parallel for reduction(+ : x, y, m, j, u, v, a)
     for (long long i = 0; i < sim.n; i++) {
       Real hsq = sim.infos[i]->h * sim.infos[i]->h;
       auto pos = shape->blocks[sim.infos[i]->id];
@@ -1321,18 +1320,18 @@ static void ongrid() {
           Real chi = CHI[j] * hsq;
           p[0] -= shape->x;
           p[1] -= shape->y;
-          _x += chi * p[0];
-          _y += chi * p[1];
-          _m += chi;
-          _j += chi * (p[0] * p[0] + p[1] * p[1]);
-          _u += chi * UDEF[2 * j + 0];
-          _v += chi * UDEF[2 * j + 1];
-          _a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
+          x += chi * p[0];
+          y += chi * p[1];
+          m += chi;
+          j += chi * (p[0] * p[0] + p[1] * p[1]);
+          u += chi * UDEF[2 * j + 0];
+          v += chi * UDEF[2 * j + 1];
+          a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
         }
     }
-    _u /= _m;
-    _v /= _m;
-    _a /= _j;
+    u /= m;
+    v /= m;
+    a /= j;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       auto pos = shape->blocks[sim.infos[i]->id];
@@ -1345,8 +1344,8 @@ static void ongrid() {
           p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
           p[0] -= shape->x;
           p[1] -= shape->y;
-          pos->udef[iy][ix][0] -= _u - _a * p[1];
-          pos->udef[iy][ix][1] -= _v + _a * p[0];
+          pos->udef[iy][ix][0] -= u - a * p[1];
+          pos->udef[iy][ix][1] -= v + a * p[0];
         }
     }
   }
