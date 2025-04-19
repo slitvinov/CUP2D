@@ -1426,7 +1426,7 @@ static int adapt() {
                   continue;
                 if (y == yskip && yskin)
                   continue;
-                if (sim.tree[sim.levels[sim.infos[j]->level] +
+                if (sim.tree[sim.levels[m] +
                              sim.infos[j]->Znei[1 + x][1 + y]] ==
                     ChildrenAreActive) {
                   if (state[j] == Compress)
@@ -1440,9 +1440,8 @@ static int adapt() {
                     int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) + y +
                                aux * std::max(0, 1 - abs(y));
                     long long zzz = forward(m + 1, iNei, jNei);
-                    int id = sim.levels[m + 1] + zzz;
+                    long long id = sim.levels[m + 1] + zzz;
                     if (state[sim.map[id]] == Refine) {
-#pragma omp critical
                       state[j] = Refine;
                       goto found;
                     }
