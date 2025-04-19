@@ -1440,7 +1440,7 @@ static int adapt() {
                                aux * std::max(0, 1 - abs(y));
                     long long zzz = forward(m + 1, iNei, jNei);
                     long long id = sim.levels[m + 1] + zzz;
-                    if (state[sim.map[id]] == Refine) {
+                    if (state[sim.map.at(id)] == Refine) {
 #pragma omp critical
                       state[j] = Refine;
                       goto found;
@@ -1474,7 +1474,7 @@ static int adapt() {
             continue;
           int id = sim.levels[m] + sim.infos[j]->Znei[1 + cx][1 + cy];
           if (sim.map.find(id) != sim.map.end() &&
-              state[sim.map[id]] == Refine) {
+              state[sim.map.at(id)] == Refine) {
 #pragma omp critical
             state[j] = Leave;
             break;
@@ -1492,7 +1492,7 @@ static int adapt() {
       for (int j = 2 * (iy / 2); j <= 2 * (iy / 2) + 1; j++) {
         long long Z = forward(sim.infos[k]->level, i, j);
         if (!exist(sim.infos[k]->level, Z) ||
-            state[sim.map[sim.levels[sim.infos[k]->level] + Z]] != Compress) {
+            state[sim.map.at(sim.levels[sim.infos[k]->level] + Z)] != Compress) {
           found = true;
           if (state[k] == Compress)
 #pragma omp critical
@@ -1507,9 +1507,9 @@ static int adapt() {
           long long Z = forward(sim.infos[k]->level, i, j);
           if (exist(sim.infos[k]->level, Z)) {
             long long id = sim.levels[sim.infos[k]->level] + Z;
-            if (state[sim.map[id]] == Compress)
+            if (state[sim.map.at(id)] == Compress)
 #pragma omp critical
-              state[sim.map[id]] = Leave;
+              state[sim.map.at(id)] = Leave;
           }
         }
   }
@@ -1676,7 +1676,7 @@ static int adapt() {
       free(info->block);
       delete info;
     } else {
-      sim.map[id] = cnt;
+      sim.map.at(id) = cnt;
       sim.infos[cnt] = info;
       sim.infos[cnt]->id = cnt;
       cnt++;
