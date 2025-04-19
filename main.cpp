@@ -1430,7 +1430,6 @@ static int adapt() {
                              sim.infos[j]->Znei[1 + x][1 + y]] ==
                     ChildrenAreActive) {
                   if (state[j] == Compress)
-#pragma omp critical
                     state[j] = Leave;
                   int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
                   for (int B = 0; B <= 1; B += Bstep) {
