@@ -1300,15 +1300,13 @@ static void ongrid() {
   }
   for (int ishape = 0; ishape < sim.nshape; ishape++) {
     Shape *shape = sim.shapes[ishape];
-    Real x = 0, y = 0, m = 0, j = 0, u = 0, v = 0, a = 0;
-#pragma omp parallel for reduction(+ : x, y, m, j, u, v, a)
+    Real x = 0, y = 0, m = 0, J = 0, u = 0, v = 0, a = 0;
+#pragma omp parallel for reduction(+ : x, y, m, J, u, v, a)
     for (long long i = 0; i < sim.n; i++) {
       Real hsq = sim.infos[i]->h * sim.infos[i]->h;
-      auto pos = shape->blocks[sim.infos[i]->id];
-      if (pos == nullptr)
-        continue;
-      Real *CHI = (Real *)pos->chi;
-      Real *UDEF = (Real *)pos->udef;
+      Obstacle *o = shape->blocks[i];
+      Real *CHI = (Real *)o->chi;
+      Real *UDEF = (Real *)o->udef;
       for (int iy = 0; iy < BS; ++iy)
         for (int ix = 0; ix < BS; ++ix) {
           int j = BS * iy + ix;
@@ -1323,7 +1321,7 @@ static void ongrid() {
           x += chi * p[0];
           y += chi * p[1];
           m += chi;
-          j += chi * (p[0] * p[0] + p[1] * p[1]);
+          J += chi * (p[0] * p[0] + p[1] * p[1]);
           u += chi * UDEF[2 * j + 0];
           v += chi * UDEF[2 * j + 1];
           a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
@@ -1331,12 +1329,10 @@ static void ongrid() {
     }
     u /= m;
     v /= m;
-    a /= j;
+    a /= J;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      auto pos = shape->blocks[sim.infos[i]->id];
-      if (pos == nullptr)
-        continue;
+      Obstacle *o = shape->blocks[i];
       for (int iy = 0; iy < BS; ++iy)
         for (int ix = 0; ix < BS; ++ix) {
           Real p[2];
@@ -1344,8 +1340,8 @@ static void ongrid() {
           p[1] = sim.infos[i]->origin[1] + sim.infos[i]->h * (iy + 0.5);
           p[0] -= shape->x;
           p[1] -= shape->y;
-          pos->udef[iy][ix][0] -= u - a * p[1];
-          pos->udef[iy][ix][1] -= v + a * p[0];
+          o->udef[iy][ix][0] -= u - a * p[1];
+          o->udef[iy][ix][1] -= v + a * p[0];
         }
     }
   }
