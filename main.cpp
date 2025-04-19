@@ -116,7 +116,7 @@ struct CollisionInfo {
   Real jvecY = 0;
 };
 static TreeState Tree1(Info *info) {
-  return sim.tree[sim.levels[info->level] + info->Z];
+  return sim.tree.at(sim.levels[info->level] + info->Z);
 }
 static void fill(Info *b, int level, long long Z) {
   int Bmax[2];
@@ -1687,7 +1687,6 @@ static int adapt() {
   }
   sim.n = cnt;
   sim.infos = (Info **)realloc(sim.infos, sim.n * sizeof *sim.infos);
-
   sim.tree.clear();
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
