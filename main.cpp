@@ -183,7 +183,7 @@ static void get_states(Info *info, TreeState nei[3][3]) {
       continue;
     long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
     nei[1 + cx][1 + cy] = sim.tree.at(id);
-    if (sim.tree[id] == Active)
+    if (sim.tree.at(id) == Active)
       assert(0 <= sim.map.at(id) && sim.map.at(id) < sim.n);
   }
 }
@@ -1428,8 +1428,8 @@ static int adapt() {
                   continue;
                 if (y == yskip && yskin)
                   continue;
-                if (sim.tree[sim.levels[m] +
-                             sim.infos[j]->Znei[1 + x][1 + y]] ==
+                if (sim.tree.at(sim.levels[m] +
+				sim.infos[j]->Znei[1 + x][1 + y]) ==
                     ChildrenAreActive) {
                   if (state[j] == Compress)
                     state[j] = Leave;
@@ -2485,7 +2485,7 @@ int main(int argc, char **argv) {
               } else if (!isBoundary[j]) {
                 EdgeCellIndexer *indexer = edgeIndexers[j];
                 long long sfc_idx = This(info, ix, iy);
-                TreeState state = sim.tree[sim.levels[info->level] + nei[j]];
+                TreeState state = sim.tree.at(sim.levels[info->level] + nei[j]);
                 if (state == Active) {
                   Info *rhsNei = getf0(info->level, nei[j]);
                   long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
