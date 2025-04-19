@@ -182,7 +182,7 @@ static void get_states(Info *info, TreeState nei[3][3]) {
     if (cx == 0 && cy == 0)
       continue;
     long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
-    nei[1 + cx][1 + cy] = sim.tree[id];
+    nei[1 + cx][1 + cy] = sim.tree.at(id);
     if (sim.tree[id] == Active)
       assert(0 <= sim.map.at(id) && sim.map.at(id) < sim.n);
   }
