@@ -1676,7 +1676,7 @@ static int adapt() {
       free(info->block);
       delete info;
     } else {
-      sim.map.at(id) = cnt;
+      sim.map[id] = cnt;
       sim.infos[cnt] = info;
       sim.infos[cnt]->id = cnt;
       cnt++;
