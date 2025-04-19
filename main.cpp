@@ -1233,7 +1233,7 @@ static void ongrid() {
     shape->blocks.clear();
     auto N = sim.n;
     shape->blocks = std::vector<Obstacle *>(N, nullptr);
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (long long i = 0; i < sim.n; ++i) {
       Obstacle *block = new Obstacle();
       shape->blocks[i] = block;
@@ -1241,7 +1241,7 @@ static void ongrid() {
       memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
     }
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Obstacle *block = shape->blocks[sim.infos[i]->id];
       Info *info = sim.infos[i];
@@ -1333,7 +1333,7 @@ static void ongrid() {
     _u /= _m;
     _v /= _m;
     _a /= _j;
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       auto pos = shape->blocks[sim.infos[i]->id];
       if (pos == nullptr)
