@@ -1,0 +1,38 @@
+dim: 1;
+i0 : i / 2 + offsetX[I] - s;
+j0 : j / 2 + offsetY[J] - s;
+im : i0 - 1;
+ip : i0 + 1;
+jm : j0 - 1;
+jp : j0 + 1;
+o0 : BS * j + i;
+o1 : BS * j + i + 1;
+o2 : BS * (j + 1) + i;
+o3 : BS * (j + 1) + i + 1;
+for d: 0 thru dim do (
+l00 : dim * (nm * j0 + i0) + d,
+l0p : dim * (nm * jp + i0) + d,
+lm0 : dim * (nm * j0 + im) + d,
+lmm : dim * (nm * jm + im) + d,
+lmp : dim * (nm * jp + im) + d,
+lp0 : dim * (nm * j0 + ip) + d,
+lpm : dim * (nm * jm + ip) + d,
+lpp : dim * (nm * jp + ip) + d,
+l0m : dim * (nm * jm + i0) + d,
+x : (lp0 - lm0) / 2,
+y : (l0p - l0m) / 2,
+x2 : (lp0 + lm0) - 2 * l00,
+y2 : (l0p + l0m) - 2 * l00,
+xy : ((lpp + lmm) - (lpm + lmp)) / 4,
+b[dim * o0 + d] :
+(l00 + (-x/4 - y/4)) +
+((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy),
+b[dim * o1 + d] :
+(l00 + (+0.25 * x - 0.25 * y)) +
+((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy),
+b[dim * o2 + d] :
+(l00 + (-0.25 * x + 0.25 * y)) +
+((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy),
+b[dim * o3 + d] :
+(l00 + (+0.25 * x + 0.25 * y)) +
+((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy));
