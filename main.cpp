@@ -1442,6 +1442,7 @@ static int adapt() {
                     long long zzz = forward(m + 1, iNei, jNei);
                     long long id = sim.levels[m + 1] + zzz;
                     if (state[sim.map[id]] == Refine) {
+#pragma omp critical
                       state[j] = Refine;
                       goto found;
                     }
