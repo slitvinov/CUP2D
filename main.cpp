@@ -145,7 +145,7 @@ static int exist(int level, long long Z) {
   return sim.map.find(aux) != sim.map.end();
 }
 static Info *getf0(int level, long long Z) {
-  return sim.infos[sim.map.at(sim.levels[level] + Z]];
+  return sim.infos[sim.map.at(sim.levels[level] + Z)];
 }
 static Info getf1(int level, long long Z) {
   Info dummy;
