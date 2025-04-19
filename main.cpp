@@ -18,25 +18,6 @@
 #endif
 #include "cuda.h"
 
-#define CHECK                                                                  \
-  do {                                                                         \
-    for (int i = 0; i < sim.n; ++i) {                                          \
-      Info *info = sim.infos[i];                                               \
-      for (int J = 0; J < 2; ++J)                                              \
-        for (int I = 0; I < 2; ++I)                                            \
-          if (info->level + 1 < sim.levelMax) {                                \
-            long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I, \
-                                      2 * info->index[1] + J);                 \
-            if (exist(info->level + 1, Z)) {                                   \
-              fprintf(stderr,                                                  \
-                      "Child Z=%lld already exists for parent Z=%lld\n", Z,    \
-                      info->Z);                                                \
-              assert(0);                                                       \
-            }                                                                  \
-          }                                                                    \
-    }                                                                          \
-  } while (0)
-
 typedef double Real;
 enum { BS = 8 };
 enum {
@@ -1410,18 +1391,7 @@ static int adapt() {
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   Stencil stencil{-1, -1, 2, 2, true};
-  /* TODO */
-  sim.map.clear();
-  for (long long i = 0; i < sim.n; i++) {
-    Info *info = sim.infos[i];
-    long long id = sim.levels[info->level] + info->Z;
-    sim.map[id] = i;
-    sim.infos[i]->id = i;
-  }
-  /**/
-
   
-  CHECK;  
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
     Real *b = sim.infos[i]->block + BS * BS * off_tmp;
@@ -1438,7 +1408,6 @@ static int adapt() {
       Changed = true || Changed;
     }
   }
-  CHECK;
   if (!Changed)
     goto end;
 #pragma omp parallel
@@ -1521,7 +1490,6 @@ static int adapt() {
       }
     }
   }
-  CHECK;  
 #pragma omp parallel for
   for (long long k = 0; k < sim.n; k++) {
     int ix, iy;
@@ -1566,34 +1534,6 @@ static int adapt() {
       Z_com.push_back(sim.infos[j]->Z);
     }
   }
-  /* TODO */
-  {
-    std::set<std::pair<int, long long>> seen;
-    for (size_t i = 0; i < level_ref.size(); ++i) {
-      auto key = std::make_pair(level_ref[i], Z_ref[i]);
-      bool inserted = seen.insert(key).second;
-      assert(inserted && "Duplicate (level, Z) pair found in refinement list!");
-    }
-  }
-  /**/
-
-  /* TODO */
-  for (int i = 0; i < sim.n; ++i) {
-    Info *info = sim.infos[i];
-    for (int J = 0; J < 2; ++J)
-      for (int I = 0; I < 2; ++I)
-        if (info->level + 1 < sim.levelMax) {
-          long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
-                                    2 * info->index[1] + J);
-          if (exist(info->level + 1, Z)) {
-            fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n",
-                    Z, info->Z);
-            assert(0);
-          }
-        }
-  }
-  /* TODO */
-
   fprintf(stderr, "%s:%d: com/ref: %ld %ld\n", __FILE__, __LINE__,
           level_com.size(), level_ref.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
@@ -1769,23 +1709,6 @@ static int adapt() {
       sim.tree[sim.levels[info->level - 1] + info->Z / 4] = ChildrenAreActive;
     }
   }
-
-  /* TODO */
-  for (int i = 0; i < sim.n; ++i) {
-    Info *info = sim.infos[i];
-    for (int J = 0; J < 2; ++J)
-      for (int I = 0; I < 2; ++I)
-        if (info->level + 1 < sim.levelMax) {
-          long long Z = sfc_forward(info->level + 1, 2 * info->index[0] + I,
-                                    2 * info->index[1] + J);
-          if (exist(info->level + 1, Z)) {
-            fprintf(stderr, "Child Z=%lld already exists for parent Z=%lld\n",
-                    Z, info->Z);
-            assert(0);
-          }
-        }
-  }
-  CHECK;
 end:
   free(state);
   return Changed;
