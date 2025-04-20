@@ -219,13 +219,12 @@ public:
     free(c);
   }
   void prepare(int s) {
-    int offset;
+    int offset = ((-s) - 1) / 2 - 1;
     nm = 2 * s + BS;
-    free(m);
-    m = (Real *)malloc(nm * nm * dim * sizeof(Real));
-    offset = ((-s) - 1) / 2 - 1;
     nc = BS / 2 + (s + 1) / 2 + 1 - offset;
+    free(m);
     free(c);
+    m = (Real *)malloc(nm * nm * dim * sizeof(Real));
     c = (Real *)malloc(nc * nc * dim * sizeof(Real));
   }
   void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
@@ -235,8 +234,8 @@ public:
     int ss = stencil.s;
     int offset = (-ss - 1) / 2 - 1;
 
-    bool use_averages = stencil.tensorial || (-ss) < -2 ||
-                        (-ss) < -2 || (ss + 1) > 3 || (ss + 1) > 3;
+    bool use_averages = stencil.tensorial || (-ss) < -2 || (-ss) < -2 ||
+                        (ss + 1) > 3 || (ss + 1) > 3;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -394,9 +393,8 @@ public:
         for (int cnt = 0; cnt < pattern->count; cnt++, B += pattern->Bstep) {
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           Real *b = blocks[1 + cx][1 + cy][cnt];
-          int i =
-              abs(cx) * (s[0] - (-ss)) +
-              (1 - abs(cx)) * (s[0] - (-ss) + (B % 2) * (e[0] - s[0]) / 2);
+          int i = abs(cx) * (s[0] - (-ss)) +
+                  (1 - abs(cx)) * (s[0] - (-ss) + (B % 2) * (e[0] - s[0]) / 2);
           int x = s[0] - cx * BS + std::min(0, cx) * (e[0] - s[0]);
 
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
@@ -628,8 +626,7 @@ public:
             Real *Test[3][3];
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++) {
-                int i0 =
-                    XX - 1 + i - offset + nc * (YY - 1 + j - offset);
+                int i0 = XX - 1 + i - offset + nc * (YY - 1 + j - offset);
                 Test[i][j] = c + dim * i0;
               }
             int i1 = ix - (-ss) + nm * (iy - (-ss));
@@ -976,7 +973,7 @@ void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
       cb[ix - stenBeg[0] + n * (iy - stenBeg[1])] =
           cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
              n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
-                     stenBeg[1])];
+                  stenBeg[1])];
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
 void bc_scalar(BlockLab *lab, Stencil *stencil, Info *info, bool coarse) {
