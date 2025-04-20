@@ -1514,20 +1514,6 @@ static int adapt() {
           }
         }
   }
-  for (long long j = 0; j < sim.n; j++) {
-    int ix, iy;
-    sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
-    if (state[j] == Refine) {
-      level_ref.push_back(sim.infos[j]->level);
-      Z_ref.push_back(sim.infos[j]->Z);
-      TreeStateMatrix nei;
-      get_states(sim.infos[j], nei.nei);
-      m_tree.push_back(nei);
-    } else if (state[j] == Compress && ix % 2 == 0 && iy % 2 == 0) {
-      level_com.push_back(sim.infos[j]->level);
-      Z_com.push_back(sim.infos[j]->Z);
-    }
-  }
   fprintf(stderr, "%s:%d: com/ref: %ld %ld\n", __FILE__, __LINE__,
           level_com.size(), level_ref.size());
   if (level_ref.size() == 0 && level_com.size() == 0)
