@@ -240,13 +240,12 @@ public:
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = p0;
-    for (int iy = ss; iy < ss + BS; iy += 4) {
+    for (int iy = ss; iy < ss + BS; iy++) {
       Real *q = m + dim * iy * nm + dim * ss;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS);
+      p += dim * BS;
     }
+
     bool coarsened = false;
     bool xskin = xi == 0 || xi == n - 1;
     bool yskin = yi == 0 || yi == n - 1;
