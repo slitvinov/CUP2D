@@ -218,9 +218,8 @@ public:
     free(c);
   }
   void prepare(int ss) {
-    int offset = (-ss - 1) / 2 - 1;
     int nm = 2 * ss + BS;
-    int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+    int nc = BS / 2 + ss + 3;
     free(m);
     free(c);
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
@@ -233,7 +232,7 @@ public:
     int ss = stencil.s;
     int offset = (-ss - 1) / 2 - 1;
     int nm = 2 * ss + BS;
-    int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+    int nc = BS / 2 + ss + 3;
 
     bool use_averages = stencil.tensorial || (-ss) < -2 || (-ss) < -2 ||
                         (ss + 1) > 3 || (ss + 1) > 3;
@@ -881,7 +880,7 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
   int ss = stencil->s;
   int offset = (-ss - 1) / 2 - 1;
   int nm = 2 * ss + BS;
-  int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+  int nc = BS / 2 + ss + 3;
 
   int A = 1 - dir;
   if (!coarse) {
@@ -947,9 +946,8 @@ static void bc_vector(BlockLab *lab, Stencil *stencil, Info *info,
 template <int dir, int side>
 void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
   int ss = stencil->s;
-  int offset = (-ss - 1) / 2 - 1;
   int nm = 2 * ss + BS;
-  int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+  int nc = BS / 2 + ss + 3;
 
   int stenBeg[2];
   int stenEnd[2];
