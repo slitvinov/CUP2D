@@ -242,7 +242,7 @@ public:
     Real *p = p0;
     for (int iy = ss; iy < ss + BS; iy++) {
       Real *q = m + dim * iy * nm + dim * ss;
-      memcpy(q, p, sizeof(Real) * dim * BS);
+      memcpy(q, p, BS * dim * sizeof(Real));
       p += dim * BS;
     }
 
