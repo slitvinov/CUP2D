@@ -234,8 +234,7 @@ public:
     int nm = 2 * ss + BS;
     int nc = BS / 2 + ss + 2 + ss % 2;
 
-    bool use_averages = stencil.tensorial || (-ss) < -2 || (-ss) < -2 ||
-                        (ss + 1) > 3 || (ss + 1) > 3;
+    bool use_averages = stencil.tensorial || ss > 2;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
