@@ -877,7 +877,6 @@ typedef Real ScalarBlock[BS][BS];
 template <int dir, int side>
 void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
   int ss = stencil->s;
-  int offset = (-ss - 1) / 2 - 1;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 2 + ss % 2;
 
@@ -1477,7 +1476,7 @@ static int adapt() {
         int yp = yi / 2;
         if (sim.infos[j]->level == 0)
           continue;
-        int n = 1 << sim.infos[j]->level - 1;
+        int n = 1 << (sim.infos[j]->level - 1);
         bool xskin = xi == 0 || xi == n - 1;
         bool yskin = yi == 0 || yi == n - 1;
         int xskip = xi == 0 ? -1 : 1;
@@ -2269,8 +2268,8 @@ int main(int argc, char **argv) {
     auto &infos = sim.infos;
     std::vector<CollisionInfo> collisions(sim.nshape);
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < sim.nshape; ++i)
-      for (size_t j = 0; j < sim.nshape; ++j) {
+    for (int i = 0; i < sim.nshape; ++i)
+      for (int j = 0; j < sim.nshape; ++j) {
         if (i == j)
           continue;
         auto &coll = collisions[i];
@@ -2330,8 +2329,8 @@ int main(int argc, char **argv) {
         }
       }
     // #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < sim.nshape; ++i) {
-      for (size_t j = i + 1; j < sim.nshape; ++j) {
+    for (int i = 0; i < sim.nshape; ++i) {
+      for (int j = i + 1; j < sim.nshape; ++j) {
         auto &coll = collisions[i];
         auto &coll_other = collisions[j];
         if (coll.iM > 0 && coll.jM > 0 && coll_other.iM > 0 &&
@@ -2351,7 +2350,7 @@ int main(int argc, char **argv) {
           sim.shapes[j]->u -= du;
           sim.shapes[j]->v -= dv;
           fprintf(stderr,
-                  "Collision between objects %ld and %ld\n"
+                  "Collision between objects %d and %d\n"
                   " iM %g %g\n"
                   " jM %g %g\n"
                   " Normal vector = %g %g\n",
