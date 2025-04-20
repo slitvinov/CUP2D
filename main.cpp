@@ -996,7 +996,7 @@ void bc_scalar(BlockLab *lab, Stencil *stencil, Info *info, bool coarse) {
     Neumann2D<1, 1>(lab, stencil, coarse);
 }
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
-  Stencil stencil{-1, 2, false};
+  Stencil stencil{1, 2, false};
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
   int nm = BS + stencil.ex - (-stencil.s) - 1;
@@ -1038,7 +1038,7 @@ struct Obstacle {
   }
 };
 struct KernelVorticity {
-  Stencil stencil{-1, 2, false};
+  Stencil stencil{1, 2, false};
   void operator()(Real *um, Info *info, long long id) {
     Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
@@ -1180,7 +1180,7 @@ struct Shape {
   std::vector<Obstacle *> blocks;
 };
 struct PutChiOnGrid {
-  Stencil stencil{-1, 2, false};
+  Stencil stencil{1, 2, false};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
@@ -1365,7 +1365,7 @@ static void ongrid() {
 }
 struct GradChiOnTmp {
   GradChiOnTmp() {}
-  Stencil stencil{-4, 5, true};
+  Stencil stencil{4, 5, true};
   void operator()(Real *um, Info *info, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
@@ -1403,7 +1403,7 @@ static int adapt() {
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   int More = 0;
-  Stencil stencil{-1, 2, true};
+  Stencil stencil{1, 2, true};
 
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
@@ -1711,7 +1711,7 @@ end:
   return Changed;
 }
 struct KernelAdvectDiffuse {
-  Stencil stencil{-3, 4, true};
+  Stencil stencil{3, 4, true};
   void operator()(Real *um, Info *info, long long id) {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
@@ -1963,7 +1963,7 @@ YmaxIndexer YmaxCell;
 std::array<EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell, &YminCell,
                                               &YmaxCell};
 struct pressureCorrectionKernel {
-  Stencil stencil{-1, 2, false};
+  Stencil stencil{1, 2, false};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + stencil.ex - (-stencil.s) - 1;
     Real h = info->h, pFac = -0.5 * sim.dt * h;
@@ -1987,7 +1987,7 @@ struct pressureCorrectionKernel {
 };
 struct pressure_rhs1 {
   pressure_rhs1() {}
-  Stencil stencil{-1, 2, false};
+  Stencil stencil{1, 2, false};
   void operator()(Real *um, Info *, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + stencil.ex - (-stencil.s) - 1;
@@ -2416,7 +2416,7 @@ int main(int argc, char **argv) {
           }
       }
     }
-    Stencil stencil{-1, 2, false};
+    Stencil stencil{1, 2, false};
 #pragma omp parallel
     {
       BlockLab lab(2);
