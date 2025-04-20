@@ -220,8 +220,6 @@ public:
   }
   void prepare(int s) {
     int offset = (-s - 1) / 2 - 1;
-    nm = 2 * s + BS;
-    nc = BS / 2 + (s + 1) / 2 + 1 - offset;
     free(m);
     free(c);
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
@@ -233,6 +231,8 @@ public:
     int coarsened_nei_codes[9];
     int ss = stencil.s;
     int offset = (-ss - 1) / 2 - 1;
+    int nm = 2 * ss + BS;
+    int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
 
     bool use_averages = stencil.tensorial || (-ss) < -2 || (-ss) < -2 ||
                         (ss + 1) > 3 || (ss + 1) > 3;
