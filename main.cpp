@@ -1405,84 +1405,49 @@ static int adapt() {
   }
   if (!Changed)
     goto end;
-#pragma omp parallel
-  for (int m = sim.levelMax - 1; m >= 0; m--) {
-#pragma omp for
-    for (long long j = 0; j < sim.n; j++) {
-      if (sim.infos[j]->level == m && state[j] != Refine &&
-          sim.infos[j]->level != sim.levelMax - 1) {
-        int ix, iy;
-        int n = 1 << sim.infos[j]->level;
-        sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
-        bool xskin = ix == 0 || ix == n - 1;
-        bool yskin = iy == 0 || iy == n - 1;
-        int xskip = ix == 0 ? -1 : 1;
-        int yskip = iy == 0 ? -1 : 1;
-        if (state[j] != Refine)
-          for (int x = -1; x < 2; x++)
-            for (int y = -1; y < 2; y++)
-              if (x != 0 || y != 0) {
-                if (x == xskip && xskin)
-                  continue;
-                if (y == yskip && yskin)
-                  continue;
-                if (sim.tree.at(sim.levels[m] +
-				sim.infos[j]->Znei[1 + x][1 + y]) ==
-                    ChildrenAreActive) {
-                  if (state[j] == Compress)
-                    state[j] = Leave;
-                  int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
-                  for (int B = 0; B <= 1; B += Bstep) {
-                    int aux = abs(x) == 1 ? B % 2 : B / 2;
-                    int iNei = 2 * sim.infos[j]->index[0] + std::max(x, 0) + x +
-                               (B % 2) * std::max(0, 1 - abs(x));
-                    int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) + y +
-                               aux * std::max(0, 1 - abs(y));
-                    long long zzz = forward(m + 1, iNei, jNei);
-                    long long id = sim.levels[m + 1] + zzz;
-                    if (state[sim.map.at(id)] == Refine) {
+  for (long long j = 0; j < sim.n; j++) {
+    if (state[j] != Refine) {
+      int ix, iy;
+      int n = 1 << sim.infos[j]->level;
+      sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
+      bool xskin = ix == 0 || ix == n - 1;
+      bool yskin = iy == 0 || iy == n - 1;
+      int xskip = ix == 0 ? -1 : 1;
+      int yskip = iy == 0 ? -1 : 1;
+      if (state[j] != Refine)
+        for (int x = -1; x < 2; x++)
+          for (int y = -1; y < 2; y++)
+            if (x != 0 || y != 0) {
+              if (x == xskip && xskin)
+                continue;
+              if (y == yskip && yskin)
+                continue;
+              if (sim.tree.at(sim.levels[sim.infos[j]->level] +
+                              sim.infos[j]->Znei[1 + x][1 + y]) ==
+                  ChildrenAreActive) {
+                if (state[j] == Compress)
+                  state[j] = Leave;
+                int Bstep = abs(x) + abs(y) == 2 ? 3 : 1;
+                for (int B = 0; B <= 1; B += Bstep) {
+                  int aux = abs(x) == 1 ? B % 2 : B / 2;
+                  int iNei = 2 * sim.infos[j]->index[0] + std::max(x, 0) + x +
+                             (B % 2) * std::max(0, 1 - abs(x));
+                  int jNei = 2 * sim.infos[j]->index[1] + std::max(y, 0) + y +
+                             aux * std::max(0, 1 - abs(y));
+                  long long zzz = forward(sim.infos[j]->level + 1, iNei, jNei);
+                  long long id = sim.levels[sim.infos[j]->level + 1] + zzz;
+                  if (state[sim.map.at(id)] == Refine) {
 #pragma omp critical
-                      state[j] = Refine;
-                      goto found;
-                    }
+                    state[j] = Refine;
+                    goto found;
                   }
                 }
               }
-      found:;
-      }
-    }
-    if (m == 0)
-      break;
-#pragma omp for
-    for (long long j = 0; j < sim.n; j++) {
-      if (sim.infos[j]->level == m && state[j] == Compress) {
-        int n = 1 << sim.infos[j]->level;
-        int ix, iy;
-        sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &ix, &iy);
-        bool xskin = ix == 0 || ix == n - 1;
-        bool yskin = iy == 0 || iy == n - 1;
-        int xskip = ix == 0 ? -1 : 1;
-        int yskip = iy == 0 ? -1 : 1;
-        for (int icode = 0; icode < 9; icode++) {
-          int cx = icode % 3 - 1;
-          int cy = icode / 3 - 1;
-          if (cx == 0 && cy == 0)
-            continue;
-          if (cx == xskip && xskin)
-            continue;
-          if (cy == yskip && yskin)
-            continue;
-          int id = sim.levels[m] + sim.infos[j]->Znei[1 + cx][1 + cy];
-          if (sim.map.find(id) != sim.map.end() &&
-              state[sim.map.at(id)] == Refine) {
-#pragma omp critical
-            state[j] = Leave;
-            break;
-          }
-        }
-      }
+            }
+    found:;
     }
   }
+
 #pragma omp parallel for
   for (long long k = 0; k < sim.n; k++) {
     int ix, iy;
@@ -1508,9 +1473,9 @@ static int adapt() {
           long long Z = forward(sim.infos[k]->level, i, j);
           if (exist(sim.infos[k]->level, Z)) {
             long long id = sim.levels[sim.infos[k]->level] + Z;
-	    if (state[sim.map.at(id)] == Compress)
+            if (state[sim.map.at(id)] == Compress)
 #pragma omp critical
-	      state[sim.map.at(id)] = Leave;
+              state[sim.map.at(id)] = Leave;
           }
         }
   }
@@ -1552,7 +1517,7 @@ static int adapt() {
         for (int I = 0; I < 2; I++) {
           long long Z = sfc_forward(level_ref[k] + 1, 2 * px + I, 2 * py + J);
 #pragma omp critical
-	  assert(!exist(level_ref[k] + 1, Z));
+          assert(!exist(level_ref[k] + 1, Z));
           Info *child = new Info;
           fill(child, level_ref[k] + 1, Z);
           long long id = nprev + 4 * k + 2 * J + I;
