@@ -240,10 +240,11 @@ public:
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = p0;
-    for (int iy = ss; iy < ss + BS; iy++) {
-      Real *q = m + dim * iy * nm + dim * ss;
+    Real *q = m + dim * ss;
+    for (int i = ss; i < ss + BS; i++) {
       memcpy(q, p, BS * dim * sizeof(Real));
       p += dim * BS;
+      q += dim * nm;
     }
 
     bool coarsened = false;
