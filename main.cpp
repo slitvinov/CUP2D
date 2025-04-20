@@ -219,7 +219,7 @@ public:
     free(c);
   }
   void prepare(int s) {
-    int offset = ((-s) - 1) / 2 - 1;
+    int offset = (-s - 1) / 2 - 1;
     nm = 2 * s + BS;
     nc = BS / 2 + (s + 1) / 2 + 1 - offset;
     free(m);
