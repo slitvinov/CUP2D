@@ -240,7 +240,7 @@ public:
     sfc_inverse(info->Z, info->level, &xi, &yi);
     Real *p = p0;
     Real *q = m + dim * ss * nm + dim * ss;
-    for (int i = ss; i < ss + BS; i++) {
+    for (int i = 0; i < BS; i++) {
       memcpy(q, p, BS * dim * sizeof(Real));
       p += dim * BS;
       q += dim * nm;
