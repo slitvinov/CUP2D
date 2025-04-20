@@ -103,7 +103,7 @@ struct Info {
   long long id, Z, Zchild[2][2], Znei[3][3];
   Real *block = NULL;
 };
-struct CollisionInfo {
+struct Collision {
   Real iM = 0;
   Real iPosX = 0;
   Real iPosY = 0;
@@ -2265,14 +2265,13 @@ int main(int argc, char **argv) {
         shape->v = (VM - PX * shape->omega) / PM;
       }
     }
-    auto &infos = sim.infos;
-    std::vector<CollisionInfo> collisions(sim.nshape);
+    std::vector<Collision> collisions(sim.nshape);
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < sim.nshape; ++i)
       for (int j = 0; j < sim.nshape; ++j) {
         if (i == j)
           continue;
-        auto &coll = collisions[i];
+        Collision &coll = collisions[i];
         auto &iBlocks = sim.shapes[i]->blocks;
         auto &jBlocks = sim.shapes[j]->blocks;
         for (size_t k = 0; k < iBlocks.size(); ++k) {
@@ -2282,15 +2281,15 @@ int main(int argc, char **argv) {
           auto &jSDF = jBlocks[k]->dist;
           ScalarBlock &iChi = iBlocks[k]->chi;
           ScalarBlock &jChi = jBlocks[k]->chi;
-          Real h = 1.0 / BS / (1 << infos[k]->level);
+          Real h = 1.0 / BS / (1 << sim.infos[k]->level);
           Real hsq = h * h;
           for (int iy = 0; iy < BS; ++iy)
             for (int ix = 0; ix < BS; ++ix) {
               if (iChi[iy][ix] <= 0.0 || jChi[iy][ix] <= 0.0)
                 continue;
               Real pos[2];
-              pos[0] = infos[k]->origin[0] + h * (ix + 0.5);
-              pos[1] = infos[k]->origin[1] + h * (iy + 0.5);
+              pos[0] = sim.infos[k]->origin[0] + h * (ix + 0.5);
+              pos[1] = sim.infos[k]->origin[1] + h * (iy + 0.5);
               coll.iM += iChi[iy][ix] * hsq;
               coll.iPosX += iChi[iy][ix] * pos[0] * hsq;
               coll.iPosY += iChi[iy][ix] * pos[1] * hsq;
