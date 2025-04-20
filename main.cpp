@@ -208,7 +208,6 @@ private:
   int dim;
 
 public:
-  int nm, nc;
   Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
@@ -218,8 +217,10 @@ public:
     free(m);
     free(c);
   }
-  void prepare(int s) {
-    int offset = (-s - 1) / 2 - 1;
+  void prepare(int ss) {
+    int offset = (-ss - 1) / 2 - 1;
+    int nm = 2 * ss + BS;
+    int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
     free(m);
     free(c);
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
@@ -877,6 +878,11 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
 typedef Real ScalarBlock[BS][BS];
 template <int dir, int side>
 void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
+  int ss = stencil->s;
+  int offset = (-ss - 1) / 2 - 1;
+  int nm = 2 * ss + BS;
+  int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+
   int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
@@ -890,8 +896,8 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
       for (int ix = s[0]; ix < e[0]; ix++) {
         int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - (-stencil->s);
         int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - (-stencil->s);
-        int i0 = ix - (-stencil->s) + lab->nm * (iy - (-stencil->s));
-        int i1 = x + lab->nm * (y);
+        int i0 = ix - (-stencil->s) + nm * (iy - (-stencil->s));
+        int i1 = x + nm * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
@@ -908,8 +914,8 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
       for (int ix = s[0]; ix < e[0]; ix++) {
         int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - sI[0];
         int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - sI[1];
-        int i0 = ix - sI[0] + lab->nc * (iy - sI[1]);
-        int i1 = x + lab->nc * (y);
+        int i0 = ix - sI[0] + nc * (iy - sI[1]);
+        int i1 = x + nc * (y);
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
         lab->c[2 * i0 + A] = lab->c[2 * i1 + A];
       }
@@ -940,6 +946,11 @@ static void bc_vector(BlockLab *lab, Stencil *stencil, Info *info,
 }
 template <int dir, int side>
 void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
+  int ss = stencil->s;
+  int offset = (-ss - 1) / 2 - 1;
+  int nm = 2 * ss + BS;
+  int nc = BS / 2 + (ss + 1) / 2 + 1 - offset;
+
   int stenBeg[2];
   int stenEnd[2];
   int bsize[2];
@@ -959,7 +970,7 @@ void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
     bsize[1] = BS / 2;
   }
   Real *cb = coarse ? lab->c : lab->m;
-  int n = coarse ? lab->nc : lab->nm;
+  int n = coarse ? nc : nm;
   int s[2];
   int e[2];
   s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
