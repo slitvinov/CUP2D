@@ -230,13 +230,10 @@ public:
   }
   void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
              Stencil &stencil, Info *info, bool applybc) {
-    int offset[3];
     Real *myblocks[9];
     int coarsened_nei_codes[9];
     int ss = stencil.s;
-    offset[0] = ((-ss) - 1) / 2 - 1;
-    offset[1] = ((-ss) - 1) / 2 - 1;
-    offset[2] = 0;
+    int offset = (-ss - 1) / 2 - 1;
 
     bool use_averages = stencil.tensorial || (-ss) < -2 ||
                         (-ss) < -2 || (ss + 1) > 3 || (ss + 1) > 3;
@@ -276,8 +273,8 @@ public:
         coarsened_nei_codes[coarsened_nei_codes_size++] = icode;
         int infoNei_index_true[2] = {(xi + cx), (yi + cy)};
         Real *b = blocks[1 + cx][1 + cy][0];
-        int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
-                    cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
+        int s[2] = {cx < 1 ? (cx < 0 ? offset : 0) : (BS / 2),
+                    cy < 1 ? (cy < 0 ? offset : 0) : (BS / 2)};
         int e[2] = {
             cx < 1 ? (cx < 0 ? 0 : (BS / 2)) : (BS / 2) + ((ss + 1)) / 2 + 1,
             cy < 1 ? (cy < 0 ? 0 : (BS / 2)) : (BS / 2) + ((ss + 1)) / 2 + 1};
@@ -301,13 +298,13 @@ public:
                 cx * BS + CoarseEdge[0] * cx * BS / 2,
             std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
                 cy * BS + CoarseEdge[1] * cy * BS / 2};
-        int i = s[0] - offset[0];
+        int i = s[0] - offset;
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-          int i0 = i + (iy + 0 - offset[1]) * nc;
-          int i1 = i + (iy + 1 - offset[1]) * nc;
-          int i2 = i + (iy + 2 - offset[1]) * nc;
-          int i3 = i + (iy + 3 - offset[1]) * nc;
+          int i0 = i + (iy + 0 - offset) * nc;
+          int i1 = i + (iy + 1 - offset) * nc;
+          int i2 = i + (iy + 2 - offset) * nc;
+          int i3 = i + (iy + 3 - offset) * nc;
           int y0 = iy + 0 + start[1];
           int y1 = iy + 1 + start[1];
           int y2 = iy + 2 + start[1];
@@ -327,7 +324,7 @@ public:
           memcpy(p3, q3, bytes);
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
-          int i0 = i + (iy - offset[1]) * nc;
+          int i0 = i + (iy - offset) * nc;
           int y0 = iy + start[1];
           int x = s[0] + start[0];
           Real *p = c + dim * i0;
@@ -536,8 +533,8 @@ public:
             if (myblocks[icode] != nullptr) {
               Real *b = myblocks[icode];
               int eC[2] = {((ss + 1)) / 2 + (2), ((ss + 1)) / 2 + (2)};
-              int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
-                          cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
+              int s[2] = {cx < 1 ? (cx < 0 ? offset : 0) : (BS / 2),
+                          cy < 1 ? (cy < 0 ? offset : 0) : (BS / 2)};
               int e[2] = {
                   cx < 1 ? (cx < 0 ? 0 : (BS / 2)) : (BS / 2) + eC[0] - 1,
                   cy < 1 ? (cy < 0 ? 0 : (BS / 2)) : (BS / 2) + eC[1] - 1};
@@ -547,10 +544,10 @@ public:
                                     std::min(0, cx) * (e[0] - s[0]),
                                 s[1] + std::max(cy, 0) * (BS / 2) - cy * BS +
                                     std::min(0, cy) * (e[1] - s[1])};
-                int i = s[0] - offset[0];
+                int i = s[0] - offset;
                 int x = start[0];
                 for (int iy = s[1]; iy < e[1]; iy++) {
-                  int i0 = i + (iy - offset[1]) * nc;
+                  int i0 = i + (iy - offset) * nc;
                   Real *p1 = c + dim * i0;
                   int y0 = 2 * (iy - s[1]) + start[1];
                   int y1 = y0 + 1;
@@ -585,7 +582,7 @@ public:
           int i10 = ix + 1 + nm * iy;
           int i01 = ix + nm * (iy + 1);
           int i11 = ix + 1 + nm * (iy + 1);
-          int j00 = i - offset[0] + nc * (j - offset[1]);
+          int j00 = i - offset + nc * (j - offset);
           for (int d = 0; d < dim; d++) {
             c[dim * j00 + d] = (m[dim * i01 + d] + m[dim * i00 + d] +
                                 m[dim * i10 + d] + m[dim * i11 + d]) /
@@ -632,7 +629,7 @@ public:
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++) {
                 int i0 =
-                    XX - 1 + i - offset[0] + nc * (YY - 1 + j - offset[1]);
+                    XX - 1 + i - offset + nc * (YY - 1 + j - offset);
                 Test[i][j] = c + dim * i0;
               }
             int i1 = ix - (-ss) + nm * (iy - (-ss));
@@ -647,13 +644,13 @@ public:
       if (abs(cx) + abs(cy) == 1) {
         for (int iy = s[1]; iy < e[1]; iy += 2) {
           int YY = (iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) / 2 +
-                   sC[1] - offset[1];
+                   sC[1] - offset;
           int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
           int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
           double dy = 0.25 * (2 * y - 1);
           for (int ix = s[0]; ix < e[0]; ix += 2) {
             int XX = (ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) / 2 +
-                     sC[0] - offset[0];
+                     sC[0] - offset;
             int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
             int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
             double dx = 0.25 * (2 * x - 1);
@@ -675,12 +672,12 @@ public:
             for (int d = 0; d < dim; d++) {
               if (cx != 0) {
                 Real dudy, dudy2;
-                if (YY + offset[1] == 0) {
+                if (YY + offset == 0) {
                   dudy = (-0.5 * c[dim * i0 + d] - 1.5 * c[dim * i1 + d]) +
                          2.0 * c[dim * i2 + d];
                   dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
                           2.0 * c[dim * i2 + d];
-                } else if (YY + offset[1] == (BS / 2) - 1) {
+                } else if (YY + offset == (BS / 2) - 1) {
                   dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
                          2.0 * c[dim * i4 + d];
                   dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
@@ -704,12 +701,12 @@ public:
                       c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
               } else {
                 Real dudx, dudx2;
-                if (XX + offset[0] == 0) {
+                if (XX + offset == 0) {
                   dudx = (-0.5 * c[dim * i5 + d] - 1.5 * c[dim * i1 + d]) +
                          2.0 * c[dim * i6 + d];
                   dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
                           2.0 * c[dim * i6 + d];
-                } else if (XX + offset[0] == (BS / 2) - 1) {
+                } else if (XX + offset == (BS / 2) - 1) {
                   dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
                          2.0 * c[dim * i7 + d];
                   dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
