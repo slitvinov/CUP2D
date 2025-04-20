@@ -218,16 +218,16 @@ public:
     free(m);
     free(c);
   }
-  void prepare(Stencil &stencil) {
+  void prepare(int s) {
     int offset[2];
-    nm[0] = BS + (stencil.s + 1) - (-stencil.s) - 1;
-    nm[1] = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    nm[0] = BS + (s + 1) - (-s) - 1;
+    nm[1] = BS + (s + 1) - (-s) - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
-    offset[0] = ((-stencil.s) - 1) / 2 - 1;
-    offset[1] = ((-stencil.s) - 1) / 2 - 1;
-    nc[0] = BS / 2 + (stencil.s + 1) / 2 + 1 - offset[0];
-    nc[1] = BS / 2 + (stencil.s + 1) / 2 + 1 - offset[1];
+    offset[0] = ((-s) - 1) / 2 - 1;
+    offset[1] = ((-s) - 1) / 2 - 1;
+    nc[0] = BS / 2 + (s + 1) / 2 + 1 - offset[0];
+    nc[1] = BS / 2 + (s + 1) / 2 + 1 - offset[1];
     free(c);
     c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
   }
@@ -874,7 +874,7 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
 #pragma omp parallel
   {
     BlockLab lab(dim);
-    lab.prepare(kernel.stencil);
+    lab.prepare(kernel.stencil.s);
 #pragma omp for nowait
     for (long long i = 0; i < sim.n; ++i) {
       lab.load(offset, kernel.stencil, sim.infos[i], true);
@@ -1525,8 +1525,8 @@ static int adapt() {
 #pragma omp parallel
   {
     BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
-    labs[0].prepare(stencil);
-    labs[1].prepare(stencil);
+    labs[0].prepare(stencil.s);
+    labs[1].prepare(stencil.s);
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
@@ -2421,8 +2421,8 @@ int main(int argc, char **argv) {
     {
       BlockLab lab(2);
       BlockLab lab2(2);
-      lab.prepare(stencil);
-      lab2.prepare(stencil);
+      lab.prepare(stencil.s);
+      lab2.prepare(stencil.s);
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
         lab.load(off_vel, stencil, sim.infos[i], true);
