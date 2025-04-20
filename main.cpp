@@ -57,7 +57,7 @@ const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
   return NULL;
 }
 struct Stencil {
-  int sx, ex;
+  int s, ex;
   bool tensorial;
 };
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
@@ -220,12 +220,12 @@ public:
   }
   void prepare(Stencil &stencil) {
     int offset[2];
-    nm[0] = BS + stencil.ex - stencil.sx - 1;
-    nm[1] = BS + stencil.ex - stencil.sx - 1;
+    nm[0] = BS + stencil.ex - (-stencil.s) - 1;
+    nm[1] = BS + stencil.ex - (-stencil.s) - 1;
     free(m);
     m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
-    offset[0] = (stencil.sx - 1) / 2 - 1;
-    offset[1] = (stencil.sx - 1) / 2 - 1;
+    offset[0] = ((-stencil.s) - 1) / 2 - 1;
+    offset[1] = ((-stencil.s) - 1) / 2 - 1;
     nc[0] = BS / 2 + stencil.ex / 2 + 1 - offset[0];
     nc[1] = BS / 2 + stencil.ex / 2 + 1 - offset[1];
     free(c);
@@ -236,19 +236,19 @@ public:
     int offset[3];
     Real *myblocks[9];
     int coarsened_nei_codes[9];
-    offset[0] = (stencil.sx - 1) / 2 - 1;
-    offset[1] = (stencil.sx - 1) / 2 - 1;
+    offset[0] = ((-stencil.s) - 1) / 2 - 1;
+    offset[1] = ((-stencil.s) - 1) / 2 - 1;
     offset[2] = 0;
 
-    bool use_averages = stencil.tensorial || stencil.sx < -2 ||
-                        stencil.sx < -2 || stencil.ex > 3 || stencil.ex > 3;
+    bool use_averages = stencil.tensorial || (-stencil.s) < -2 ||
+                        (-stencil.s) < -2 || stencil.ex > 3 || stencil.ex > 3;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = p0;
-    for (int iy = -stencil.sx; iy < -stencil.sx + BS; iy += 4) {
-      Real *q = m + dim * iy * nm[0] - dim * stencil.sx;
+    for (int iy = -(-stencil.s); iy < -(-stencil.s) + BS; iy += 4) {
+      Real *q = m + dim * iy * nm[0] - dim * (-stencil.s);
       memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
       memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
       memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
@@ -339,8 +339,8 @@ public:
       }
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : BS,
-                  cy < 1 ? (cy < 0 ? stencil.sx : 0) : BS, 0};
+      int s[3] = {cx < 1 ? (cx < 0 ? (-stencil.s) : 0) : BS,
+                  cy < 1 ? (cy < 0 ? (-stencil.s) : 0) : BS, 0};
       int e[3] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + stencil.ex - 1,
                   cy < 1 ? (cy < 0 ? 0 : BS) : BS + stencil.ex - 1, 1};
       if (nei[1 + cx][1 + cy] == Active) {
@@ -352,13 +352,13 @@ public:
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
-        int i = s[0] - stencil.sx;
+        int i = s[0] - (-stencil.s);
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-          int i0 = i + (iy - stencil.sx) * nm[0];
-          int i1 = i + (iy + 1 - stencil.sx) * nm[0];
-          int i2 = i + (iy + 2 - stencil.sx) * nm[0];
-          int i3 = i + (iy + 3 - stencil.sx) * nm[0];
+          int i0 = i + (iy - (-stencil.s)) * nm[0];
+          int i1 = i + (iy + 1 - (-stencil.s)) * nm[0];
+          int i2 = i + (iy + 2 - (-stencil.s)) * nm[0];
+          int i3 = i + (iy + 3 - (-stencil.s)) * nm[0];
           int x0 = s[0] - cx * BS;
           int y0 = iy - cy * BS;
           int y1 = iy + 1 - cy * BS;
@@ -378,7 +378,7 @@ public:
           memcpy(p3, q3, bytes);
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
-          int i0 = i + (iy - stencil.sx) * nm[0];
+          int i0 = i + (iy - (-stencil.s)) * nm[0];
           int x0 = s[0] - cx * BS;
           int y0 = iy - cy * BS;
           Real *p = m + dim * i0;
@@ -400,25 +400,25 @@ public:
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           Real *b = blocks[1 + cx][1 + cy][cnt];
           int i =
-              abs(cx) * (s[0] - stencil.sx) +
-              (1 - abs(cx)) * (s[0] - stencil.sx + (B % 2) * (e[0] - s[0]) / 2);
+              abs(cx) * (s[0] - (-stencil.s)) +
+              (1 - abs(cx)) * (s[0] - (-stencil.s) + (B % 2) * (e[0] - s[0]) / 2);
           int x = s[0] - cx * BS + std::min(0, cx) * (e[0] - s[0]);
 
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-            int k0 = i + (abs(cy) * (iy + 0 * ys - stencil.sx) +
-                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - stencil.sx +
+            int k0 = i + (abs(cy) * (iy + 0 * ys - (-stencil.s)) +
+                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - (-stencil.s) +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k1 = i + (abs(cy) * (iy + 1 * ys - stencil.sx) +
-                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - stencil.sx +
+            int k1 = i + (abs(cy) * (iy + 1 * ys - (-stencil.s)) +
+                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - (-stencil.s) +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k2 = i + (abs(cy) * (iy + 2 * ys - stencil.sx) +
-                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - stencil.sx +
+            int k2 = i + (abs(cy) * (iy + 2 * ys - (-stencil.s)) +
+                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - (-stencil.s) +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
-            int k3 = i + (abs(cy) * (iy + 3 * ys - stencil.sx) +
-                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - stencil.sx +
+            int k3 = i + (abs(cy) * (iy + 3 * ys - (-stencil.s)) +
+                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - (-stencil.s) +
                                            aux * (e[1] - s[1]) / 2)) *
                              nm[0];
             int y0 = (abs(cy) == 1)
@@ -477,9 +477,9 @@ public:
             }
           }
           for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-            int k = i + (abs(cy) * (iy - stencil.sx) +
+            int k = i + (abs(cy) * (iy - (-stencil.s)) +
                          (1 - abs(cy)) *
-                             (iy / 2 - stencil.sx + aux * (e[1] - s[1]) / 2)) *
+                             (iy / 2 - (-stencil.s) + aux * (e[1] - s[1]) / 2)) *
                             nm[0];
             int y =
                 (abs(cy) == 1) ? 2 * (iy - cy * BS) + std::min(0, cy) * BS : iy;
@@ -581,8 +581,8 @@ public:
         for (int i = 0; i < BS / 2; i++) {
           if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2)
             continue;
-          int ix = 2 * i - stencil.sx;
-          int iy = 2 * j - stencil.sx;
+          int ix = 2 * i - (-stencil.s);
+          int iy = 2 * j - (-stencil.s);
           int i00 = ix + nm[0] * iy;
           int i10 = ix + 1 + nm[0] * iy;
           int i01 = ix + nm[0] * (iy + 1);
@@ -614,12 +614,12 @@ public:
         continue;
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[2] = {cx < 1 ? (cx < 0 ? stencil.sx : 0) : BS,
-                  cy < 1 ? (cy < 0 ? stencil.sx : 0) : BS};
+      int s[2] = {cx < 1 ? (cx < 0 ? (-stencil.s) : 0) : BS,
+                  cy < 1 ? (cy < 0 ? (-stencil.s) : 0) : BS};
       int e[2] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + stencil.ex - 1,
                   cy < 1 ? (cy < 0 ? 0 : BS) : BS + stencil.ex - 1};
-      int sC[2] = {cx < 1 ? (cx < 0 ? ((stencil.sx - 1) / 2) : 0) : (BS / 2),
-                   cy < 1 ? (cy < 0 ? ((stencil.sx - 1) / 2) : 0) : (BS / 2)};
+      int sC[2] = {cx < 1 ? (cx < 0 ? (((-stencil.s) - 1) / 2) : 0) : (BS / 2),
+                   cy < 1 ? (cy < 0 ? (((-stencil.s) - 1) / 2) : 0) : (BS / 2)};
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
@@ -637,7 +637,7 @@ public:
                     XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
                 Test[i][j] = c + dim * i0;
               }
-            int i1 = ix - stencil.sx + nm[0] * (iy - stencil.sx);
+            int i1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
             for (int d = 0; d < dim; d++)
               TestInterp(
                   Test, m + dim * i1 + d,
@@ -670,10 +670,10 @@ public:
             int i6 = XX + 1 + nc[0] * (YY);
             int i7 = XX - 1 + nc[0] * (YY);
             int i8 = XX - 2 + nc[0] * (YY);
-            int j0 = ix - stencil.sx + nm[0] * (iy - stencil.sx);
-            int j1 = ix - stencil.sx + nm[0] * (iy - stencil.sx + iyp);
-            int j2 = ix - stencil.sx + ixp + nm[0] * (iy - stencil.sx);
-            int j3 = ix - stencil.sx + ixp + nm[0] * (iy - stencil.sx + iyp);
+            int j0 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
+            int j1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + iyp);
+            int j2 = ix - (-stencil.s) + ixp + nm[0] * (iy - (-stencil.s));
+            int j3 = ix - (-stencil.s) + ixp + nm[0] * (iy - (-stencil.s) + iyp);
             for (int d = 0; d < dim; d++) {
               if (cx != 0) {
                 Real dudy, dudy2;
@@ -741,19 +741,19 @@ public:
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
-            int k0 = ix - stencil.sx + nm[0] * (iy - stencil.sx - 1);
-            int k1 = ix - stencil.sx + nm[0] * (iy - stencil.sx - 2);
-            int k2 = ix - stencil.sx + nm[0] * (iy - stencil.sx + 1);
-            int k3 = ix - stencil.sx + nm[0] * (iy - stencil.sx + 2);
-            int k4 = ix - stencil.sx + nm[0] * (iy - stencil.sx + 3);
-            int k5 = ix - stencil.sx - 1 + nm[0] * (iy - stencil.sx);
-            int k6 = ix - stencil.sx - 2 + nm[0] * (iy - stencil.sx);
-            int k7 = ix - stencil.sx - 3 + nm[0] * (iy - stencil.sx);
-            int k8 = ix - stencil.sx + 1 + nm[0] * (iy - stencil.sx);
-            int k9 = ix - stencil.sx + 2 + nm[0] * (iy - stencil.sx);
-            int k10 = ix - stencil.sx + 3 + nm[0] * (iy - stencil.sx);
-            int k11 = ix - stencil.sx + nm[0] * (iy - stencil.sx - 3);
-            int k12 = ix - stencil.sx + nm[0] * (iy - stencil.sx);
+            int k0 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 1);
+            int k1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 2);
+            int k2 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 1);
+            int k3 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 2);
+            int k4 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 3);
+            int k5 = ix - (-stencil.s) - 1 + nm[0] * (iy - (-stencil.s));
+            int k6 = ix - (-stencil.s) - 2 + nm[0] * (iy - (-stencil.s));
+            int k7 = ix - (-stencil.s) - 3 + nm[0] * (iy - (-stencil.s));
+            int k8 = ix - (-stencil.s) + 1 + nm[0] * (iy - (-stencil.s));
+            int k9 = ix - (-stencil.s) + 2 + nm[0] * (iy - (-stencil.s));
+            int k10 = ix - (-stencil.s) + 3 + nm[0] * (iy - (-stencil.s));
+            int k11 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 3);
+            int k12 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
             int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
             int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
             for (int d = 0; d < dim; d++) {
@@ -888,24 +888,24 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
   int A = 1 - dir;
   if (!coarse) {
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    s[0] = dir == 0 ? (side == 0 ? stencil->sx : BS) : stencil->sx;
-    s[1] = dir == 1 ? (side == 0 ? stencil->sx : BS) : stencil->sx;
+    s[0] = dir == 0 ? (side == 0 ? (-stencil->s) : BS) : (-stencil->s);
+    s[1] = dir == 1 ? (side == 0 ? (-stencil->s) : BS) : (-stencil->s);
     e[0] = dir == 0 ? (side == 0 ? 0 : BS + stencil->ex - 1)
                     : BS + stencil->ex - 1;
     e[1] = dir == 1 ? (side == 0 ? 0 : BS + stencil->ex - 1)
                     : BS + stencil->ex - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - stencil->sx;
-        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - stencil->sx;
-        int i0 = ix - stencil->sx + lab->nm[0] * (iy - stencil->sx);
+        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - (-stencil->s);
+        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - (-stencil->s);
+        int i0 = ix - (-stencil->s) + lab->nm[0] * (iy - (-stencil->s));
         int i1 = x + lab->nm[0] * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
   } else {
     int eI[3] = {stencil->ex / 2 + 2, stencil->ex / 2 + 2, 1 / 2 + 1};
-    int sI[3] = {(stencil->sx - 1) / 2 - 1, (stencil->sx - 1) / 2 - 1,
+    int sI[3] = {((-stencil->s) - 1) / 2 - 1, ((-stencil->s) - 1) / 2 - 1,
                  (0 - 1) / 2};
     int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
     s[0] = dir == 0 ? (side == 0 ? sI[0] : BS / 2) : sI[0];
@@ -954,15 +954,15 @@ void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
   if (!coarse) {
     stenEnd[0] = stencil->ex;
     stenEnd[1] = stencil->ex;
-    stenBeg[0] = stencil->sx;
-    stenBeg[1] = stencil->sx;
+    stenBeg[0] = (-stencil->s);
+    stenBeg[1] = (-stencil->s);
     bsize[0] = BS;
     bsize[1] = BS;
   } else {
     stenEnd[0] = (stencil->ex) / 2 + 1 + (2) - 1;
     stenEnd[1] = (stencil->ex) / 2 + 1 + (2) - 1;
-    stenBeg[0] = (stencil->sx - 1) / 2 + (-1);
-    stenBeg[1] = (stencil->sx - 1) / 2 + (-1);
+    stenBeg[0] = ((-stencil->s) - 1) / 2 + (-1);
+    stenBeg[1] = ((-stencil->s) - 1) / 2 + (-1);
     bsize[0] = BS / 2;
     bsize[1] = BS / 2;
   }
@@ -999,15 +999,15 @@ static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
   Stencil stencil{-1, 2, false};
   Real *vm = velLab.m;
   Real *um = uDefLab.m;
-  int nm = BS + stencil.ex - stencil.sx - 1;
+  int nm = BS + stencil.ex - (-stencil.s) - 1;
   Real h = sim.infos[i]->h;
   Real facDiv = 0.5 * h / sim.dt;
   Real *TMP = sim.infos[i]->block + BS * BS * off_tmp;
   Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
   for (int iy = 0; iy < BS; ++iy)
     for (int ix = 0; ix < BS; ++ix) {
-      int ip0 = ix - stencil.sx;
-      int jp0 = iy - stencil.sx;
+      int ip0 = ix - (-stencil.s);
+      int jp0 = iy - (-stencil.s);
       int ip1 = ip0 + 1;
       int im1 = ip0 - 1;
       int jp1 = jp0 + 1;
@@ -1042,11 +1042,11 @@ struct KernelVorticity {
   void operator()(Real *um, Info *info, long long id) {
     Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int j = 0; j < BS; ++j)
       for (int i = 0; i < BS; ++i) {
-        int x0 = i - stencil.sx;
-        int y0 = j - stencil.sx;
+        int x0 = i - (-stencil.s);
+        int y0 = j - (-stencil.s);
         int xp = x0 + 1;
         int yp = y0 + 1;
         int xm = x0 - 1;
@@ -1182,7 +1182,7 @@ struct Shape {
 struct PutChiOnGrid {
   Stencil stencil{-1, 2, false};
   void operator()(Real *um, Info *info, long long id) {
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
       Shape *shape = sim.shapes[ishape];
       if (shape->blocks[id] == nullptr)
@@ -1199,8 +1199,8 @@ struct PutChiOnGrid {
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           int j = BS * iy + ix;
-          int x0 = ix - stencil.sx;
-          int y0 = iy - stencil.sx;
+          int x0 = ix - (-stencil.s);
+          int y0 = iy - (-stencil.s);
           int xp = x0 + 1;
           int yp = y0 + 1;
           int xm = x0 - 1;
@@ -1369,10 +1369,10 @@ struct GradChiOnTmp {
   void operator()(Real *um, Info *info, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int y = -offset; y < BS + offset; ++y)
       for (int x = -offset; x < BS + offset; ++x) {
-        int k = nm * (y - stencil.sx) + x - stencil.sx;
+        int k = nm * (y - (-stencil.s)) + x - (-stencil.s);
         um[k] = std::min(um[k], 1.0);
         um[k] = std::max(um[k], 0.0);
         if (0.0 < um[k] && um[k] < 0.1) {
@@ -1547,7 +1547,7 @@ static int adapt() {
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
         }
-      int nm = BS + stencil.ex - stencil.sx - 1;
+      int nm = BS + stencil.ex - (-stencil.s) - 1;
       int offsetX[2] = {0, BS / 2};
       int offsetY[2] = {0, BS / 2};
       Info *parent = getf0(level_ref[k], Z_ref[k]);
@@ -1561,8 +1561,8 @@ static int adapt() {
             Real *b = blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + offsetX[I] - stencil.sx;
-                int j0 = j / 2 + offsetY[J] - stencil.sx;
+                int i0 = i / 2 + offsetX[I] - (-stencil.s);
+                int j0 = j / 2 + offsetY[J] - (-stencil.s);
                 int im = i0 - 1;
                 int ip = i0 + 1;
                 int jm = j0 - 1;
@@ -1717,11 +1717,11 @@ struct KernelAdvectDiffuse {
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmpV;
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sx;
+        int ip0 = ix - (-stencil.s);
+        int jp0 = iy - (-stencil.s);
         int ip1 = ip0 + 1;
         int ip2 = ip0 + 2;
         int ip3 = ip0 + 3;
@@ -1965,13 +1965,13 @@ std::array<EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell, &YminCell,
 struct pressureCorrectionKernel {
   Stencil stencil{-1, 2, false};
   void operator()(Real *um, Info *info, long long id) {
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     Real h = info->h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = sim.infos[id]->block + BS * BS * off_tmpV;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sx;
+        int ip0 = ix - (-stencil.s);
+        int jp0 = iy - (-stencil.s);
         int ip1 = ip0 + 1;
         int jp1 = jp0 + 1;
         int im1 = ip0 - 1;
@@ -1990,11 +1990,11 @@ struct pressure_rhs1 {
   Stencil stencil{-1, 2, false};
   void operator()(Real *um, Info *, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int nm = BS + stencil.ex - stencil.sx - 1;
+    int nm = BS + stencil.ex - (-stencil.s) - 1;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - stencil.sx;
-        int jp0 = iy - stencil.sx;
+        int ip0 = ix - (-stencil.s);
+        int jp0 = iy - (-stencil.s);
         int ip1 = ip0 + 1;
         int jp1 = jp0 + 1;
         int im1 = ip0 - 1;
