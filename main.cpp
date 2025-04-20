@@ -208,7 +208,7 @@ private:
   int dim;
 
 public:
-  unsigned int nm[2], nc[2];
+  int nm, nc;
   Real *m, *c;
   BlockLab(int dim) : dim(dim) {
     m = NULL;
@@ -219,40 +219,38 @@ public:
     free(c);
   }
   void prepare(int s) {
-    int offset[2];
-    nm[0] = BS + (s + 1) - (-s) - 1;
-    nm[1] = BS + (s + 1) - (-s) - 1;
+    int offset;
+    nm = 2 * s + BS;
     free(m);
-    m = (Real *)malloc(nm[0] * nm[1] * dim * sizeof(Real));
-    offset[0] = ((-s) - 1) / 2 - 1;
-    offset[1] = ((-s) - 1) / 2 - 1;
-    nc[0] = BS / 2 + (s + 1) / 2 + 1 - offset[0];
-    nc[1] = BS / 2 + (s + 1) / 2 + 1 - offset[1];
+    m = (Real *)malloc(nm * nm * dim * sizeof(Real));
+    offset = ((-s) - 1) / 2 - 1;
+    nc = BS / 2 + (s + 1) / 2 + 1 - offset;
     free(c);
-    c = (Real *)malloc(nc[0] * nc[1] * dim * sizeof(Real));
+    c = (Real *)malloc(nc * nc * dim * sizeof(Real));
   }
   void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
              Stencil &stencil, Info *info, bool applybc) {
     int offset[3];
     Real *myblocks[9];
     int coarsened_nei_codes[9];
-    offset[0] = ((-stencil.s) - 1) / 2 - 1;
-    offset[1] = ((-stencil.s) - 1) / 2 - 1;
+    int ss = stencil.s;
+    offset[0] = ((-ss) - 1) / 2 - 1;
+    offset[1] = ((-ss) - 1) / 2 - 1;
     offset[2] = 0;
 
-    bool use_averages = stencil.tensorial || (-stencil.s) < -2 ||
-                        (-stencil.s) < -2 || (stencil.s + 1) > 3 || (stencil.s + 1) > 3;
+    bool use_averages = stencil.tensorial || (-ss) < -2 ||
+                        (-ss) < -2 || (ss + 1) > 3 || (ss + 1) > 3;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
     assert(m != NULL);
     Real *p = p0;
-    for (int iy = -(-stencil.s); iy < -(-stencil.s) + BS; iy += 4) {
-      Real *q = m + dim * iy * nm[0] - dim * (-stencil.s);
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
-      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm[0], p += dim * BS;
+    for (int iy = -(-ss); iy < -(-ss) + BS; iy += 4) {
+      Real *q = m + dim * iy * nm - dim * (-ss);
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
+      memcpy(q, p, sizeof(Real) * dim * BS), q += dim * nm, p += dim * BS;
     }
     bool coarsened = false;
     bool xskin = xi == 0 || xi == n - 1;
@@ -281,8 +279,8 @@ public:
         int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
                     cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
         int e[2] = {
-            cx < 1 ? (cx < 0 ? 0 : (BS / 2)) : (BS / 2) + ((stencil.s + 1)) / 2 + 1,
-            cy < 1 ? (cy < 0 ? 0 : (BS / 2)) : (BS / 2) + ((stencil.s + 1)) / 2 + 1};
+            cx < 1 ? (cx < 0 ? 0 : (BS / 2)) : (BS / 2) + ((ss + 1)) / 2 + 1,
+            cy < 1 ? (cy < 0 ? 0 : (BS / 2)) : (BS / 2) + ((ss + 1)) / 2 + 1};
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
           continue;
@@ -306,10 +304,10 @@ public:
         int i = s[0] - offset[0];
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-          int i0 = i + (iy + 0 - offset[1]) * nc[0];
-          int i1 = i + (iy + 1 - offset[1]) * nc[0];
-          int i2 = i + (iy + 2 - offset[1]) * nc[0];
-          int i3 = i + (iy + 3 - offset[1]) * nc[0];
+          int i0 = i + (iy + 0 - offset[1]) * nc;
+          int i1 = i + (iy + 1 - offset[1]) * nc;
+          int i2 = i + (iy + 2 - offset[1]) * nc;
+          int i3 = i + (iy + 3 - offset[1]) * nc;
           int y0 = iy + 0 + start[1];
           int y1 = iy + 1 + start[1];
           int y2 = iy + 2 + start[1];
@@ -329,7 +327,7 @@ public:
           memcpy(p3, q3, bytes);
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
-          int i0 = i + (iy - offset[1]) * nc[0];
+          int i0 = i + (iy - offset[1]) * nc;
           int y0 = iy + start[1];
           int x = s[0] + start[0];
           Real *p = c + dim * i0;
@@ -339,10 +337,10 @@ public:
       }
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {cx < 1 ? (cx < 0 ? (-stencil.s) : 0) : BS,
-                  cy < 1 ? (cy < 0 ? (-stencil.s) : 0) : BS, 0};
-      int e[3] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (stencil.s + 1) - 1,
-                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (stencil.s + 1) - 1, 1};
+      int s[3] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
+                  cy < 1 ? (cy < 0 ? (-ss) : 0) : BS, 0};
+      int e[3] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (ss + 1) - 1,
+                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (ss + 1) - 1, 1};
       if (nei[1 + cx][1 + cy] == Active) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
@@ -352,13 +350,13 @@ public:
         if (myblocks[icode] == nullptr)
           continue;
         Real *b = myblocks[icode];
-        int i = s[0] - (-stencil.s);
+        int i = s[0] - (-ss);
         int mod = (e[1] - s[1]) % 4;
         for (int iy = s[1]; iy < e[1] - mod; iy += 4) {
-          int i0 = i + (iy - (-stencil.s)) * nm[0];
-          int i1 = i + (iy + 1 - (-stencil.s)) * nm[0];
-          int i2 = i + (iy + 2 - (-stencil.s)) * nm[0];
-          int i3 = i + (iy + 3 - (-stencil.s)) * nm[0];
+          int i0 = i + (iy - (-ss)) * nm;
+          int i1 = i + (iy + 1 - (-ss)) * nm;
+          int i2 = i + (iy + 2 - (-ss)) * nm;
+          int i3 = i + (iy + 3 - (-ss)) * nm;
           int x0 = s[0] - cx * BS;
           int y0 = iy - cy * BS;
           int y1 = iy + 1 - cy * BS;
@@ -378,7 +376,7 @@ public:
           memcpy(p3, q3, bytes);
         }
         for (int iy = e[1] - mod; iy < e[1]; iy++) {
-          int i0 = i + (iy - (-stencil.s)) * nm[0];
+          int i0 = i + (iy - (-ss)) * nm;
           int x0 = s[0] - cx * BS;
           int y0 = iy - cy * BS;
           Real *p = m + dim * i0;
@@ -400,27 +398,27 @@ public:
           int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
           Real *b = blocks[1 + cx][1 + cy][cnt];
           int i =
-              abs(cx) * (s[0] - (-stencil.s)) +
-              (1 - abs(cx)) * (s[0] - (-stencil.s) + (B % 2) * (e[0] - s[0]) / 2);
+              abs(cx) * (s[0] - (-ss)) +
+              (1 - abs(cx)) * (s[0] - (-ss) + (B % 2) * (e[0] - s[0]) / 2);
           int x = s[0] - cx * BS + std::min(0, cx) * (e[0] - s[0]);
 
           for (int iy = s[1]; iy < e[1] - mod; iy += 4 * ys) {
-            int k0 = i + (abs(cy) * (iy + 0 * ys - (-stencil.s)) +
-                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - (-stencil.s) +
+            int k0 = i + (abs(cy) * (iy + 0 * ys - (-ss)) +
+                          (1 - abs(cy)) * ((iy + 0 * ys) / 2 - (-ss) +
                                            aux * (e[1] - s[1]) / 2)) *
-                             nm[0];
-            int k1 = i + (abs(cy) * (iy + 1 * ys - (-stencil.s)) +
-                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - (-stencil.s) +
+                             nm;
+            int k1 = i + (abs(cy) * (iy + 1 * ys - (-ss)) +
+                          (1 - abs(cy)) * ((iy + 1 * ys) / 2 - (-ss) +
                                            aux * (e[1] - s[1]) / 2)) *
-                             nm[0];
-            int k2 = i + (abs(cy) * (iy + 2 * ys - (-stencil.s)) +
-                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - (-stencil.s) +
+                             nm;
+            int k2 = i + (abs(cy) * (iy + 2 * ys - (-ss)) +
+                          (1 - abs(cy)) * ((iy + 2 * ys) / 2 - (-ss) +
                                            aux * (e[1] - s[1]) / 2)) *
-                             nm[0];
-            int k3 = i + (abs(cy) * (iy + 3 * ys - (-stencil.s)) +
-                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - (-stencil.s) +
+                             nm;
+            int k3 = i + (abs(cy) * (iy + 3 * ys - (-ss)) +
+                          (1 - abs(cy)) * ((iy + 3 * ys) / 2 - (-ss) +
                                            aux * (e[1] - s[1]) / 2)) *
-                             nm[0];
+                             nm;
             int y0 = (abs(cy) == 1)
                          ? 2 * (iy + 0 * ys - cy * BS) + std::min(0, cy) * BS
                          : iy + 0 * ys;
@@ -477,10 +475,10 @@ public:
             }
           }
           for (int iy = e[1] - mod; iy < e[1]; iy += ys) {
-            int k = i + (abs(cy) * (iy - (-stencil.s)) +
+            int k = i + (abs(cy) * (iy - (-ss)) +
                          (1 - abs(cy)) *
-                             (iy / 2 - (-stencil.s) + aux * (e[1] - s[1]) / 2)) *
-                            nm[0];
+                             (iy / 2 - (-ss) + aux * (e[1] - s[1]) / 2)) *
+                            nm;
             int y =
                 (abs(cy) == 1) ? 2 * (iy - cy * BS) + std::min(0, cy) * BS : iy;
             int z = y + 1;
@@ -537,7 +535,7 @@ public:
             int icode = (cx + 1) + 3 * (cy + 1);
             if (myblocks[icode] != nullptr) {
               Real *b = myblocks[icode];
-              int eC[2] = {((stencil.s + 1)) / 2 + (2), ((stencil.s + 1)) / 2 + (2)};
+              int eC[2] = {((ss + 1)) / 2 + (2), ((ss + 1)) / 2 + (2)};
               int s[2] = {cx < 1 ? (cx < 0 ? offset[0] : 0) : (BS / 2),
                           cy < 1 ? (cy < 0 ? offset[1] : 0) : (BS / 2)};
               int e[2] = {
@@ -552,7 +550,7 @@ public:
                 int i = s[0] - offset[0];
                 int x = start[0];
                 for (int iy = s[1]; iy < e[1]; iy++) {
-                  int i0 = i + (iy - offset[1]) * nc[0];
+                  int i0 = i + (iy - offset[1]) * nc;
                   Real *p1 = c + dim * i0;
                   int y0 = 2 * (iy - s[1]) + start[1];
                   int y1 = y0 + 1;
@@ -581,13 +579,13 @@ public:
         for (int i = 0; i < BS / 2; i++) {
           if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2)
             continue;
-          int ix = 2 * i - (-stencil.s);
-          int iy = 2 * j - (-stencil.s);
-          int i00 = ix + nm[0] * iy;
-          int i10 = ix + 1 + nm[0] * iy;
-          int i01 = ix + nm[0] * (iy + 1);
-          int i11 = ix + 1 + nm[0] * (iy + 1);
-          int j00 = i - offset[0] + nc[0] * (j - offset[1]);
+          int ix = 2 * i - (-ss);
+          int iy = 2 * j - (-ss);
+          int i00 = ix + nm * iy;
+          int i10 = ix + 1 + nm * iy;
+          int i01 = ix + nm * (iy + 1);
+          int i11 = ix + 1 + nm * (iy + 1);
+          int j00 = i - offset[0] + nc * (j - offset[1]);
           for (int d = 0; d < dim; d++) {
             c[dim * j00 + d] = (m[dim * i01 + d] + m[dim * i00 + d] +
                                 m[dim * i10 + d] + m[dim * i11 + d]) /
@@ -614,12 +612,12 @@ public:
         continue;
       if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[2] = {cx < 1 ? (cx < 0 ? (-stencil.s) : 0) : BS,
-                  cy < 1 ? (cy < 0 ? (-stencil.s) : 0) : BS};
-      int e[2] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (stencil.s + 1) - 1,
-                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (stencil.s + 1) - 1};
-      int sC[2] = {cx < 1 ? (cx < 0 ? (((-stencil.s) - 1) / 2) : 0) : (BS / 2),
-                   cy < 1 ? (cy < 0 ? (((-stencil.s) - 1) / 2) : 0) : (BS / 2)};
+      int s[2] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
+                  cy < 1 ? (cy < 0 ? (-ss) : 0) : BS};
+      int e[2] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (ss + 1) - 1,
+                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (ss + 1) - 1};
+      int sC[2] = {cx < 1 ? (cx < 0 ? (((-ss) - 1) / 2) : 0) : (BS / 2),
+                   cy < 1 ? (cy < 0 ? (((-ss) - 1) / 2) : 0) : (BS / 2)};
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
@@ -634,10 +632,10 @@ public:
             for (int i = 0; i < 3; i++)
               for (int j = 0; j < 3; j++) {
                 int i0 =
-                    XX - 1 + i - offset[0] + nc[0] * (YY - 1 + j - offset[1]);
+                    XX - 1 + i - offset[0] + nc * (YY - 1 + j - offset[1]);
                 Test[i][j] = c + dim * i0;
               }
-            int i1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
+            int i1 = ix - (-ss) + nm * (iy - (-ss));
             for (int d = 0; d < dim; d++)
               TestInterp(
                   Test, m + dim * i1 + d,
@@ -661,19 +659,19 @@ public:
             double dx = 0.25 * (2 * x - 1);
             if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
-            int i0 = XX + nc[0] * (YY + 2);
-            int i1 = XX + nc[0] * (YY);
-            int i2 = XX + nc[0] * (YY + 1);
-            int i3 = XX + nc[0] * (YY - 2);
-            int i4 = XX + nc[0] * (YY - 1);
-            int i5 = XX + 2 + nc[0] * (YY);
-            int i6 = XX + 1 + nc[0] * (YY);
-            int i7 = XX - 1 + nc[0] * (YY);
-            int i8 = XX - 2 + nc[0] * (YY);
-            int j0 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
-            int j1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + iyp);
-            int j2 = ix - (-stencil.s) + ixp + nm[0] * (iy - (-stencil.s));
-            int j3 = ix - (-stencil.s) + ixp + nm[0] * (iy - (-stencil.s) + iyp);
+            int i0 = XX + nc * (YY + 2);
+            int i1 = XX + nc * (YY);
+            int i2 = XX + nc * (YY + 1);
+            int i3 = XX + nc * (YY - 2);
+            int i4 = XX + nc * (YY - 1);
+            int i5 = XX + 2 + nc * (YY);
+            int i6 = XX + 1 + nc * (YY);
+            int i7 = XX - 1 + nc * (YY);
+            int i8 = XX - 2 + nc * (YY);
+            int j0 = ix - (-ss) + nm * (iy - (-ss));
+            int j1 = ix - (-ss) + nm * (iy - (-ss) + iyp);
+            int j2 = ix - (-ss) + ixp + nm * (iy - (-ss));
+            int j3 = ix - (-ss) + ixp + nm * (iy - (-ss) + iyp);
             for (int d = 0; d < dim; d++) {
               if (cx != 0) {
                 Real dudy, dudy2;
@@ -741,19 +739,19 @@ public:
           for (int ix = s[0]; ix < e[0]; ix += 1) {
             if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
-            int k0 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 1);
-            int k1 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 2);
-            int k2 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 1);
-            int k3 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 2);
-            int k4 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) + 3);
-            int k5 = ix - (-stencil.s) - 1 + nm[0] * (iy - (-stencil.s));
-            int k6 = ix - (-stencil.s) - 2 + nm[0] * (iy - (-stencil.s));
-            int k7 = ix - (-stencil.s) - 3 + nm[0] * (iy - (-stencil.s));
-            int k8 = ix - (-stencil.s) + 1 + nm[0] * (iy - (-stencil.s));
-            int k9 = ix - (-stencil.s) + 2 + nm[0] * (iy - (-stencil.s));
-            int k10 = ix - (-stencil.s) + 3 + nm[0] * (iy - (-stencil.s));
-            int k11 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s) - 3);
-            int k12 = ix - (-stencil.s) + nm[0] * (iy - (-stencil.s));
+            int k0 = ix - (-ss) + nm * (iy - (-ss) - 1);
+            int k1 = ix - (-ss) + nm * (iy - (-ss) - 2);
+            int k2 = ix - (-ss) + nm * (iy - (-ss) + 1);
+            int k3 = ix - (-ss) + nm * (iy - (-ss) + 2);
+            int k4 = ix - (-ss) + nm * (iy - (-ss) + 3);
+            int k5 = ix - (-ss) - 1 + nm * (iy - (-ss));
+            int k6 = ix - (-ss) - 2 + nm * (iy - (-ss));
+            int k7 = ix - (-ss) - 3 + nm * (iy - (-ss));
+            int k8 = ix - (-ss) + 1 + nm * (iy - (-ss));
+            int k9 = ix - (-ss) + 2 + nm * (iy - (-ss));
+            int k10 = ix - (-ss) + 3 + nm * (iy - (-ss));
+            int k11 = ix - (-ss) + nm * (iy - (-ss) - 3);
+            int k12 = ix - (-ss) + nm * (iy - (-ss));
             int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
             int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
             for (int d = 0; d < dim; d++) {
@@ -898,8 +896,8 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
       for (int ix = s[0]; ix < e[0]; ix++) {
         int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - (-stencil->s);
         int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - (-stencil->s);
-        int i0 = ix - (-stencil->s) + lab->nm[0] * (iy - (-stencil->s));
-        int i1 = x + lab->nm[0] * (y);
+        int i0 = ix - (-stencil->s) + lab->nm * (iy - (-stencil->s));
+        int i1 = x + lab->nm * (y);
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
@@ -916,8 +914,8 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
       for (int ix = s[0]; ix < e[0]; ix++) {
         int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - sI[0];
         int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - sI[1];
-        int i0 = ix - sI[0] + lab->nc[0] * (iy - sI[1]);
-        int i1 = x + lab->nc[0] * (y);
+        int i0 = ix - sI[0] + lab->nc * (iy - sI[1]);
+        int i1 = x + lab->nc * (y);
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
         lab->c[2 * i0 + A] = lab->c[2 * i1 + A];
       }
@@ -967,7 +965,7 @@ void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
     bsize[1] = BS / 2;
   }
   Real *cb = coarse ? lab->c : lab->m;
-  unsigned int *n = coarse ? lab->nc : lab->nm;
+  int n = coarse ? lab->nc : lab->nm;
   int s[2];
   int e[2];
   s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
@@ -978,9 +976,9 @@ void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
                   : bsize[1] + stenEnd[1] - 1;
   for (int iy = s[1]; iy < e[1]; iy++)
     for (int ix = s[0]; ix < e[0]; ix++)
-      cb[ix - stenBeg[0] + n[0] * (iy - stenBeg[1])] =
+      cb[ix - stenBeg[0] + n * (iy - stenBeg[1])] =
           cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
-             n[0] * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
+             n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
                      stenBeg[1])];
 };
 template <int, int> void Neumann2D(BlockLab *, bool);
