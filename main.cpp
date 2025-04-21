@@ -226,15 +226,15 @@ public:
     c = (Real *)malloc(nc * nc * dim * sizeof(Real));
   }
   void load0(Real *p0, Real *blocks[3][3][2], TreeState nei[3][3],
-             Stencil &stencil, Info *info, bool applybc) {
+             Stencil *stencil, Info *info, bool applybc) {
     Real *myblocks[9];
     int coarsened_nei_codes[9];
-    int ss = stencil.s;
+    int ss = stencil->s;
     int offset = (-ss - 1) / 2 - 1;
     int nm = 2 * ss + BS;
     int nc = BS / 2 + ss + 2 + ss % 2;
 
-    bool use_averages = stencil.tensorial || ss > 2;
+    bool use_averages = stencil->tensorial || ss > 2;
     int n = 1 << info->level;
     int xi, yi;
     sfc_inverse(info->Z, info->level, &xi, &yi);
@@ -328,7 +328,7 @@ public:
           memcpy(p, q, bytes);
         }
       }
-      if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
+      if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
       int s[3] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
                   cy < 1 ? (cy < 0 ? (-ss) : 0) : BS, 0};
@@ -588,9 +588,9 @@ public:
     }
     if (applybc) {
       if (dim == 1)
-        bc_scalar(this, &stencil, info, true);
+        bc_scalar(this, stencil, info, true);
       else
-        bc_vector(this, &stencil, info, true);
+        bc_vector(this, stencil, info, true);
     }
     for (int ii = 0; ii < coarsened_nei_codes_size; ++ii) {
       int icode = coarsened_nei_codes[ii];
@@ -602,7 +602,7 @@ public:
         continue;
       if (cy == yskip && yskin)
         continue;
-      if (!stencil.tensorial && !use_averages && abs(cx) + abs(cy) > 1)
+      if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
       int s[2] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
                   cy < 1 ? (cy < 0 ? (-ss) : 0) : BS};
@@ -795,12 +795,12 @@ public:
     }
     if (applybc) {
       if (dim == 1)
-        bc_scalar(this, &stencil, info, false);
+        bc_scalar(this, stencil, info, false);
       else
-        bc_vector(this, &stencil, info, false);
+        bc_vector(this, stencil, info, false);
     }
   }
-  void load1(int offset, TreeState nei[3][3], Stencil &stencil, Info *info,
+  void load1(int offset, TreeState nei[3][3], Stencil *stencil, Info *info,
              bool applybc) {
     Real *blocks[3][3][2];
     int xi, yi, ix, iy;
@@ -851,7 +851,7 @@ public:
     load0(info->block + BS * BS * offset, blocks, nei, stencil, info, applybc);
   }
 
-  void load(int offset, Stencil &stencil, Info *info, bool applybc) {
+  void load(int offset, Stencil *stencil, Info *info, bool applybc) {
     TreeState nei[3][3];
     get_states(info, nei);
     load1(offset, nei, stencil, info, applybc);
@@ -866,7 +866,7 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
     lab.prepare(kernel.stencil.s);
 #pragma omp for nowait
     for (long long i = 0; i < sim.n; ++i) {
-      lab.load(offset, kernel.stencil, sim.infos[i], true);
+      lab.load(offset, &kernel.stencil, sim.infos[i], true);
       kernel(lab.m, sim.infos[i], i);
     }
   }
@@ -1551,7 +1551,7 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        labs[dim - 1].load1(offset, m_tree[k].nei, stencil, parent, true);
+        labs[dim - 1].load1(offset, m_tree[k].nei, &stencil, parent, true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -2421,8 +2421,8 @@ int main(int argc, char **argv) {
       lab2.prepare(stencil.s);
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
-        lab.load(off_vel, stencil, sim.infos[i], true);
-        lab2.load(off_tmpV, stencil, sim.infos[i], true);
+        lab.load(off_vel, &stencil, sim.infos[i], true);
+        lab2.load(off_tmpV, &stencil, sim.infos[i], true);
         pressure_rhs_fun(lab, lab2, i);
       }
     }
