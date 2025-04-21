@@ -1179,7 +1179,7 @@ struct Shape {
 struct PutChiOnGrid {
   Stencil stencil{1, false};
   void operator()(Real *um, Info *info, long long id) {
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    int nm = BS + (1 + 1) - (-1) - 1;
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
       Shape *shape = sim.shapes[ishape];
       if (shape->blocks[id] == nullptr)
@@ -1196,8 +1196,8 @@ struct PutChiOnGrid {
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           int j = BS * iy + ix;
-          int x0 = ix - (-stencil.s);
-          int y0 = iy - (-stencil.s);
+          int x0 = ix - (-1);
+          int y0 = iy - (-1);
           int xp = x0 + 1;
           int yp = y0 + 1;
           int xm = x0 - 1;
