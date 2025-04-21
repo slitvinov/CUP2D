@@ -1245,8 +1245,7 @@ static void ongrid() {
     for (auto &entry : shape->blocks)
       delete entry;
     shape->blocks.clear();
-    auto N = sim.n;
-    shape->blocks = std::vector<Obstacle *>(N, nullptr);
+    shape->blocks = std::vector<Obstacle *>(sim.n, nullptr);
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; ++i) {
       Obstacle *block = new Obstacle();
