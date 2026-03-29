@@ -1608,6 +1608,12 @@ static const struct { const char *name; int type; size_t off; } tab[] = {
   {"poissonTolRel",      1, offsetof(struct Sim, PoissonTolRel)},
   {"tdump",              1, offsetof(struct Sim, dumpTime)},
 };
+static const struct { const char *name; size_t off; Real scale; } stab[] = {
+  {"xcenter",     offsetof(Shape, x),           1},
+  {"ycenter",     offsetof(Shape, y),           1},
+  {"orientation", offsetof(Shape, orientation),  M_PI / 180},
+  {"omega",       offsetof(Shape, omega),        1},
+};
 int main(int argc, char **argv) {
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -1640,12 +1646,6 @@ int main(int argc, char **argv) {
     sp = end;
     Shape *shape = new Shape;
       {
-        static const struct { const char *name; size_t off; Real scale; } stab[] = {
-          {"xcenter",     offsetof(Shape, x),           1},
-          {"ycenter",     offsetof(Shape, y),           1},
-          {"orientation", offsetof(Shape, orientation),  M_PI / 180},
-          {"omega",       offsetof(Shape, omega),        1},
-        };
         char *base = (char *)shape;
         for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
           *(Real *)(base + stab[i].off) = kv_real(line, stab[i].name) * stab[i].scale;
