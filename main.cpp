@@ -216,7 +216,7 @@ struct LoadCtx {
   RowCopy *fc; int *nfc;
   Real *active_ptrs[9];
   int active_icodes[8]; int *nactive;
-  unsigned *coarse_mask; bool *has_coarse;
+  unsigned *coarse_mask;
 };
 typedef void (*push_fn_t)(const NeighborCfg *, LoadCtx *, int);
 typedef void (*interp_fn_t)(const NeighborCfg *, Real *, Real *, int, int, int,
@@ -320,7 +320,6 @@ static void push_coarse(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
             dim * (BS * (iy + cfg->cstart[1]) + cfg->cs[0] + cfg->cstart[0]),
         ctx->c + dim * (cfg->cs[0] - coff + (iy - coff) * nc),
         cfg->ce[0] - cfg->cs[0], false};
-  *ctx->has_coarse = true;
   *ctx->coarse_mask |= 1u << icode;
 }
 static void interp_noop(const NeighborCfg *, Real *, Real *, int, int, int,
@@ -529,12 +528,11 @@ struct BlockLab {
 
     RowCopy fm[96], fc[96];
     int nfm = 0, nfc = 0;
-    bool has_coarse = false;
     unsigned coarse_mask = 0;
     int nactive = 0;
     LoadCtx ctx = {info, xi, yi, blk_offset, dim, nm, nc, ss, coff,
                    m,    c,  fm, &nfm,        fc, &nfc, {}, {}, &nactive,
-                   &coarse_mask, &has_coarse};
+                   &coarse_mask};
 
     int ua = (int)use_averages;
     const NeighborCfg *cfgs[8];
@@ -555,7 +553,7 @@ struct BlockLab {
     exec_rows(fm, nfm, dim);
     exec_rows(fc, nfc, dim);
 
-    if (has_coarse) {
+    if (coarse_mask) {
       int do_aic = (info->level > 0) & (int)use_averages;
       int aux = 1 << info->level;
       for (int i = 0; i < nactive; ++i) {
