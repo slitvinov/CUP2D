@@ -177,23 +177,7 @@ static void get_states(Info *info, TreeState nei[3][3]) {
     if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
       continue;
     long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
-    if (sim.tree.find(id) == sim.tree.end()) {
-      fprintf(stderr, "cx, cy: %d %d\n", cx, cy);
-      FILE *file;
-      file = fopen("marked", "w");
-      int x, y;
-      sfc_inverse(info->Z, info->level, &x, &y);
-      Real h = 1.0 / (1 << info->level);
-      fprintf(file, "%g %g\n", x * h, y * h);
-      fprintf(file, "%g %g\n", (x + 1) * h, y * h);
-      fprintf(file, "%g %g\n", (x + 1) * h, (y + 1) * h);
-      fprintf(file, "%g %g\n", x * h, (y + 1) * h);
-      fprintf(file, "%g %g\n", x * h, y * h);
-      fprintf(file, "%g %g\n", x * h, y * h);
-      fprintf(file, "\n");
-      fclose(file);
-      assert(0);
-    }
+    assert(sim.tree.find(id) != sim.tree.end());
     nei[1 + cx][1 + cy] = sim.tree.at(id);
   }
 }
@@ -1390,22 +1374,6 @@ static int adapt() {
     }
   }
 end:
-  /*
-  FILE *file;
-  file = fopen("tree", "w");
-  for (long long j = 0; j < sim.n; j++) {
-    int x, y;
-    sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &x, &y);
-    Real h = 1.0 / (1 << sim.infos[j]->level);
-    fprintf(file, "%g %g\n", x * h, y * h);
-    fprintf(file, "%g %g\n", (x + 1) * h, y * h);
-    fprintf(file, "%g %g\n", (x + 1) * h, (y + 1) * h);
-    fprintf(file, "%g %g\n", x * h, (y + 1) * h);
-    fprintf(file, "\n");
-  }
-  fclose(file);
-  */
-
   free(state);
   return Changed;
 }
