@@ -388,7 +388,7 @@ struct BlockLab {
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
     c = (Real *)malloc(nc * nc * dim * sizeof(Real));
   }
-  void load1(int blk_offset, TreeState nei[3][3], Stencil *stencil, Info *info,
+  void load1(int blk_offset, TreeState *nei, Stencil *stencil, Info *info,
               bool applybc) {
     int ss = stencil->s;
     int coff = (-ss - 1) / 2 - 1;
@@ -417,7 +417,9 @@ struct BlockLab {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
       if (cx == 0 && cy == 0) continue;
       if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
-      TreeState state = nei[1 + cx][1 + cy];
+      long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
+      TreeState state = nei ? nei[(1 + cx) + 3 * (1 + cy)]
+                            : sim.tree.at(id);
 
       /* fetch source block pointers */
       Real *src0 = NULL, *src1 = NULL;
@@ -593,9 +595,7 @@ struct BlockLab {
     }
   }
   void load(int blk_offset, Stencil *stencil, Info *info, bool applybc) {
-    TreeState nei[3][3];
-    get_states(info, nei);
-    load1(blk_offset, nei, stencil, info, applybc);
+    load1(blk_offset, NULL, stencil, info, applybc);
   }
 };
 
@@ -1244,7 +1244,7 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        labs[dim - 1].load1(offset, m_tree[k].nei, &stencil, parent, true);
+        labs[dim - 1].load1(offset, &m_tree[k].nei[0][0], &stencil, parent, true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
