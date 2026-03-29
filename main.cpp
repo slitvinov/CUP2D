@@ -1053,59 +1053,18 @@ struct KernelAdvectDiffuse {
     Real dfac = sim.nu * sim.dt;
     Real afac = -sim.dt * h;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmpV;
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    int ss = stencil.s, nm = 2 * ss + BS;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - (-stencil.s);
-        int jp0 = iy - (-stencil.s);
-        int ip1 = ip0 + 1;
-        int ip2 = ip0 + 2;
-        int ip3 = ip0 + 3;
-        int im1 = ip0 - 1;
-        int im2 = ip0 - 2;
-        int im3 = ip0 - 3;
-        int jp1 = jp0 + 1;
-        int jp2 = jp0 + 2;
-        int jp3 = jp0 + 3;
-        int jm1 = jp0 - 1;
-        int jm2 = jp0 - 2;
-        int jm3 = jp0 - 3;
-        Real u = *(um + 2 * (nm * jp0 + ip0) + 0);
-        Real v = *(um + 2 * (nm * jp0 + ip0) + 1);
-        Real up1x0 = *(um + 2 * (nm * jp0 + ip1) + 0);
-        Real up2x0 = *(um + 2 * (nm * jp0 + ip2) + 0);
-        Real up3x0 = *(um + 2 * (nm * jp0 + ip3) + 0);
-        Real um1x0 = *(um + 2 * (nm * jp0 + im1) + 0);
-        Real um2x0 = *(um + 2 * (nm * jp0 + im2) + 0);
-        Real um3x0 = *(um + 2 * (nm * jp0 + im3) + 0);
-        Real up1y0 = *(um + 2 * (nm * jp1 + ip0) + 0);
-        Real up2y0 = *(um + 2 * (nm * jp2 + ip0) + 0);
-        Real up3y0 = *(um + 2 * (nm * jp3 + ip0) + 0);
-        Real um1y0 = *(um + 2 * (nm * jm1 + ip0) + 0);
-        Real um2y0 = *(um + 2 * (nm * jm2 + ip0) + 0);
-        Real um3y0 = *(um + 2 * (nm * jm3 + ip0) + 0);
-        Real up1x1 = *(um + 2 * (nm * jp0 + ip1) + 1);
-        Real up2x1 = *(um + 2 * (nm * jp0 + ip2) + 1);
-        Real up3x1 = *(um + 2 * (nm * jp0 + ip3) + 1);
-        Real um1x1 = *(um + 2 * (nm * jp0 + im1) + 1);
-        Real um2x1 = *(um + 2 * (nm * jp0 + im2) + 1);
-        Real um3x1 = *(um + 2 * (nm * jp0 + im3) + 1);
-        Real up1y1 = *(um + 2 * (nm * jp1 + ip0) + 1);
-        Real up2y1 = *(um + 2 * (nm * jp2 + ip0) + 1);
-        Real up3y1 = *(um + 2 * (nm * jp3 + ip0) + 1);
-        Real um1y1 = *(um + 2 * (nm * jm1 + ip0) + 1);
-        Real um2y1 = *(um + 2 * (nm * jm2 + ip0) + 1);
-        Real um3y1 = *(um + 2 * (nm * jm3 + ip0) + 1);
-        Real dudx = derivative(u, um3x0, um2x0, um1x0, u, up1x0, up2x0, up3x0);
-        Real dudy = derivative(v, um3y0, um2y0, um1y0, u, up1y0, up2y0, up3y0);
-        Real dvdx = derivative(u, um3x1, um2x1, um1x1, v, up1x1, up2x1, up3x1);
-        Real dvdy = derivative(v, um3y1, um2y1, um1y1, v, up1y1, up2y1, up3y1);
-        TMP[2 * (BS * iy + ix)] =
-            afac * (u * dudx + v * dudy) +
-            dfac * (up1x0 + um1x0 + up1y0 + um1y0 - 4 * u);
-        TMP[2 * (BS * iy + ix) + 1] =
-            afac * (u * dvdx + v * dvdy) +
-            dfac * (up1x1 + um1x1 + up1y1 + um1y1 - 4 * v);
+#define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+        Real u = V(0,0,0), v = V(0,0,1);
+        Real dudx = derivative(u, V(-3,0,0), V(-2,0,0), V(-1,0,0), u, V(1,0,0), V(2,0,0), V(3,0,0));
+        Real dudy = derivative(v, V(0,-3,0), V(0,-2,0), V(0,-1,0), u, V(0,1,0), V(0,2,0), V(0,3,0));
+        Real dvdx = derivative(u, V(-3,0,1), V(-2,0,1), V(-1,0,1), v, V(1,0,1), V(2,0,1), V(3,0,1));
+        Real dvdy = derivative(v, V(0,-3,1), V(0,-2,1), V(0,-1,1), v, V(0,1,1), V(0,2,1), V(0,3,1));
+        TMP[2 * (BS * iy + ix)]     = afac * (u * dudx + v * dudy) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
+        TMP[2 * (BS * iy + ix) + 1] = afac * (u * dvdx + v * dvdy) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
+#undef V
       }
   }
 };
