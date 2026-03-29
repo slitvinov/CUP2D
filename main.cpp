@@ -390,29 +390,20 @@ static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
   Stencil stencil{1};
   Real *vm = velLab->m;
   Real *um = uDefLab->m;
-  int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+  int ss = stencil.s, nm = 2 * ss + BS;
   Real h = sim.infos[i]->h;
   Real facDiv = 0.5 * h / sim.dt;
   Real *TMP = sim.infos[i]->block + BS * BS * off_tmp;
   Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
   for (int iy = 0; iy < BS; ++iy)
     for (int ix = 0; ix < BS; ++ix) {
-      int ip0 = ix - (-stencil.s);
-      int jp0 = iy - (-stencil.s);
-      int ip1 = ip0 + 1;
-      int im1 = ip0 - 1;
-      int jp1 = jp0 + 1;
-      int jm1 = jp0 - 1;
-      Real *v0 = vm + 2 * (nm * jp0 + ip1) + 0;
-      Real *v1 = vm + 2 * (nm * jp0 + im1) + 0;
-      Real *v2 = vm + 2 * (nm * jp1 + ip0) + 1;
-      Real *v3 = vm + 2 * (nm * jm1 + ip0) + 1;
-      Real *u0 = um + 2 * (nm * jp0 + ip1) + 0;
-      Real *u1 = um + 2 * (nm * jp0 + im1) + 0;
-      Real *u2 = um + 2 * (nm * jp1 + ip0) + 1;
-      Real *u3 = um + 2 * (nm * jm1 + ip0) + 1;
-      TMP[BS * iy + ix] = facDiv * (*v0 - *v1 + *v2 - *v3) -
-                          facDiv * CHI[BS * iy + ix] * (*u0 - *u1 + *u2 - *u3);
+#define V(dx, dy, c) vm[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+#define U(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+      Real divV = V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1);
+      Real divU = U(1,0,0) - U(-1,0,0) + U(0,1,1) - U(0,-1,1);
+      TMP[BS * iy + ix] = facDiv * divV - facDiv * CHI[BS * iy + ix] * divU;
+#undef U
+#undef V
     }
 };
 struct Obstacle {
@@ -433,20 +424,12 @@ struct KernelVorticity {
   void operator()(Real *um, Info *info, long long id) {
     Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    int ss = stencil.s, nm = 2 * ss + BS;
     for (int j = 0; j < BS; ++j)
       for (int i = 0; i < BS; ++i) {
-        int x0 = i - (-stencil.s);
-        int y0 = j - (-stencil.s);
-        int xp = x0 + 1;
-        int yp = y0 + 1;
-        int xm = x0 - 1;
-        int ym = y0 - 1;
-        Real *e0 = um + 2 * (nm * ym + x0) + 0;
-        Real *e1 = um + 2 * (nm * yp + x0) + 0;
-        Real *e2 = um + 2 * (nm * y0 + xp) + 1;
-        Real *e3 = um + 2 * (nm * y0 + xm) + 1;
-        TMP[j * BS + i] = i2h * (*e0 - *e1 + *e2 - *e3);
+#define V(dx, dy, c) um[2 * (nm * (j + ss + (dy)) + i + ss + (dx)) + (c)]
+        TMP[j * BS + i] = i2h * (V(0,-1,0) - V(0,1,0) + V(1,0,1) - V(-1,0,1));
+#undef V
       }
   }
 };
@@ -1107,23 +1090,15 @@ static void getVec() {
 struct pressureCorrectionKernel {
   Stencil stencil{1};
   void operator()(Real *um, Info *info, long long id) {
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    int ss = stencil.s, nm = 2 * ss + BS;
     Real h = info->h, pFac = -0.5 * sim.dt * h;
     Real *tmpV = sim.infos[id]->block + BS * BS * off_tmpV;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - (-stencil.s);
-        int jp0 = iy - (-stencil.s);
-        int ip1 = ip0 + 1;
-        int jp1 = jp0 + 1;
-        int im1 = ip0 - 1;
-        int jm1 = jp0 - 1;
-        Real *p0 = um + nm * jp0 + ip1;
-        Real *p1 = um + nm * jp0 + im1;
-        Real *p2 = um + nm * jp1 + ip0;
-        Real *p3 = um + nm * jm1 + ip0;
-        tmpV[2 * (BS * iy + ix)] = pFac * (*p0 - *p1);
-        tmpV[2 * (BS * iy + ix) + 1] = pFac * (*p2 - *p3);
+#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
+        tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
+        tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
+#undef P
       }
   }
 };
@@ -1132,21 +1107,12 @@ struct pressure_rhs1 {
   Stencil stencil{1};
   void operator()(Real *um, Info *, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
+    int ss = stencil.s, nm = 2 * ss + BS;
     for (int iy = 0; iy < BS; ++iy)
       for (int ix = 0; ix < BS; ++ix) {
-        int ip0 = ix - (-stencil.s);
-        int jp0 = iy - (-stencil.s);
-        int ip1 = ip0 + 1;
-        int jp1 = jp0 + 1;
-        int im1 = ip0 - 1;
-        int jm1 = jp0 - 1;
-        Real *l0 = um + nm * jp0 + ip0;
-        Real *l1 = um + nm * jp0 + im1;
-        Real *l2 = um + nm * jp0 + ip1;
-        Real *l3 = um + nm * jm1 + ip0;
-        Real *l4 = um + nm * jp1 + ip0;
-        TMP[BS * iy + ix] -= *l1 + *l2 + *l3 + *l4 - 4 * (*l0);
+#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
+        TMP[BS * iy + ix] -= P(-1,0) + P(1,0) + P(0,-1) + P(0,1) - 4 * P(0,0);
+#undef P
       }
   }
 };
