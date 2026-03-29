@@ -1929,13 +1929,16 @@ int main(int argc, char **argv) {
   const char *shapeArg = arg_find(argc, argv, "shapes");
   const char *sp = shapeArg;
   while (*sp) {
-    const char *comma = strchr(sp, ',');
-    size_t len = comma ? (size_t)(comma - sp) : strlen(sp);
+    while (*sp == '\n' || *sp == ',' || *sp == ' ') sp++;
+    if (!*sp) break;
+    const char *end = sp;
+    while (*end && *end != '\n' && *end != ',') end++;
+    size_t len = end - sp;
     char line[1024];
     if (len >= sizeof line) { fprintf(stderr, "main.cpp: shape line too long\n"); exit(1); }
     memcpy(line, sp, len);
     line[len] = '\0';
-    sp += len + (comma ? 1 : 0);
+    sp = end;
     Shape *shape = new Shape;
       {
         static const struct { const char *name; size_t off; Real scale; } stab[] = {

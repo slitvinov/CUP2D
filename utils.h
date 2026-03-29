@@ -209,7 +209,7 @@ static Real kv_real(const char *line, const char *key) {
 static const char *kv_str(const char *line, const char *key, char *buf, size_t n) {
   const char *s = kv_find(line, key);
   size_t i = 0;
-  while (s[i] && s[i] != ' ' && i < n - 1) { buf[i] = s[i]; i++; }
+  while (s[i] && !kv_sep(s[i]) && i < n - 1) { buf[i] = s[i]; i++; }
   buf[i] = '\0';
   return buf;
 }
