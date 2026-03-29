@@ -215,7 +215,6 @@ struct GhostWork {
   int cstart[2];
   int sC[2];
   Real *src[2];
-  int nchild;
   const ChildNeighborPattern *pattern;
 };
 static const struct { int cx, cy; struct { int is_LE, b_dx, b_dy, c_dx, c_dy; } sub[2]; } liLeTab[] = {
@@ -386,7 +385,6 @@ static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, 
   const ChildNeighborPattern *pat = get_child_pattern(cx, cy);
   assert(pat);
   w->pattern = pat;
-  w->nchild = pat->count;
   for (int cnt = 0; cnt < pat->count; cnt++) {
     int ix = 2 * xi + pat->offset[cnt][0];
     int iy = 2 * yi + pat->offset[cnt][1];
@@ -400,9 +398,6 @@ static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi, int yi
   assert(yi + cy >= 0);
   long long Z = forward(info->level - 1, ix, iy);
   w->src[0] = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
-  w->src[1] = NULL;
-  w->pattern = NULL;
-  w->nchild = 0;
   coarse_bounds(cx, ss, coff, &w->cs[0], &w->ce[0]);
   coarse_bounds(cy, ss, coff, &w->cs[1], &w->ce[1]);
   int infoNei[2] = {xi + cx, yi + cy};
@@ -421,7 +416,6 @@ static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi, int yi
   w->sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
   w->sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
 }
-/* fill_tab indexed by -state: Active=0→same, ChildrenAreActive=1→fine, ParentIsActive=2→coarse */
 static fill_fn_t fill_tab[] = {fill_same, fill_fine, fill_coarse};
 
 struct BlockLab {
@@ -448,17 +442,14 @@ struct BlockLab {
     sfc_inverse(info->Z, info->level, &xi, &yi);
     Real *p0 = info->block + BS * BS * blk_offset;
 
-    /* copy self into center of m[] */
     for (int i = 0; i < BS; i++)
       memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
              BS * dim * sizeof(Real));
 
-    /* precompute BC dispatch — no ifs in engine */
     typedef void (*bc_fn_t)(BlockLab *, Stencil *, Info *, bool);
     static bc_fn_t bc_dim_tab[] = {bc_scalar, bc_vector};
     bc_fn_t bc_fn = applybc ? bc_dim_tab[dim > 1] : bc_noop;
 
-    /* build work list — all decisions here */
     static const GhostOp state_to_op[] = {OP_SAME, OP_FINE, OP_COARSE};
     static const InterpOp iop_tab[2][2] = {
         {INTERP_NONE, INTERP_FACE},
@@ -499,13 +490,10 @@ struct BlockLab {
       }
     }
 
-    /* pass 1: copy data */
     for (int i = 0; i < nwork; i++)
       copy_tab[work[i].op](m, c, &work[i], dim, nm, nc, ss, coff);
 
-    /* pass 2: coarse build + BC */
     if (has_coarse) {
-      /* active_into_coarse */
       int do_aic = (info->level > 0) & (int)use_averages;
       int aux = 1 << info->level;
       for (int i = 0; i < nactive; ++i) {
@@ -555,7 +543,6 @@ struct BlockLab {
           }
         }
       }
-      /* build_coarse: average m[] boundary cells into c[] */
       for (int j = 0; j < BS / 2; j++)
         for (int i = 0; i < BS / 2; i++) {
           if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2) continue;
@@ -570,7 +557,6 @@ struct BlockLab {
       bc_fn(this, stencil, info, true);
     }
 
-    /* pass 3: interpolation */
     for (int i = 0; i < nwork; i++)
       interp_tab[work[i].iop](m, c, &work[i], dim, nm, nc, ss, coff);
 
