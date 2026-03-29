@@ -1719,10 +1719,13 @@ int main(int argc, char **argv) {
               int sign = 2 * side - 1;
               int ec = dir == 0 ? ix : iy;
               int tc = dir == 0 ? iy : ix;
-              int state;
               Info *blk_infos[4] = {info, nullptr, nullptr, nullptr};
+              int state;
               if (side == 0 ? ec > 0 : ec < BS - 1) {
-                state = 0;
+                int dx = (1 - dir) * sign, dy = dir * sign;
+                row.mapColVal(This(info, ix + dx, iy + dy), 1);
+                row.mapColVal(sfc_idx, -1);
+                continue;
               } else if (side == 0 ? info->index[dir] == 0
                                    : info->index[dir] == n - 1) {
                 continue;
