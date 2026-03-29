@@ -417,7 +417,7 @@ struct BlockLab {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
       if (cx == 0 && cy == 0) continue;
       if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
-      TreeState state = nei[(1 + cx) + 3 * (1 + cy)];
+      TreeState state = nei[3 * (1 + cx) + (1 + cy)];
 
       /* fetch source block pointers */
       Real *src0 = NULL, *src1 = NULL;
