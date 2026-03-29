@@ -206,7 +206,7 @@ static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
   *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
   *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
 }
-struct RowCopy { Real *src, *dst; int cols; bool avg; };
+struct RowCopy { Real *src, *dst; int cols; bool avg; int stride; };
 struct NeighborCfg;
 struct LoadCtx {
   Info *info;
@@ -214,8 +214,7 @@ struct LoadCtx {
   Real *m, *c;
   RowCopy *fm; int *nfm;
   RowCopy *fc; int *nfc;
-  Real *active_ptrs[9];
-  int active_icodes[8]; int *nactive;
+  RowCopy *fa; int *nfa;
   unsigned *coarse_mask;
 };
 typedef void (*push_fn_t)(const NeighborCfg *, LoadCtx *, int);
@@ -261,7 +260,7 @@ static void exec_rows(const RowCopy *r, int n, int dim) {
   }
 }
 static void push_noop(const NeighborCfg *, LoadCtx *, int) {}
-static void push_same(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
+static void push_same(const NeighborCfg *cfg, LoadCtx *ctx, int) {
   int dim = ctx->dim, nm = ctx->nm, ss = ctx->ss;
   Real *src =
       getf0(ctx->info->level, ctx->info->Znei[1 + cfg->cx][1 + cfg->cy])
@@ -271,9 +270,36 @@ static void push_same(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
     ctx->fm[(*ctx->nfm)++] = {
         src + dim * (BS * (iy - cfg->cy * BS) + (cfg->fs[0] - cfg->cx * BS)),
         ctx->m + dim * ((cfg->fs[0] + ss) + (iy + ss) * nm),
-        cfg->fe[0] - cfg->fs[0], false};
-  ctx->active_ptrs[icode] = src;
-  ctx->active_icodes[(*ctx->nactive)++] = icode;
+        cfg->fe[0] - cfg->fs[0], false, 0};
+}
+static void push_same_aic(const NeighborCfg *cfg, LoadCtx *ctx, int) {
+  int dim = ctx->dim, nm = ctx->nm, ss = ctx->ss;
+  Real *src =
+      getf0(ctx->info->level, ctx->info->Znei[1 + cfg->cx][1 + cfg->cy])
+          ->block +
+      BS * BS * ctx->blk_off;
+  for (int iy = cfg->fs[1]; iy < cfg->fe[1]; iy++)
+    ctx->fm[(*ctx->nfm)++] = {
+        src + dim * (BS * (iy - cfg->cy * BS) + (cfg->fs[0] - cfg->cx * BS)),
+        ctx->m + dim * ((cfg->fs[0] + ss) + (iy + ss) * nm),
+        cfg->fe[0] - cfg->fs[0], false, 0};
+  if (!ctx->info->level) return;
+  int cx = cfg->cx, cy = cfg->cy, coff = ctx->coff, nc = ctx->nc;
+  int eC = (ss + 1) / 2 + 2;
+  int cs0 = cfg->cs[0], cs1 = cfg->cs[1];
+  int ce0 = cx < 1 ? cfg->ce[0] : BS / 2 + eC - 1;
+  int ce1 = cy < 1 ? cfg->ce[1] : BS / 2 + eC - 1;
+  int cols = ce0 - cs0;
+  if (!cols) return;
+  int s0 = cs0 + std::max(cx, 0) * (BS / 2) - cx * BS + std::min(0, cx) * cols;
+  int s1 = cs1 + std::max(cy, 0) * (BS / 2) - cy * BS + std::min(0, cy) * (ce1 - cs1);
+  int di = cs0 - coff;
+  for (int iy = cs1; iy < ce1; iy++) {
+    int y0 = 2 * (iy - cs1) + s1;
+    ctx->fa[(*ctx->nfa)++] = {src + dim * (BS * y0 + s0),
+                              ctx->c + dim * (di + (iy - coff) * nc),
+                              cols, true, BS};
+  }
 }
 static void push_fine(const NeighborCfg *cfg, LoadCtx *ctx, int) {
   const ChildNeighborPattern *pat = get_child_pattern(cfg->cx, cfg->cy);
@@ -301,7 +327,7 @@ static void push_fine(const NeighborCfg *cfg, LoadCtx *ctx, int) {
                          (iy2 / 2 + ss + aux * (cfg->fe[1] - cfg->fs[1]) / 2)) *
                         nm;
       ctx->fm[(*ctx->nfm)++] = {b + dim * (BS * sy + sx), ctx->m + dim * dk,
-                                width, true};
+                                width, true, BS};
     }
   }
 }
@@ -319,7 +345,19 @@ static void push_coarse(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
         src +
             dim * (BS * (iy + cfg->cstart[1]) + cfg->cs[0] + cfg->cstart[0]),
         ctx->c + dim * (cfg->cs[0] - coff + (iy - coff) * nc),
-        cfg->ce[0] - cfg->cs[0], false};
+        cfg->ce[0] - cfg->cs[0], false, 0};
+  if (!*ctx->coarse_mask) {
+    int nm = ctx->nm, ss = ctx->ss;
+    for (int j = 0; j < BS / 2; j++)
+      for (int i = 0; i < BS / 2; i++) {
+        if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2) continue;
+        int ix = 2 * i + ss, iy = 2 * j + ss;
+        ctx->fc[(*ctx->nfc)++] = {
+            ctx->m + dim * (ix + nm * iy),
+            ctx->c + dim * (i - coff + (j - coff) * nc),
+            1, true, nm};
+      }
+  }
   *ctx->coarse_mask |= 1u << icode;
 }
 static void interp_noop(const NeighborCfg *, Real *, Real *, int, int, int,
@@ -483,7 +521,7 @@ struct BlockLab {
                 if (skip)
                   e->push = push_noop;
                 else if (s == 0)
-                  e->push = push_same;
+                  e->push = ua ? push_same_aic : push_same;
                 else if (s == 1)
                   e->push = push_fine;
                 else
@@ -526,12 +564,11 @@ struct BlockLab {
     static bc_fn_t bc_dim_tab[] = {bc_scalar, bc_vector};
     bc_fn_t bc_fn = applybc ? bc_dim_tab[dim > 1] : bc_noop;
 
-    RowCopy fm[96], fc[96];
-    int nfm = 0, nfc = 0;
+    RowCopy fm[96], fc[96], fa[96];
+    int nfm = 0, nfc = 0, nfa = 0;
     unsigned coarse_mask = 0;
-    int nactive = 0;
     LoadCtx ctx = {info, xi, yi, blk_offset, dim, nm, nc, ss, coff,
-                   m,    c,  fm, &nfm,        fc, &nfc, {}, {}, &nactive,
+                   m,    c,  fm, &nfm,        fc, &nfc, fa, &nfa,
                    &coarse_mask};
 
     int ua = (int)use_averages;
@@ -552,77 +589,8 @@ struct BlockLab {
     for (int i = 0; i < ncfg; i++) cfgs[i]->push(cfgs[i], &ctx, icodes[i]);
     exec_rows(fm, nfm, dim);
     exec_rows(fc, nfc, dim);
-
-    if (coarse_mask) {
-      int do_aic = (info->level > 0) & (int)use_averages;
-      int aux = 1 << info->level;
-      for (int i = 0; i < nactive; ++i) {
-        int icode = ctx.active_icodes[i];
-        int cx = icode % 3 - 1, cy = icode / 3 - 1;
-        int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
-        int imin[2], imax[2];
-        for (int d = 0; d < 2; d++) {
-          int idx = d == 0 ? xi : yi;
-          int nidx = infoNei_index[d];
-          imin[d] = (idx < nidx) ? 0 : -1;
-          imax[d] = (idx > nidx) ? 0 : +1;
-          if (idx == 0 && nidx == 0)
-            imin[d] = 0;
-          if (idx == aux - 1 && nidx == aux - 1)
-            imax[d] = 0;
-        }
-        unsigned check_mask = 0;
-        for (int i1 = imin[1]; i1 <= imax[1]; i1++)
-          for (int i0 = imin[0]; i0 <= imax[0]; i0++)
-            check_mask |= 1u << ((i0 + 1) + 3 * (i1 + 1));
-        int cond = do_aic & ((check_mask & coarse_mask) != 0);
-        if (cond && ctx.active_ptrs[icode]) {
-          Real *b = ctx.active_ptrs[icode];
-          int eC = (ss + 1) / 2 + 2;
-          int cs[2], ce[2];
-          coarse_bounds(cx, ss, coff, &cs[0], &ce[0]);
-          coarse_bounds(cy, ss, coff, &cs[1], &ce[1]);
-          ce[0] = cx < 1 ? ce[0] : BS / 2 + eC - 1;
-          ce[1] = cy < 1 ? ce[1] : BS / 2 + eC - 1;
-          int bytes = (ce[0] - cs[0]) * dim * sizeof(Real);
-          if (bytes) {
-            int start[2] = {cs[0] + std::max(cx, 0) * (BS / 2) - cx * BS +
-                                std::min(0, cx) * (ce[0] - cs[0]),
-                            cs[1] + std::max(cy, 0) * (BS / 2) - cy * BS +
-                                std::min(0, cy) * (ce[1] - cs[1])};
-            int di = cs[0] - coff;
-            for (int iy = cs[1]; iy < ce[1]; iy++) {
-              Real *p = c + dim * (di + (iy - coff) * nc);
-              int y0 = 2 * (iy - cs[1]) + start[1];
-              Real *q0 = b + dim * (BS * y0 + start[0]);
-              Real *q1 = b + dim * (BS * (y0 + 1) + start[0]);
-              for (int ee = 0; ee < ce[0] - cs[0]; ee++)
-                for (int d = 0; d < dim; d++)
-                  *(p + dim * ee + d) = (*(q0 + dim * 2 * ee + d) +
-                                         *(q0 + dim * (2 * ee + 1) + d) +
-                                         *(q1 + dim * 2 * ee + d) +
-                                         *(q1 + dim * (2 * ee + 1) + d)) /
-                                        4;
-            }
-          }
-        }
-      }
-      for (int j = 0; j < BS / 2; j++)
-        for (int i = 0; i < BS / 2; i++) {
-          if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2)
-            continue;
-          int ix = 2 * i + ss, iy = 2 * j + ss;
-          int j00 = i - coff + nc * (j - coff);
-          for (int d = 0; d < dim; d++)
-            c[dim * j00 + d] =
-                (m[dim * (ix + nm * (iy + 1)) + d] +
-                 m[dim * (ix + nm * iy) + d] +
-                 m[dim * (ix + 1 + nm * iy) + d] +
-                 m[dim * (ix + 1 + nm * (iy + 1)) + d]) /
-                4;
-        }
-      bc_fn(this, stencil, info, true);
-    }
+    exec_rows(fa, nfa, dim);
+    if (coarse_mask) bc_fn(this, stencil, info, true);
 
     for (int i = 0; i < ncfg; i++)
       cfgs[i]->interp(cfgs[i], m, c, dim, nm, nc, ss, coff);
