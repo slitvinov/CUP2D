@@ -183,14 +183,15 @@ static int arg_int(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
+static int kv_sep(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 static const char *kv_find(const char *line, const char *key) {
   const char *p = line;
   size_t klen = strlen(key);
   while (*p) {
-    while (*p == ' ') p++;
+    while (kv_sep(*p)) p++;
     if (strncmp(p, key, klen) == 0 && p[klen] == '=')
       return p + klen + 1;
-    while (*p && *p != ' ') p++;
+    while (*p && !kv_sep(*p)) p++;
   }
   fprintf(stderr, "main.cpp: error: key '%s' not found in '%s'\n", key, line);
   exit(1);
