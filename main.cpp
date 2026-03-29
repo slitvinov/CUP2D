@@ -159,6 +159,11 @@ struct {
             {off_vold, 2, NULL}, {off_tmp, 1, "tmp"},   {off_pold, 1, NULL},
             {off_tmpV, 2, NULL}};
 
+static inline bool skin_skip(int c, int coord, int n) {
+  bool skin = coord == 0 || coord == n - 1;
+  int skip = coord == 0 ? -1 : 1;
+  return c == skip && skin;
+}
 static void get_states(Info *info, TreeState nei[3][3]) {
   int xi, yi;
   int n = 1 << info->level;
@@ -197,11 +202,6 @@ static inline void ghost_bounds(int c, int ss, int *s, int *e) {
 static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
   *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
   *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
-}
-static inline bool skin_skip(int c, int coord, int n) {
-  bool skin = coord == 0 || coord == n - 1;
-  int skip = coord == 0 ? -1 : 1;
-  return c == skip && skin;
 }
 enum GhostOp { OP_SAME, OP_COARSE, OP_FINE };
 struct GhostWork {
