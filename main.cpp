@@ -1213,7 +1213,7 @@ static int adapt() {
           int cy = icode / 3 - 1;
           if (cx == 0 && cy == 0)
             continue;
-          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+          if (skin_skip(cx, xp, n) || skin_skip(cy, yp, n))
             continue;
           long long Z = sfc_forward(sim.infos[j]->level - 1, xp + cx, yp + cy);
           long long id = sim.levels[sim.infos[j]->level - 1] + Z;
