@@ -741,7 +741,7 @@ public:
                 int ka = (ix + ss) + nm * (iy + ss);
                 int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
                 int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
-                int p = cx != 0 ? y : x;
+                int p = cx != 0 ? x : y;
                 auto &sub = liLeTab[li].sub[p];
                 int kb = (ix + ss + sub.b_dx) + nm * (iy + ss + sub.b_dy);
                 int kc = (ix + ss + sub.c_dx) + nm * (iy + ss + sub.c_dy);
