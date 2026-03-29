@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <stdexcept>
 #include <fenv.h>
 #include <limits>
 #include <unordered_map>
