@@ -8,6 +8,6 @@ cd "$d" &&
    python3 gen_table.py &&
    make clean &&
    make -j &&
-   OMP_NUM_THREADS=4 srun --mpi=pmix -p gpu_test -c 1 -n 2 -N 1 -G 1 --mem 2Gb -t 30 sh -x run.sh
+   OMP_NUM_THREADS=4 srun -p gpu_test -c 1 -n 2 -N 1 -G 1 --mem 2Gb -t 30 sh -x run.sh
 ' &&
 rsync -avz "rc:$d"/vel* "rc:$d"/cover* .

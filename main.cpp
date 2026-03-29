@@ -1152,110 +1152,26 @@ struct KernelAdvectDiffuse {
 static long long This(Info *info, int ix, int iy) {
   return info->id * BS * BS + iy * BS + ix;
 }
-static int i_f(int i) { return (i % (BS / 2)) * 2; }
-
-struct EdgeTab {
-  int dir, side;
-  int tang(int ix, int iy) const { return dir == 0 ? iy : ix; }
-  int edge(int ix, int iy) const { return dir == 0 ? ix : iy; }
-  long long neiZ(Info *info) const {
-    int s = side == 0 ? -1 : 1;
-    return dir == 0 ? info->Znei[1 + s][1] : info->Znei[1][1 + s];
-  }
-  bool isValid(int ix, int iy) const {
-    int e = edge(ix, iy);
-    return side == 0 ? e > 0 : e < BS - 1;
-  }
-  bool isBoundary(Info *info, int n) const {
-    return side == 0 ? info->index[dir] == 0 : info->index[dir] == n - 1;
-  }
-  long long idxNei(Info *info, int ix, int iy) const {
-    int s = side == 0 ? -1 : 1;
-    return dir == 0 ? This(info, ix + s, iy) : This(info, ix, iy + s);
-  }
-  long long neiUnif(Info *nei, int ix, int iy) const {
-    int e = (1 - side) * (BS - 1);
-    int t = tang(ix, iy);
-    return dir == 0 ? This(nei, e, t) : This(nei, t, e);
-  }
-  long long neiInward(Info *info, int ix, int iy) const {
-    int s = side == 0 ? 1 : -1;
-    return dir == 0 ? This(info, ix + s, iy) : This(info, ix, iy + s);
-  }
-  int ix_c(Info *info, int ix) const {
-    if (dir == 0)
-      return (1 - side) * (BS - 1);
-    return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
-  }
-  int iy_c(Info *info, int iy) const {
-    if (dir == 1)
-      return (1 - side) * (BS - 1);
-    return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
-  }
-  double taylorSign(int ix, int iy) const {
-    return tang(ix, iy) % 2 == 0 ? -1. : 1.;
-  }
-  bool isBD(int ix, int iy) const {
-    int t = tang(ix, iy);
-    return t == BS - 1 || t == BS / 2 - 1;
-  }
-  bool isFD(int ix, int iy) const {
-    int t = tang(ix, iy);
-    return t == 0 || t == BS / 2;
-  }
-  long long Nei(Info *info, int ix, int iy, int dist) const {
-    return dir == 0 ? This(info, ix, iy + dist) : This(info, ix + dist, iy);
-  }
-  long long neiFine(Info *nei, int ix, int iy, int off, int dt) const {
-    int e = side == 0 ? BS - 1 - off : off;
-    int t = i_f(tang(ix, iy)) + dt;
-    return dir == 0 ? This(nei, e, t) : This(nei, t, e);
-  }
-  long long Zchild(Info *nei, int ix, int iy) const {
-    int t = tang(ix, iy) >= BS / 2 ? 1 : 0;
-    int e = 1 - side;
-    return dir == 0 ? nei->Zchild[e][t] : nei->Zchild[t][e];
-  }
+struct PoissonOp {
+  int8_t blk_ref, cell_ix, cell_iy, _pad;
+  float coeff;
 };
-static const EdgeTab edgeTab[] = {
-    {0, 0},
-    {0, 1},
-    {1, 0},
-    {1, 1},
+enum { MAX_POISSON_OPS = 16 };
+struct PoissonEntry {
+  int32_t n_ops;
+  PoissonOp ops[MAX_POISSON_OPS];
 };
-
-struct InterpStencil {
-  int off[3];
-  double d1[3];
-  double d2[3];
-};
-static constexpr InterpStencil interpTab[] = {
-    /* BD */ {{-2, -1, 0},
-              {1. / 8., -1. / 2., 3. / 8.},
-              {1. / 32., -1. / 16., 1. / 32.}},
-    /* FD */
-    {{2, 1, 0}, {-1. / 8., 1. / 2., -3. / 8.}, {1. / 32., -1. / 16., 1. / 32.}},
-    /* CD */
-    {{-1, 1, 0}, {-1. / 8., 1. / 8., 0.}, {1. / 32., 1. / 32., -1. / 16.}},
-};
-static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
-                        long long fine_close_idx, long long fine_far_idx,
-                        double signInt, double signTaylor, const EdgeTab &e,
-                        SpRowInfo &row) {
-  int rank_c = Tree1(info_c);
-  int rank_f = Tree1(info_f);
-  row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
-  row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
-  double tf = signInt * 8. / 15.;
-  row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
-  int c = e.isBD(ix_c, iy_c) ? 0 : e.isFD(ix_c, iy_c) ? 1 : 2;
-  const InterpStencil &s = interpTab[c];
-  for (int i = 0; i < 3; i++) {
-    long long idx = s.off[i] ? e.Nei(info_c, ix_c, iy_c, s.off[i])
-                             : This(info_c, ix_c, iy_c);
-    row.mapColVal(rank_c, idx, signTaylor * tf * s.d1[i]);
-    row.mapColVal(rank_c, idx, tf * s.d2[i]);
+static const PoissonEntry *poisson_tab;
+static void load_poisson() {
+  FILE *fp = fopen("tab_poisson.bin", "rb");
+  if (!fp) { fprintf(stderr, "main.cpp: cannot open tab_poisson.bin\n"); exit(1); }
+  size_t sz = 4 * BS * 2 * 4 * sizeof(PoissonEntry);
+  PoissonEntry *tab = (PoissonEntry *)malloc(sz);
+  if (fread(tab, 1, sz, fp) != sz) {
+    fprintf(stderr, "main.cpp: short read from tab_poisson.bin\n"); exit(1);
   }
+  fclose(fp);
+  poisson_tab = tab;
 }
 static void getVec() {
 #pragma omp parallel for
@@ -1505,6 +1421,7 @@ int main(int argc, char **argv) {
   }
   std::vector<double> P_inv = precond();
   sim.mat = new LocalSpMatDnVec(BS * BS, 0, P_inv);
+  load_poisson();
   while (1) {
     if (sim.step % 5 == 0)
       fprintf(stderr, "main.cpp: %08d %.16e\n", sim.step, sim.time);
@@ -1798,39 +1715,48 @@ int main(int argc, char **argv) {
           } else {
             SpRowInfo row(Tree1(info), sfc_idx, 8);
             for (int j = 0; j < 4; j++) {
-              const EdgeTab &e = edgeTab[j];
-              if (e.isValid(ix, iy)) {
-                row.mapColVal(e.idxNei(info, ix, iy), 1);
-                row.mapColVal(sfc_idx, -1);
-              } else if (!e.isBoundary(info, n)) {
-                long long Z = e.neiZ(info);
-                TreeState state = sim.tree.at(sim.levels[info->level] + Z);
-                if (state == Active) {
-                  Info *rhsNei = getf0(info->level, Z);
-                  row.mapColVal(0, e.neiUnif(rhsNei, ix, iy), 1.);
-                  row.mapColVal(sfc_idx, -1.);
-                } else if (state == ParentIsActive) {
-                  Info *rhsNei_c = getf0(info->level - 1, Z >> 2);
-                  interpolate(rhsNei_c, e.ix_c(info, ix), e.iy_c(info, iy),
-                              info, sfc_idx, e.neiInward(info, ix, iy), 1.,
-                              e.taylorSign(ix, iy), e, row);
-                  row.mapColVal(sfc_idx, -1.);
-                } else if (state == ChildrenAreActive) {
-                  Info rhsNei0 = getf1(info->level, Z);
-                  Info *rhsNei_f =
-                      getf0(info->level + 1, e.Zchild(&rhsNei0, ix, iy));
-                  int nei_rank = Tree1(rhsNei_f);
-                  for (int dt = 0; dt < 2; dt++) {
-                    long long fc = e.neiFine(rhsNei_f, ix, iy, 0, dt);
-                    long long ff = e.neiFine(rhsNei_f, ix, iy, 1, dt);
-                    row.mapColVal(nei_rank, fc, 1.);
-                    interpolate(info, ix, iy, rhsNei_f, fc, ff, -1.,
-                                dt == 0 ? -1. : 1., e, row);
-                  }
+              int dir = j >> 1, side = j & 1;
+              int sign = 2 * side - 1;
+              int ec = dir == 0 ? ix : iy;
+              int tc = dir == 0 ? iy : ix;
+              int state;
+              Info *blk_infos[4] = {info, nullptr, nullptr, nullptr};
+              if (side == 0 ? ec > 0 : ec < BS - 1) {
+                state = 0;
+              } else if (side == 0 ? info->index[dir] == 0
+                                   : info->index[dir] == n - 1) {
+                continue;
+              } else {
+                long long Z = dir == 0 ? info->Znei[1 + sign][1]
+                                       : info->Znei[1][1 + sign];
+                TreeState ts = sim.tree.at(sim.levels[info->level] + Z);
+                if (ts == Active) {
+                  state = 1;
+                  blk_infos[1] = getf0(info->level, Z);
+                } else if (ts == ParentIsActive) {
+                  state = 2;
+                  blk_infos[2] = getf0(info->level - 1, Z >> 2);
+                } else if (ts == ChildrenAreActive) {
+                  state = 3;
+                  Info nei0 = getf1(info->level, Z);
+                  int ct = tc >= BS / 2 ? 1 : 0, ce = 1 - side;
+                  long long Zc = dir == 0 ? nei0.Zchild[ce][ct]
+                                          : nei0.Zchild[ct][ce];
+                  blk_infos[3] = getf0(info->level + 1, Zc);
                 } else {
                   throw std::runtime_error(
                       "Neighbour doesn't exist, isn't coarser, nor finer...");
                 }
+              }
+              int parity = dir == 0 ? info->index[1] % 2
+                                    : info->index[0] % 2;
+              const PoissonEntry &pe =
+                  poisson_tab[((j * BS + tc) * 2 + parity) * 4 + state];
+              for (int k = 0; k < pe.n_ops; k++) {
+                const PoissonOp &op = pe.ops[k];
+                row.mapColVal(
+                    This(blk_infos[op.blk_ref], op.cell_ix, op.cell_iy),
+                    (double)op.coeff);
               }
             }
             sim.mat->cooPushBackRow(row);

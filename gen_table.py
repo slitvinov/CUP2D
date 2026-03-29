@@ -424,11 +424,116 @@ def build_and_write(fname, ss, dim):
     sz = 432 * ENTRY_SIZE
     print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB)')
 
+# Poisson table: precomputed matrix stencil per (edge, tc, parity, state)
+# PoissonOp: blk_ref(1) cell_ix(1) cell_iy(1) pad(1) coeff(float4) = 8 bytes
+# PoissonEntry: n_ops(int32) ops[16] = 4 + 128 = 132 bytes
+# Table: [4 edges][BS tc][2 parity][4 states] = 256 entries
+
+MAX_POISSON_OPS = 16
+POISSON_ENTRY_SIZE = 4 + MAX_POISSON_OPS * 8
+
+P_INTERP_OFF = [[-2,-1,0], [2,1,0], [-1,1,0]]
+P_INTERP_D1 = [[1/8, -1/2, 3/8], [-1/8, 1/2, -3/8], [-1/8, 1/8, 0]]
+P_INTERP_D2 = [[1/32, -1/16, 1/32], [1/32, -1/16, 1/32], [1/32, 1/32, -1/16]]
+
+def poisson_interp_ops(add, c_blk, cix, ciy, f_blk, fc_ix, fc_iy, ff_ix, ff_iy,
+                       signInt, signTaylor, dir):
+    add(f_blk, fc_ix, fc_iy, signInt * 2/3)
+    add(f_blk, ff_ix, ff_iy, -signInt * 1/5)
+    tf = signInt * 8/15
+    add(c_blk, cix, ciy, tf)
+    tang = ciy if dir == 0 else cix
+    c = (0 if (tang == BS-1 or tang == BS//2-1)
+         else 1 if (tang == 0 or tang == BS//2) else 2)
+    for i in range(3):
+        off = P_INTERP_OFF[c][i]
+        if off == 0:
+            ox, oy = cix, ciy
+        elif dir == 0:
+            ox, oy = cix, ciy + off
+        else:
+            ox, oy = cix + off, ciy
+        add(c_blk, ox, oy, signTaylor * tf * P_INTERP_D1[c][i])
+        add(c_blk, ox, oy, tf * P_INTERP_D2[c][i])
+
+def build_poisson_entry(edge, tc, parity, state):
+    dir = edge >> 1
+    side = edge & 1
+    sign = 2 * side - 1
+    dx, dy = (1 - dir) * sign, dir * sign
+    ix = (0 if side == 0 else BS - 1) if dir == 0 else tc
+    iy = tc if dir == 0 else (0 if side == 0 else BS - 1)
+
+    ops = {}
+    def add(blk, cx, cy, coeff):
+        key = (blk, cx, cy)
+        ops[key] = ops.get(key, 0.0) + coeff
+
+    if state == 0:  # interior neighbor (same block)
+        add(0, ix + dx, iy + dy, 1.0)
+        add(0, ix, iy, -1.0)
+    elif state == 1:  # same-level neighbor
+        ne = (1 - side) * (BS - 1)
+        if dir == 0:
+            add(1, ne, tc, 1.0)
+        else:
+            add(1, tc, ne, 1.0)
+        add(0, ix, iy, -1.0)
+    elif state == 2:  # coarse neighbor (ParentIsActive)
+        cix = (1 - side) * (BS - 1) if dir == 0 else tc // 2 + parity * (BS // 2)
+        ciy = tc // 2 + parity * (BS // 2) if dir == 0 else (1 - side) * (BS - 1)
+        signTaylor = -1.0 if tc % 2 == 0 else 1.0
+        poisson_interp_ops(add, 2, cix, ciy, 0, ix, iy, ix - dx, iy - dy,
+                           1.0, signTaylor, dir)
+        add(0, ix, iy, -1.0)
+    elif state == 3:  # fine neighbor (ChildrenAreActive)
+        fe0 = BS - 1 if side == 0 else 0
+        fe1 = BS - 2 if side == 0 else 1
+        ft = (tc % (BS // 2)) * 2
+        for dt in range(2):
+            fc_ix, fc_iy = (fe0, ft + dt) if dir == 0 else (ft + dt, fe0)
+            ff_ix, ff_iy = (fe1, ft + dt) if dir == 0 else (ft + dt, fe1)
+            add(3, fc_ix, fc_iy, 1.0)
+            signTaylor_f = -1.0 if dt == 0 else 1.0
+            poisson_interp_ops(add, 0, ix, iy, 3, fc_ix, fc_iy, ff_ix, ff_iy,
+                               -1.0, signTaylor_f, dir)
+
+    return [(k[0], k[1], k[2], v) for k, v in ops.items() if abs(v) > 1e-15]
+
+def pack_poisson_op(op):
+    return struct.pack('<bbbx f', op[0], op[1], op[2], op[3])
+
+ZERO_POP = b'\x00' * 8
+
+def pack_poisson_entry(ops):
+    assert len(ops) <= MAX_POISSON_OPS, f"poisson ops overflow: {len(ops)}"
+    buf = struct.pack('<i', len(ops))
+    for op in ops:
+        buf += pack_poisson_op(op)
+    buf += ZERO_POP * (MAX_POISSON_OPS - len(ops))
+    assert len(buf) == POISSON_ENTRY_SIZE
+    return buf
+
+def build_poisson_table():
+    fname = 'tab_poisson.bin'
+    max_ops = 0
+    with open(fname, 'wb') as f:
+        for edge in range(4):
+            for tc in range(BS):
+                for parity in range(2):
+                    for state in range(4):
+                        ops = build_poisson_entry(edge, tc, parity, state)
+                        max_ops = max(max_ops, len(ops))
+                        f.write(pack_poisson_entry(ops))
+    sz = 4 * BS * 2 * 4 * POISSON_ENTRY_SIZE
+    print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB), max ops={max_ops}')
+
 def main():
     combos = [(1, 1), (1, 2), (3, 2), (4, 1)]
     for ss, dim in combos:
         fname = f'tab_ss{ss}_dim{dim}.bin'
         build_and_write(fname, ss, dim)
+    build_poisson_table()
 
 if __name__ == '__main__':
     main()
