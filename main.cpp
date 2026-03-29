@@ -872,45 +872,44 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
   }
 }
 typedef Real ScalarBlock[BS][BS];
-template <int dir, int side>
-void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
+static const struct { int dir, side; } bcTab[] = {{0,0},{0,1},{1,0},{1,1}};
+static void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse,
+                        int dir, int side) {
   int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 2 + ss % 2;
-
   int A = 1 - dir;
   if (!coarse) {
-    int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    s[0] = dir == 0 ? (side == 0 ? (-stencil->s) : BS) : (-stencil->s);
-    s[1] = dir == 1 ? (side == 0 ? (-stencil->s) : BS) : (-stencil->s);
-    e[0] = dir == 0 ? (side == 0 ? 0 : BS + (stencil->s + 1) - 1)
-                    : BS + (stencil->s + 1) - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : BS + (stencil->s + 1) - 1)
-                    : BS + (stencil->s + 1) - 1;
+    int s[2], e[2];
+    s[0] = dir == 0 ? (side == 0 ? -ss : BS) : -ss;
+    s[1] = dir == 1 ? (side == 0 ? -ss : BS) : -ss;
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS + ss) : BS + ss;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS + ss) : BS + ss;
+    int mirror = side == 0 ? 0 : BS - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        int x = (dir == 0 ? (side == 0 ? 0 : BS - 1) : ix) - (-stencil->s);
-        int y = (dir == 1 ? (side == 0 ? 0 : BS - 1) : iy) - (-stencil->s);
-        int i0 = ix - (-stencil->s) + nm * (iy - (-stencil->s));
-        int i1 = x + nm * (y);
+        int x = (dir == 0 ? mirror : ix) + ss;
+        int y = (dir == 1 ? mirror : iy) + ss;
+        int i0 = (ix + ss) + nm * (iy + ss);
+        int i1 = x + nm * y;
         lab->m[2 * i0 + 1 - A] = -lab->m[2 * i1 + 1 - A];
         lab->m[2 * i0 + A] = lab->m[2 * i1 + A];
       }
   } else {
-    int eI[3] = {(stencil->s + 1) / 2 + 2, (stencil->s + 1) / 2 + 2, 1 / 2 + 1};
-    int sI[3] = {((-stencil->s) - 1) / 2 - 1, ((-stencil->s) - 1) / 2 - 1,
-                 (0 - 1) / 2};
-    int s[3] = {0, 0, 0}, e[3] = {0, 0, 0};
-    s[0] = dir == 0 ? (side == 0 ? sI[0] : BS / 2) : sI[0];
-    s[1] = dir == 1 ? (side == 0 ? sI[1] : BS / 2) : sI[1];
-    e[0] = dir == 0 ? (side == 0 ? 0 : BS / 2 + eI[0] - 1) : BS / 2 + eI[0] - 1;
-    e[1] = dir == 1 ? (side == 0 ? 0 : BS / 2 + eI[1] - 1) : BS / 2 + eI[1] - 1;
+    int sI = (-ss - 1) / 2 - 1;
+    int eI = (ss + 1) / 2 + 2;
+    int s[2], e[2];
+    s[0] = dir == 0 ? (side == 0 ? sI : BS / 2) : sI;
+    s[1] = dir == 1 ? (side == 0 ? sI : BS / 2) : sI;
+    e[0] = dir == 0 ? (side == 0 ? 0 : BS / 2 + eI - 1) : BS / 2 + eI - 1;
+    e[1] = dir == 1 ? (side == 0 ? 0 : BS / 2 + eI - 1) : BS / 2 + eI - 1;
+    int mirror = side == 0 ? 0 : BS / 2 - 1;
     for (int iy = s[1]; iy < e[1]; iy++)
       for (int ix = s[0]; ix < e[0]; ix++) {
-        int x = (dir == 0 ? (side == 0 ? 0 : BS / 2 - 1) : ix) - sI[0];
-        int y = (dir == 1 ? (side == 0 ? 0 : BS / 2 - 1) : iy) - sI[1];
-        int i0 = ix - sI[0] + nc * (iy - sI[1]);
-        int i1 = x + nc * (y);
+        int x = (dir == 0 ? mirror : ix) - sI;
+        int y = (dir == 1 ? mirror : iy) - sI;
+        int i0 = (ix - sI) + nc * (iy - sI);
+        int i1 = x + nc * y;
         lab->c[2 * i0 + 1 - A] = -lab->c[2 * i1 + 1 - A];
         lab->c[2 * i0 + A] = lab->c[2 * i1 + A];
       }
@@ -919,78 +918,47 @@ void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse) {
 static void bc_vector(BlockLab *lab, Stencil *stencil, Info *info,
                       bool coarse) {
   int n = 1 << info->level;
-  if (!coarse) {
-    if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, stencil, false);
-    if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, stencil, false);
-    if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, stencil, false);
-    if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, stencil, false);
-  } else {
-    if (info->index[0] == 0)
-      applyBCface<0, 0>(lab, stencil, coarse);
-    if (info->index[0] == n - 1)
-      applyBCface<0, 1>(lab, stencil, coarse);
-    if (info->index[1] == 0)
-      applyBCface<1, 0>(lab, stencil, coarse);
-    if (info->index[1] == n - 1)
-      applyBCface<1, 1>(lab, stencil, coarse);
-  }
+  for (int j = 0; j < 4; j++)
+    if ((bcTab[j].side == 0 ? info->index[bcTab[j].dir] == 0
+                            : info->index[bcTab[j].dir] == n - 1))
+      applyBCface(lab, stencil, coarse, bcTab[j].dir, bcTab[j].side);
 }
-template <int dir, int side>
-void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse) {
+static void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse,
+                      int dir, int side) {
   int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 2 + ss % 2;
-
-  int stenBeg[2];
-  int stenEnd[2];
-  int bsize[2];
+  int stenBeg, stenEnd, bsz;
   if (!coarse) {
-    stenEnd[0] = (stencil->s + 1);
-    stenEnd[1] = (stencil->s + 1);
-    stenBeg[0] = (-stencil->s);
-    stenBeg[1] = (-stencil->s);
-    bsize[0] = BS;
-    bsize[1] = BS;
+    stenEnd = ss + 1;
+    stenBeg = -ss;
+    bsz = BS;
   } else {
-    stenEnd[0] = ((stencil->s + 1)) / 2 + 1 + (2) - 1;
-    stenEnd[1] = ((stencil->s + 1)) / 2 + 1 + (2) - 1;
-    stenBeg[0] = ((-stencil->s) - 1) / 2 + (-1);
-    stenBeg[1] = ((-stencil->s) - 1) / 2 + (-1);
-    bsize[0] = BS / 2;
-    bsize[1] = BS / 2;
+    stenEnd = (ss + 1) / 2 + 2;
+    stenBeg = (-ss - 1) / 2 - 1;
+    bsz = BS / 2;
   }
   Real *cb = coarse ? lab->c : lab->m;
-  int n = coarse ? nc : nm;
-  int s[2];
-  int e[2];
-  s[0] = dir == 0 ? (side == 0 ? stenBeg[0] : bsize[0]) : stenBeg[0];
-  s[1] = dir == 1 ? (side == 0 ? stenBeg[1] : bsize[1]) : stenBeg[1];
-  e[0] = dir == 0 ? (side == 0 ? 0 : bsize[0] + stenEnd[0] - 1)
-                  : bsize[0] + stenEnd[0] - 1;
-  e[1] = dir == 1 ? (side == 0 ? 0 : bsize[1] + stenEnd[1] - 1)
-                  : bsize[1] + stenEnd[1] - 1;
+  int stride = coarse ? nc : nm;
+  int s[2], e[2];
+  s[0] = dir == 0 ? (side == 0 ? stenBeg : bsz) : stenBeg;
+  s[1] = dir == 1 ? (side == 0 ? stenBeg : bsz) : stenBeg;
+  e[0] = dir == 0 ? (side == 0 ? 0 : bsz + stenEnd - 1) : bsz + stenEnd - 1;
+  e[1] = dir == 1 ? (side == 0 ? 0 : bsz + stenEnd - 1) : bsz + stenEnd - 1;
+  int mirror = side == 0 ? 0 : bsz - 1;
   for (int iy = s[1]; iy < e[1]; iy++)
     for (int ix = s[0]; ix < e[0]; ix++)
-      cb[ix - stenBeg[0] + n * (iy - stenBeg[1])] =
-          cb[(dir == 0 ? (side == 0 ? 0 : bsize[0] - 1) : ix) - stenBeg[0] +
-             n * ((dir == 1 ? (side == 0 ? 0 : bsize[1] - 1) : iy) -
-                  stenBeg[1])];
-};
-template <int, int> void Neumann2D(BlockLab *, bool);
-void bc_scalar(BlockLab *lab, Stencil *stencil, Info *info, bool coarse) {
+      cb[(ix - stenBeg) + stride * (iy - stenBeg)] =
+          cb[((dir == 0 ? mirror : ix) - stenBeg) +
+             stride * ((dir == 1 ? mirror : iy) - stenBeg)];
+}
+static void bc_scalar(BlockLab *lab, Stencil *stencil, Info *info,
+                      bool coarse) {
   int n = 1 << info->level;
-  if (info->index[0] == 0)
-    Neumann2D<0, 0>(lab, stencil, coarse);
-  if (info->index[0] == n - 1)
-    Neumann2D<0, 1>(lab, stencil, coarse);
-  if (info->index[1] == 0)
-    Neumann2D<1, 0>(lab, stencil, coarse);
-  if (info->index[1] == n - 1)
-    Neumann2D<1, 1>(lab, stencil, coarse);
+  for (int j = 0; j < 4; j++)
+    if ((bcTab[j].side == 0 ? info->index[bcTab[j].dir] == 0
+                            : info->index[bcTab[j].dir] == n - 1))
+      Neumann2D(lab, stencil, coarse, bcTab[j].dir, bcTab[j].side);
 }
 static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
   Stencil stencil{1, false};
