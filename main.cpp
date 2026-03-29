@@ -1203,23 +1203,22 @@ static int adapt() {
                 state[sim.map.at(id)] != Compress)
               state[j] = Leave;
           }
-        int xp = xi / 2;
-        int yp = yi / 2;
-        if (sim.infos[j]->level == 0)
-          continue;
-        int n = 1 << (sim.infos[j]->level - 1);
-        for (int icode = 0; icode < 9; icode++) {
-          int cx = icode % 3 - 1;
-          int cy = icode / 3 - 1;
-          if (cx == 0 && cy == 0)
-            continue;
-          if (skin_skip(cx, xp, n) || skin_skip(cy, yp, n))
-            continue;
-          long long Z = sfc_forward(sim.infos[j]->level - 1, xp + cx, yp + cy);
-          long long id = sim.levels[sim.infos[j]->level - 1] + Z;
-          if (sim.tree.find(id) != sim.tree.end())
-            state[j] = Leave;
-        }
+        int level = sim.infos[j]->level;
+        int n = 1 << level;
+        for (int dx = 0; dx < 2 && state[j] != Leave; dx++)
+          for (int dy = 0; dy < 2 && state[j] != Leave; dy++) {
+            int sx = xi + dx, sy = yi + dy;
+            for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
+              int cx = icode % 3 - 1, cy = icode / 3 - 1;
+              if (cx == 0 && cy == 0) continue;
+              if (skin_skip(cx, sx, n) || skin_skip(cy, sy, n)) continue;
+              long long Z = forward(level, sx + cx, sy + cy);
+              long long id = sim.levels[level] + Z;
+              auto it = sim.tree.find(id);
+              if (it != sim.tree.end() && it->second == ChildrenAreActive)
+                state[j] = Leave;
+            }
+          }
       }
     }
   }
