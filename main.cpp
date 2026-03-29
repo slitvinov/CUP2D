@@ -249,7 +249,7 @@ static void exec_rows(const RowCopy *r, int n, int dim) {
     if (!r[i].avg)
       memcpy(r[i].dst, r[i].src, r[i].cols * dim * sizeof(Real));
     else {
-      Real *q0 = r[i].src, *q1 = q0 + BS * dim;
+      Real *q0 = r[i].src, *q1 = q0 + r[i].stride * dim;
       for (int k = 0; k < r[i].cols; k++)
         for (int d = 0; d < dim; d++)
           r[i].dst[k * dim + d] =
