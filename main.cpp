@@ -1537,9 +1537,10 @@ int main(int argc, char **argv) {
       shape->x += sim.dt * shape->u;
       shape->y += sim.dt * shape->v;
       shape->orientation += sim.dt * shape->omega;
-      shape->orientation = shape->orientation < -M_PI
-                               ? shape->orientation + 2 * M_PI
-                               : shape->orientation;
+      if (shape->orientation < -M_PI)
+        shape->orientation += 2 * M_PI;
+      else if (shape->orientation > M_PI)
+        shape->orientation -= 2 * M_PI;
     }
     ongrid();
 #pragma omp parallel for
