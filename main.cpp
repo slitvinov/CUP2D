@@ -425,6 +425,7 @@ struct BlockLab {
       GhostOp op;
       switch (state) {
       case Active:
+        assert(exist(info->level, info->Znei[1 + cx][1 + cy]));
         src0 = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
                BS * BS * blk_offset;
         op = OP_SAME;
@@ -437,6 +438,7 @@ struct BlockLab {
         assert(xi + cx >= 0);
         assert(yi + cy >= 0);
         long long Z = forward(info->level - 1, ix, iy);
+        assert(exist(info->level - 1, Z));
         src0 = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
         op = OP_COARSE;
         has_coarse = true;
