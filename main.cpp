@@ -654,78 +654,51 @@ public:
             double dx = 0.25 * (2 * x - 1);
             if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
               continue;
-            int i0 = XX + nc * (YY + 2);
-            int i1 = XX + nc * (YY);
-            int i2 = XX + nc * (YY + 1);
-            int i3 = XX + nc * (YY - 2);
-            int i4 = XX + nc * (YY - 1);
-            int i5 = XX + 2 + nc * (YY);
-            int i6 = XX + 1 + nc * (YY);
-            int i7 = XX - 1 + nc * (YY);
-            int i8 = XX - 2 + nc * (YY);
-            int j0 = ix - (-ss) + nm * (iy - (-ss));
-            int j1 = ix - (-ss) + nm * (iy - (-ss) + iyp);
-            int j2 = ix - (-ss) + ixp + nm * (iy - (-ss));
-            int j3 = ix - (-ss) + ixp + nm * (iy - (-ss) + iyp);
-            for (int d = 0; d < dim; d++) {
-              if (cx != 0) {
-                Real dudy, dudy2;
-                if (YY + offset == 0) {
-                  dudy = (-0.5 * c[dim * i0 + d] - 1.5 * c[dim * i1 + d]) +
-                         2.0 * c[dim * i2 + d];
-                  dudy2 = (c[dim * i0 + d] + c[dim * i1 + d]) -
-                          2.0 * c[dim * i2 + d];
-                } else if (YY + offset == (BS / 2) - 1) {
-                  dudy = (0.5 * c[dim * i3 + d] + 1.5 * c[dim * i1 + d]) -
-                         2.0 * c[dim * i4 + d];
-                  dudy2 = (c[dim * i3 + d] + c[dim * i1 + d]) -
-                          2.0 * c[dim * i4 + d];
+            int i1 = XX + nc * YY;
+            int j0 = (ix + ss) + nm * (iy + ss);
+            int j1 = (ix + ss) + nm * (iy + ss + iyp);
+            int j2 = (ix + ss + ixp) + nm * (iy + ss);
+            int j3 = (ix + ss + ixp) + nm * (iy + ss + iyp);
+            {
+              /* quadratic interp: derivative along tangent axis */
+              static const int dsign[2][4] = {
+                  {+1, -1, +1, -1}, /* cx!=0: deriv along y */
+                  {+1, +1, -1, -1}, /* cy!=0: deriv along x */
+              };
+              int dir = cx != 0 ? 0 : 1;
+              int stride = dir == 0 ? nc : 1;
+              int CC = dir == 0 ? YY : XX;
+              double t = dir == 0 ? dy : dx;
+              int ip2 = i1 + 2 * stride;
+              int ip1 = i1 + stride;
+              int im1 = i1 - stride;
+              int im2 = i1 - 2 * stride;
+              bool ok1 = iy + iyp >= s[1] && iy + iyp < e[1];
+              bool ok2 = ix + ixp >= s[0] && ix + ixp < e[0];
+              bool ok[4] = {true, ok1, ok2, ok1 && ok2};
+              int jj[4] = {j0, j1, j2, j3};
+              for (int d = 0; d < dim; d++) {
+                Real du, du2;
+                if (CC + offset == 0) {
+                  du = (-0.5 * c[dim * ip2 + d] - 1.5 * c[dim * i1 + d]) +
+                       2.0 * c[dim * ip1 + d];
+                  du2 = (c[dim * ip2 + d] + c[dim * i1 + d]) -
+                        2.0 * c[dim * ip1 + d];
+                } else if (CC + offset == (BS / 2) - 1) {
+                  du = (0.5 * c[dim * im2 + d] + 1.5 * c[dim * i1 + d]) -
+                       2.0 * c[dim * im1 + d];
+                  du2 = (c[dim * im2 + d] + c[dim * i1 + d]) -
+                        2.0 * c[dim * im1 + d];
                 } else {
-                  dudy = 0.5 * (c[dim * i2 + d] - c[dim * i4 + d]);
-                  dudy2 = (c[dim * i2 + d] + c[dim * i4 + d]) -
-                          2.0 * c[dim * i1 + d];
+                  du = 0.5 * (c[dim * ip1 + d] - c[dim * im1 + d]);
+                  du2 = (c[dim * ip1 + d] + c[dim * im1 + d]) -
+                        2.0 * c[dim * i1 + d];
                 }
-                m[dim * j0 + d] =
-                    c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[dim * j1 + d] =
-                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[dim * j2 + d] =
-                      c[dim * i1 + d] + dy * dudy + (0.5 * dy * dy) * dudy2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                    iy + iyp < e[1])
-                  m[dim * j3 + d] =
-                      c[dim * i1 + d] - dy * dudy + (0.5 * dy * dy) * dudy2;
-              } else {
-                Real dudx, dudx2;
-                if (XX + offset == 0) {
-                  dudx = (-0.5 * c[dim * i5 + d] - 1.5 * c[dim * i1 + d]) +
-                         2.0 * c[dim * i6 + d];
-                  dudx2 = (c[dim * i5 + d] + c[dim * i1 + d]) -
-                          2.0 * c[dim * i6 + d];
-                } else if (XX + offset == (BS / 2) - 1) {
-                  dudx = (0.5 * c[dim * i8 + d] + 1.5 * c[dim * i1 + d]) -
-                         2.0 * c[dim * i7 + d];
-                  dudx2 = (c[dim * i8 + d] + c[dim * i1 + d]) -
-                          2.0 * c[dim * i7 + d];
-                } else {
-                  dudx = 0.5 * (c[dim * i6 + d] - c[dim * i7 + d]);
-                  dudx2 = (c[dim * i6 + d] + c[dim * i7 + d]) -
-                          2.0 * c[dim * i1 + d];
-                }
-                m[dim * j0 + d] =
-                    c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (iy + iyp >= s[1] && iy + iyp < e[1])
-                  m[dim * j1 + d] =
-                      c[dim * i1 + d] + dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0])
-                  m[dim * j2 + d] =
-                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
-                if (ix + ixp >= s[0] && ix + ixp < e[0] && iy + iyp >= s[1] &&
-                    iy + iyp < e[1])
-                  m[dim * j3 + d] =
-                      c[dim * i1 + d] - dx * dudx + (0.5 * dx * dx) * dudx2;
+                Real val_p = c[dim * i1 + d] + t * du + (0.5 * t * t) * du2;
+                Real val_m = c[dim * i1 + d] - t * du + (0.5 * t * t) * du2;
+                for (int k = 0; k < 4; k++)
+                  if (ok[k])
+                    m[dim * jj[k] + d] = dsign[dir][k] > 0 ? val_p : val_m;
               }
             }
           }
