@@ -206,18 +206,29 @@ static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
   *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
   *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
 }
-enum GhostOp { OP_SKIP = 0, OP_SAME, OP_COARSE, OP_FINE };
-enum InterpOp { INTERP_NONE, INTERP_CORNER, INTERP_FACE };
-struct GhostWork {
-  GhostOp op;
-  InterpOp iop;
+struct RowCopy { Real *src, *dst; int cols; bool avg; };
+struct NeighborCfg;
+struct LoadCtx {
+  Info *info;
+  int xi, yi, blk_off, dim, nm, nc, ss, coff;
+  Real *m, *c;
+  RowCopy *fm; int *nfm;
+  RowCopy *fc; int *nfc;
+  Real *active_ptrs[9];
+  int active_icodes[8]; int *nactive;
+  unsigned *coarse_mask; bool *has_coarse;
+};
+typedef void (*push_fn_t)(const NeighborCfg *, LoadCtx *, int);
+typedef void (*interp_fn_t)(const NeighborCfg *, Real *, Real *, int, int, int,
+                            int, int);
+struct NeighborCfg {
+  push_fn_t push;
+  interp_fn_t interp;
   int cx, cy;
   int fs[2], fe[2];
   int cs[2], ce[2];
   int cstart[2];
   int sC[2];
-  Real *src[2];
-  const ChildNeighborPattern *pattern;
 };
 static const struct {
   int cx, cy;
@@ -234,110 +245,130 @@ static const int face_dsign[2][4] = {
     {+1, -1, +1, -1},
     {+1, +1, -1, -1},
 };
-static void do_copy_same(Real *m, Real *, const GhostWork *w, int dim, int nm,
-                         int, int ss, int) {
-  int bytes = (w->fe[0] - w->fs[0]) * dim * sizeof(Real);
-  if (!bytes || !w->src[0])
-    return;
-  for (int iy = w->fs[1]; iy < w->fe[1]; iy++)
-    memcpy(m + dim * ((w->fs[0] + ss) + (iy + ss) * nm),
-           w->src[0] + dim * (BS * (iy - w->cy * BS) + w->fs[0] - w->cx * BS),
-           bytes);
-}
-static void do_copy_coarse(Real *, Real *c, const GhostWork *w, int dim, int,
-                           int nc, int, int coff) {
-  int bytes = (w->ce[0] - w->cs[0]) * dim * sizeof(Real);
-  if (!bytes)
-    return;
-  int di = w->cs[0] - coff;
-  for (int iy = w->cs[1]; iy < w->ce[1]; iy++)
-    memcpy(c + dim * (di + (iy - coff) * nc),
-           w->src[0] +
-               dim * (BS * (iy + w->cstart[1]) + w->cs[0] + w->cstart[0]),
-           bytes);
-}
-static void do_copy_fine(Real *m, Real *, const GhostWork *w, int dim, int nm,
-                         int, int ss, int) {
-  int cx = w->cx, cy = w->cy;
-  int width = abs(cx) * (w->fe[0] - w->fs[0]) +
-              (1 - abs(cx)) * ((w->fe[0] - w->fs[0]) / 2);
-  if (!width)
-    return;
-  const ChildNeighborPattern *pat = w->pattern;
-  int ys = pat->ys;
-  int B = 0;
-  for (int cnt = 0; cnt < pat->count; cnt++, B += pat->Bstep) {
-    int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
-    Real *b = w->src[cnt];
-    int di =
-        abs(cx) * (w->fs[0] + ss) +
-        (1 - abs(cx)) * (w->fs[0] + ss + (B % 2) * (w->fe[0] - w->fs[0]) / 2);
-    int sx = w->fs[0] - cx * BS + std::min(0, cx) * (w->fe[0] - w->fs[0]);
-    for (int iy = w->fs[1]; iy < w->fe[1]; iy += ys) {
-      int dk = di + (abs(cy) * (iy + ss) +
-                     (1 - abs(cy)) *
-                         (iy / 2 + ss + aux * (w->fe[1] - w->fs[1]) / 2)) *
-                        nm;
-      int sy = (abs(cy) == 1) ? 2 * (iy - cy * BS) + std::min(0, cy) * BS : iy;
-      Real *p = m + dim * dk;
-      Real *q0 = b + dim * (BS * sy + sx);
-      Real *q1 = b + dim * (BS * (sy + 1) + sx);
-      for (int ee = 0; ee < width; ee++)
+static void exec_rows(const RowCopy *r, int n, int dim) {
+  for (int i = 0; i < n; i++) {
+    if (!r[i].avg)
+      memcpy(r[i].dst, r[i].src, r[i].cols * dim * sizeof(Real));
+    else {
+      Real *q0 = r[i].src, *q1 = q0 + BS * dim;
+      for (int k = 0; k < r[i].cols; k++)
         for (int d = 0; d < dim; d++)
-          *(p + dim * ee + d) =
-              (*(q0 + dim * 2 * ee + d) + *(q0 + dim * (2 * ee + 1) + d) +
-               *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) /
+          r[i].dst[k * dim + d] =
+              (q0[2 * k * dim + d] + q0[(2 * k + 1) * dim + d] +
+               q1[2 * k * dim + d] + q1[(2 * k + 1) * dim + d]) /
               4;
     }
   }
 }
-static void do_skip(Real *, Real *, const GhostWork *, int, int, int, int,
-                    int) {}
-typedef void (*copy_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int,
-                          int);
-static copy_fn_t copy_tab[] = {do_skip, do_copy_same, do_copy_coarse,
-                               do_copy_fine};
-
-static void do_interp_none(Real *, Real *, const GhostWork *, int, int, int,
-                           int, int) {}
-static void do_interp_corner(Real *m, Real *c, const GhostWork *w, int dim,
-                             int nm, int nc, int ss, int coff) {
-  int cx = w->cx, cy = w->cy;
-  for (int iy = w->fs[1]; iy < w->fe[1]; iy++)
-    for (int ix = w->fs[0]; ix < w->fe[0]; ix++) {
+static void push_noop(const NeighborCfg *, LoadCtx *, int) {}
+static void push_same(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
+  int dim = ctx->dim, nm = ctx->nm, ss = ctx->ss;
+  Real *src =
+      getf0(ctx->info->level, ctx->info->Znei[1 + cfg->cx][1 + cfg->cy])
+          ->block +
+      BS * BS * ctx->blk_off;
+  for (int iy = cfg->fs[1]; iy < cfg->fe[1]; iy++)
+    ctx->fm[(*ctx->nfm)++] = {
+        src + dim * (BS * (iy - cfg->cy * BS) + (cfg->fs[0] - cfg->cx * BS)),
+        ctx->m + dim * ((cfg->fs[0] + ss) + (iy + ss) * nm),
+        cfg->fe[0] - cfg->fs[0], false};
+  ctx->active_ptrs[icode] = src;
+  ctx->active_icodes[(*ctx->nactive)++] = icode;
+}
+static void push_fine(const NeighborCfg *cfg, LoadCtx *ctx, int) {
+  const ChildNeighborPattern *pat = get_child_pattern(cfg->cx, cfg->cy);
+  int xi = ctx->xi, yi = ctx->yi, dim = ctx->dim, nm = ctx->nm, ss = ctx->ss;
+  int cx = cfg->cx, cy = cfg->cy;
+  int width = abs(cx) * (cfg->fe[0] - cfg->fs[0]) +
+              (1 - abs(cx)) * ((cfg->fe[0] - cfg->fs[0]) / 2);
+  int B = 0;
+  for (int cnt = 0; cnt < pat->count; cnt++, B += pat->Bstep) {
+    int ix = 2 * xi + pat->offset[cnt][0], iy = 2 * yi + pat->offset[cnt][1];
+    Real *b =
+        getf0(ctx->info->level + 1, forward(ctx->info->level + 1, ix, iy))
+            ->block +
+        BS * BS * ctx->blk_off;
+    int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
+    int di = abs(cx) * (cfg->fs[0] + ss) +
+             (1 - abs(cx)) *
+                 (cfg->fs[0] + ss + (B % 2) * (cfg->fe[0] - cfg->fs[0]) / 2);
+    int sx = cfg->fs[0] - cx * BS + std::min(0, cx) * (cfg->fe[0] - cfg->fs[0]);
+    for (int iy2 = cfg->fs[1]; iy2 < cfg->fe[1]; iy2 += pat->ys) {
+      int sy =
+          (abs(cy) == 1) ? 2 * (iy2 - cy * BS) + std::min(0, cy) * BS : iy2;
+      int dk = di + (abs(cy) * (iy2 + ss) +
+                     (1 - abs(cy)) *
+                         (iy2 / 2 + ss + aux * (cfg->fe[1] - cfg->fs[1]) / 2)) *
+                        nm;
+      ctx->fm[(*ctx->nfm)++] = {b + dim * (BS * sy + sx), ctx->m + dim * dk,
+                                width, true};
+    }
+  }
+}
+static void push_coarse(const NeighborCfg *cfg, LoadCtx *ctx, int icode) {
+  int xi = ctx->xi, yi = ctx->yi, dim = ctx->dim, nc = ctx->nc,
+      coff = ctx->coff;
+  Real *src =
+      getf0(ctx->info->level - 1,
+            forward(ctx->info->level - 1, (xi + cfg->cx) / 2,
+                    (yi + cfg->cy) / 2))
+          ->block +
+      BS * BS * ctx->blk_off;
+  for (int iy = cfg->cs[1]; iy < cfg->ce[1]; iy++)
+    ctx->fc[(*ctx->nfc)++] = {
+        src +
+            dim * (BS * (iy + cfg->cstart[1]) + cfg->cs[0] + cfg->cstart[0]),
+        ctx->c + dim * (cfg->cs[0] - coff + (iy - coff) * nc),
+        cfg->ce[0] - cfg->cs[0], false};
+  *ctx->has_coarse = true;
+  *ctx->coarse_mask |= 1u << icode;
+}
+static void interp_noop(const NeighborCfg *, Real *, Real *, int, int, int,
+                        int, int) {}
+static void interp_corner(const NeighborCfg *cfg, Real *m, Real *c, int dim,
+                          int nm, int nc, int ss, int coff) {
+  int cx = cfg->cx, cy = cfg->cy;
+  for (int iy = cfg->fs[1]; iy < cfg->fe[1]; iy++)
+    for (int ix = cfg->fs[0]; ix < cfg->fe[0]; ix++) {
       int YY =
-          (iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) / 2 +
-          w->sC[1];
+          (iy - cfg->fs[1] -
+           std::min(0, cy) * ((cfg->fe[1] - cfg->fs[1]) % 2)) /
+              2 +
+          cfg->sC[1];
       int XX =
-          (ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) / 2 +
-          w->sC[0];
+          (ix - cfg->fs[0] -
+           std::min(0, cx) * ((cfg->fe[0] - cfg->fs[0]) % 2)) /
+              2 +
+          cfg->sC[0];
       Real *Test[3][3];
       for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-          Test[i][j] = c + dim * (XX - 1 + i - coff + nc * (YY - 1 + j - coff));
+          Test[i][j] =
+              c + dim * (XX - 1 + i - coff + nc * (YY - 1 + j - coff));
       for (int d = 0; d < dim; d++)
         TestInterp(
             Test, m + dim * (ix + ss + nm * (iy + ss)) + d,
-            abs(ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) %
+            abs(ix - cfg->fs[0] -
+                std::min(0, cx) * ((cfg->fe[0] - cfg->fs[0]) % 2)) %
                 2,
-            abs(iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) %
+            abs(iy - cfg->fs[1] -
+                std::min(0, cy) * ((cfg->fe[1] - cfg->fs[1]) % 2)) %
                 2);
     }
 }
-static void do_interp_face(Real *m, Real *c, const GhostWork *w, int dim,
-                           int nm, int nc, int ss, int coff) {
-  int cx = w->cx, cy = w->cy;
-  int s0 = w->fs[0], s1 = w->fs[1], e0 = w->fe[0], e1 = w->fe[1];
-  /* quadratic face interpolation */
+static void interp_face(const NeighborCfg *cfg, Real *m, Real *c, int dim,
+                        int nm, int nc, int ss, int coff) {
+  int cx = cfg->cx, cy = cfg->cy;
+  int s0 = cfg->fs[0], s1 = cfg->fs[1], e0 = cfg->fe[0], e1 = cfg->fe[1];
   for (int iy = s1; iy < e1; iy += 2) {
     int YY =
-        (iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) / 2 + w->sC[1] - coff;
+        (iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) / 2 + cfg->sC[1] - coff;
     int y = abs(iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) % 2;
     int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
     double dy = 0.25 * (2 * y - 1);
     for (int ix = s0; ix < e0; ix += 2) {
-      int XX =
-          (ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) / 2 + w->sC[0] - coff;
+      int XX = (ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) / 2 +
+               cfg->sC[0] - coff;
       int x = abs(ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) % 2;
       int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
       double dx = 0.25 * (2 * x - 1);
@@ -380,7 +411,6 @@ static void do_interp_face(Real *m, Real *c, const GhostWork *w, int dim,
       }
     }
   }
-  /* LI/LE correction */
   int li = -1;
   for (int j = 0; j < 4; j++)
     if (liLeTab[j].cx == cx && liLeTab[j].cy == cy) {
@@ -410,68 +440,63 @@ static void do_interp_face(Real *m, Real *c, const GhostWork *w, int dim,
         }
       }
 }
-typedef void (*interp_fn_t)(Real *, Real *, const GhostWork *, int, int, int,
-                            int, int);
-static interp_fn_t interp_tab[] = {do_interp_none, do_interp_corner,
-                                   do_interp_face};
-
-typedef void (*fill_fn_t)(GhostWork *, Info *, int, int, int, int, int, int,
-                          int);
-static void fill_same(GhostWork *w, Info *info, int cx, int cy, int, int,
-                      int blk_offset, int, int) {
-  w->src[0] = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
-              BS * BS * blk_offset;
-}
-static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi,
-                      int blk_offset, int, int) {
-  const ChildNeighborPattern *pat = get_child_pattern(cx, cy);
-  assert(pat);
-  w->pattern = pat;
-  for (int cnt = 0; cnt < pat->count; cnt++) {
-    int ix = 2 * xi + pat->offset[cnt][0];
-    int iy = 2 * yi + pat->offset[cnt][1];
-    long long Z = forward(info->level + 1, ix, iy);
-    w->src[cnt] = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
-  }
-}
-static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi,
-                        int yi, int blk_offset, int ss, int coff) {
-  int ix = (xi + cx) / 2, iy = (yi + cy) / 2;
-  assert(xi + cx >= 0);
-  assert(yi + cy >= 0);
-  long long Z = forward(info->level - 1, ix, iy);
-  w->src[0] = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
-  coarse_bounds(cx, ss, coff, &w->cs[0], &w->ce[0]);
-  coarse_bounds(cy, ss, coff, &w->cs[1], &w->ce[1]);
-  int infoNei[2] = {xi + cx, yi + cy};
-  int base[2] = {infoNei[0] % 2, infoNei[1] % 2};
-  int CoarseEdge[2];
-  CoarseEdge[0] = cx == 0 ? 0
-                  : (((xi % 2 == 0) && (infoNei[0] > xi)) ||
-                     ((xi % 2 == 1) && (infoNei[0] < xi)))
-                      ? 1
-                      : 0;
-  CoarseEdge[1] = cy == 0 ? 0
-                  : (((yi % 2 == 0) && (infoNei[1] > yi)) ||
-                     ((yi % 2 == 1) && (infoNei[1] < yi)))
-                      ? 1
-                      : 0;
-  w->cstart[0] = std::max(cx, 0) * BS / 2 + (1 - abs(cx)) * base[0] * BS / 2 -
-                 cx * BS + CoarseEdge[0] * cx * BS / 2;
-  w->cstart[1] = std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
-                 cy * BS + CoarseEdge[1] * cy * BS / 2;
-  w->sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
-  w->sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
-}
-static fill_fn_t fill_tab[] = {fill_same, fill_fine, fill_coarse};
 
 struct BlockLab {
   int dim;
   Real *m, *c;
+  NeighborCfg cfg_tab[3][3][2][2][3][2];
   BlockLab(int dim) : dim(dim), m(NULL), c(NULL) {}
   ~BlockLab() {
     free(m);
     free(c);
+  }
+  void init_cfg_tab(int ss) {
+    int coff = (-ss - 1) / 2 - 1;
+    for (int cy = -1; cy <= 1; cy++)
+      for (int cx = -1; cx <= 1; cx++) {
+        if (cx == 0 && cy == 0)
+          continue;
+        for (int xp = 0; xp < 2; xp++)
+          for (int yp = 0; yp < 2; yp++)
+            for (int s = 0; s < 3; s++)
+              for (int ua = 0; ua < 2; ua++) {
+                NeighborCfg *e = &cfg_tab[cx + 1][cy + 1][xp][yp][s][ua];
+                e->cx = cx;
+                e->cy = cy;
+                ghost_bounds(cx, ss, &e->fs[0], &e->fe[0]);
+                ghost_bounds(cy, ss, &e->fs[1], &e->fe[1]);
+                coarse_bounds(cx, ss, coff, &e->cs[0], &e->ce[0]);
+                coarse_bounds(cy, ss, coff, &e->cs[1], &e->ce[1]);
+                for (int d = 0; d < 2; d++) {
+                  int c = d == 0 ? cx : cy;
+                  int coord = d == 0 ? xp : yp;
+                  int base_d = (coord + c + 2) % 2;
+                  int CoarseEdge_d =
+                      (c != 0) && (coord == (c < 0 ? 1 : 0)) ? 1 : 0;
+                  e->cstart[d] = std::max(c, 0) * BS / 2 +
+                                 (1 - abs(c)) * base_d * BS / 2 - c * BS +
+                                 CoarseEdge_d * c * BS / 2;
+                }
+                e->sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
+                e->sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
+                int is_face = abs(cx) + abs(cy) == 1;
+                bool skip = (s != 2) && !is_face && !ua;
+                if (skip)
+                  e->push = push_noop;
+                else if (s == 0)
+                  e->push = push_same;
+                else if (s == 1)
+                  e->push = push_fine;
+                else
+                  e->push = push_coarse;
+                if (s != 2)
+                  e->interp = interp_noop;
+                else if (is_face)
+                  e->interp = interp_face;
+                else
+                  e->interp = interp_corner;
+              }
+      }
   }
   void prepare(int ss) {
     int nm = 2 * ss + BS;
@@ -480,6 +505,7 @@ struct BlockLab {
     free(c);
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
     c = (Real *)malloc(nc * nc * dim * sizeof(Real));
+    init_cfg_tab(ss);
   }
   void load1(int blk_offset, const TreeState *nei, Stencil *stencil, Info *info,
              bool applybc) {
@@ -501,56 +527,52 @@ struct BlockLab {
     static bc_fn_t bc_dim_tab[] = {bc_scalar, bc_vector};
     bc_fn_t bc_fn = applybc ? bc_dim_tab[dim > 1] : bc_noop;
 
-    static const GhostOp state_to_op[] = {OP_SAME, OP_FINE, OP_COARSE};
-    static const InterpOp iop_tab[2][2] = {
-        {INTERP_NONE, INTERP_FACE},
-        {INTERP_CORNER, INTERP_FACE},
-    };
-    GhostWork work[8];
-    int nwork = 0;
+    RowCopy fm[96], fc[96];
+    int nfm = 0, nfc = 0;
     bool has_coarse = false;
     unsigned coarse_mask = 0;
-    Real *active_ptrs[9] = {};
-    int active_icodes[8];
     int nactive = 0;
+    LoadCtx ctx;
+    ctx.info = info;
+    ctx.xi = xi;
+    ctx.yi = yi;
+    ctx.blk_off = blk_offset;
+    ctx.dim = dim;
+    ctx.nm = nm;
+    ctx.nc = nc;
+    ctx.ss = ss;
+    ctx.coff = coff;
+    ctx.m = m;
+    ctx.c = c;
+    ctx.fm = fm;
+    ctx.nfm = &nfm;
+    ctx.fc = fc;
+    ctx.nfc = &nfc;
+    memset(ctx.active_ptrs, 0, sizeof(ctx.active_ptrs));
+    ctx.nactive = &nactive;
+    ctx.coarse_mask = &coarse_mask;
+    ctx.has_coarse = &has_coarse;
 
+    int ua = (int)use_averages;
     for (int icode = 0; icode < 9; icode++) {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
-      if (cx == 0 && cy == 0)
+      if (!cx && !cy)
         continue;
       if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
         continue;
-      TreeState state = nei[3 * (1 + cx) + (1 + cy)];
-      GhostWork *w = &work[nwork++];
-      w->cx = cx;
-      w->cy = cy;
-      fill_tab[-state](w, info, cx, cy, xi, yi, blk_offset, ss, coff);
-      ghost_bounds(cx, ss, &w->fs[0], &w->fe[0]);
-      ghost_bounds(cy, ss, &w->fs[1], &w->fe[1]);
-      int is_face = abs(cx) + abs(cy) == 1;
-      int is_coarse = (state == ParentIsActive);
-      int keep = is_face | (int)use_averages | is_coarse;
-      w->op = (GhostOp)(state_to_op[-state] * keep);
-      w->iop = (InterpOp)(iop_tab[use_averages][is_face] * is_coarse);
-      if (state == Active) {
-        active_icodes[nactive] = icode;
-        active_ptrs[icode] = w->src[0];
-        nactive++;
-      }
-      if (is_coarse) {
-        has_coarse = true;
-        coarse_mask |= 1u << icode;
-      }
+      int s = -nei[3 * (1 + cx) + (1 + cy)];
+      cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua].push(
+          &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua], &ctx, icode);
     }
 
-    for (int i = 0; i < nwork; i++)
-      copy_tab[work[i].op](m, c, &work[i], dim, nm, nc, ss, coff);
+    exec_rows(fm, nfm, dim);
+    exec_rows(fc, nfc, dim);
 
     if (has_coarse) {
       int do_aic = (info->level > 0) & (int)use_averages;
       int aux = 1 << info->level;
       for (int i = 0; i < nactive; ++i) {
-        int icode = active_icodes[i];
+        int icode = ctx.active_icodes[i];
         int cx = icode % 3 - 1, cy = icode / 3 - 1;
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
         int imin[2], imax[2];
@@ -569,8 +591,8 @@ struct BlockLab {
           for (int i0 = imin[0]; i0 <= imax[0]; i0++)
             check_mask |= 1u << ((i0 + 1) + 3 * (i1 + 1));
         int cond = do_aic & ((check_mask & coarse_mask) != 0);
-        if (cond && active_ptrs[icode]) {
-          Real *b = active_ptrs[icode];
+        if (cond && ctx.active_ptrs[icode]) {
+          Real *b = ctx.active_ptrs[icode];
           int eC = (ss + 1) / 2 + 2;
           int cs[2], ce[2];
           coarse_bounds(cx, ss, coff, &cs[0], &ce[0]);
@@ -609,15 +631,25 @@ struct BlockLab {
           for (int d = 0; d < dim; d++)
             c[dim * j00 + d] =
                 (m[dim * (ix + nm * (iy + 1)) + d] +
-                 m[dim * (ix + nm * iy) + d] + m[dim * (ix + 1 + nm * iy) + d] +
+                 m[dim * (ix + nm * iy) + d] +
+                 m[dim * (ix + 1 + nm * iy) + d] +
                  m[dim * (ix + 1 + nm * (iy + 1)) + d]) /
                 4;
         }
       bc_fn(this, stencil, info, true);
     }
 
-    for (int i = 0; i < nwork; i++)
-      interp_tab[work[i].iop](m, c, &work[i], dim, nm, nc, ss, coff);
+    for (int icode = 0; icode < 9; icode++) {
+      int cx = icode % 3 - 1, cy = icode / 3 - 1;
+      if (!cx && !cy)
+        continue;
+      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+        continue;
+      int s = -nei[3 * (1 + cx) + (1 + cy)];
+      cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua].interp(
+          &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua], m, c, dim, nm, nc,
+          ss, coff);
+    }
 
     bc_fn(this, stencil, info, false);
   }
