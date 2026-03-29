@@ -931,9 +931,7 @@ static int adapt() {
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
         }
-      int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
-      int offsetX[2] = {0, BS / 2};
-      int offsetY[2] = {0, BS / 2};
+      int nm = 2 * stencil.s + BS;
       Info *parent = getf0(level_ref[k], Z_ref[k]);
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
@@ -945,14 +943,14 @@ static int adapt() {
             Real *b = blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + offsetX[I] + stencil.s;
-                int j0 = j / 2 + offsetY[J] + stencil.s;
+                int i0 = i / 2 + I * (BS / 2) + stencil.s;
+                int j0 = j / 2 + J * (BS / 2) + stencil.s;
                 int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
                 for (int s = 0; s < 4; s++)
                   for (int d = 0; d < dim; d++) {
                     Real val = 0;
-                    for (int k = 0; k < 9; k++)
-                      val += refine_w[s][k] * um[dim*(nm*(j0+k/3-1)+i0+k%3-1)+d];
+                    for (int kk = 0; kk < 9; kk++)
+                      val += refine_w[s][kk] * um[dim*(nm*(j0+kk/3-1)+i0+kk%3-1)+d];
                     b[dim * sub[s] + d] = val;
                   }
               }
@@ -979,26 +977,22 @@ static int adapt() {
 #pragma omp critical
             dealloc_IDs.insert(sim.levels[level_com[k]] + Z);
         }
-      int offsetX[2] = {0, BS / 2};
-      int offsetY[2] = {0, BS / 2};
-      for (size_t k = 0; k < sizeof vars / sizeof *vars; k++) {
-        int dim = vars[k].dim;
-        int offset = vars[k].offset;
+      Real *dst = Blocks[0];
+      for (size_t v = 0; v < sizeof vars / sizeof *vars; v++) {
+        int dim = vars[v].dim;
+        int offset = vars[v].offset;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *c = Blocks[0] + offset * BS * BS;
-            Real *b = Blocks[J * 2 + I] + offset * BS * BS;
+            Real *src = Blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
-                int i00 = BS * j + i;
-                int i01 = BS * (j + 1) + i;
-                int i10 = BS * j + i + 1;
-                int i11 = BS * (j + 1) + i + 1;
-                int o = BS * (j / 2 + offsetY[J]) + i / 2 + offsetX[I];
+                int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
                 for (int d = 0; d < dim; d++)
-                  c[dim * o + d] = (b[dim * i00 + d] + b[dim * i01 + d] +
-                                    b[dim * i10 + d] + b[dim * i11 + d]) /
-                                   4;
+                  dst[dim * (offset * BS * BS + o) + d] =
+                      (src[dim * (BS * j + i) + d] +
+                       src[dim * (BS * j + i + 1) + d] +
+                       src[dim * (BS * (j + 1) + i) + d] +
+                       src[dim * (BS * (j + 1) + i + 1) + d]) / 4;
               }
           }
       }
