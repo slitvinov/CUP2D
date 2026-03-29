@@ -4,6 +4,8 @@ import sys
 import os
 import re
 import xml.etree.ElementTree
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import statistics
