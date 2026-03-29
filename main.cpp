@@ -1920,9 +1920,10 @@ static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
     D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
           {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
           {This(info_c, ix_c, iy_c), -3. / 8.}}};
-  D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
-        {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
-        {This(info_c, ix_c, iy_c), 0.}}};
+  else
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
+          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
+          {This(info_c, ix_c, iy_c), 0.}}};
   for (int i = 0; i < 3; i++)
     row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
 
@@ -1934,9 +1935,10 @@ static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
     D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
           {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
           {This(info_c, ix_c, iy_c), 1. / 32.}}};
-  D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
-        {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
-        {This(info_c, ix_c, iy_c), -1. / 16.}}};
+  else
+    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
+          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
+          {This(info_c, ix_c, iy_c), -1. / 16.}}};
   for (int i = 0; i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
