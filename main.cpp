@@ -68,7 +68,7 @@ enum TreeState : signed char {
 };
 struct Shape;
 struct Info;
-static struct {
+static struct Sim {
   int AdaptSteps;
   int levelMax;
   int levelStart;
@@ -1939,19 +1939,29 @@ int main(int argc, char **argv) {
 #pragma omp master
   fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
 #endif
-  sim.levelMax = parser("levelMax").asInt();
-  sim.Rtol = parser("Rtol").asDouble();
-  sim.Ctol = parser("Ctol").asDouble();
-  sim.AdaptSteps = parser("AdaptSteps").asInt();
-  sim.levelStart = parser("levelStart").asInt();
-  sim.CFL = parser("CFL").asDouble();
-  sim.endTime = parser("tend").asDouble();
-  sim.lambda = parser("lambda").asDouble();
-  sim.nu = parser("nu").asDouble();
-  sim.PoissonTol = parser("poissonTol").asDouble();
-  sim.PoissonTolRel = parser("poissonTolRel").asDouble();
-  sim.maxPoissonRestarts = parser("maxPoissonRestarts").asInt();
-  sim.dumpTime = parser("tdump").asDouble();
+  {
+    static const struct { const char *name; int type; size_t off; } tab[] = {
+      {"levelMax",           0, offsetof(struct Sim, levelMax)},
+      {"AdaptSteps",         0, offsetof(struct Sim, AdaptSteps)},
+      {"levelStart",         0, offsetof(struct Sim, levelStart)},
+      {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
+      {"Rtol",               1, offsetof(struct Sim, Rtol)},
+      {"Ctol",               1, offsetof(struct Sim, Ctol)},
+      {"CFL",                1, offsetof(struct Sim, CFL)},
+      {"tend",               1, offsetof(struct Sim, endTime)},
+      {"lambda",             1, offsetof(struct Sim, lambda)},
+      {"nu",                 1, offsetof(struct Sim, nu)},
+      {"poissonTol",         1, offsetof(struct Sim, PoissonTol)},
+      {"poissonTolRel",      1, offsetof(struct Sim, PoissonTolRel)},
+      {"tdump",              1, offsetof(struct Sim, dumpTime)},
+    };
+    char *base = (char *)&sim;
+    for (size_t i = 0; i < sizeof tab / sizeof *tab; i++)
+      if (tab[i].type == 0)
+        *(int *)(base + tab[i].off) = parser(tab[i].name).asInt();
+      else
+        *(Real *)(base + tab[i].off) = parser(tab[i].name).asDouble();
+  }
   sim.nshape = 0;
   sim.shapes = NULL;
   std::string shapeArg = parser("shapes").asString();
