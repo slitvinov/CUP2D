@@ -532,28 +532,13 @@ struct BlockLab {
     bool has_coarse = false;
     unsigned coarse_mask = 0;
     int nactive = 0;
-    LoadCtx ctx;
-    ctx.info = info;
-    ctx.xi = xi;
-    ctx.yi = yi;
-    ctx.blk_off = blk_offset;
-    ctx.dim = dim;
-    ctx.nm = nm;
-    ctx.nc = nc;
-    ctx.ss = ss;
-    ctx.coff = coff;
-    ctx.m = m;
-    ctx.c = c;
-    ctx.fm = fm;
-    ctx.nfm = &nfm;
-    ctx.fc = fc;
-    ctx.nfc = &nfc;
-    memset(ctx.active_ptrs, 0, sizeof(ctx.active_ptrs));
-    ctx.nactive = &nactive;
-    ctx.coarse_mask = &coarse_mask;
-    ctx.has_coarse = &has_coarse;
+    LoadCtx ctx = {info, xi, yi, blk_offset, dim, nm, nc, ss, coff,
+                   m,    c,  fm, &nfm,        fc, &nfc, {}, {}, &nactive,
+                   &coarse_mask, &has_coarse};
 
     int ua = (int)use_averages;
+    const NeighborCfg *cfgs[8];
+    int icodes[8], ncfg = 0;
     for (int icode = 0; icode < 9; icode++) {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
       if (!cx && !cy)
@@ -561,10 +546,12 @@ struct BlockLab {
       if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
         continue;
       int s = -nei[3 * (1 + cx) + (1 + cy)];
-      cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua].push(
-          &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua], &ctx, icode);
+      cfgs[ncfg]   = &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua];
+      icodes[ncfg] = icode;
+      ncfg++;
     }
 
+    for (int i = 0; i < ncfg; i++) cfgs[i]->push(cfgs[i], &ctx, icodes[i]);
     exec_rows(fm, nfm, dim);
     exec_rows(fc, nfc, dim);
 
@@ -639,18 +626,8 @@ struct BlockLab {
       bc_fn(this, stencil, info, true);
     }
 
-    for (int icode = 0; icode < 9; icode++) {
-      int cx = icode % 3 - 1, cy = icode / 3 - 1;
-      if (!cx && !cy)
-        continue;
-      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
-        continue;
-      int s = -nei[3 * (1 + cx) + (1 + cy)];
-      cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua].interp(
-          &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua], m, c, dim, nm, nc,
-          ss, coff);
-    }
-
+    for (int i = 0; i < ncfg; i++)
+      cfgs[i]->interp(cfgs[i], m, c, dim, nm, nc, ss, coff);
     bc_fn(this, stencil, info, false);
   }
   void load(int blk_offset, Stencil *stencil, Info *info, bool applybc) {
