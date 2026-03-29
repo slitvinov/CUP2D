@@ -9,7 +9,7 @@ rm -rf "${d?not set}" &&
    module load gcc/13 openmpi cuda python &&
    python3 gen_table.py &&
    make -j "CXXFLAGS = -coverage -O3 -g3" "LDFLAGS = -Xcompiler -coverage" &&
-   OMP_NUM_THREADS=4 srun -p gpu_test -c 1 -n 1 -N 1 -G 1 --mem 2Gb -t 30 sh -x run.sh &&
+   OMP_NUM_THREADS=4 srun -p gpu_test -c 4 -n 1 -N 1 -G 1 --mem 2Gb -t 30 sh -x run.sh &&
    source activate jepa
    # ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` tool/post.py &&
    # PYTHONNOUSERSITE= python -m gcovr --html-details cover.html
