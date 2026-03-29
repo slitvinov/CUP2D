@@ -27,30 +27,6 @@ enum {
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-struct ChildNeighborPattern {
-  int cx, cy;
-  int Bstep;
-  int ys;
-  int offset[2][2];
-  int count;
-};
-static constexpr ChildNeighborPattern childNeighborTable[] = {
-    // cx, cy, Bstep, ys, children[], count
-    {-1, -1, 3, 1, {{-1, -1}, {}}, 1},    // SW
-    {0, -1, 1, 1, {{0, -1}, {1, -1}}, 2}, // S
-    {1, -1, 3, 1, {{2, -1}, {}}, 1},      // SE
-    {-1, 0, 1, 2, {{-1, 0}, {-1, 1}}, 2}, // W
-    {1, 0, 1, 2, {{2, 0}, {2, 1}}, 2},    // E
-    {-1, 1, 3, 1, {{-1, 2}, {}}, 1},      // NW
-    {0, 1, 1, 1, {{0, 2}, {1, 2}}, 2},    // N
-    {1, 1, 3, 1, {{2, 2}, {}}, 1},        // NE
-};
-const ChildNeighborPattern *get_child_pattern(int cx, int cy) {
-  for (auto &entry : childNeighborTable)
-    if (entry.cx == cx && entry.cy == cy)
-      return &entry;
-  return NULL;
-}
 struct Stencil {
   int s;
   bool tensorial;
@@ -179,14 +155,6 @@ static void get_states(Info *info, TreeState nei[3][3]) {
   }
 }
 
-static inline void ghost_bounds(int c, int ss, int *s, int *e) {
-  *s = c < 0 ? -ss : c == 0 ? 0 : BS;
-  *e = c < 0 ? 0 : c == 0 ? BS : BS + ss;
-}
-static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
-  *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
-  *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
-}
 enum OpType : int8_t {
   OP_COPY,
   OP_AVG,
@@ -225,31 +193,13 @@ struct TabEntry {
   int n_fbc;
   Op fbc[MAX_FBC];
 };
-static const struct {
-  int cx, cy;
-  struct {
-    int is_LE, b_dx, b_dy, c_dx, c_dy;
-  } sub[2];
-} liLeTab[] = {
-    {0, +1, {{0, 0, -1, 0, -2}, {1, 0, -2, 0, -3}}},
-    {0, -1, {{1, 0, +2, 0, +3}, {0, 0, +1, 0, +2}}},
-    {+1, 0, {{0, -1, 0, -2, 0}, {1, -2, 0, -3, 0}}},
-    {-1, 0, {{1, +2, 0, +3, 0}, {0, +1, 0, +2, 0}}},
-};
-static const int face_dsign[2][4] = {
-    {+1, -1, +1, -1},
-    {+1, +1, -1, -1},
-};
 static void exec_program(Real *const blk[], Real *const dst[],
                          const Op *ops, int n, int dim, int nm, int nc) {
-  int msz = nm * nm * dim, csz = nc * nc * dim;
   Real *m = dst[0], *c = dst[1];
   for (int i = 0; i < n; i++) {
     const Op &o = ops[i];
-    int dsz = o.dst_idx == 0 ? msz : csz;
     switch (o.type) {
     case OP_COPY:
-      assert(o.dst_off >= 0 && o.dst_off + o.p1 * dim <= dsz);
       memcpy(dst[o.dst_idx] + o.dst_off, blk[o.blk_idx] + o.src_off,
              o.p1 * dim * sizeof(Real));
       break;
@@ -257,11 +207,6 @@ static void exec_program(Real *const blk[], Real *const dst[],
       Real *src = blk[o.blk_idx] + o.src_off;
       Real *d = dst[o.dst_idx] + o.dst_off;
       Real *q1 = src + o.p2 * dim;
-      if (o.dst_off + o.p1 * dim > dsz) {
-        fprintf(stderr, "AVG overflow: dst_idx=%d dst_off=%d p1=%d dim=%d dsz=%d nm=%d nc=%d p2=%d\n",
-                o.dst_idx, o.dst_off, o.p1, dim, dsz, nm, nc, o.p2);
-        assert(0);
-      }
       for (int k = 0; k < o.p1; k++)
         for (int dd = 0; dd < dim; dd++)
           d[k * dim + dd] =
