@@ -152,75 +152,66 @@ static long long sfc_encode(int level, int index[2]) {
 static long long forward(int level, int i, int j) {
   return sfc_forward(level, i % (1 << level), j % (1 << level));
 }
-struct Value {
-  std::string content;
-  Value() = default;
-  Value(const std::string &content_) : content(content_) {}
-  Real asDouble() { return atof(content.c_str()); }
-  int asInt() { return atoi(content.c_str()); }
-  std::string asString() { return content; }
-};
-struct CommandlineParser {
-  std::map<std::string, Value> mapArguments;
-  CommandlineParser(const int argc, char **argv) {
-    for (int i = 1; i < argc; i++)
-      if (argv[i][0] == '-') {
-        std::string values = "";
-        int itemCount = 0;
-        for (int j = i + 1; j < argc; j++) {
-          const bool leadingDash = (argv[j][0] == '-');
-          char *end = NULL;
-          strtod(argv[j], &end);
-          const bool isNumeric = end != argv[j];
-          if (leadingDash && !isNumeric)
-            break;
-          else {
-            if (std::strcmp(values.c_str(), ""))
-              values += ' ';
-            values += argv[j];
-            itemCount++;
-          }
-        }
-        if (itemCount == 0)
-          values = "true";
-        std::string key(argv[i]);
-        key.erase(0, 1);
-        if (key[0] == '+') {
-          key.erase(0, 1);
-          mapArguments[key] = Value(values);
-        } else {
-          if (mapArguments.find(key) == mapArguments.end())
-            mapArguments[key] = Value(values);
-        }
-        i += itemCount;
-      }
-  }
-  Value &operator()(std::string key) {
-    if (mapArguments.find(key) == mapArguments.end()) {
-      fprintf(stderr, "main.cpp: error: option %s is not set\n", key.data());
+static const char *arg_find(int argc, char **argv, const char *key) {
+  for (int i = 1; i < argc; i++)
+    if (argv[i][0] == '-' && strcmp(argv[i] + 1, key) == 0) {
+      if (i + 1 < argc)
+        return argv[i + 1];
+      fprintf(stderr, "main.cpp: error: option -%s has no value\n", key);
       exit(1);
     }
-    return mapArguments[key];
-  }
-};
-static std::string trim(std::string str) {
-  size_t i = 0, j = str.length();
-  while (i < j && isspace(str[i]))
-    i++;
-  while (j > i && isspace(str[j - 1]))
-    j--;
-  return str.substr(i, j - i);
+  fprintf(stderr, "main.cpp: error: option -%s is not set\n", key);
+  exit(1);
 }
-struct LineParser : public CommandlineParser {
-  LineParser(std::istringstream &is_line) : CommandlineParser(0, NULL) {
-    std::string key, value;
-    while (std::getline(is_line, key, '=')) {
-      if (std::getline(is_line, value, ' ')) {
-        mapArguments[trim(key)] = Value(trim(value));
-      }
-    }
+static Real arg_real(int argc, char **argv, const char *key) {
+  const char *s = arg_find(argc, argv, key);
+  char *end;
+  Real v = strtod(s, &end);
+  if (end == s || *end != '\0') {
+    fprintf(stderr, "main.cpp: error: -%s: bad real '%s'\n", key, s);
+    exit(1);
   }
-};
+  return v;
+}
+static int arg_int(int argc, char **argv, const char *key) {
+  const char *s = arg_find(argc, argv, key);
+  char *end;
+  long v = strtol(s, &end, 10);
+  if (end == s || *end != '\0') {
+    fprintf(stderr, "main.cpp: error: -%s: bad integer '%s'\n", key, s);
+    exit(1);
+  }
+  return (int)v;
+}
+static const char *kv_find(const char *line, const char *key) {
+  const char *p = line;
+  size_t klen = strlen(key);
+  while (*p) {
+    while (*p == ' ') p++;
+    if (strncmp(p, key, klen) == 0 && p[klen] == '=')
+      return p + klen + 1;
+    while (*p && *p != ' ') p++;
+  }
+  fprintf(stderr, "main.cpp: error: key '%s' not found in '%s'\n", key, line);
+  exit(1);
+}
+static Real kv_real(const char *line, const char *key) {
+  const char *s = kv_find(line, key);
+  char *end;
+  Real v = strtod(s, &end);
+  if (end == s) {
+    fprintf(stderr, "main.cpp: error: %s: bad real in '%s'\n", key, line);
+    exit(1);
+  }
+  return v;
+}
+static const char *kv_str(const char *line, const char *key, char *buf, size_t n) {
+  const char *s = kv_find(line, key);
+  size_t i = 0;
+  while (s[i] && s[i] != ' ' && i < n - 1) { buf[i] = s[i]; i++; }
+  buf[i] = '\0';
+  return buf;
+}
 std::vector<double> precond() {
   std::vector<double> L[BS * BS];
   std::vector<double> L_inv[BS * BS];

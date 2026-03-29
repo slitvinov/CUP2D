@@ -1,15 +1,10 @@
-#include <array>
 #include <cassert>
-#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <fenv.h>
-#include <iomanip>
 #include <limits>
-#include <map>
 #include <memory>
 #include <set>
-#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1898,7 +1893,6 @@ struct pressure_rhs1 {
   }
 };
 int main(int argc, char **argv) {
-  CommandlineParser parser(argc, argv);
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
@@ -1926,22 +1920,23 @@ int main(int argc, char **argv) {
     char *base = (char *)&sim;
     for (size_t i = 0; i < sizeof tab / sizeof *tab; i++)
       if (tab[i].type == 0)
-        *(int *)(base + tab[i].off) = parser(tab[i].name).asInt();
+        *(int *)(base + tab[i].off) = arg_int(argc, argv, tab[i].name);
       else
-        *(Real *)(base + tab[i].off) = parser(tab[i].name).asDouble();
+        *(Real *)(base + tab[i].off) = arg_real(argc, argv, tab[i].name);
   }
   sim.nshape = 0;
   sim.shapes = NULL;
-  std::string shapeArg = parser("shapes").asString();
-  std::stringstream descriptors(shapeArg);
-  std::string lines;
-  while (std::getline(descriptors, lines)) {
-    std::stringstream ss(lines);
-    std::string line;
-    while (std::getline(ss, line, ',')) {
-      std::istringstream line_stream(line);
-      LineParser p(line_stream);
-      Shape *shape = new Shape;
+  const char *shapeArg = arg_find(argc, argv, "shapes");
+  const char *sp = shapeArg;
+  while (*sp) {
+    const char *comma = strchr(sp, ',');
+    size_t len = comma ? (size_t)(comma - sp) : strlen(sp);
+    char line[1024];
+    if (len >= sizeof line) { fprintf(stderr, "main.cpp: shape line too long\n"); exit(1); }
+    memcpy(line, sp, len);
+    line[len] = '\0';
+    sp += len + (comma ? 1 : 0);
+    Shape *shape = new Shape;
       {
         static const struct { const char *name; size_t off; Real scale; } stab[] = {
           {"xcenter",     offsetof(Shape, x),           1},
@@ -1951,11 +1946,11 @@ int main(int argc, char **argv) {
         };
         char *base = (char *)shape;
         for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
-          *(Real *)(base + stab[i].off) = p(stab[i].name).asDouble() * stab[i].scale;
+          *(Real *)(base + stab[i].off) = kv_real(line, stab[i].name) * stab[i].scale;
       }
-      Real scale = p("scale").asDouble();
-      std::string path0 = p("sdf").asString();
-      const char *path = path0.c_str();
+      Real scale = kv_real(line, "scale");
+      char pathbuf[512];
+      const char *path = kv_str(line, "sdf", pathbuf, sizeof pathbuf);
       FILE *file = fopen(path, "r");
       char tag[3];
       float length, rmax;
@@ -1997,8 +1992,11 @@ int main(int argc, char **argv) {
       sim.nshape++;
       sim.shapes =
           (struct Shape **)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
-      sim.shapes[sim.nshape - 1] = shape;
-    }
+    sim.shapes[sim.nshape - 1] = shape;
+  }
+  if (!sim.nshape && *shapeArg) {
+    fprintf(stderr, "main.cpp: error: failed to parse shapes\n");
+    exit(1);
   }
   sim.levels = (long long *)malloc(sim.levelMax * sizeof *sim.levels);
   sim.levels[0] = 0;
