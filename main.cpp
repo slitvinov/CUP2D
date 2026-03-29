@@ -792,6 +792,13 @@ struct GradChiOnTmp {
       }
   }
 };
+static const Real refine_w[4][9] = {
+  /*        (-1,-1)  (0,-1)  (1,-1)  (-1,0)  (0,0)  (1,0)  (-1,1)  (0,1)  (1,1) */
+  /* (-1/4, -1/4) */ { 1./64, 10./64, -1./64, 10./64, 56./64, -6./64, -1./64, -6./64,  1./64},
+  /* (+1/4, -1/4) */ {-1./64, 10./64,  1./64, -6./64, 56./64, 10./64,  1./64, -6./64, -1./64},
+  /* (-1/4, +1/4) */ {-1./64, -6./64,  1./64, 10./64, 56./64, -6./64,  1./64, 10./64, -1./64},
+  /* (+1/4, +1/4) */ { 1./64, -6./64, -1./64, -6./64, 56./64, 10./64, -1./64, 10./64,  1./64},
+};
 static int adapt() {
   long long cnt, nprev;
   std::vector<int> level_com;
@@ -953,44 +960,16 @@ static int adapt() {
             Real *b = blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + offsetX[I] - (-stencil.s);
-                int j0 = j / 2 + offsetY[J] - (-stencil.s);
-                int im = i0 - 1;
-                int ip = i0 + 1;
-                int jm = j0 - 1;
-                int jp = j0 + 1;
-                int o0 = BS * j + i;
-                int o1 = BS * j + i + 1;
-                int o2 = BS * (j + 1) + i;
-                int o3 = BS * (j + 1) + i + 1;
-                for (int d = 0; d < dim; d++) {
-                  Real l00 = um[dim * (nm * j0 + i0) + d];
-                  Real l0p = um[dim * (nm * jp + i0) + d];
-                  Real lm0 = um[dim * (nm * j0 + im) + d];
-                  Real lmm = um[dim * (nm * jm + im) + d];
-                  Real lmp = um[dim * (nm * jp + im) + d];
-                  Real lp0 = um[dim * (nm * j0 + ip) + d];
-                  Real lpm = um[dim * (nm * jm + ip) + d];
-                  Real lpp = um[dim * (nm * jp + ip) + d];
-                  Real l0m = um[dim * (nm * jm + i0) + d];
-                  Real x = 0.5 * (lp0 - lm0);
-                  Real y = 0.5 * (l0p - l0m);
-                  Real x2 = (lp0 + lm0) - 2.0 * l00;
-                  Real y2 = (l0p + l0m) - 2.0 * l00;
-                  Real xy = 0.25 * ((lpp + lmm) - (lpm + lmp));
-                  b[dim * o0 + d] =
-                      (l00 + (-0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                  b[dim * o1 + d] =
-                      (l00 + (+0.25 * x - 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o2 + d] =
-                      (l00 + (-0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) - 0.0625 * xy);
-                  b[dim * o3 + d] =
-                      (l00 + (+0.25 * x + 0.25 * y)) +
-                      ((0.03125 * x2 + 0.03125 * y2) + 0.0625 * xy);
-                }
+                int i0 = i / 2 + offsetX[I] + stencil.s;
+                int j0 = j / 2 + offsetY[J] + stencil.s;
+                int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
+                for (int s = 0; s < 4; s++)
+                  for (int d = 0; d < dim; d++) {
+                    Real val = 0;
+                    for (int k = 0; k < 9; k++)
+                      val += refine_w[s][k] * um[dim*(nm*(j0+k/3-1)+i0+k%3-1)+d];
+                    b[dim * sub[s] + d] = val;
+                  }
               }
           }
       }
