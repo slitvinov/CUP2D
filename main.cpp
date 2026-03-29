@@ -1772,175 +1772,104 @@ struct KernelAdvectDiffuse {
 static long long This(Info *info, int ix, int iy) {
   return info->id * BS * BS + iy * BS + ix;
 }
-static long long Xmin(Info *info, int, int iy, int offset) {
-  return info->id * BS * BS + iy * BS + offset;
-}
-static long long Xmax(Info *info, int, int iy, int offset) {
-  return info->id * BS * BS + iy * BS + (BS - 1 - offset);
-}
-static long long Ymin(Info *info, int ix, int, int offset) {
-  return info->id * BS * BS + offset * BS + ix;
-}
-static long long Ymax(Info *info, int ix, int, int offset) {
-  return info->id * BS * BS + (BS - 1 - offset) * BS + ix;
-}
 static int i_f(int i) { return (i % (BS / 2)) * 2; }
 
-struct EdgeCellIndexer {
-  EdgeCellIndexer() {}
-  virtual long long neiUnif(Info *nei_info, int ix, int iy) = 0;
-  virtual long long neiInward(Info *info, int ix, int iy) = 0;
-  virtual double taylorSign(int ix, int iy) = 0;
-  virtual int ix_c(Info *info, int ix) {
+struct EdgeTab {
+  int dir, side;
+  int tang(int ix, int iy) const { return dir == 0 ? iy : ix; }
+  int edge(int ix, int iy) const { return dir == 0 ? ix : iy; }
+  long long neiZ(Info *info) const {
+    int s = side == 0 ? -1 : 1;
+    return dir == 0 ? info->Znei[1 + s][1] : info->Znei[1][1 + s];
+  }
+  bool isValid(int ix, int iy) const {
+    int e = edge(ix, iy);
+    return side == 0 ? e > 0 : e < BS - 1;
+  }
+  bool isBoundary(Info *info, int n) const {
+    return side == 0 ? info->index[dir] == 0 : info->index[dir] == n - 1;
+  }
+  long long idxNei(Info *info, int ix, int iy) const {
+    int s = side == 0 ? -1 : 1;
+    return dir == 0 ? This(info, ix + s, iy) : This(info, ix, iy + s);
+  }
+  long long neiUnif(Info *nei, int ix, int iy) const {
+    int e = (1 - side) * (BS - 1);
+    int t = tang(ix, iy);
+    return dir == 0 ? This(nei, e, t) : This(nei, t, e);
+  }
+  long long neiInward(Info *info, int ix, int iy) const {
+    int s = side == 0 ? 1 : -1;
+    return dir == 0 ? This(info, ix + s, iy) : This(info, ix, iy + s);
+  }
+  int ix_c(Info *info, int ix) const {
+    if (dir == 0) return (1 - side) * (BS - 1);
     return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
   }
-  virtual int iy_c(Info *info, int iy) {
+  int iy_c(Info *info, int iy) const {
+    if (dir == 1) return (1 - side) * (BS - 1);
     return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
   }
-  virtual long long neiFine1(Info *nei_info, int ix, int iy,
-                             int offset = 0) = 0;
-  virtual long long neiFine2(Info *nei_info, int ix, int iy,
-                             int offset = 0) = 0;
-  virtual bool isBD(int ix, int iy) = 0;
-  virtual bool isFD(int ix, int iy) = 0;
-  virtual long long Nei(Info *info, int ix, int iy, int dist) = 0;
-  virtual long long Zchild(Info *nei_info, int ix, int iy) = 0;
-};
-struct XbaseIndexer : public EdgeCellIndexer {
-  XbaseIndexer() : EdgeCellIndexer() {}
-  double taylorSign(int, int iy) override { return iy % 2 == 0 ? -1. : 1.; }
-  bool isBD(int, int iy) override { return iy == BS - 1 || iy == BS / 2 - 1; }
-  bool isFD(int, int iy) override { return iy == 0 || iy == BS / 2; }
-  long long Nei(Info *info, int ix, int iy, int dist) override {
-    return This(info, ix, iy + dist);
+  double taylorSign(int ix, int iy) const {
+    return tang(ix, iy) % 2 == 0 ? -1. : 1.;
+  }
+  bool isBD(int ix, int iy) const {
+    int t = tang(ix, iy);
+    return t == BS - 1 || t == BS / 2 - 1;
+  }
+  bool isFD(int ix, int iy) const {
+    int t = tang(ix, iy);
+    return t == 0 || t == BS / 2;
+  }
+  long long Nei(Info *info, int ix, int iy, int dist) const {
+    return dir == 0 ? This(info, ix, iy + dist) : This(info, ix + dist, iy);
+  }
+  long long neiFine(Info *nei, int ix, int iy, int off, int dt) const {
+    int e = side == 0 ? BS - 1 - off : off;
+    int t = i_f(tang(ix, iy)) + dt;
+    return dir == 0 ? This(nei, e, t) : This(nei, t, e);
+  }
+  long long Zchild(Info *nei, int ix, int iy) const {
+    int t = tang(ix, iy) >= BS / 2 ? 1 : 0;
+    int e = 1 - side;
+    return dir == 0 ? nei->Zchild[e][t] : nei->Zchild[t][e];
   }
 };
-struct XminIndexer : public XbaseIndexer {
-  XminIndexer() : XbaseIndexer() {}
-  long long neiUnif(Info *nei_info, int ix, int iy) override {
-    return Xmax(nei_info, ix, iy, 0);
-  }
-  long long neiInward(Info *info, int ix, int iy) override {
-    return This(info, ix + 1, iy);
-  }
-  int ix_c(Info *, int) override { return BS - 1; }
-  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Xmax(nei_info, i_f(ix), i_f(iy), offset);
-  }
-  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Xmax(nei_info, i_f(ix), i_f(iy) + 1, offset);
-  }
-  long long Zchild(Info *nei_info, int, int iy) override {
-    return nei_info->Zchild[1][int(iy >= BS / 2)];
-  }
-};
-struct XmaxIndexer : public XbaseIndexer {
-  XmaxIndexer() : XbaseIndexer() {}
-  long long neiUnif(Info *nei_info, int ix, int iy) override {
-    return Xmin(nei_info, ix, iy, 0);
-  }
-  long long neiInward(Info *info, int ix, int iy) override {
-    return This(info, ix - 1, iy);
-  }
-  int ix_c(Info *, int) override { return 0; }
-  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Xmin(nei_info, i_f(ix), i_f(iy), offset);
-  }
-  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Xmin(nei_info, i_f(ix), i_f(iy) + 1, offset);
-  }
-  long long Zchild(Info *nei_info, int, int iy) override {
-    return nei_info->Zchild[0][int(iy >= BS / 2)];
-  }
-};
-struct YbaseIndexer : public EdgeCellIndexer {
-  YbaseIndexer() : EdgeCellIndexer() {}
-  double taylorSign(int ix, int) override { return ix % 2 == 0 ? -1. : 1.; }
-  bool isBD(int ix, int) override { return ix == BS - 1 || ix == BS / 2 - 1; }
-  bool isFD(int ix, int) override { return ix == 0 || ix == BS / 2; }
-  long long Nei(Info *info, int ix, int iy, int dist) override {
-    return This(info, ix + dist, iy);
-  }
-};
-struct YminIndexer : public YbaseIndexer {
-  YminIndexer() : YbaseIndexer() {}
-  long long neiUnif(Info *nei_info, int ix, int iy) override {
-    return Ymax(nei_info, ix, iy, 0);
-  }
-  long long neiInward(Info *info, int ix, int iy) override {
-    return This(info, ix, iy + 1);
-  }
-  int iy_c(Info *, int) override { return BS - 1; }
-  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Ymax(nei_info, i_f(ix), i_f(iy), offset);
-  }
-  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Ymax(nei_info, i_f(ix) + 1, i_f(iy), offset);
-  }
-  long long Zchild(Info *nei_info, int ix, int) override {
-    return nei_info->Zchild[int(ix >= BS / 2)][1];
-  }
-};
-struct YmaxIndexer : public YbaseIndexer {
-  YmaxIndexer() : YbaseIndexer() {}
-  long long neiUnif(Info *nei_info, int ix, int iy) override {
-    return Ymin(nei_info, ix, iy, 0);
-  }
-  long long neiInward(Info *info, int ix, int iy) override {
-    return This(info, ix, iy - 1);
-  }
-  int iy_c(Info *, int) override { return 0; }
-  long long neiFine1(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Ymin(nei_info, i_f(ix), i_f(iy), offset);
-  }
-  long long neiFine2(Info *nei_info, int ix, int iy, int offset = 0) override {
-    return Ymin(nei_info, i_f(ix) + 1, i_f(iy), offset);
-  }
-  long long Zchild(Info *nei_info, int ix, int) override {
-    return nei_info->Zchild[int(ix >= BS / 2)][0];
-  }
+static const EdgeTab edgeTab[] = {
+    {0, 0}, {0, 1}, {1, 0}, {1, 1},
 };
 
+struct InterpStencil {
+  int off[3];
+  double d1[3];
+  double d2[3];
+};
+static constexpr InterpStencil interpTab[] = {
+    /* BD */ {{-2, -1, 0}, {1. / 8., -1. / 2., 3. / 8.},
+              {1. / 32., -1. / 16., 1. / 32.}},
+    /* FD */ {{2, 1, 0}, {-1. / 8., 1. / 2., -3. / 8.},
+              {1. / 32., -1. / 16., 1. / 32.}},
+    /* CD */ {{-1, 1, 0}, {-1. / 8., 1. / 8., 0.},
+              {1. / 32., 1. / 32., -1. / 16.}},
+};
 static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
                         long long fine_close_idx, long long fine_far_idx,
                         double signInt, double signTaylor,
-                        EdgeCellIndexer *indexer, SpRowInfo &row) {
+                        const EdgeTab &e, SpRowInfo &row) {
   int rank_c = Tree1(info_c);
   int rank_f = Tree1(info_f);
   row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
   row.mapColVal(rank_f, fine_far_idx, -signInt * 1. / 5.);
   double tf = signInt * 8. / 15.;
   row.mapColVal(rank_c, This(info_c, ix_c, iy_c), tf);
-  std::array<std::pair<long long, double>, 3> D;
-  if (indexer->isBD(ix_c, iy_c))
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 8.},
-          {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 2.},
-          {This(info_c, ix_c, iy_c), 3. / 8.}}};
-  else if (indexer->isFD(ix_c, iy_c))
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), -1. / 8.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 2.},
-          {This(info_c, ix_c, iy_c), -3. / 8.}}};
-  else
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 8.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 8.},
-          {This(info_c, ix_c, iy_c), 0.}}};
-  for (int i = 0; i < 3; i++)
-    row.mapColVal(rank_c, D[i].first, signTaylor * tf * D[i].second);
-
-  if (indexer->isBD(ix_c, iy_c))
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -2), 1. / 32.},
-          {indexer->Nei(info_c, ix_c, iy_c, -1), -1. / 16.},
-          {This(info_c, ix_c, iy_c), 1. / 32.}}};
-  else if (indexer->isFD(ix_c, iy_c))
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, 2), 1. / 32.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), -1. / 16.},
-          {This(info_c, ix_c, iy_c), 1. / 32.}}};
-  else
-    D = {{{indexer->Nei(info_c, ix_c, iy_c, -1), 1. / 32.},
-          {indexer->Nei(info_c, ix_c, iy_c, 1), 1. / 32.},
-          {This(info_c, ix_c, iy_c), -1. / 16.}}};
-  for (int i = 0; i < 3; i++)
-    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+  int c = e.isBD(ix_c, iy_c) ? 0 : e.isFD(ix_c, iy_c) ? 1 : 2;
+  const InterpStencil &s = interpTab[c];
+  for (int i = 0; i < 3; i++) {
+    long long idx = s.off[i] ? e.Nei(info_c, ix_c, iy_c, s.off[i])
+                             : This(info_c, ix_c, iy_c);
+    row.mapColVal(rank_c, idx, signTaylor * tf * s.d1[i]);
+    row.mapColVal(rank_c, idx, tf * s.d2[i]);
+  }
 }
 static void getVec() {
 #pragma omp parallel for
@@ -1954,12 +1883,6 @@ static void getVec() {
            BS * BS * sizeof(Real));
   }
 }
-XminIndexer XminCell;
-XmaxIndexer XmaxCell;
-YminIndexer YminCell;
-YmaxIndexer YmaxCell;
-std::array<EdgeCellIndexer *, 4> edgeIndexers{&XminCell, &XmaxCell, &YminCell,
-                                              &YmaxCell};
 struct pressureCorrectionKernel {
   Stencil stencil{1, false};
   void operator()(Real *um, Info *info, long long id) {
@@ -2443,11 +2366,6 @@ int main(int argc, char **argv) {
     for (int i = 0; i < sim.n; i++) {
       Info *info = sim.infos[i];
       int n = 1 << info->level;
-      bool isBoundary[4];
-      isBoundary[0] = info->index[0] == 0;
-      isBoundary[1] = info->index[0] == n - 1;
-      isBoundary[2] = info->index[1] == 0;
-      isBoundary[3] = info->index[1] == n - 1;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           long long sfc_idx = This(info, ix, iy);
@@ -2458,59 +2376,37 @@ int main(int argc, char **argv) {
             sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix + 1, iy));
             sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy + 1));
           } else {
-            std::array<bool, 4> validNei;
-            validNei[0] = ix > 0;
-            validNei[1] = ix < BS - 1;
-            validNei[2] = iy > 0;
-            validNei[3] = iy < BS - 1;
-            std::array<long long, 4> idxNei;
-            idxNei[0] = This(info, ix - 1, iy);
-            idxNei[1] = This(info, ix + 1, iy);
-            idxNei[2] = This(info, ix, iy - 1);
-            idxNei[3] = This(info, ix, iy + 1);
             SpRowInfo row(Tree1(info), sfc_idx, 8);
-            long long nei[4] = {info->Znei[0][1], info->Znei[2][1],
-                                info->Znei[1][0], info->Znei[1][2]};
             for (int j = 0; j < 4; j++) {
-              if (validNei[j]) {
-                row.mapColVal(idxNei[j], 1);
+              const EdgeTab &e = edgeTab[j];
+              if (e.isValid(ix, iy)) {
+                row.mapColVal(e.idxNei(info, ix, iy), 1);
                 row.mapColVal(sfc_idx, -1);
-              } else if (!isBoundary[j]) {
-                EdgeCellIndexer *indexer = edgeIndexers[j];
-                long long sfc_idx = This(info, ix, iy);
-                TreeState state = sim.tree.at(sim.levels[info->level] + nei[j]);
+              } else if (!e.isBoundary(info, n)) {
+                long long Z = e.neiZ(info);
+                TreeState state = sim.tree.at(sim.levels[info->level] + Z);
                 if (state == Active) {
-                  Info *rhsNei = getf0(info->level, nei[j]);
-                  long long nei_idx = indexer->neiUnif(rhsNei, ix, iy);
-                  row.mapColVal(0, nei_idx, 1.);
+                  Info *rhsNei = getf0(info->level, Z);
+                  row.mapColVal(0, e.neiUnif(rhsNei, ix, iy), 1.);
                   row.mapColVal(sfc_idx, -1.);
                 } else if (state == ParentIsActive) {
-                  Info *rhsNei_c = getf0(info->level - 1, nei[j] >> 2);
-                  int ix_c = indexer->ix_c(info, ix);
-                  int iy_c = indexer->iy_c(info, iy);
-                  long long inward_idx = indexer->neiInward(info, ix, iy);
-                  double signTaylor = indexer->taylorSign(ix, iy);
-                  interpolate(rhsNei_c, ix_c, iy_c, info, sfc_idx, inward_idx,
-                              1., signTaylor, indexer, row);
+                  Info *rhsNei_c = getf0(info->level - 1, Z >> 2);
+                  interpolate(rhsNei_c, e.ix_c(info, ix), e.iy_c(info, iy),
+                              info, sfc_idx, e.neiInward(info, ix, iy), 1.,
+                              e.taylorSign(ix, iy), e, row);
                   row.mapColVal(sfc_idx, -1.);
                 } else if (state == ChildrenAreActive) {
-                  Info rhsNei0 = getf1(info->level, nei[j]);
-                  Info *rhsNei = &rhsNei0;
+                  Info rhsNei0 = getf1(info->level, Z);
                   Info *rhsNei_f =
-                      getf0(info->level + 1, indexer->Zchild(rhsNei, ix, iy));
+                      getf0(info->level + 1, e.Zchild(&rhsNei0, ix, iy));
                   int nei_rank = Tree1(rhsNei_f);
-                  long long fine_close_idx =
-                      indexer->neiFine1(rhsNei_f, ix, iy, 0);
-                  long long fine_far_idx =
-                      indexer->neiFine1(rhsNei_f, ix, iy, 1);
-                  row.mapColVal(nei_rank, fine_close_idx, 1.);
-                  interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
-                              fine_far_idx, -1., -1., indexer, row);
-                  fine_close_idx = indexer->neiFine2(rhsNei_f, ix, iy, 0);
-                  fine_far_idx = indexer->neiFine2(rhsNei_f, ix, iy, 1);
-                  row.mapColVal(nei_rank, fine_close_idx, 1.);
-                  interpolate(info, ix, iy, rhsNei_f, fine_close_idx,
-                              fine_far_idx, -1., 1., indexer, row);
+                  for (int dt = 0; dt < 2; dt++) {
+                    long long fc = e.neiFine(rhsNei_f, ix, iy, 0, dt);
+                    long long ff = e.neiFine(rhsNei_f, ix, iy, 1, dt);
+                    row.mapColVal(nei_rank, fc, 1.);
+                    interpolate(info, ix, iy, rhsNei_f, fc, ff, -1.,
+                                dt == 0 ? -1. : 1., e, row);
+                  }
                 } else {
                   throw std::runtime_error(
                       "Neighbour doesn't exist, isn't coarser, nor finer...");
