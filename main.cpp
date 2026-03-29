@@ -151,6 +151,7 @@ static Info getf1(int level, long long Z) {
 struct BlockLab;
 static void bc_scalar(BlockLab *, Stencil *stencil, Info *, bool coarse);
 static void bc_vector(BlockLab *, Stencil *stencil, Info *, bool coarse);
+static void bc_noop(BlockLab *, Stencil *, Info *, bool) {}
 struct {
   int offset;
   int dim;
@@ -203,7 +204,7 @@ static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
   *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
   *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
 }
-enum GhostOp { OP_SAME, OP_COARSE, OP_FINE };
+enum GhostOp { OP_SKIP = 0, OP_SAME, OP_COARSE, OP_FINE };
 enum InterpOp { INTERP_NONE, INTERP_CORNER, INTERP_FACE };
 struct GhostWork {
   GhostOp op;
@@ -276,8 +277,9 @@ static void do_copy_fine(Real *m, Real *, const GhostWork *w, int dim, int nm, i
     }
   }
 }
+static void do_skip(Real *, Real *, const GhostWork *, int, int, int, int, int) {}
 typedef void (*copy_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int, int);
-static copy_fn_t copy_tab[] = {do_copy_same, do_copy_coarse, do_copy_fine};
+static copy_fn_t copy_tab[] = {do_skip, do_copy_same, do_copy_coarse, do_copy_fine};
 
 static void do_interp_none(Real *, Real *, const GhostWork *, int, int, int, int, int) {}
 static void do_interp_corner(Real *m, Real *c, const GhostWork *w,
@@ -376,6 +378,52 @@ static void do_interp_face(Real *m, Real *c, const GhostWork *w,
 typedef void (*interp_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int, int);
 static interp_fn_t interp_tab[] = {do_interp_none, do_interp_corner, do_interp_face};
 
+typedef void (*fill_fn_t)(GhostWork *, Info *, int, int, int, int, int, int, int);
+static void fill_same(GhostWork *w, Info *info, int cx, int cy, int, int, int blk_offset, int, int) {
+  w->src[0] = getf0(info->level, info->Znei[1 + cx][1 + cy])->block + BS * BS * blk_offset;
+}
+static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, int blk_offset, int, int) {
+  const ChildNeighborPattern *pat = get_child_pattern(cx, cy);
+  assert(pat);
+  w->pattern = pat;
+  w->nchild = pat->count;
+  for (int cnt = 0; cnt < pat->count; cnt++) {
+    int ix = 2 * xi + pat->offset[cnt][0];
+    int iy = 2 * yi + pat->offset[cnt][1];
+    long long Z = forward(info->level + 1, ix, iy);
+    w->src[cnt] = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
+  }
+}
+static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, int blk_offset, int ss, int coff) {
+  int ix = (xi + cx) / 2, iy = (yi + cy) / 2;
+  assert(xi + cx >= 0);
+  assert(yi + cy >= 0);
+  long long Z = forward(info->level - 1, ix, iy);
+  w->src[0] = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
+  w->src[1] = NULL;
+  w->pattern = NULL;
+  w->nchild = 0;
+  coarse_bounds(cx, ss, coff, &w->cs[0], &w->ce[0]);
+  coarse_bounds(cy, ss, coff, &w->cs[1], &w->ce[1]);
+  int infoNei[2] = {xi + cx, yi + cy};
+  int base[2] = {infoNei[0] % 2, infoNei[1] % 2};
+  int CoarseEdge[2];
+  CoarseEdge[0] = cx == 0 ? 0
+                  : (((xi % 2 == 0) && (infoNei[0] > xi)) ||
+                     ((xi % 2 == 1) && (infoNei[0] < xi))) ? 1 : 0;
+  CoarseEdge[1] = cy == 0 ? 0
+                  : (((yi % 2 == 0) && (infoNei[1] > yi)) ||
+                     ((yi % 2 == 1) && (infoNei[1] < yi))) ? 1 : 0;
+  w->cstart[0] = std::max(cx, 0) * BS / 2 + (1 - abs(cx)) * base[0] * BS / 2 -
+                 cx * BS + CoarseEdge[0] * cx * BS / 2;
+  w->cstart[1] = std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
+                 cy * BS + CoarseEdge[1] * cy * BS / 2;
+  w->sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
+  w->sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
+}
+/* fill_tab indexed by -state: Active=0→same, ChildrenAreActive=1→fine, ParentIsActive=2→coarse */
+static fill_fn_t fill_tab[] = {fill_same, fill_fine, fill_coarse};
+
 struct BlockLab {
   int dim;
   Real *m, *c;
@@ -405,10 +453,21 @@ struct BlockLab {
       memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
              BS * dim * sizeof(Real));
 
+    /* precompute BC dispatch — no ifs in engine */
+    typedef void (*bc_fn_t)(BlockLab *, Stencil *, Info *, bool);
+    static bc_fn_t bc_dim_tab[] = {bc_scalar, bc_vector};
+    bc_fn_t bc_fn = applybc ? bc_dim_tab[dim > 1] : bc_noop;
+
     /* build work list — all decisions here */
+    static const GhostOp state_to_op[] = {OP_SAME, OP_FINE, OP_COARSE};
+    static const InterpOp iop_tab[2][2] = {
+        {INTERP_NONE, INTERP_FACE},
+        {INTERP_CORNER, INTERP_FACE},
+    };
     GhostWork work[8];
     int nwork = 0;
     bool has_coarse = false;
+    unsigned coarse_mask = 0;
     Real *active_ptrs[9] = {};
     int active_icodes[8];
     int nactive = 0;
@@ -418,147 +477,80 @@ struct BlockLab {
       if (cx == 0 && cy == 0) continue;
       if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
       TreeState state = nei[3 * (1 + cx) + (1 + cy)];
-
-      /* fetch source block pointers */
-      Real *src0 = NULL, *src1 = NULL;
-      const ChildNeighborPattern *pat = NULL;
-      GhostOp op;
-      switch (state) {
-      case Active:
-        src0 = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
-               BS * BS * blk_offset;
-        op = OP_SAME;
-        active_icodes[nactive] = icode;
-        active_ptrs[icode] = src0;
-        nactive++;
-        break;
-      case ParentIsActive: {
-        int ix = (xi + cx) / 2, iy = (yi + cy) / 2;
-        assert(xi + cx >= 0);
-        assert(yi + cy >= 0);
-        long long Z = forward(info->level - 1, ix, iy);
-        src0 = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
-        op = OP_COARSE;
-        has_coarse = true;
-        break;
-      }
-      case ChildrenAreActive:
-        pat = get_child_pattern(cx, cy);
-        assert(pat);
-        for (int cnt = 0; cnt < pat->count; cnt++) {
-          int ix = 2 * xi + pat->offset[cnt][0];
-          int iy = 2 * yi + pat->offset[cnt][1];
-          long long Z = forward(info->level + 1, ix, iy);
-          Real *ptr = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
-          if (cnt == 0) src0 = ptr; else src1 = ptr;
-        }
-        op = OP_FINE;
-        break;
-      }
-
-      if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1 &&
-          op != OP_COARSE)
-        continue;
-
       GhostWork *w = &work[nwork++];
-      w->op = op;
       w->cx = cx;
       w->cy = cy;
-      w->src[0] = src0;
-      w->src[1] = src1;
-      w->pattern = pat;
-      w->nchild = pat ? pat->count : 0;
+      fill_tab[-state](w, info, cx, cy, xi, yi, blk_offset, ss, coff);
       ghost_bounds(cx, ss, &w->fs[0], &w->fe[0]);
       ghost_bounds(cy, ss, &w->fs[1], &w->fe[1]);
-
-      if (op == OP_COARSE) {
-        coarse_bounds(cx, ss, coff, &w->cs[0], &w->ce[0]);
-        coarse_bounds(cy, ss, coff, &w->cs[1], &w->ce[1]);
-        int infoNei[2] = {xi + cx, yi + cy};
-        int base[2] = {infoNei[0] % 2, infoNei[1] % 2};
-        int CoarseEdge[2];
-        CoarseEdge[0] = cx == 0 ? 0
-                        : (((xi % 2 == 0) && (infoNei[0] > xi)) ||
-                           ((xi % 2 == 1) && (infoNei[0] < xi)))
-                            ? 1 : 0;
-        CoarseEdge[1] = cy == 0 ? 0
-                        : (((yi % 2 == 0) && (infoNei[1] > yi)) ||
-                           ((yi % 2 == 1) && (infoNei[1] < yi)))
-                            ? 1 : 0;
-        w->cstart[0] = std::max(cx, 0) * BS / 2 + (1 - abs(cx)) * base[0] * BS / 2 -
-                        cx * BS + CoarseEdge[0] * cx * BS / 2;
-        w->cstart[1] = std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
-                        cy * BS + CoarseEdge[1] * cy * BS / 2;
-        w->sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
-        w->sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
-        if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1)
-          w->iop = INTERP_NONE;
-        else if (use_averages && abs(cx) + abs(cy) == 1)
-          w->iop = INTERP_FACE;
-        else if (use_averages)
-          w->iop = INTERP_CORNER;
-        else if (abs(cx) + abs(cy) == 1)
-          w->iop = INTERP_FACE;
-        else
-          w->iop = INTERP_NONE;
-      } else {
-        w->iop = INTERP_NONE;
+      int is_face = abs(cx) + abs(cy) == 1;
+      int is_coarse = (state == ParentIsActive);
+      int keep = is_face | (int)use_averages | is_coarse;
+      w->op = (GhostOp)(state_to_op[-state] * keep);
+      w->iop = (InterpOp)(iop_tab[use_averages][is_face] * is_coarse);
+      if (state == Active) {
+        active_icodes[nactive] = icode;
+        active_ptrs[icode] = w->src[0];
+        nactive++;
+      }
+      if (is_coarse) {
+        has_coarse = true;
+        coarse_mask |= 1u << icode;
       }
     }
 
-    /* pass 1: copy data — no ifs on AMR state */
+    /* pass 1: copy data */
     for (int i = 0; i < nwork; i++)
       copy_tab[work[i].op](m, c, &work[i], dim, nm, nc, ss, coff);
 
     /* pass 2: coarse build + BC */
     if (has_coarse) {
       /* active_into_coarse */
+      int do_aic = (info->level > 0) & (int)use_averages;
+      int aux = 1 << info->level;
       for (int i = 0; i < nactive; ++i) {
         int icode = active_icodes[i];
         int cx = icode % 3 - 1, cy = icode / 3 - 1;
         int infoNei_index[2] = {(xi + cx + n) % n, (yi + cy + n) % n};
-        if (info->level > 0 && use_averages) {
-          int aux = 1 << info->level;
-          int imin[2], imax[2];
-          for (int d = 0; d < 2; d++) {
-            imin[d] = (info->index[d] < infoNei_index[d]) ? 0 : -1;
-            imax[d] = (info->index[d] > infoNei_index[d]) ? 0 : +1;
-            if (info->index[d] == 0 && infoNei_index[d] == 0) imin[d] = 0;
-            if (info->index[d] == aux - 1 && infoNei_index[d] == aux - 1) imax[d] = 0;
-          }
-          bool cond = false;
-          for (int w = 0; w < nwork && !cond; w++)
-            if (work[w].op == OP_COARSE)
-              for (int i1 = imin[1]; i1 <= imax[1] && !cond; i1++)
-                for (int i0 = imin[0]; i0 <= imax[0] && !cond; i0++)
-                  if ((work[w].cx + 1) + 3 * (work[w].cy + 1) == (i0 + 1) + 3 * (i1 + 1))
-                    cond = true;
-          if (cond && active_ptrs[icode]) {
-            Real *b = active_ptrs[icode];
-            int eC = (ss + 1) / 2 + 2;
-            int cs[2], ce[2];
-            coarse_bounds(cx, ss, coff, &cs[0], &ce[0]);
-            coarse_bounds(cy, ss, coff, &cs[1], &ce[1]);
-            ce[0] = cx < 1 ? ce[0] : BS / 2 + eC - 1;
-            ce[1] = cy < 1 ? ce[1] : BS / 2 + eC - 1;
-            int bytes = (ce[0] - cs[0]) * dim * sizeof(Real);
-            if (bytes) {
-              int start[2] = {cs[0] + std::max(cx, 0) * (BS / 2) - cx * BS +
-                                  std::min(0, cx) * (ce[0] - cs[0]),
-                              cs[1] + std::max(cy, 0) * (BS / 2) - cy * BS +
-                                  std::min(0, cy) * (ce[1] - cs[1])};
-              int di = cs[0] - coff;
-              for (int iy = cs[1]; iy < ce[1]; iy++) {
-                Real *p = c + dim * (di + (iy - coff) * nc);
-                int y0 = 2 * (iy - cs[1]) + start[1];
-                Real *q0 = b + dim * (BS * y0 + start[0]);
-                Real *q1 = b + dim * (BS * (y0 + 1) + start[0]);
-                for (int ee = 0; ee < ce[0] - cs[0]; ee++)
-                  for (int d = 0; d < dim; d++)
-                    *(p + dim * ee + d) =
-                        (*(q0 + dim * 2 * ee + d) + *(q0 + dim * (2 * ee + 1) + d) +
-                         *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) / 4;
-              }
+        int imin[2], imax[2];
+        for (int d = 0; d < 2; d++) {
+          int idx = d == 0 ? xi : yi;
+          int nidx = infoNei_index[d];
+          imin[d] = (idx < nidx) ? 0 : -1;
+          imax[d] = (idx > nidx) ? 0 : +1;
+          if (idx == 0 && nidx == 0) imin[d] = 0;
+          if (idx == aux - 1 && nidx == aux - 1) imax[d] = 0;
+        }
+        unsigned check_mask = 0;
+        for (int i1 = imin[1]; i1 <= imax[1]; i1++)
+          for (int i0 = imin[0]; i0 <= imax[0]; i0++)
+            check_mask |= 1u << ((i0 + 1) + 3 * (i1 + 1));
+        int cond = do_aic & ((check_mask & coarse_mask) != 0);
+        if (cond && active_ptrs[icode]) {
+          Real *b = active_ptrs[icode];
+          int eC = (ss + 1) / 2 + 2;
+          int cs[2], ce[2];
+          coarse_bounds(cx, ss, coff, &cs[0], &ce[0]);
+          coarse_bounds(cy, ss, coff, &cs[1], &ce[1]);
+          ce[0] = cx < 1 ? ce[0] : BS / 2 + eC - 1;
+          ce[1] = cy < 1 ? ce[1] : BS / 2 + eC - 1;
+          int bytes = (ce[0] - cs[0]) * dim * sizeof(Real);
+          if (bytes) {
+            int start[2] = {cs[0] + std::max(cx, 0) * (BS / 2) - cx * BS +
+                                std::min(0, cx) * (ce[0] - cs[0]),
+                            cs[1] + std::max(cy, 0) * (BS / 2) - cy * BS +
+                                std::min(0, cy) * (ce[1] - cs[1])};
+            int di = cs[0] - coff;
+            for (int iy = cs[1]; iy < ce[1]; iy++) {
+              Real *p = c + dim * (di + (iy - coff) * nc);
+              int y0 = 2 * (iy - cs[1]) + start[1];
+              Real *q0 = b + dim * (BS * y0 + start[0]);
+              Real *q1 = b + dim * (BS * (y0 + 1) + start[0]);
+              for (int ee = 0; ee < ce[0] - cs[0]; ee++)
+                for (int d = 0; d < dim; d++)
+                  *(p + dim * ee + d) =
+                      (*(q0 + dim * 2 * ee + d) + *(q0 + dim * (2 * ee + 1) + d) +
+                       *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) / 4;
             }
           }
         }
@@ -575,22 +567,14 @@ struct BlockLab {
                                 m[dim * (ix + 1 + nm * iy) + d] +
                                 m[dim * (ix + 1 + nm * (iy + 1)) + d]) / 4;
         }
-      /* BC pass 1 (coarse) */
-      if (applybc) {
-        if (dim == 1) bc_scalar(this, stencil, info, true);
-        else bc_vector(this, stencil, info, true);
-      }
+      bc_fn(this, stencil, info, true);
     }
 
-    /* pass 3: interpolation — dispatch by precomputed iop */
+    /* pass 3: interpolation */
     for (int i = 0; i < nwork; i++)
       interp_tab[work[i].iop](m, c, &work[i], dim, nm, nc, ss, coff);
 
-    /* BC pass 2 (fine) */
-    if (applybc) {
-      if (dim == 1) bc_scalar(this, stencil, info, false);
-      else bc_vector(this, stencil, info, false);
-    }
+    bc_fn(this, stencil, info, false);
   }
   void load(int blk_offset, Stencil *stencil, Info *info, bool applybc) {
     TreeState nei[3][3];
