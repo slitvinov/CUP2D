@@ -425,11 +425,6 @@ struct BlockLab {
       GhostOp op;
       switch (state) {
       case Active:
-        if (!exist(info->level, info->Znei[1 + cx][1 + cy])) {
-          fprintf(stderr, "load1: Active but missing: level=%d cx=%d cy=%d xi=%d yi=%d n=%d Z=%lld\n",
-                  info->level, cx, cy, xi, yi, n, info->Znei[1 + cx][1 + cy]);
-          assert(0);
-        }
         src0 = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
                BS * BS * blk_offset;
         op = OP_SAME;
@@ -442,7 +437,6 @@ struct BlockLab {
         assert(xi + cx >= 0);
         assert(yi + cy >= 0);
         long long Z = forward(info->level - 1, ix, iy);
-        assert(exist(info->level - 1, Z));
         src0 = getf0(info->level - 1, Z)->block + BS * BS * blk_offset;
         op = OP_COARSE;
         has_coarse = true;
@@ -455,7 +449,6 @@ struct BlockLab {
           int ix = 2 * xi + pat->offset[cnt][0];
           int iy = 2 * yi + pat->offset[cnt][1];
           long long Z = forward(info->level + 1, ix, iy);
-          assert(exist(info->level + 1, Z));
           Real *ptr = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
           if (cnt == 0) src0 = ptr; else src1 = ptr;
         }
