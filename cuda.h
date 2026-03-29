@@ -1,3 +1,7 @@
+#include <map>
+#include <memory>
+#include <set>
+#include <vector>
 class SpRowInfo {
 public:
   const int rank_;
