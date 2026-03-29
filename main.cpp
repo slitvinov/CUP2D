@@ -451,6 +451,7 @@ struct BlockLab {
           int ix = 2 * xi + pat->offset[cnt][0];
           int iy = 2 * yi + pat->offset[cnt][1];
           long long Z = forward(info->level + 1, ix, iy);
+          assert(exist(info->level + 1, Z));
           Real *ptr = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
           if (cnt == 0) src0 = ptr; else src1 = ptr;
         }
