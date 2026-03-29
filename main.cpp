@@ -371,6 +371,7 @@ static void lab_load(Lab *lab, int blk_offset, Stencil *stencil, Info *info) {
   lab_load1(lab, blk_offset, &nei[0][0], stencil, info);
 }
 
+typedef Real ScalarBlock[BS][BS];
 static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
   Real *vm = velLab->m;
   Real *um = uDefLab->m;
