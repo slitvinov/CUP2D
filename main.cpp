@@ -2,9 +2,9 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <stdexcept>
 #include <fenv.h>
 #include <limits>
+#include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -172,8 +172,10 @@ static void get_states(Info *info, TreeState nei[3][3]) {
   for (int icode = 0; icode < 9; icode++) {
     int cx = icode % 3 - 1;
     int cy = icode / 3 - 1;
-    if (cx == 0 && cy == 0) continue;
-    if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
+    if (cx == 0 && cy == 0)
+      continue;
+    if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+      continue;
     long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
     if (sim.tree.find(id) == sim.tree.end()) {
       fprintf(stderr, "cx, cy: %d %d\n", cx, cy);
@@ -217,7 +219,12 @@ struct GhostWork {
   Real *src[2];
   const ChildNeighborPattern *pattern;
 };
-static const struct { int cx, cy; struct { int is_LE, b_dx, b_dy, c_dx, c_dy; } sub[2]; } liLeTab[] = {
+static const struct {
+  int cx, cy;
+  struct {
+    int is_LE, b_dx, b_dy, c_dx, c_dy;
+  } sub[2];
+} liLeTab[] = {
     {0, +1, {{0, 0, -1, 0, -2}, {1, 0, -2, 0, -3}}},
     {0, -1, {{1, 0, +2, 0, +3}, {0, 0, +1, 0, +2}}},
     {+1, 0, {{0, -1, 0, -2, 0}, {1, -2, 0, -3, 0}}},
@@ -227,44 +234,51 @@ static const int face_dsign[2][4] = {
     {+1, -1, +1, -1},
     {+1, +1, -1, -1},
 };
-static void do_copy_same(Real *m, Real *, const GhostWork *w, int dim, int nm, int, int ss, int) {
+static void do_copy_same(Real *m, Real *, const GhostWork *w, int dim, int nm,
+                         int, int ss, int) {
   int bytes = (w->fe[0] - w->fs[0]) * dim * sizeof(Real);
-  if (!bytes || !w->src[0]) return;
+  if (!bytes || !w->src[0])
+    return;
   for (int iy = w->fs[1]; iy < w->fe[1]; iy++)
     memcpy(m + dim * ((w->fs[0] + ss) + (iy + ss) * nm),
            w->src[0] + dim * (BS * (iy - w->cy * BS) + w->fs[0] - w->cx * BS),
            bytes);
 }
-static void do_copy_coarse(Real *, Real *c, const GhostWork *w, int dim, int, int nc, int, int coff) {
+static void do_copy_coarse(Real *, Real *c, const GhostWork *w, int dim, int,
+                           int nc, int, int coff) {
   int bytes = (w->ce[0] - w->cs[0]) * dim * sizeof(Real);
-  if (!bytes) return;
+  if (!bytes)
+    return;
   int di = w->cs[0] - coff;
   for (int iy = w->cs[1]; iy < w->ce[1]; iy++)
     memcpy(c + dim * (di + (iy - coff) * nc),
-           w->src[0] + dim * (BS * (iy + w->cstart[1]) + w->cs[0] + w->cstart[0]),
+           w->src[0] +
+               dim * (BS * (iy + w->cstart[1]) + w->cs[0] + w->cstart[0]),
            bytes);
 }
-static void do_copy_fine(Real *m, Real *, const GhostWork *w, int dim, int nm, int, int ss, int) {
+static void do_copy_fine(Real *m, Real *, const GhostWork *w, int dim, int nm,
+                         int, int ss, int) {
   int cx = w->cx, cy = w->cy;
   int width = abs(cx) * (w->fe[0] - w->fs[0]) +
               (1 - abs(cx)) * ((w->fe[0] - w->fs[0]) / 2);
-  if (!width) return;
+  if (!width)
+    return;
   const ChildNeighborPattern *pat = w->pattern;
   int ys = pat->ys;
   int B = 0;
   for (int cnt = 0; cnt < pat->count; cnt++, B += pat->Bstep) {
     int aux = (abs(cx) == 1) ? (B % 2) : (B / 2);
     Real *b = w->src[cnt];
-    int di = abs(cx) * (w->fs[0] + ss) +
-             (1 - abs(cx)) * (w->fs[0] + ss + (B % 2) * (w->fe[0] - w->fs[0]) / 2);
+    int di =
+        abs(cx) * (w->fs[0] + ss) +
+        (1 - abs(cx)) * (w->fs[0] + ss + (B % 2) * (w->fe[0] - w->fs[0]) / 2);
     int sx = w->fs[0] - cx * BS + std::min(0, cx) * (w->fe[0] - w->fs[0]);
     for (int iy = w->fs[1]; iy < w->fe[1]; iy += ys) {
       int dk = di + (abs(cy) * (iy + ss) +
-                     (1 - abs(cy)) * (iy / 2 + ss +
-                                      aux * (w->fe[1] - w->fs[1]) / 2)) * nm;
-      int sy = (abs(cy) == 1)
-                   ? 2 * (iy - cy * BS) + std::min(0, cy) * BS
-                   : iy;
+                     (1 - abs(cy)) *
+                         (iy / 2 + ss + aux * (w->fe[1] - w->fs[1]) / 2)) *
+                        nm;
+      int sy = (abs(cy) == 1) ? 2 * (iy - cy * BS) + std::min(0, cy) * BS : iy;
       Real *p = m + dim * dk;
       Real *q0 = b + dim * (BS * sy + sx);
       Real *q1 = b + dim * (BS * (sy + 1) + sx);
@@ -272,48 +286,63 @@ static void do_copy_fine(Real *m, Real *, const GhostWork *w, int dim, int nm, i
         for (int d = 0; d < dim; d++)
           *(p + dim * ee + d) =
               (*(q0 + dim * 2 * ee + d) + *(q0 + dim * (2 * ee + 1) + d) +
-               *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) / 4;
+               *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) /
+              4;
     }
   }
 }
-static void do_skip(Real *, Real *, const GhostWork *, int, int, int, int, int) {}
-typedef void (*copy_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int, int);
-static copy_fn_t copy_tab[] = {do_skip, do_copy_same, do_copy_coarse, do_copy_fine};
+static void do_skip(Real *, Real *, const GhostWork *, int, int, int, int,
+                    int) {}
+typedef void (*copy_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int,
+                          int);
+static copy_fn_t copy_tab[] = {do_skip, do_copy_same, do_copy_coarse,
+                               do_copy_fine};
 
-static void do_interp_none(Real *, Real *, const GhostWork *, int, int, int, int, int) {}
-static void do_interp_corner(Real *m, Real *c, const GhostWork *w,
-                             int dim, int nm, int nc, int ss, int coff) {
+static void do_interp_none(Real *, Real *, const GhostWork *, int, int, int,
+                           int, int) {}
+static void do_interp_corner(Real *m, Real *c, const GhostWork *w, int dim,
+                             int nm, int nc, int ss, int coff) {
   int cx = w->cx, cy = w->cy;
   for (int iy = w->fs[1]; iy < w->fe[1]; iy++)
     for (int ix = w->fs[0]; ix < w->fe[0]; ix++) {
-      int YY = (iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) / 2 + w->sC[1];
-      int XX = (ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) / 2 + w->sC[0];
+      int YY =
+          (iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) / 2 +
+          w->sC[1];
+      int XX =
+          (ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) / 2 +
+          w->sC[0];
       Real *Test[3][3];
       for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
           Test[i][j] = c + dim * (XX - 1 + i - coff + nc * (YY - 1 + j - coff));
       for (int d = 0; d < dim; d++)
-        TestInterp(Test, m + dim * (ix + ss + nm * (iy + ss)) + d,
-                   abs(ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) % 2,
-                   abs(iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) % 2);
+        TestInterp(
+            Test, m + dim * (ix + ss + nm * (iy + ss)) + d,
+            abs(ix - w->fs[0] - std::min(0, cx) * ((w->fe[0] - w->fs[0]) % 2)) %
+                2,
+            abs(iy - w->fs[1] - std::min(0, cy) * ((w->fe[1] - w->fs[1]) % 2)) %
+                2);
     }
 }
-static void do_interp_face(Real *m, Real *c, const GhostWork *w,
-                           int dim, int nm, int nc, int ss, int coff) {
+static void do_interp_face(Real *m, Real *c, const GhostWork *w, int dim,
+                           int nm, int nc, int ss, int coff) {
   int cx = w->cx, cy = w->cy;
   int s0 = w->fs[0], s1 = w->fs[1], e0 = w->fe[0], e1 = w->fe[1];
   /* quadratic face interpolation */
   for (int iy = s1; iy < e1; iy += 2) {
-    int YY = (iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) / 2 + w->sC[1] - coff;
+    int YY =
+        (iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) / 2 + w->sC[1] - coff;
     int y = abs(iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) % 2;
     int iyp = (abs(iy) % 2 == 1) ? -1 : 1;
     double dy = 0.25 * (2 * y - 1);
     for (int ix = s0; ix < e0; ix += 2) {
-      int XX = (ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) / 2 + w->sC[0] - coff;
+      int XX =
+          (ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) / 2 + w->sC[0] - coff;
       int x = abs(ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) % 2;
       int ixp = (abs(ix) % 2 == 1) ? -1 : 1;
       double dx = 0.25 * (2 * x - 1);
-      if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1) continue;
+      if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
+        continue;
       int i1 = XX + nc * YY;
       int j0 = (ix + ss) + nm * (iy + ss);
       int j1 = (ix + ss) + nm * (iy + ss + iyp);
@@ -354,11 +383,15 @@ static void do_interp_face(Real *m, Real *c, const GhostWork *w,
   /* LI/LE correction */
   int li = -1;
   for (int j = 0; j < 4; j++)
-    if (liLeTab[j].cx == cx && liLeTab[j].cy == cy) { li = j; break; }
+    if (liLeTab[j].cx == cx && liLeTab[j].cy == cy) {
+      li = j;
+      break;
+    }
   if (li >= 0)
     for (int iy = s1; iy < e1; iy++)
       for (int ix = s0; ix < e0; ix++) {
-        if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1) continue;
+        if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
+          continue;
         int ka = (ix + ss) + nm * (iy + ss);
         int x = abs(ix - s0 - std::min(0, cx) * ((e0 - s0) % 2)) % 2;
         int y = abs(iy - s1 - std::min(0, cy) * ((e1 - s1) % 2)) % 2;
@@ -370,18 +403,27 @@ static void do_interp_face(Real *m, Real *c, const GhostWork *w,
           Real *a = m + dim * ka + d;
           Real *b = m + dim * kb + d;
           Real *cv = m + dim * kc + d;
-          if (sub.is_LE) LE(a, b, cv); else LI(a, b, cv);
+          if (sub.is_LE)
+            LE(a, b, cv);
+          else
+            LI(a, b, cv);
         }
       }
 }
-typedef void (*interp_fn_t)(Real *, Real *, const GhostWork *, int, int, int, int, int);
-static interp_fn_t interp_tab[] = {do_interp_none, do_interp_corner, do_interp_face};
+typedef void (*interp_fn_t)(Real *, Real *, const GhostWork *, int, int, int,
+                            int, int);
+static interp_fn_t interp_tab[] = {do_interp_none, do_interp_corner,
+                                   do_interp_face};
 
-typedef void (*fill_fn_t)(GhostWork *, Info *, int, int, int, int, int, int, int);
-static void fill_same(GhostWork *w, Info *info, int cx, int cy, int, int, int blk_offset, int, int) {
-  w->src[0] = getf0(info->level, info->Znei[1 + cx][1 + cy])->block + BS * BS * blk_offset;
+typedef void (*fill_fn_t)(GhostWork *, Info *, int, int, int, int, int, int,
+                          int);
+static void fill_same(GhostWork *w, Info *info, int cx, int cy, int, int,
+                      int blk_offset, int, int) {
+  w->src[0] = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
+              BS * BS * blk_offset;
 }
-static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, int blk_offset, int, int) {
+static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi,
+                      int blk_offset, int, int) {
   const ChildNeighborPattern *pat = get_child_pattern(cx, cy);
   assert(pat);
   w->pattern = pat;
@@ -392,7 +434,8 @@ static void fill_fine(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, 
     w->src[cnt] = getf0(info->level + 1, Z)->block + BS * BS * blk_offset;
   }
 }
-static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi, int yi, int blk_offset, int ss, int coff) {
+static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi,
+                        int yi, int blk_offset, int ss, int coff) {
   int ix = (xi + cx) / 2, iy = (yi + cy) / 2;
   assert(xi + cx >= 0);
   assert(yi + cy >= 0);
@@ -405,10 +448,14 @@ static void fill_coarse(GhostWork *w, Info *info, int cx, int cy, int xi, int yi
   int CoarseEdge[2];
   CoarseEdge[0] = cx == 0 ? 0
                   : (((xi % 2 == 0) && (infoNei[0] > xi)) ||
-                     ((xi % 2 == 1) && (infoNei[0] < xi))) ? 1 : 0;
+                     ((xi % 2 == 1) && (infoNei[0] < xi)))
+                      ? 1
+                      : 0;
   CoarseEdge[1] = cy == 0 ? 0
                   : (((yi % 2 == 0) && (infoNei[1] > yi)) ||
-                     ((yi % 2 == 1) && (infoNei[1] < yi))) ? 1 : 0;
+                     ((yi % 2 == 1) && (infoNei[1] < yi)))
+                      ? 1
+                      : 0;
   w->cstart[0] = std::max(cx, 0) * BS / 2 + (1 - abs(cx)) * base[0] * BS / 2 -
                  cx * BS + CoarseEdge[0] * cx * BS / 2;
   w->cstart[1] = std::max(cy, 0) * BS / 2 + (1 - abs(cy)) * base[1] * BS / 2 -
@@ -422,16 +469,20 @@ struct BlockLab {
   int dim;
   Real *m, *c;
   BlockLab(int dim) : dim(dim), m(NULL), c(NULL) {}
-  ~BlockLab() { free(m); free(c); }
+  ~BlockLab() {
+    free(m);
+    free(c);
+  }
   void prepare(int ss) {
     int nm = 2 * ss + BS;
     int nc = BS / 2 + ss + 2 + ss % 2;
-    free(m); free(c);
+    free(m);
+    free(c);
     m = (Real *)malloc(nm * nm * dim * sizeof(Real));
     c = (Real *)malloc(nc * nc * dim * sizeof(Real));
   }
   void load1(int blk_offset, const TreeState *nei, Stencil *stencil, Info *info,
-              bool applybc) {
+             bool applybc) {
     int ss = stencil->s;
     int coff = (-ss - 1) / 2 - 1;
     int nm = 2 * ss + BS;
@@ -465,8 +516,10 @@ struct BlockLab {
 
     for (int icode = 0; icode < 9; icode++) {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
-      if (cx == 0 && cy == 0) continue;
-      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
+      if (cx == 0 && cy == 0)
+        continue;
+      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+        continue;
       TreeState state = nei[3 * (1 + cx) + (1 + cy)];
       GhostWork *w = &work[nwork++];
       w->cx = cx;
@@ -506,8 +559,10 @@ struct BlockLab {
           int nidx = infoNei_index[d];
           imin[d] = (idx < nidx) ? 0 : -1;
           imax[d] = (idx > nidx) ? 0 : +1;
-          if (idx == 0 && nidx == 0) imin[d] = 0;
-          if (idx == aux - 1 && nidx == aux - 1) imax[d] = 0;
+          if (idx == 0 && nidx == 0)
+            imin[d] = 0;
+          if (idx == aux - 1 && nidx == aux - 1)
+            imax[d] = 0;
         }
         unsigned check_mask = 0;
         for (int i1 = imin[1]; i1 <= imax[1]; i1++)
@@ -536,23 +591,27 @@ struct BlockLab {
               Real *q1 = b + dim * (BS * (y0 + 1) + start[0]);
               for (int ee = 0; ee < ce[0] - cs[0]; ee++)
                 for (int d = 0; d < dim; d++)
-                  *(p + dim * ee + d) =
-                      (*(q0 + dim * 2 * ee + d) + *(q0 + dim * (2 * ee + 1) + d) +
-                       *(q1 + dim * 2 * ee + d) + *(q1 + dim * (2 * ee + 1) + d)) / 4;
+                  *(p + dim * ee + d) = (*(q0 + dim * 2 * ee + d) +
+                                         *(q0 + dim * (2 * ee + 1) + d) +
+                                         *(q1 + dim * 2 * ee + d) +
+                                         *(q1 + dim * (2 * ee + 1) + d)) /
+                                        4;
             }
           }
         }
       }
       for (int j = 0; j < BS / 2; j++)
         for (int i = 0; i < BS / 2; i++) {
-          if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2) continue;
+          if (i > 1 && i < BS / 2 - 2 && j > 2 && j < BS / 2 - 2)
+            continue;
           int ix = 2 * i + ss, iy = 2 * j + ss;
           int j00 = i - coff + nc * (j - coff);
           for (int d = 0; d < dim; d++)
-            c[dim * j00 + d] = (m[dim * (ix + nm * (iy + 1)) + d] +
-                                m[dim * (ix + nm * iy) + d] +
-                                m[dim * (ix + 1 + nm * iy) + d] +
-                                m[dim * (ix + 1 + nm * (iy + 1)) + d]) / 4;
+            c[dim * j00 + d] =
+                (m[dim * (ix + nm * (iy + 1)) + d] +
+                 m[dim * (ix + nm * iy) + d] + m[dim * (ix + 1 + nm * iy) + d] +
+                 m[dim * (ix + 1 + nm * (iy + 1)) + d]) /
+                4;
         }
       bc_fn(this, stencil, info, true);
     }
@@ -569,7 +628,6 @@ struct BlockLab {
   }
 };
 
-
 template <typename Kernel>
 static void computeA(Kernel &&kernel, int offset, int dim) {
 #pragma omp parallel
@@ -584,9 +642,11 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
   }
 }
 typedef Real ScalarBlock[BS][BS];
-static const struct { int dir, side; } bcTab[] = {{0,0},{0,1},{1,0},{1,1}};
-static void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse,
-                        int dir, int side) {
+static const struct {
+  int dir, side;
+} bcTab[] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+static void applyBCface(BlockLab *lab, Stencil *stencil, bool coarse, int dir,
+                        int side) {
   int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 2 + ss % 2;
@@ -635,8 +695,8 @@ static void bc_vector(BlockLab *lab, Stencil *stencil, Info *info,
                             : info->index[bcTab[j].dir] == n - 1))
       applyBCface(lab, stencil, coarse, bcTab[j].dir, bcTab[j].side);
 }
-static void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse,
-                      int dir, int side) {
+static void Neumann2D(BlockLab *lab, Stencil *stencil, bool coarse, int dir,
+                      int side) {
   int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 2 + ss % 2;
@@ -980,7 +1040,7 @@ static void ongrid() {
     Shape *shape = sim.shapes[ishape];
     Real com[3] = {0.0, 0.0, 0.0};
     std::vector<Obstacle *> &oblock = shape->blocks;
-#pragma omp parallel for reduction(+ : com[:3])
+#pragma omp parallel for reduction(+ : com[ : 3])
     for (size_t i = 0; i < oblock.size(); i++) {
       if (oblock[i] == nullptr)
         continue;
@@ -1109,8 +1169,10 @@ static int adapt() {
         for (int icode = 0; icode < 9; icode++) {
           int cx = icode % 3 - 1;
           int cy = icode / 3 - 1;
-          if (cx == 0 && cy == 0) continue;
-          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
+          if (cx == 0 && cy == 0)
+            continue;
+          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+            continue;
           long long Z = sim.infos[j]->Znei[1 + cx][1 + cy];
           long long id = sim.levels[sim.infos[j]->level] + Z;
           long long pid = sim.levels[sim.infos[j]->level - 1] + Z / 4;
@@ -1149,8 +1211,10 @@ static int adapt() {
         for (int icode = 0; icode < 9; icode++) {
           int cx = icode % 3 - 1;
           int cy = icode / 3 - 1;
-          if (cx == 0 && cy == 0) continue;
-          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
+          if (cx == 0 && cy == 0)
+            continue;
+          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
+            continue;
           long long Z = sfc_forward(sim.infos[j]->level - 1, xp + cx, yp + cy);
           long long id = sim.levels[sim.infos[j]->level - 1] + Z;
           if (sim.tree.find(id) != sim.tree.end())
@@ -1214,7 +1278,8 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        labs[dim - 1].load1(offset, &m_tree[k].nei[0][0], &stencil, parent, true);
+        labs[dim - 1].load1(offset, &m_tree[k].nei[0][0], &stencil, parent,
+                            true);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -1467,11 +1532,13 @@ struct EdgeTab {
     return dir == 0 ? This(info, ix + s, iy) : This(info, ix, iy + s);
   }
   int ix_c(Info *info, int ix) const {
-    if (dir == 0) return (1 - side) * (BS - 1);
+    if (dir == 0)
+      return (1 - side) * (BS - 1);
     return info->index[0] % 2 == 0 ? ix / 2 : ix / 2 + BS / 2;
   }
   int iy_c(Info *info, int iy) const {
-    if (dir == 1) return (1 - side) * (BS - 1);
+    if (dir == 1)
+      return (1 - side) * (BS - 1);
     return info->index[1] % 2 == 0 ? iy / 2 : iy / 2 + BS / 2;
   }
   double taylorSign(int ix, int iy) const {
@@ -1500,7 +1567,10 @@ struct EdgeTab {
   }
 };
 static const EdgeTab edgeTab[] = {
-    {0, 0}, {0, 1}, {1, 0}, {1, 1},
+    {0, 0},
+    {0, 1},
+    {1, 0},
+    {1, 1},
 };
 
 struct InterpStencil {
@@ -1509,17 +1579,18 @@ struct InterpStencil {
   double d2[3];
 };
 static constexpr InterpStencil interpTab[] = {
-    /* BD */ {{-2, -1, 0}, {1. / 8., -1. / 2., 3. / 8.},
+    /* BD */ {{-2, -1, 0},
+              {1. / 8., -1. / 2., 3. / 8.},
               {1. / 32., -1. / 16., 1. / 32.}},
-    /* FD */ {{2, 1, 0}, {-1. / 8., 1. / 2., -3. / 8.},
-              {1. / 32., -1. / 16., 1. / 32.}},
-    /* CD */ {{-1, 1, 0}, {-1. / 8., 1. / 8., 0.},
-              {1. / 32., 1. / 32., -1. / 16.}},
+    /* FD */
+    {{2, 1, 0}, {-1. / 8., 1. / 2., -3. / 8.}, {1. / 32., -1. / 16., 1. / 32.}},
+    /* CD */
+    {{-1, 1, 0}, {-1. / 8., 1. / 8., 0.}, {1. / 32., 1. / 32., -1. / 16.}},
 };
 static void interpolate(Info *info_c, int ix_c, int iy_c, Info *info_f,
                         long long fine_close_idx, long long fine_far_idx,
-                        double signInt, double signTaylor,
-                        const EdgeTab &e, SpRowInfo &row) {
+                        double signInt, double signTaylor, const EdgeTab &e,
+                        SpRowInfo &row) {
   int rank_c = Tree1(info_c);
   int rank_f = Tree1(info_f);
   row.mapColVal(rank_f, fine_close_idx, signInt * 2. / 3.);
@@ -1593,26 +1664,34 @@ struct pressure_rhs1 {
       }
   }
 };
-static const struct { const char *name; int type; size_t off; } tab[] = {
-  {"levelMax",           0, offsetof(struct Sim, levelMax)},
-  {"AdaptSteps",         0, offsetof(struct Sim, AdaptSteps)},
-  {"levelStart",         0, offsetof(struct Sim, levelStart)},
-  {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
-  {"Rtol",               1, offsetof(struct Sim, Rtol)},
-  {"Ctol",               1, offsetof(struct Sim, Ctol)},
-  {"CFL",                1, offsetof(struct Sim, CFL)},
-  {"tend",               1, offsetof(struct Sim, endTime)},
-  {"lambda",             1, offsetof(struct Sim, lambda)},
-  {"nu",                 1, offsetof(struct Sim, nu)},
-  {"poissonTol",         1, offsetof(struct Sim, PoissonTol)},
-  {"poissonTolRel",      1, offsetof(struct Sim, PoissonTolRel)},
-  {"tdump",              1, offsetof(struct Sim, dumpTime)},
+static const struct {
+  const char *name;
+  int type;
+  size_t off;
+} tab[] = {
+    {"levelMax", 0, offsetof(struct Sim, levelMax)},
+    {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
+    {"levelStart", 0, offsetof(struct Sim, levelStart)},
+    {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
+    {"Rtol", 1, offsetof(struct Sim, Rtol)},
+    {"Ctol", 1, offsetof(struct Sim, Ctol)},
+    {"CFL", 1, offsetof(struct Sim, CFL)},
+    {"tend", 1, offsetof(struct Sim, endTime)},
+    {"lambda", 1, offsetof(struct Sim, lambda)},
+    {"nu", 1, offsetof(struct Sim, nu)},
+    {"poissonTol", 1, offsetof(struct Sim, PoissonTol)},
+    {"poissonTolRel", 1, offsetof(struct Sim, PoissonTolRel)},
+    {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
-static const struct { const char *name; size_t off; Real scale; } stab[] = {
-  {"xcenter",     offsetof(Shape, x),           1},
-  {"ycenter",     offsetof(Shape, y),           1},
-  {"orientation", offsetof(Shape, orientation),  M_PI / 180},
-  {"omega",       offsetof(Shape, omega),        1},
+static const struct {
+  const char *name;
+  size_t off;
+  Real scale;
+} stab[] = {
+    {"xcenter", offsetof(Shape, x), 1},
+    {"ycenter", offsetof(Shape, y), 1},
+    {"orientation", offsetof(Shape, orientation), M_PI / 180},
+    {"omega", offsetof(Shape, omega), 1},
 };
 int main(int argc, char **argv) {
   feclearexcept(FE_ALL_EXCEPT);
@@ -1634,66 +1713,70 @@ int main(int argc, char **argv) {
   const char *shapeArg = arg_find(argc, argv, "shapes");
   const char *sp = shapeArg;
   while (*sp) {
-    while (*sp == '\n' || *sp == ',' || *sp == ' ') sp++;
-    if (!*sp) break;
+    while (*sp == '\n' || *sp == ',' || *sp == ' ')
+      sp++;
+    if (!*sp)
+      break;
     const char *end = sp;
-    while (*end && *end != '\n' && *end != ',') end++;
+    while (*end && *end != '\n' && *end != ',')
+      end++;
     size_t len = end - sp;
     char line[1024];
-    if (len >= sizeof line) { fprintf(stderr, "main.cpp: shape line too long\n"); exit(1); }
+    if (len >= sizeof line) {
+      fprintf(stderr, "main.cpp: shape line too long\n");
+      exit(1);
+    }
     memcpy(line, sp, len);
     line[len] = '\0';
     sp = end;
     Shape *shape = new Shape;
-      {
-        char *base = (char *)shape;
-        for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
-          *(Real *)(base + stab[i].off) = kv_real(line, stab[i].name) * stab[i].scale;
-      }
-      Real scale = kv_real(line, "scale");
-      char pathbuf[512];
-      const char *path = kv_str(line, "sdf", pathbuf, sizeof pathbuf);
-      FILE *file = fopen(path, "r");
-      char tag[3];
-      float length, rmax;
-      if (file == NULL) {
-        fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
-        exit(1);
-      }
-      if (fread(tag, sizeof *tag, sizeof tag, file) != sizeof tag) {
-        fprintf(stderr, "main.cpp: error: fail to read '%s'\n", path);
-        exit(1);
-      }
-      if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
-        fprintf(stderr, "main.cpp: error: not and sdf file '%s'\n", path);
-        exit(1);
-      }
-      if (fread(&length, sizeof(length), 1, file) != 1 ||
-          fread(&rmax, sizeof(rmax), 1, file) != 1 ||
-          fread(&shape->nr, sizeof(shape->nr), 1, file) != 1 ||
-          fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
-        fprintf(stderr,
-                "main.cpp: error: fail to read shape header from file.\n");
-        exit(1);
-      }
-      size_t ncount = shape->nr * shape->np;
-      if ((shape->sdf = (float *)malloc(ncount * sizeof(float))) == NULL) {
-        fprintf(stderr, "main.cpp: error: malloc() failed\n");
-        exit(1);
-      }
-      if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
-        fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n",
-                path);
-      }
-      shape->length = scale * length;
-      shape->rmax = scale * rmax;
-      for (size_t i = 0; i < ncount; i++)
-        shape->sdf[i] *= scale;
-      shape->u = 0;
-      shape->v = 0;
-      sim.nshape++;
-      sim.shapes =
-          (struct Shape **)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
+    char *base = (char *)shape;
+    for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
+      *(Real *)(base + stab[i].off) =
+          kv_real(line, stab[i].name) * stab[i].scale;
+    Real scale = kv_real(line, "scale");
+    char pathbuf[FILENAME_MAX];
+    const char *path = kv_str(line, "sdf", pathbuf, sizeof pathbuf);
+    FILE *file = fopen(path, "r");
+    char tag[3];
+    float length, rmax;
+    if (file == NULL) {
+      fprintf(stderr, "main.cpp: error: fail to open '%s'\n", path);
+      exit(1);
+    }
+    if (fread(tag, sizeof *tag, sizeof tag, file) != sizeof tag) {
+      fprintf(stderr, "main.cpp: error: fail to read '%s'\n", path);
+      exit(1);
+    }
+    if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
+      fprintf(stderr, "main.cpp: error: not and sdf file '%s'\n", path);
+      exit(1);
+    }
+    if (fread(&length, sizeof(length), 1, file) != 1 ||
+        fread(&rmax, sizeof(rmax), 1, file) != 1 ||
+        fread(&shape->nr, sizeof(shape->nr), 1, file) != 1 ||
+        fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
+      fprintf(stderr,
+              "main.cpp: error: fail to read shape header from file.\n");
+      exit(1);
+    }
+    size_t ncount = shape->nr * shape->np;
+    if ((shape->sdf = (float *)malloc(ncount * sizeof(float))) == NULL) {
+      fprintf(stderr, "main.cpp: error: malloc() failed\n");
+      exit(1);
+    }
+    if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
+      fprintf(stderr, "main.cpp: error: fail to read arrays from '%s'\n", path);
+    }
+    shape->length = scale * length;
+    shape->rmax = scale * rmax;
+    for (size_t i = 0; i < ncount; i++)
+      shape->sdf[i] *= scale;
+    shape->u = 0;
+    shape->v = 0;
+    sim.nshape++;
+    sim.shapes =
+        (struct Shape **)realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
     sim.shapes[sim.nshape - 1] = shape;
   }
   if (!sim.nshape && *shapeArg) {
