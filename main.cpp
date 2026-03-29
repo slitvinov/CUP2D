@@ -124,7 +124,6 @@ static Info getf1(int level, long long Z) {
   auto r = sim.map.find(sim.levels[level] + Z);
   return (r == sim.map.end()) ? dummy : *sim.infos[r->second];
 }
-struct BlockLab;
 struct {
   int offset;
   int dim;
@@ -286,125 +285,124 @@ static const TabEntry (*load_cfg_tab(int ss, int dim))[3][2][2][6][2] {
   return (const TabEntry (*)[3][2][2][6][2])tab;
 }
 
-struct BlockLab {
+struct Lab {
   int dim;
   Real *m, *c;
-  const TabEntry (*cfg_tab)[3][2][2][6][2];
-  BlockLab(int dim) : dim(dim), m(NULL), c(NULL), cfg_tab(NULL) {}
-  ~BlockLab() {
-    free(m);
-    free(c);
-    free((void *)cfg_tab);
-  }
-  void prepare(int ss) {
-    int nm = 2 * ss + BS;
-    int nc = BS / 2 + ss + 3;
-    free(m);
-    free(c);
-    m = (Real *)malloc(nm * nm * dim * sizeof(Real));
-    c = (Real *)malloc(nc * nc * dim * sizeof(Real));
-    free((void *)cfg_tab);
-    cfg_tab = load_cfg_tab(ss, dim);
-  }
-  void load1(int blk_offset, const TreeState *nei, Stencil *stencil,
-             Info *info) {
-    int ss = stencil->s;
-    int nm = 2 * ss + BS;
-    int nc = BS / 2 + ss + 3;
-    int ua = (stencil->tensorial || ss > 2) ? 1 : 0;
-    int n = 1 << info->level;
-    int level = info->level;
-    int xi, yi;
-    sfc_inverse(info->Z, level, &xi, &yi);
-
-    Real *p0 = info->block + BS * BS * blk_offset;
-    for (int i = 0; i < BS; i++)
-      memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
-             BS * dim * sizeof(Real));
-
-    Real *dst[2] = {m, c};
-
-    struct {
-      const TabEntry *e;
-      Real *blk[2];
-    } dirs[8];
-    int nd = 0;
-    for (int icode = 0; icode < 9; icode++) {
-      int cx = icode % 3 - 1, cy = icode / 3 - 1;
-      if (!cx && !cy)
-        continue;
-      int s;
-      bool xskin = skin_skip(cx, xi, n);
-      bool yskin = skin_skip(cy, yi, n);
-      if (xskin && yskin)
-        s = 5;
-      else if (xskin)
-        s = 3;
-      else if (yskin)
-        s = 4;
-      else
-        s = -nei[3 * (1 + cx) + (1 + cy)];
-      const TabEntry *te =
-          &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua];
-      Real *blk[2] = {nullptr, nullptr};
-      for (int b = 0; b < te->n_blk; b++) {
-        const BlkSrc &bs = te->blk_src[b];
-        if (bs.is_self) {
-          blk[b] = dst[bs.self_idx];
-        } else {
-          int L = level + bs.level_delta;
-          int fx = (xi * bs.xi_mul + bs.xi_add) >> bs.xi_shift;
-          int fy = (yi * bs.yi_mul + bs.yi_add) >> bs.yi_shift;
-          blk[b] = getf0(L, forward(L, fx, fy))->block +
-                   BS * BS * blk_offset;
-        }
-      }
-      dirs[nd] = {te, {blk[0], blk[1]}};
-      nd++;
-    }
-
-    // Phase 1: ghost fill + AIC + coarse
-    for (int i = 0; i < nd; i++)
-      exec_program(dirs[i].blk, dst, dirs[i].e->fill, dirs[i].e->n_fill,
-                   dim, nm, nc);
-    // Phase 2: coarse BC
-    for (int i = 0; i < nd; i++)
-      exec_program(dirs[i].blk, dst, dirs[i].e->cbc, dirs[i].e->n_cbc,
-                   dim, nm, nc);
-    // Phase 3: interpolation
-    for (int i = 0; i < nd; i++)
-      exec_program(dirs[i].blk, dst, dirs[i].e->interp_ops,
-                   dirs[i].e->n_interp, dim, nm, nc);
-    // Phase 4: fine BC
-    for (int i = 0; i < nd; i++)
-      exec_program(dirs[i].blk, dst, dirs[i].e->fbc, dirs[i].e->n_fbc,
-                   dim, nm, nc);
-  }
-  void load(int blk_offset, Stencil *stencil, Info *info) {
-    TreeState nei[3][3];
-    get_states(info, nei);
-    load1(blk_offset, &nei[0][0], stencil, info);
-  }
 };
+static const TabEntry (*g_tab[5][3])[3][2][2][6][2];
+static void tab_load_all() {
+  int configs[][2] = {{1,1}, {1,2}, {3,2}, {4,1}};
+  for (auto &c : configs)
+    g_tab[c[0]][c[1]] = load_cfg_tab(c[0], c[1]);
+}
+static void lab_init(Lab *lab, int dim, int ss) {
+  int nm = 2 * ss + BS;
+  int nc = BS / 2 + ss + 3;
+  lab->dim = dim;
+  lab->m = (Real *)malloc(nm * nm * dim * sizeof(Real));
+  lab->c = (Real *)malloc(nc * nc * dim * sizeof(Real));
+}
+static void lab_free(Lab *lab) {
+  free(lab->m);
+  free(lab->c);
+}
+static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
+                      Stencil *stencil, Info *info) {
+  int dim = lab->dim;
+  int ss = stencil->s;
+  int nm = 2 * ss + BS;
+  int nc = BS / 2 + ss + 3;
+  int ua = (stencil->tensorial || ss > 2) ? 1 : 0;
+  int n = 1 << info->level;
+  int level = info->level;
+  int xi, yi;
+  const TabEntry (*cfg_tab)[3][2][2][6][2] = g_tab[ss][dim];
+  sfc_inverse(info->Z, level, &xi, &yi);
+
+  Real *p0 = info->block + BS * BS * blk_offset;
+  for (int i = 0; i < BS; i++)
+    memcpy(lab->m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
+           BS * dim * sizeof(Real));
+
+  Real *dst[2] = {lab->m, lab->c};
+
+  struct {
+    const TabEntry *e;
+    Real *blk[2];
+  } dirs[8];
+  int nd = 0;
+  for (int icode = 0; icode < 9; icode++) {
+    int cx = icode % 3 - 1, cy = icode / 3 - 1;
+    if (!cx && !cy)
+      continue;
+    int s;
+    bool xskin = skin_skip(cx, xi, n);
+    bool yskin = skin_skip(cy, yi, n);
+    if (xskin && yskin)
+      s = 5;
+    else if (xskin)
+      s = 3;
+    else if (yskin)
+      s = 4;
+    else
+      s = -nei[3 * (1 + cx) + (1 + cy)];
+    const TabEntry *te =
+        &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua];
+    Real *blk[2] = {nullptr, nullptr};
+    for (int b = 0; b < te->n_blk; b++) {
+      const BlkSrc &bs = te->blk_src[b];
+      if (bs.is_self) {
+        blk[b] = dst[bs.self_idx];
+      } else {
+        int L = level + bs.level_delta;
+        int fx = (xi * bs.xi_mul + bs.xi_add) >> bs.xi_shift;
+        int fy = (yi * bs.yi_mul + bs.yi_add) >> bs.yi_shift;
+        blk[b] = getf0(L, forward(L, fx, fy))->block +
+                 BS * BS * blk_offset;
+      }
+    }
+    dirs[nd] = {te, {blk[0], blk[1]}};
+    nd++;
+  }
+
+  for (int i = 0; i < nd; i++)
+    exec_program(dirs[i].blk, dst, dirs[i].e->fill, dirs[i].e->n_fill,
+                 dim, nm, nc);
+  for (int i = 0; i < nd; i++)
+    exec_program(dirs[i].blk, dst, dirs[i].e->cbc, dirs[i].e->n_cbc,
+                 dim, nm, nc);
+  for (int i = 0; i < nd; i++)
+    exec_program(dirs[i].blk, dst, dirs[i].e->interp_ops,
+                 dirs[i].e->n_interp, dim, nm, nc);
+  for (int i = 0; i < nd; i++)
+    exec_program(dirs[i].blk, dst, dirs[i].e->fbc, dirs[i].e->n_fbc,
+                 dim, nm, nc);
+}
+static void lab_load(Lab *lab, int blk_offset, Stencil *stencil, Info *info) {
+  TreeState nei[3][3];
+  get_states(info, nei);
+  lab_load1(lab, blk_offset, &nei[0][0], stencil, info);
+}
 
 template <typename Kernel>
 static void computeA(Kernel &&kernel, int offset, int dim) {
 #pragma omp parallel
   {
-    BlockLab lab(dim);
-    lab.prepare(kernel.stencil.s);
+    Lab lab;
+    lab_init(&lab, dim, kernel.stencil.s);
 #pragma omp for nowait
     for (long long i = 0; i < sim.n; ++i) {
-      lab.load(offset, &kernel.stencil, sim.infos[i]);
+      lab_load(&lab, offset, &kernel.stencil, sim.infos[i]);
       kernel(lab.m, sim.infos[i], i);
     }
+    lab_free(&lab);
   }
 }
 typedef Real ScalarBlock[BS][BS];
-static void pressure_rhs_fun(BlockLab &velLab, BlockLab &uDefLab, size_t i) {
+static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
   Stencil stencil{1, false};
-  Real *vm = velLab.m;
-  Real *um = uDefLab.m;
+  Real *vm = velLab->m;
+  Real *um = uDefLab->m;
   int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
   Real h = sim.infos[i]->h;
   Real facDiv = 0.5 * h / sim.dt;
@@ -923,9 +921,9 @@ static int adapt() {
 
 #pragma omp parallel
   {
-    BlockLab labs[2] = {BlockLab(1), BlockLab(2)};
-    labs[0].prepare(stencil.s);
-    labs[1].prepare(stencil.s);
+    Lab labs[2];
+    lab_init(&labs[0], 1, stencil.s);
+    lab_init(&labs[1], 2, stencil.s);
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
@@ -953,7 +951,7 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        labs[dim - 1].load1(offset, &m_tree[k].nei[0][0], &stencil, parent);
+        lab_load1(&labs[dim - 1], offset, &m_tree[k].nei[0][0], &stencil, parent);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -1020,6 +1018,8 @@ static int adapt() {
       long long id = sim.levels[level_com[k]] + Z_com[k];
       fill(sim.infos[sim.map.at(id)], level_com[k] - 1, Z_com[k] / 4);
     }
+    lab_free(&labs[0]);
+    lab_free(&labs[1]);
   }
   cnt = 0;
   sim.map.clear();
@@ -1360,6 +1360,7 @@ int main(int argc, char **argv) {
       sim.tree[sim.levels[sim.levelStart - 1] + n] = ChildrenAreActive;
     }
   }
+  tab_load_all();
   int Changed = 0;
   for (long long j = 0; j < sim.n; j++)
     sim.infos[j]->id = j;
@@ -1655,16 +1656,17 @@ int main(int argc, char **argv) {
     Stencil stencil{1, false};
 #pragma omp parallel
     {
-      BlockLab lab(2);
-      BlockLab lab2(2);
-      lab.prepare(stencil.s);
-      lab2.prepare(stencil.s);
+      Lab lab, lab2;
+      lab_init(&lab, 2, stencil.s);
+      lab_init(&lab2, 2, stencil.s);
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
-        lab.load(off_vel, &stencil, sim.infos[i]);
-        lab2.load(off_tmpV, &stencil, sim.infos[i]);
-        pressure_rhs_fun(lab, lab2, i);
+        lab_load(&lab, off_vel, &stencil, sim.infos[i]);
+        lab_load(&lab2, off_tmpV, &stencil, sim.infos[i]);
+        pressure_rhs_fun(&lab, &lab2, i);
       }
+      lab_free(&lab);
+      lab_free(&lab2);
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
