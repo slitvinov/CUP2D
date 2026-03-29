@@ -163,19 +163,11 @@ static void get_states(Info *info, TreeState nei[3][3]) {
   int xi, yi;
   int n = 1 << info->level;
   sfc_inverse(info->Z, info->level, &xi, &yi);
-  bool xskin = xi == 0 || xi == n - 1;
-  bool yskin = yi == 0 || yi == n - 1;
-  int xskip = xi == 0 ? -1 : 1;
-  int yskip = yi == 0 ? -1 : 1;
   for (int icode = 0; icode < 9; icode++) {
     int cx = icode % 3 - 1;
     int cy = icode / 3 - 1;
-    if (cx == xskip && xskin)
-      continue;
-    if (cy == yskip && yskin)
-      continue;
-    if (cx == 0 && cy == 0)
-      continue;
+    if (cx == 0 && cy == 0) continue;
+    if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
     long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
     if (sim.tree.find(id) == sim.tree.end()) {
       fprintf(stderr, "cx, cy: %d %d\n", cx, cy);
@@ -270,10 +262,6 @@ public:
       q += dim * nm;
     }
     bool coarsened = false;
-    bool xskin = xi == 0 || xi == n - 1;
-    bool yskin = yi == 0 || yi == n - 1;
-    int xskip = xi == 0 ? -1 : 1;
-    int yskip = yi == 0 ? -1 : 1;
     int icodes[8];
     int k = 0;
     int coarsened_nei_codes_size = 0;
@@ -281,12 +269,8 @@ public:
       myblocks[icode] = nullptr;
       int cx = icode % 3 - 1;
       int cy = icode / 3 - 1;
-      if (cx == xskip && xskin)
-        continue;
-      if (cy == yskip && yskin)
-        continue;
-      if (cx == 0 && cy == 0)
-        continue;
+      if (cx == 0 && cy == 0) continue;
+      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
       if (nei[1 + cx][1 + cy] == Active) {
         icodes[k++] = icode;
       } else if (nei[1 + cx][1 + cy] == ParentIsActive) {
@@ -354,10 +338,9 @@ public:
       }
       if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[3] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
-                  cy < 1 ? (cy < 0 ? (-ss) : 0) : BS, 0};
-      int e[3] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (ss + 1) - 1,
-                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (ss + 1) - 1, 1};
+      int s[2], e[2];
+      ghost_bounds(cx, ss, &s[0], &e[0]);
+      ghost_bounds(cy, ss, &s[1], &e[1]);
       if (nei[1 + cx][1 + cy] == Active) {
         int bytes = (e[0] - s[0]) * dim * sizeof(Real);
         if (!bytes)
@@ -622,18 +605,15 @@ public:
         continue;
       int cx = icode % 3 - 1;
       int cy = (icode / 3) % 3 - 1;
-      if (cx == xskip && xskin)
-        continue;
-      if (cy == yskip && yskin)
-        continue;
+      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
       if (!stencil->tensorial && !use_averages && abs(cx) + abs(cy) > 1)
         continue;
-      int s[2] = {cx < 1 ? (cx < 0 ? (-ss) : 0) : BS,
-                  cy < 1 ? (cy < 0 ? (-ss) : 0) : BS};
-      int e[2] = {cx < 1 ? (cx < 0 ? 0 : BS) : BS + (ss + 1) - 1,
-                  cy < 1 ? (cy < 0 ? 0 : BS) : BS + (ss + 1) - 1};
-      int sC[2] = {cx < 1 ? (cx < 0 ? (((-ss) - 1) / 2) : 0) : (BS / 2),
-                   cy < 1 ? (cy < 0 ? (((-ss) - 1) / 2) : 0) : (BS / 2)};
+      int s[2], e[2];
+      ghost_bounds(cx, ss, &s[0], &e[0]);
+      ghost_bounds(cy, ss, &s[1], &e[1]);
+      int sC[2];
+      sC[0] = cx < 0 ? (-ss - 1) / 2 : cx == 0 ? 0 : BS / 2;
+      sC[1] = cy < 0 ? (-ss - 1) / 2 : cy == 0 ? 0 : BS / 2;
       int bytes = (e[0] - s[0]) * dim * sizeof(Real);
       if (!bytes)
         continue;
@@ -789,19 +769,11 @@ public:
     long long Z;
     int n = 1 << info->level;
     sfc_inverse(info->Z, info->level, &xi, &yi);
-    bool xskin = xi == 0 || xi == n - 1;
-    bool yskin = yi == 0 || yi == n - 1;
-    int xskip = xi == 0 ? -1 : 1;
-    int yskip = yi == 0 ? -1 : 1;
     for (int icode = 0; icode < 9; icode++) {
       int cx = icode % 3 - 1;
       int cy = icode / 3 - 1;
-      if (cx == xskip && xskin)
-        continue;
-      if (cy == yskip && yskin)
-        continue;
-      if (cx == 0 && cy == 0)
-        continue;
+      if (cx == 0 && cy == 0) continue;
+      if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
       TreeState state = nei[1 + cx][1 + cy];
       switch (state) {
       case Active:
@@ -1376,19 +1348,11 @@ static int adapt() {
         int xi, yi;
         int n = 1 << sim.infos[j]->level;
         sfc_inverse(sim.infos[j]->Z, sim.infos[j]->level, &xi, &yi);
-        bool xskin = xi == 0 || xi == n - 1;
-        bool yskin = yi == 0 || yi == n - 1;
-        int xskip = xi == 0 ? -1 : 1;
-        int yskip = yi == 0 ? -1 : 1;
         for (int icode = 0; icode < 9; icode++) {
           int cx = icode % 3 - 1;
           int cy = icode / 3 - 1;
-          if (cx == xskip && xskin)
-            continue;
-          if (cy == yskip && yskin)
-            continue;
-          if (cx == 0 && cy == 0)
-            continue;
+          if (cx == 0 && cy == 0) continue;
+          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
           long long Z = sim.infos[j]->Znei[1 + cx][1 + cy];
           long long id = sim.levels[sim.infos[j]->level] + Z;
           long long pid = sim.levels[sim.infos[j]->level - 1] + Z / 4;
@@ -1424,19 +1388,11 @@ static int adapt() {
         if (sim.infos[j]->level == 0)
           continue;
         int n = 1 << (sim.infos[j]->level - 1);
-        bool xskin = xi == 0 || xi == n - 1;
-        bool yskin = yi == 0 || yi == n - 1;
-        int xskip = xi == 0 ? -1 : 1;
-        int yskip = yi == 0 ? -1 : 1;
         for (int icode = 0; icode < 9; icode++) {
           int cx = icode % 3 - 1;
           int cy = icode / 3 - 1;
-          if (cx == xskip && xskin)
-            continue;
-          if (cy == yskip && yskin)
-            continue;
-          if (cx == 0 && cy == 0)
-            continue;
+          if (cx == 0 && cy == 0) continue;
+          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n)) continue;
           long long Z = sfc_forward(sim.infos[j]->level - 1, xp + cx, yp + cy);
           long long id = sim.levels[sim.infos[j]->level - 1] + Z;
           if (sim.tree.find(id) != sim.tree.end())
