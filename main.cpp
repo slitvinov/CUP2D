@@ -1,8 +1,8 @@
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <fenv.h>
 #include <limits>
 #include <stdexcept>
 #include <unordered_map>
@@ -29,7 +29,6 @@ enum {
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 struct Stencil {
   int s;
-  bool tensorial;
 };
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 enum TreeState : signed char {
@@ -168,7 +167,7 @@ struct Op {
   int8_t blk_idx;
   int8_t dst_idx;
   int8_t flags;
-  int src_off, dst_off, p1, p2;
+  int32_t src_off, dst_off, p1, p2;
 };
 struct BlkSrc {
   int8_t level_delta;
@@ -178,18 +177,14 @@ struct BlkSrc {
   bool is_self;
   int8_t self_idx;
 };
-enum { MAX_FILL = 20, MAX_CBC = 32, MAX_INTERP = 48, MAX_FBC = 48 };
+enum { MAX_PRE = 32, MAX_POST = 48, MAX_OPS = MAX_PRE + MAX_POST };
 struct TabEntry {
   int8_t n_blk;
   BlkSrc blk_src[2];
-  int n_fill;
-  Op fill[MAX_FILL];
-  int n_cbc;
-  Op cbc[MAX_CBC];
-  int n_interp;
-  Op interp_ops[MAX_INTERP];
-  int n_fbc;
-  Op fbc[MAX_FBC];
+  int8_t _pad;
+  int32_t n_pre;
+  int32_t n_post;
+  Op ops[MAX_OPS];
 };
 static void exec_program(Real *const blk[], Real *const dst[],
                          const Op *ops, int n, int dim, int nm, int nc) {
@@ -267,7 +262,7 @@ static void exec_program(Real *const blk[], Real *const dst[],
   }
 }
 
-static const TabEntry (*load_cfg_tab(int ss, int dim))[3][2][2][6][2] {
+static const TabEntry (*load_cfg_tab(int ss, int dim))[3][2][2][6] {
   char fname[64];
   snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
   FILE *fp = fopen(fname, "rb");
@@ -275,21 +270,21 @@ static const TabEntry (*load_cfg_tab(int ss, int dim))[3][2][2][6][2] {
     fprintf(stderr, "main.cpp: cannot open %s\n", fname);
     exit(1);
   }
-  size_t sz = 3 * 3 * 2 * 2 * 6 * 2 * sizeof(TabEntry);
+  size_t sz = 3 * 3 * 2 * 2 * 6 * sizeof(TabEntry);
   TabEntry *tab = (TabEntry *)malloc(sz);
   if (fread(tab, 1, sz, fp) != sz) {
     fprintf(stderr, "main.cpp: short read from %s\n", fname);
     exit(1);
   }
   fclose(fp);
-  return (const TabEntry (*)[3][2][2][6][2])tab;
+  return (const TabEntry (*)[3][2][2][6])tab;
 }
 
 struct Lab {
   int dim;
-  Real *m, *c;
+  Real *m;
 };
-static const TabEntry (*g_tab[5][3])[3][2][2][6][2];
+static const TabEntry (*g_tab[5][3])[3][2][2][6];
 static void tab_load_all() {
   int configs[][2] = {{1,1}, {1,2}, {3,2}, {4,1}};
   for (auto &c : configs)
@@ -299,12 +294,10 @@ static void lab_init(Lab *lab, int dim, int ss) {
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
   lab->dim = dim;
-  lab->m = (Real *)malloc(nm * nm * dim * sizeof(Real));
-  lab->c = (Real *)malloc(nc * nc * dim * sizeof(Real));
+  lab->m = (Real *)malloc((nm * nm + nc * nc) * dim * sizeof(Real));
 }
 static void lab_free(Lab *lab) {
   free(lab->m);
-  free(lab->c);
 }
 static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
                       Stencil *stencil, Info *info) {
@@ -312,11 +305,10 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
   int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
-  int ua = (stencil->tensorial || ss > 2) ? 1 : 0;
   int n = 1 << info->level;
   int level = info->level;
   int xi, yi;
-  const TabEntry (*cfg_tab)[3][2][2][6][2] = g_tab[ss][dim];
+  const TabEntry (*cfg_tab)[3][2][2][6] = g_tab[ss][dim];
   sfc_inverse(info->Z, level, &xi, &yi);
 
   Real *p0 = info->block + BS * BS * blk_offset;
@@ -324,7 +316,8 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
     memcpy(lab->m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
            BS * dim * sizeof(Real));
 
-  Real *dst[2] = {lab->m, lab->c};
+  Real *c = lab->m + nm * nm * dim;
+  Real *dst[2] = {lab->m, c};
 
   struct {
     const TabEntry *e;
@@ -347,7 +340,7 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
     else
       s = -nei[3 * (1 + cx) + (1 + cy)];
     const TabEntry *te =
-        &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s][ua];
+        &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s];
     Real *blk[2] = {nullptr, nullptr};
     for (int b = 0; b < te->n_blk; b++) {
       const BlkSrc &bs = te->blk_src[b];
@@ -366,17 +359,11 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
   }
 
   for (int i = 0; i < nd; i++)
-    exec_program(dirs[i].blk, dst, dirs[i].e->fill, dirs[i].e->n_fill,
+    exec_program(dirs[i].blk, dst, dirs[i].e->ops, dirs[i].e->n_pre,
                  dim, nm, nc);
   for (int i = 0; i < nd; i++)
-    exec_program(dirs[i].blk, dst, dirs[i].e->cbc, dirs[i].e->n_cbc,
-                 dim, nm, nc);
-  for (int i = 0; i < nd; i++)
-    exec_program(dirs[i].blk, dst, dirs[i].e->interp_ops,
-                 dirs[i].e->n_interp, dim, nm, nc);
-  for (int i = 0; i < nd; i++)
-    exec_program(dirs[i].blk, dst, dirs[i].e->fbc, dirs[i].e->n_fbc,
-                 dim, nm, nc);
+    exec_program(dirs[i].blk, dst, dirs[i].e->ops + MAX_PRE,
+                 dirs[i].e->n_post, dim, nm, nc);
 }
 static void lab_load(Lab *lab, int blk_offset, Stencil *stencil, Info *info) {
   TreeState nei[3][3];
@@ -400,7 +387,7 @@ static void computeA(Kernel &&kernel, int offset, int dim) {
 }
 typedef Real ScalarBlock[BS][BS];
 static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
-  Stencil stencil{1, false};
+  Stencil stencil{1};
   Real *vm = velLab->m;
   Real *um = uDefLab->m;
   int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
@@ -442,7 +429,7 @@ struct Obstacle {
   }
 };
 struct KernelVorticity {
-  Stencil stencil{1, false};
+  Stencil stencil{1};
   void operator()(Real *um, Info *info, long long id) {
     Real i2h = 0.5 * (1 << info->level) * BS;
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
@@ -584,7 +571,7 @@ struct Shape {
   std::vector<Obstacle *> blocks;
 };
 struct PutChiOnGrid {
-  Stencil stencil{1, false};
+  Stencil stencil{1};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + 2;
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
@@ -768,7 +755,7 @@ static void ongrid() {
 }
 struct GradChiOnTmp {
   GradChiOnTmp() {}
-  Stencil stencil{4, true};
+  Stencil stencil{4};
   void operator()(Real *um, Info *info, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
@@ -813,7 +800,7 @@ static int adapt() {
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   int More = 0;
-  Stencil stencil{1, true};
+  Stencil stencil{1};
 
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
@@ -1066,7 +1053,7 @@ end:
   return Changed;
 }
 struct KernelAdvectDiffuse {
-  Stencil stencil{3, true};
+  Stencil stencil{3};
   void operator()(Real *um, Info *info, long long id) {
     Real h = info->h;
     Real dfac = sim.nu * sim.dt;
@@ -1165,7 +1152,7 @@ static void getVec() {
   }
 }
 struct pressureCorrectionKernel {
-  Stencil stencil{1, false};
+  Stencil stencil{1};
   void operator()(Real *um, Info *info, long long id) {
     int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
     Real h = info->h, pFac = -0.5 * sim.dt * h;
@@ -1189,7 +1176,7 @@ struct pressureCorrectionKernel {
 };
 struct pressure_rhs1 {
   pressure_rhs1() {}
-  Stencil stencil{1, false};
+  Stencil stencil{1};
   void operator()(Real *um, Info *, long long id) {
     Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
     int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
@@ -1240,9 +1227,6 @@ static const struct {
     {"omega", offsetof(Shape, omega), 1},
 };
 int main(int argc, char **argv) {
-  feclearexcept(FE_ALL_EXCEPT);
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-
 #ifdef _OPENMP
 #pragma omp parallel
 #pragma omp master
@@ -1653,7 +1637,7 @@ int main(int argc, char **argv) {
           }
       }
     }
-    Stencil stencil{1, false};
+    Stencil stencil{1};
 #pragma omp parallel
     {
       Lab lab, lab2;
