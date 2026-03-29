@@ -977,10 +977,10 @@ static int adapt() {
 #pragma omp critical
             dealloc_IDs.insert(sim.levels[level_com[k]] + Z);
         }
-      Real *dst = Blocks[0];
       for (size_t v = 0; v < sizeof vars / sizeof *vars; v++) {
         int dim = vars[v].dim;
         int offset = vars[v].offset;
+        Real *dst = Blocks[0] + offset * BS * BS;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *src = Blocks[J * 2 + I] + offset * BS * BS;
@@ -988,7 +988,7 @@ static int adapt() {
               for (int i = 0; i < BS; i += 2) {
                 int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
                 for (int d = 0; d < dim; d++)
-                  dst[dim * (offset * BS * BS + o) + d] =
+                  dst[dim * o + d] =
                       (src[dim * (BS * j + i) + d] +
                        src[dim * (BS * j + i + 1) + d] +
                        src[dim * (BS * (j + 1) + i) + d] +
