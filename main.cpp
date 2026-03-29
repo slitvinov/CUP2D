@@ -493,7 +493,7 @@ struct BlockLab {
                 else if (is_face)
                   e->interp = interp_face;
                 else
-                  e->interp = interp_corner;
+                  e->interp = ua ? interp_corner : interp_noop;
               }
       }
   }

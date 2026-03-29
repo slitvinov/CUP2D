@@ -89,3 +89,8 @@ for i in vel.*.xdmf2; do j=${i%.xdmf2}.png; if test ! -f $j; then echo $i $j; fi
 nvcc cuda.cu -c
 nvcc -o main -Xcompiler -fopenmp,-g3,-fsanitize=address main.cpp cuda.o -lcublas -lcusparse
 ```
+
+```
+ls vel.*.xdmf2 | xargs -n 1 -P `nproc --all` tool/post.py
+mpv --loop 'mf://*.png'
+```
