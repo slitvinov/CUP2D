@@ -198,6 +198,35 @@ static void get_states(Info *info, TreeState nei[3][3]) {
   }
 }
 
+static inline void ghost_bounds(int c, int ss, int *s, int *e) {
+  *s = c < 0 ? -ss : c == 0 ? 0 : BS;
+  *e = c < 0 ? 0 : c == 0 ? BS : BS + ss;
+}
+static inline void coarse_bounds(int c, int ss, int coff, int *s, int *e) {
+  *s = c < 0 ? coff : c == 0 ? 0 : BS / 2;
+  *e = c < 0 ? 0 : c == 0 ? BS / 2 : BS / 2 + (ss + 1) / 2 + 1;
+}
+static inline bool skin_skip(int c, int coord, int n) {
+  bool skin = coord == 0 || coord == n - 1;
+  int skip = coord == 0 ? -1 : 1;
+  return c == skip && skin;
+}
+enum GhostOp { OP_SAME, OP_COARSE, OP_FINE };
+struct GhostWork {
+  GhostOp op;
+  int cx, cy;
+  Real *src[2];
+  int nchild;
+  int cstart[2];
+  const ChildNeighborPattern *pattern;
+};
+static const struct { int cx, cy; struct { int is_LE, b_dx, b_dy, c_dx, c_dy; } sub[2]; } liLeTab[] = {
+    {0, +1, {{0, 0, -1, 0, -2}, {1, 0, -2, 0, -3}}},
+    {0, -1, {{1, 0, +2, 0, +3}, {0, 0, +1, 0, +2}}},
+    {+1, 0, {{0, -1, 0, -2, 0}, {1, -2, 0, -3, 0}}},
+    {-1, 0, {{1, +2, 0, +3, 0}, {0, +1, 0, +2, 0}}},
+};
+
 struct BlockLab {
 private:
   int dim;
@@ -721,70 +750,28 @@ public:
             }
           }
         }
-        for (int iy = s[1]; iy < e[1]; iy += 1) {
-          for (int ix = s[0]; ix < e[0]; ix += 1) {
-            if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1)
-              continue;
-            int k0 = ix - (-ss) + nm * (iy - (-ss) - 1);
-            int k1 = ix - (-ss) + nm * (iy - (-ss) - 2);
-            int k2 = ix - (-ss) + nm * (iy - (-ss) + 1);
-            int k3 = ix - (-ss) + nm * (iy - (-ss) + 2);
-            int k4 = ix - (-ss) + nm * (iy - (-ss) + 3);
-            int k5 = ix - (-ss) - 1 + nm * (iy - (-ss));
-            int k6 = ix - (-ss) - 2 + nm * (iy - (-ss));
-            int k7 = ix - (-ss) - 3 + nm * (iy - (-ss));
-            int k8 = ix - (-ss) + 1 + nm * (iy - (-ss));
-            int k9 = ix - (-ss) + 2 + nm * (iy - (-ss));
-            int k10 = ix - (-ss) + 3 + nm * (iy - (-ss));
-            int k11 = ix - (-ss) + nm * (iy - (-ss) - 3);
-            int k12 = ix - (-ss) + nm * (iy - (-ss));
-            int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
-            int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
-            for (int d = 0; d < dim; d++) {
-              Real *a = m + dim * k12 + d;
-              if (cx == 0 && cy == 1) {
-                if (y == 0) {
-                  Real *b = m + dim * k0 + d;
-                  Real *c = m + dim * k1 + d;
-                  LI(a, b, c);
-                } else if (y == 1) {
-                  Real *b = m + dim * k1 + d;
-                  Real *c = m + dim * k11 + d;
-                  LE(a, b, c);
-                }
-              } else if (cx == 0 && cy == -1) {
-                if (y == 1) {
-                  Real *b = m + dim * k2 + d;
-                  Real *c = m + dim * k3 + d;
-                  LI(a, b, c);
-                } else if (y == 0) {
-                  Real *b = m + dim * k3 + d;
-                  Real *c = m + dim * k4 + d;
-                  LE(a, b, c);
-                }
-              } else if (cy == 0 && cx == 1) {
-                if (x == 0) {
-                  Real *b = m + dim * k5 + d;
-                  Real *c = m + dim * k6 + d;
-                  LI(a, b, c);
-                } else if (x == 1) {
-                  Real *b = m + dim * k6 + d;
-                  Real *c = m + dim * k7 + d;
-                  LE(a, b, c);
-                }
-              } else if (cy == 0 && cx == -1) {
-                if (x == 1) {
-                  Real *b = m + dim * k8 + d;
-                  Real *c = m + dim * k9 + d;
-                  LI(a, b, c);
-                } else if (x == 0) {
-                  Real *b = m + dim * k9 + d;
-                  Real *c = m + dim * k10 + d;
-                  LE(a, b, c);
+        {
+          int li = -1;
+          for (int j = 0; j < 4; j++)
+            if (liLeTab[j].cx == cx && liLeTab[j].cy == cy) { li = j; break; }
+          if (li >= 0)
+            for (int iy = s[1]; iy < e[1]; iy++)
+              for (int ix = s[0]; ix < e[0]; ix++) {
+                if (ix < -2 || iy < -2 || ix > BS + 1 || iy > BS + 1) continue;
+                int ka = (ix + ss) + nm * (iy + ss);
+                int x = abs(ix - s[0] - std::min(0, cx) * ((e[0] - s[0]) % 2)) % 2;
+                int y = abs(iy - s[1] - std::min(0, cy) * ((e[1] - s[1]) % 2)) % 2;
+                int p = cx != 0 ? y : x;
+                auto &sub = liLeTab[li].sub[p];
+                int kb = (ix + ss + sub.b_dx) + nm * (iy + ss + sub.b_dy);
+                int kc = (ix + ss + sub.c_dx) + nm * (iy + ss + sub.c_dy);
+                for (int d = 0; d < dim; d++) {
+                  Real *a = m + dim * ka + d;
+                  Real *b = m + dim * kb + d;
+                  Real *cv = m + dim * kc + d;
+                  if (sub.is_LE) LE(a, b, cv); else LI(a, b, cv);
                 }
               }
-            }
-          }
         }
       }
     }
