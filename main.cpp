@@ -425,7 +425,11 @@ struct BlockLab {
       GhostOp op;
       switch (state) {
       case Active:
-        assert(exist(info->level, info->Znei[1 + cx][1 + cy]));
+        if (!exist(info->level, info->Znei[1 + cx][1 + cy])) {
+          fprintf(stderr, "load1: Active but missing: level=%d cx=%d cy=%d xi=%d yi=%d n=%d Z=%lld\n",
+                  info->level, cx, cy, xi, yi, n, info->Znei[1 + cx][1 + cy]);
+          assert(0);
+        }
         src0 = getf0(info->level, info->Znei[1 + cx][1 + cy])->block +
                BS * BS * blk_offset;
         op = OP_SAME;
