@@ -7,7 +7,7 @@ import sys
 BS = 8
 MAX_FILL = 20
 MAX_CBC = 32
-MAX_INTERP = 20
+MAX_INTERP = 48
 MAX_FBC = 48
 
 childNeighborTable = [
@@ -33,8 +33,15 @@ face_dsign = [
     [+1, +1, -1, -1],
 ]
 
-OP_COPY = 0; OP_AVG = 1; OP_INTERP_CORNER = 2; OP_INTERP_FACE_Q = 3
+OP_COPY = 0; OP_AVG = 1; OP_INTERP9 = 2; OP_INTERP3 = 3
 OP_LELI = 4; OP_BC_SCALAR = 5; OP_BC_VECTOR = 6
+
+# Face interpolation weights (numerators / 32)
+# Sources for branch 0: (i1, i1+cs, i1+2*cs)
+# Sources for branch 1: (i1-2*cs, i1-cs, i1)
+# Sources for branch 2: (i1-cs, i1, i1+cs)
+FACE_VP = {0: (21, 14, -3), 1: (5, -18, 45), 2: (-3, 30, 5)}
+FACE_VM = {0: (45, -18, 5), 1: (-3, 14, 21), 2: (5, 30, -3)}
 
 def get_child_pattern(cx, cy):
     for e in childNeighborTable:
@@ -210,18 +217,44 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                     branch = 2
                 ok1 = iy + iyp >= s1_i and iy + iyp < e1
                 ok2 = ix + ixp >= s0_i and ix + ixp < e0
-                ok_mask = 1 | (2 if ok1 else 0) | (4 if ok2 else 0) | (8 if (ok1 and ok2) else 0)
                 sign_mask = 0
                 for k in range(4):
                     if face_dsign[dirn][k] < 0:
                         sign_mask |= (1 << k)
-                flags = (branch |
-                         (4 if t < 0 else 0) |
-                         (8 if ixp < 0 else 0) |
-                         (16 if iyp < 0 else 0))
-                e['interp_ops'].append((OP_INTERP_FACE_Q, 0, 0, flags, i1, j0,
-                                        ok_mask | (sign_mask << 4),
-                                        stride * dim))
+
+                # Source offsets for the 3 coarse cells
+                cs_off = stride * dim
+                if branch == 0:
+                    srcs = (i1, i1 + cs_off, i1 + 2 * cs_off)
+                elif branch == 1:
+                    srcs = (i1 - 2 * cs_off, i1 - cs_off, i1)
+                else:
+                    srcs = (i1 - cs_off, i1, i1 + cs_off)
+
+                # Pick vp/vm weights; for t<0, swap them
+                wvp = FACE_VP[branch]
+                wvm = FACE_VM[branch]
+                if t < 0:
+                    wvp, wvm = wvm, wvp
+
+                # Emit one OP_INTERP3 per output cell
+                # Cell 0: j0 (always valid)
+                # Cell 1: j0 + nm*dim*iyp
+                # Cell 2: j0 + dim*ixp
+                # Cell 3: j0 + dim*ixp + nm*dim*iyp
+                dests = [j0,
+                         j0 + nm * dim * iyp,
+                         j0 + dim * ixp,
+                         j0 + dim * ixp + nm * dim * iyp]
+                ok = [True, ok1, ok2, ok1 and ok2]
+                for k in range(4):
+                    if not ok[k]:
+                        continue
+                    w = wvm if (sign_mask & (1 << k)) else wvp
+                    # OP_INTERP3: (type, w0, w1, w2, s0, dst, s1, s2)
+                    e['interp_ops'].append((OP_INTERP3, w[0], w[1], w[2],
+                                            srcs[0], dests[k], srcs[1], srcs[2]))
+
         li = -1
         for j in range(4):
             if liLeTab[j][0] == cx and liLeTab[j][1] == cy:
@@ -251,7 +284,7 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                 dst_m = dim * (ix + ss + nm * (iy + ss))
                 x = abs(ix - fs0 - min(0, cx) * ((fe0 - fs0) % 2)) % 2
                 y = abs(iy - fs1 - min(0, cy) * ((fe1 - fs1) % 2)) % 2
-                e['interp_ops'].append((OP_INTERP_CORNER, 0, 0,
+                e['interp_ops'].append((OP_INTERP9, 0, 0,
                                         x | (y << 1), src_c, dst_m, 0, 0))
 
     # BC ops
@@ -307,16 +340,14 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
 #   56: n_blk(1) blk_src[2](18) + padding to align n_fill = 19 bytes, pad to 76
 #   76: n_fill(4) fill[20](400)
 #   480: n_cbc(4) cbc[32](640)
-#   1124: n_interp(4) interp_ops[20](400)
-#   1528: n_fbc(4) fbc[48](960)
-#   Total: 2492
+#   1124: n_interp(4) interp_ops[48](960)
+#   2088: n_fbc(4) fbc[48](960)
+#   Total: 3052
 
 def pack_op(op):
-    # type(int8), blk_idx(int8), dst_idx(int8), flags(int8), src_off(int), dst_off(int), p1(int), p2(int)
     return struct.pack('<bbbb iiii', op[0], op[1], op[2], op[3], op[4], op[5], op[6], op[7])
 
 def pack_blksrc(b):
-    # 7 int8_t + bool(1 byte) + int8_t = 9 bytes
     return struct.pack('<bbbbbbb?b',
         b['level_delta'], b['xi_mul'], b['yi_mul'],
         b['xi_add'], b['yi_add'], b['xi_shift'], b['yi_shift'],
@@ -325,26 +356,24 @@ def pack_blksrc(b):
 ZERO_OP = pack_op((0,0,0,0,0,0,0,0))
 ZERO_BLKSRC = pack_blksrc({'level_delta':0,'xi_mul':0,'yi_mul':0,'xi_add':0,'yi_add':0,'xi_shift':0,'yi_shift':0,'is_self':0,'self_idx':0})
 
+ENTRY_SIZE = 56 + 20 + 4 + MAX_FILL*20 + 4 + MAX_CBC*20 + 4 + MAX_INTERP*20 + 4 + MAX_FBC*20
+
 def pack_entry(e):
     buf = bytearray()
-    # 14 ints: cx, cy, fs[2], fe[2], cs[2], ce[2], cstart[2], sC[2]
     buf += struct.pack('<ii ii ii ii ii ii ii',
         e['cx'], e['cy'],
         e['fs'][0], e['fs'][1], e['fe'][0], e['fe'][1],
         e['cs'][0], e['cs'][1], e['ce'][0], e['ce'][1],
         e['cstart'][0], e['cstart'][1], e['sC'][0], e['sC'][1])
     assert len(buf) == 56
-    # n_blk (int8_t)
     buf += struct.pack('<b', e['n_blk'])
-    # blk_src[2]
     blks = list(e['blk_src'])
     while len(blks) < 2:
         blks.append({'level_delta':0,'xi_mul':0,'yi_mul':0,'xi_add':0,'yi_add':0,'xi_shift':0,'yi_shift':0,'is_self':0,'self_idx':0})
     for b in blks:
         buf += pack_blksrc(b)
-    assert len(buf) == 75  # 56 + 1 + 18
-    # Pad to offset 76 (n_fill is at offset 76, aligned to 4)
-    buf += b'\x00'  # 1 byte padding
+    assert len(buf) == 75
+    buf += b'\x00'
     assert len(buf) == 76
 
     # n_fill + fill[MAX_FILL]
@@ -366,13 +395,13 @@ def pack_entry(e):
     assert len(buf) == 1124
 
     # n_interp + interp_ops[MAX_INTERP]
-    assert len(e['interp_ops']) <= MAX_INTERP, f"interp overflow: {len(e['interp_ops'])} > {MAX_INTERP}"
+    assert len(e['interp_ops']) <= MAX_INTERP, f"interp overflow: {len(e['interp_ops'])} > {MAX_INTERP} at ({e['cx']},{e['cy']})"
     buf += struct.pack('<i', len(e['interp_ops']))
     for op in e['interp_ops']:
         buf += pack_op(op)
     for _ in range(MAX_INTERP - len(e['interp_ops'])):
         buf += ZERO_OP
-    assert len(buf) == 1528
+    assert len(buf) == 2088
 
     # n_fbc + fbc[MAX_FBC]
     assert len(e['fbc']) <= MAX_FBC, f"fbc overflow: {len(e['fbc'])} > {MAX_FBC}"
@@ -381,12 +410,11 @@ def pack_entry(e):
         buf += pack_op(op)
     for _ in range(MAX_FBC - len(e['fbc'])):
         buf += ZERO_OP
-    assert len(buf) == 2492
+    assert len(buf) == ENTRY_SIZE
 
     return bytes(buf)
 
 def build_and_write(fname, ss, dim):
-    # Table layout: [3][3][2][2][6][2] = 432 entries, row-major
     with open(fname, 'wb') as f:
         for cxi in range(3):
             cx = cxi - 1
@@ -397,11 +425,11 @@ def build_and_write(fname, ss, dim):
                         for s in range(6):
                             for ua in range(2):
                                 if cx == 0 and cy == 0:
-                                    f.write(b'\x00' * 2492)
+                                    f.write(b'\x00' * ENTRY_SIZE)
                                 else:
                                     e = build_entry(cx, cy, xp, yp, s, ua, ss, dim)
                                     f.write(pack_entry(e))
-    sz = 432 * 2492
+    sz = 432 * ENTRY_SIZE
     print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB)')
 
 def main():

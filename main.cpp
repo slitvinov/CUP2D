@@ -158,8 +158,8 @@ static void get_states(Info *info, TreeState nei[3][3]) {
 enum OpType : int8_t {
   OP_COPY,
   OP_AVG,
-  OP_INTERP_CORNER,
-  OP_INTERP_FACE_Q,
+  OP_INTERP9,
+  OP_INTERP3,
   OP_LELI,
   OP_BC_SCALAR,
   OP_BC_VECTOR,
@@ -179,7 +179,7 @@ struct BlkSrc {
   bool is_self;
   int8_t self_idx;
 };
-enum { MAX_FILL = 20, MAX_CBC = 32, MAX_INTERP = 20, MAX_FBC = 48 };
+enum { MAX_FILL = 20, MAX_CBC = 32, MAX_INTERP = 48, MAX_FBC = 48 };
 struct TabEntry {
   int cx, cy, fs[2], fe[2], cs[2], ce[2], cstart[2], sC[2];
   int8_t n_blk;
@@ -215,52 +215,29 @@ static void exec_program(Real *const blk[], Real *const dst[],
               4;
       break;
     }
-    case OP_INTERP_CORNER: {
-      int x = o.flags & 1, y = (o.flags >> 1) & 1;
-      Real *C[3][3];
-      for (int ii = 0; ii < 3; ii++)
+    case OP_INTERP9: {
+      static const int8_t W[4][9] = {
+          {1, 10, -1, 10, 56, -6, -1, -6, 1},   // x=0,y=0
+          {-1, 10, 1, -6, 56, 10, 1, -6, -1},    // x=1,y=0
+          {-1, -6, 1, 10, 56, -6, 1, 10, -1},    // x=0,y=1
+          {1, -6, -1, -6, 56, 10, -1, 10, 1},    // x=1,y=1
+      };
+      const int8_t *w = W[o.flags & 3];
+      for (int d = 0; d < dim; d++) {
+        Real sum = 0;
         for (int jj = 0; jj < 3; jj++)
-          C[ii][jj] = c + o.src_off + dim * ((ii - 1) + nc * (jj - 1));
-      for (int d = 0; d < dim; d++)
-        TestInterp(C, m + o.dst_off + d, x, y);
+          for (int ii = 0; ii < 3; ii++)
+            sum += w[3 * jj + ii] * c[o.src_off + d + dim * ((ii - 1) + nc * (jj - 1))];
+        m[o.dst_off + d] = sum / 64.0;
+      }
       break;
     }
-    case OP_INTERP_FACE_Q: {
-      int branch = o.flags & 3;
-      double t = (o.flags & 4) ? -0.25 : 0.25;
-      int ixp = (o.flags & 8) ? -1 : 1;
-      int iyp = (o.flags & 16) ? -1 : 1;
-      int ok_mask = o.p1 & 0xf;
-      int sign_mask = (o.p1 >> 4) & 0xf;
-      int cs = o.p2;
-      int i1 = o.src_off;
-      int j0 = o.dst_off;
-      int j1 = j0 + nm * dim * iyp;
-      int j2 = j0 + dim * ixp;
-      int j3 = j0 + dim * ixp + nm * dim * iyp;
-      for (int d = 0; d < dim; d++) {
-        Real du, du2;
-        if (branch == 0) {
-          du = (-0.5 * c[i1 + 2 * cs + d] - 1.5 * c[i1 + d]) +
-               2.0 * c[i1 + cs + d];
-          du2 =
-              (c[i1 + 2 * cs + d] + c[i1 + d]) - 2.0 * c[i1 + cs + d];
-        } else if (branch == 1) {
-          du = (0.5 * c[i1 - 2 * cs + d] + 1.5 * c[i1 + d]) -
-               2.0 * c[i1 - cs + d];
-          du2 =
-              (c[i1 - 2 * cs + d] + c[i1 + d]) - 2.0 * c[i1 - cs + d];
-        } else {
-          du = 0.5 * (c[i1 + cs + d] - c[i1 - cs + d]);
-          du2 = (c[i1 + cs + d] + c[i1 - cs + d]) - 2.0 * c[i1 + d];
-        }
-        Real vp = c[i1 + d] + t * du + (0.5 * t * t) * du2;
-        Real vm = c[i1 + d] - t * du + (0.5 * t * t) * du2;
-        int jj[4] = {j0, j1, j2, j3};
-        for (int k = 0; k < 4; k++)
-          if (ok_mask & (1 << k))
-            m[jj[k] + d] = (sign_mask & (1 << k)) ? vm : vp;
-      }
+    case OP_INTERP3: {
+      for (int d = 0; d < dim; d++)
+        m[o.dst_off + d] =
+            (o.blk_idx * c[o.src_off + d] + o.dst_idx * c[o.p1 + d] +
+             o.flags * c[o.p2 + d]) /
+            32.0;
       break;
     }
     case OP_LELI: {
