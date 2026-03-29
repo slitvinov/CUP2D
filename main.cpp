@@ -27,9 +27,6 @@ enum {
 };
 
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-struct Stencil {
-  int s;
-};
 enum State : signed char { Leave = 0, Refine = 1, Compress = -1 };
 enum TreeState : signed char {
   Active = 0,
@@ -300,9 +297,8 @@ static void lab_free(Lab *lab) {
   free(lab->m);
 }
 static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
-                      Stencil *stencil, Info *info) {
+                      int ss, Info *info) {
   int dim = lab->dim;
-  int ss = stencil->s;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
   int n = 1 << info->level;
@@ -365,10 +361,10 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
     exec_program(dirs[i].blk, dst, dirs[i].e->ops + MAX_PRE,
                  dirs[i].e->n_post, dim, nm, nc);
 }
-static void lab_load(Lab *lab, int blk_offset, Stencil *stencil, Info *info) {
+static void lab_load(Lab *lab, int blk_offset, int ss, Info *info) {
   TreeState nei[3][3];
   get_states(info, nei);
-  lab_load1(lab, blk_offset, &nei[0][0], stencil, info);
+  lab_load1(lab, blk_offset, &nei[0][0], ss, info);
 }
 
 typedef Real ScalarBlock[BS][BS];
@@ -405,14 +401,14 @@ struct Obstacle {
   }
 };
 static void compute_vorticity() {
-  Stencil stencil{1};
+  int ss = 1;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 2, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_vel, &stencil, sim.infos[id]);
+      lab_load(&lab, off_vel, ss, sim.infos[id]);
       Real *um = lab.m;
       Info *info = sim.infos[id];
       Real i2h = 0.5 * (1 << info->level) * BS;
@@ -549,14 +545,14 @@ struct Shape {
   std::vector<Obstacle *> blocks;
 };
 static void compute_chi_on_grid() {
-  Stencil stencil{1};
+  int ss = 1;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_tmp, &stencil, sim.infos[id]);
+      lab_load(&lab, off_tmp, ss, sim.infos[id]);
       Real *um = lab.m;
       Info *info = sim.infos[id];
       int ss = 1, nm = 2 * ss + BS;
@@ -729,14 +725,14 @@ static void ongrid() {
   }
 }
 static void compute_grad_chi() {
-  Stencil stencil{4};
+  int ss = 4;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 1, 4);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_chi, &stencil, sim.infos[id]);
+      lab_load(&lab, off_chi, ss, sim.infos[id]);
       Real *um = lab.m;
       Info *info = sim.infos[id];
       Real *TMP = info->block + BS * BS * off_tmp;
@@ -784,7 +780,7 @@ static int adapt() {
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   int More = 0;
-  Stencil stencil{1};
+  int ss = 1;
 
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
@@ -893,8 +889,8 @@ static int adapt() {
 #pragma omp parallel
   {
     Lab labs[2];
-    lab_init(&labs[0], 1, stencil.s);
-    lab_init(&labs[1], 2, stencil.s);
+    lab_init(&labs[0], 1, ss);
+    lab_init(&labs[1], 2, ss);
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
@@ -915,20 +911,20 @@ static int adapt() {
           child->block = blocks[2 * J + I] =
               (Real *)malloc(off_n * BS * BS * sizeof(Real));
         }
-      int nm = 2 * stencil.s + BS;
+      int nm = 2 * ss + BS;
       Info *parent = getf0(level_ref[k], Z_ref[k]);
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        lab_load1(&labs[dim - 1], offset, &m_tree[k].nei[0][0], &stencil, parent);
+        lab_load1(&labs[dim - 1], offset, &m_tree[k].nei[0][0], ss, parent);
         Real *um = labs[dim - 1].m;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = blocks[J * 2 + I] + offset * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + I * (BS / 2) + stencil.s;
-                int j0 = j / 2 + J * (BS / 2) + stencil.s;
+                int i0 = i / 2 + I * (BS / 2) + ss;
+                int j0 = j / 2 + J * (BS / 2) + ss;
                 int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
                 for (int s = 0; s < 4; s++)
                   for (int d = 0; d < dim; d++) {
@@ -1031,14 +1027,14 @@ end:
   return Changed;
 }
 static void compute_advect_diffuse() {
-  Stencil stencil{3};
+  int ss = 3;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 2, 3);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_vel, &stencil, sim.infos[id]);
+      lab_load(&lab, off_vel, ss, sim.infos[id]);
       Real *um = lab.m;
       Info *info = sim.infos[id];
       Real h = info->h;
@@ -1099,14 +1095,14 @@ static void getVec() {
   }
 }
 static void compute_pressure_correction() {
-  Stencil stencil{1};
+  int ss = 1;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_pres, &stencil, sim.infos[id]);
+      lab_load(&lab, off_pres, ss, sim.infos[id]);
       Real *um = lab.m;
       Info *info = sim.infos[id];
       int ss = 1, nm = 2 * ss + BS;
@@ -1124,14 +1120,14 @@ static void compute_pressure_correction() {
   }
 }
 static void compute_pressure_laplacian() {
-  Stencil stencil{1};
+  int ss = 1;
 #pragma omp parallel
   {
     Lab lab;
     lab_init(&lab, 1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_pold, &stencil, sim.infos[id]);
+      lab_load(&lab, off_pold, ss, sim.infos[id]);
       Real *um = lab.m;
       Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
       int ss = 1, nm = 2 * ss + BS;
@@ -1585,16 +1581,16 @@ int main(int argc, char **argv) {
           }
       }
     }
-    Stencil stencil{1};
+    int ss = 1;
 #pragma omp parallel
     {
       Lab lab, lab2;
-      lab_init(&lab, 2, stencil.s);
-      lab_init(&lab2, 2, stencil.s);
+      lab_init(&lab, 2, ss);
+      lab_init(&lab2, 2, ss);
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
-        lab_load(&lab, off_vel, &stencil, sim.infos[i]);
-        lab_load(&lab2, off_tmpV, &stencil, sim.infos[i]);
+        lab_load(&lab, off_vel, ss, sim.infos[i]);
+        lab_load(&lab2, off_tmpV, ss, sim.infos[i]);
         pressure_rhs_fun(&lab, &lab2, i);
       }
       lab_free(&lab);
