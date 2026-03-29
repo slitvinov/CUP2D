@@ -335,14 +335,13 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
 # Binary serialization matching C struct layout exactly
 # Op: 4 bytes (type,blk_idx,dst_idx,flags) + 4 ints = 20 bytes
 # BlkSrc: 9 bytes (7 int8_t + bool + int8_t)
-# TabEntry layout (from offsetof):
-#   0: cx(4) cy(4) fs[2](8) fe[2](8) cs[2](8) ce[2](8) cstart[2](8) sC[2](8) = 56 bytes
-#   56: n_blk(1) blk_src[2](18) + padding to align n_fill = 19 bytes, pad to 76
-#   76: n_fill(4) fill[20](400)
-#   480: n_cbc(4) cbc[32](640)
-#   1124: n_interp(4) interp_ops[48](960)
-#   2088: n_fbc(4) fbc[48](960)
-#   Total: 3052
+# TabEntry layout:
+#   0: n_blk(1) blk_src[2](18) pad(1) = 20 bytes
+#   20: n_fill(4) fill[20](400) = 404
+#   424: n_cbc(4) cbc[32](640) = 644
+#   1068: n_interp(4) interp_ops[48](960) = 964
+#   2032: n_fbc(4) fbc[48](960) = 964
+#   Total: 2996
 
 def pack_op(op):
     return struct.pack('<bbbb iiii', op[0], op[1], op[2], op[3], op[4], op[5], op[6], op[7])
@@ -354,27 +353,20 @@ def pack_blksrc(b):
         bool(b['is_self']), b['self_idx'])
 
 ZERO_OP = pack_op((0,0,0,0,0,0,0,0))
-ZERO_BLKSRC = pack_blksrc({'level_delta':0,'xi_mul':0,'yi_mul':0,'xi_add':0,'yi_add':0,'xi_shift':0,'yi_shift':0,'is_self':0,'self_idx':0})
 
-ENTRY_SIZE = 56 + 20 + 4 + MAX_FILL*20 + 4 + MAX_CBC*20 + 4 + MAX_INTERP*20 + 4 + MAX_FBC*20
+ENTRY_SIZE = 20 + 4 + MAX_FILL*20 + 4 + MAX_CBC*20 + 4 + MAX_INTERP*20 + 4 + MAX_FBC*20
 
 def pack_entry(e):
     buf = bytearray()
-    buf += struct.pack('<ii ii ii ii ii ii ii',
-        e['cx'], e['cy'],
-        e['fs'][0], e['fs'][1], e['fe'][0], e['fe'][1],
-        e['cs'][0], e['cs'][1], e['ce'][0], e['ce'][1],
-        e['cstart'][0], e['cstart'][1], e['sC'][0], e['sC'][1])
-    assert len(buf) == 56
     buf += struct.pack('<b', e['n_blk'])
     blks = list(e['blk_src'])
     while len(blks) < 2:
         blks.append({'level_delta':0,'xi_mul':0,'yi_mul':0,'xi_add':0,'yi_add':0,'xi_shift':0,'yi_shift':0,'is_self':0,'self_idx':0})
     for b in blks:
         buf += pack_blksrc(b)
-    assert len(buf) == 75
+    assert len(buf) == 19
     buf += b'\x00'
-    assert len(buf) == 76
+    assert len(buf) == 20
 
     # n_fill + fill[MAX_FILL]
     assert len(e['fill']) <= MAX_FILL, f"fill overflow: {len(e['fill'])} > {MAX_FILL}"
@@ -383,7 +375,7 @@ def pack_entry(e):
         buf += pack_op(op)
     for _ in range(MAX_FILL - len(e['fill'])):
         buf += ZERO_OP
-    assert len(buf) == 480
+    assert len(buf) == 424
 
     # n_cbc + cbc[MAX_CBC]
     assert len(e['cbc']) <= MAX_CBC, f"cbc overflow: {len(e['cbc'])} > {MAX_CBC}"
@@ -392,7 +384,7 @@ def pack_entry(e):
         buf += pack_op(op)
     for _ in range(MAX_CBC - len(e['cbc'])):
         buf += ZERO_OP
-    assert len(buf) == 1124
+    assert len(buf) == 1068
 
     # n_interp + interp_ops[MAX_INTERP]
     assert len(e['interp_ops']) <= MAX_INTERP, f"interp overflow: {len(e['interp_ops'])} > {MAX_INTERP} at ({e['cx']},{e['cy']})"
@@ -401,7 +393,7 @@ def pack_entry(e):
         buf += pack_op(op)
     for _ in range(MAX_INTERP - len(e['interp_ops'])):
         buf += ZERO_OP
-    assert len(buf) == 2088
+    assert len(buf) == 2032
 
     # n_fbc + fbc[MAX_FBC]
     assert len(e['fbc']) <= MAX_FBC, f"fbc overflow: {len(e['fbc'])} > {MAX_FBC}"

@@ -181,7 +181,6 @@ struct BlkSrc {
 };
 enum { MAX_FILL = 20, MAX_CBC = 32, MAX_INTERP = 48, MAX_FBC = 48 };
 struct TabEntry {
-  int cx, cy, fs[2], fe[2], cs[2], ce[2], cstart[2], sC[2];
   int8_t n_blk;
   BlkSrc blk_src[2];
   int n_fill;
@@ -241,14 +240,14 @@ static void exec_program(Real *const blk[], Real *const dst[],
       break;
     }
     case OP_LELI: {
+      static const int8_t W[2][3] = {
+          {8, 10, -3},  // LI: (8a + 10b - 3c) / 15
+          {24, -15, 6}, // LE: (24a - 15b + 6c) / 15
+      };
+      const int8_t *w = W[o.flags & 1];
       for (int d = 0; d < dim; d++) {
-        Real *a = m + o.src_off + d;
-        Real *b = m + o.dst_off + d;
-        Real *cv = m + o.p1 + d;
-        if (o.flags & 1)
-          LE(a, b, cv);
-        else
-          LI(a, b, cv);
+        Real a = m[o.src_off + d], b = m[o.dst_off + d], cv = m[o.p1 + d];
+        m[o.src_off + d] = (w[0] * a + w[1] * b + w[2] * cv) / 15.0;
       }
       break;
     }

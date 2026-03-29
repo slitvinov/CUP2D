@@ -1,21 +1,6 @@
 static Real real_min(Real a, Real b) { return a < b ? a : b; }
 
-static void LI(Real *a0, Real *b0, Real *c0) {
-  Real a = *a0;
-  Real b = *b0;
-  Real c = *c0;
-  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Real lambda = (b - c) - kappa;
-  *a0 = (4.0 * kappa + 2.0 * lambda) + c;
-}
-static void LE(Real *a0, Real *b0, Real *c0) {
-  Real a = *a0;
-  Real b = *b0;
-  Real c = *c0;
-  Real kappa = ((4.0 / 15.0) * a + (6.0 / 15.0) * c) + (-10.0 / 15.0) * b;
-  Real lambda = (b - c) - kappa;
-  *a0 = (9.0 * kappa + 3.0 * lambda) + c;
-}
+
 static double getA_local(int I1, int I2) {
   int j1 = I1 / BS;
   int i1 = I1 % BS;
