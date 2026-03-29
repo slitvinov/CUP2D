@@ -1942,10 +1942,17 @@ int main(int argc, char **argv) {
       std::istringstream line_stream(line);
       LineParser p(line_stream);
       Shape *shape = new Shape;
-      shape->x = p("xcenter").asDouble();
-      shape->y = p("ycenter").asDouble();
-      shape->orientation = p("orientation").asDouble() * M_PI / 180;
-      shape->omega = p("omega").asDouble();
+      {
+        static const struct { const char *name; size_t off; Real scale; } stab[] = {
+          {"xcenter",     offsetof(Shape, x),           1},
+          {"ycenter",     offsetof(Shape, y),           1},
+          {"orientation", offsetof(Shape, orientation),  M_PI / 180},
+          {"omega",       offsetof(Shape, omega),        1},
+        };
+        char *base = (char *)shape;
+        for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
+          *(Real *)(base + stab[i].off) = p(stab[i].name).asDouble() * stab[i].scale;
+      }
       Real scale = p("scale").asDouble();
       std::string path0 = p("sdf").asString();
       const char *path = path0.c_str();
