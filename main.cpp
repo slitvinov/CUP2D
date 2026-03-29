@@ -371,26 +371,10 @@ static void lab_load(Lab *lab, int blk_offset, Stencil *stencil, Info *info) {
   lab_load1(lab, blk_offset, &nei[0][0], stencil, info);
 }
 
-template <typename Kernel>
-static void computeA(Kernel &&kernel, int offset, int dim) {
-#pragma omp parallel
-  {
-    Lab lab;
-    lab_init(&lab, dim, kernel.stencil.s);
-#pragma omp for nowait
-    for (long long i = 0; i < sim.n; ++i) {
-      lab_load(&lab, offset, &kernel.stencil, sim.infos[i]);
-      kernel(lab.m, sim.infos[i], i);
-    }
-    lab_free(&lab);
-  }
-}
-typedef Real ScalarBlock[BS][BS];
 static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
-  Stencil stencil{1};
   Real *vm = velLab->m;
   Real *um = uDefLab->m;
-  int ss = stencil.s, nm = 2 * ss + BS;
+  int ss = 1, nm = 2 * ss + BS;
   Real h = sim.infos[i]->h;
   Real facDiv = 0.5 * h / sim.dt;
   Real *TMP = sim.infos[i]->block + BS * BS * off_tmp;
@@ -405,7 +389,7 @@ static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
 #undef U
 #undef V
     }
-};
+}
 struct Obstacle {
   Real chi[BS][BS];
   Real dist[BS][BS];
@@ -419,20 +403,30 @@ struct Obstacle {
     memset(&udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
   }
 };
-struct KernelVorticity {
+static void compute_vorticity() {
   Stencil stencil{1};
-  void operator()(Real *um, Info *info, long long id) {
-    Real i2h = 0.5 * (1 << info->level) * BS;
-    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int ss = stencil.s, nm = 2 * ss + BS;
-    for (int j = 0; j < BS; ++j)
-      for (int i = 0; i < BS; ++i) {
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 2, 1);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_vel, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Info *info = sim.infos[id];
+      Real i2h = 0.5 * (1 << info->level) * BS;
+      Real *TMP = info->block + BS * BS * off_tmp;
+      int ss = 1, nm = 2 * ss + BS;
+      for (int j = 0; j < BS; ++j)
+        for (int i = 0; i < BS; ++i) {
 #define V(dx, dy, c) um[2 * (nm * (j + ss + (dy)) + i + ss + (dx)) + (c)]
-        TMP[j * BS + i] = i2h * (V(0,-1,0) - V(0,1,0) + V(1,0,1) - V(-1,0,1));
+          TMP[j * BS + i] = i2h * (V(0,-1,0) - V(0,1,0) + V(1,0,1) - V(-1,0,1));
 #undef V
-      }
+        }
+    }
+    lab_free(&lab);
   }
-};
+}
 static void dump(Real time, Info **infos, char *path) {
   long i, j, k, x, y;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
@@ -553,63 +547,60 @@ struct Shape {
   Real v;
   std::vector<Obstacle *> blocks;
 };
-struct PutChiOnGrid {
+static void compute_chi_on_grid() {
   Stencil stencil{1};
-  void operator()(Real *um, Info *info, long long id) {
-    int nm = BS + 2;
-    for (int ishape = 0; ishape < sim.nshape; ishape++) {
-      Shape *shape = sim.shapes[ishape];
-      if (shape->blocks[id] == nullptr)
-        continue;
-      Real h = 1.0 / BS / (1 << info->level);
-      Real h2 = h * h;
-      Obstacle *o = shape->blocks[id];
-      o->COM_x = 0;
-      o->COM_y = 0;
-      o->Mass = 0;
-      Real *CHI = sim.infos[id]->block + BS * BS * off_chi;
-      Real *chi = (Real *)o->chi;
-      Real *dist = (Real *)o->dist;
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          int j = BS * iy + ix;
-          int x0 = ix + 1;
-          int y0 = iy + 1;
-          int xp = x0 + 1;
-          int yp = y0 + 1;
-          int xm = x0 - 1;
-          int ym = y0 - 1;
-          if (dist[j] > +h || dist[j] < -h) {
-            chi[j] = dist[j] > 0 ? 1 : 0;
-          } else {
-            Real distPx = *(um + nm * y0 + xp);
-            Real distMx = *(um + nm * y0 + xm);
-            Real distPy = *(um + nm * yp + x0);
-            Real distMy = *(um + nm * ym + x0);
-            Real IplusX = std::max(0.0, distPx);
-            Real IminuX = std::max(0.0, distMx);
-            Real IplusY = std::max(0.0, distPy);
-            Real IminuY = std::max(0.0, distMy);
-            Real gradIX = IplusX - IminuX;
-            Real gradIY = IplusY - IminuY;
-            Real gradUX = distPx - distMx;
-            Real gradUY = distPy - distMy;
-            Real gradUSq = (gradUX * gradUX + gradUY * gradUY) + EPS;
-            chi[j] = (gradIX * gradUX + gradIY * gradUY) / gradUSq;
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 1, 1);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_tmp, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Info *info = sim.infos[id];
+      int ss = 1, nm = 2 * ss + BS;
+      for (int ishape = 0; ishape < sim.nshape; ishape++) {
+        Shape *shape = sim.shapes[ishape];
+        if (shape->blocks[id] == nullptr)
+          continue;
+        Real h = 1.0 / BS / (1 << info->level);
+        Real h2 = h * h;
+        Obstacle *o = shape->blocks[id];
+        o->COM_x = 0;
+        o->COM_y = 0;
+        o->Mass = 0;
+        Real *CHI = info->block + BS * BS * off_chi;
+        Real *chi = (Real *)o->chi;
+        Real *dist = (Real *)o->dist;
+        for (int iy = 0; iy < BS; iy++)
+          for (int ix = 0; ix < BS; ix++) {
+#define D(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
+            int j = BS * iy + ix;
+            if (dist[j] > +h || dist[j] < -h) {
+              chi[j] = dist[j] > 0 ? 1 : 0;
+            } else {
+              Real dpx = D(1,0), dmx = D(-1,0), dpy = D(0,1), dmy = D(0,-1);
+              Real gradIX = std::max(0.0, dpx) - std::max(0.0, dmx);
+              Real gradIY = std::max(0.0, dpy) - std::max(0.0, dmy);
+              Real gradUX = dpx - dmx, gradUY = dpy - dmy;
+              chi[j] = (gradIX * gradUX + gradIY * gradUY) /
+                       (gradUX * gradUX + gradUY * gradUY + EPS);
+            }
+#undef D
+            CHI[j] = std::max(CHI[j], chi[j]);
+            if (chi[j] > 0) {
+              Real px = info->origin[0] + info->h * (ix + 0.5);
+              Real py = info->origin[1] + info->h * (iy + 0.5);
+              o->COM_x += chi[j] * h2 * (px - shape->x);
+              o->COM_y += chi[j] * h2 * (py - shape->y);
+              o->Mass += chi[j] * h2;
+            }
           }
-          CHI[j] = std::max(CHI[j], chi[j]);
-          if (chi[j] > 0) {
-            Real p[2];
-            p[0] = info->origin[0] + info->h * (ix + 0.5);
-            p[1] = info->origin[1] + info->h * (iy + 0.5);
-            o->COM_x += chi[j] * h2 * (p[0] - shape->x);
-            o->COM_y += chi[j] * h2 * (p[1] - shape->y);
-            o->Mass += chi[j] * h2;
-          }
-        }
+      }
     }
+    lab_free(&lab);
   }
-};
+}
 static void ongrid() {
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
@@ -672,7 +663,7 @@ static void ongrid() {
     }
   }
 
-  computeA(PutChiOnGrid(), off_tmp, 1);
+  compute_chi_on_grid();
   for (int ishape = 0; ishape < sim.nshape; ishape++) {
     Shape *shape = sim.shapes[ishape];
     Real com[3] = {0.0, 0.0, 0.0};
@@ -736,30 +727,39 @@ static void ongrid() {
     }
   }
 }
-struct GradChiOnTmp {
-  GradChiOnTmp() {}
+static void compute_grad_chi() {
   Stencil stencil{4};
-  void operator()(Real *um, Info *info, long long id) {
-    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-    int nm = BS + (stencil.s + 1) - (-stencil.s) - 1;
-    for (int y = -offset; y < BS + offset; ++y)
-      for (int x = -offset; x < BS + offset; ++x) {
-        int k = nm * (y - (-stencil.s)) + x - (-stencil.s);
-        um[k] = std::min(um[k], 1.0);
-        um[k] = std::max(um[k], 0.0);
-        if (0.0 < um[k] && um[k] < 0.1) {
-          int i = BS / 2;
-          int j = BS / 2 - 1;
-          TMP[BS * i + j] = 2 * sim.Rtol;
-          TMP[BS * j + j] = 2 * sim.Rtol;
-          TMP[BS * i + i] = 2 * sim.Rtol;
-          TMP[BS * j + i] = 2 * sim.Rtol;
-          break;
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 1, 4);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_chi, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Info *info = sim.infos[id];
+      Real *TMP = info->block + BS * BS * off_tmp;
+      int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
+      int ss = 4, nm = 2 * ss + BS;
+      for (int y = -offset; y < BS + offset; ++y)
+        for (int x = -offset; x < BS + offset; ++x) {
+          int k = nm * (y + ss) + x + ss;
+          um[k] = std::min(um[k], 1.0);
+          um[k] = std::max(um[k], 0.0);
+          if (0.0 < um[k] && um[k] < 0.1) {
+            int i = BS / 2;
+            int j = BS / 2 - 1;
+            TMP[BS * i + j] = 2 * sim.Rtol;
+            TMP[BS * j + j] = 2 * sim.Rtol;
+            TMP[BS * i + i] = 2 * sim.Rtol;
+            TMP[BS * j + i] = 2 * sim.Rtol;
+            break;
+          }
         }
-      }
+    }
+    lab_free(&lab);
   }
-};
+}
 static const Real refine_w[4][9] = {
   /*        (-1,-1)  (0,-1)  (1,-1)  (-1,0)  (0,0)  (1,0)  (-1,1)  (0,1)  (1,1) */
   /* (-1/4, -1/4) */ { 1./64, 10./64, -1./64, 10./64, 56./64, -6./64, -1./64, -6./64,  1./64},
@@ -778,8 +778,8 @@ static int adapt() {
   std::vector<long long> Z_com;
   std::vector<long long> Z_ref;
   std::unordered_set<long long> dealloc_IDs;
-  computeA(KernelVorticity(), off_vel, 2);
-  computeA(GradChiOnTmp(), off_chi, 1);
+  compute_vorticity();
+  compute_grad_chi();
   State *state = (State *)malloc(sim.n * sizeof *state);
   int Changed = 0;
   int More = 0;
@@ -1029,28 +1029,38 @@ end:
   free(state);
   return Changed;
 }
-struct KernelAdvectDiffuse {
+static void compute_advect_diffuse() {
   Stencil stencil{3};
-  void operator()(Real *um, Info *info, long long id) {
-    Real h = info->h;
-    Real dfac = sim.nu * sim.dt;
-    Real afac = -sim.dt * h;
-    Real *TMP = sim.infos[id]->block + BS * BS * off_tmpV;
-    int ss = stencil.s, nm = 2 * ss + BS;
-    for (int iy = 0; iy < BS; ++iy)
-      for (int ix = 0; ix < BS; ++ix) {
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 2, 3);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_vel, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Info *info = sim.infos[id];
+      Real h = info->h;
+      Real dfac = sim.nu * sim.dt;
+      Real afac = -sim.dt * h;
+      Real *TMP = info->block + BS * BS * off_tmpV;
+      int ss = 3, nm = 2 * ss + BS;
+      for (int iy = 0; iy < BS; ++iy)
+        for (int ix = 0; ix < BS; ++ix) {
 #define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-        Real u = V(0,0,0), v = V(0,0,1);
-        Real dudx = derivative(u, V(-3,0,0), V(-2,0,0), V(-1,0,0), u, V(1,0,0), V(2,0,0), V(3,0,0));
-        Real dudy = derivative(v, V(0,-3,0), V(0,-2,0), V(0,-1,0), u, V(0,1,0), V(0,2,0), V(0,3,0));
-        Real dvdx = derivative(u, V(-3,0,1), V(-2,0,1), V(-1,0,1), v, V(1,0,1), V(2,0,1), V(3,0,1));
-        Real dvdy = derivative(v, V(0,-3,1), V(0,-2,1), V(0,-1,1), v, V(0,1,1), V(0,2,1), V(0,3,1));
-        TMP[2 * (BS * iy + ix)]     = afac * (u * dudx + v * dudy) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
-        TMP[2 * (BS * iy + ix) + 1] = afac * (u * dvdx + v * dvdy) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
+          Real u = V(0,0,0), v = V(0,0,1);
+          Real dudx = derivative(u, V(-3,0,0), V(-2,0,0), V(-1,0,0), u, V(1,0,0), V(2,0,0), V(3,0,0));
+          Real dudy = derivative(v, V(0,-3,0), V(0,-2,0), V(0,-1,0), u, V(0,1,0), V(0,2,0), V(0,3,0));
+          Real dvdx = derivative(u, V(-3,0,1), V(-2,0,1), V(-1,0,1), v, V(1,0,1), V(2,0,1), V(3,0,1));
+          Real dvdy = derivative(v, V(0,-3,1), V(0,-2,1), V(0,-1,1), v, V(0,1,1), V(0,2,1), V(0,3,1));
+          TMP[2 * (BS * iy + ix)]     = afac * (u * dudx + v * dudy) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
+          TMP[2 * (BS * iy + ix) + 1] = afac * (u * dvdx + v * dvdy) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
 #undef V
-      }
+        }
+    }
+    lab_free(&lab);
   }
-};
+}
 static long long This(Info *info, int ix, int iy) {
   return info->id * BS * BS + iy * BS + ix;
 }
@@ -1087,35 +1097,53 @@ static void getVec() {
            BS * BS * sizeof(Real));
   }
 }
-struct pressureCorrectionKernel {
+static void compute_pressure_correction() {
   Stencil stencil{1};
-  void operator()(Real *um, Info *info, long long id) {
-    int ss = stencil.s, nm = 2 * ss + BS;
-    Real h = info->h, pFac = -0.5 * sim.dt * h;
-    Real *tmpV = sim.infos[id]->block + BS * BS * off_tmpV;
-    for (int iy = 0; iy < BS; ++iy)
-      for (int ix = 0; ix < BS; ++ix) {
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 1, 1);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_pres, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Info *info = sim.infos[id];
+      int ss = 1, nm = 2 * ss + BS;
+      Real pFac = -0.5 * sim.dt * info->h;
+      Real *tmpV = info->block + BS * BS * off_tmpV;
+      for (int iy = 0; iy < BS; ++iy)
+        for (int ix = 0; ix < BS; ++ix) {
 #define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-        tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
-        tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
+          tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
+          tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
 #undef P
-      }
+        }
+    }
+    lab_free(&lab);
   }
-};
-struct pressure_rhs1 {
-  pressure_rhs1() {}
+}
+static void compute_pressure_laplacian() {
   Stencil stencil{1};
-  void operator()(Real *um, Info *, long long id) {
-    Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
-    int ss = stencil.s, nm = 2 * ss + BS;
-    for (int iy = 0; iy < BS; ++iy)
-      for (int ix = 0; ix < BS; ++ix) {
+#pragma omp parallel
+  {
+    Lab lab;
+    lab_init(&lab, 1, 1);
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lab_load(&lab, off_pold, &stencil, sim.infos[id]);
+      Real *um = lab.m;
+      Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
+      int ss = 1, nm = 2 * ss + BS;
+      for (int iy = 0; iy < BS; ++iy)
+        for (int ix = 0; ix < BS; ++ix) {
 #define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-        TMP[BS * iy + ix] -= P(-1,0) + P(1,0) + P(0,-1) + P(0,1) - 4 * P(0,0);
+          TMP[BS * iy + ix] -= P(-1,0) + P(1,0) + P(0,-1) + P(0,1) - 4 * P(0,0);
 #undef P
-      }
+        }
+    }
+    lab_free(&lab);
   }
-};
+}
 static const struct {
   const char *name;
   int type;
@@ -1310,7 +1338,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "main.cpp: %08d %.16e\n", sim.step, sim.time);
     if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
       sim.nextDumpTime += sim.dumpTime;
-      computeA(KernelVorticity(), off_vel, 2);
+      compute_vorticity();
       char path[FILENAME_MAX];
       snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
       dump(sim.time, sim.infos, path);
@@ -1348,7 +1376,7 @@ int main(int argc, char **argv) {
       memcpy(sim.infos[i]->block + BS * BS * off_vold,
              sim.infos[i]->block + BS * BS * off_vel,
              2 * BS * BS * sizeof(Real));
-    computeA(KernelAdvectDiffuse(), off_vel, 2);
+    compute_advect_diffuse();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Real *V = sim.infos[i]->block + BS * BS * off_vel;
@@ -1358,7 +1386,7 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * BS * BS; j++)
         V[j] = Vold[j] + tmpV[j] * ih2;
     }
-    computeA(KernelAdvectDiffuse(), off_vel, 2);
+    compute_advect_diffuse();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Real *V = sim.infos[i]->block + BS * BS * off_vel;
@@ -1578,7 +1606,7 @@ int main(int argc, char **argv) {
       memset(sim.infos[i]->block + BS * BS * off_pres, 0,
              BS * BS * sizeof(Real));
     }
-    computeA(pressure_rhs1(), off_pold, 1);
+    compute_pressure_laplacian();
     double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
     double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
@@ -1698,7 +1726,7 @@ int main(int argc, char **argv) {
       for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
-    computeA(pressureCorrectionKernel(), off_pres, 1);
+    compute_pressure_correction();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Real ih2 = 1.0 / sim.infos[i]->h / sim.infos[i]->h;
