@@ -5,10 +5,9 @@ import struct
 import sys
 
 BS = 8
-MAX_FILL = 20
-MAX_CBC = 32
-MAX_INTERP = 48
-MAX_FBC = 48
+MAX_PRE = 32
+MAX_POST = 48
+MAX_OPS = MAX_PRE + MAX_POST
 
 childNeighborTable = [
     (-1, -1, 3, 1, [(-1, -1)], 1),
@@ -37,9 +36,6 @@ OP_COPY = 0; OP_AVG = 1; OP_INTERP9 = 2; OP_INTERP3 = 3
 OP_LELI = 4; OP_BC_SCALAR = 5; OP_BC_VECTOR = 6
 
 # Face interpolation weights (numerators / 32)
-# Sources for branch 0: (i1, i1+cs, i1+2*cs)
-# Sources for branch 1: (i1-2*cs, i1-cs, i1)
-# Sources for branch 2: (i1-cs, i1, i1+cs)
 FACE_VP = {0: (21, 14, -3), 1: (5, -18, 45), 2: (-3, 30, 5)}
 FACE_VM = {0: (45, -18, 5), 1: (-3, 14, 21), 2: (5, 30, -3)}
 
@@ -60,7 +56,7 @@ def coarse_bounds(c, ss, coff):
     e = 0 if c < 0 else (BS // 2 if c == 0 else min(BS // 2 + (ss + 1) // 2 + 1, coff + nc))
     return s, e
 
-def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
+def build_entry(cx, cy, xp, yp, s, ss, dim):
     coff = (-ss - 1) // 2 - 1
     nm = 2 * ss + BS
     nc = BS // 2 + ss + 3
@@ -124,16 +120,16 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
              'is_self': 1, 'self_idx': 0},
         ]
 
-    # Fill ops
+    # Fill ops (always ua=1 behavior)
     if s == 0:
-        skip = not is_face and not ua
-        if not skip:
-            for iy in range(fs1, fe1):
-                src_off = dim * (BS * (iy - cy * BS) + (fs0 - cx * BS))
-                dst_off = dim * ((fs0 + ss) + (iy + ss) * nm)
-                cols = fe0 - fs0
-                e['fill'].append((OP_COPY, 0, 0, 0, src_off, dst_off, cols, 0))
-        if ua and dim > 0:
+        # Always fill ghost cells (ua=1: no skip for corners)
+        for iy in range(fs1, fe1):
+            src_off = dim * (BS * (iy - cy * BS) + (fs0 - cx * BS))
+            dst_off = dim * ((fs0 + ss) + (iy + ss) * nm)
+            cols = fe0 - fs0
+            e['fill'].append((OP_COPY, 0, 0, 0, src_off, dst_off, cols, 0))
+        # Always fill coarse buffer (ua=1)
+        if dim > 0:
             lcs0, lcs1 = cs0, cs1
             lce0 = ce0 if cx < 1 else min(BS // 2 + eC - 1, coff + nc)
             lce1 = ce1 if cy < 1 else min(BS // 2 + eC - 1, coff + nc)
@@ -222,7 +218,6 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                     if face_dsign[dirn][k] < 0:
                         sign_mask |= (1 << k)
 
-                # Source offsets for the 3 coarse cells
                 cs_off = stride * dim
                 if branch == 0:
                     srcs = (i1, i1 + cs_off, i1 + 2 * cs_off)
@@ -231,17 +226,11 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                 else:
                     srcs = (i1 - cs_off, i1, i1 + cs_off)
 
-                # Pick vp/vm weights; for t<0, swap them
                 wvp = FACE_VP[branch]
                 wvm = FACE_VM[branch]
                 if t < 0:
                     wvp, wvm = wvm, wvp
 
-                # Emit one OP_INTERP3 per output cell
-                # Cell 0: j0 (always valid)
-                # Cell 1: j0 + nm*dim*iyp
-                # Cell 2: j0 + dim*ixp
-                # Cell 3: j0 + dim*ixp + nm*dim*iyp
                 dests = [j0,
                          j0 + nm * dim * iyp,
                          j0 + dim * ixp,
@@ -251,7 +240,6 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                     if not ok[k]:
                         continue
                     w = wvm if (sign_mask & (1 << k)) else wvp
-                    # OP_INTERP3: (type, w0, w1, w2, s0, dst, s1, s2)
                     e['interp_ops'].append((OP_INTERP3, w[0], w[1], w[2],
                                             srcs[0], dests[k], srcs[1], srcs[2]))
 
@@ -275,7 +263,7 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                     kc = dim * ((ix + ss + c_dx) + nm * (iy + ss + c_dy))
                     e['interp_ops'].append((OP_LELI, 0, 0, is_LE, ka, kb, kc, 0))
 
-    elif s == 2 and not is_face and ua:
+    elif s == 2 and not is_face:
         for iy in range(fs1, fe1):
             for ix in range(fs0, fe0):
                 YY = ((iy - fs1 - min(0, cy) * ((fe1 - fs1) % 2)) // 2 + sC1)
@@ -332,16 +320,16 @@ def build_entry(cx, cy, xp, yp, s, ua, ss, dim):
                         e['cbc'].append((OP_BC_VECTOR, 0, 1, dirn, dim*i1, dim*i0, 0, 0))
     return e
 
-# Binary serialization matching C struct layout exactly
+# Binary serialization
 # Op: 4 bytes (type,blk_idx,dst_idx,flags) + 4 ints = 20 bytes
-# BlkSrc: 9 bytes (7 int8_t + bool + int8_t)
+# BlkSrc: 9 bytes
 # TabEntry layout:
 #   0: n_blk(1) blk_src[2](18) pad(1) = 20 bytes
-#   20: n_fill(4) fill[20](400) = 404
-#   424: n_cbc(4) cbc[32](640) = 644
-#   1068: n_interp(4) interp_ops[48](960) = 964
-#   2032: n_fbc(4) fbc[48](960) = 964
-#   Total: 2996
+#   20: n_pre(4) n_post(4) = 8 bytes
+#   28: ops[MAX_OPS](MAX_OPS*20)
+#   Total: 20 + 8 + MAX_OPS*20
+
+ENTRY_SIZE = 20 + 8 + MAX_OPS * 20
 
 def pack_op(op):
     return struct.pack('<bbbb iiii', op[0], op[1], op[2], op[3], op[4], op[5], op[6], op[7])
@@ -353,8 +341,6 @@ def pack_blksrc(b):
         bool(b['is_self']), b['self_idx'])
 
 ZERO_OP = pack_op((0,0,0,0,0,0,0,0))
-
-ENTRY_SIZE = 20 + 4 + MAX_FILL*20 + 4 + MAX_CBC*20 + 4 + MAX_INTERP*20 + 4 + MAX_FBC*20
 
 def pack_entry(e):
     buf = bytearray()
@@ -368,45 +354,28 @@ def pack_entry(e):
     buf += b'\x00'
     assert len(buf) == 20
 
-    # n_fill + fill[MAX_FILL]
-    assert len(e['fill']) <= MAX_FILL, f"fill overflow: {len(e['fill'])} > {MAX_FILL}"
-    buf += struct.pack('<i', len(e['fill']))
-    for op in e['fill']:
-        buf += pack_op(op)
-    for _ in range(MAX_FILL - len(e['fill'])):
-        buf += ZERO_OP
-    assert len(buf) == 424
+    pre_ops = e['fill'] + e['cbc']
+    post_ops = e['interp_ops'] + e['fbc']
+    assert len(pre_ops) <= MAX_PRE, f"pre overflow: {len(pre_ops)} > {MAX_PRE} at ({e['cx']},{e['cy']})"
+    assert len(post_ops) <= MAX_POST, f"post overflow: {len(post_ops)} > {MAX_POST} at ({e['cx']},{e['cy']})"
 
-    # n_cbc + cbc[MAX_CBC]
-    assert len(e['cbc']) <= MAX_CBC, f"cbc overflow: {len(e['cbc'])} > {MAX_CBC}"
-    buf += struct.pack('<i', len(e['cbc']))
-    for op in e['cbc']:
-        buf += pack_op(op)
-    for _ in range(MAX_CBC - len(e['cbc'])):
-        buf += ZERO_OP
-    assert len(buf) == 1068
+    buf += struct.pack('<ii', len(pre_ops), len(post_ops))
 
-    # n_interp + interp_ops[MAX_INTERP]
-    assert len(e['interp_ops']) <= MAX_INTERP, f"interp overflow: {len(e['interp_ops'])} > {MAX_INTERP} at ({e['cx']},{e['cy']})"
-    buf += struct.pack('<i', len(e['interp_ops']))
-    for op in e['interp_ops']:
+    for op in pre_ops:
         buf += pack_op(op)
-    for _ in range(MAX_INTERP - len(e['interp_ops'])):
+    for _ in range(MAX_PRE - len(pre_ops)):
         buf += ZERO_OP
-    assert len(buf) == 2032
+    for op in post_ops:
+        buf += pack_op(op)
+    for _ in range(MAX_POST - len(post_ops)):
+        buf += ZERO_OP
 
-    # n_fbc + fbc[MAX_FBC]
-    assert len(e['fbc']) <= MAX_FBC, f"fbc overflow: {len(e['fbc'])} > {MAX_FBC}"
-    buf += struct.pack('<i', len(e['fbc']))
-    for op in e['fbc']:
-        buf += pack_op(op)
-    for _ in range(MAX_FBC - len(e['fbc'])):
-        buf += ZERO_OP
     assert len(buf) == ENTRY_SIZE
-
     return bytes(buf)
 
 def build_and_write(fname, ss, dim):
+    max_pre = 0
+    max_post = 0
     with open(fname, 'wb') as f:
         for cxi in range(3):
             cx = cxi - 1
@@ -415,20 +384,19 @@ def build_and_write(fname, ss, dim):
                 for xp in range(2):
                     for yp in range(2):
                         for s in range(6):
-                            for ua in range(2):
-                                if cx == 0 and cy == 0:
-                                    f.write(b'\x00' * ENTRY_SIZE)
-                                else:
-                                    e = build_entry(cx, cy, xp, yp, s, ua, ss, dim)
-                                    f.write(pack_entry(e))
-    sz = 432 * ENTRY_SIZE
-    print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB)')
+                            if cx == 0 and cy == 0:
+                                f.write(b'\x00' * ENTRY_SIZE)
+                            else:
+                                e = build_entry(cx, cy, xp, yp, s, ss, dim)
+                                pre = len(e['fill']) + len(e['cbc'])
+                                post = len(e['interp_ops']) + len(e['fbc'])
+                                max_pre = max(max_pre, pre)
+                                max_post = max(max_post, post)
+                                f.write(pack_entry(e))
+    sz = 216 * ENTRY_SIZE
+    print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB), max_pre={max_pre}, max_post={max_post}')
 
-# Poisson table: precomputed matrix stencil per (edge, tc, parity, state)
-# PoissonOp: blk_ref(1) cell_ix(1) cell_iy(1) pad(1) coeff(float4) = 8 bytes
-# PoissonEntry: n_ops(int32) ops[16] = 4 + 128 = 132 bytes
-# Table: [4 edges][BS tc][2 parity][4 states] = 256 entries
-
+# Poisson table (unchanged)
 MAX_POISSON_OPS = 16
 POISSON_ENTRY_SIZE = 4 + MAX_POISSON_OPS * 8
 
@@ -469,24 +437,24 @@ def build_poisson_entry(edge, tc, parity, state):
         key = (blk, cx, cy)
         ops[key] = ops.get(key, 0.0) + coeff
 
-    if state == 0:  # interior neighbor (same block)
+    if state == 0:
         add(0, ix + dx, iy + dy, 1.0)
         add(0, ix, iy, -1.0)
-    elif state == 1:  # same-level neighbor
+    elif state == 1:
         ne = (1 - side) * (BS - 1)
         if dir == 0:
             add(1, ne, tc, 1.0)
         else:
             add(1, tc, ne, 1.0)
         add(0, ix, iy, -1.0)
-    elif state == 2:  # coarse neighbor (ParentIsActive)
+    elif state == 2:
         cix = (1 - side) * (BS - 1) if dir == 0 else tc // 2 + parity * (BS // 2)
         ciy = tc // 2 + parity * (BS // 2) if dir == 0 else (1 - side) * (BS - 1)
         signTaylor = -1.0 if tc % 2 == 0 else 1.0
         poisson_interp_ops(add, 2, cix, ciy, 0, ix, iy, ix - dx, iy - dy,
                            1.0, signTaylor, dir)
         add(0, ix, iy, -1.0)
-    elif state == 3:  # fine neighbor (ChildrenAreActive)
+    elif state == 3:
         fe0 = BS - 1 if side == 0 else 0
         fe1 = BS - 2 if side == 0 else 1
         ft = (tc % (BS // 2)) * 2
