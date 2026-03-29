@@ -1593,6 +1593,21 @@ struct pressure_rhs1 {
       }
   }
 };
+static const struct { const char *name; int type; size_t off; } tab[] = {
+  {"levelMax",           0, offsetof(struct Sim, levelMax)},
+  {"AdaptSteps",         0, offsetof(struct Sim, AdaptSteps)},
+  {"levelStart",         0, offsetof(struct Sim, levelStart)},
+  {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
+  {"Rtol",               1, offsetof(struct Sim, Rtol)},
+  {"Ctol",               1, offsetof(struct Sim, Ctol)},
+  {"CFL",                1, offsetof(struct Sim, CFL)},
+  {"tend",               1, offsetof(struct Sim, endTime)},
+  {"lambda",             1, offsetof(struct Sim, lambda)},
+  {"nu",                 1, offsetof(struct Sim, nu)},
+  {"poissonTol",         1, offsetof(struct Sim, PoissonTol)},
+  {"poissonTolRel",      1, offsetof(struct Sim, PoissonTolRel)},
+  {"tdump",              1, offsetof(struct Sim, dumpTime)},
+};
 int main(int argc, char **argv) {
   feclearexcept(FE_ALL_EXCEPT);
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -1602,29 +1617,12 @@ int main(int argc, char **argv) {
 #pragma omp master
   fprintf(stderr, "main.cpp: %d threads\n", omp_get_num_threads());
 #endif
-  {
-    static const struct { const char *name; int type; size_t off; } tab[] = {
-      {"levelMax",           0, offsetof(struct Sim, levelMax)},
-      {"AdaptSteps",         0, offsetof(struct Sim, AdaptSteps)},
-      {"levelStart",         0, offsetof(struct Sim, levelStart)},
-      {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
-      {"Rtol",               1, offsetof(struct Sim, Rtol)},
-      {"Ctol",               1, offsetof(struct Sim, Ctol)},
-      {"CFL",                1, offsetof(struct Sim, CFL)},
-      {"tend",               1, offsetof(struct Sim, endTime)},
-      {"lambda",             1, offsetof(struct Sim, lambda)},
-      {"nu",                 1, offsetof(struct Sim, nu)},
-      {"poissonTol",         1, offsetof(struct Sim, PoissonTol)},
-      {"poissonTolRel",      1, offsetof(struct Sim, PoissonTolRel)},
-      {"tdump",              1, offsetof(struct Sim, dumpTime)},
-    };
-    char *base = (char *)&sim;
-    for (size_t i = 0; i < sizeof tab / sizeof *tab; i++)
-      if (tab[i].type == 0)
-        *(int *)(base + tab[i].off) = arg_int(argc, argv, tab[i].name);
-      else
-        *(Real *)(base + tab[i].off) = arg_real(argc, argv, tab[i].name);
-  }
+  char *base = (char *)&sim;
+  for (size_t i = 0; i < sizeof tab / sizeof *tab; i++)
+    if (tab[i].type == 0)
+      *(int *)(base + tab[i].off) = arg_int(argc, argv, tab[i].name);
+    else
+      *(Real *)(base + tab[i].off) = arg_real(argc, argv, tab[i].name);
   sim.nshape = 0;
   sim.shapes = NULL;
   const char *shapeArg = arg_find(argc, argv, "shapes");
