@@ -1404,32 +1404,13 @@ int main(int argc, char **argv) {
                 continue;
               coll->iM += iChi[idx] * hsq;
               coll->jM += jChi[idx] * hsq;
-              Real dSDFdx_i, dSDFdx_j;
-              if (ix == 0) {
-                dSDFdx_i = iSDF[idx + 1] - iSDF[idx];
-                dSDFdx_j = jSDF[idx + 1] - jSDF[idx];
-              } else if (ix == BS - 1) {
-                dSDFdx_i = iSDF[idx] - iSDF[idx - 1];
-                dSDFdx_j = jSDF[idx] - jSDF[idx - 1];
-              } else {
-                dSDFdx_i = 0.5 * (iSDF[idx + 1] - iSDF[idx - 1]);
-                dSDFdx_j = 0.5 * (jSDF[idx + 1] - jSDF[idx - 1]);
-              }
-              Real dSDFdy_i, dSDFdy_j;
-              if (iy == 0) {
-                dSDFdy_i = iSDF[idx + BS] - iSDF[idx];
-                dSDFdy_j = jSDF[idx + BS] - jSDF[idx];
-              } else if (iy == BS - 1) {
-                dSDFdy_i = iSDF[idx] - iSDF[idx - BS];
-                dSDFdy_j = jSDF[idx] - jSDF[idx - BS];
-              } else {
-                dSDFdy_i = 0.5 * (iSDF[idx + BS] - iSDF[idx - BS]);
-                dSDFdy_j = 0.5 * (jSDF[idx + BS] - jSDF[idx - BS]);
-              }
-              coll->ivecX += iChi[idx] * dSDFdx_i;
-              coll->ivecY += iChi[idx] * dSDFdy_i;
-              coll->jvecX += jChi[idx] * dSDFdx_j;
-              coll->jvecY += jChi[idx] * dSDFdy_j;
+              int xm = ix > 0 ? 1 : 0, xp = ix < BS - 1 ? 1 : 0;
+              int ym = iy > 0 ? BS : 0, yp = iy < BS - 1 ? BS : 0;
+              Real sx = 1.0 / (xm + xp), sy = 1.0 / (ym / BS + yp / BS);
+              coll->ivecX += iChi[idx] * sx * (iSDF[idx + xp] - iSDF[idx - xm]);
+              coll->ivecY += iChi[idx] * sy * (iSDF[idx + yp] - iSDF[idx - ym]);
+              coll->jvecX += jChi[idx] * sx * (jSDF[idx + xp] - jSDF[idx - xm]);
+              coll->jvecY += jChi[idx] * sy * (jSDF[idx + yp] - jSDF[idx - ym]);
             }
         }
       }
