@@ -29,22 +29,40 @@ enum {
 enum State { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Shape;
 struct Info;
-struct LkEntry {
-  long long key;
-  int val;
+struct HashMap {
+  long long *keys;
+  int *vals;
+  int cap;
 };
-static int lk_cmp(const void *a, const void *b) {
-  long long ka = ((const struct LkEntry *)a)->key;
-  long long kb = ((const struct LkEntry *)b)->key;
-  return (ka > kb) - (ka < kb);
+static void hm_init(struct HashMap *m, int cap) {
+  m->cap = cap;
+  m->keys = malloc(cap * sizeof *m->keys);
+  m->vals = malloc(cap * sizeof *m->vals);
+  memset(m->keys, 0xff, cap * sizeof *m->keys);
 }
-static int lk_find(long long key, const struct LkEntry *lk, int n) {
-  int lo = 0, hi = n - 1;
-  while (lo <= hi) {
-    int mid = lo + (hi - lo) / 2;
-    if (lk[mid].key < key) lo = mid + 1;
-    else if (lk[mid].key > key) hi = mid - 1;
-    else return lk[mid].val;
+static void hm_free(struct HashMap *m) {
+  free(m->keys);
+  free(m->vals);
+  m->keys = NULL;
+  m->vals = NULL;
+  m->cap = 0;
+}
+static int hm_slot(const struct HashMap *m, long long key) {
+  unsigned long long h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
+  return (int)(h >> 32) & (m->cap - 1);
+}
+static void hm_put(struct HashMap *m, long long key, int val) {
+  int i = hm_slot(m, key);
+  while (m->keys[i] >= 0 && m->keys[i] != key)
+    i = (i + 1) & (m->cap - 1);
+  m->keys[i] = key;
+  m->vals[i] = val;
+}
+static int hm_get(const struct HashMap *m, long long key) {
+  int i = hm_slot(m, key);
+  while (m->keys[i] >= 0) {
+    if (m->keys[i] == key) return m->vals[i];
+    i = (i + 1) & (m->cap - 1);
   }
   return -1;
 }
@@ -75,6 +93,7 @@ static struct Sim {
   double *sol_x, *sol_b, *sol_h2;
   long long n;
   int nshape;
+  struct HashMap hm;
   struct Info *infos;
   Real *blocks;
 } sim;
@@ -284,11 +303,6 @@ struct Info {
   double h, origin[2];
   int level, ix, iy;
   long long Z;
-  int parent;
-  int children[4];
-  int nb[9];
-  int nb_ch[9][2];
-  int8_t nb_s[9];
 };
 #define BLK(i) (sim.blocks + (long long)(i) * BSTRIDE)
 struct Collision {
@@ -329,74 +343,55 @@ static const int child_nb_off[9][2][2] = {
   [8] = {{ 2,  2}, {0, 0}},
 };
 static const int child_nb_cnt[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
-static void build_tree() {
-  struct LkEntry *lk = malloc(sim.n * sizeof *lk);
-  int lk_n = sim.n;
-  for (long long i = 0; i < sim.n; i++) {
-    lk[i].key = level_id(sim.infos[i].level, sim.infos[i].Z);
-    lk[i].val = i;
+static void hash_rebuild(void) {
+  int cap = 1;
+  while (cap < 4 * sim.n) cap <<= 1;
+  if (sim.hm.cap != cap) {
+    hm_free(&sim.hm);
+    hm_init(&sim.hm, cap);
+  } else {
+    memset(sim.hm.keys, 0xff, cap * sizeof *sim.hm.keys);
   }
-  qsort(lk, lk_n, sizeof *lk, lk_cmp);
-  for (long long i = 0; i < sim.n; i++) {
-    struct Info *info = &sim.infos[i];
-    int level = info->level;
-    int n = 1 << level;
-    info->parent = -1;
-    if (level > 0)
-      info->parent = lk_find(level_id(level - 1, info->Z / 4), lk, lk_n);
-    for (int s = 0; s < 4; s++) info->children[s] = -1;
-    if (level + 1 < sim.levelMax)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          long long Zc = sfc_forward(level + 1,
-                                      2 * info->ix + I, 2 * info->iy + J);
-          info->children[2 * J + I] =
-              lk_find(level_id(level + 1, Zc), lk, lk_n);
-        }
-    for (int icode = 0; icode < 9; icode++) {
-      info->nb[icode] = -1;
-      info->nb_s[icode] = 0;
-      info->nb_ch[icode][0] = -1;
-      info->nb_ch[icode][1] = -1;
-    }
-    for (int icode = 0; icode < 9; icode++) {
-      int cx = icode % 3 - 1, cy = icode / 3 - 1;
-      if (!cx && !cy) continue;
-      int xskin = skin_skip(cx, info->ix, n);
-      int yskin = skin_skip(cy, info->iy, n);
-      if (xskin && yskin) {
-        info->nb_s[icode] = 5;
-      } else if (xskin) {
-        info->nb_s[icode] = 3;
-      } else if (yskin) {
-        info->nb_s[icode] = 4;
-      } else {
-        long long Z = sfc_forward(level,
-            (info->ix + cx + n) % n, (info->iy + cy + n) % n);
-        int idx = lk_find(level_id(level, Z), lk, lk_n);
-        if (idx >= 0) {
-          info->nb_s[icode] = 0;
-          info->nb[icode] = idx;
-        } else if (level > 0 &&
-                   (idx = lk_find(level_id(level - 1, Z / 4),
-                                   lk, lk_n)) >= 0) {
-          info->nb_s[icode] = 2;
-          info->nb[icode] = idx;
-        } else {
-          info->nb_s[icode] = 1;
-          int L1 = level + 1;
-          int nL1 = 1 << L1;
-          for (int b = 0; b < child_nb_cnt[icode]; b++) {
-            int fx = (info->ix * 2 + child_nb_off[icode][b][0] + nL1) % nL1;
-            int fy = (info->iy * 2 + child_nb_off[icode][b][1] + nL1) % nL1;
-            info->nb_ch[icode][b] =
-                lk_find(level_id(L1, sfc_forward(L1, fx, fy)), lk, lk_n);
-          }
-        }
-      }
+  for (long long i = 0; i < sim.n; i++)
+    hm_put(&sim.hm, level_id(sim.infos[i].level, sim.infos[i].Z), i);
+}
+struct NbResult {
+  int8_t s;
+  int idx;
+  int ch[2];
+};
+static struct NbResult nb_find(int level, int ix, int iy, int icode) {
+  struct NbResult r = {0, -1, {-1, -1}};
+  int cx = icode % 3 - 1, cy = icode / 3 - 1;
+  int n = 1 << level;
+  int xskin = skin_skip(cx, ix, n);
+  int yskin = skin_skip(cy, iy, n);
+  if (xskin && yskin) { r.s = 5; return r; }
+  if (xskin) { r.s = 3; return r; }
+  if (yskin) { r.s = 4; return r; }
+  long long Z = sfc_forward(level, (ix + cx + n) % n, (iy + cy + n) % n);
+  int idx = hm_get(&sim.hm, level_id(level, Z));
+  if (idx >= 0) {
+    r.s = 0;
+    r.idx = idx;
+    return r;
+  }
+  if (level > 0) {
+    idx = hm_get(&sim.hm, level_id(level - 1, Z / 4));
+    if (idx >= 0) {
+      r.s = 2;
+      r.idx = idx;
+      return r;
     }
   }
-  free(lk);
+  r.s = 1;
+  int L1 = level + 1, nL1 = 1 << L1;
+  for (int b = 0; b < child_nb_cnt[icode]; b++) {
+    int fx = (ix * 2 + child_nb_off[icode][b][0] + nL1) % nL1;
+    int fy = (iy * 2 + child_nb_off[icode][b][1] + nL1) % nL1;
+    r.ch[b] = hm_get(&sim.hm, level_id(L1, sfc_forward(L1, fx, fy)));
+  }
+  return r;
 }
 enum {
   OP_COPY,
@@ -558,18 +553,18 @@ static void lab_load(Real *m, int dim, int blk_offset, int ss, long long info_id
     int cx = icode % 3 - 1, cy = icode / 3 - 1;
     if (!cx && !cy)
       continue;
-    int s = info->nb_s[icode];
+    struct NbResult nr = nb_find(level, xi, yi, icode);
     const struct TabEntry *te =
-        &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s];
+        &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][nr.s];
     Real *blk[2] = {NULL, NULL};
     for (int b = 0; b < te->n_blk; b++) {
       const struct BlkSrc *bs = &te->blk_src[b];
       if (bs->is_self) {
         blk[b] = dst[bs->self_idx];
       } else if (bs->level_delta == 1) {
-        blk[b] = BLK(info->nb_ch[icode][b]) + BS * BS * blk_offset;
+        blk[b] = BLK(nr.ch[b]) + BS * BS * blk_offset;
       } else {
-        blk[b] = BLK(info->nb[icode]) + BS * BS * blk_offset;
+        blk[b] = BLK(nr.idx) + BS * BS * blk_offset;
       }
     }
     dirs[nd].e = te;
@@ -964,19 +959,19 @@ static int adapt() {
     int More = 0;
     for (long long j = 0; j < sim.n; j++) {
       if (state[j] == Refine) {
+        struct Info *inf = &sim.infos[j];
         for (int icode = 0; icode < 9; icode++) {
           if (icode == 4) continue;
-          int8_t ns = sim.infos[j].nb_s[icode];
-          int nb_idx = sim.infos[j].nb[icode];
-          if (ns >= 3) continue;
-          if (ns == 2) {
-            if (nb_idx >= 0 && state[nb_idx] != Refine) {
-              state[nb_idx] = Refine;
+          struct NbResult nr = nb_find(inf->level, inf->ix, inf->iy, icode);
+          if (nr.s >= 3) continue;
+          if (nr.s == 2) {
+            if (nr.idx >= 0 && state[nr.idx] != Refine) {
+              state[nr.idx] = Refine;
               More = 1;
             }
-          } else if (ns == 0) {
-            if (nb_idx >= 0 && state[nb_idx] == Compress)
-              state[nb_idx] = Leave;
+          } else if (nr.s == 0) {
+            if (nr.idx >= 0 && state[nr.idx] == Compress)
+              state[nr.idx] = Leave;
           }
         }
       }
@@ -992,14 +987,16 @@ static int adapt() {
         long long sib_idx[4];
         sib_idx[0] = j;
         for (int s = 1; s < 4 && state[j] != Leave; s++) {
-          if (sim.infos[j].nb_s[sib_ic[s]] != 0) { state[j] = Leave; break; }
-          sib_idx[s] = sim.infos[j].nb[sib_ic[s]];
+          struct NbResult nr = nb_find(sim.infos[j].level, sim.infos[j].ix, sim.infos[j].iy, sib_ic[s]);
+          if (nr.s != 0) { state[j] = Leave; break; }
+          sib_idx[s] = nr.idx;
           if (sib_idx[s] < 0 || state[sib_idx[s]] != Compress) { state[j] = Leave; break; }
         }
         for (int s = 0; s < 4 && state[j] != Leave; s++)
           for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
             if (icode == 4) continue;
-            if (sim.infos[sib_idx[s]].nb_s[icode] == 1)
+            struct NbResult nr2 = nb_find(sim.infos[sib_idx[s]].level, sim.infos[sib_idx[s]].ix, sim.infos[sib_idx[s]].iy, icode);
+            if (nr2.s == 1)
               state[j] = Leave;
           }
       }
@@ -1082,9 +1079,9 @@ static int adapt() {
         Real *Blocks[4];
         Blocks[0] = BLK(com_idx[k]);
         for (int s = 1; s < 4; s++) {
-          long long si = sim.infos[com_idx[k]].nb[sib_ic[s]];
-          Blocks[s] = BLK(si);
-          state[si] = Dealloc;
+          struct NbResult nr = nb_find(level, x, y, sib_ic[s]);
+          Blocks[s] = BLK(nr.idx);
+          state[nr.idx] = Dealloc;
         }
         for (size_t v = 0; v < NVARS; v++) {
           int dim = vars[v].dim;
@@ -1121,7 +1118,7 @@ static int adapt() {
     sim.n = cnt;
     sim.infos = realloc(sim.infos, sim.n * sizeof *sim.infos);
     sim.blocks = realloc(sim.blocks, sim.n * BSTRIDE * sizeof(Real));
-    build_tree();
+    hash_rebuild();
     free(ref_idx);
     free(com_idx);
   }
@@ -1350,7 +1347,7 @@ int main(int argc, char **argv) {
   sim.blocks = calloc(sim.n * BSTRIDE, sizeof(Real));
   for (long long i = 0; i < sim.n; i++)
     fill(&sim.infos[i], sim.levelStart, i);
-  build_tree();
+  hash_rebuild();
   tab_load_all();
   int Changed = 0;
   for (int i = 0;; i++) {
@@ -1686,18 +1683,17 @@ int main(int argc, char **argv) {
               } else {
                 static const int poisson_ic[4] = {3, 5, 1, 7};
                 int ic = poisson_ic[j];
-                int8_t ns = info->nb_s[ic];
-                int nb_idx = info->nb[ic];
-                if (ns == 0) {
+                struct NbResult pnr = nb_find(info->level, bix, biy, ic);
+                if (pnr.s == 0) {
                   state = 1;
-                  blk_idx[1] = nb_idx;
-                } else if (ns == 2) {
+                  blk_idx[1] = pnr.idx;
+                } else if (pnr.s == 2) {
                   state = 2;
-                  blk_idx[2] = nb_idx;
-                } else if (ns == 1) {
+                  blk_idx[2] = pnr.idx;
+                } else if (pnr.s == 1) {
                   state = 3;
                   int ct = tc >= BS / 2 ? 1 : 0;
-                  blk_idx[3] = info->nb_ch[ic][ct];
+                  blk_idx[3] = pnr.ch[ct];
                 } else {
                   fprintf(stderr, "main.c: bad neighbour state\n");
                   exit(1);
