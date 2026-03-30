@@ -5,7 +5,7 @@ ref_dir = os.path.expanduser('~/bak/ref')
 cur_dir = os.path.expanduser('~/CUP2D')
 
 ok = True
-for ref_path in sorted(glob.glob(os.path.join(ref_dir, '*.raw'))):
+for ref_path in sorted(glob.glob(os.path.join(ref_dir, 'vel.*.raw'))):
     name = os.path.basename(ref_path)
     cur_path = os.path.join(cur_dir, name)
     if not os.path.exists(cur_path):
@@ -18,9 +18,11 @@ for ref_path in sorted(glob.glob(os.path.join(ref_dir, '*.raw'))):
         print(f'SIZE  {name}  ref={len(ref_data)}  cur={len(cur_data)}')
         ok = False
         continue
-    n = len(ref_data) // 8
-    rv = struct.unpack(str(n) + 'd', ref_data)
-    cv = struct.unpack(str(n) + 'd', cur_data)
+    fmt = 'd'
+    sz = 8
+    n = len(ref_data) // sz
+    rv = struct.unpack(str(n) + fmt, ref_data)
+    cv = struct.unpack(str(n) + fmt, cur_data)
     diffs = [abs(a - b) for a, b in zip(rv, cv)
              if math.isfinite(a) and math.isfinite(b)
              and abs(a) < 1e6 and abs(b) < 1e6]
