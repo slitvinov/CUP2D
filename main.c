@@ -27,103 +27,26 @@ enum {
 
 #define EPS DBL_EPSILON
 enum State { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
-enum TreeState {
-  Active = 0,
-  ChildrenAreActive = -1,
-  ParentIsActive = -2,
-};
 struct Shape;
 struct Info;
-struct TreeEntry {
-  enum TreeState state;
-  long long idx;
+struct LkEntry {
+  long long key;
+  int val;
 };
-
-struct TreeMap {
-  long long *keys;
-  struct TreeEntry *vals;
-  char *used;
-  int cap;
-  int n;
-};
-
-static void tree_set(struct TreeMap *m, long long key, struct TreeEntry val);
-
-static void tree_init(struct TreeMap *m, int cap) {
-  m->cap = cap;
-  m->n = 0;
-  m->keys = malloc(cap * sizeof(long long));
-  m->vals = malloc(cap * sizeof(struct TreeEntry));
-  m->used = calloc(cap, 1);
+static int lk_cmp(const void *a, const void *b) {
+  long long ka = ((const struct LkEntry *)a)->key;
+  long long kb = ((const struct LkEntry *)b)->key;
+  return (ka > kb) - (ka < kb);
 }
-
-static void tree_free(struct TreeMap *m) {
-  free(m->keys);
-  free(m->vals);
-  free(m->used);
-  m->keys = NULL;
-  m->vals = NULL;
-  m->used = NULL;
-  m->cap = m->n = 0;
-}
-
-static void tree_clear(struct TreeMap *m) {
-  memset(m->used, 0, m->cap);
-  m->n = 0;
-}
-
-static int tree_slot(struct TreeMap *m, long long key) {
-  unsigned long long h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
-  int mask = m->cap - 1;
-  int i = (int)(h >> 32) & mask;
-  while (m->used[i] && m->keys[i] != key)
-    i = (i + 1) & mask;
-  return i;
-}
-
-static void tree_grow(struct TreeMap *m) {
-  int old_cap = m->cap;
-  long long *old_keys = m->keys;
-  struct TreeEntry *old_vals = m->vals;
-  char *old_used = m->used;
-  int new_cap = old_cap * 2;
-  m->cap = new_cap;
-  m->n = 0;
-  m->keys = malloc(new_cap * sizeof(long long));
-  m->vals = malloc(new_cap * sizeof(struct TreeEntry));
-  m->used = calloc(new_cap, 1);
-  for (int i = 0; i < old_cap; i++)
-    if (old_used[i])
-      tree_set(m, old_keys[i], old_vals[i]);
-  free(old_keys);
-  free(old_vals);
-  free(old_used);
-}
-
-static void tree_set(struct TreeMap *m, long long key, struct TreeEntry val) {
-  if (m->n * 10 >= m->cap * 7)
-    tree_grow(m);
-  int i = tree_slot(m, key);
-  if (!m->used[i]) {
-    m->used[i] = 1;
-    m->keys[i] = key;
-    m->n++;
+static int lk_find(long long key, const struct LkEntry *lk, int n) {
+  int lo = 0, hi = n - 1;
+  while (lo <= hi) {
+    int mid = lo + (hi - lo) / 2;
+    if (lk[mid].key < key) lo = mid + 1;
+    else if (lk[mid].key > key) hi = mid - 1;
+    else return lk[mid].val;
   }
-  m->vals[i] = val;
-}
-
-static struct TreeEntry *tree_get(struct TreeMap *m, long long key) {
-  int i = tree_slot(m, key);
-  return m->used[i] ? &m->vals[i] : NULL;
-}
-
-static struct TreeEntry tree_at(struct TreeMap *m, long long key) {
-  int i = tree_slot(m, key);
-  if (!m->used[i]) {
-    fprintf(stderr, "main.c: tree_at: key %lld not found\n", key);
-    abort();
-  }
-  return m->vals[i];
+  return -1;
 }
 static struct Sim {
   int AdaptSteps;
@@ -152,7 +75,8 @@ static struct Sim {
   double *sol_x, *sol_b, *sol_h2;
   long long n;
   int nshape;
-  struct TreeMap tree;
+  struct LkEntry *lk;
+  int lk_n;
   struct Info *infos;
   Real *blocks;
 } sim;
@@ -381,7 +305,12 @@ static void fill(struct Info *b, int level, long long Z) {
   b->origin[1] = (Real)b->iy / n;
 }
 static long long getf0(int level, long long Z) {
-  return tree_at(&sim.tree, level_id(level, Z)).idx;
+  int idx = lk_find(level_id(level, Z), sim.lk, sim.lk_n);
+  if (idx < 0) {
+    fprintf(stderr, "main.c: getf0: level=%d Z=%lld not found\n", level, Z);
+    abort();
+  }
+  return idx;
 }
 struct {
   int offset;
@@ -398,44 +327,29 @@ static inline int skin_skip(int c, int coord, int n) {
   return c == skip && skin;
 }
 static void build_tree() {
-  tree_clear(&sim.tree);
+  sim.lk = realloc(sim.lk, sim.n * sizeof *sim.lk);
+  sim.lk_n = sim.n;
   for (long long i = 0; i < sim.n; i++) {
-    struct Info *info = &sim.infos[i];
-    tree_set(&sim.tree, level_id(info->level, info->Z),
-             (struct TreeEntry){Active, i});
-    if (info->level + 1 < sim.levelMax)
-      for (int J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          long long Zc = sfc_forward(info->level + 1,
-                                      2 * info->ix + I, 2 * info->iy + J);
-          tree_set(&sim.tree, level_id(info->level + 1, Zc),
-                   (struct TreeEntry){ParentIsActive, -1});
-        }
-    if (info->level > 0)
-      tree_set(&sim.tree, level_id(info->level - 1, info->Z / 4),
-               (struct TreeEntry){ChildrenAreActive, -1});
+    sim.lk[i].key = level_id(sim.infos[i].level, sim.infos[i].Z);
+    sim.lk[i].val = i;
   }
+  qsort(sim.lk, sim.lk_n, sizeof *sim.lk, lk_cmp);
   for (long long i = 0; i < sim.n; i++) {
     struct Info *info = &sim.infos[i];
     int level = info->level;
     int n = 1 << level;
     info->parent = -1;
-    if (level > 0) {
-      struct TreeEntry *pe = tree_get(&sim.tree,
-                                       level_id(level - 1, info->Z / 4));
-      if (pe && pe->idx >= 0)
-        info->parent = pe->idx;
-    }
+    if (level > 0)
+      info->parent = lk_find(level_id(level - 1, info->Z / 4),
+                              sim.lk, sim.lk_n);
     for (int s = 0; s < 4; s++) info->children[s] = -1;
     if (level + 1 < sim.levelMax)
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
           long long Zc = sfc_forward(level + 1,
                                       2 * info->ix + I, 2 * info->iy + J);
-          struct TreeEntry *ce = tree_get(&sim.tree,
-                                           level_id(level + 1, Zc));
-          if (ce && ce->idx >= 0)
-            info->children[2 * J + I] = ce->idx;
+          info->children[2 * J + I] =
+              lk_find(level_id(level + 1, Zc), sim.lk, sim.lk_n);
         }
     for (int icode = 0; icode < 9; icode++) {
       info->nb[icode] = -1;
@@ -455,15 +369,19 @@ static void build_tree() {
       } else {
         long long Z = sfc_forward(level,
             (info->ix + cx + n) % n, (info->iy + cy + n) % n);
-        struct TreeEntry e = tree_at(&sim.tree, level_id(level, Z));
-        info->nb_s[icode] = -e.state;
-        if (e.state == Active)
-          info->nb[icode] = e.idx;
-        else if (e.state == ParentIsActive && level > 0)
-          info->nb[icode] = tree_at(&sim.tree,
-                                     level_id(level - 1, Z / 4)).idx;
-        else
+        int idx = lk_find(level_id(level, Z), sim.lk, sim.lk_n);
+        if (idx >= 0) {
+          info->nb_s[icode] = 0;
+          info->nb[icode] = idx;
+        } else if (level > 0 &&
+                   (idx = lk_find(level_id(level - 1, Z / 4),
+                                   sim.lk, sim.lk_n)) >= 0) {
+          info->nb_s[icode] = 2;
+          info->nb[icode] = idx;
+        } else {
+          info->nb_s[icode] = 1;
           info->nb[icode] = -1;
+        }
       }
     }
   }
@@ -1417,7 +1335,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "main.c: error: failed to parse shapes\n");
     exit(1);
   }
-  tree_init(&sim.tree, 1024);
+  sim.lk = NULL;
+  sim.lk_n = 0;
   sim.n = 1LL << (2 * sim.levelStart);
   sim.infos = calloc(sim.n, sizeof *sim.infos);
   sim.blocks = calloc(sim.n * BSTRIDE, sizeof(Real));
@@ -1844,6 +1763,6 @@ int main(int argc, char **argv) {
     free(shape->sdf);
     free(shape);
   }
-  tree_free(&sim.tree);
+  free(sim.lk);
   fprintf(stderr, "main.c: end\n");
 }
