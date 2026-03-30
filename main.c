@@ -812,24 +812,21 @@ static int ad_run() {
   if (!Changed)
     goto done;
 
-  for (;;) {
-    int More = 0;
+  for (int More = 1; More;) {
+    More = 0;
     for (long long j = 0; j < sim.n; j++) {
       if (state[j] != Refine) continue;
       struct Blk *bj = &sim.blk[j];
-      for (int icode = 0; icode < 9; icode++) {
-        if (icode == 4) continue;
-        struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, icode);
-        if (nr.s >= 3) continue;
-        if (nr.s == 2 && nr.idx >= 0 && state[nr.idx] != Refine) {
-          state[nr.idx] = Refine;
-          More = 1;
-        } else if (nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Compress) {
+      for (int ic = 0; ic < 9; ic++) {
+        if (ic == 4) continue;
+        struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ic);
+        if (nr.s >= 3 || nr.idx < 0) continue;
+        if (nr.s == 2 && state[nr.idx] != Refine)
+          { state[nr.idx] = Refine; More = 1; }
+        else if (nr.s == 0 && state[nr.idx] == Compress)
           state[nr.idx] = Leave;
-        }
       }
     }
-    if (!More) break;
   }
 
   for (long long j = 0; j < sim.n; j++) {
