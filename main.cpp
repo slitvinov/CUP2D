@@ -72,7 +72,7 @@ struct Info {
   double h, origin[2];
   int level, ix, iy;
   long long Z;
-  Real *block = NULL;
+  Real *block;
 };
 struct Collision {
   Real iM = 0;
@@ -720,28 +720,23 @@ static int adapt() {
     if (state[j] == Compress) {
       int xi = sim.infos[j]->ix, yi = sim.infos[j]->iy;
       if (xi % 2 == 0 && yi % 2 == 0) {
-        for (int dx = 0; dx < 2; dx++)
-          for (int dy = 0; dy < 2; dy++) {
-            long long Z = sfc_forward(sim.infos[j]->level, xi + dx, yi + dy);
-            long long id = level_id(sim.infos[j]->level, Z);
-            auto it = sim.tree.find(id);
-            if (it == sim.tree.end() || it->second.idx < 0 ||
-                state[it->second.idx] != Compress)
-              state[j] = Leave;
-          }
         int level = sim.infos[j]->level;
         int n = 1 << level;
         for (int dx = 0; dx < 2 && state[j] != Leave; dx++)
           for (int dy = 0; dy < 2 && state[j] != Leave; dy++) {
+            long long Z = sfc_forward(level, xi + dx, yi + dy);
+            auto it = sim.tree.find(level_id(level, Z));
+            if (it == sim.tree.end() || it->second.idx < 0 ||
+                state[it->second.idx] != Compress)
+              { state[j] = Leave; break; }
             int sx = xi + dx, sy = yi + dy;
             for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
               int cx = icode % 3 - 1, cy = icode / 3 - 1;
               if (cx == 0 && cy == 0) continue;
               if (skin_skip(cx, sx, n) || skin_skip(cy, sy, n)) continue;
-              long long Z = forward(level, sx + cx, sy + cy);
-              long long id = level_id(level, Z);
-              auto it = sim.tree.find(id);
-              if (it != sim.tree.end() && it->second.state == ChildrenAreActive)
+              long long Z2 = forward(level, sx + cx, sy + cy);
+              auto it2 = sim.tree.find(level_id(level, Z2));
+              if (it2 != sim.tree.end() && it2->second.state == ChildrenAreActive)
                 state[j] = Leave;
             }
           }
@@ -751,20 +746,18 @@ static int adapt() {
 
   {
     long long n_ref = 0, n_com = 0;
-    for (long long j = 0; j < sim.n; j++) {
-      if (state[j] == Refine) n_ref++;
-      else if (state[j] == Compress && sim.infos[j]->ix % 2 == 0 && sim.infos[j]->iy % 2 == 0) n_com++;
-    }
-    fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
-            n_com, n_ref);
-    if (n_ref == 0 && n_com == 0)
-      goto end;
-    long long *ref_idx = (long long *)malloc(n_ref * sizeof(long long));
-    long long *com_idx = (long long *)malloc(n_com * sizeof(long long));
-    n_ref = n_com = 0;
+    long long *ref_idx = (long long *)malloc(sim.n * sizeof(long long));
+    long long *com_idx = (long long *)malloc(sim.n * sizeof(long long));
     for (long long j = 0; j < sim.n; j++) {
       if (state[j] == Refine) ref_idx[n_ref++] = j;
       else if (state[j] == Compress && sim.infos[j]->ix % 2 == 0 && sim.infos[j]->iy % 2 == 0) com_idx[n_com++] = j;
+    }
+    fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
+            n_com, n_ref);
+    if (n_ref == 0 && n_com == 0) {
+      free(ref_idx);
+      free(com_idx);
+      goto end;
     }
     long long nprev = sim.n;
     sim.n += 4 * n_ref;
@@ -785,7 +778,7 @@ static int adapt() {
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             long long Z = sfc_forward(par->level + 1, 2 * px + I, 2 * py + J);
-            Info *child = new Info;
+            Info *child = (Info *)calloc(1, sizeof(Info));
             fill(child, par->level + 1, Z);
             sim.infos[nprev + 4 * k + 2 * J + I] = child;
             child->block = blocks[2 * J + I] =
@@ -858,7 +851,7 @@ static int adapt() {
     for (long long i = 0; i < sim.n; i++) {
       if (state[i] == Dealloc) {
         free(sim.infos[i]->block);
-        delete sim.infos[i];
+        free(sim.infos[i]);
       } else {
         sim.infos[cnt++] = sim.infos[i];
       }
@@ -1109,7 +1102,7 @@ int main(int argc, char **argv) {
   sim.infos = (Info **)malloc(sim.n * sizeof *sim.infos);
   for (long long i = 0; i < sim.n; i++) {
     long long Z = i;
-    Info *info = new Info;
+    Info *info = (Info *)calloc(1, sizeof(Info));
     fill(info, sim.levelStart, Z);
     info->block = (Real *)calloc(off_n * BS * BS, sizeof(Real));
     sim.infos[i] = info;
