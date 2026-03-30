@@ -58,7 +58,11 @@ static struct Sim {
   Real Rtol;
   Real time = 0;
   struct Shape **shapes;
-  struct LocalSpMatDnVec *mat;
+  struct GpuSolver *gpu;
+  int coo_nnz, coo_cap;
+  double *coo_val;
+  int *coo_row, *coo_col;
+  double *sol_x, *sol_b, *sol_h2;
   long long n;
   int nshape;
   std::unordered_map<long long, TreeEntry> tree;
@@ -932,11 +936,11 @@ static void getVec() {
 #pragma omp parallel for
   for (int i = 0; i < sim.n; i++) {
     Real h = sim.infos[i].h;
-    sim.mat->h2_[i] = h * h;
+    sim.sol_h2[i] = h * h;
     long long offset = (long long)i * BS * BS;
-    memcpy(&sim.mat->b_[offset], BLK(i) + BS * BS * off_tmp,
+    memcpy(&sim.sol_b[offset], BLK(i) + BS * BS * off_tmp,
            BS * BS * sizeof(Real));
-    memcpy(&sim.mat->x_[offset], BLK(i) + BS * BS * off_pres,
+    memcpy(&sim.sol_x[offset], BLK(i) + BS * BS * off_pres,
            BS * BS * sizeof(Real));
   }
 }
@@ -1148,7 +1152,10 @@ int main(int argc, char **argv) {
     }
   }
   std::vector<double> P_inv = precond();
-  sim.mat = new LocalSpMatDnVec(BS * BS, 0, P_inv);
+  sim.gpu = gpu_solver_create(BS * BS, P_inv.data());
+  sim.coo_val = NULL; sim.coo_row = NULL; sim.coo_col = NULL;
+  sim.sol_x = NULL; sim.sol_b = NULL; sim.sol_h2 = NULL;
+  sim.coo_cap = 0;
   load_poisson();
   while (1) {
     if (sim.step % 5 == 0)
@@ -1396,22 +1403,39 @@ int main(int argc, char **argv) {
     double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
     int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
     int N = BS * BS * sim.n;
-    sim.mat->reserve(N);
+    // Ensure solver vectors are allocated
+    sim.sol_x = (double *)realloc(sim.sol_x, N * sizeof(double));
+    sim.sol_b = (double *)realloc(sim.sol_b, N * sizeof(double));
+    sim.sol_h2 = (double *)realloc(sim.sol_h2, sim.n * sizeof(double));
+    // Reset COO arrays
+    sim.coo_nnz = 0;
+    if (sim.coo_cap < 16 * N) {
+      sim.coo_cap = 16 * N;
+      sim.coo_val = (double *)realloc(sim.coo_val, sim.coo_cap * sizeof(double));
+      sim.coo_row = (int *)realloc(sim.coo_row, sim.coo_cap * sizeof(int));
+      sim.coo_col = (int *)realloc(sim.coo_col, sim.coo_cap * sizeof(int));
+    }
+#define COO_PUSH(v, r, c) do { \
+    assert(sim.coo_nnz < sim.coo_cap); \
+    sim.coo_val[sim.coo_nnz] = (v); \
+    sim.coo_row[sim.coo_nnz] = (r); \
+    sim.coo_col[sim.coo_nnz] = (c); \
+    sim.coo_nnz++; \
+  } while(0)
     for (int i = 0; i < sim.n; i++) {
       Info *info = &sim.infos[i];
       int n = 1 << info->level;
       int bix = info->ix, biy = info->iy;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
-          long long sfc_idx = (long long)i * BS * BS + iy * BS + ix;
+          int sfc_idx = i * BS * BS + iy * BS + ix;
           if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx - BS);
-            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx - 1);
-            sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx + 1);
-            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx + BS);
+            COO_PUSH(1, sfc_idx, sfc_idx - BS);
+            COO_PUSH(1, sfc_idx, sfc_idx - 1);
+            COO_PUSH(-4, sfc_idx, sfc_idx);
+            COO_PUSH(1, sfc_idx, sfc_idx + 1);
+            COO_PUSH(1, sfc_idx, sfc_idx + BS);
           } else {
-            SpRowInfo row(sim.tree.at(level_id(info->level, info->Z)).state, sfc_idx, 8);
             for (int j = 0; j < 4; j++) {
               int dir = j >> 1, side = j & 1;
               int sign = 2 * side - 1;
@@ -1421,8 +1445,8 @@ int main(int argc, char **argv) {
               int state;
               if (side == 0 ? ec > 0 : ec < BS - 1) {
                 int dx = (1 - dir) * sign, dy = dir * sign;
-                row.mapColVal(sfc_idx + dy * BS + dx, 1);
-                row.mapColVal(sfc_idx, -1);
+                COO_PUSH(1, sfc_idx, sfc_idx + dy * BS + dx);
+                COO_PUSH(-1, sfc_idx, sfc_idx);
                 continue;
               } else if (side == 0 ? (dir == 0 ? bix : biy) == 0
                                    : (dir == 0 ? bix : biy) == n - 1) {
@@ -1457,31 +1481,27 @@ int main(int argc, char **argv) {
                   poisson_tab[((j * BS + tc) * 2 + parity) * 4 + state];
               for (int k = 0; k < pe.n_ops; k++) {
                 const PoissonOp &op = pe.ops[k];
-                row.mapColVal(
-                    blk_idx[op.blk_ref] * BS * BS + op.cell_iy * BS + op.cell_ix,
-                    (double)op.coeff);
+                COO_PUSH((double)op.coeff, sfc_idx,
+                    (int)(blk_idx[op.blk_ref] * BS * BS + op.cell_iy * BS + op.cell_ix));
               }
             }
-            sim.mat->cooPushBackRow(row);
           }
         }
     }
-    if (Changed) {
-      sim.mat->make();
-      getVec();
-      sim.mat->solveWithUpdate(max_error, max_rel_error, max_restarts);
-      Changed = 0;
-    } else {
-      getVec();
-      sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
-    }
+#undef COO_PUSH
+    getVec();
+    gpu_solver_solve(sim.gpu, Changed, N, sim.coo_nnz,
+        sim.coo_val, sim.coo_row, sim.coo_col,
+        sim.sol_x, sim.sol_b, sim.sol_h2, -1,
+        max_error, max_rel_error, max_restarts);
+    Changed = 0;
     Real avg = 0, avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (long long i = 0; i < sim.n; i++) {
       Real *P = BLK(i) + BS * BS * off_pres;
       Real vv = sim.infos[i].h * sim.infos[i].h;
       for (int j = 0; j < BS * BS; j++) {
-        P[j] = sim.mat->x_[i * BS * BS + j];
+        P[j] = sim.sol_x[i * BS * BS + j];
         avg += P[j] * vv;
         avg1 += vv;
       }
@@ -1507,7 +1527,9 @@ int main(int argc, char **argv) {
     sim.step++;
   }
 
-  delete sim.mat;
+  gpu_solver_destroy(sim.gpu);
+  free(sim.coo_val); free(sim.coo_row); free(sim.coo_col);
+  free(sim.sol_x); free(sim.sol_b); free(sim.sol_h2);
   for (int ishape = 0; ishape < sim.nshape; ishape++) {
     Shape *shape = sim.shapes[ishape];
     free(shape->o_chi);
