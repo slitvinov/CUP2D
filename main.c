@@ -260,8 +260,8 @@ static void ps_prec(double *P_inv) {
     }
 }
 struct Blk {
-  double h, origin[2];
-  int level, ix, iy;
+  double h, ih, origin[2];
+  int level, n, ix, iy;
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
 struct Col {
@@ -270,9 +270,11 @@ struct Col {
 static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   int n = 1 << level;
   b->level = level;
+  b->n = n;
   b->ix = ix;
   b->iy = iy;
   b->h = 1.0 / BS / n;
+  b->ih = BS * n;
   b->origin[0] = (Real)ix / n;
   b->origin[1] = (Real)iy / n;
 }
@@ -490,7 +492,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
   struct Blk *info = &sim.blk[info_idx];
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
-  int n = 1 << info->level;
   int level = info->level;
   int xi = info->ix, yi = info->iy;
   const struct LbTab (*cflb_tab)[3][2][2][6] = lb_tab[ss][dim];
@@ -565,7 +566,7 @@ static void cm_vort() {
     for (long long id = 0; id < sim.n; ++id) {
       lb_load(um, 2, F_VEL, 1, id);
       struct Blk *info = &sim.blk[id];
-      Real i2h = 0.5 * (1 << info->level) * BS;
+      Real i2h = 0.5 * info->ih;
       Real *TMP = BLK(id) + BS * BS * F_TMP;
       int ss = 1, nm = 2 * ss + BS;
       for (int j = 0; j < BS; ++j)
@@ -648,7 +649,7 @@ static void dump(Real time, char *path) {
     for (y = 0; y < BS; y++)
       for (x = 0; x < BS; x++) {
         double u0, v0, u1, v1, h;
-        h = 1.0 / BS / (1 << info->level);
+        h = info->h;
         u0 = info->origin[0] + h * x;
         v0 = info->origin[1] + h * y;
         u1 = u0 + h;
@@ -711,7 +712,7 @@ static void cm_chi() {
       int ss = 1, nm = 2 * ss + BS;
       for (int ishape = 0; ishape < sim.nshape; ishape++) {
         struct Shp *shape = sim.shapes[ishape];
-        Real h = 1.0 / BS / (1 << info->level);
+        Real h = info->h;
         Real h2 = h * h;
         Real *chi = shape->o_chi + id * BS * BS;
         Real *dist = shape->o_dist + id * BS * BS;
@@ -1290,11 +1291,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "main.c: error: failed to parse shapes\n");
     exit(1);
   }
-  sim.n = 1LL << (2 * sim.levelStart);
-  sim.blk = calloc(sim.n, sizeof *sim.blk);
-  sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
   {
     int ns = 1 << sim.levelStart;
+    sim.n = (long long)ns * ns;
+    sim.blk = calloc(sim.n, sizeof *sim.blk);
+    sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
     long long idx = 0;
     for (int iy = 0; iy < ns; iy++)
       for (int ix = 0; ix < ns; ix++)
@@ -1393,7 +1394,7 @@ int main(int argc, char **argv) {
         Real *V = BLK(i) + BS * BS * F_VEL;
         Real *Vold = BLK(i) + BS * BS * F_VOL;
         Real *tmpV = BLK(i) + BS * BS * F_TMV;
-        Real ih2 = fac / (sim.blk[i].h * sim.blk[i].h);
+        Real ih2 = fac * sim.blk[i].ih * sim.blk[i].ih;
         for (int j = 0; j < 2 * BS * BS; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
@@ -1448,7 +1449,7 @@ int main(int argc, char **argv) {
           Real *jSDF = sim.shapes[j]->o_dist + k * BS * BS;
           Real *iChi = sim.shapes[i]->o_chi + k * BS * BS;
           Real *jChi = sim.shapes[j]->o_chi + k * BS * BS;
-          Real h = 1.0 / BS / (1 << sim.blk[k].level);
+          Real h = sim.blk[k].h;
           Real hsq = h * h;
           for (int iy = 0; iy < BS; ++iy)
             for (int ix = 0; ix < BS; ++ix) {
@@ -1606,7 +1607,7 @@ int main(int argc, char **argv) {
   } while(0)
     for (int i = 0; i < sim.n; i++) {
       struct Blk *info = &sim.blk[i];
-      int n = 1 << info->level;
+      int n = info->n;
       int bix = info->ix, biy = info->iy;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
@@ -1693,7 +1694,7 @@ int main(int argc, char **argv) {
     ps_corr();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      Real ih2 = 1.0 / sim.blk[i].h / sim.blk[i].h;
+      Real ih2 = sim.blk[i].ih * sim.blk[i].ih;
       Real *V = BLK(i) + BS * BS * F_VEL;
       Real *tmpV = BLK(i) + BS * BS * F_TMV;
       for (int j = 0; j < 2 * BS * BS; j++)
