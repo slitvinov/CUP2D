@@ -907,9 +907,6 @@ static void compute_advect_diffuse() {
     }
   }
 }
-static long long This(long long id, int ix, int iy) {
-  return id * BS * BS + iy * BS + ix;
-}
 struct PoissonOp {
   int8_t blk_ref, cell_ix, cell_iy, _pad;
   float coeff;
@@ -1406,13 +1403,13 @@ int main(int argc, char **argv) {
       int bix = info->ix, biy = info->iy;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
-          long long sfc_idx = This(i, ix, iy);
+          long long sfc_idx = (long long)i * BS * BS + iy * BS + ix;
           if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix, iy - 1));
-            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix - 1, iy));
+            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx - BS);
+            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx - 1);
             sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix + 1, iy));
-            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix, iy + 1));
+            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx + 1);
+            sim.mat->cooPushBackVal(1, sfc_idx, sfc_idx + BS);
           } else {
             SpRowInfo row(sim.tree.at(level_id(info->level, info->Z)).state, sfc_idx, 8);
             for (int j = 0; j < 4; j++) {
@@ -1424,7 +1421,7 @@ int main(int argc, char **argv) {
               int state;
               if (side == 0 ? ec > 0 : ec < BS - 1) {
                 int dx = (1 - dir) * sign, dy = dir * sign;
-                row.mapColVal(This(i, ix + dx, iy + dy), 1);
+                row.mapColVal(sfc_idx + dy * BS + dx, 1);
                 row.mapColVal(sfc_idx, -1);
                 continue;
               } else if (side == 0 ? (dir == 0 ? bix : biy) == 0
@@ -1461,7 +1458,7 @@ int main(int argc, char **argv) {
               for (int k = 0; k < pe.n_ops; k++) {
                 const PoissonOp &op = pe.ops[k];
                 row.mapColVal(
-                    This(blk_idx[op.blk_ref], op.cell_ix, op.cell_iy),
+                    blk_idx[op.blk_ref] * BS * BS + op.cell_iy * BS + op.cell_ix,
                     (double)op.coeff);
               }
             }
