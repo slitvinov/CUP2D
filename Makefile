@@ -30,6 +30,6 @@ main: $O
 clean:
 	rm -f main $O solver_cpu.o solver_gpu.o
 
-main.o: utils.h solver.h
+main.o: solver.h
 solver_cpu.o: solver.h
 solver_gpu.o: solver.h
