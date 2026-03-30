@@ -1598,8 +1598,7 @@ int main(int argc, char **argv) {
                       "Neighbour doesn't exist, isn't coarser, nor finer...");
                 }
               }
-              int parity = dir == 0 ? info->index[1] % 2
-                                    : info->index[0] % 2;
+              int parity = dir == 0 ? biy % 2 : bix % 2;
               const PoissonEntry &pe =
                   poisson_tab[((j * BS + tc) * 2 + parity) * 4 + state];
               for (int k = 0; k < pe.n_ops; k++) {
