@@ -86,21 +86,19 @@ static TreeState Tree1(Info *info) {
   return sim.tree.at(sim.levels[info->level] + info->Z);
 }
 static void fill(Info *b, int level, long long Z) {
-  int Bmax[2];
+  int n = 1 << level;
   b->level = level;
   b->Z = Z;
-  b->h = 1.0 / BS / (1 << level);
+  b->h = 1.0 / BS / n;
   sfc_inverse(Z, level, &b->index[0], &b->index[1]);
   b->index[2] = 0;
-  b->origin[0] = (Real)b->index[0] / (1 << level);
-  b->origin[1] = (Real)b->index[1] / (1 << level);
+  b->origin[0] = (Real)b->index[0] / n;
+  b->origin[1] = (Real)b->index[1] / n;
 
-  Bmax[0] = 1 << level;
-  Bmax[1] = 1 << level;
   for (int i = -1; i < 2; i++)
     for (int j = -1; j < 2; j++)
-      b->Znei[i + 1][j + 1] = sfc_forward(level, (b->index[0] + i) % Bmax[0],
-                                          (b->index[1] + j) % Bmax[1]);
+      b->Znei[i + 1][j + 1] = sfc_forward(level, (b->index[0] + i) % n,
+                                          (b->index[1] + j) % n);
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++)
       b->Zchild[i][j] =
@@ -383,11 +381,7 @@ struct Obstacle {
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
-  Obstacle() {
-    std::fill(&dist[0][0], &dist[0][0] + BS * BS, -1);
-    memset(&chi[0][0], 0, sizeof(Real) * BS * BS);
-    memset(&udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
-  }
+}
 };
 static void compute_vorticity() {
 #pragma omp parallel
@@ -596,50 +590,38 @@ static void ongrid() {
     shape->blocks = std::vector<Obstacle *>(sim.n, nullptr);
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; ++i) {
-      Obstacle *block = new Obstacle();
-      shape->blocks[i] = block;
-      std::fill(&block->dist[0][0], &block->dist[0][0] + BS * BS, -1);
-      memset(&block->chi[0][0], 0, sizeof(Real) * BS * BS);
-      memset(&block->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
+      shape->blocks[i] = new Obstacle();
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      Obstacle *block = shape->blocks[sim.infos[i]->id];
+      Obstacle *o = shape->blocks[sim.infos[i]->id];
       Info *info = sim.infos[i];
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
-      Obstacle *o = block;
       Real h = info->h;
-      std::fill(&o->dist[0][0], &o->dist[0][0] + BS * BS, -1);
+      Real co = std::cos(shape->orientation);
+      Real si = std::sin(shape->orientation);
       memset(&o->chi[0][0], 0, sizeof(Real) * BS * BS);
       memset(&o->udef[0][0][0], 0, sizeof(Real) * BS * BS * 2);
-      for (int iy = 0; iy < BS; ++iy) {
+      for (int iy = 0; iy < BS; ++iy)
         for (int ix = 0; ix < BS; ++ix) {
-          Real c = std::cos(shape->orientation);
-          Real s = std::sin(shape->orientation);
-          Real x = info->origin[0] + h * (ix + 0.5);
-          Real y = info->origin[1] + h * (iy + 0.5);
-          x -= shape->x;
-          y -= shape->y;
-          Real x0 = c * x + s * y;
-          Real y0 = -s * x + c * y;
+          Real x = info->origin[0] + h * (ix + 0.5) - shape->x;
+          Real y = info->origin[1] + h * (iy + 0.5) - shape->y;
+          Real x0 = co * x + si * y;
+          Real y0 = -si * x + co * y;
           Real r = sqrt(x0 * x0 + y0 * y0);
           Real p = atan2(y0, x0);
           if (p < 0)
             p += 2 * M_PI;
-          int i = r * shape->nr / shape->rmax;
-          if (i >= shape->nr)
-            i = shape->nr - 1;
-          int j = p * (shape->np - 2) / (2 * M_PI);
-          if (j >= shape->np)
-            j = shape->np - 1;
-          Real dist = shape->sdf[i * shape->np + j];
+          int ri = r * shape->nr / shape->rmax;
+          if (ri >= shape->nr)
+            ri = shape->nr - 1;
+          int pi = p * (shape->np - 2) / (2 * M_PI);
+          if (pi >= shape->np)
+            pi = shape->np - 1;
+          Real dist = shape->sdf[ri * shape->np + pi];
           o->dist[iy][ix] = dist;
           b[iy * BS + ix] = std::max(b[iy * BS + ix], dist);
-          o->udef[iy][ix][0] = 0;
-          o->udef[iy][ix][1] = 0;
         }
-      }
-      memset(&o->chi[0][0], 0, sizeof(Real) * BS * BS);
     }
   }
 
@@ -1342,25 +1324,17 @@ int main(int argc, char **argv) {
       memcpy(sim.infos[i]->block + BS * BS * off_vold,
              sim.infos[i]->block + BS * BS * off_vel,
              2 * BS * BS * sizeof(Real));
-    compute_advect_diffuse();
+    for (Real fac : {0.5, 1.0}) {
+      compute_advect_diffuse();
 #pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *V = sim.infos[i]->block + BS * BS * off_vel;
-      Real *Vold = sim.infos[i]->block + BS * BS * off_vold;
-      Real *tmpV = sim.infos[i]->block + BS * BS * off_tmpV;
-      Real ih2 = 0.5 / (sim.infos[i]->h * sim.infos[i]->h);
-      for (int j = 0; j < 2 * BS * BS; j++)
-        V[j] = Vold[j] + tmpV[j] * ih2;
-    }
-    compute_advect_diffuse();
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *V = sim.infos[i]->block + BS * BS * off_vel;
-      Real *Vold = sim.infos[i]->block + BS * BS * off_vold;
-      Real *tmpV = sim.infos[i]->block + BS * BS * off_tmpV;
-      Real ih2 = 1.0 / (sim.infos[i]->h * sim.infos[i]->h);
-      for (int j = 0; j < 2 * BS * BS; j++)
-        V[j] = Vold[j] + tmpV[j] * ih2;
+      for (long long i = 0; i < sim.n; i++) {
+        Real *V = sim.infos[i]->block + BS * BS * off_vel;
+        Real *Vold = sim.infos[i]->block + BS * BS * off_vold;
+        Real *tmpV = sim.infos[i]->block + BS * BS * off_tmpV;
+        Real ih2 = fac / (sim.infos[i]->h * sim.infos[i]->h);
+        for (int j = 0; j < 2 * BS * BS; j++)
+          V[j] = Vold[j] + tmpV[j] * ih2;
+      }
     }
     for (int ishape = 0; ishape < sim.nshape; ishape++) {
       Shape *shape = sim.shapes[ishape];
