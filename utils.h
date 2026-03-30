@@ -98,30 +98,6 @@ static void sfc_inverse(long long Z, int l, int *i, int *j) {
     Z /= 4;
   }
 }
-static long long sfc_encode(int level, int index[2]) {
-  long long retval = 0;
-  int ix = index[0];
-  int iy = index[1];
-  for (int l = level; l >= 0; l--) {
-    long long Zp = sfc_forward(l, ix, iy);
-    retval += Zp;
-    ix /= 2;
-    iy /= 2;
-  }
-  ix = 2 * index[0];
-  iy = 2 * index[1];
-  for (int l = level + 1; l < sim.levelMax; l++) {
-    long long Zc = sfc_forward(l, ix, iy);
-    Zc -= Zc % 4;
-    retval += Zc;
-    int ix1, iy1;
-    sfc_inverse(Zc, l, &ix1, &iy1);
-    ix = 2 * ix1;
-    iy = 2 * iy1;
-  }
-  retval += level;
-  return retval;
-};
 static long long forward(int level, int i, int j) {
   return sfc_forward(level, i % (1 << level), j % (1 << level));
 }
