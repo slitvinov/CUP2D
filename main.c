@@ -97,8 +97,9 @@ static struct Sim {
   struct Info *infos;
   Real *blocks;
 } sim;
-static long long level_id(int level, long long Z) {
-  return ((1LL << (2 * level)) - 1) / 3 + Z;
+static long long cell_id(int level, int ix, int iy) {
+  long long n = 1LL << level;
+  return ((n * n) - 1) / 3 + iy * n + ix;
 }
 static Real real_min(Real a, Real b) { return a < b ? a : b; }
 static double getA_local(int I1, int I2) {
@@ -159,47 +160,6 @@ static Real derivative(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
                      weno5_plus(um3, um2, um1, u, up1)
                : weno5_minus(um1, u, up1, up2, up3) -
                      weno5_minus(um2, um1, u, up1, up2);
-}
-static void sfc_rot(long long n, int *x, int *y, long long rx, long long ry) {
-  if (ry == 0) {
-    if (rx == 1) {
-      *x = n - 1 - *x;
-      *y = n - 1 - *y;
-    }
-    int t = *x;
-    *x = *y;
-    *y = t;
-  }
-}
-static long long sfc_forward(const int l, int i, int j) {
-  if (l >= sim.levelMax)
-    return 0;
-  int n = 1 << l;
-  int rx, ry, s, d = 0;
-  for (s = n / 2; s > 0; s /= 2) {
-    rx = (i & s) > 0;
-    ry = (j & s) > 0;
-    d += s * s * ((3 * rx) ^ ry);
-    sfc_rot(n, &i, &j, rx, ry);
-  }
-  return d;
-}
-static void sfc_inverse(long long Z, int l, int *i, int *j) {
-  int n = 1 << l;
-  long long rx, ry, s;
-  *i = 0;
-  *j = 0;
-  for (s = 1; s < n; s *= 2) {
-    rx = 1 & (Z / 2);
-    ry = 1 & (Z ^ rx);
-    sfc_rot(s, i, j, rx, ry);
-    *i += s * rx;
-    *j += s * ry;
-    Z /= 4;
-  }
-}
-static long long forward(int level, int i, int j) {
-  return sfc_forward(level, i % (1 << level), j % (1 << level));
 }
 static const char *arg_find(int argc, char **argv, const char *key) {
   for (int i = 1; i < argc; i++)
@@ -302,20 +262,19 @@ static void precond(double *P_inv) {
 struct Info {
   double h, origin[2];
   int level, ix, iy;
-  long long Z;
 };
 #define BLK(i) (sim.blocks + (long long)(i) * BSTRIDE)
 struct Collision {
   Real iM, ivecX, ivecY, jM, jvecX, jvecY;
 };
-static void fill(struct Info *b, int level, long long Z) {
+static void fill(struct Info *b, int level, int ix, int iy) {
   int n = 1 << level;
-  sfc_inverse(Z, level, &b->ix, &b->iy);
   b->level = level;
-  b->Z = Z;
+  b->ix = ix;
+  b->iy = iy;
   b->h = 1.0 / BS / n;
-  b->origin[0] = (Real)b->ix / n;
-  b->origin[1] = (Real)b->iy / n;
+  b->origin[0] = (Real)ix / n;
+  b->origin[1] = (Real)iy / n;
 }
 struct {
   int offset;
@@ -353,7 +312,7 @@ static void hash_rebuild(void) {
     memset(sim.hm.keys, 0xff, cap * sizeof *sim.hm.keys);
   }
   for (long long i = 0; i < sim.n; i++)
-    hm_put(&sim.hm, level_id(sim.infos[i].level, sim.infos[i].Z), i);
+    hm_put(&sim.hm, cell_id(sim.infos[i].level, sim.infos[i].ix, sim.infos[i].iy), i);
 }
 struct NbResult {
   int8_t s;
@@ -369,15 +328,15 @@ static struct NbResult nb_find(int level, int ix, int iy, int icode) {
   if (xskin && yskin) { r.s = 5; return r; }
   if (xskin) { r.s = 3; return r; }
   if (yskin) { r.s = 4; return r; }
-  long long Z = sfc_forward(level, (ix + cx + n) % n, (iy + cy + n) % n);
-  int idx = hm_get(&sim.hm, level_id(level, Z));
+  int nx = (ix + cx + n) % n, ny = (iy + cy + n) % n;
+  int idx = hm_get(&sim.hm, cell_id(level, nx, ny));
   if (idx >= 0) {
     r.s = 0;
     r.idx = idx;
     return r;
   }
   if (level > 0) {
-    idx = hm_get(&sim.hm, level_id(level - 1, Z / 4));
+    idx = hm_get(&sim.hm, cell_id(level - 1, nx / 2, ny / 2));
     if (idx >= 0) {
       r.s = 2;
       r.idx = idx;
@@ -389,7 +348,7 @@ static struct NbResult nb_find(int level, int ix, int iy, int icode) {
   for (int b = 0; b < child_nb_cnt[icode]; b++) {
     int fx = (ix * 2 + child_nb_off[icode][b][0] + nL1) % nL1;
     int fy = (iy * 2 + child_nb_off[icode][b][1] + nL1) % nL1;
-    r.ch[b] = hm_get(&sim.hm, level_id(L1, sfc_forward(L1, fx, fy)));
+    r.ch[b] = hm_get(&sim.hm, cell_id(L1, fx, fy));
   }
   return r;
 }
@@ -1038,9 +997,8 @@ static int adapt() {
         Real *blocks[4];
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            long long Z = sfc_forward(par->level + 1, 2 * px + I, 2 * py + J);
             long long ci = nprev + 4 * k + 2 * J + I;
-            fill(&sim.infos[ci], par->level + 1, Z);
+            fill(&sim.infos[ci], par->level + 1, 2 * px + I, 2 * py + J);
             blocks[2 * J + I] = BLK(ci);
           }
         int nm = 2 * ss + BS;
@@ -1074,7 +1032,6 @@ static int adapt() {
         struct Info *p0 = &sim.infos[com_idx[k]];
         int level = p0->level;
         int x = p0->ix, y = p0->iy;
-        long long Z0 = p0->Z;
         static const int sib_ic[4] = {-1, 5, 7, 8};
         Real *Blocks[4];
         Blocks[0] = BLK(com_idx[k]);
@@ -1102,7 +1059,7 @@ static int adapt() {
                 }
             }
         }
-        fill(p0, level - 1, Z0 / 4);
+        fill(p0, level - 1, x / 2, y / 2);
       }
     }
     long long cnt = 0;
@@ -1345,8 +1302,13 @@ int main(int argc, char **argv) {
   sim.n = 1LL << (2 * sim.levelStart);
   sim.infos = calloc(sim.n, sizeof *sim.infos);
   sim.blocks = calloc(sim.n * BSTRIDE, sizeof(Real));
-  for (long long i = 0; i < sim.n; i++)
-    fill(&sim.infos[i], sim.levelStart, i);
+  {
+    int ns = 1 << sim.levelStart;
+    long long idx = 0;
+    for (int iy = 0; iy < ns; iy++)
+      for (int ix = 0; ix < ns; ix++)
+        fill(&sim.infos[idx++], sim.levelStart, ix, iy);
+  }
   hash_rebuild();
   tab_load_all();
   int Changed = 0;
