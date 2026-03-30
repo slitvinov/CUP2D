@@ -910,7 +910,7 @@ end:
 static void compute_advect_diffuse() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(2, 3);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 2, off_vel, 3, sim.infos[id]);
@@ -933,7 +933,6 @@ static void compute_advect_diffuse() {
 #undef V
         }
     }
-    free(um);
   }
 }
 static long long This(long long id, int ix, int iy) {
@@ -975,7 +974,7 @@ static void getVec() {
 static void compute_pressure_correction() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(1, 1);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 1, off_pres, 1, sim.infos[id]);
@@ -991,13 +990,12 @@ static void compute_pressure_correction() {
 #undef P
         }
     }
-    free(um);
   }
 }
 static void compute_pressure_laplacian() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(1, 1);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 1, off_pold, 1, sim.infos[id]);
@@ -1010,7 +1008,6 @@ static void compute_pressure_laplacian() {
 #undef P
         }
     }
-    free(um);
   }
 }
 static const struct {
@@ -1416,16 +1413,13 @@ int main(int argc, char **argv) {
     }
 #pragma omp parallel
     {
-      Real *vm = lab_alloc(2, 1);
-      Real *um = lab_alloc(2, 1);
+      Real vm[LAB_BUF], um[LAB_BUF];
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
         lab_load(vm, 2, off_vel, 1, sim.infos[i]);
         lab_load(um, 2, off_tmpV, 1, sim.infos[i]);
         pressure_rhs_fun(vm, um, i);
       }
-      free(vm);
-      free(um);
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
