@@ -9,7 +9,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#include "cuda.h"
+#include "solver.h"
 
 typedef double Real;
 enum { BS = 8 };
@@ -58,7 +58,7 @@ static struct Sim {
   Real Rtol;
   Real time = 0;
   struct Shape **shapes;
-  struct GpuSolver *gpu;
+  struct Solver *solver;
   int coo_nnz, coo_cap;
   double *coo_val;
   int *coo_row, *coo_col;
@@ -1152,7 +1152,7 @@ int main(int argc, char **argv) {
     }
   }
   std::vector<double> P_inv = precond();
-  sim.gpu = gpu_solver_create(BS * BS, P_inv.data());
+  sim.solver = solver_create(BS * BS, P_inv.data());
   sim.coo_val = NULL; sim.coo_row = NULL; sim.coo_col = NULL;
   sim.sol_x = NULL; sim.sol_b = NULL; sim.sol_h2 = NULL;
   sim.coo_cap = 0;
@@ -1490,7 +1490,7 @@ int main(int argc, char **argv) {
     }
 #undef COO_PUSH
     getVec();
-    gpu_solver_solve(sim.gpu, Changed, N, sim.coo_nnz,
+    solver_solve(sim.solver, Changed, N, sim.coo_nnz,
         sim.coo_val, sim.coo_row, sim.coo_col,
         sim.sol_x, sim.sol_b, sim.sol_h2, -1,
         max_error, max_rel_error, max_restarts);
@@ -1527,7 +1527,7 @@ int main(int argc, char **argv) {
     sim.step++;
   }
 
-  gpu_solver_destroy(sim.gpu);
+  solver_destroy(sim.solver);
   free(sim.coo_val); free(sim.coo_row); free(sim.coo_col);
   free(sim.sol_x); free(sim.sol_b); free(sim.sol_h2);
   for (int ishape = 0; ishape < sim.nshape; ishape++) {

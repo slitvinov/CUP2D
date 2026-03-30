@@ -4,7 +4,7 @@
 #include <cusparse.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "cuda.h"
+#include "solver.h"
 
 struct BiCGSTABScalars {
   double alpha;
@@ -18,7 +18,7 @@ struct BiCGSTABScalars {
   int amax_idx;
 };
 
-struct GpuSolver {
+struct Solver {
   cudaStream_t stream;
   cublasHandle_t cublas;
   cusparseHandle_t cusparse;
@@ -54,7 +54,7 @@ struct GpuSolver {
   void *spmv_buf;
 };
 
-static void free_matrix(GpuSolver *s) {
+static void free_matrix(Solver *s) {
   if (s->m == 0) return;
   cudaFree(s->d_coo_val);
   cudaFree(s->d_coo_row);
@@ -79,8 +79,8 @@ static void free_matrix(GpuSolver *s) {
   s->m = 0;
 }
 
-GpuSolver *gpu_solver_create(int blen, const double *precond) {
-  GpuSolver *s = (GpuSolver *)calloc(1, sizeof *s);
+Solver *solver_create(int blen, const double *precond) {
+  Solver *s = (Solver *)calloc(1, sizeof *s);
   s->blen = blen;
   int device;
   if (cudaGetDevice(&device) != cudaSuccess) {
@@ -121,7 +121,7 @@ GpuSolver *gpu_solver_create(int blen, const double *precond) {
   return s;
 }
 
-void gpu_solver_destroy(GpuSolver *s) {
+void solver_destroy(Solver *s) {
   free_matrix(s);
   cudaFree(s->d_P_inv);
   cudaFree(s->d_consts);
@@ -169,7 +169,7 @@ __global__ void blockDscal(const int m, const int BLEN,
     x[i] = alpha[i / BLEN] * x[i];
 }
 
-static void spmv(GpuSolver *s, double *d_op, cusparseDnVecDescr_t spDescrOp,
+static void spmv(Solver *s, double *d_op, cusparseDnVecDescr_t spDescrOp,
                  double *d_res, cusparseDnVecDescr_t spDescrRes) {
   cusparseSpMV(s->cusparse, CUSPARSE_OPERATION_NON_TRANSPOSE, s->d_consts,
                s->spA, spDescrOp, (s->d_consts + 2), spDescrRes, CUDA_R_64F,
@@ -191,7 +191,7 @@ static void spmv(GpuSolver *s, double *d_op, cusparseDnVecDescr_t spDescrOp,
   }
 }
 
-static void upload_matrix(GpuSolver *s, int m, int nnz,
+static void upload_matrix(Solver *s, int m, int nnz,
     const double *coo_val, const int *coo_row, const int *coo_col,
     const double *x, const double *b, const double *h2, int mean_row) {
   free_matrix(s);
@@ -245,14 +245,14 @@ static void upload_matrix(GpuSolver *s, int m, int nnz,
                   cudaMemcpyHostToDevice, s->stream);
 }
 
-static void upload_vectors(GpuSolver *s, const double *x, const double *b) {
+static void upload_vectors(Solver *s, const double *x, const double *b) {
   cudaMemcpyAsync(s->d_x, x, s->m * sizeof(double),
                   cudaMemcpyHostToDevice, s->stream);
   cudaMemcpyAsync(s->d_r, b, s->m * sizeof(double),
                   cudaMemcpyHostToDevice, s->stream);
 }
 
-static void bicgstab(GpuSolver *s, double max_error, double max_rel_error,
+static void bicgstab(Solver *s, double max_error, double max_rel_error,
                      int max_restarts) {
   int m = s->m;
   double error = 1e50;
@@ -384,7 +384,7 @@ static void bicgstab(GpuSolver *s, double max_error, double max_rel_error,
   }
 }
 
-void gpu_solver_solve(GpuSolver *s, int update_matrix,
+void solver_solve(Solver *s, int update_matrix,
     int m, int nnz,
     const double *coo_val, const int *coo_row, const int *coo_col,
     double *x, const double *b, const double *h2, int mean_row,
