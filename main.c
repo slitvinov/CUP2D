@@ -93,53 +93,6 @@ static double ps_Aloc(int I1, int I2) {
   else
     return 0.0;
 }
-static Real weno5p(Real um2, Real um1, Real u, Real up1, Real up2) {
-  Real exponent = 2, e = 1e-6;
-  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
-  Real b2 =
-      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
-  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
-  Real g1 = 0.1, g2 = 0.6, g3 = 0.3;
-  Real what1 = g1 / pow(b1 + e, exponent);
-  Real what2 = g2 / pow(b2 + e, exponent);
-  Real what3 = g3 / pow(b3 + e, exponent);
-  Real aux = 1.0 / ((what1 + what3) + what2);
-  Real w1 = what1 * aux, w2 = what2 * aux, w3 = what3 * aux;
-  Real f1 = (11.0 / 6.0) * u + ((1.0 / 3.0) * um2 - (7.0 / 6.0) * um1);
-  Real f2 = (5.0 / 6.0) * u + ((-1.0 / 6.0) * um1 + (1.0 / 3.0) * up1);
-  Real f3 = (1.0 / 3.0) * u + ((+5.0 / 6.0) * up1 - (1.0 / 6.0) * up2);
-  return (w1 * f1 + w3 * f3) + w2 * f2;
-}
-static Real weno5m(Real um2, Real um1, Real u, Real up1, Real up2) {
-  Real exponent = 2, e = 1e-6;
-  Real b1 = 13.0 / 12.0 * pow((um2 + u) - 2 * um1, 2) +
-            0.25 * pow((um2 + 3 * u) - 4 * um1, 2);
-  Real b2 =
-      13.0 / 12.0 * pow((um1 + up1) - 2 * u, 2) + 0.25 * pow(um1 - up1, 2);
-  Real b3 = 13.0 / 12.0 * pow((u + up2) - 2 * up1, 2) +
-            0.25 * pow((3 * u + up2) - 4 * up1, 2);
-  Real g1 = 0.3, g2 = 0.6, g3 = 0.1;
-  Real what1 = g1 / pow(b1 + e, exponent);
-  Real what2 = g2 / pow(b2 + e, exponent);
-  Real what3 = g3 / pow(b3 + e, exponent);
-  Real aux = 1.0 / ((what1 + what3) + what2);
-  Real w1 = what1 * aux;
-  Real w2 = what2 * aux;
-  Real w3 = what3 * aux;
-  Real f1 = (1.0 / 3.0) * u + ((-1.0 / 6.0) * um2 + (5.0 / 6.0) * um1);
-  Real f2 = (5.0 / 6.0) * u + ((1.0 / 3.0) * um1 - (1.0 / 6.0) * up1);
-  Real f3 = (11.0 / 6.0) * u + ((-7.0 / 6.0) * up1 + (1.0 / 3.0) * up2);
-  return (w1 * f1 + w3 * f3) + w2 * f2;
-}
-static Real deriv(Real U, Real um3, Real um2, Real um1, Real u, Real up1,
-                       Real up2, Real up3) {
-  return U > 0 ? weno5p(um2, um1, u, up1, up2) -
-                     weno5p(um3, um2, um1, u, up1)
-               : weno5m(um1, u, up1, up2, up3) -
-                     weno5m(um2, um1, u, up1, up2);
-}
 static const char *arg_find(int argc, char **argv, const char *key) {
   for (int i = 1; i < argc; i++)
     if (argv[i][0] == '-' && strcmp(argv[i] + 1, key) == 0) {
@@ -429,8 +382,8 @@ static void lb_exec(Real *const blk[], Real *const dst[],
 
 static const struct LbTab (*lb_tab[5][3])[3][2][2][6];
 static void lb_init(void) {
-  int configs[][2] = {{1,1}, {1,2}, {3,2}, {4,1}};
-  for (int ci = 0; ci < 4; ci++) {
+  int configs[][2] = {{1,1}, {1,2}, {4,1}};
+  for (int ci = 0; ci < 3; ci++) {
     int ss = configs[ci][0], dim = configs[ci][1];
     char fname[64];
     snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
@@ -1026,23 +979,19 @@ static void cm_advd() {
     Real um[LB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 2, F_VEL, 3, id);
+      lb_load(um, 2, F_VEL, 1, id);
       struct Blk *info = &sim.blk[id];
       Real h = info->h;
       Real dfac = sim.nu * sim.dt;
-      Real afac = -sim.dt * h;
+      Real afac = -0.5 * sim.dt * h;
       Real *TMP = BLK(id) + BS * BS * F_TMV;
-      int ss = 3, nm = 2 * ss + BS;
+      int ss = 1, nm = 2 * ss + BS;
       for (int iy = 0; iy < BS; ++iy)
         for (int ix = 0; ix < BS; ++ix) {
 #define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
           Real u = V(0,0,0), v = V(0,0,1);
-          Real dudx = deriv(u, V(-3,0,0), V(-2,0,0), V(-1,0,0), u, V(1,0,0), V(2,0,0), V(3,0,0));
-          Real dudy = deriv(v, V(0,-3,0), V(0,-2,0), V(0,-1,0), u, V(0,1,0), V(0,2,0), V(0,3,0));
-          Real dvdx = deriv(u, V(-3,0,1), V(-2,0,1), V(-1,0,1), v, V(1,0,1), V(2,0,1), V(3,0,1));
-          Real dvdy = deriv(v, V(0,-3,1), V(0,-2,1), V(0,-1,1), v, V(0,1,1), V(0,2,1), V(0,3,1));
-          TMP[2 * (BS * iy + ix)]     = afac * (u * dudx + v * dudy) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
-          TMP[2 * (BS * iy + ix) + 1] = afac * (u * dvdx + v * dvdy) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
+          TMP[2 * (BS * iy + ix)]     = afac * (u * (V(1,0,0) - V(-1,0,0)) + v * (V(0,1,0) - V(0,-1,0))) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
+          TMP[2 * (BS * iy + ix) + 1] = afac * (u * (V(1,0,1) - V(-1,0,1)) + v * (V(0,1,1) - V(0,-1,1))) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
 #undef V
         }
     }

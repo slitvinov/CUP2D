@@ -497,7 +497,7 @@ def build_poisson_table():
     print(f'{fname}: {sz} bytes ({sz/1024:.0f} KB), max ops={max_ops}')
 
 def main():
-    combos = [(1, 1), (1, 2), (3, 2), (4, 1)]
+    combos = [(1, 1), (1, 2), (4, 1)]
     for ss, dim in combos:
         fname = f'tab_ss{ss}_dim{dim}.bin'
         build_and_write(fname, ss, dim)
