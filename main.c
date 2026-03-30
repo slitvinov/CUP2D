@@ -891,10 +891,14 @@ static const Real ad_ref_w[4][9] = {
   {-1./64, -6./64,  1./64, 10./64, 56./64, -6./64,  1./64, 10./64, -1./64},
   { 1./64, -6./64, -1./64, -6./64, 56./64, 10./64, -1./64, 10./64,  1./64},
 };
+static const int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run() {
   cm_vort();
   cm_gchi();
-  enum AdSt *state = malloc(sim.n * sizeof *state);
+  enum AdSt *state = calloc(sim.n, sizeof *state);
+  long long *ref_idx = malloc(sim.n * sizeof *ref_idx);
+  long long *com_idx = malloc(sim.n * sizeof *com_idx);
+  long long n_ref = 0, n_com = 0;
   int Changed = 0;
 
 #pragma omp parallel for reduction(|| : Changed)
@@ -904,34 +908,30 @@ static int ad_run() {
     for (int j = 0; j < BS * BS; j++)
       Linf = fmax(Linf, fabs(b[j]));
     state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
-    int maxLevel =
-        state[i] == Refine && sim.blk[i].level == sim.levelMax - 1;
-    int minLevel = state[i] == Compress && sim.blk[i].level == 0;
-    if (maxLevel || minLevel)
+    if (state[i] == Refine && sim.blk[i].level == sim.levelMax - 1)
+      state[i] = Leave;
+    if (state[i] == Compress && sim.blk[i].level == 0)
       state[i] = Leave;
     if (state[i] != Leave)
       Changed = 1;
   }
   if (!Changed)
-    goto end;
+    goto done;
+
   for (;;) {
     int More = 0;
     for (long long j = 0; j < sim.n; j++) {
-      if (state[j] == Refine) {
-        struct Blk *inf = &sim.blk[j];
-        for (int icode = 0; icode < 9; icode++) {
-          if (icode == 4) continue;
-          struct Nb nr = nb_find(inf->level, inf->ix, inf->iy, icode);
-          if (nr.s >= 3) continue;
-          if (nr.s == 2) {
-            if (nr.idx >= 0 && state[nr.idx] != Refine) {
-              state[nr.idx] = Refine;
-              More = 1;
-            }
-          } else if (nr.s == 0) {
-            if (nr.idx >= 0 && state[nr.idx] == Compress)
-              state[nr.idx] = Leave;
-          }
+      if (state[j] != Refine) continue;
+      struct Blk *bj = &sim.blk[j];
+      for (int icode = 0; icode < 9; icode++) {
+        if (icode == 4) continue;
+        struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, icode);
+        if (nr.s >= 3) continue;
+        if (nr.s == 2 && nr.idx >= 0 && state[nr.idx] != Refine) {
+          state[nr.idx] = Refine;
+          More = 1;
+        } else if (nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Compress) {
+          state[nr.idx] = Leave;
         }
       }
     }
@@ -939,148 +939,139 @@ static int ad_run() {
   }
 
   for (long long j = 0; j < sim.n; j++) {
-    if (state[j] == Compress) {
-      int xi = sim.blk[j].ix, yi = sim.blk[j].iy;
-      if (xi % 2 == 0 && yi % 2 == 0) {
-        static const int sib_ic[4] = {-1, 5, 7, 8};
-        long long sib_idx[4];
-        sib_idx[0] = j;
-        for (int s = 1; s < 4 && state[j] != Leave; s++) {
-          struct Nb nr = nb_find(sim.blk[j].level, sim.blk[j].ix, sim.blk[j].iy, sib_ic[s]);
-          if (nr.s != 0) { state[j] = Leave; break; }
-          sib_idx[s] = nr.idx;
-          if (sib_idx[s] < 0 || state[sib_idx[s]] != Compress) { state[j] = Leave; break; }
-        }
-        for (int s = 0; s < 4 && state[j] != Leave; s++)
-          for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
-            if (icode == 4) continue;
-            struct Nb nr2 = nb_find(sim.blk[sib_idx[s]].level, sim.blk[sib_idx[s]].ix, sim.blk[sib_idx[s]].iy, icode);
-            if (nr2.s == 1)
-              state[j] = Leave;
-          }
+    if (state[j] != Compress) continue;
+    struct Blk *bj = &sim.blk[j];
+    if (bj->ix % 2 != 0 || bj->iy % 2 != 0) continue;
+    long long sib[4];
+    sib[0] = j;
+    for (int s = 1; s < 4 && state[j] != Leave; s++) {
+      struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ad_sib_ic[s]);
+      if (nr.s != 0 || nr.idx < 0 || state[nr.idx] != Compress)
+        { state[j] = Leave; break; }
+      sib[s] = nr.idx;
+    }
+    for (int s = 0; s < 4 && state[j] != Leave; s++) {
+      struct Blk *bs = &sim.blk[sib[s]];
+      for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
+        if (icode == 4) continue;
+        if (nb_find(bs->level, bs->ix, bs->iy, icode).s == 1)
+          state[j] = Leave;
       }
     }
   }
 
-  {
-    long long n_ref = 0, n_com = 0;
-    long long *ref_idx = malloc(sim.n * sizeof(long long));
-    long long *com_idx = malloc(sim.n * sizeof(long long));
-    for (long long j = 0; j < sim.n; j++) {
-      if (state[j] == Refine) ref_idx[n_ref++] = j;
-      else if (state[j] == Compress && sim.blk[j].ix % 2 == 0 && sim.blk[j].iy % 2 == 0) com_idx[n_com++] = j;
-    }
-    fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
-            n_com, n_ref);
-    if (n_ref == 0 && n_com == 0) {
-      free(ref_idx);
-      free(com_idx);
-      goto end;
-    }
-    long long nprev = sim.n;
-    sim.n += 4 * n_ref;
-    sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
-    sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
-    memset(BLK(nprev), 0, 4 * n_ref * BLK_S * sizeof(Real));
-    state = realloc(state, sim.n * sizeof *state);
-    for (long long i = nprev; i < sim.n; i++) state[i] = Leave;
+  for (long long j = 0; j < sim.n; j++) {
+    if (state[j] == Refine)
+      ref_idx[n_ref++] = j;
+    else if (state[j] == Compress && sim.blk[j].ix % 2 == 0 && sim.blk[j].iy % 2 == 0)
+      com_idx[n_com++] = j;
+  }
+  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
+          n_com, n_ref);
+  if (n_ref == 0 && n_com == 0)
+    goto done;
 
-    int ss = 1;
+  long long nprev = sim.n;
+  sim.n += 4 * n_ref;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  memset(BLK(nprev), 0, 4 * n_ref * BLK_S * sizeof(Real));
+  state = realloc(state, sim.n * sizeof *state);
+  for (long long i = nprev; i < sim.n; i++) state[i] = Leave;
+
 #pragma omp parallel
-    {
-      Real lm0[LB_BUF], lm1[LB_BUF];
-      Real *lm[2] = {lm0, lm1};
+  {
+    Real lm0[LB_BUF], lm1[LB_BUF];
+    Real *lm[2] = {lm0, lm1};
 #pragma omp for
-      for (long long k = 0; k < n_ref; k++) {
-        struct Blk *par = &sim.blk[ref_idx[k]];
-        int px = par->ix, py = par->iy;
-        Real *blocks[4];
+    for (long long k = 0; k < n_ref; k++) {
+      struct Blk *par = &sim.blk[ref_idx[k]];
+      int px = par->ix, py = par->iy;
+      Real *blks[4];
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long ci = nprev + 4 * k + 2 * J + I;
+          bl_fill(&sim.blk[ci], par->level + 1, 2 * px + I, 2 * py + J);
+          blks[2 * J + I] = BLK(ci);
+        }
+      int nm = 2 + BS;
+      for (size_t m = 0; m < NVARS; m++) {
+        int dim = fld_t[m].dim;
+        int offset = fld_t[m].offset;
+        lb_load(lm[dim - 1], dim, offset, 1, ref_idx[k]);
+        Real *um = lm[dim - 1];
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            long long ci = nprev + 4 * k + 2 * J + I;
-            bl_fill(&sim.blk[ci], par->level + 1, 2 * px + I, 2 * py + J);
-            blocks[2 * J + I] = BLK(ci);
+            Real *b = blks[J * 2 + I] + offset * BS * BS;
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i0 = i / 2 + I * (BS / 2) + 1;
+                int j0 = j / 2 + J * (BS / 2) + 1;
+                int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
+                for (int s = 0; s < 4; s++)
+                  for (int d = 0; d < dim; d++) {
+                    Real val = 0;
+                    for (int kk = 0; kk < 9; kk++)
+                      val += ad_ref_w[s][kk] * um[dim*(nm*(j0+kk/3-1)+i0+kk%3-1)+d];
+                    b[dim * sub[s] + d] = val;
+                  }
+              }
           }
-        int nm = 2 * ss + BS;
-        for (size_t m = 0; m < NVARS; m++) {
-          int dim = fld_t[m].dim;
-          int offset = fld_t[m].offset;
-          lb_load(lm[dim - 1], dim, offset, ss, ref_idx[k]);
-          Real *um = lm[dim - 1];
-          for (int J = 0; J < 2; J++)
-            for (int I = 0; I < 2; I++) {
-              Real *b = blocks[J * 2 + I] + offset * BS * BS;
-              for (int j = 0; j < BS; j += 2)
-                for (int i = 0; i < BS; i += 2) {
-                  int i0 = i / 2 + I * (BS / 2) + ss;
-                  int j0 = j / 2 + J * (BS / 2) + ss;
-                  int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
-                  for (int s = 0; s < 4; s++)
-                    for (int d = 0; d < dim; d++) {
-                      Real val = 0;
-                      for (int kk = 0; kk < 9; kk++)
-                        val += ad_ref_w[s][kk] * um[dim*(nm*(j0+kk/3-1)+i0+kk%3-1)+d];
-                      b[dim * sub[s] + d] = val;
-                    }
-                }
-            }
-        }
-        state[ref_idx[k]] = Dealloc;
       }
+      state[ref_idx[k]] = Dealloc;
+    }
 #pragma omp for
-      for (long long k = 0; k < n_com; k++) {
-        struct Blk *p0 = &sim.blk[com_idx[k]];
-        int level = p0->level;
-        int x = p0->ix, y = p0->iy;
-        static const int sib_ic[4] = {-1, 5, 7, 8};
-        Real *Blocks[4];
-        Blocks[0] = BLK(com_idx[k]);
-        for (int s = 1; s < 4; s++) {
-          struct Nb nr = nb_find(level, x, y, sib_ic[s]);
-          Blocks[s] = BLK(nr.idx);
-          state[nr.idx] = Dealloc;
-        }
-        for (size_t v = 0; v < NVARS; v++) {
-          int dim = fld_t[v].dim;
-          int offset = fld_t[v].offset;
-          Real *dst = Blocks[0] + offset * BS * BS;
-          for (int J = 0; J < 2; J++)
-            for (int I = 0; I < 2; I++) {
-              Real *src = Blocks[J * 2 + I] + offset * BS * BS;
-              for (int j = 0; j < BS; j += 2)
-                for (int i = 0; i < BS; i += 2) {
-                  int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
-                  for (int d = 0; d < dim; d++)
-                    dst[dim * o + d] =
-                        (src[dim * (BS * j + i) + d] +
-                         src[dim * (BS * j + i + 1) + d] +
-                         src[dim * (BS * (j + 1) + i) + d] +
-                         src[dim * (BS * (j + 1) + i + 1) + d]) / 4;
-                }
-            }
-        }
-        bl_fill(p0, level - 1, x / 2, y / 2);
+    for (long long k = 0; k < n_com; k++) {
+      struct Blk *p0 = &sim.blk[com_idx[k]];
+      int level = p0->level, x = p0->ix, y = p0->iy;
+      Real *Blocks[4];
+      Blocks[0] = BLK(com_idx[k]);
+      for (int s = 1; s < 4; s++) {
+        int si = nb_find(level, x, y, ad_sib_ic[s]).idx;
+        Blocks[s] = BLK(si);
+        state[si] = Dealloc;
       }
-    }
-    long long cnt = 0;
-    for (long long i = 0; i < sim.n; i++) {
-      if (state[i] != Dealloc) {
-        if (cnt != i) {
-          memmove(BLK(cnt), BLK(i), BLK_S * sizeof(Real));
-          sim.blk[cnt] = sim.blk[i];
-        }
-        cnt++;
+      for (size_t v = 0; v < NVARS; v++) {
+        int dim = fld_t[v].dim;
+        int offset = fld_t[v].offset;
+        Real *dst = Blocks[0] + offset * BS * BS;
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *src = Blocks[J * 2 + I] + offset * BS * BS;
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
+                for (int d = 0; d < dim; d++)
+                  dst[dim * o + d] =
+                      (src[dim * (BS * j + i) + d] +
+                       src[dim * (BS * j + i + 1) + d] +
+                       src[dim * (BS * (j + 1) + i) + d] +
+                       src[dim * (BS * (j + 1) + i + 1) + d]) / 4;
+              }
+          }
       }
+      bl_fill(p0, level - 1, x / 2, y / 2);
     }
-    sim.n = cnt;
-    sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
-    sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
-    hm_rebuild();
-    free(ref_idx);
-    free(com_idx);
   }
-end:
+
+  long long cnt = 0;
+  for (long long i = 0; i < sim.n; i++) {
+    if (state[i] == Dealloc) continue;
+    if (cnt != i) {
+      memmove(BLK(cnt), BLK(i), BLK_S * sizeof(Real));
+      sim.blk[cnt] = sim.blk[i];
+    }
+    cnt++;
+  }
+  sim.n = cnt;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  hm_rebuild();
+
+done:
   free(state);
+  free(ref_idx);
+  free(com_idx);
   return Changed;
 }
 static void cm_advd() {
