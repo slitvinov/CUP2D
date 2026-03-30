@@ -277,28 +277,19 @@ static const TabEntry (*load_cfg_tab(int ss, int dim))[3][2][2][6] {
   return (const TabEntry (*)[3][2][2][6])tab;
 }
 
-struct Lab {
-  int dim;
-  Real *m;
-};
 static const TabEntry (*g_tab[5][3])[3][2][2][6];
 static void tab_load_all() {
   int configs[][2] = {{1,1}, {1,2}, {3,2}, {4,1}};
   for (auto &c : configs)
     g_tab[c[0]][c[1]] = load_cfg_tab(c[0], c[1]);
 }
-static void lab_init(Lab *lab, int dim, int ss) {
+static Real *lab_alloc(int dim, int ss) {
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
-  lab->dim = dim;
-  lab->m = (Real *)malloc((nm * nm + nc * nc) * dim * sizeof(Real));
+  return (Real *)malloc((nm * nm + nc * nc) * dim * sizeof(Real));
 }
-static void lab_free(Lab *lab) {
-  free(lab->m);
-}
-static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
+static void lab_load1(Real *m, int dim, int blk_offset, const TreeState *nei,
                       int ss, Info *info) {
-  int dim = lab->dim;
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
   int n = 1 << info->level;
@@ -309,11 +300,11 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
 
   Real *p0 = info->block + BS * BS * blk_offset;
   for (int i = 0; i < BS; i++)
-    memcpy(lab->m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
+    memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
            BS * dim * sizeof(Real));
 
-  Real *c = lab->m + nm * nm * dim;
-  Real *dst[2] = {lab->m, c};
+  Real *c = m + nm * nm * dim;
+  Real *dst[2] = {m, c};
 
   struct {
     const TabEntry *e;
@@ -361,16 +352,14 @@ static void lab_load1(Lab *lab, int blk_offset, const TreeState *nei,
     exec_program(dirs[i].blk, dst, dirs[i].e->ops + MAX_PRE,
                  dirs[i].e->n_post, dim, nm, nc);
 }
-static void lab_load(Lab *lab, int blk_offset, int ss, Info *info) {
+static void lab_load(Real *m, int dim, int blk_offset, int ss, Info *info) {
   TreeState nei[3][3];
   get_states(info, nei);
-  lab_load1(lab, blk_offset, &nei[0][0], ss, info);
+  lab_load1(m, dim, blk_offset, &nei[0][0], ss, info);
 }
 
 typedef Real ScalarBlock[BS][BS];
-static void pressure_rhs_fun(Lab *velLab, Lab *uDefLab, size_t i) {
-  Real *vm = velLab->m;
-  Real *um = uDefLab->m;
+static void pressure_rhs_fun(Real *vm, Real *um, size_t i) {
   int ss = 1, nm = 2 * ss + BS;
   Real h = sim.infos[i]->h;
   Real facDiv = 0.5 * h / sim.dt;
@@ -401,15 +390,12 @@ struct Obstacle {
   }
 };
 static void compute_vorticity() {
-  int ss = 1;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 2, 1);
+    Real *um = lab_alloc(2, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_vel, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 2, off_vel, 1, sim.infos[id]);
       Info *info = sim.infos[id];
       Real i2h = 0.5 * (1 << info->level) * BS;
       Real *TMP = info->block + BS * BS * off_tmp;
@@ -421,7 +407,7 @@ static void compute_vorticity() {
 #undef V
         }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static void dump(Real time, Info **infos, char *path) {
@@ -545,15 +531,12 @@ struct Shape {
   std::vector<Obstacle *> blocks;
 };
 static void compute_chi_on_grid() {
-  int ss = 1;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 1, 1);
+    Real *um = lab_alloc(1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_tmp, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 1, off_tmp, 1, sim.infos[id]);
       Info *info = sim.infos[id];
       int ss = 1, nm = 2 * ss + BS;
       for (int ishape = 0; ishape < sim.nshape; ishape++) {
@@ -595,7 +578,7 @@ static void compute_chi_on_grid() {
           }
       }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static void ongrid() {
@@ -725,15 +708,12 @@ static void ongrid() {
   }
 }
 static void compute_grad_chi() {
-  int ss = 4;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 1, 4);
+    Real *um = lab_alloc(1, 4);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_chi, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 1, off_chi, 4, sim.infos[id]);
       Info *info = sim.infos[id];
       Real *TMP = info->block + BS * BS * off_tmp;
       int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
@@ -754,7 +734,7 @@ static void compute_grad_chi() {
           }
         }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static const Real refine_w[4][9] = {
@@ -888,9 +868,7 @@ static int adapt() {
 
 #pragma omp parallel
   {
-    Lab labs[2];
-    lab_init(&labs[0], 1, ss);
-    lab_init(&labs[1], 2, ss);
+    Real *lm[2] = {lab_alloc(1, ss), lab_alloc(2, ss)};
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       int px, py;
@@ -916,8 +894,8 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        lab_load1(&labs[dim - 1], offset, &m_tree[k].nei[0][0], ss, parent);
-        Real *um = labs[dim - 1].m;
+        lab_load1(lm[dim - 1], dim, offset, &m_tree[k].nei[0][0], ss, parent);
+        Real *um = lm[dim - 1];
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
             Real *b = blocks[J * 2 + I] + offset * BS * BS;
@@ -979,8 +957,8 @@ static int adapt() {
       long long id = sim.levels[level_com[k]] + Z_com[k];
       fill(sim.infos[sim.map.at(id)], level_com[k] - 1, Z_com[k] / 4);
     }
-    lab_free(&labs[0]);
-    lab_free(&labs[1]);
+    free(lm[0]);
+    free(lm[1]);
   }
   cnt = 0;
   sim.map.clear();
@@ -1027,15 +1005,12 @@ end:
   return Changed;
 }
 static void compute_advect_diffuse() {
-  int ss = 3;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 2, 3);
+    Real *um = lab_alloc(2, 3);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_vel, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 2, off_vel, 3, sim.infos[id]);
       Info *info = sim.infos[id];
       Real h = info->h;
       Real dfac = sim.nu * sim.dt;
@@ -1055,7 +1030,7 @@ static void compute_advect_diffuse() {
 #undef V
         }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static long long This(Info *info, int ix, int iy) {
@@ -1095,15 +1070,12 @@ static void getVec() {
   }
 }
 static void compute_pressure_correction() {
-  int ss = 1;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 1, 1);
+    Real *um = lab_alloc(1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_pres, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 1, off_pres, 1, sim.infos[id]);
       Info *info = sim.infos[id];
       int ss = 1, nm = 2 * ss + BS;
       Real pFac = -0.5 * sim.dt * info->h;
@@ -1116,19 +1088,16 @@ static void compute_pressure_correction() {
 #undef P
         }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static void compute_pressure_laplacian() {
-  int ss = 1;
 #pragma omp parallel
   {
-    Lab lab;
-    lab_init(&lab, 1, 1);
+    Real *um = lab_alloc(1, 1);
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lab_load(&lab, off_pold, ss, sim.infos[id]);
-      Real *um = lab.m;
+      lab_load(um, 1, off_pold, 1, sim.infos[id]);
       Real *TMP = sim.infos[id]->block + BS * BS * off_tmp;
       int ss = 1, nm = 2 * ss + BS;
       for (int iy = 0; iy < BS; ++iy)
@@ -1138,7 +1107,7 @@ static void compute_pressure_laplacian() {
 #undef P
         }
     }
-    lab_free(&lab);
+    free(um);
   }
 }
 static const struct {
@@ -1581,20 +1550,18 @@ int main(int argc, char **argv) {
           }
       }
     }
-    int ss = 1;
 #pragma omp parallel
     {
-      Lab lab, lab2;
-      lab_init(&lab, 2, ss);
-      lab_init(&lab2, 2, ss);
+      Real *vm = lab_alloc(2, 1);
+      Real *um = lab_alloc(2, 1);
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
-        lab_load(&lab, off_vel, ss, sim.infos[i]);
-        lab_load(&lab2, off_tmpV, ss, sim.infos[i]);
-        pressure_rhs_fun(&lab, &lab2, i);
+        lab_load(vm, 2, off_vel, 1, sim.infos[i]);
+        lab_load(um, 2, off_tmpV, 1, sim.infos[i]);
+        pressure_rhs_fun(vm, um, i);
       }
-      lab_free(&lab);
-      lab_free(&lab2);
+      free(vm);
+      free(um);
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
