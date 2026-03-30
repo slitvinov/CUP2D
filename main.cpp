@@ -868,8 +868,6 @@ static int adapt() {
       }
       fill(p0, level_com[k] - 1, Z_com[k] / 4);
     }
-    free(lm[0]);
-    free(lm[1]);
   }
   cnt = 0;
   for (long long i = 0; i < sim.n; i++) {
