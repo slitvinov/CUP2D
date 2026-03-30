@@ -260,7 +260,7 @@ static void ps_prec(double *P_inv) {
     }
 }
 struct Blk {
-  double h, ih, origin[2];
+  double h, origin[2];
   int level, n, ix, iy;
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
@@ -274,7 +274,6 @@ static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   b->ix = ix;
   b->iy = iy;
   b->h = 1.0 / BS / n;
-  b->ih = BS * n;
   b->origin[0] = (Real)ix / n;
   b->origin[1] = (Real)iy / n;
 }
@@ -566,7 +565,7 @@ static void cm_vort() {
     for (long long id = 0; id < sim.n; ++id) {
       lb_load(um, 2, F_VEL, 1, id);
       struct Blk *info = &sim.blk[id];
-      Real i2h = 0.5 * info->ih;
+      Real i2h = 0.5 * (1 << info->level) * BS;
       Real *TMP = BLK(id) + BS * BS * F_TMP;
       int ss = 1, nm = 2 * ss + BS;
       for (int j = 0; j < BS; ++j)
@@ -1394,7 +1393,7 @@ int main(int argc, char **argv) {
         Real *V = BLK(i) + BS * BS * F_VEL;
         Real *Vold = BLK(i) + BS * BS * F_VOL;
         Real *tmpV = BLK(i) + BS * BS * F_TMV;
-        Real ih2 = fac * sim.blk[i].ih * sim.blk[i].ih;
+        Real ih2 = fac / (sim.blk[i].h * sim.blk[i].h);
         for (int j = 0; j < 2 * BS * BS; j++)
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
@@ -1694,7 +1693,7 @@ int main(int argc, char **argv) {
     ps_corr();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      Real ih2 = sim.blk[i].ih * sim.blk[i].ih;
+      Real ih2 = 1.0 / sim.blk[i].h / sim.blk[i].h;
       Real *V = BLK(i) + BS * BS * F_VEL;
       Real *tmpV = BLK(i) + BS * BS * F_TMV;
       for (int j = 0; j < 2 * BS * BS; j++)
