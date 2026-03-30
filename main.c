@@ -599,52 +599,6 @@ struct Shp {
   Real *o_udef;
   Real *o_com;
 };
-static void cm_chi() {
-#pragma omp parallel
-  {
-    Real um[LB_BUF];
-#pragma omp for nowait
-    for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 1, F_TMP, 1, id);
-      struct Blk *info = &sim.blk[id];
-      int ss = 1, nm = 2 * ss + BS;
-      for (int ishape = 0; ishape < sim.nshape; ishape++) {
-        struct Shp *shape = sim.shapes[ishape];
-        Real h = info->h;
-        Real h2 = h * h;
-        Real *chi = shape->o_chi + id * BS * BS;
-        Real *dist = shape->o_dist + id * BS * BS;
-        Real *oc = shape->o_com + id * 3;
-        oc[0] = oc[1] = oc[2] = 0;
-        Real *CHI = BLK(id) + BS * BS * F_CHI;
-        for (int iy = 0; iy < BS; iy++)
-          for (int ix = 0; ix < BS; ix++) {
-#define D(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-            int j = BS * iy + ix;
-            if (dist[j] > +h || dist[j] < -h) {
-              chi[j] = dist[j] > 0 ? 1 : 0;
-            } else {
-              Real dpx = D(1,0), dmx = D(-1,0), dpy = D(0,1), dmy = D(0,-1);
-              Real gradIX = fmax(0.0, dpx) - fmax(0.0, dmx);
-              Real gradIY = fmax(0.0, dpy) - fmax(0.0, dmy);
-              Real gradUX = dpx - dmx, gradUY = dpy - dmy;
-              chi[j] = (gradIX * gradUX + gradIY * gradUY) /
-                       (gradUX * gradUX + gradUY * gradUY + EPS);
-            }
-#undef D
-            CHI[j] = fmax(CHI[j], chi[j]);
-            if (chi[j] > 0) {
-              Real px = info->origin[0] + info->h * (ix + 0.5);
-              Real py = info->origin[1] + info->h * (iy + 0.5);
-              oc[0] += chi[j] * h2;
-              oc[1] += chi[j] * h2 * (px - shape->x);
-              oc[2] += chi[j] * h2 * (py - shape->y);
-            }
-          }
-      }
-    }
-  }
-}
 static void cm_ongrid() {
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
@@ -693,7 +647,50 @@ static void cm_ongrid() {
     }
   }
 
-  cm_chi();
+#pragma omp parallel
+  {
+    Real um[LB_BUF];
+#pragma omp for nowait
+    for (long long id = 0; id < sim.n; ++id) {
+      lb_load(um, 1, F_TMP, 1, id);
+      struct Blk *info = &sim.blk[id];
+      int ss = 1, nm = 2 * ss + BS;
+      for (int ishape = 0; ishape < sim.nshape; ishape++) {
+        struct Shp *shape = sim.shapes[ishape];
+        Real h = info->h;
+        Real h2 = h * h;
+        Real *chi = shape->o_chi + id * BS * BS;
+        Real *dist = shape->o_dist + id * BS * BS;
+        Real *oc = shape->o_com + id * 3;
+        oc[0] = oc[1] = oc[2] = 0;
+        Real *CHI = BLK(id) + BS * BS * F_CHI;
+        for (int iy = 0; iy < BS; iy++)
+          for (int ix = 0; ix < BS; ix++) {
+#define D(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
+            int j = BS * iy + ix;
+            if (dist[j] > +h || dist[j] < -h) {
+              chi[j] = dist[j] > 0 ? 1 : 0;
+            } else {
+              Real dpx = D(1,0), dmx = D(-1,0), dpy = D(0,1), dmy = D(0,-1);
+              Real gradIX = fmax(0.0, dpx) - fmax(0.0, dmx);
+              Real gradIY = fmax(0.0, dpy) - fmax(0.0, dmy);
+              Real gradUX = dpx - dmx, gradUY = dpy - dmy;
+              chi[j] = (gradIX * gradUX + gradIY * gradUY) /
+                       (gradUX * gradUX + gradUY * gradUY + EPS);
+            }
+#undef D
+            CHI[j] = fmax(CHI[j], chi[j]);
+            if (chi[j] > 0) {
+              Real px = info->origin[0] + info->h * (ix + 0.5);
+              Real py = info->origin[1] + info->h * (iy + 0.5);
+              oc[0] += chi[j] * h2;
+              oc[1] += chi[j] * h2 * (px - shape->x);
+              oc[2] += chi[j] * h2 * (py - shape->y);
+            }
+          }
+      }
+    }
+  }
   for (int ishape = 0; ishape < sim.nshape; ishape++) {
     struct Shp *shape = sim.shapes[ishape];
     Real com[3] = {0.0, 0.0, 0.0};
@@ -1017,39 +1014,6 @@ static void ps_load() {
   }
   fclose(fp);
   ps_tab = tab;
-}
-static void ps_vec() {
-#pragma omp parallel for
-  for (int i = 0; i < sim.n; i++) {
-    Real h = sim.blk[i].h;
-    sim.sol_h2[i] = h * h;
-    long long offset = (long long)i * BS * BS;
-    memcpy(&sim.sol_b[offset], BLK(i) + BS * BS * F_TMP,
-           BS * BS * sizeof(Real));
-    memcpy(&sim.sol_x[offset], BLK(i) + BS * BS * F_PRS,
-           BS * BS * sizeof(Real));
-  }
-}
-static void ps_corr() {
-#pragma omp parallel
-  {
-    Real um[LB_BUF];
-#pragma omp for nowait
-    for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 1, F_PRS, 1, id);
-      struct Blk *info = &sim.blk[id];
-      int ss = 1, nm = 2 * ss + BS;
-      Real pFac = -0.5 * sim.dt * info->h;
-      Real *tmpV = BLK(id) + BS * BS * F_TMV;
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-          tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
-          tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
-#undef P
-        }
-    }
-  }
 }
 static void ps_lapl() {
 #pragma omp parallel
@@ -1555,7 +1519,16 @@ int main(int argc, char **argv) {
         }
     }
 #undef COO_PUSH
-    ps_vec();
+#pragma omp parallel for
+    for (int i = 0; i < sim.n; i++) {
+      Real h = sim.blk[i].h;
+      sim.sol_h2[i] = h * h;
+      long long offset = (long long)i * BS * BS;
+      memcpy(&sim.sol_b[offset], BLK(i) + BS * BS * F_TMP,
+             BS * BS * sizeof(Real));
+      memcpy(&sim.sol_x[offset], BLK(i) + BS * BS * F_PRS,
+             BS * BS * sizeof(Real));
+    }
     solver_solve(sim.solver, Changed, N, sim.coo_nnz,
         sim.coo_val, sim.coo_row, sim.coo_col,
         sim.sol_x, sim.sol_b, sim.sol_h2, -1,
@@ -1580,7 +1553,25 @@ int main(int argc, char **argv) {
       for (int j = 0; j < BS * BS; j++)
         pres[j] += pold[j] - avg;
     }
-    ps_corr();
+#pragma omp parallel
+    {
+      Real um[LB_BUF];
+#pragma omp for nowait
+      for (long long id = 0; id < sim.n; ++id) {
+        lb_load(um, 1, F_PRS, 1, id);
+        struct Blk *info = &sim.blk[id];
+        int ss = 1, nm = 2 * ss + BS;
+        Real pFac = -0.5 * sim.dt * info->h;
+        Real *tmpV = BLK(id) + BS * BS * F_TMV;
+        for (int iy = 0; iy < BS; ++iy)
+          for (int ix = 0; ix < BS; ++ix) {
+#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
+            tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
+            tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
+#undef P
+          }
+      }
+    }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Real ih2 = 1.0 / sim.blk[i].h / sim.blk[i].h;
