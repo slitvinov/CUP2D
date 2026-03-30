@@ -75,8 +75,6 @@ static struct Sim {
   double *sol_x, *sol_b, *sol_h2;
   long long n;
   int nshape;
-  struct LkEntry *lk;
-  int lk_n;
   struct Info *infos;
   Real *blocks;
 } sim;
@@ -289,6 +287,7 @@ struct Info {
   int parent;
   int children[4];
   int nb[9];
+  int nb_ch[9][2];
   int8_t nb_s[9];
 };
 #define BLK(i) (sim.blocks + (long long)(i) * BSTRIDE)
@@ -304,14 +303,6 @@ static void fill(struct Info *b, int level, long long Z) {
   b->origin[0] = (Real)b->ix / n;
   b->origin[1] = (Real)b->iy / n;
 }
-static long long getf0(int level, long long Z) {
-  int idx = lk_find(level_id(level, Z), sim.lk, sim.lk_n);
-  if (idx < 0) {
-    fprintf(stderr, "main.c: getf0: level=%d Z=%lld not found\n", level, Z);
-    abort();
-  }
-  return idx;
-}
 struct {
   int offset;
   int dim;
@@ -326,22 +317,33 @@ static inline int skin_skip(int c, int coord, int n) {
   int skip = coord == 0 ? -1 : 1;
   return c == skip && skin;
 }
+static const int child_nb_off[9][2][2] = {
+  [0] = {{-1, -1}, {0, 0}},
+  [1] = {{ 0, -1}, {1, -1}},
+  [2] = {{ 2, -1}, {0, 0}},
+  [3] = {{-1,  0}, {-1, 1}},
+  [4] = {{ 0,  0}, {0, 0}},
+  [5] = {{ 2,  0}, {2, 1}},
+  [6] = {{-1,  2}, {0, 0}},
+  [7] = {{ 0,  2}, {1, 2}},
+  [8] = {{ 2,  2}, {0, 0}},
+};
+static const int child_nb_cnt[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
 static void build_tree() {
-  sim.lk = realloc(sim.lk, sim.n * sizeof *sim.lk);
-  sim.lk_n = sim.n;
+  struct LkEntry *lk = malloc(sim.n * sizeof *lk);
+  int lk_n = sim.n;
   for (long long i = 0; i < sim.n; i++) {
-    sim.lk[i].key = level_id(sim.infos[i].level, sim.infos[i].Z);
-    sim.lk[i].val = i;
+    lk[i].key = level_id(sim.infos[i].level, sim.infos[i].Z);
+    lk[i].val = i;
   }
-  qsort(sim.lk, sim.lk_n, sizeof *sim.lk, lk_cmp);
+  qsort(lk, lk_n, sizeof *lk, lk_cmp);
   for (long long i = 0; i < sim.n; i++) {
     struct Info *info = &sim.infos[i];
     int level = info->level;
     int n = 1 << level;
     info->parent = -1;
     if (level > 0)
-      info->parent = lk_find(level_id(level - 1, info->Z / 4),
-                              sim.lk, sim.lk_n);
+      info->parent = lk_find(level_id(level - 1, info->Z / 4), lk, lk_n);
     for (int s = 0; s < 4; s++) info->children[s] = -1;
     if (level + 1 < sim.levelMax)
       for (int J = 0; J < 2; J++)
@@ -349,11 +351,13 @@ static void build_tree() {
           long long Zc = sfc_forward(level + 1,
                                       2 * info->ix + I, 2 * info->iy + J);
           info->children[2 * J + I] =
-              lk_find(level_id(level + 1, Zc), sim.lk, sim.lk_n);
+              lk_find(level_id(level + 1, Zc), lk, lk_n);
         }
     for (int icode = 0; icode < 9; icode++) {
       info->nb[icode] = -1;
       info->nb_s[icode] = 0;
+      info->nb_ch[icode][0] = -1;
+      info->nb_ch[icode][1] = -1;
     }
     for (int icode = 0; icode < 9; icode++) {
       int cx = icode % 3 - 1, cy = icode / 3 - 1;
@@ -369,22 +373,30 @@ static void build_tree() {
       } else {
         long long Z = sfc_forward(level,
             (info->ix + cx + n) % n, (info->iy + cy + n) % n);
-        int idx = lk_find(level_id(level, Z), sim.lk, sim.lk_n);
+        int idx = lk_find(level_id(level, Z), lk, lk_n);
         if (idx >= 0) {
           info->nb_s[icode] = 0;
           info->nb[icode] = idx;
         } else if (level > 0 &&
                    (idx = lk_find(level_id(level - 1, Z / 4),
-                                   sim.lk, sim.lk_n)) >= 0) {
+                                   lk, lk_n)) >= 0) {
           info->nb_s[icode] = 2;
           info->nb[icode] = idx;
         } else {
           info->nb_s[icode] = 1;
-          info->nb[icode] = -1;
+          int L1 = level + 1;
+          int nL1 = 1 << L1;
+          for (int b = 0; b < child_nb_cnt[icode]; b++) {
+            int fx = (info->ix * 2 + child_nb_off[icode][b][0] + nL1) % nL1;
+            int fy = (info->iy * 2 + child_nb_off[icode][b][1] + nL1) % nL1;
+            info->nb_ch[icode][b] =
+                lk_find(level_id(L1, sfc_forward(L1, fx, fy)), lk, lk_n);
+          }
         }
       }
     }
   }
+  free(lk);
 }
 enum {
   OP_COPY,
@@ -554,12 +566,10 @@ static void lab_load(Real *m, int dim, int blk_offset, int ss, long long info_id
       const struct BlkSrc *bs = &te->blk_src[b];
       if (bs->is_self) {
         blk[b] = dst[bs->self_idx];
+      } else if (bs->level_delta == 1) {
+        blk[b] = BLK(info->nb_ch[icode][b]) + BS * BS * blk_offset;
       } else {
-        int L = level + bs->level_delta;
-        int fx = (xi * bs->xi_mul + bs->xi_add) >> bs->xi_shift;
-        int fy = (yi * bs->yi_mul + bs->yi_add) >> bs->yi_shift;
-        blk[b] = BLK(getf0(L, forward(L, fx, fy))) +
-                 BS * BS * blk_offset;
+        blk[b] = BLK(info->nb[icode]) + BS * BS * blk_offset;
       }
     }
     dirs[nd].e = te;
@@ -1335,8 +1345,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "main.c: error: failed to parse shapes\n");
     exit(1);
   }
-  sim.lk = NULL;
-  sim.lk_n = 0;
   sim.n = 1LL << (2 * sim.levelStart);
   sim.infos = calloc(sim.n, sizeof *sim.infos);
   sim.blocks = calloc(sim.n * BSTRIDE, sizeof(Real));
@@ -1688,13 +1696,8 @@ int main(int argc, char **argv) {
                   blk_idx[2] = nb_idx;
                 } else if (ns == 1) {
                   state = 3;
-                  int nix = dir == 0 ? (bix + sign + n) % n : bix;
-                  int niy = dir == 0 ? biy : (biy + sign + n) % n;
-                  int ct = tc >= BS / 2 ? 1 : 0, ce = 1 - side;
-                  long long Zc = dir == 0
-                      ? sfc_forward(info->level + 1, 2 * nix + ce, 2 * niy + ct)
-                      : sfc_forward(info->level + 1, 2 * nix + ct, 2 * niy + ce);
-                  blk_idx[3] = getf0(info->level + 1, Zc);
+                  int ct = tc >= BS / 2 ? 1 : 0;
+                  blk_idx[3] = info->nb_ch[ic][ct];
                 } else {
                   fprintf(stderr, "main.c: bad neighbour state\n");
                   exit(1);
@@ -1763,6 +1766,5 @@ int main(int argc, char **argv) {
     free(shape->sdf);
     free(shape);
   }
-  free(sim.lk);
   fprintf(stderr, "main.c: end\n");
 }
