@@ -381,7 +381,6 @@ struct Obstacle {
   Real COM_x = 0;
   Real COM_y = 0;
   Real Mass = 0;
-}
 };
 static void compute_vorticity() {
 #pragma omp parallel
