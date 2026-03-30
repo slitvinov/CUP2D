@@ -245,11 +245,7 @@ static void tab_load_all() {
   for (auto &c : configs)
     g_tab[c[0]][c[1]] = load_cfg_tab(c[0], c[1]);
 }
-static Real *lab_alloc(int dim, int ss) {
-  int nm = 2 * ss + BS;
-  int nc = BS / 2 + ss + 3;
-  return (Real *)malloc((nm * nm + nc * nc) * dim * sizeof(Real));
-}
+enum { LAB_BUF = ((2*4+BS)*(2*4+BS) + (BS/2+4+3)*(BS/2+4+3)) * 2 };
 static void lab_load(Real *m, int dim, int blk_offset, int ss, Info *info) {
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
@@ -335,7 +331,7 @@ static void pressure_rhs_fun(Real *vm, Real *um, size_t i) {
 static void compute_vorticity() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(2, 1);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 2, off_vel, 1, sim.infos[id]);
@@ -350,7 +346,6 @@ static void compute_vorticity() {
 #undef V
         }
     }
-    free(um);
   }
 }
 static void dump(Real time, Info **infos, char *path) {
@@ -479,7 +474,7 @@ struct Shape {
 static void compute_chi_on_grid() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(1, 1);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 1, off_tmp, 1, sim.infos[id]);
@@ -520,7 +515,6 @@ static void compute_chi_on_grid() {
           }
       }
     }
-    free(um);
   }
 }
 static void ongrid() {
@@ -636,7 +630,7 @@ static void ongrid() {
 static void compute_grad_chi() {
 #pragma omp parallel
   {
-    Real *um = lab_alloc(1, 4);
+    Real um[LAB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lab_load(um, 1, off_chi, 4, sim.infos[id]);
@@ -660,7 +654,6 @@ static void compute_grad_chi() {
           }
         }
     }
-    free(um);
   }
 }
 static const Real refine_w[4][9] = {
@@ -788,7 +781,8 @@ static int adapt() {
 
 #pragma omp parallel
   {
-    Real *lm[2] = {lab_alloc(1, ss), lab_alloc(2, ss)};
+    Real lm0[LAB_BUF], lm1[LAB_BUF];
+    Real *lm[2] = {lm0, lm1};
 #pragma omp for
     for (size_t k = 0; k < level_ref.size(); k++) {
       { auto it = sim.tree.find(level_id(level_ref[k], Z_ref[k])); assert(it != sim.tree.end() && it->second.idx >= 0); }
