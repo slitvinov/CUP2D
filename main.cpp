@@ -77,13 +77,9 @@ struct Info {
 };
 struct Collision {
   Real iM = 0;
-  Real iPosX = 0;
-  Real iPosY = 0;
   Real ivecX = 0;
   Real ivecY = 0;
   Real jM = 0;
-  Real jPosX = 0;
-  Real jPosY = 0;
   Real jvecX = 0;
   Real jvecY = 0;
 };
@@ -1293,15 +1289,8 @@ int main(int argc, char **argv) {
               int idx = iy * BS + ix;
               if (iChi[idx] <= 0.0 || jChi[idx] <= 0.0)
                 continue;
-              Real pos[2];
-              pos[0] = sim.infos[k]->origin[0] + h * (ix + 0.5);
-              pos[1] = sim.infos[k]->origin[1] + h * (iy + 0.5);
               coll.iM += iChi[idx] * hsq;
-              coll.iPosX += iChi[idx] * pos[0] * hsq;
-              coll.iPosY += iChi[idx] * pos[1] * hsq;
               coll.jM += jChi[idx] * hsq;
-              coll.jPosX += jChi[idx] * pos[0] * hsq;
-              coll.jPosY += jChi[idx] * pos[1] * hsq;
               Real dSDFdx_i, dSDFdx_j;
               if (ix == 0) {
                 dSDFdx_i = iSDF[idx + 1] - iSDF[idx];
@@ -1512,9 +1501,7 @@ int main(int argc, char **argv) {
       getVec();
       sim.mat->solveNoUpdate(max_error, max_rel_error, max_restarts);
     }
-    Real avg, avg1;
-    avg = 0;
-    avg1 = 0;
+    Real avg = 0, avg1 = 0;
 #pragma omp parallel for reduction(+ : avg, avg1)
     for (long long i = 0; i < sim.n; i++) {
       Real *P = sim.infos[i]->block + BS * BS * off_pres;
@@ -1525,25 +1512,7 @@ int main(int argc, char **argv) {
         avg1 += vv;
       }
     }
-    avg = avg / avg1;
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *P = sim.infos[i]->block + BS * BS * off_pres;
-      for (int j = 0; j < BS * BS; j++)
-        P[j] += -avg;
-    }
-    avg = 0;
-    avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-    for (long long i = 0; i < sim.n; i++) {
-      Real *P = sim.infos[i]->block + BS * BS * off_pres;
-      Real vv = sim.infos[i]->h * sim.infos[i]->h;
-      for (int j = 0; j < BS * BS; j++) {
-        avg += P[j] * vv;
-        avg1 += vv;
-      }
-    }
-    avg = avg / avg1;
+    avg /= avg1;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
       Real *pres = sim.infos[i]->block + BS * BS * off_pres;
