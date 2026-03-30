@@ -11,7 +11,7 @@ OPENMPFLAGS ?= -fopenmp
 
 ifdef CPU
 O = solver_cpu.o main.o
-LINK = $(CXX)
+LINK = $(CC)
 LDFLAGS_EXTRA = $(OPENMPFLAGS) -lm
 else
 O = solver_gpu.o main.o
