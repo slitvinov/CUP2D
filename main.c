@@ -1440,7 +1440,9 @@ int main(int argc, char **argv) {
       sim.coo_row = realloc(sim.coo_row, sim.coo_cap * sizeof(int));
       sim.coo_col = realloc(sim.coo_col, sim.coo_cap * sizeof(int));
     }
-#define COO_PUSH(v, r, c) do { \
+    static const int ps_ic[4] = {3, 5, 1, 7};
+    static const int ps_doff[4] = {-1, 1, -BS, BS};
+#define COO(v, r, c) do { \
     assert(sim.coo_nnz < sim.coo_cap); \
     sim.coo_val[sim.coo_nnz] = (v); \
     sim.coo_row[sim.coo_nnz] = (r); \
@@ -1449,65 +1451,43 @@ int main(int argc, char **argv) {
   } while(0)
     for (int i = 0; i < sim.n; i++) {
       struct Blk *info = &sim.blk[i];
-      int n = info->n;
-      int bix = info->ix, biy = info->iy;
+      int n = info->n, bix = info->ix, biy = info->iy;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
-          int sfc_idx = i * BS * BS + iy * BS + ix;
-          if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-            COO_PUSH(1, sfc_idx, sfc_idx - BS);
-            COO_PUSH(1, sfc_idx, sfc_idx - 1);
-            COO_PUSH(-4, sfc_idx, sfc_idx);
-            COO_PUSH(1, sfc_idx, sfc_idx + 1);
-            COO_PUSH(1, sfc_idx, sfc_idx + BS);
-          } else {
-            for (int j = 0; j < 4; j++) {
-              int dir = j >> 1, side = j & 1;
-              int sign = 2 * side - 1;
-              int ec = dir == 0 ? ix : iy;
-              int tc = dir == 0 ? iy : ix;
-              long long blk_idx[4] = {i, -1, -1, -1};
-              int state;
-              if (side == 0 ? ec > 0 : ec < BS - 1) {
-                int dx = (1 - dir) * sign, dy = dir * sign;
-                COO_PUSH(1, sfc_idx, sfc_idx + dy * BS + dx);
-                COO_PUSH(-1, sfc_idx, sfc_idx);
-                continue;
-              } else if (side == 0 ? (dir == 0 ? bix : biy) == 0
-                                   : (dir == 0 ? bix : biy) == n - 1) {
-                continue;
-              } else {
-                static const int poisson_ic[4] = {3, 5, 1, 7};
-                int ic = poisson_ic[j];
-                struct Nb pnr = nb_find(info->level, bix, biy, ic);
-                if (pnr.s == 0) {
-                  state = 1;
-                  blk_idx[1] = pnr.idx;
-                } else if (pnr.s == 2) {
-                  state = 2;
-                  blk_idx[2] = pnr.idx;
-                } else if (pnr.s == 1) {
-                  state = 3;
-                  int ct = tc >= BS / 2 ? 1 : 0;
-                  blk_idx[3] = pnr.ch[ct];
-                } else {
-                  fprintf(stderr, "main.c: bad neighbour state\n");
-                  exit(1);
-                }
-              }
-              int parity = dir == 0 ? biy % 2 : bix % 2;
-              const struct PsEnt *pe =
-                  &ps_tab[((j * BS + tc) * 2 + parity) * 4 + state];
-              for (int k = 0; k < pe->n_ops; k++) {
-                const struct PsOp *op = &pe->ops[k];
-                COO_PUSH((double)op->coeff, sfc_idx,
-                    (int)(blk_idx[op->blk_ref] * BS * BS + op->cell_iy * BS + op->cell_ix));
-              }
+          int sfc = i * BS * BS + iy * BS + ix;
+          if (ix > 0 && ix < BS-1 && iy > 0 && iy < BS-1) {
+            COO(-4, sfc, sfc);
+            for (int j = 0; j < 4; j++)
+              COO(1, sfc, sfc + ps_doff[j]);
+            continue;
+          }
+          int xy[2] = {ix, iy}, bxy[2] = {bix, biy};
+          for (int j = 0; j < 4; j++) {
+            int d = j/2, s = j&1, ec = xy[d], tc = xy[1-d];
+            if (s ? ec < BS-1 : ec > 0) {
+              COO(1, sfc, sfc + ps_doff[j]);
+              COO(-1, sfc, sfc);
+              continue;
+            }
+            if (s ? bxy[d] == n-1 : bxy[d] == 0)
+              continue;
+            struct Nb pnr = nb_find(info->level, bix, biy, ps_ic[j]);
+            long long bi[4] = {i};
+            int st;
+            if (pnr.s == 0)      { st = 1; bi[1] = pnr.idx; }
+            else if (pnr.s == 2) { st = 2; bi[2] = pnr.idx; }
+            else                  { st = 3; bi[3] = pnr.ch[tc >= BS/2]; }
+            const struct PsEnt *pe =
+                &ps_tab[((j*BS + tc)*2 + bxy[1-d]%2)*4 + st];
+            for (int k = 0; k < pe->n_ops; k++) {
+              const struct PsOp *op = &pe->ops[k];
+              COO((double)op->coeff, sfc,
+                  (int)(bi[op->blk_ref]*BS*BS + op->cell_iy*BS + op->cell_ix));
             }
           }
         }
     }
-#undef COO_PUSH
+#undef COO
 #pragma omp parallel for
     for (int i = 0; i < sim.n; i++) {
       Real h = sim.blk[i].h;
