@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
