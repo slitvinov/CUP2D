@@ -768,7 +768,7 @@ static int adapt() {
             continue;
           if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
             continue;
-          long long Z = sim.infos[j]->Znei[1 + cx][1 + cy];
+          long long Z = sfc_forward(sim.infos[j]->level, (xi + cx + n) % n, (yi + cy + n) % n);
           long long id = sim.levels[sim.infos[j]->level] + Z;
           long long pid = sim.levels[sim.infos[j]->level - 1] + Z / 4;
           if (sim.map.find(pid) != sim.map.end()) {
@@ -1545,6 +1545,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < sim.n; i++) {
       Info *info = sim.infos[i];
       int n = 1 << info->level;
+      int bix, biy;
+      sfc_inverse(info->Z, info->level, &bix, &biy);
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
           long long sfc_idx = This(info, ix, iy);
@@ -1568,12 +1570,13 @@ int main(int argc, char **argv) {
                 row.mapColVal(This(info, ix + dx, iy + dy), 1);
                 row.mapColVal(sfc_idx, -1);
                 continue;
-              } else if (side == 0 ? info->index[dir] == 0
-                                   : info->index[dir] == n - 1) {
+              } else if (side == 0 ? (dir == 0 ? bix : biy) == 0
+                                   : (dir == 0 ? bix : biy) == n - 1) {
                 continue;
               } else {
-                long long Z = dir == 0 ? info->Znei[1 + sign][1]
-                                       : info->Znei[1][1 + sign];
+                long long Z = dir == 0
+                    ? sfc_forward(info->level, (bix + sign + n) % n, biy)
+                    : sfc_forward(info->level, bix, (biy + sign + n) % n);
                 TreeState ts = sim.tree.at(sim.levels[info->level] + Z);
                 if (ts == Active) {
                   state = 1;
@@ -1583,10 +1586,12 @@ int main(int argc, char **argv) {
                   blk_infos[2] = getf0(info->level - 1, Z >> 2);
                 } else if (ts == ChildrenAreActive) {
                   state = 3;
-                  Info nei0 = getf1(info->level, Z);
+                  int nix, niy;
+                  sfc_inverse(Z, info->level, &nix, &niy);
                   int ct = tc >= BS / 2 ? 1 : 0, ce = 1 - side;
-                  long long Zc = dir == 0 ? nei0.Zchild[ce][ct]
-                                          : nei0.Zchild[ct][ce];
+                  long long Zc = dir == 0
+                      ? sfc_forward(info->level + 1, 2 * nix + ce, 2 * niy + ct)
+                      : sfc_forward(info->level + 1, 2 * nix + ct, 2 * niy + ce);
                   blk_infos[3] = getf0(info->level + 1, Zc);
                 } else {
                   throw std::runtime_error(
