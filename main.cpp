@@ -66,8 +66,8 @@ static struct Sim {
 #include "utils.h"
 struct Info {
   double h, origin[2];
-  int index[3], level;
-  long long id, Z, Zchild[2][2], Znei[3][3];
+  int level;
+  long long id, Z;
   Real *block = NULL;
 };
 struct Collision {
@@ -87,23 +87,15 @@ static TreeState Tree1(Info *info) {
 }
 static void fill(Info *b, int level, long long Z) {
   int n = 1 << level;
+  int ix, iy;
+  sfc_inverse(Z, level, &ix, &iy);
   b->level = level;
   b->Z = Z;
   b->h = 1.0 / BS / n;
-  sfc_inverse(Z, level, &b->index[0], &b->index[1]);
-  b->index[2] = 0;
-  b->origin[0] = (Real)b->index[0] / n;
-  b->origin[1] = (Real)b->index[1] / n;
-
-  for (int i = -1; i < 2; i++)
-    for (int j = -1; j < 2; j++)
-      b->Znei[i + 1][j + 1] = sfc_forward(level, (b->index[0] + i) % n,
-                                          (b->index[1] + j) % n);
-  for (int i = 0; i < 2; i++)
-    for (int j = 0; j < 2; j++)
-      b->Zchild[i][j] =
-          sfc_forward(level + 1, 2 * b->index[0] + i, 2 * b->index[1] + j);
-  b->id = sfc_encode(level, b->index);
+  b->origin[0] = (Real)ix / n;
+  b->origin[1] = (Real)iy / n;
+  int index[2] = {ix, iy};
+  b->id = sfc_encode(level, index);
 }
 static int exist(int level, long long Z) {
   long long aux = sim.levels[level] + Z;
@@ -142,7 +134,8 @@ static void get_states(Info *info, TreeState nei[3][3]) {
       continue;
     if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
       continue;
-    long long id = sim.levels[info->level] + info->Znei[1 + cx][1 + cy];
+    long long Z = sfc_forward(info->level, (xi + cx + n) % n, (yi + cy + n) % n);
+    long long id = sim.levels[info->level] + Z;
     assert(sim.tree.find(id) != sim.tree.end());
     nei[1 + cx][1 + cy] = sim.tree.at(id);
   }
