@@ -832,25 +832,21 @@ static int ad_run() {
   for (long long j = 0; j < sim.n; j++) {
     if (state[j] != Compress) continue;
     struct Blk *bj = &sim.blk[j];
-    if (bj->ix % 2 != 0 || bj->iy % 2 != 0) continue;
-    long long sib[4];
-    sib[0] = j;
-    for (int s = 1; s < 4 && state[j] != Leave; s++) {
+    if ((bj->ix | bj->iy) & 1) continue;
+    long long sib[4] = {j};
+    int ok = 1;
+    for (int s = 1; s < 4 && ok; s++) {
       struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ad_sib_ic[s]);
-      if (nr.s != 0 || nr.idx < 0 || state[nr.idx] != Compress)
-        { state[j] = Leave; break; }
+      ok = nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Compress;
       sib[s] = nr.idx;
     }
-    for (int s = 0; s < 4 && state[j] != Leave; s++) {
+    for (int s = 0; s < 4 && ok; s++) {
       struct Blk *bs = &sim.blk[sib[s]];
-      for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
-        if (icode == 4) continue;
-        if (nb_find(bs->level, bs->ix, bs->iy, icode).s == 1)
-          state[j] = Leave;
-      }
+      for (int ic = 0; ic < 9 && ok; ic++)
+        if (ic != 4) ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
     }
+    if (!ok) state[j] = Leave;
   }
-
   for (long long j = 0; j < sim.n; j++) {
     if (state[j] == Refine)
       ref_idx[n_ref++] = j;
