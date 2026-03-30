@@ -34,29 +34,9 @@ struct HMap {
   int *vals;
   int cap;
 };
-static void hm_init(struct HMap *m, int cap) {
-  m->cap = cap;
-  m->keys = malloc(cap * sizeof *m->keys);
-  m->vals = malloc(cap * sizeof *m->vals);
-  memset(m->keys, 0xff, cap * sizeof *m->keys);
-}
-static void hm_free(struct HMap *m) {
-  free(m->keys);
-  free(m->vals);
-  m->keys = NULL;
-  m->vals = NULL;
-  m->cap = 0;
-}
 static int hm_slot(const struct HMap *m, long long key) {
   unsigned long long h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
   return (int)(h >> 32) & (m->cap - 1);
-}
-static void hm_put(struct HMap *m, long long key, int val) {
-  int i = hm_slot(m, key);
-  while (m->keys[i] >= 0 && m->keys[i] != key)
-    i = (i + 1) & (m->cap - 1);
-  m->keys[i] = key;
-  m->vals[i] = val;
 }
 static int hm_get(const struct HMap *m, long long key) {
   int i = hm_slot(m, key);
@@ -101,7 +81,6 @@ static long long hm_key(int level, int ix, int iy) {
   long long n = 1LL << level;
   return ((n * n) - 1) / 3 + iy * n + ix;
 }
-static Real rmin(Real a, Real b) { return a < b ? a : b; }
 static double ps_Aloc(int I1, int I2) {
   int j1 = I1 / BS;
   int i1 = I1 % BS;
@@ -192,35 +171,13 @@ static int arg_i(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
-static int kv_sep(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
-static const char *kv_find(const char *line, const char *key) {
-  const char *p = line;
-  size_t klen = strlen(key);
-  while (*p) {
-    while (kv_sep(*p)) p++;
-    if (strncmp(p, key, klen) == 0 && p[klen] == '=')
-      return p + klen + 1;
-    while (*p && !kv_sep(*p)) p++;
-  }
+static const char *kv(const char *line, const char *key) {
+  size_t n = strlen(key);
+  for (const char *p = line; (p = strstr(p, key)); p++)
+    if ((p == line || p[-1] == ' ' || p[-1] == '\t') && p[n] == '=')
+      return p + n + 1;
   fprintf(stderr, "main.c: error: key '%s' not found in '%s'\n", key, line);
   exit(1);
-}
-static Real kv_real(const char *line, const char *key) {
-  const char *s = kv_find(line, key);
-  char *end;
-  Real v = strtod(s, &end);
-  if (end == s) {
-    fprintf(stderr, "main.c: error: %s: bad real in '%s'\n", key, line);
-    exit(1);
-  }
-  return v;
-}
-static const char *kv_str(const char *line, const char *key, char *buf, size_t n) {
-  const char *s = kv_find(line, key);
-  size_t i = 0;
-  while (s[i] && !kv_sep(s[i]) && i < n - 1) { buf[i] = s[i]; i++; }
-  buf[i] = '\0';
-  return buf;
 }
 static void ps_prec(double *P_inv) {
   double L[64][64];
@@ -307,13 +264,21 @@ static void hm_rebuild(void) {
   int cap = 1;
   while (cap < 4 * sim.n) cap <<= 1;
   if (sim.hm.cap != cap) {
-    hm_free(&sim.hm);
-    hm_init(&sim.hm, cap);
-  } else {
-    memset(sim.hm.keys, 0xff, cap * sizeof *sim.hm.keys);
+    free(sim.hm.keys);
+    free(sim.hm.vals);
+    sim.hm.cap = cap;
+    sim.hm.keys = malloc(cap * sizeof *sim.hm.keys);
+    sim.hm.vals = malloc(cap * sizeof *sim.hm.vals);
   }
-  for (long long i = 0; i < sim.n; i++)
-    hm_put(&sim.hm, hm_key(sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy), i);
+  memset(sim.hm.keys, 0xff, cap * sizeof *sim.hm.keys);
+  for (long long i = 0; i < sim.n; i++) {
+    long long key = hm_key(sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy);
+    int s = hm_slot(&sim.hm, key);
+    while (sim.hm.keys[s] >= 0 && sim.hm.keys[s] != key)
+      s = (s + 1) & (cap - 1);
+    sim.hm.keys[s] = key;
+    sim.hm.vals[s] = i;
+  }
 }
 struct Nb {
   int8_t s;
@@ -462,29 +427,27 @@ static void lb_exec(Real *const blk[], Real *const dst[],
   }
 }
 
-static const struct LbTab (*lb_load_cfg(int ss, int dim))[3][2][2][6] {
-  char fname[64];
-  snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
-  FILE *fp = fopen(fname, "rb");
-  if (!fp) {
-    fprintf(stderr, "main.c: cannot open %s\n", fname);
-    exit(1);
-  }
-  size_t sz = 3 * 3 * 2 * 2 * 6 * sizeof(struct LbTab);
-  struct LbTab *tab = malloc(sz);
-  if (fread(tab, 1, sz, fp) != sz) {
-    fprintf(stderr, "main.c: short read from %s\n", fname);
-    exit(1);
-  }
-  fclose(fp);
-  return (const struct LbTab (*)[3][2][2][6])tab;
-}
-
 static const struct LbTab (*lb_tab[5][3])[3][2][2][6];
-static void lb_init() {
+static void lb_init(void) {
   int configs[][2] = {{1,1}, {1,2}, {3,2}, {4,1}};
-  for (int ci = 0; ci < 4; ci++)
-    lb_tab[configs[ci][0]][configs[ci][1]] = lb_load_cfg(configs[ci][0], configs[ci][1]);
+  for (int ci = 0; ci < 4; ci++) {
+    int ss = configs[ci][0], dim = configs[ci][1];
+    char fname[64];
+    snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
+    FILE *fp = fopen(fname, "rb");
+    if (!fp) {
+      fprintf(stderr, "main.c: cannot open %s\n", fname);
+      exit(1);
+    }
+    size_t sz = 3 * 3 * 2 * 2 * 6 * sizeof(struct LbTab);
+    struct LbTab *tab = malloc(sz);
+    if (fread(tab, 1, sz, fp) != sz) {
+      fprintf(stderr, "main.c: short read from %s\n", fname);
+      exit(1);
+    }
+    fclose(fp);
+    lb_tab[ss][dim] = (const struct LbTab (*)[3][2][2][6])tab;
+  }
 }
 enum { LB_BUF = ((2*4+BS)*(2*4+BS) + (BS/2+4+3)*(BS/2+4+3)) * 2 };
 static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx) {
@@ -540,23 +503,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
                  dirs[i].e->n_post, dim, nm, nc);
 }
 
-static void ps_rhs(Real *vm, Real *um, size_t i) {
-  int ss = 1, nm = 2 * ss + BS;
-  Real h = sim.blk[i].h;
-  Real facDiv = 0.5 * h / sim.dt;
-  Real *TMP = BLK(i) + BS * BS * F_TMP;
-  Real *CHI = BLK(i) + BS * BS * F_CHI;
-  for (int iy = 0; iy < BS; ++iy)
-    for (int ix = 0; ix < BS; ++ix) {
-#define V(dx, dy, c) vm[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-#define U(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-      Real divV = V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1);
-      Real divU = U(1,0,0) - U(-1,0,0) + U(0,1,1) - U(0,-1,1);
-      TMP[BS * iy + ix] = facDiv * divV - facDiv * CHI[BS * iy + ix] * divU;
-#undef U
-#undef V
-    }
-}
 static void cm_vort() {
 #pragma omp parallel
   {
@@ -1240,10 +1186,11 @@ int main(int argc, char **argv) {
     char *base = (char *)shape;
     for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
       *(Real *)(base + stab[i].off) =
-          kv_real(line, stab[i].name) * stab[i].scale;
-    Real scale = kv_real(line, "scale");
+          strtod(kv(line, stab[i].name), NULL) * stab[i].scale;
+    Real scale = strtod(kv(line, "scale"), NULL);
     char pathbuf[FILENAME_MAX];
-    const char *path = kv_str(line, "sdf", pathbuf, sizeof pathbuf);
+    sscanf(kv(line, "sdf"), "%s", pathbuf);
+    const char *path = pathbuf;
     FILE *file = fopen(path, "r");
     char tag[3];
     float length, rmax;
@@ -1365,7 +1312,7 @@ int main(int argc, char **argv) {
       for (int j = 0; j < 2 * BS * BS; j++)
         umax = fmax(umax, fabs(vel[j]));
     }
-    sim.dt = rmin(CFL * h / (umax + 1e-8),
+    sim.dt = fmin(CFL * h / (umax + 1e-8),
                       0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       Changed = ad_run() || Changed;
@@ -1572,7 +1519,20 @@ int main(int argc, char **argv) {
       for (int i = 0; i < sim.n; i++) {
         lb_load(vm, 2, F_VEL, 1, i);
         lb_load(um, 2, F_TMV, 1, i);
-        ps_rhs(vm, um, i);
+        int ss = 1, nm = 2 * ss + BS;
+        Real facDiv = 0.5 * sim.blk[i].h / sim.dt;
+        Real *TMP = BLK(i) + BS * BS * F_TMP;
+        Real *CHI = BLK(i) + BS * BS * F_CHI;
+        for (int iy = 0; iy < BS; ++iy)
+          for (int ix = 0; ix < BS; ++ix) {
+#define V(dx, dy, c) vm[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+#define U(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+            Real divV = V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1);
+            Real divU = U(1,0,0) - U(-1,0,0) + U(0,1,1) - U(0,-1,1);
+            TMP[BS * iy + ix] = facDiv * divV - facDiv * CHI[BS * iy + ix] * divU;
+#undef U
+#undef V
+          }
       }
     }
 #pragma omp parallel for
