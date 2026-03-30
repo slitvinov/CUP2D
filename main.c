@@ -908,22 +908,21 @@ static int ad_run() {
     }
 #pragma omp for
     for (long long k = 0; k < n_com; k++) {
-      struct Blk *p0 = &sim.blk[com_idx[k]];
+      long long ci = com_idx[k];
+      struct Blk *p0 = &sim.blk[ci];
       int level = p0->level, x = p0->ix, y = p0->iy;
-      Real *Blocks[4];
-      Blocks[0] = BLK(com_idx[k]);
+      Real *blk[4] = {BLK(ci)};
       for (int s = 1; s < 4; s++) {
         int si = nb_find(level, x, y, ad_sib_ic[s]).idx;
-        Blocks[s] = BLK(si);
+        blk[s] = BLK(si);
         state[si] = Dealloc;
       }
       for (size_t v = 0; v < NVARS; v++) {
-        int dim = fld_t[v].dim;
-        int offset = fld_t[v].offset;
-        Real *dst = Blocks[0] + offset * BS * BS;
+        int dim = fld_t[v].dim, off = fld_t[v].offset;
+        Real *dst = blk[0] + off * BS * BS;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
-            Real *src = Blocks[J * 2 + I] + offset * BS * BS;
+            Real *src = blk[J * 2 + I] + off * BS * BS;
             for (int j = 0; j < BS; j += 2)
               for (int i = 0; i < BS; i += 2) {
                 int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
