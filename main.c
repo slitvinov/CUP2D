@@ -847,12 +847,11 @@ static int ad_run() {
     }
     if (!ok) state[j] = Leave;
   }
-  for (long long j = 0; j < sim.n; j++) {
+  for (long long j = 0; j < sim.n; j++)
     if (state[j] == Refine)
       ref_idx[n_ref++] = j;
-    else if (state[j] == Compress && sim.blk[j].ix % 2 == 0 && sim.blk[j].iy % 2 == 0)
+    else if (state[j] == Compress && !((sim.blk[j].ix | sim.blk[j].iy) & 1))
       com_idx[n_com++] = j;
-  }
   fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__,
           n_com, n_ref);
   if (n_ref == 0 && n_com == 0)
