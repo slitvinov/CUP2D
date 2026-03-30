@@ -362,6 +362,10 @@ struct Info {
   double h, origin[2];
   int level, ix, iy;
   long long Z;
+  int parent;
+  int children[4];
+  int nb[9];
+  int8_t nb_s[9];
 };
 #define BLK(i) (sim.blocks + (long long)(i) * BSTRIDE)
 struct Collision {
@@ -392,6 +396,77 @@ static inline int skin_skip(int c, int coord, int n) {
   int skin = coord == 0 || coord == n - 1;
   int skip = coord == 0 ? -1 : 1;
   return c == skip && skin;
+}
+static void build_tree() {
+  tree_clear(&sim.tree);
+  for (long long i = 0; i < sim.n; i++) {
+    struct Info *info = &sim.infos[i];
+    tree_set(&sim.tree, level_id(info->level, info->Z),
+             (struct TreeEntry){Active, i});
+    if (info->level + 1 < sim.levelMax)
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long Zc = sfc_forward(info->level + 1,
+                                      2 * info->ix + I, 2 * info->iy + J);
+          tree_set(&sim.tree, level_id(info->level + 1, Zc),
+                   (struct TreeEntry){ParentIsActive, -1});
+        }
+    if (info->level > 0)
+      tree_set(&sim.tree, level_id(info->level - 1, info->Z / 4),
+               (struct TreeEntry){ChildrenAreActive, -1});
+  }
+  for (long long i = 0; i < sim.n; i++) {
+    struct Info *info = &sim.infos[i];
+    int level = info->level;
+    int n = 1 << level;
+    info->parent = -1;
+    if (level > 0) {
+      struct TreeEntry *pe = tree_get(&sim.tree,
+                                       level_id(level - 1, info->Z / 4));
+      if (pe && pe->idx >= 0)
+        info->parent = pe->idx;
+    }
+    for (int s = 0; s < 4; s++) info->children[s] = -1;
+    if (level + 1 < sim.levelMax)
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long Zc = sfc_forward(level + 1,
+                                      2 * info->ix + I, 2 * info->iy + J);
+          struct TreeEntry *ce = tree_get(&sim.tree,
+                                           level_id(level + 1, Zc));
+          if (ce && ce->idx >= 0)
+            info->children[2 * J + I] = ce->idx;
+        }
+    for (int icode = 0; icode < 9; icode++) {
+      info->nb[icode] = -1;
+      info->nb_s[icode] = 0;
+    }
+    for (int icode = 0; icode < 9; icode++) {
+      int cx = icode % 3 - 1, cy = icode / 3 - 1;
+      if (!cx && !cy) continue;
+      int xskin = skin_skip(cx, info->ix, n);
+      int yskin = skin_skip(cy, info->iy, n);
+      if (xskin && yskin) {
+        info->nb_s[icode] = 5;
+      } else if (xskin) {
+        info->nb_s[icode] = 3;
+      } else if (yskin) {
+        info->nb_s[icode] = 4;
+      } else {
+        long long Z = sfc_forward(level,
+            (info->ix + cx + n) % n, (info->iy + cy + n) % n);
+        struct TreeEntry e = tree_at(&sim.tree, level_id(level, Z));
+        info->nb_s[icode] = -e.state;
+        if (e.state == Active)
+          info->nb[icode] = e.idx;
+        else if (e.state == ParentIsActive && level > 0)
+          info->nb[icode] = tree_at(&sim.tree,
+                                     level_id(level - 1, Z / 4)).idx;
+        else
+          info->nb[icode] = -1;
+      }
+    }
+  }
 }
 enum {
   OP_COPY,
@@ -553,19 +628,7 @@ static void lab_load(Real *m, int dim, int blk_offset, int ss, long long info_id
     int cx = icode % 3 - 1, cy = icode / 3 - 1;
     if (!cx && !cy)
       continue;
-    int s;
-    int xskin = skin_skip(cx, xi, n);
-    int yskin = skin_skip(cy, yi, n);
-    if (xskin && yskin)
-      s = 5;
-    else if (xskin)
-      s = 3;
-    else if (yskin)
-      s = 4;
-    else {
-      long long Z = sfc_forward(level, (xi + cx + n) % n, (yi + cy + n) % n);
-      s = -tree_at(&sim.tree, level_id(level, Z)).state;
-    }
+    int s = info->nb_s[icode];
     const struct TabEntry *te =
         &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s];
     Real *blk[2] = {NULL, NULL};
@@ -973,30 +1036,19 @@ static int adapt() {
     int More = 0;
     for (long long j = 0; j < sim.n; j++) {
       if (state[j] == Refine) {
-        int xi = sim.infos[j].ix, yi = sim.infos[j].iy;
-        int n = 1 << sim.infos[j].level;
         for (int icode = 0; icode < 9; icode++) {
-          int cx = icode % 3 - 1;
-          int cy = icode / 3 - 1;
-          if (cx == 0 && cy == 0)
-            continue;
-          if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
-            continue;
-          long long Z = sfc_forward(sim.infos[j].level, (xi + cx + n) % n, (yi + cy + n) % n);
-          long long id = level_id(sim.infos[j].level, Z);
-          long long pid = level_id(sim.infos[j].level - 1, Z / 4);
-          struct TreeEntry *pit = tree_get(&sim.tree, pid);
-          if (pit && pit->idx >= 0) {
-            if (state[pit->idx] != Refine) {
-              state[pit->idx] = Refine;
+          if (icode == 4) continue;
+          int8_t ns = sim.infos[j].nb_s[icode];
+          int nb_idx = sim.infos[j].nb[icode];
+          if (ns >= 3) continue;
+          if (ns == 2) {
+            if (nb_idx >= 0 && state[nb_idx] != Refine) {
+              state[nb_idx] = Refine;
               More = 1;
             }
-          } else {
-            struct TreeEntry *it = tree_get(&sim.tree, id);
-            if (it && it->idx >= 0) {
-              if (state[it->idx] == Compress)
-                state[it->idx] = Leave;
-            }
+          } else if (ns == 0) {
+            if (nb_idx >= 0 && state[nb_idx] == Compress)
+              state[nb_idx] = Leave;
           }
         }
       }
@@ -1008,25 +1060,19 @@ static int adapt() {
     if (state[j] == Compress) {
       int xi = sim.infos[j].ix, yi = sim.infos[j].iy;
       if (xi % 2 == 0 && yi % 2 == 0) {
-        int level = sim.infos[j].level;
-        int n = 1 << level;
-        for (int dx = 0; dx < 2 && state[j] != Leave; dx++)
-          for (int dy = 0; dy < 2 && state[j] != Leave; dy++) {
-            long long Z = sfc_forward(level, xi + dx, yi + dy);
-            struct TreeEntry *it = tree_get(&sim.tree, level_id(level, Z));
-            if (!it || it->idx < 0 ||
-                state[it->idx] != Compress)
-              { state[j] = Leave; break; }
-            int sx = xi + dx, sy = yi + dy;
-            for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
-              int cx = icode % 3 - 1, cy = icode / 3 - 1;
-              if (cx == 0 && cy == 0) continue;
-              if (skin_skip(cx, sx, n) || skin_skip(cy, sy, n)) continue;
-              long long Z2 = forward(level, sx + cx, sy + cy);
-              struct TreeEntry *it2 = tree_get(&sim.tree, level_id(level, Z2));
-              if (it2 && it2->state == ChildrenAreActive)
-                state[j] = Leave;
-            }
+        static const int sib_ic[4] = {-1, 5, 7, 8};
+        long long sib_idx[4];
+        sib_idx[0] = j;
+        for (int s = 1; s < 4 && state[j] != Leave; s++) {
+          if (sim.infos[j].nb_s[sib_ic[s]] != 0) { state[j] = Leave; break; }
+          sib_idx[s] = sim.infos[j].nb[sib_ic[s]];
+          if (sib_idx[s] < 0 || state[sib_idx[s]] != Compress) { state[j] = Leave; break; }
+        }
+        for (int s = 0; s < 4 && state[j] != Leave; s++)
+          for (int icode = 0; icode < 9 && state[j] != Leave; icode++) {
+            if (icode == 4) continue;
+            if (sim.infos[sib_idx[s]].nb_s[icode] == 1)
+              state[j] = Leave;
           }
       }
     }
@@ -1104,15 +1150,14 @@ static int adapt() {
         int level = p0->level;
         int x = p0->ix, y = p0->iy;
         long long Z0 = p0->Z;
+        static const int sib_ic[4] = {-1, 5, 7, 8};
         Real *Blocks[4];
-        for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            int blk = J * 2 + I;
-            long long Z = sfc_forward(level, x + I, y + J);
-            Blocks[blk] = BLK(getf0(level, Z));
-            if (blk != 0)
-              state[tree_at(&sim.tree, level_id(level, Z)).idx] = Dealloc;
-          }
+        Blocks[0] = BLK(com_idx[k]);
+        for (int s = 1; s < 4; s++) {
+          long long si = sim.infos[com_idx[k]].nb[sib_ic[s]];
+          Blocks[s] = BLK(si);
+          state[si] = Dealloc;
+        }
         for (size_t v = 0; v < NVARS; v++) {
           int dim = vars[v].dim;
           int offset = vars[v].offset;
@@ -1148,20 +1193,7 @@ static int adapt() {
     sim.n = cnt;
     sim.infos = realloc(sim.infos, sim.n * sizeof *sim.infos);
     sim.blocks = realloc(sim.blocks, sim.n * BSTRIDE * sizeof(Real));
-    tree_clear(&sim.tree);
-    for (long long i = 0; i < sim.n; i++) {
-      struct Info *info = &sim.infos[i];
-      tree_set(&sim.tree, level_id(info->level, info->Z), (struct TreeEntry){Active, i});
-      if (info->level + 1 < sim.levelMax)
-        for (int ci = 0; ci < 2; ci++)
-          for (int cj = 0; cj < 2; cj++) {
-            long long Zchild =
-                sfc_forward(info->level + 1, 2 * info->ix + ci, 2 * info->iy + cj);
-            tree_set(&sim.tree, level_id(info->level + 1, Zchild), (struct TreeEntry){ParentIsActive, -1});
-          }
-      if (info->level > 0)
-        tree_set(&sim.tree, level_id(info->level - 1, info->Z / 4), (struct TreeEntry){ChildrenAreActive, -1});
-    }
+    build_tree();
     free(ref_idx);
     free(com_idx);
   }
@@ -1389,21 +1421,9 @@ int main(int argc, char **argv) {
   sim.n = 1LL << (2 * sim.levelStart);
   sim.infos = calloc(sim.n, sizeof *sim.infos);
   sim.blocks = calloc(sim.n * BSTRIDE, sizeof(Real));
-  for (long long i = 0; i < sim.n; i++) {
-    long long Z = i;
-    fill(&sim.infos[i], sim.levelStart, Z);
-    tree_set(&sim.tree, level_id(sim.levelStart, Z), (struct TreeEntry){Active, i});
-    if (sim.levelStart < sim.levelMax - 1)
-      for (int j1 = 0; j1 < 2; j1++)
-        for (int i1 = 0; i1 < 2; i1++) {
-          long long n = forward(sim.levelStart + 1, 2 * sim.infos[i].ix + i1, 2 * sim.infos[i].iy + j1);
-          tree_set(&sim.tree, level_id(sim.levelStart + 1, n), (struct TreeEntry){ParentIsActive, -1});
-        }
-    if (sim.levelStart > 0) {
-      long long n = forward(sim.levelStart - 1, sim.infos[i].ix / 2, sim.infos[i].iy / 2);
-      tree_set(&sim.tree, level_id(sim.levelStart - 1, n), (struct TreeEntry){ChildrenAreActive, -1});
-    }
-  }
+  for (long long i = 0; i < sim.n; i++)
+    fill(&sim.infos[i], sim.levelStart, i);
+  build_tree();
   tab_load_all();
   int Changed = 0;
   for (int i = 0;; i++) {
@@ -1737,25 +1757,25 @@ int main(int argc, char **argv) {
                                    : (dir == 0 ? bix : biy) == n - 1) {
                 continue;
               } else {
-                long long Z = dir == 0
-                    ? sfc_forward(info->level, (bix + sign + n) % n, biy)
-                    : sfc_forward(info->level, bix, (biy + sign + n) % n);
-                enum TreeState ts = tree_at(&sim.tree, level_id(info->level, Z)).state;
-                if (ts == Active) {
+                static const int poisson_ic[4] = {3, 5, 1, 7};
+                int ic = poisson_ic[j];
+                int8_t ns = info->nb_s[ic];
+                int nb_idx = info->nb[ic];
+                if (ns == 0) {
                   state = 1;
-                  blk_idx[1] = tree_at(&sim.tree, level_id(info->level, Z)).idx;
-                } else if (ts == ParentIsActive) {
+                  blk_idx[1] = nb_idx;
+                } else if (ns == 2) {
                   state = 2;
-                  blk_idx[2] = tree_at(&sim.tree, level_id(info->level - 1, Z >> 2)).idx;
-                } else if (ts == ChildrenAreActive) {
+                  blk_idx[2] = nb_idx;
+                } else if (ns == 1) {
                   state = 3;
-                  int nix, niy;
-                  sfc_inverse(Z, info->level, &nix, &niy);
+                  int nix = dir == 0 ? (bix + sign + n) % n : bix;
+                  int niy = dir == 0 ? biy : (biy + sign + n) % n;
                   int ct = tc >= BS / 2 ? 1 : 0, ce = 1 - side;
                   long long Zc = dir == 0
                       ? sfc_forward(info->level + 1, 2 * nix + ce, 2 * niy + ct)
                       : sfc_forward(info->level + 1, 2 * nix + ct, 2 * niy + ce);
-                  blk_idx[3] = tree_at(&sim.tree, level_id(info->level + 1, Zc)).idx;
+                  blk_idx[3] = getf0(info->level + 1, Zc);
                 } else {
                   fprintf(stderr, "main.c: bad neighbour state\n");
                   exit(1);
