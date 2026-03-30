@@ -18,9 +18,9 @@ for ref_path in sorted(glob.glob(os.path.join(ref_dir, '*.raw'))):
         print(f'SIZE  {name}  ref={len(ref_data)}  cur={len(cur_data)}')
         ok = False
         continue
-    n = len(ref_data) // 4
-    rv = struct.unpack(str(n) + 'f', ref_data)
-    cv = struct.unpack(str(n) + 'f', cur_data)
+    n = len(ref_data) // 8
+    rv = struct.unpack(str(n) + 'd', ref_data)
+    cv = struct.unpack(str(n) + 'd', cur_data)
     diffs = [abs(a - b) for a, b in zip(rv, cv)
              if math.isfinite(a) and math.isfinite(b)
              and abs(a) < 1e6 and abs(b) < 1e6]
