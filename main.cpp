@@ -72,7 +72,7 @@ static long long level_id(int level, long long Z) {
 struct Info {
   double h, origin[2];
   int level, ix, iy;
-  long long id, Z;
+  long long Z;
   Real *block = NULL;
 };
 struct Collision {
@@ -119,23 +119,6 @@ static inline bool skin_skip(int c, int coord, int n) {
   int skip = coord == 0 ? -1 : 1;
   return c == skip && skin;
 }
-static void get_states(Info *info, TreeState nei[3][3]) {
-  int xi = info->ix, yi = info->iy;
-  int n = 1 << info->level;
-  for (int icode = 0; icode < 9; icode++) {
-    int cx = icode % 3 - 1;
-    int cy = icode / 3 - 1;
-    if (cx == 0 && cy == 0)
-      continue;
-    if (skin_skip(cx, xi, n) || skin_skip(cy, yi, n))
-      continue;
-    long long Z = sfc_forward(info->level, (xi + cx + n) % n, (yi + cy + n) % n);
-    long long id = level_id(info->level, Z);
-    assert(sim.tree.find(id) != sim.tree.end());
-    nei[1 + cx][1 + cy] = sim.tree.at(id).state;
-  }
-}
-
 enum OpType : int8_t {
   OP_COPY,
   OP_AVG,
@@ -274,8 +257,7 @@ static Real *lab_alloc(int dim, int ss) {
   int nc = BS / 2 + ss + 3;
   return (Real *)malloc((nm * nm + nc * nc) * dim * sizeof(Real));
 }
-static void lab_load1(Real *m, int dim, int blk_offset, const TreeState *nei,
-                      int ss, Info *info) {
+static void lab_load(Real *m, int dim, int blk_offset, int ss, Info *info) {
   int nm = 2 * ss + BS;
   int nc = BS / 2 + ss + 3;
   int n = 1 << info->level;
@@ -309,8 +291,10 @@ static void lab_load1(Real *m, int dim, int blk_offset, const TreeState *nei,
       s = 3;
     else if (yskin)
       s = 4;
-    else
-      s = -nei[3 * (1 + cx) + (1 + cy)];
+    else {
+      long long Z = sfc_forward(level, (xi + cx + n) % n, (yi + cy + n) % n);
+      s = -sim.tree.at(level_id(level, Z)).state;
+    }
     const TabEntry *te =
         &cfg_tab[cx + 1][cy + 1][xi % 2][yi % 2][s];
     Real *blk[2] = {nullptr, nullptr};
@@ -336,11 +320,6 @@ static void lab_load1(Real *m, int dim, int blk_offset, const TreeState *nei,
   for (int i = 0; i < nd; i++)
     exec_program(dirs[i].blk, dst, dirs[i].e->ops + MAX_PRE,
                  dirs[i].e->n_post, dim, nm, nc);
-}
-static void lab_load(Real *m, int dim, int blk_offset, int ss, Info *info) {
-  TreeState nei[3][3];
-  get_states(info, nei);
-  lab_load1(m, dim, blk_offset, &nei[0][0], ss, info);
 }
 
 typedef Real ScalarBlock[BS][BS];
@@ -580,7 +559,7 @@ static void ongrid() {
     }
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      Obstacle *o = shape->blocks[sim.infos[i]->id];
+      Obstacle *o = shape->blocks[i];
       Info *info = sim.infos[i];
       Real *b = sim.infos[i]->block + BS * BS * off_tmp;
       Real h = info->h;
@@ -716,10 +695,6 @@ static int adapt() {
   long long cnt, nprev;
   std::vector<int> level_com;
   std::vector<int> level_ref;
-  struct TreeStateMatrix {
-    TreeState nei[3][3];
-  };
-  std::vector<TreeStateMatrix> m_tree;
   std::vector<long long> Z_com;
   std::vector<long long> Z_ref;
   std::unordered_set<long long> dealloc_IDs;
@@ -819,9 +794,6 @@ static int adapt() {
     if (state[j] == Refine) {
       level_ref.push_back(sim.infos[j]->level);
       Z_ref.push_back(sim.infos[j]->Z);
-      TreeStateMatrix nei;
-      get_states(sim.infos[j], nei.nei);
-      m_tree.push_back(nei);
     } else if (state[j] == Compress && sim.infos[j]->ix % 2 == 0 && sim.infos[j]->iy % 2 == 0) {
       level_com.push_back(sim.infos[j]->level);
       Z_com.push_back(sim.infos[j]->Z);
@@ -862,7 +834,7 @@ static int adapt() {
       for (size_t m = 0; m < sizeof vars / sizeof *vars; m++) {
         int dim = vars[m].dim;
         int offset = vars[m].offset;
-        lab_load1(lm[dim - 1], dim, offset, &m_tree[k].nei[0][0], ss, par);
+        lab_load(lm[dim - 1], dim, offset, ss, par);
         Real *um = lm[dim - 1];
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++) {
@@ -935,7 +907,6 @@ static int adapt() {
       delete info;
     } else {
       sim.infos[cnt] = info;
-      sim.infos[cnt]->id = cnt;
       cnt++;
     }
   }
@@ -994,8 +965,8 @@ static void compute_advect_diffuse() {
     free(um);
   }
 }
-static long long This(Info *info, int ix, int iy) {
-  return info->id * BS * BS + iy * BS + ix;
+static long long This(long long id, int ix, int iy) {
+  return id * BS * BS + iy * BS + ix;
 }
 struct PoissonOp {
   int8_t blk_ref, cell_ix, cell_iy, _pad;
@@ -1023,7 +994,7 @@ static void getVec() {
   for (int i = 0; i < sim.n; i++) {
     Real h = sim.infos[i]->h;
     sim.mat->h2_[i] = h * h;
-    long long offset = sim.infos[i]->id * BS * BS;
+    long long offset = (long long)i * BS * BS;
     memcpy(&sim.mat->b_[offset], sim.infos[i]->block + BS * BS * off_tmp,
            BS * BS * sizeof(Real));
     memcpy(&sim.mat->x_[offset], sim.infos[i]->block + BS * BS * off_pres,
@@ -1209,8 +1180,6 @@ int main(int argc, char **argv) {
   }
   tab_load_all();
   int Changed = 0;
-  for (long long j = 0; j < sim.n; j++)
-    sim.infos[j]->id = j;
   for (int i = 0;; i++) {
     ongrid();
     if (i == sim.levelMax)
@@ -1222,10 +1191,10 @@ int main(int argc, char **argv) {
     std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      if (oblock[sim.infos[i]->id] == nullptr)
+      if (oblock[i] == nullptr)
         continue;
-      Real *udef = (Real *)oblock[sim.infos[i]->id]->udef;
-      Real *chi = (Real *)oblock[sim.infos[i]->id]->chi;
+      Real *udef = (Real *)oblock[i]->udef;
+      Real *chi = (Real *)oblock[i]->chi;
       Real *UDEF = sim.infos[i]->block + BS * BS * off_tmpV;
       Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
       for (int j = 0; j < BS * BS; j++) {
@@ -1312,10 +1281,10 @@ int main(int argc, char **argv) {
       for (long long i = 0; i < sim.n; i++) {
         Real *VEL = sim.infos[i]->block + BS * BS * off_vel;
         Real hsq = sim.infos[i]->h * sim.infos[i]->h;
-        if (oblock[sim.infos[i]->id] == nullptr)
+        if (oblock[i] == nullptr)
           continue;
-        Real *chi = (Real *)oblock[sim.infos[i]->id]->chi;
-        Real *udef = (Real *)oblock[sim.infos[i]->id]->udef;
+        Real *chi = (Real *)oblock[i]->chi;
+        Real *udef = (Real *)oblock[i]->udef;
         Real lambdt = sim.lambda * sim.dt;
         for (int iy = 0; iy < BS; ++iy)
           for (int ix = 0; ix < BS; ++ix) {
@@ -1441,7 +1410,7 @@ int main(int argc, char **argv) {
       for (int ishape = 0; ishape < sim.nshape; ishape++) {
         Shape *shape = sim.shapes[ishape];
         std::vector<Obstacle *> &oblock = shape->blocks;
-        Obstacle *o = oblock[sim.infos[i]->id];
+        Obstacle *o = oblock[i];
         if (o == nullptr)
           continue;
         Real *X = (Real *)o->chi;
@@ -1476,10 +1445,10 @@ int main(int argc, char **argv) {
       std::vector<Obstacle *> &oblock = shape->blocks;
 #pragma omp parallel for
       for (long long i = 0; i < sim.n; i++) {
-        if (oblock[sim.infos[i]->id] == nullptr)
+        if (oblock[i] == nullptr)
           continue;
-        Real *udef = (Real *)oblock[sim.infos[i]->id]->udef;
-        Real *chi = (Real *)oblock[sim.infos[i]->id]->chi;
+        Real *udef = (Real *)oblock[i]->udef;
+        Real *chi = (Real *)oblock[i]->chi;
         Real *UDEF = sim.infos[i]->block + BS * BS * off_tmpV;
         Real *CHI = sim.infos[i]->block + BS * BS * off_chi;
         for (int iy = 0; iy < BS; iy++)
@@ -1524,13 +1493,13 @@ int main(int argc, char **argv) {
       int bix = info->ix, biy = info->iy;
       for (int iy = 0; iy < BS; iy++)
         for (int ix = 0; ix < BS; ix++) {
-          long long sfc_idx = This(info, ix, iy);
+          long long sfc_idx = This(i, ix, iy);
           if ((ix > 0 && ix < BS - 1) && (iy > 0 && iy < BS - 1)) {
-            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy - 1));
-            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix - 1, iy));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix, iy - 1));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix - 1, iy));
             sim.mat->cooPushBackVal(-4, sfc_idx, sfc_idx);
-            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix + 1, iy));
-            sim.mat->cooPushBackVal(1, sfc_idx, This(info, ix, iy + 1));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix + 1, iy));
+            sim.mat->cooPushBackVal(1, sfc_idx, This(i, ix, iy + 1));
           } else {
             SpRowInfo row(Tree1(info), sfc_idx, 8);
             for (int j = 0; j < 4; j++) {
@@ -1538,11 +1507,11 @@ int main(int argc, char **argv) {
               int sign = 2 * side - 1;
               int ec = dir == 0 ? ix : iy;
               int tc = dir == 0 ? iy : ix;
-              Info *blk_infos[4] = {info, nullptr, nullptr, nullptr};
+              long long blk_idx[4] = {i, -1, -1, -1};
               int state;
               if (side == 0 ? ec > 0 : ec < BS - 1) {
                 int dx = (1 - dir) * sign, dy = dir * sign;
-                row.mapColVal(This(info, ix + dx, iy + dy), 1);
+                row.mapColVal(This(i, ix + dx, iy + dy), 1);
                 row.mapColVal(sfc_idx, -1);
                 continue;
               } else if (side == 0 ? (dir == 0 ? bix : biy) == 0
@@ -1555,10 +1524,10 @@ int main(int argc, char **argv) {
                 TreeState ts = sim.tree.at(level_id(info->level, Z)).state;
                 if (ts == Active) {
                   state = 1;
-                  blk_infos[1] = getf0(info->level, Z);
+                  blk_idx[1] = sim.tree.at(level_id(info->level, Z)).idx;
                 } else if (ts == ParentIsActive) {
                   state = 2;
-                  blk_infos[2] = getf0(info->level - 1, Z >> 2);
+                  blk_idx[2] = sim.tree.at(level_id(info->level - 1, Z >> 2)).idx;
                 } else if (ts == ChildrenAreActive) {
                   state = 3;
                   int nix, niy;
@@ -1567,7 +1536,7 @@ int main(int argc, char **argv) {
                   long long Zc = dir == 0
                       ? sfc_forward(info->level + 1, 2 * nix + ce, 2 * niy + ct)
                       : sfc_forward(info->level + 1, 2 * nix + ct, 2 * niy + ce);
-                  blk_infos[3] = getf0(info->level + 1, Zc);
+                  blk_idx[3] = sim.tree.at(level_id(info->level + 1, Zc)).idx;
                 } else {
                   throw std::runtime_error(
                       "Neighbour doesn't exist, isn't coarser, nor finer...");
@@ -1579,7 +1548,7 @@ int main(int argc, char **argv) {
               for (int k = 0; k < pe.n_ops; k++) {
                 const PoissonOp &op = pe.ops[k];
                 row.mapColVal(
-                    This(blk_infos[op.blk_ref], op.cell_ix, op.cell_iy),
+                    This(blk_idx[op.blk_ref], op.cell_ix, op.cell_iy),
                     (double)op.coeff);
               }
             }
