@@ -104,12 +104,6 @@ static int exist(int level, long long Z) {
 static Info *getf0(int level, long long Z) {
   return sim.infos[sim.map.at(sim.levels[level] + Z)];
 }
-static Info getf1(int level, long long Z) {
-  Info dummy;
-  fill(&dummy, level, Z);
-  auto r = sim.map.find(sim.levels[level] + Z);
-  return (r == sim.map.end()) ? dummy : *sim.infos[r->second];
-}
 struct {
   int offset;
   int dim;
