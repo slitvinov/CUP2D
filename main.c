@@ -803,13 +803,11 @@ static int ad_run() {
     double Linf = 0.0;
     for (int j = 0; j < BS * BS; j++)
       Linf = fmax(Linf, fabs(b[j]));
-    state[i] = Linf > sim.Rtol ? Refine : Linf < sim.Ctol ? Compress : Leave;
-    if (state[i] == Refine && sim.blk[i].level == sim.levelMax - 1)
-      state[i] = Leave;
-    if (state[i] == Compress && sim.blk[i].level == 0)
-      state[i] = Leave;
-    if (state[i] != Leave)
-      Changed = 1;
+    int lev = sim.blk[i].level;
+    state[i] = Linf > sim.Rtol && lev < sim.levelMax - 1 ? Refine
+             : Linf < sim.Ctol && lev > 0                ? Compress
+             : Leave;
+    Changed |= state[i] != Leave;
   }
   if (!Changed)
     goto done;
