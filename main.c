@@ -9,22 +9,22 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#include "solver.h"
 
 typedef double Real;
 enum { BS = 8 };
+#define GAMMA 1.4
 enum {
-  F_VEL = 0,
-  F_PRS = 2,
-  F_VOL = 3,
-  F_TMP = 5,
-  F_POL = 6,
-  F_TMV = 7,
+  F_RHO = 0,
+  F_MOM = 1,
+  F_ENE = 3,
+  F_DRHO = 4,
+  F_DMOM = 5,
+  F_DENE = 7,
+  F_TMP = 8,
   F_N = 9,
   BLK_S = F_N *BS *BS,
 };
 
-#define EPS DBL_EPSILON
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Blk;
 struct HMap {
@@ -48,7 +48,6 @@ static struct Sim {
   int AdaptSteps;
   int levelMax;
   int levelStart;
-  int maxPoissonRestarts;
   int step;
   int dump_count;
   Real CFL;
@@ -57,16 +56,8 @@ static struct Sim {
   Real dumpTime;
   Real endTime;
   Real nextDumpTime;
-  Real nu;
-  Real PoissonTol;
-  Real PoissonTolRel;
   Real Rtol;
   Real time;
-  struct Solver *solver;
-  int coo_nnz, coo_cap;
-  double *coo_val;
-  int *coo_row, *coo_col;
-  double *sol_x, *sol_b, *sol_h2;
   long long n;
   struct HMap hm;
   struct Blk *blk;
@@ -75,18 +66,6 @@ static struct Sim {
 static long long hm_key(int level, int ix, int iy) {
   long long n = 1LL << level;
   return ((n * n) - 1) / 3 + iy * n + ix;
-}
-static double ps_Aloc(int I1, int I2) {
-  int j1 = I1 / BS;
-  int i1 = I1 % BS;
-  int j2 = I2 / BS;
-  int i2 = I2 % BS;
-  if (i1 == i2 && j1 == j2)
-    return 4.0;
-  else if (abs(i1 - i2) + abs(j1 - j2) == 1)
-    return -1.0;
-  else
-    return 0.0;
 }
 static const char *arg_find(int argc, char **argv, const char *key) {
   for (int i = 1; i < argc; i++)
@@ -119,43 +98,6 @@ static int arg_i(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
-static void ps_prec(double *P_inv) {
-  double L[64][64];
-  double L_inv[64][64];
-  memset(L, 0, sizeof L);
-  memset(L_inv, 0, sizeof L_inv);
-  for (int i = 0; i < BS * BS; i++)
-    L_inv[i][i] = 1.0;
-  for (int i = 0; i < BS * BS; i++) {
-    double s1 = 0;
-    for (int k = 0; k <= i - 1; k++)
-      s1 += L[i][k] * L[i][k];
-    L[i][i] = sqrt(ps_Aloc(i, i) - s1);
-    for (int j = i + 1; j < BS * BS; j++) {
-      double s2 = 0;
-      for (int k = 0; k <= i - 1; k++)
-        s2 += L[i][k] * L[j][k];
-      L[j][i] = (ps_Aloc(j, i) - s2) / L[i][i];
-    }
-  }
-  for (int br = 0; br < BS * BS; br++) {
-    double bsf = 1. / L[br][br];
-    for (int c = 0; c <= br; c++)
-      L_inv[br][c] *= bsf;
-    for (int wr = br + 1; wr < BS * BS; wr++) {
-      double wsf = L[wr][br];
-      for (int c = 0; c <= br; c++)
-        L_inv[wr][c] -= wsf * L_inv[br][c];
-    }
-  }
-  for (int i = 0; i < BS * BS; i++)
-    for (int j = 0; j < BS * BS; j++) {
-      double aux = 0.;
-      for (int k = 0; k < BS * BS; k++)
-        aux += i <= k && j <= k ? L_inv[k][i] * L_inv[k][j] : 0.;
-      P_inv[i * BS * BS + j] = -aux;
-    }
-}
 struct Blk {
   double h, origin[2];
   int level, n, ix, iy;
@@ -175,9 +117,9 @@ struct {
   int offset;
   int dim;
   const char *prefix;
-} fld_t[] = {{F_VEL, 2, "vel"}, {F_PRS, 1, "pres"},
-            {F_VOL, 2, NULL}, {F_TMP, 1, "tmp"}, {F_POL, 1, NULL},
-            {F_TMV, 2, NULL}};
+} fld_t[] = {{F_RHO, 1, "rho"}, {F_MOM, 2, "mom"}, {F_ENE, 1, NULL},
+            {F_DRHO, 1, NULL}, {F_DMOM, 2, NULL}, {F_DENE, 1, NULL},
+            {F_TMP, 1, "pres"}};
 enum { NVARS = sizeof fld_t / sizeof *fld_t };
 
 static inline int nb_skin(int c, int coord, int n) {
@@ -440,22 +382,28 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
                  dirs[i].e->n_post, dim, nm, nc);
 }
 
-static void cm_vort() {
+static void compute_indicator() {
 #pragma omp parallel
   {
-    Real um[LB_BUF];
+    Real ur[LB_BUF], ue[LB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 2, F_VEL, 1, id);
-      struct Blk *info = &sim.blk[id];
-      Real i2h = 0.5 * (1 << info->level) * BS;
+      lb_load(ur, 1, F_RHO, 1, id);
+      lb_load(ue, 1, F_ENE, 1, id);
       Real *TMP = BLK(id) + BS * BS * F_TMP;
       int ss = 1, nm = 2 * ss + BS;
       for (int j = 0; j < BS; ++j)
         for (int i = 0; i < BS; ++i) {
-#define V(dx, dy, c) um[2 * (nm * (j + ss + (dy)) + i + ss + (dx)) + (c)]
-          TMP[j * BS + i] = i2h * (V(0,-1,0) - V(0,1,0) + V(1,0,1) - V(-1,0,1));
-#undef V
+#define R(dx, dy) ur[nm * (j + ss + (dy)) + i + ss + (dx)]
+#define E(dx, dy) ue[nm * (j + ss + (dy)) + i + ss + (dx)]
+          Real r = R(0,0), e = E(0,0);
+          Real grx = R(1,0)-R(-1,0), gry = R(0,1)-R(0,-1);
+          Real gex = E(1,0)-E(-1,0), gey = E(0,1)-E(0,-1);
+          Real ir = sqrt(grx*grx+gry*gry) / (r+1e-30);
+          Real ie = sqrt(gex*gex+gey*gey) / (e+1e-30);
+          TMP[j * BS + i] = fmax(ir, ie);
+#undef R
+#undef E
         }
     }
   }
@@ -573,7 +521,7 @@ static const Real ad_ref_w[4][9] = {
 };
 static const int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run() {
-  cm_vort();
+  compute_indicator();
   enum AdSt *state = calloc(sim.n, sizeof *state);
   long long *ref_idx = malloc(sim.n * sizeof *ref_idx);
   long long *com_idx = malloc(sim.n * sizeof *com_idx);
@@ -742,66 +690,100 @@ done:
   free(com_idx);
   return Changed;
 }
-static void cm_advd() {
+static void euler_rhs() {
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    memset(BLK(i) + BS*BS*F_DRHO, 0, BS*BS*sizeof(Real));
+    memset(BLK(i) + BS*BS*F_DMOM, 0, 2*BS*BS*sizeof(Real));
+    memset(BLK(i) + BS*BS*F_DENE, 0, BS*BS*sizeof(Real));
+  }
 #pragma omp parallel
   {
-    Real um[LB_BUF];
-#pragma omp for nowait
+    Real br[LB_BUF], bm[LB_BUF], be[LB_BUF];
+#pragma omp for
     for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 2, F_VEL, 1, id);
-      struct Blk *info = &sim.blk[id];
-      Real h = info->h;
-      Real dfac = sim.nu * sim.dt;
-      Real afac = -0.5 * sim.dt * h;
-      Real *TMP = BLK(id) + BS * BS * F_TMV;
-      int ss = 1, nm = 2 * ss + BS;
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-#define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-          Real u = V(0,0,0), v = V(0,0,1);
-          TMP[2 * (BS * iy + ix)]     = afac * (u * (V(1,0,0) - V(-1,0,0)) + v * (V(0,1,0) - V(0,-1,0))) + dfac * (V(1,0,0) + V(-1,0,0) + V(0,1,0) + V(0,-1,0) - 4*u);
-          TMP[2 * (BS * iy + ix) + 1] = afac * (u * (V(1,0,1) - V(-1,0,1)) + v * (V(0,1,1) - V(0,-1,1))) + dfac * (V(1,0,1) + V(-1,0,1) + V(0,1,1) + V(0,-1,1) - 4*v);
-#undef V
+      lb_load(br, 1, F_RHO, 1, id);
+      lb_load(bm, 2, F_MOM, 1, id);
+      lb_load(be, 1, F_ENE, 1, id);
+      int ss = 1, nm = 2*ss + BS;
+      Real ih = 1.0 / sim.blk[id].h;
+      Real *drho = BLK(id) + BS*BS*F_DRHO;
+      Real *dmom = BLK(id) + BS*BS*F_DMOM;
+      Real *dene = BLK(id) + BS*BS*F_DENE;
+#define RHO(di,dj) br[nm*((dj)+ss) + (di)+ss]
+#define MU(di,dj)  bm[2*(nm*((dj)+ss) + (di)+ss)]
+#define MV(di,dj)  bm[2*(nm*((dj)+ss) + (di)+ss) + 1]
+#define ENE(di,dj) be[nm*((dj)+ss) + (di)+ss]
+      for (int iy = 0; iy < BS; iy++)
+        for (int ix = 0; ix <= BS; ix++) {
+          int iL = ix-1, iR = ix;
+          Real rL=RHO(iL,iy), rR=RHO(iR,iy);
+          Real muL=MU(iL,iy), muR=MU(iR,iy);
+          Real mvL=MV(iL,iy), mvR=MV(iR,iy);
+          Real eL=ENE(iL,iy), eR=ENE(iR,iy);
+          Real uL=muL/rL, vL=mvL/rL, uR=muR/rR, vR=mvR/rR;
+          Real pL=fmax(0,(GAMMA-1)*(eL-0.5*(muL*uL+mvL*vL)));
+          Real pR=fmax(0,(GAMMA-1)*(eR-0.5*(muR*uR+mvR*vR)));
+          Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
+          Real SL=fmin(uL-aL,uR-aR), SR=fmax(uL+aL,uR+aR);
+          Real fD,fU,fV,fE;
+          if (SL >= 0) {
+            fD=rL*uL; fU=muL*uL+pL; fV=mvL*uL; fE=(eL+pL)*uL;
+          } else if (SR <= 0) {
+            fD=rR*uR; fU=muR*uR+pR; fV=mvR*uR; fE=(eR+pR)*uR;
+          } else {
+            Real s=1.0/(SR-SL);
+            fD=(SR*rL*uL      -SL*rR*uR      +SL*SR*(rR-rL))*s;
+            fU=(SR*(muL*uL+pL)-SL*(muR*uR+pR)+SL*SR*(muR-muL))*s;
+            fV=(SR*mvL*uL     -SL*mvR*uR     +SL*SR*(mvR-mvL))*s;
+            fE=(SR*(eL+pL)*uL -SL*(eR+pR)*uR +SL*SR*(eR-eL))*s;
+          }
+          if (ix > 0) {
+            int k=BS*iy+(ix-1);
+            drho[k]-=fD*ih; dmom[2*k]-=fU*ih; dmom[2*k+1]-=fV*ih; dene[k]-=fE*ih;
+          }
+          if (ix < BS) {
+            int k=BS*iy+ix;
+            drho[k]+=fD*ih; dmom[2*k]+=fU*ih; dmom[2*k+1]+=fV*ih; dene[k]+=fE*ih;
+          }
         }
-    }
-  }
-}
-struct PsOp {
-  int8_t blk_ref, cell_ix, cell_iy, _pad;
-  float coeff;
-};
-enum { PS_MAX_OPS = 16 };
-struct PsEnt {
-  int32_t n_ops;
-  struct PsOp ops[PS_MAX_OPS];
-};
-static const struct PsEnt *ps_tab;
-static void ps_load() {
-  FILE *fp = fopen("tab_poisson.bin", "rb");
-  if (!fp) { fprintf(stderr, "main.c: cannot open tab_poisson.bin\n"); exit(1); }
-  size_t sz = 4 * BS * 2 * 4 * sizeof(struct PsEnt);
-  struct PsEnt *tab = malloc(sz);
-  if (fread(tab, 1, sz, fp) != sz) {
-    fprintf(stderr, "main.c: short read from tab_poisson.bin\n"); exit(1);
-  }
-  fclose(fp);
-  ps_tab = tab;
-}
-static void ps_lapl() {
-#pragma omp parallel
-  {
-    Real um[LB_BUF];
-#pragma omp for nowait
-    for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 1, F_POL, 1, id);
-      Real *TMP = BLK(id) + BS * BS * F_TMP;
-      int ss = 1, nm = 2 * ss + BS;
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-          TMP[BS * iy + ix] -= P(-1,0) + P(1,0) + P(0,-1) + P(0,1) - 4 * P(0,0);
-#undef P
+      for (int iy = 0; iy <= BS; iy++)
+        for (int ix = 0; ix < BS; ix++) {
+          int jL = iy-1, jR = iy;
+          Real rL=RHO(ix,jL), rR=RHO(ix,jR);
+          Real muL=MU(ix,jL), muR=MU(ix,jR);
+          Real mvL=MV(ix,jL), mvR=MV(ix,jR);
+          Real eL=ENE(ix,jL), eR=ENE(ix,jR);
+          Real uL=muL/rL, vL=mvL/rL, uR=muR/rR, vR=mvR/rR;
+          Real pL=fmax(0,(GAMMA-1)*(eL-0.5*(muL*uL+mvL*vL)));
+          Real pR=fmax(0,(GAMMA-1)*(eR-0.5*(muR*uR+mvR*vR)));
+          Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
+          Real SL=fmin(vL-aL,vR-aR), SR=fmax(vL+aL,vR+aR);
+          Real gD,gU,gV,gE;
+          if (SL >= 0) {
+            gD=rL*vL; gU=muL*vL; gV=mvL*vL+pL; gE=(eL+pL)*vL;
+          } else if (SR <= 0) {
+            gD=rR*vR; gU=muR*vR; gV=mvR*vR+pR; gE=(eR+pR)*vR;
+          } else {
+            Real s=1.0/(SR-SL);
+            gD=(SR*rL*vL      -SL*rR*vR      +SL*SR*(rR-rL))*s;
+            gU=(SR*muL*vL     -SL*muR*vR     +SL*SR*(muR-muL))*s;
+            gV=(SR*(mvL*vL+pL)-SL*(mvR*vR+pR)+SL*SR*(mvR-mvL))*s;
+            gE=(SR*(eL+pL)*vL -SL*(eR+pR)*vR +SL*SR*(eR-eL))*s;
+          }
+          if (iy > 0) {
+            int k=BS*(iy-1)+ix;
+            drho[k]-=gD*ih; dmom[2*k]-=gU*ih; dmom[2*k+1]-=gV*ih; dene[k]-=gE*ih;
+          }
+          if (iy < BS) {
+            int k=BS*iy+ix;
+            drho[k]+=gD*ih; dmom[2*k]+=gU*ih; dmom[2*k+1]+=gV*ih; dene[k]+=gE*ih;
+          }
         }
+#undef RHO
+#undef MU
+#undef MV
+#undef ENE
     }
   }
 }
@@ -813,14 +795,10 @@ static const struct {
     {"levelMax", 0, offsetof(struct Sim, levelMax)},
     {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
     {"levelStart", 0, offsetof(struct Sim, levelStart)},
-    {"maxPoissonRestarts", 0, offsetof(struct Sim, maxPoissonRestarts)},
     {"Rtol", 1, offsetof(struct Sim, Rtol)},
     {"Ctol", 1, offsetof(struct Sim, Ctol)},
     {"CFL", 1, offsetof(struct Sim, CFL)},
     {"tend", 1, offsetof(struct Sim, endTime)},
-    {"nu", 1, offsetof(struct Sim, nu)},
-    {"poissonTol", 1, offsetof(struct Sim, PoissonTol)},
-    {"poissonTolRel", 1, offsetof(struct Sim, PoissonTolRel)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
 int main(int argc, char **argv) {
@@ -850,227 +828,78 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
-    Real *vel = BLK(i) + BS * BS * F_VEL;
+    Real *rho = BLK(i) + BS*BS*F_RHO;
+    Real *mom = BLK(i) + BS*BS*F_MOM;
+    Real *ene = BLK(i) + BS*BS*F_ENE;
     for (int iy = 0; iy < BS; iy++)
       for (int ix = 0; ix < BS; ix++) {
         Real px = info->origin[0] + info->h * (ix + 0.5);
         Real py = info->origin[1] + info->h * (iy + 0.5);
         int j = BS * iy + ix;
-        Real rho = 30.0;
-        vel[2 * j + 0] = py <= 0.5 ? tanh(rho * (py - 0.25))
-                                    : tanh(rho * (0.75 - py));
-        vel[2 * j + 1] = 0.05 * sin(2 * M_PI * px);
+        Real r = 1.0;
+        Real dx = px - 0.35, dy = py - 0.2;
+        Real p = (dx*dx + dy*dy < 0.03*0.03) ? 100.0 : 1.0;
+        rho[j] = r;
+        mom[2*j] = 0;
+        mom[2*j+1] = 0;
+        ene[j] = p / (GAMMA - 1);
       }
   }
-  int Changed = 0;
   for (int i = 0; i < sim.levelMax; i++)
-    Changed = ad_run() || Changed;
-  double P_inv[BS * BS * BS * BS];
-  ps_prec(P_inv);
-  sim.solver = solver_create(BS * BS, P_inv);
-  sim.coo_val = NULL; sim.coo_row = NULL; sim.coo_col = NULL;
-  sim.sol_x = NULL; sim.sol_b = NULL; sim.sol_h2 = NULL;
-  sim.coo_cap = 0;
-  ps_load();
+    ad_run();
   while (1) {
-    if (sim.step % 5 == 0)
-      fprintf(stderr, "main.c: %08d %.16e\n", sim.step, sim.time);
+    if (sim.step % 10 == 0)
+      fprintf(stderr, "main.c: %08d %.6e dt=%.3e blk=%lld\n",
+              sim.step, sim.time, sim.dt, sim.n);
     if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
       sim.nextDumpTime += sim.dumpTime;
-      cm_vort();
+#pragma omp parallel for
+      for (long long i = 0; i < sim.n; i++) {
+        Real *r = BLK(i)+BS*BS*F_RHO;
+        Real *m = BLK(i)+BS*BS*F_MOM;
+        Real *e = BLK(i)+BS*BS*F_ENE;
+        Real *t = BLK(i)+BS*BS*F_TMP;
+        for (int j = 0; j < BS*BS; j++)
+          t[j] = (GAMMA-1)*(e[j] - 0.5*(m[2*j]*m[2*j]+m[2*j+1]*m[2*j+1])/r[j]);
+      }
       char path[FILENAME_MAX];
       snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
       dump(sim.time, path);
     }
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
-    Real CFL = sim.CFL;
-    Real h = INFINITY;
-    for (long long i = 0; i < sim.n; i++)
-      h = fmin(sim.blk[i].h, h);
-    Real umax = 0;
-#pragma omp parallel for schedule(static) reduction(max : umax)
+    Real smax = 0;
+#pragma omp parallel for reduction(max:smax)
     for (long long i = 0; i < sim.n; i++) {
-      Real *vel = BLK(i) + BS * BS * F_VEL;
-      for (int j = 0; j < 2 * BS * BS; j++)
-        umax = fmax(umax, fabs(vel[j]));
-    }
-    sim.dt = fmin(CFL * h / (umax + 1e-8),
-                      0.25 * h * h / (sim.nu + 0.25 * h * umax));
-    if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
-      Changed = ad_run() || Changed;
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++)
-      memcpy(BLK(i) + BS * BS * F_VOL,
-             BLK(i) + BS * BS * F_VEL,
-             2 * BS * BS * sizeof(Real));
-    for (int rk = 0; rk < 2; rk++) {
-      Real fac = rk ? 1.0 : 0.5;
-      cm_advd();
-#pragma omp parallel for
-      for (long long i = 0; i < sim.n; i++) {
-        Real *V = BLK(i) + BS * BS * F_VEL;
-        Real *Vold = BLK(i) + BS * BS * F_VOL;
-        Real *tmpV = BLK(i) + BS * BS * F_TMV;
-        Real ih2 = fac / (sim.blk[i].h * sim.blk[i].h);
-        for (int j = 0; j < 2 * BS * BS; j++)
-          V[j] = Vold[j] + tmpV[j] * ih2;
+      Real *rho = BLK(i)+BS*BS*F_RHO;
+      Real *mom = BLK(i)+BS*BS*F_MOM;
+      Real *ene = BLK(i)+BS*BS*F_ENE;
+      Real ih = 1.0 / sim.blk[i].h;
+      for (int j = 0; j < BS*BS; j++) {
+        Real r=rho[j], u=mom[2*j]/r, v=mom[2*j+1]/r;
+        Real p=fmax(0,(GAMMA-1)*(ene[j]-0.5*r*(u*u+v*v)));
+        Real a=sqrt(GAMMA*p/r);
+        smax = fmax(smax, (fabs(u)+fabs(v)+2*a)*ih);
       }
     }
-#pragma omp parallel
-    {
-      Real um[LB_BUF];
-#pragma omp for
-      for (int i = 0; i < sim.n; i++) {
-        lb_load(um, 2, F_VEL, 1, i);
-        int ss = 1, nm = 2 * ss + BS;
-        Real facDiv = 0.5 * sim.blk[i].h / sim.dt;
-        Real *TMP = BLK(i) + BS * BS * F_TMP;
-        for (int iy = 0; iy < BS; ++iy)
-          for (int ix = 0; ix < BS; ++ix) {
-#define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-            TMP[BS * iy + ix] = facDiv * (V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1));
-#undef V
-          }
+    sim.dt = sim.CFL / (smax + 1e-30);
+    if (sim.step % sim.AdaptSteps == 0)
+      ad_run();
+    euler_rhs();
+#pragma omp parallel for
+    for (long long i = 0; i < sim.n; i++) {
+      Real *rho=BLK(i)+BS*BS*F_RHO, *drho=BLK(i)+BS*BS*F_DRHO;
+      Real *mom=BLK(i)+BS*BS*F_MOM, *dmom=BLK(i)+BS*BS*F_DMOM;
+      Real *ene=BLK(i)+BS*BS*F_ENE, *dene=BLK(i)+BS*BS*F_DENE;
+      for (int j = 0; j < BS*BS; j++) {
+        rho[j] += sim.dt * drho[j];
+        mom[2*j] += sim.dt * dmom[2*j];
+        mom[2*j+1] += sim.dt * dmom[2*j+1];
+        ene[j] += sim.dt * dene[j];
       }
-    }
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      memcpy(BLK(i) + BS * BS * F_POL,
-             BLK(i) + BS * BS * F_PRS, BS * BS * sizeof(Real));
-      memset(BLK(i) + BS * BS * F_PRS, 0,
-             BS * BS * sizeof(Real));
-    }
-    ps_lapl();
-    double max_error = sim.step < 10 ? 0.0 : sim.PoissonTol;
-    double max_rel_error = sim.step < 10 ? 0.0 : sim.PoissonTolRel;
-    int max_restarts = sim.step < 10 ? 100 : sim.maxPoissonRestarts;
-    int N = BS * BS * sim.n;
-    sim.sol_x = realloc(sim.sol_x, N * sizeof(double));
-    sim.sol_b = realloc(sim.sol_b, N * sizeof(double));
-    sim.sol_h2 = realloc(sim.sol_h2, sim.n * sizeof(double));
-    sim.coo_nnz = 0;
-    if (sim.coo_cap < 16 * N) {
-      sim.coo_cap = 16 * N;
-      sim.coo_val = realloc(sim.coo_val, sim.coo_cap * sizeof(double));
-      sim.coo_row = realloc(sim.coo_row, sim.coo_cap * sizeof(int));
-      sim.coo_col = realloc(sim.coo_col, sim.coo_cap * sizeof(int));
-    }
-    static const int ps_ic[4] = {3, 5, 1, 7};
-    static const int ps_doff[4] = {-1, 1, -BS, BS};
-#define COO(v, r, c) do { \
-    assert(sim.coo_nnz < sim.coo_cap); \
-    sim.coo_val[sim.coo_nnz] = (v); \
-    sim.coo_row[sim.coo_nnz] = (r); \
-    sim.coo_col[sim.coo_nnz] = (c); \
-    sim.coo_nnz++; \
-  } while(0)
-    for (int i = 0; i < sim.n; i++) {
-      struct Blk *info = &sim.blk[i];
-      int n = info->n, bix = info->ix, biy = info->iy;
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          int sfc = i * BS * BS + iy * BS + ix;
-          if (ix > 0 && ix < BS-1 && iy > 0 && iy < BS-1) {
-            COO(-4, sfc, sfc);
-            for (int j = 0; j < 4; j++)
-              COO(1, sfc, sfc + ps_doff[j]);
-            continue;
-          }
-          int xy[2] = {ix, iy}, bxy[2] = {bix, biy};
-          for (int j = 0; j < 4; j++) {
-            int d = j/2, s = j&1, ec = xy[d], tc = xy[1-d];
-            if (s ? ec < BS-1 : ec > 0) {
-              COO(1, sfc, sfc + ps_doff[j]);
-              COO(-1, sfc, sfc);
-              continue;
-            }
-            if (s ? bxy[d] == n-1 : bxy[d] == 0)
-              continue;
-            struct Nb pnr = nb_find(info->level, bix, biy, ps_ic[j]);
-            long long bi[4] = {i};
-            int st;
-            if (pnr.s == 0)      { st = 1; bi[1] = pnr.idx; }
-            else if (pnr.s == 2) { st = 2; bi[2] = pnr.idx; }
-            else                  { st = 3; bi[3] = pnr.ch[tc >= BS/2]; }
-            const struct PsEnt *pe =
-                &ps_tab[((j*BS + tc)*2 + bxy[1-d]%2)*4 + st];
-            for (int k = 0; k < pe->n_ops; k++) {
-              const struct PsOp *op = &pe->ops[k];
-              COO((double)op->coeff, sfc,
-                  (int)(bi[op->blk_ref]*BS*BS + op->cell_iy*BS + op->cell_ix));
-            }
-          }
-        }
-    }
-#undef COO
-#pragma omp parallel for
-    for (int i = 0; i < sim.n; i++) {
-      Real h = sim.blk[i].h;
-      sim.sol_h2[i] = h * h;
-      long long offset = (long long)i * BS * BS;
-      memcpy(&sim.sol_b[offset], BLK(i) + BS * BS * F_TMP,
-             BS * BS * sizeof(Real));
-      memcpy(&sim.sol_x[offset], BLK(i) + BS * BS * F_PRS,
-             BS * BS * sizeof(Real));
-    }
-    solver_solve(sim.solver, Changed, N, sim.coo_nnz,
-        sim.coo_val, sim.coo_row, sim.coo_col,
-        sim.sol_x, sim.sol_b, sim.sol_h2, -1,
-        max_error, max_rel_error, max_restarts);
-    Changed = 0;
-    Real avg = 0, avg1 = 0;
-#pragma omp parallel for reduction(+ : avg, avg1)
-    for (long long i = 0; i < sim.n; i++) {
-      Real *P = BLK(i) + BS * BS * F_PRS;
-      Real vv = sim.blk[i].h * sim.blk[i].h;
-      for (int j = 0; j < BS * BS; j++) {
-        P[j] = sim.sol_x[i * BS * BS + j];
-        avg += P[j] * vv;
-        avg1 += vv;
-      }
-    }
-    avg /= avg1;
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *pres = BLK(i) + BS * BS * F_PRS;
-      Real *pold = BLK(i) + BS * BS * F_POL;
-      for (int j = 0; j < BS * BS; j++)
-        pres[j] += pold[j] - avg;
-    }
-#pragma omp parallel
-    {
-      Real um[LB_BUF];
-#pragma omp for nowait
-      for (long long id = 0; id < sim.n; ++id) {
-        lb_load(um, 1, F_PRS, 1, id);
-        struct Blk *info = &sim.blk[id];
-        int ss = 1, nm = 2 * ss + BS;
-        Real pFac = -0.5 * sim.dt * info->h;
-        Real *tmpV = BLK(id) + BS * BS * F_TMV;
-        for (int iy = 0; iy < BS; ++iy)
-          for (int ix = 0; ix < BS; ++ix) {
-#define P(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-            tmpV[2 * (BS * iy + ix)]     = pFac * (P(1,0) - P(-1,0));
-            tmpV[2 * (BS * iy + ix) + 1] = pFac * (P(0,1) - P(0,-1));
-#undef P
-          }
-      }
-    }
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real ih2 = 1.0 / sim.blk[i].h / sim.blk[i].h;
-      Real *V = BLK(i) + BS * BS * F_VEL;
-      Real *tmpV = BLK(i) + BS * BS * F_TMV;
-      for (int j = 0; j < 2 * BS * BS; j++)
-        V[j] += tmpV[j] * ih2;
     }
     sim.time += sim.dt;
     sim.step++;
   }
-
-  solver_destroy(sim.solver);
-  free(sim.coo_val); free(sim.coo_row); free(sim.coo_col);
-  free(sim.sol_x); free(sim.sol_b); free(sim.sol_h2);
   fprintf(stderr, "main.c: end\n");
 }

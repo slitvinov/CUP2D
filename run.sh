@@ -1,15 +1,11 @@
 #!/bin/sh
 
 ${main=./main} \
--AdaptSteps 20 \
+-AdaptSteps 5 \
 -CFL 0.5 \
--Ctol 1 \
+-Ctol 0.05 \
 -levelMax 6 \
 -levelStart 3 \
--maxPoissonRestarts 0 \
--nu 0.0001 \
--poissonTol 1e-3 \
--poissonTolRel 1e-2 \
--Rtol 2 \
--tdump 0.125 \
--tend 1.0
+-Rtol 0.3 \
+-tdump 0.005 \
+-tend 0.04

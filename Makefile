@@ -1,35 +1,16 @@
 .POSIX:
 .SUFFIXES:
-.SUFFIXES: .c .cpp .cu .o
+.SUFFIXES: .c .o
 
-CXX = g++
 CC = gcc
-CXXFLAGS = -O2 -g
 CFLAGS = -O2 -g
-NVCC = nvcc
 OPENMPFLAGS ?= -fopenmp
 
-ifdef CPU
-O = solver_cpu.o main.o
-LINK = $(CC)
-LDFLAGS_EXTRA = $(OPENMPFLAGS) -lm
-else
-O = solver_gpu.o main.o
-LINK = $(NVCC)
-LDFLAGS_EXTRA = -Xcompiler '$(OPENMPFLAGS)' -lcublas -lcusparse
-endif
+O = main.o
 
 main: $O
-	$(LINK) -o main $O $(LDFLAGS) $(LDFLAGS_EXTRA)
+	$(CC) -o main $O $(LDFLAGS) $(OPENMPFLAGS) -lm
 .c.o:
 	$(CC) -c $< $(OPENMPFLAGS) $(CFLAGS)
-.cpp.o:
-	$(CXX) -c $< $(OPENMPFLAGS) $(CXXFLAGS)
-.cu.o:
-	$(NVCC) -c $< $(NVCCFLAGS)
 clean:
-	rm -f main $O solver_cpu.o solver_gpu.o
-
-main.o: solver.h
-solver_cpu.o: solver.h
-solver_gpu.o: solver.h
+	rm -f main $O
