@@ -5,7 +5,8 @@ ${main=./main} \
 -CFL 0.7 \
 -Ctol 0.05 \
 -levelMax 7 \
--levelStart 3 \
+-levelStart 2 \
 -Rtol 0.5 \
--tdump 1.25e-4 \
--tend 1e-3
+-sdump 100 \
+-tdump 0 \
+-tend 0.01

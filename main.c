@@ -98,6 +98,15 @@ static int arg_i(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
+static int arg_i_opt(int argc, char **argv, const char *key, int def) {
+  for (int i = 1; i < argc; i++)
+    if (argv[i][0] == '-' && strcmp(argv[i] + 1, key) == 0 && i + 1 < argc) {
+      char *end;
+      long v = strtol(argv[i + 1], &end, 10);
+      if (end != argv[i + 1]) return (int)v;
+    }
+  return def;
+}
 struct Blk {
   double h, origin[2];
   int level, n, ix, iy;
@@ -427,7 +436,7 @@ static void compute_indicator() {
     }
   }
 }
-static void dump(Real time, char *path) {
+static void dump(Real time, int step, char *path) {
   long i, j, k, x, y;
   char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
   FILE *file;
@@ -452,6 +461,7 @@ static void dump(Real time, char *path) {
           "  <Domain>\n"
           "    <Grid>\n"
           "      <Time Value=\"%.16e\"/>\n"
+          "      <Information Name=\"Step\" Value=\"%d\"/>\n"
           "      <Topology\n"
           "          Dimensions=\"%lld\"\n"
           "          TopologyType=\"Quadrilateral\"/>\n"
@@ -463,7 +473,7 @@ static void dump(Real time, char *path) {
           "         %s\n"
           "       </DataItem>\n"
           "     </Geometry>\n",
-          time, BS * BS * sim.n, 4 * BS * BS * sim.n, xyz_base);
+          time, step, BS * BS * sim.n, 4 * BS * BS * sim.n, xyz_base);
   for (size_t i = 0; i < NVARS; i++)
     if (fld_t[i].prefix != NULL) {
       if (snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
@@ -843,6 +853,7 @@ int main(int argc, char **argv) {
       *(int *)(base + param_tab[i].off) = arg_i(argc, argv, param_tab[i].name);
     else
       *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
+  int dumpSteps = arg_i_opt(argc, argv, "sdump", 0);
   {
     int ns = 1 << sim.levelStart;
     sim.n = (long long)ns * ns;
@@ -878,24 +889,53 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sim.levelMax; i++)
     ad_run();
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    struct Blk *info = &sim.blk[i];
+    Real *rho = BLK(i) + BS*BS*F_RHO;
+    Real *mom = BLK(i) + BS*BS*F_MOM;
+    Real *ene = BLK(i) + BS*BS*F_ENE;
+    Real h = info->h;
+    for (int iy = 0; iy < BS; iy++)
+      for (int ix = 0; ix < BS; ix++) {
+        int j = BS * iy + ix;
+        Real x0 = info->origin[0] + h * ix;
+        Real y0 = info->origin[1] + h * iy;
+        rho[j] = 1.0;
+        mom[2*j] = 0;
+        mom[2*j+1] = 0;
+        Real p = 1.0;
+        if (x0 <= 0.35 && 0.35 < x0+h && y0 <= 0.2 && 0.2 < y0+h)
+          p += (GAMMA - 1) * 1e5 / (h * h);
+        ene[j] = p / (GAMMA - 1);
+      }
+  }
   while (1) {
     if (sim.step % 10 == 0)
       fprintf(stderr, "main.c: %08d %.6e dt=%.3e blk=%lld\n",
               sim.step, sim.time, sim.dt, sim.n);
-    if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
-      sim.nextDumpTime += sim.dumpTime;
-#pragma omp parallel for
-      for (long long i = 0; i < sim.n; i++) {
-        Real *r = BLK(i)+BS*BS*F_RHO;
-        Real *m = BLK(i)+BS*BS*F_MOM;
-        Real *e = BLK(i)+BS*BS*F_ENE;
-        Real *t = BLK(i)+BS*BS*F_TMP;
-        for (int j = 0; j < BS*BS; j++)
-          t[j] = (GAMMA-1)*(e[j] - 0.5*(m[2*j]*m[2*j]+m[2*j+1]*m[2*j+1])/r[j]);
+    {
+      int do_dump = 0;
+      if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
+        sim.nextDumpTime += sim.dumpTime;
+        do_dump = 1;
       }
-      char path[FILENAME_MAX];
-      snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
-      dump(sim.time, path);
+      if (dumpSteps > 0 && sim.step % dumpSteps == 0)
+        do_dump = 1;
+      if (do_dump) {
+#pragma omp parallel for
+        for (long long i = 0; i < sim.n; i++) {
+          Real *r = BLK(i)+BS*BS*F_RHO;
+          Real *m = BLK(i)+BS*BS*F_MOM;
+          Real *e = BLK(i)+BS*BS*F_ENE;
+          Real *t = BLK(i)+BS*BS*F_TMP;
+          for (int j = 0; j < BS*BS; j++)
+            t[j] = (GAMMA-1)*(e[j] - 0.5*(m[2*j]*m[2*j]+m[2*j+1]*m[2*j+1])/r[j]);
+        }
+        char path[FILENAME_MAX];
+        snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
+        dump(sim.time, sim.step, path);
+      }
     }
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;

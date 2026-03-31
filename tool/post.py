@@ -32,7 +32,7 @@ for path in sys.argv[1:]:
             iy1 = int(round(xyz[i, 2, 1] * N))
             grid[iy0:iy1, ix0:ix1] = rho[i]
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-        levels = np.arange(0.15, 7.0, 0.1)
+        levels = np.arange(0.05, 7.5, 0.1)
         ax.contour(np.linspace(0, N, N), np.linspace(0, N, N),
                    grid, levels=levels, colors='k', linewidths=0.5)
         ax.set_xlim(0, N)
