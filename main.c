@@ -418,6 +418,8 @@ static inline Real pres(Real r, Real mx, Real my, Real e) {
   return fmax(0, (GAMMA-1)*(e - 0.5*(mx*mx+my*my)/r));
 }
 static void compute_indicator() {
+  enum { EPS_S_NUM = 1, EPS_S_DEN = 5 }; /* eps_s = 0.2 */
+  enum { EPS_C_NUM = 1, EPS_C_DEN = 5 }; /* eps_c = 0.2 */
 #pragma omp parallel
   {
     Real ur[LB_BUF], um[LB_BUF], ue[LB_BUF];
@@ -434,21 +436,77 @@ static void compute_indicator() {
 #define MX(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)]
 #define MY(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)+1]
 #define E(di,dj) ue[nm*((j)+(dj)+ss)+(i)+(di)+ss]
-          Real p0 =pres(R(0,0), MX(0,0), MY(0,0), E(0,0));
-          Real pxm=pres(R(-1,0),MX(-1,0),MY(-1,0),E(-1,0));
-          Real pxp=pres(R(1,0), MX(1,0), MY(1,0), E(1,0));
-          Real pym=pres(R(0,-1),MX(0,-1),MY(0,-1),E(0,-1));
-          Real pyp=pres(R(0,1), MX(0,1), MY(0,1), E(0,1));
-          Real mp = fmax(fmax(pxm,pxp),fmax(pym,pyp));
-          mp = fmax(mp, p0) + 1e-30;
-          Real v = fmax(fmax(fabs(pxm-p0),fabs(pxp-p0)),
-                        fmax(fabs(pym-p0),fabs(pyp-p0))) / mp;
-          TMP[j * BS + i] = v;
+          Real r0=R(0,0), p0=pres(r0,MX(0,0),MY(0,0),E(0,0));
+          Real ux0=MX(0,0)/r0, uy0=MY(0,0)/r0;
+          Real xi = 0;
+          /* 4 face neighbors: 0=left,1=right,2=bottom,3=top */
+          int di[]={-1,1,0,0}, dj[]={0,0,-1,1};
+          for (int nb = 0; nb < 4; nb++) {
+            int ii=di[nb], jj=dj[nb];
+            Real rn=R(ii,jj), pn=pres(rn,MX(ii,jj),MY(ii,jj),E(ii,jj));
+            Real uxn=MX(ii,jj)/rn, uyn=MY(ii,jj)/rn;
+            Real pmin=fmin(pn,p0)+1e-30;
+            Real dp=fabs(pn-p0)/pmin;
+            /* normal velocity difference for compression check */
+            int dir = nb < 2 ? 0 : 1; /* 0=x, 1=y */
+            Real un0 = dir==0 ? ux0 : uy0;
+            Real unn = dir==0 ? uxn : uyn;
+            int sign = (nb==0||nb==2) ? -1 : 1; /* -1 for left/bottom, +1 for right/top */
+            int compressing = sign*(unn - un0) < 0;
+            /* eq 11: shock indicator */
+            if (dp > (Real)EPS_S_NUM/EPS_S_DEN && compressing)
+              xi = 1;
+            /* eq 12: contact indicator */
+            Real rmin=fmin(rn,r0)+1e-30;
+            Real dr=fabs(rn-r0)/rmin;
+            if (dp <= (Real)EPS_S_NUM/EPS_S_DEN && dr > (Real)EPS_C_NUM/EPS_C_DEN)
+              xi = 1;
+            /* eq 13: gradient indicator (pressure) */
+            Real amax=fmax(fabs(pn),fabs(p0))+1e-30;
+            Real grad=(fabs(pn)-fabs(p0))/amax;
+            xi = fmax(xi, grad);
+          }
+          TMP[j * BS + i] = fmax(0, fmin(1, xi));
 #undef R
 #undef MX
 #undef MY
 #undef E
         }
+    }
+  }
+  /* Save raw indicator in DENE scratch before smoothing */
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; ++id)
+    memcpy(BLK(id) + BS*BS*F_DENE, BLK(id) + BS*BS*F_TMP, BS*BS*sizeof(Real));
+  /* Smoothing: reaction-diffusion eq 14 */
+  /* ∂ξ/∂t = K∇²ξ + Q, K=h², Q=1 if ξ>ξ_split else 0 */
+  /* Iterate ~3 times to advance front ~2-3 cells */
+  for (int iter = 0; iter < 3; iter++) {
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; ++id) {
+      Real *TMP = BLK(id) + BS * BS * F_TMP;
+      Real *RAW = BLK(id) + BS * BS * F_DENE;
+      Real *D = BLK(id) + BS * BS * F_DRHO;
+      for (int j = 0; j < BS; j++)
+        for (int i = 0; i < BS; i++) {
+          int k = j * BS + i;
+          Real xi = TMP[k];
+          Real xim = (i > 0) ? TMP[k-1] : xi;
+          Real xip = (i < BS-1) ? TMP[k+1] : xi;
+          Real xjm = (j > 0) ? TMP[k-BS] : xi;
+          Real xjp = (j < BS-1) ? TMP[k+BS] : xi;
+          Real lap = xim + xip + xjm + xjp - 4*xi;
+          Real Q = (xi > sim.Rtol) ? 1 : 0;
+          D[k] = xi + 0.25 * (lap + Q);
+          D[k] = fmax(D[k], RAW[k]); /* never drop below raw indicator */
+          D[k] = fmax(0, fmin(1, D[k]));
+        }
+    }
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; ++id) {
+      Real *TMP = BLK(id) + BS * BS * F_TMP;
+      Real *D = BLK(id) + BS * BS * F_DRHO;
+      memcpy(TMP, D, BS * BS * sizeof(Real));
     }
   }
 }
@@ -765,7 +823,7 @@ static void hll_y(Real rL, Real mxL, Real myL, Real eL,
     *gV=(SR*(myL*vL+pL)-SL*(myR*vR+pR)+SL*SR*(myR-myL))*s;
     *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
 }
-static void euler_rhs_update(Real dt, int level) {
+static void euler_x_sweep(Real dt, int level) {
 #pragma omp parallel
   {
     Real br[LB_BUF], bm[LB_BUF], be[LB_BUF];
@@ -777,14 +835,11 @@ static void euler_rhs_update(Real dt, int level) {
       lb_load(be, 1, F_ENE, 1, id);
       int ss = 1, nm = 2*ss + BS;
       Real dth = dt / sim.blk[id].h;
-      Real dr[BS*BS], du[2*BS*BS], de[BS*BS];
-      memset(dr, 0, sizeof dr);
-      memset(du, 0, sizeof du);
-      memset(de, 0, sizeof de);
 #define RH(di,dj) br[nm*((dj)+ss)+(di)+ss]
 #define MX(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)]
 #define MY(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)+1]
 #define EN(di,dj) be[nm*((dj)+ss)+(di)+ss]
+      Real *rho=BLK(id)+BS*BS*F_RHO, *mom=BLK(id)+BS*BS*F_MOM, *ene=BLK(id)+BS*BS*F_ENE;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i <= BS; i++) {
           Real rL=RH(i-1,j),rR=RH(i,j),mxL=MX(i-1,j),mxR=MX(i,j);
@@ -806,9 +861,33 @@ static void euler_rhs_update(Real dt, int level) {
           if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real fD,fU,fV,fE;
           hll_x(rl,xl,yl,el,rr,xr,yr,er,&fD,&fU,&fV,&fE);
-          if(i>0){int k=BS*j+(i-1);dr[k]-=fD*dth;du[2*k]-=fU*dth;du[2*k+1]-=fV*dth;de[k]-=fE*dth;}
-          if(i<BS){int k=BS*j+i;dr[k]+=fD*dth;du[2*k]+=fU*dth;du[2*k+1]+=fV*dth;de[k]+=fE*dth;}
+          if(i>0){int k=BS*j+(i-1);rho[k]-=fD*dth;mom[2*k]-=fU*dth;mom[2*k+1]-=fV*dth;ene[k]-=fE*dth;}
+          if(i<BS){int k=BS*j+i;rho[k]+=fD*dth;mom[2*k]+=fU*dth;mom[2*k+1]+=fV*dth;ene[k]+=fE*dth;}
         }
+#undef RH
+#undef MX
+#undef MY
+#undef EN
+    }
+  }
+}
+static void euler_y_sweep(Real dt, int level) {
+#pragma omp parallel
+  {
+    Real br[LB_BUF], bm[LB_BUF], be[LB_BUF];
+#pragma omp for
+    for (long long id = 0; id < sim.n; ++id) {
+      if (sim.blk[id].level != level) continue;
+      lb_load(br, 1, F_RHO, 1, id);
+      lb_load(bm, 2, F_MOM, 1, id);
+      lb_load(be, 1, F_ENE, 1, id);
+      int ss = 1, nm = 2*ss + BS;
+      Real dth = dt / sim.blk[id].h;
+#define RH(di,dj) br[nm*((dj)+ss)+(di)+ss]
+#define MX(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)]
+#define MY(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)+1]
+#define EN(di,dj) be[nm*((dj)+ss)+(di)+ss]
+      Real *rho=BLK(id)+BS*BS*F_RHO, *mom=BLK(id)+BS*BS*F_MOM, *ene=BLK(id)+BS*BS*F_ENE;
       for (int j = 0; j <= BS; j++)
         for (int i = 0; i < BS; i++) {
           Real rL=RH(i,j-1),rR=RH(i,j),mxL=MX(i,j-1),mxR=MX(i,j);
@@ -830,17 +909,13 @@ static void euler_rhs_update(Real dt, int level) {
           if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real gD,gU,gV,gE;
           hll_y(rl,xl,yl,el,rr,xr,yr,er,&gD,&gU,&gV,&gE);
-          if(j>0){int k=BS*(j-1)+i;dr[k]-=gD*dth;du[2*k]-=gU*dth;du[2*k+1]-=gV*dth;de[k]-=gE*dth;}
-          if(j<BS){int k=BS*j+i;dr[k]+=gD*dth;du[2*k]+=gU*dth;du[2*k+1]+=gV*dth;de[k]+=gE*dth;}
+          if(j>0){int k=BS*(j-1)+i;rho[k]-=gD*dth;mom[2*k]-=gU*dth;mom[2*k+1]-=gV*dth;ene[k]-=gE*dth;}
+          if(j<BS){int k=BS*j+i;rho[k]+=gD*dth;mom[2*k]+=gU*dth;mom[2*k+1]+=gV*dth;ene[k]+=gE*dth;}
         }
 #undef RH
 #undef MX
 #undef MY
 #undef EN
-      Real *rho=BLK(id)+BS*BS*F_RHO, *mom=BLK(id)+BS*BS*F_MOM, *ene=BLK(id)+BS*BS*F_ENE;
-      for (int k=0; k<BS*BS; k++) {
-        rho[k]+=dr[k]; mom[2*k]+=du[2*k]; mom[2*k+1]+=du[2*k+1]; ene[k]+=de[k];
-      }
     }
   }
 }
@@ -858,32 +933,25 @@ static const struct {
     {"tend", 1, offsetof(struct Sim, endTime)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
-static void subcycle(int level, int lmax, Real dt) {
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    if (sim.blk[i].level != level) continue;
-    memcpy(BLK(i)+BS*BS*F_DRHO, BLK(i)+BS*BS*F_RHO, BS*BS*sizeof(Real));
-    memcpy(BLK(i)+BS*BS*F_DMOM, BLK(i)+BS*BS*F_MOM, 2*BS*BS*sizeof(Real));
-    memcpy(BLK(i)+BS*BS*F_DENE, BLK(i)+BS*BS*F_ENE, BS*BS*sizeof(Real));
+static void subcycle(int level, int lmax, Real dt, int order) {
+  /* Paper eq 7: S(l) = A†(l) S(l+1) A(l) S(l+1) R(l)
+     A(l): X->Y sweep,  A†(l): Y->X sweep
+     Fine levels advance BETWEEN the two coarse half-steps */
+  if (level < lmax) {
+    /* first fine substep (uses old coarse state for ghost fill) */
+    subcycle(level + 1, lmax, dt / 2, order);
   }
-  euler_rhs_update(dt, level);
-  euler_rhs_update(dt, level);
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    if (sim.blk[i].level != level) continue;
-    Real *rho=BLK(i)+BS*BS*F_RHO, *s0=BLK(i)+BS*BS*F_DRHO;
-    Real *mom=BLK(i)+BS*BS*F_MOM, *s1=BLK(i)+BS*BS*F_DMOM;
-    Real *ene=BLK(i)+BS*BS*F_ENE, *s2=BLK(i)+BS*BS*F_DENE;
-    for (int j = 0; j < BS*BS; j++) {
-      rho[j] = 0.5*(s0[j] + rho[j]);
-      mom[2*j] = 0.5*(s1[2*j] + mom[2*j]);
-      mom[2*j+1] = 0.5*(s1[2*j+1] + mom[2*j+1]);
-      ene[j] = 0.5*(s2[j] + ene[j]);
-    }
+  /* advance this level: A(l) with current sweep order */
+  if (order) {
+    euler_y_sweep(dt, level);
+    euler_x_sweep(dt, level);
+  } else {
+    euler_x_sweep(dt, level);
+    euler_y_sweep(dt, level);
   }
   if (level < lmax) {
-    subcycle(level + 1, lmax, dt / 2);
-    subcycle(level + 1, lmax, dt / 2);
+    /* second fine substep (uses new coarse state for ghost fill) */
+    subcycle(level + 1, lmax, dt / 2, order ^ 1);
   }
 }
 int main(int argc, char **argv) {
@@ -1003,13 +1071,13 @@ int main(int argc, char **argv) {
         Real r=rho[j], u=mom[2*j]/r, v=mom[2*j+1]/r;
         Real p=fmax(0,(GAMMA-1)*(ene[j]-0.5*r*(u*u+v*v)));
         Real a=sqrt(GAMMA*p/r);
-        smax = fmax(smax, (fabs(u)+fabs(v)+2*a)*ih*scale);
+        smax = fmax(smax, fmax(fabs(u)+a, fabs(v)+a)*ih*scale);
       }
     }
     sim.dt = sim.CFL / (smax + 1e-30);
     if (sim.step > 0 && sim.step % sim.AdaptSteps == 0)
       ad_run();
-    subcycle(lmin, lmax, sim.dt);
+    subcycle(lmin, lmax, sim.dt, sim.step & 1);
     sim.time += sim.dt;
     sim.step++;
   }
