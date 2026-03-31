@@ -197,6 +197,14 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
       return r;
     }
   }
+  if (level > 1) {
+    idx = hm_get(&sim.hm, hm_key(level - 2, nx / 4, ny / 4));
+    if (idx >= 0) {
+      r.s = 2;
+      r.idx = idx;
+      return r;
+    }
+  }
   r.s = 1;
   int L1 = level + 1, nL1 = 1 << L1;
   for (int b = 0; b < nb_ch_n[icode]; b++) {
@@ -214,6 +222,7 @@ enum {
   OP_LELI,
   OP_BC_SCALAR,
   OP_BC_VECTOR,
+  OP_BC_CORNER,
 };
 struct LbOp {
   int8_t type;
@@ -309,6 +318,12 @@ static void lb_exec(Real *const blk[], Real *const dst[],
       int dir = o->flags & 1;
       buf[o->dst_off + dir] = -buf[o->src_off + dir];
       buf[o->dst_off + 1 - dir] = buf[o->src_off + 1 - dir];
+      break;
+    }
+    case OP_BC_CORNER: {
+      Real *buf = dst[o->dst_idx];
+      buf[o->dst_off] = -buf[o->src_off];
+      buf[o->dst_off + 1] = -buf[o->src_off + 1];
       break;
     }
     }
@@ -419,12 +434,15 @@ static void compute_indicator() {
 #define MX(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)]
 #define MY(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)+1]
 #define E(di,dj) ue[nm*((j)+(dj)+ss)+(i)+(di)+ss]
-          Real pxm=pres(R(-1,0),MX(-1,0),MY(-1,0),E(-1,0));
           Real p0 =pres(R(0,0), MX(0,0), MY(0,0), E(0,0));
+          Real pxm=pres(R(-1,0),MX(-1,0),MY(-1,0),E(-1,0));
           Real pxp=pres(R(1,0), MX(1,0), MY(1,0), E(1,0));
           Real pym=pres(R(0,-1),MX(0,-1),MY(0,-1),E(0,-1));
           Real pyp=pres(R(0,1), MX(0,1), MY(0,1), E(0,1));
-          Real v = fmax(loehner(pxm,p0,pxp), loehner(pym,p0,pyp));
+          Real mp = fmax(fmax(pxm,pxp),fmax(pym,pyp));
+          mp = fmax(mp, p0) + 1e-30;
+          Real v = fmax(fmax(fabs(pxm-p0),fabs(pxp-p0)),
+                        fmax(fabs(pym-p0),fabs(pyp-p0))) / mp;
           TMP[j * BS + i] = v;
 #undef R
 #undef MX
@@ -563,7 +581,7 @@ static int ad_run() {
       Linf = fmax(Linf, fabs(b[j]));
     int lev = sim.blk[i].level;
     state[i] = Linf > sim.Rtol && lev < sim.levelMax - 1 ? Refine
-             : Linf < sim.Ctol && lev > 0                ? Compress
+             : Linf < sim.Ctol && lev > sim.levelStart    ? Compress
              : Leave;
     Changed |= state[i] != Leave;
   }
@@ -600,9 +618,8 @@ static int ad_run() {
     }
     for (int s = 0; s < 4 && ok; s++) {
       struct Blk *bs = &sim.blk[sib[s]];
-      if (bs->level < sim.levelMax - 1)
-        for (int ic = 0; ic < 9 && ok; ic++)
-          if (ic != 4) ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
+      for (int ic = 0; ic < 9 && ok; ic++)
+        if (ic != 4) ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
     }
     if (!ok) state[j] = Leave;
   }
@@ -917,6 +934,27 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sim.levelMax; i++)
     ad_run();
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    struct Blk *info = &sim.blk[i];
+    Real *rho = BLK(i) + BS*BS*F_RHO;
+    Real *mom = BLK(i) + BS*BS*F_MOM;
+    Real *ene = BLK(i) + BS*BS*F_ENE;
+    Real h = info->h;
+    for (int iy = 0; iy < BS; iy++)
+      for (int ix = 0; ix < BS; ix++) {
+        int j = BS * iy + ix;
+        Real x0 = info->origin[0] + h * ix;
+        Real y0 = info->origin[1] + h * iy;
+        rho[j] = 1.0;
+        mom[2*j] = 0;
+        mom[2*j+1] = 0;
+        Real p = 1.0;
+        if (x0 <= 0.35 && 0.35 < x0+h && y0 <= 0.2 && 0.2 < y0+h)
+          p += (GAMMA - 1) * 1e5 / (h * h);
+        ene[j] = p / (GAMMA - 1);
+      }
+  }
   while (1) {
     if (sim.step % 10 == 0)
       fprintf(stderr, "main.c: %08d %.6e dt=%.3e blk=%lld\n",
@@ -969,7 +1007,7 @@ int main(int argc, char **argv) {
       }
     }
     sim.dt = sim.CFL / (smax + 1e-30);
-    if (sim.step % sim.AdaptSteps == 0)
+    if (sim.step > 0 && sim.step % sim.AdaptSteps == 0)
       ad_run();
     subcycle(lmin, lmax, sim.dt);
     sim.time += sim.dt;

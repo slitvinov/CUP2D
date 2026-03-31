@@ -33,7 +33,7 @@ face_dsign = [
 ]
 
 OP_COPY = 0; OP_AVG = 1; OP_INTERP9 = 2; OP_INTERP3 = 3
-OP_LELI = 4; OP_BC_SCALAR = 5; OP_BC_VECTOR = 6
+OP_LELI = 4; OP_BC_SCALAR = 5; OP_BC_VECTOR = 6; OP_BC_CORNER = 7
 
 # Face interpolation weights (numerators / 32)
 FACE_VP = {0: (21, 14, -3), 1: (5, -18, 45), 2: (-3, 30, 5)}
@@ -276,11 +276,27 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
                                         x | (y << 1), src_c, dst_m, 0, 0))
 
     # BC ops
-    if s >= 3:
+    if s == 5:
+        # Corner: reflect both velocity components using diagonal mirror
+        side_x = 1 if cx > 0 else 0
+        side_y = 1 if cy > 0 else 0
+        mirror_x = (0 if side_x == 0 else BS - 1)
+        mirror_y = (0 if side_y == 0 else BS - 1)
+        for iy in range(fs1, fe1):
+            for ix in range(fs0, fe0):
+                mx = mirror_x + ss
+                my = mirror_y + ss
+                i0 = (ix + ss) + nm * (iy + ss)
+                i1 = mx + nm * my
+                if dim == 1:
+                    e['fbc'].append((OP_BC_SCALAR, 0, 0, 0, dim*i1, dim*i0, 0, 0))
+                else:
+                    e['fbc'].append((OP_BC_CORNER, 0, 0, 0, dim*i1, dim*i0, 0, 0))
+    elif s >= 3:
         bc_dirs = []
-        if s == 3 or s == 5:
+        if s == 3:
             bc_dirs.append(0)
-        if s == 4 or s == 5:
+        if s == 4:
             bc_dirs.append(1)
         for dirn in bc_dirs:
             side = 1 if (cx if dirn == 0 else cy) > 0 else 0
@@ -318,6 +334,23 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
                         e['cbc'].append((OP_BC_SCALAR, 0, 1, 0, dim*i1, dim*i0, 0, 0))
                     else:
                         e['cbc'].append((OP_BC_VECTOR, 0, 1, dirn, dim*i1, dim*i0, 0, 0))
+    if s == 5:
+        # Corner coarse buffer BC: diagonal mirror, negate both velocity components
+        sI = (-ss - 1) // 2 - 1
+        side_x = 1 if cx > 0 else 0
+        side_y = 1 if cy > 0 else 0
+        cmirror_x = (0 if side_x == 0 else BS // 2 - 1)
+        cmirror_y = (0 if side_y == 0 else BS // 2 - 1)
+        for iy in range(cs1, ce1):
+            for ix in range(cs0, ce0):
+                mx = cmirror_x - sI
+                my = cmirror_y - sI
+                i0 = (ix - sI) + nc * (iy - sI)
+                i1 = mx + nc * my
+                if dim == 1:
+                    e['cbc'].append((OP_BC_SCALAR, 0, 1, 0, dim*i1, dim*i0, 0, 0))
+                else:
+                    e['cbc'].append((OP_BC_CORNER, 0, 1, 0, dim*i1, dim*i0, 0, 0))
     return e
 
 # Binary serialization
