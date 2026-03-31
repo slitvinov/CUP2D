@@ -600,8 +600,9 @@ static int ad_run() {
     }
     for (int s = 0; s < 4 && ok; s++) {
       struct Blk *bs = &sim.blk[sib[s]];
-      for (int ic = 0; ic < 9 && ok; ic++)
-        if (ic != 4) ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
+      if (bs->level < sim.levelMax - 1)
+        for (int ic = 0; ic < 9 && ok; ic++)
+          if (ic != 4) ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
     }
     if (!ok) state[j] = Leave;
   }
@@ -747,12 +748,13 @@ static void hll_y(Real rL, Real mxL, Real myL, Real eL,
     *gV=(SR*(myL*vL+pL)-SL*(myR*vR+pR)+SL*SR*(myR-myL))*s;
     *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
 }
-static void euler_rhs_update(Real dt) {
+static void euler_rhs_update(Real dt, int level) {
 #pragma omp parallel
   {
     Real br[LB_BUF], bm[LB_BUF], be[LB_BUF];
 #pragma omp for
     for (long long id = 0; id < sim.n; ++id) {
+      if (sim.blk[id].level != level) continue;
       lb_load(br, 1, F_RHO, 1, id);
       lb_load(bm, 2, F_MOM, 1, id);
       lb_load(be, 1, F_ENE, 1, id);
@@ -839,6 +841,34 @@ static const struct {
     {"tend", 1, offsetof(struct Sim, endTime)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
+static void subcycle(int level, int lmax, Real dt) {
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    if (sim.blk[i].level != level) continue;
+    memcpy(BLK(i)+BS*BS*F_DRHO, BLK(i)+BS*BS*F_RHO, BS*BS*sizeof(Real));
+    memcpy(BLK(i)+BS*BS*F_DMOM, BLK(i)+BS*BS*F_MOM, 2*BS*BS*sizeof(Real));
+    memcpy(BLK(i)+BS*BS*F_DENE, BLK(i)+BS*BS*F_ENE, BS*BS*sizeof(Real));
+  }
+  euler_rhs_update(dt, level);
+  euler_rhs_update(dt, level);
+#pragma omp parallel for
+  for (long long i = 0; i < sim.n; i++) {
+    if (sim.blk[i].level != level) continue;
+    Real *rho=BLK(i)+BS*BS*F_RHO, *s0=BLK(i)+BS*BS*F_DRHO;
+    Real *mom=BLK(i)+BS*BS*F_MOM, *s1=BLK(i)+BS*BS*F_DMOM;
+    Real *ene=BLK(i)+BS*BS*F_ENE, *s2=BLK(i)+BS*BS*F_DENE;
+    for (int j = 0; j < BS*BS; j++) {
+      rho[j] = 0.5*(s0[j] + rho[j]);
+      mom[2*j] = 0.5*(s1[2*j] + mom[2*j]);
+      mom[2*j+1] = 0.5*(s1[2*j+1] + mom[2*j+1]);
+      ene[j] = 0.5*(s2[j] + ene[j]);
+    }
+  }
+  if (level < lmax) {
+    subcycle(level + 1, lmax, dt / 2);
+    subcycle(level + 1, lmax, dt / 2);
+  }
+}
 int main(int argc, char **argv) {
 #ifdef _OPENMP
 #pragma omp parallel
@@ -916,43 +946,32 @@ int main(int argc, char **argv) {
     }
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
+    int lmin = sim.levelMax, lmax = 0;
+    for (long long i = 0; i < sim.n; i++) {
+      int l = sim.blk[i].level;
+      if (l < lmin) lmin = l;
+      if (l > lmax) lmax = l;
+    }
     Real smax = 0;
 #pragma omp parallel for reduction(max:smax)
     for (long long i = 0; i < sim.n; i++) {
       Real *rho = BLK(i)+BS*BS*F_RHO;
       Real *mom = BLK(i)+BS*BS*F_MOM;
       Real *ene = BLK(i)+BS*BS*F_ENE;
+      int l = sim.blk[i].level;
       Real ih = 1.0 / sim.blk[i].h;
+      Real scale = 1.0 / (1 << (l - lmin));
       for (int j = 0; j < BS*BS; j++) {
         Real r=rho[j], u=mom[2*j]/r, v=mom[2*j+1]/r;
         Real p=fmax(0,(GAMMA-1)*(ene[j]-0.5*r*(u*u+v*v)));
         Real a=sqrt(GAMMA*p/r);
-        smax = fmax(smax, (fabs(u)+fabs(v)+2*a)*ih);
+        smax = fmax(smax, (fabs(u)+fabs(v)+2*a)*ih*scale);
       }
     }
     sim.dt = sim.CFL / (smax + 1e-30);
     if (sim.step % sim.AdaptSteps == 0)
       ad_run();
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      memcpy(BLK(i)+BS*BS*F_DRHO, BLK(i)+BS*BS*F_RHO, BS*BS*sizeof(Real));
-      memcpy(BLK(i)+BS*BS*F_DMOM, BLK(i)+BS*BS*F_MOM, 2*BS*BS*sizeof(Real));
-      memcpy(BLK(i)+BS*BS*F_DENE, BLK(i)+BS*BS*F_ENE, BS*BS*sizeof(Real));
-    }
-    euler_rhs_update(sim.dt);
-    euler_rhs_update(sim.dt);
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *rho=BLK(i)+BS*BS*F_RHO, *s0=BLK(i)+BS*BS*F_DRHO;
-      Real *mom=BLK(i)+BS*BS*F_MOM, *s1=BLK(i)+BS*BS*F_DMOM;
-      Real *ene=BLK(i)+BS*BS*F_ENE, *s2=BLK(i)+BS*BS*F_DENE;
-      for (int j = 0; j < BS*BS; j++) {
-        rho[j] = 0.5*(s0[j] + rho[j]);
-        mom[2*j] = 0.5*(s1[2*j] + mom[2*j]);
-        mom[2*j+1] = 0.5*(s1[2*j+1] + mom[2*j+1]);
-        ene[j] = 0.5*(s2[j] + ene[j]);
-      }
-    }
+    subcycle(lmin, lmax, sim.dt);
     sim.time += sim.dt;
     sim.step++;
   }
