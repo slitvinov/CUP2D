@@ -889,27 +889,6 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sim.levelMax; i++)
     ad_run();
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    Real *rho = BLK(i) + BS*BS*F_RHO;
-    Real *mom = BLK(i) + BS*BS*F_MOM;
-    Real *ene = BLK(i) + BS*BS*F_ENE;
-    Real h = info->h;
-    for (int iy = 0; iy < BS; iy++)
-      for (int ix = 0; ix < BS; ix++) {
-        int j = BS * iy + ix;
-        Real x0 = info->origin[0] + h * ix;
-        Real y0 = info->origin[1] + h * iy;
-        rho[j] = 1.0;
-        mom[2*j] = 0;
-        mom[2*j+1] = 0;
-        Real p = 1.0;
-        if (x0 <= 0.35 && 0.35 < x0+h && y0 <= 0.2 && 0.2 < y0+h)
-          p += (GAMMA - 1) * 1e5 / (h * h);
-        ene[j] = p / (GAMMA - 1);
-      }
-  }
   while (1) {
     if (sim.step % 10 == 0)
       fprintf(stderr, "main.c: %08d %.6e dt=%.3e blk=%lld\n",
