@@ -4,7 +4,6 @@ ${main=./main} \
 -AdaptSteps 20 \
 -CFL 0.5 \
 -Ctol 1 \
--lambda 1e7 \
 -levelMax 6 \
 -levelStart 3 \
 -maxPoissonRestarts 0 \
@@ -12,9 +11,5 @@ ${main=./main} \
 -poissonTol 1e-3 \
 -poissonTolRel 1e-2 \
 -Rtol 2 \
--tdump 1.0 \
--tend 8.0 \
--shapes '
-   scale=0.125 orientation=0 omega=-0.3 xcenter=0.3 ycenter=0.5 sdf=box.raw
-   scale=0.125 orientation=0 omega=0.3 xcenter=0.6 ycenter=0.5 sdf=box.raw
-'
+-tdump 0.125 \
+-tend 1.0

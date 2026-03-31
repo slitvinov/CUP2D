@@ -16,18 +16,16 @@ enum { BS = 8 };
 enum {
   F_VEL = 0,
   F_PRS = 2,
-  F_CHI = 3,
-  F_VOL = 4,
-  F_TMP = 6,
-  F_POL = 7,
-  F_TMV = 8,
-  F_N = 10,
+  F_VOL = 3,
+  F_TMP = 5,
+  F_POL = 6,
+  F_TMV = 7,
+  F_N = 9,
   BLK_S = F_N *BS *BS,
 };
 
 #define EPS DBL_EPSILON
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
-struct Shp;
 struct Blk;
 struct HMap {
   long long *keys;
@@ -58,21 +56,18 @@ static struct Sim {
   Real dt;
   Real dumpTime;
   Real endTime;
-  Real lambda;
   Real nextDumpTime;
   Real nu;
   Real PoissonTol;
   Real PoissonTolRel;
   Real Rtol;
   Real time;
-  struct Shp **shapes;
   struct Solver *solver;
   int coo_nnz, coo_cap;
   double *coo_val;
   int *coo_row, *coo_col;
   double *sol_x, *sol_b, *sol_h2;
   long long n;
-  int nshape;
   struct HMap hm;
   struct Blk *blk;
   Real *fld;
@@ -124,14 +119,6 @@ static int arg_i(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
-static const char *kv(const char *line, const char *key) {
-  size_t n = strlen(key);
-  for (const char *p = line; (p = strstr(p, key)); p++)
-    if ((p == line || p[-1] == ' ' || p[-1] == '\t') && p[n] == '=')
-      return p + n + 1;
-  fprintf(stderr, "main.c: error: key '%s' not found in '%s'\n", key, line);
-  exit(1);
-}
 static void ps_prec(double *P_inv) {
   double L[64][64];
   double L_inv[64][64];
@@ -174,9 +161,6 @@ struct Blk {
   int level, n, ix, iy;
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
-struct Col {
-  Real iM, ivecX, ivecY, jM, jvecX, jvecY;
-};
 static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   int n = 1 << level;
   b->level = level;
@@ -191,8 +175,8 @@ struct {
   int offset;
   int dim;
   const char *prefix;
-} fld_t[] = {{F_VEL, 2, "vel"}, {F_PRS, 1, "pres"}, {F_CHI, 1, "chi"},
-            {F_VOL, 2, NULL}, {F_TMP, 1, "tmp"},   {F_POL, 1, NULL},
+} fld_t[] = {{F_VEL, 2, "vel"}, {F_PRS, 1, "pres"},
+            {F_VOL, 2, NULL}, {F_TMP, 1, "tmp"}, {F_POL, 1, NULL},
             {F_TMV, 2, NULL}};
 enum { NVARS = sizeof fld_t / sizeof *fld_t };
 
@@ -581,206 +565,6 @@ static void dump(Real time, char *path) {
       fclose(file);
     }
 }
-struct Shp {
-  float rmax;
-  float *sdf;
-  int nr;
-  int np;
-  Real x;
-  Real y;
-  Real length;
-  Real mass;
-  Real omega;
-  Real orientation;
-  Real u;
-  Real v;
-  Real *o_chi;
-  Real *o_dist;
-  Real *o_udef;
-  Real *o_com;
-};
-static void cm_ongrid() {
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    memset(BLK(i) + BS * BS * F_CHI, 0, BS * BS * sizeof(Real));
-    Real *p = BLK(i) + BS * BS * F_TMP;
-    for (int j = 0; j < BS * BS; j++) p[j] = -1.0;
-  }
-  for (int ishape = 0; ishape < sim.nshape; ishape++) {
-    struct Shp *shape = sim.shapes[ishape];
-    shape->o_chi = realloc(shape->o_chi, sim.n * BS * BS * sizeof(Real));
-    shape->o_dist = realloc(shape->o_dist, sim.n * BS * BS * sizeof(Real));
-    shape->o_udef = realloc(shape->o_udef, sim.n * BS * BS * 2 * sizeof(Real));
-    shape->o_com = realloc(shape->o_com, sim.n * 3 * sizeof(Real));
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      struct Blk *info = &sim.blk[i];
-      Real *b = BLK(i) + BS * BS * F_TMP;
-      Real h = info->h;
-      Real co = cos(shape->orientation);
-      Real si = sin(shape->orientation);
-      Real *o_chi = shape->o_chi + i * BS * BS;
-      Real *o_dist = shape->o_dist + i * BS * BS;
-      Real *o_udef = shape->o_udef + i * BS * BS * 2;
-      memset(o_chi, 0, BS * BS * sizeof(Real));
-      memset(o_udef, 0, BS * BS * 2 * sizeof(Real));
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-          Real x = info->origin[0] + h * (ix + 0.5) - shape->x;
-          Real y = info->origin[1] + h * (iy + 0.5) - shape->y;
-          Real x0 = co * x + si * y;
-          Real y0 = -si * x + co * y;
-          Real r = sqrt(x0 * x0 + y0 * y0);
-          Real pa = atan2(y0, x0);
-          if (pa < 0)
-            pa += 2 * M_PI;
-          int ri = r * shape->nr / shape->rmax;
-          if (ri >= shape->nr)
-            ri = shape->nr - 1;
-          int pi = pa * (shape->np - 2) / (2 * M_PI);
-          if (pi >= shape->np)
-            pi = shape->np - 1;
-          Real dist = shape->sdf[ri * shape->np + pi];
-          o_dist[iy * BS + ix] = dist;
-          b[iy * BS + ix] = fmax(b[iy * BS + ix], dist);
-        }
-    }
-  }
-
-#pragma omp parallel
-  {
-    Real um[LB_BUF];
-#pragma omp for nowait
-    for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 1, F_TMP, 1, id);
-      struct Blk *info = &sim.blk[id];
-      int ss = 1, nm = 2 * ss + BS;
-      for (int ishape = 0; ishape < sim.nshape; ishape++) {
-        struct Shp *shape = sim.shapes[ishape];
-        Real h = info->h;
-        Real h2 = h * h;
-        Real *chi = shape->o_chi + id * BS * BS;
-        Real *dist = shape->o_dist + id * BS * BS;
-        Real *oc = shape->o_com + id * 3;
-        oc[0] = oc[1] = oc[2] = 0;
-        Real *CHI = BLK(id) + BS * BS * F_CHI;
-        for (int iy = 0; iy < BS; iy++)
-          for (int ix = 0; ix < BS; ix++) {
-#define D(dx, dy) um[nm * (iy + ss + (dy)) + ix + ss + (dx)]
-            int j = BS * iy + ix;
-            if (dist[j] > +h || dist[j] < -h) {
-              chi[j] = dist[j] > 0 ? 1 : 0;
-            } else {
-              Real dpx = D(1,0), dmx = D(-1,0), dpy = D(0,1), dmy = D(0,-1);
-              Real gradIX = fmax(0.0, dpx) - fmax(0.0, dmx);
-              Real gradIY = fmax(0.0, dpy) - fmax(0.0, dmy);
-              Real gradUX = dpx - dmx, gradUY = dpy - dmy;
-              chi[j] = (gradIX * gradUX + gradIY * gradUY) /
-                       (gradUX * gradUX + gradUY * gradUY + EPS);
-            }
-#undef D
-            CHI[j] = fmax(CHI[j], chi[j]);
-            if (chi[j] > 0) {
-              Real px = info->origin[0] + info->h * (ix + 0.5);
-              Real py = info->origin[1] + info->h * (iy + 0.5);
-              oc[0] += chi[j] * h2;
-              oc[1] += chi[j] * h2 * (px - shape->x);
-              oc[2] += chi[j] * h2 * (py - shape->y);
-            }
-          }
-      }
-    }
-  }
-  for (int ishape = 0; ishape < sim.nshape; ishape++) {
-    struct Shp *shape = sim.shapes[ishape];
-    Real com[3] = {0.0, 0.0, 0.0};
-#pragma omp parallel for reduction(+ : com[ : 3])
-    for (long long i = 0; i < sim.n; i++) {
-      Real *oc = shape->o_com + i * 3;
-      com[0] += oc[0];
-      com[1] += oc[1];
-      com[2] += oc[2];
-    }
-    shape->x += com[1] / com[0];
-    shape->y += com[2] / com[0];
-  }
-  for (int ishape = 0; ishape < sim.nshape; ishape++) {
-    struct Shp *shape = sim.shapes[ishape];
-    Real x = 0, y = 0, m = 0, J = 0, u = 0, v = 0, a = 0;
-#pragma omp parallel for reduction(+ : x, y, m, J, u, v, a)
-    for (long long i = 0; i < sim.n; i++) {
-      Real hsq = sim.blk[i].h * sim.blk[i].h;
-      Real *CHI = shape->o_chi + i * BS * BS;
-      Real *UDEF = shape->o_udef + i * BS * BS * 2;
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-          int j = BS * iy + ix;
-          if (CHI[j] <= 0)
-            continue;
-          Real p[2];
-          p[0] = sim.blk[i].origin[0] + sim.blk[i].h * (ix + 0.5);
-          p[1] = sim.blk[i].origin[1] + sim.blk[i].h * (iy + 0.5);
-          Real chi = CHI[j] * hsq;
-          p[0] -= shape->x;
-          p[1] -= shape->y;
-          x += chi * p[0];
-          y += chi * p[1];
-          m += chi;
-          J += chi * (p[0] * p[0] + p[1] * p[1]);
-          u += chi * UDEF[2 * j + 0];
-          v += chi * UDEF[2 * j + 1];
-          a += chi * (p[0] * UDEF[2 * j + 1] - p[1] * UDEF[2 * j + 0]);
-        }
-    }
-    u /= m;
-    v /= m;
-    a /= J;
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *o_udef = shape->o_udef + i * BS * BS * 2;
-      for (int iy = 0; iy < BS; ++iy)
-        for (int ix = 0; ix < BS; ++ix) {
-          int j = BS * iy + ix;
-          Real p[2];
-          p[0] = sim.blk[i].origin[0] + sim.blk[i].h * (ix + 0.5);
-          p[1] = sim.blk[i].origin[1] + sim.blk[i].h * (iy + 0.5);
-          p[0] -= shape->x;
-          p[1] -= shape->y;
-          o_udef[2 * j + 0] -= u - a * p[1];
-          o_udef[2 * j + 1] -= v + a * p[0];
-        }
-    }
-  }
-}
-static void cm_gchi() {
-#pragma omp parallel
-  {
-    Real um[LB_BUF];
-#pragma omp for nowait
-    for (long long id = 0; id < sim.n; ++id) {
-      lb_load(um, 1, F_CHI, 4, id);
-      struct Blk *info = &sim.blk[id];
-      Real *TMP = BLK(id) + BS * BS * F_TMP;
-      int offset = (info->level == sim.levelMax - 1) ? 4 : 2;
-      int ss = 4, nm = 2 * ss + BS;
-      for (int y = -offset; y < BS + offset; ++y)
-        for (int x = -offset; x < BS + offset; ++x) {
-          int k = nm * (y + ss) + x + ss;
-          um[k] = fmin(um[k], 1.0);
-          um[k] = fmax(um[k], 0.0);
-          if (0.0 < um[k] && um[k] < 0.1) {
-            int i = BS / 2;
-            int j = BS / 2 - 1;
-            TMP[BS * i + j] = 2 * sim.Rtol;
-            TMP[BS * j + j] = 2 * sim.Rtol;
-            TMP[BS * i + i] = 2 * sim.Rtol;
-            TMP[BS * j + i] = 2 * sim.Rtol;
-            break;
-          }
-        }
-    }
-  }
-}
 static const Real ad_ref_w[4][9] = {
   { 1./64, 10./64, -1./64, 10./64, 56./64, -6./64, -1./64, -6./64,  1./64},
   {-1./64, 10./64,  1./64, -6./64, 56./64, 10./64,  1./64, -6./64, -1./64},
@@ -790,7 +574,6 @@ static const Real ad_ref_w[4][9] = {
 static const int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run() {
   cm_vort();
-  cm_gchi();
   enum AdSt *state = calloc(sim.n, sizeof *state);
   long long *ref_idx = malloc(sim.n * sizeof *ref_idx);
   long long *com_idx = malloc(sim.n * sizeof *com_idx);
@@ -1026,7 +809,7 @@ static const struct {
   const char *name;
   int type;
   size_t off;
-} tab[] = {
+} param_tab[] = {
     {"levelMax", 0, offsetof(struct Sim, levelMax)},
     {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
     {"levelStart", 0, offsetof(struct Sim, levelStart)},
@@ -1035,21 +818,10 @@ static const struct {
     {"Ctol", 1, offsetof(struct Sim, Ctol)},
     {"CFL", 1, offsetof(struct Sim, CFL)},
     {"tend", 1, offsetof(struct Sim, endTime)},
-    {"lambda", 1, offsetof(struct Sim, lambda)},
     {"nu", 1, offsetof(struct Sim, nu)},
     {"poissonTol", 1, offsetof(struct Sim, PoissonTol)},
     {"poissonTolRel", 1, offsetof(struct Sim, PoissonTolRel)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
-};
-static const struct {
-  const char *name;
-  size_t off;
-  Real scale;
-} stab[] = {
-    {"xcenter", offsetof(struct Shp, x), 1},
-    {"ycenter", offsetof(struct Shp, y), 1},
-    {"orientation", offsetof(struct Shp, orientation), M_PI / 180},
-    {"omega", offsetof(struct Shp, omega), 1},
 };
 int main(int argc, char **argv) {
 #ifdef _OPENMP
@@ -1058,87 +830,11 @@ int main(int argc, char **argv) {
   fprintf(stderr, "main.c: %d threads\n", omp_get_num_threads());
 #endif
   char *base = (char *)&sim;
-  for (size_t i = 0; i < sizeof tab / sizeof *tab; i++)
-    if (tab[i].type == 0)
-      *(int *)(base + tab[i].off) = arg_i(argc, argv, tab[i].name);
+  for (size_t i = 0; i < sizeof param_tab / sizeof *param_tab; i++)
+    if (param_tab[i].type == 0)
+      *(int *)(base + param_tab[i].off) = arg_i(argc, argv, param_tab[i].name);
     else
-      *(Real *)(base + tab[i].off) = arg_r(argc, argv, tab[i].name);
-  sim.nshape = 0;
-  sim.shapes = NULL;
-  const char *shapeArg = arg_find(argc, argv, "shapes");
-  const char *sp = shapeArg;
-  while (*sp) {
-    while (*sp == '\n' || *sp == ',' || *sp == ' ')
-      sp++;
-    if (!*sp)
-      break;
-    const char *end = sp;
-    while (*end && *end != '\n' && *end != ',')
-      end++;
-    size_t len = end - sp;
-    char line[1024];
-    if (len >= sizeof line) {
-      fprintf(stderr, "main.c: shape line too long\n");
-      exit(1);
-    }
-    memcpy(line, sp, len);
-    line[len] = '\0';
-    sp = end;
-    struct Shp *shape = calloc(1, sizeof(struct Shp));
-    char *base = (char *)shape;
-    for (size_t i = 0; i < sizeof stab / sizeof *stab; i++)
-      *(Real *)(base + stab[i].off) =
-          strtod(kv(line, stab[i].name), NULL) * stab[i].scale;
-    Real scale = strtod(kv(line, "scale"), NULL);
-    char pathbuf[FILENAME_MAX];
-    sscanf(kv(line, "sdf"), "%s", pathbuf);
-    const char *path = pathbuf;
-    FILE *file = fopen(path, "r");
-    char tag[3];
-    float length, rmax;
-    if (file == NULL) {
-      fprintf(stderr, "main.c: error: fail to open '%s'\n", path);
-      exit(1);
-    }
-    if (fread(tag, sizeof *tag, sizeof tag, file) != sizeof tag) {
-      fprintf(stderr, "main.c: error: fail to read '%s'\n", path);
-      exit(1);
-    }
-    if (tag[0] != 'S' || tag[1] != 'D' || tag[2] != 'F') {
-      fprintf(stderr, "main.c: error: not and sdf file '%s'\n", path);
-      exit(1);
-    }
-    if (fread(&length, sizeof(length), 1, file) != 1 ||
-        fread(&rmax, sizeof(rmax), 1, file) != 1 ||
-        fread(&shape->nr, sizeof(shape->nr), 1, file) != 1 ||
-        fread(&shape->np, sizeof(shape->np), 1, file) != 1) {
-      fprintf(stderr,
-              "main.c: error: fail to read shape header from file.\n");
-      exit(1);
-    }
-    size_t ncount = shape->nr * shape->np;
-    if ((shape->sdf = malloc(ncount * sizeof(float))) == NULL) {
-      fprintf(stderr, "main.c: error: malloc() failed\n");
-      exit(1);
-    }
-    if (fread(shape->sdf, sizeof *shape->sdf, ncount, file) != ncount) {
-      fprintf(stderr, "main.c: error: fail to read arrays from '%s'\n", path);
-    }
-    shape->length = scale * length;
-    shape->rmax = scale * rmax;
-    for (size_t i = 0; i < ncount; i++)
-      shape->sdf[i] *= scale;
-    shape->u = 0;
-    shape->v = 0;
-    sim.nshape++;
-    sim.shapes =
-        realloc(sim.shapes, sim.nshape * sizeof sim.shapes);
-    sim.shapes[sim.nshape - 1] = shape;
-  }
-  if (!sim.nshape && *shapeArg) {
-    fprintf(stderr, "main.c: error: failed to parse shapes\n");
-    exit(1);
-  }
+      *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
   {
     int ns = 1 << sim.levelStart;
     sim.n = (long long)ns * ns;
@@ -1151,39 +847,24 @@ int main(int argc, char **argv) {
   }
   hm_rebuild();
   lb_init();
-  int Changed = 0;
-  for (int i = 0;; i++) {
-    cm_ongrid();
-    if (i == sim.levelMax)
-      break;
-    Changed = ad_run() || Changed;
-  }
-  for (int ishape = 0; ishape < sim.nshape; ishape++) {
-    struct Shp *shape = sim.shapes[ishape];
 #pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++) {
-      Real *udef = shape->o_udef + i * BS * BS * 2;
-      Real *chi = shape->o_chi + i * BS * BS;
-      Real *UDEF = BLK(i) + BS * BS * F_TMV;
-      Real *CHI = BLK(i) + BS * BS * F_CHI;
-      for (int j = 0; j < BS * BS; j++) {
-        if (chi[j] < CHI[j])
-          continue;
-        UDEF[2 * j] += udef[2 * j];
-        UDEF[2 * j + 1] += udef[2 * j + 1];
-      }
-    }
-  }
-#pragma omp parallel for schedule(static)
   for (long long i = 0; i < sim.n; i++) {
-    Real *UF = BLK(i) + BS * BS * F_VEL;
-    Real *US = BLK(i) + BS * BS * F_TMV;
-    Real *X = BLK(i) + BS * BS * F_CHI;
-    for (int j = 0; j < BS * BS; j++) {
-      UF[2 * j + 0] = UF[2 * j + 0] * (1 - X[j]) + US[2 * j + 0] * X[j];
-      UF[2 * j + 1] = UF[2 * j + 1] * (1 - X[j]) + US[2 * j + 1] * X[j];
-    }
+    struct Blk *info = &sim.blk[i];
+    Real *vel = BLK(i) + BS * BS * F_VEL;
+    for (int iy = 0; iy < BS; iy++)
+      for (int ix = 0; ix < BS; ix++) {
+        Real px = info->origin[0] + info->h * (ix + 0.5);
+        Real py = info->origin[1] + info->h * (iy + 0.5);
+        int j = BS * iy + ix;
+        Real rho = 30.0;
+        vel[2 * j + 0] = py <= 0.5 ? tanh(rho * (py - 0.25))
+                                    : tanh(rho * (0.75 - py));
+        vel[2 * j + 1] = 0.05 * sin(2 * M_PI * px);
+      }
   }
+  int Changed = 0;
+  for (int i = 0; i < sim.levelMax; i++)
+    Changed = ad_run() || Changed;
   double P_inv[BS * BS * BS * BS];
   ps_prec(P_inv);
   sim.solver = solver_create(BS * BS, P_inv);
@@ -1218,17 +899,6 @@ int main(int argc, char **argv) {
                       0.25 * h * h / (sim.nu + 0.25 * h * umax));
     if (sim.step <= 10 || sim.step % sim.AdaptSteps == 0)
       Changed = ad_run() || Changed;
-    for (int ishape = 0; ishape < sim.nshape; ishape++) {
-      struct Shp *shape = sim.shapes[ishape];
-      shape->x += sim.dt * shape->u;
-      shape->y += sim.dt * shape->v;
-      shape->orientation += sim.dt * shape->omega;
-      if (shape->orientation < -M_PI)
-        shape->orientation += 2 * M_PI;
-      else if (shape->orientation > M_PI)
-        shape->orientation -= 2 * M_PI;
-    }
-    cm_ongrid();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++)
       memcpy(BLK(i) + BS * BS * F_VOL,
@@ -1247,173 +917,19 @@ int main(int argc, char **argv) {
           V[j] = Vold[j] + tmpV[j] * ih2;
       }
     }
-    for (int ishape = 0; ishape < sim.nshape; ishape++) {
-      struct Shp *shape = sim.shapes[ishape];
-      Real PM = 0, PX = 0, PY = 0, UM = 0, VM = 0;
-#pragma omp parallel for reduction(+ : PM, PX, PY, UM, VM)
-      for (long long i = 0; i < sim.n; i++) {
-        Real *VEL = BLK(i) + BS * BS * F_VEL;
-        Real hsq = sim.blk[i].h * sim.blk[i].h;
-        Real *chi = shape->o_chi + i * BS * BS;
-        Real *udef = shape->o_udef + i * BS * BS * 2;
-        Real lambdt = sim.lambda * sim.dt;
-        for (int iy = 0; iy < BS; ++iy)
-          for (int ix = 0; ix < BS; ++ix) {
-            int j = BS * iy + ix;
-            if (chi[j] <= 0)
-              continue;
-            Real udiff[2] = {VEL[2 * j + 0] - udef[2 * j + 0],
-                             VEL[2 * j + 1] - udef[2 * j + 1]};
-            Real Xlamdt = chi[j] >= 0.5 ? lambdt : 0.0;
-            Real F = hsq * Xlamdt / (1 + Xlamdt);
-            Real p[2];
-            p[0] = sim.blk[i].origin[0] + sim.blk[i].h * (ix + 0.5);
-            p[1] = sim.blk[i].origin[1] + sim.blk[i].h * (iy + 0.5);
-            p[0] -= shape->x;
-            p[1] -= shape->y;
-            PM += F;
-            PX += F * p[0];
-            PY += F * p[1];
-            UM += F * udiff[0];
-            VM += F * udiff[1];
-          }
-      }
-      if (PM != 0) {
-        shape->u = (PY * shape->omega + UM) / PM;
-        shape->v = (VM - PX * shape->omega) / PM;
-      }
-    }
-    struct Col collisions[16];
-    assert(sim.nshape <= 16);
-    memset(collisions, 0, sizeof(struct Col) * sim.nshape);
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < sim.nshape; ++i)
-      for (int j = 0; j < sim.nshape; ++j) {
-        if (i == j)
-          continue;
-        struct Col *coll = &collisions[i];
-        for (long long k = 0; k < sim.n; ++k) {
-          Real *iSDF = sim.shapes[i]->o_dist + k * BS * BS;
-          Real *jSDF = sim.shapes[j]->o_dist + k * BS * BS;
-          Real *iChi = sim.shapes[i]->o_chi + k * BS * BS;
-          Real *jChi = sim.shapes[j]->o_chi + k * BS * BS;
-          Real h = sim.blk[k].h;
-          Real hsq = h * h;
-          for (int iy = 0; iy < BS; ++iy)
-            for (int ix = 0; ix < BS; ++ix) {
-              int idx = iy * BS + ix;
-              if (iChi[idx] <= 0.0 || jChi[idx] <= 0.0)
-                continue;
-              coll->iM += iChi[idx] * hsq;
-              coll->jM += jChi[idx] * hsq;
-              int xm = ix > 0 ? 1 : 0, xp = ix < BS - 1 ? 1 : 0;
-              int ym = iy > 0 ? BS : 0, yp = iy < BS - 1 ? BS : 0;
-              Real sx = 1.0 / (xm + xp), sy = 1.0 / (ym / BS + yp / BS);
-              coll->ivecX += iChi[idx] * sx * (iSDF[idx + xp] - iSDF[idx - xm]);
-              coll->ivecY += iChi[idx] * sy * (iSDF[idx + yp] - iSDF[idx - ym]);
-              coll->jvecX += jChi[idx] * sx * (jSDF[idx + xp] - jSDF[idx - xm]);
-              coll->jvecY += jChi[idx] * sy * (jSDF[idx + yp] - jSDF[idx - ym]);
-            }
-        }
-      }
-    for (int i = 0; i < sim.nshape; ++i) {
-      for (int j = i + 1; j < sim.nshape; ++j) {
-        struct Col *coll = &collisions[i];
-        struct Col *coll_other = &collisions[j];
-        if (coll->iM > 0 && coll->jM > 0 && coll_other->iM > 0 &&
-            coll_other->jM > 0) {
-          Real norm_i = hypot(coll->ivecX, coll->ivecY);
-          Real norm_j = hypot(coll->jvecX, coll->jvecY);
-          Real mX = coll->ivecX / norm_i - coll->jvecX / norm_j;
-          Real mY = coll->ivecY / norm_i - coll->jvecY / norm_j;
-          Real inorm = 1.0 / hypot(mX, mY);
-          Real NX = mX * inorm;
-          Real NY = mY * inorm;
-          Real mass = (coll->iM + coll->jM) / 2;
-          Real du = 8 * NX * mass;
-          Real dv = 8 * NY * mass;
-          sim.shapes[i]->u += du;
-          sim.shapes[i]->v += dv;
-          sim.shapes[j]->u -= du;
-          sim.shapes[j]->v -= dv;
-          fprintf(stderr,
-                  "Collision between objects %d and %d\n"
-                  " iM %g %g\n"
-                  " jM %g %g\n"
-                  " Normal vector = %g %g\n",
-                  i, j, collisions[i].iM, collisions[j].jM, collisions[i].jM,
-                  collisions[j].iM, NX, NY);
-        }
-      }
-    }
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++)
-      for (int ishape = 0; ishape < sim.nshape; ishape++) {
-        struct Shp *shape = sim.shapes[ishape];
-        Real *X = shape->o_chi + i * BS * BS;
-        Real *UDEF = shape->o_udef + i * BS * BS * 2;
-        Real *CHI = BLK(i) + BS * BS * F_CHI;
-        Real *V = BLK(i) + BS * BS * F_VEL;
-        for (int iy = 0; iy < BS; ++iy)
-          for (int ix = 0; ix < BS; ++ix) {
-            int j = BS * iy + ix;
-            if (CHI[j] > X[j])
-              continue;
-            if (X[j] <= 0)
-              continue;
-            Real p[2];
-            p[0] = sim.blk[i].origin[0] + sim.blk[i].h * (ix + 0.5);
-            p[1] = sim.blk[i].origin[1] + sim.blk[i].h * (iy + 0.5);
-            p[0] -= shape->x;
-            p[1] -= shape->y;
-            Real alpha = X[j] > 0.5 ? 1 / (1 + sim.lambda * sim.dt) : 1;
-            Real US = shape->u - shape->omega * p[1] + UDEF[2 * j + 0];
-            Real VS = shape->v + shape->omega * p[0] + UDEF[2 * j + 1];
-            V[2 * j + 0] = alpha * V[2 * j + 0] + (1 - alpha) * US;
-            V[2 * j + 1] = alpha * V[2 * j + 1] + (1 - alpha) * VS;
-          }
-      }
-#pragma omp parallel for
-    for (long long i = 0; i < sim.n; i++)
-      memset(BLK(i) + BS * BS * F_TMV, 0,
-             2 * BS * BS * sizeof(Real));
-    for (int ishape = 0; ishape < sim.nshape; ishape++) {
-      struct Shp *shape = sim.shapes[ishape];
-#pragma omp parallel for
-      for (long long i = 0; i < sim.n; i++) {
-        Real *udef = shape->o_udef + i * BS * BS * 2;
-        Real *chi = shape->o_chi + i * BS * BS;
-        Real *UDEF = BLK(i) + BS * BS * F_TMV;
-        Real *CHI = BLK(i) + BS * BS * F_CHI;
-        for (int iy = 0; iy < BS; iy++)
-          for (int ix = 0; ix < BS; ix++) {
-            int j = BS * iy + ix;
-            if (chi[j] < CHI[j])
-              continue;
-            UDEF[2 * j + 0] += udef[2 * j + 0];
-            UDEF[2 * j + 1] += udef[2 * j + 1];
-          }
-      }
-    }
 #pragma omp parallel
     {
-      Real vm[LB_BUF], um[LB_BUF];
+      Real um[LB_BUF];
 #pragma omp for
       for (int i = 0; i < sim.n; i++) {
-        lb_load(vm, 2, F_VEL, 1, i);
-        lb_load(um, 2, F_TMV, 1, i);
+        lb_load(um, 2, F_VEL, 1, i);
         int ss = 1, nm = 2 * ss + BS;
         Real facDiv = 0.5 * sim.blk[i].h / sim.dt;
         Real *TMP = BLK(i) + BS * BS * F_TMP;
-        Real *CHI = BLK(i) + BS * BS * F_CHI;
         for (int iy = 0; iy < BS; ++iy)
           for (int ix = 0; ix < BS; ++ix) {
-#define V(dx, dy, c) vm[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-#define U(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
-            Real divV = V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1);
-            Real divU = U(1,0,0) - U(-1,0,0) + U(0,1,1) - U(0,-1,1);
-            TMP[BS * iy + ix] = facDiv * divV - facDiv * CHI[BS * iy + ix] * divU;
-#undef U
+#define V(dx, dy, c) um[2 * (nm * (iy + ss + (dy)) + ix + ss + (dx)) + (c)]
+            TMP[BS * iy + ix] = facDiv * (V(1,0,0) - V(-1,0,0) + V(0,1,1) - V(0,-1,1));
 #undef V
           }
       }
@@ -1556,14 +1072,5 @@ int main(int argc, char **argv) {
   solver_destroy(sim.solver);
   free(sim.coo_val); free(sim.coo_row); free(sim.coo_col);
   free(sim.sol_x); free(sim.sol_b); free(sim.sol_h2);
-  for (int ishape = 0; ishape < sim.nshape; ishape++) {
-    struct Shp *shape = sim.shapes[ishape];
-    free(shape->o_chi);
-    free(shape->o_dist);
-    free(shape->o_udef);
-    free(shape->o_com);
-    free(shape->sdf);
-    free(shape);
-  }
   fprintf(stderr, "main.c: end\n");
 }
