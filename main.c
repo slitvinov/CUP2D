@@ -424,9 +424,7 @@ static void compute_indicator() {
           Real pxp=pres(R(1,0), MX(1,0), MY(1,0), E(1,0));
           Real pym=pres(R(0,-1),MX(0,-1),MY(0,-1),E(0,-1));
           Real pyp=pres(R(0,1), MX(0,1), MY(0,1), E(0,1));
-          Real v = fmax(fmax(loehner(R(-1,0),R(0,0),R(1,0)),
-                             loehner(R(0,-1),R(0,0),R(0,1))),
-                   fmax(loehner(pxm,p0,pxp), loehner(pym,p0,pyp)));
+          Real v = fmax(loehner(pxm,p0,pxp), loehner(pym,p0,pyp));
           TMP[j * BS + i] = v;
 #undef R
 #undef MX
