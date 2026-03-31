@@ -382,27 +382,46 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
                  dirs[i].e->n_post, dim, nm, nc);
 }
 
+static inline Real loehner(Real um, Real u0, Real up) {
+  Real num = fabs(up - 2*u0 + um);
+  Real den = fabs(up - u0) + fabs(u0 - um) + 1e-30 * (fabs(up) + 2*fabs(u0) + fabs(um));
+  return num / den;
+}
+static inline Real minmod(Real a, Real b) {
+  return a*b <= 0 ? 0 : fabs(a) < fabs(b) ? a : b;
+}
+static inline Real pres(Real r, Real mx, Real my, Real e) {
+  return fmax(0, (GAMMA-1)*(e - 0.5*(mx*mx+my*my)/r));
+}
 static void compute_indicator() {
 #pragma omp parallel
   {
-    Real ur[LB_BUF], ue[LB_BUF];
+    Real ur[LB_BUF], um[LB_BUF], ue[LB_BUF];
 #pragma omp for nowait
     for (long long id = 0; id < sim.n; ++id) {
       lb_load(ur, 1, F_RHO, 1, id);
+      lb_load(um, 2, F_MOM, 1, id);
       lb_load(ue, 1, F_ENE, 1, id);
       Real *TMP = BLK(id) + BS * BS * F_TMP;
       int ss = 1, nm = 2 * ss + BS;
       for (int j = 0; j < BS; ++j)
         for (int i = 0; i < BS; ++i) {
-#define R(dx, dy) ur[nm * (j + ss + (dy)) + i + ss + (dx)]
-#define E(dx, dy) ue[nm * (j + ss + (dy)) + i + ss + (dx)]
-          Real r = R(0,0), e = E(0,0);
-          Real grx = R(1,0)-R(-1,0), gry = R(0,1)-R(0,-1);
-          Real gex = E(1,0)-E(-1,0), gey = E(0,1)-E(0,-1);
-          Real ir = sqrt(grx*grx+gry*gry) / (r+1e-30);
-          Real ie = sqrt(gex*gex+gey*gey) / (e+1e-30);
-          TMP[j * BS + i] = fmax(ir, ie);
+#define R(di,dj) ur[nm*((j)+(dj)+ss)+(i)+(di)+ss]
+#define MX(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)]
+#define MY(di,dj) um[2*(nm*((j)+(dj)+ss)+(i)+(di)+ss)+1]
+#define E(di,dj) ue[nm*((j)+(dj)+ss)+(i)+(di)+ss]
+          Real pxm=pres(R(-1,0),MX(-1,0),MY(-1,0),E(-1,0));
+          Real p0 =pres(R(0,0), MX(0,0), MY(0,0), E(0,0));
+          Real pxp=pres(R(1,0), MX(1,0), MY(1,0), E(1,0));
+          Real pym=pres(R(0,-1),MX(0,-1),MY(0,-1),E(0,-1));
+          Real pyp=pres(R(0,1), MX(0,1), MY(0,1), E(0,1));
+          Real v = fmax(fmax(loehner(R(-1,0),R(0,0),R(1,0)),
+                             loehner(R(0,-1),R(0,0),R(0,1))),
+                   fmax(loehner(pxm,p0,pxp), loehner(pym,p0,pyp)));
+          TMP[j * BS + i] = v;
 #undef R
+#undef MX
+#undef MY
 #undef E
         }
     }
@@ -690,13 +709,37 @@ done:
   free(com_idx);
   return Changed;
 }
-static void euler_rhs() {
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    memset(BLK(i) + BS*BS*F_DRHO, 0, BS*BS*sizeof(Real));
-    memset(BLK(i) + BS*BS*F_DMOM, 0, 2*BS*BS*sizeof(Real));
-    memset(BLK(i) + BS*BS*F_DENE, 0, BS*BS*sizeof(Real));
-  }
+static void hll_x(Real rL, Real mxL, Real myL, Real eL,
+                  Real rR, Real mxR, Real myR, Real eR,
+                  Real *fD, Real *fU, Real *fV, Real *fE) {
+  Real uL=mxL/rL, uR=mxR/rR;
+  Real pL=pres(rL,mxL,myL,eL), pR=pres(rR,mxR,myR,eR);
+  Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
+  Real SL=fmin(uL-aL,uR-aR), SR=fmax(uL+aL,uR+aR);
+  if (SL>=0) { *fD=rL*uL; *fU=mxL*uL+pL; *fV=myL*uL; *fE=(eL+pL)*uL; }
+  else if (SR<=0) { *fD=rR*uR; *fU=mxR*uR+pR; *fV=myR*uR; *fE=(eR+pR)*uR; }
+  else { Real s=1./(SR-SL);
+    *fD=(SR*rL*uL-SL*rR*uR+SL*SR*(rR-rL))*s;
+    *fU=(SR*(mxL*uL+pL)-SL*(mxR*uR+pR)+SL*SR*(mxR-mxL))*s;
+    *fV=(SR*myL*uL-SL*myR*uR+SL*SR*(myR-myL))*s;
+    *fE=(SR*(eL+pL)*uL-SL*(eR+pR)*uR+SL*SR*(eR-eL))*s; }
+}
+static void hll_y(Real rL, Real mxL, Real myL, Real eL,
+                  Real rR, Real mxR, Real myR, Real eR,
+                  Real *gD, Real *gU, Real *gV, Real *gE) {
+  Real vL=myL/rL, vR=myR/rR;
+  Real pL=pres(rL,mxL,myL,eL), pR=pres(rR,mxR,myR,eR);
+  Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
+  Real SL=fmin(vL-aL,vR-aR), SR=fmax(vL+aL,vR+aR);
+  if (SL>=0) { *gD=rL*vL; *gU=mxL*vL; *gV=myL*vL+pL; *gE=(eL+pL)*vL; }
+  else if (SR<=0) { *gD=rR*vR; *gU=mxR*vR; *gV=myR*vR+pR; *gE=(eR+pR)*vR; }
+  else { Real s=1./(SR-SL);
+    *gD=(SR*rL*vL-SL*rR*vR+SL*SR*(rR-rL))*s;
+    *gU=(SR*mxL*vL-SL*mxR*vR+SL*SR*(mxR-mxL))*s;
+    *gV=(SR*(myL*vL+pL)-SL*(myR*vR+pR)+SL*SR*(myR-myL))*s;
+    *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
+}
+static void euler_rhs_update(Real dt) {
 #pragma omp parallel
   {
     Real br[LB_BUF], bm[LB_BUF], be[LB_BUF];
@@ -706,84 +749,71 @@ static void euler_rhs() {
       lb_load(bm, 2, F_MOM, 1, id);
       lb_load(be, 1, F_ENE, 1, id);
       int ss = 1, nm = 2*ss + BS;
-      Real ih = 1.0 / sim.blk[id].h;
-      Real *drho = BLK(id) + BS*BS*F_DRHO;
-      Real *dmom = BLK(id) + BS*BS*F_DMOM;
-      Real *dene = BLK(id) + BS*BS*F_DENE;
-#define RHO(di,dj) br[nm*((dj)+ss) + (di)+ss]
-#define MU(di,dj)  bm[2*(nm*((dj)+ss) + (di)+ss)]
-#define MV(di,dj)  bm[2*(nm*((dj)+ss) + (di)+ss) + 1]
-#define ENE(di,dj) be[nm*((dj)+ss) + (di)+ss]
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix <= BS; ix++) {
-          int iL = ix-1, iR = ix;
-          Real rL=RHO(iL,iy), rR=RHO(iR,iy);
-          Real muL=MU(iL,iy), muR=MU(iR,iy);
-          Real mvL=MV(iL,iy), mvR=MV(iR,iy);
-          Real eL=ENE(iL,iy), eR=ENE(iR,iy);
-          Real uL=muL/rL, vL=mvL/rL, uR=muR/rR, vR=mvR/rR;
-          Real pL=fmax(0,(GAMMA-1)*(eL-0.5*(muL*uL+mvL*vL)));
-          Real pR=fmax(0,(GAMMA-1)*(eR-0.5*(muR*uR+mvR*vR)));
-          Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
-          Real SL=fmin(uL-aL,uR-aR), SR=fmax(uL+aL,uR+aR);
+      Real dth = dt / sim.blk[id].h;
+      Real dr[BS*BS], du[2*BS*BS], de[BS*BS];
+      memset(dr, 0, sizeof dr);
+      memset(du, 0, sizeof du);
+      memset(de, 0, sizeof de);
+#define RH(di,dj) br[nm*((dj)+ss)+(di)+ss]
+#define MX(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)]
+#define MY(di,dj) bm[2*(nm*((dj)+ss)+(di)+ss)+1]
+#define EN(di,dj) be[nm*((dj)+ss)+(di)+ss]
+      for (int j = 0; j < BS; j++)
+        for (int i = 0; i <= BS; i++) {
+          Real rL=RH(i-1,j),rR=RH(i,j),mxL=MX(i-1,j),mxR=MX(i,j);
+          Real myL=MY(i-1,j),myR=MY(i,j),eL=EN(i-1,j),eR=EN(i,j);
+          Real sr0=0,sx0=0,sy0=0,se0=0,sr1=0,sx1=0,sy1=0,se1=0;
+          if (i>=1) {
+            sr0=minmod(rL-RH(i-2,j),rR-rL); sx0=minmod(mxL-MX(i-2,j),mxR-mxL);
+            sy0=minmod(myL-MY(i-2,j),myR-myL); se0=minmod(eL-EN(i-2,j),eR-eL);
+          }
+          if (i<BS) {
+            sr1=minmod(rR-rL,RH(i+1,j)-rR); sx1=minmod(mxR-mxL,MX(i+1,j)-mxR);
+            sy1=minmod(myR-myL,MY(i+1,j)-myR); se1=minmod(eR-eL,EN(i+1,j)-eR);
+          }
+          Real rl=rL+.5*sr0,rr=rR-.5*sr1;
+          Real xl=mxL+.5*sx0,xr=mxR-.5*sx1;
+          Real yl=myL+.5*sy0,yr=myR-.5*sy1;
+          Real el=eL+.5*se0,er=eR-.5*se1;
+          if(rl<=0){rl=rL;xl=mxL;yl=myL;el=eL;}
+          if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real fD,fU,fV,fE;
-          if (SL >= 0) {
-            fD=rL*uL; fU=muL*uL+pL; fV=mvL*uL; fE=(eL+pL)*uL;
-          } else if (SR <= 0) {
-            fD=rR*uR; fU=muR*uR+pR; fV=mvR*uR; fE=(eR+pR)*uR;
-          } else {
-            Real s=1.0/(SR-SL);
-            fD=(SR*rL*uL      -SL*rR*uR      +SL*SR*(rR-rL))*s;
-            fU=(SR*(muL*uL+pL)-SL*(muR*uR+pR)+SL*SR*(muR-muL))*s;
-            fV=(SR*mvL*uL     -SL*mvR*uR     +SL*SR*(mvR-mvL))*s;
-            fE=(SR*(eL+pL)*uL -SL*(eR+pR)*uR +SL*SR*(eR-eL))*s;
-          }
-          if (ix > 0) {
-            int k=BS*iy+(ix-1);
-            drho[k]-=fD*ih; dmom[2*k]-=fU*ih; dmom[2*k+1]-=fV*ih; dene[k]-=fE*ih;
-          }
-          if (ix < BS) {
-            int k=BS*iy+ix;
-            drho[k]+=fD*ih; dmom[2*k]+=fU*ih; dmom[2*k+1]+=fV*ih; dene[k]+=fE*ih;
-          }
+          hll_x(rl,xl,yl,el,rr,xr,yr,er,&fD,&fU,&fV,&fE);
+          if(i>0){int k=BS*j+(i-1);dr[k]-=fD*dth;du[2*k]-=fU*dth;du[2*k+1]-=fV*dth;de[k]-=fE*dth;}
+          if(i<BS){int k=BS*j+i;dr[k]+=fD*dth;du[2*k]+=fU*dth;du[2*k+1]+=fV*dth;de[k]+=fE*dth;}
         }
-      for (int iy = 0; iy <= BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          int jL = iy-1, jR = iy;
-          Real rL=RHO(ix,jL), rR=RHO(ix,jR);
-          Real muL=MU(ix,jL), muR=MU(ix,jR);
-          Real mvL=MV(ix,jL), mvR=MV(ix,jR);
-          Real eL=ENE(ix,jL), eR=ENE(ix,jR);
-          Real uL=muL/rL, vL=mvL/rL, uR=muR/rR, vR=mvR/rR;
-          Real pL=fmax(0,(GAMMA-1)*(eL-0.5*(muL*uL+mvL*vL)));
-          Real pR=fmax(0,(GAMMA-1)*(eR-0.5*(muR*uR+mvR*vR)));
-          Real aL=sqrt(GAMMA*pL/rL), aR=sqrt(GAMMA*pR/rR);
-          Real SL=fmin(vL-aL,vR-aR), SR=fmax(vL+aL,vR+aR);
+      for (int j = 0; j <= BS; j++)
+        for (int i = 0; i < BS; i++) {
+          Real rL=RH(i,j-1),rR=RH(i,j),mxL=MX(i,j-1),mxR=MX(i,j);
+          Real myL=MY(i,j-1),myR=MY(i,j),eL=EN(i,j-1),eR=EN(i,j);
+          Real sr0=0,sx0=0,sy0=0,se0=0,sr1=0,sx1=0,sy1=0,se1=0;
+          if (j>=1) {
+            sr0=minmod(rL-RH(i,j-2),rR-rL); sx0=minmod(mxL-MX(i,j-2),mxR-mxL);
+            sy0=minmod(myL-MY(i,j-2),myR-myL); se0=minmod(eL-EN(i,j-2),eR-eL);
+          }
+          if (j<BS) {
+            sr1=minmod(rR-rL,RH(i,j+1)-rR); sx1=minmod(mxR-mxL,MX(i,j+1)-mxR);
+            sy1=minmod(myR-myL,MY(i,j+1)-myR); se1=minmod(eR-eL,EN(i,j+1)-eR);
+          }
+          Real rl=rL+.5*sr0,rr=rR-.5*sr1;
+          Real xl=mxL+.5*sx0,xr=mxR-.5*sx1;
+          Real yl=myL+.5*sy0,yr=myR-.5*sy1;
+          Real el=eL+.5*se0,er=eR-.5*se1;
+          if(rl<=0){rl=rL;xl=mxL;yl=myL;el=eL;}
+          if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real gD,gU,gV,gE;
-          if (SL >= 0) {
-            gD=rL*vL; gU=muL*vL; gV=mvL*vL+pL; gE=(eL+pL)*vL;
-          } else if (SR <= 0) {
-            gD=rR*vR; gU=muR*vR; gV=mvR*vR+pR; gE=(eR+pR)*vR;
-          } else {
-            Real s=1.0/(SR-SL);
-            gD=(SR*rL*vL      -SL*rR*vR      +SL*SR*(rR-rL))*s;
-            gU=(SR*muL*vL     -SL*muR*vR     +SL*SR*(muR-muL))*s;
-            gV=(SR*(mvL*vL+pL)-SL*(mvR*vR+pR)+SL*SR*(mvR-mvL))*s;
-            gE=(SR*(eL+pL)*vL -SL*(eR+pR)*vR +SL*SR*(eR-eL))*s;
-          }
-          if (iy > 0) {
-            int k=BS*(iy-1)+ix;
-            drho[k]-=gD*ih; dmom[2*k]-=gU*ih; dmom[2*k+1]-=gV*ih; dene[k]-=gE*ih;
-          }
-          if (iy < BS) {
-            int k=BS*iy+ix;
-            drho[k]+=gD*ih; dmom[2*k]+=gU*ih; dmom[2*k+1]+=gV*ih; dene[k]+=gE*ih;
-          }
+          hll_y(rl,xl,yl,el,rr,xr,yr,er,&gD,&gU,&gV,&gE);
+          if(j>0){int k=BS*(j-1)+i;dr[k]-=gD*dth;du[2*k]-=gU*dth;du[2*k+1]-=gV*dth;de[k]-=gE*dth;}
+          if(j<BS){int k=BS*j+i;dr[k]+=gD*dth;du[2*k]+=gU*dth;du[2*k+1]+=gV*dth;de[k]+=gE*dth;}
         }
-#undef RHO
-#undef MU
-#undef MV
-#undef ENE
+#undef RH
+#undef MX
+#undef MY
+#undef EN
+      Real *rho=BLK(id)+BS*BS*F_RHO, *mom=BLK(id)+BS*BS*F_MOM, *ene=BLK(id)+BS*BS*F_ENE;
+      for (int k=0; k<BS*BS; k++) {
+        rho[k]+=dr[k]; mom[2*k]+=du[2*k]; mom[2*k+1]+=du[2*k+1]; ene[k]+=de[k];
+      }
     }
   }
 }
@@ -831,15 +861,16 @@ int main(int argc, char **argv) {
     Real *rho = BLK(i) + BS*BS*F_RHO;
     Real *mom = BLK(i) + BS*BS*F_MOM;
     Real *ene = BLK(i) + BS*BS*F_ENE;
+    Real h = info->h;
     for (int iy = 0; iy < BS; iy++)
       for (int ix = 0; ix < BS; ix++) {
-        Real px = info->origin[0] + info->h * (ix + 0.5);
-        Real py = info->origin[1] + info->h * (iy + 0.5);
+        Real x0 = info->origin[0] + h * ix;
+        Real y0 = info->origin[1] + h * iy;
         int j = BS * iy + ix;
-        Real r = 1.0;
-        Real dx = px - 0.35, dy = py - 0.2;
-        Real p = (dx*dx + dy*dy < 0.03*0.03) ? 100.0 : 1.0;
-        rho[j] = r;
+        Real p = 1.0;
+        if (x0 <= 0.35 && 0.35 < x0+h && y0 <= 0.2 && 0.2 < y0+h)
+          p += (GAMMA - 1) * 1e5 / (h * h);
+        rho[j] = 1.0;
         mom[2*j] = 0;
         mom[2*j+1] = 0;
         ene[j] = p / (GAMMA - 1);
@@ -885,17 +916,24 @@ int main(int argc, char **argv) {
     sim.dt = sim.CFL / (smax + 1e-30);
     if (sim.step % sim.AdaptSteps == 0)
       ad_run();
-    euler_rhs();
 #pragma omp parallel for
     for (long long i = 0; i < sim.n; i++) {
-      Real *rho=BLK(i)+BS*BS*F_RHO, *drho=BLK(i)+BS*BS*F_DRHO;
-      Real *mom=BLK(i)+BS*BS*F_MOM, *dmom=BLK(i)+BS*BS*F_DMOM;
-      Real *ene=BLK(i)+BS*BS*F_ENE, *dene=BLK(i)+BS*BS*F_DENE;
+      memcpy(BLK(i)+BS*BS*F_DRHO, BLK(i)+BS*BS*F_RHO, BS*BS*sizeof(Real));
+      memcpy(BLK(i)+BS*BS*F_DMOM, BLK(i)+BS*BS*F_MOM, 2*BS*BS*sizeof(Real));
+      memcpy(BLK(i)+BS*BS*F_DENE, BLK(i)+BS*BS*F_ENE, BS*BS*sizeof(Real));
+    }
+    euler_rhs_update(sim.dt);
+    euler_rhs_update(sim.dt);
+#pragma omp parallel for
+    for (long long i = 0; i < sim.n; i++) {
+      Real *rho=BLK(i)+BS*BS*F_RHO, *s0=BLK(i)+BS*BS*F_DRHO;
+      Real *mom=BLK(i)+BS*BS*F_MOM, *s1=BLK(i)+BS*BS*F_DMOM;
+      Real *ene=BLK(i)+BS*BS*F_ENE, *s2=BLK(i)+BS*BS*F_DENE;
       for (int j = 0; j < BS*BS; j++) {
-        rho[j] += sim.dt * drho[j];
-        mom[2*j] += sim.dt * dmom[2*j];
-        mom[2*j+1] += sim.dt * dmom[2*j+1];
-        ene[j] += sim.dt * dene[j];
+        rho[j] = 0.5*(s0[j] + rho[j]);
+        mom[2*j] = 0.5*(s1[2*j] + mom[2*j]);
+        mom[2*j+1] = 0.5*(s1[2*j+1] + mom[2*j+1]);
+        ene[j] = 0.5*(s2[j] + ene[j]);
       }
     }
     sim.time += sim.dt;

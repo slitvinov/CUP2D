@@ -7,9 +7,7 @@ import xml.etree.ElementTree
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches
 
-plt.rcParams['image.cmap'] = 'viridis'
 for path in sys.argv[1:]:
     path = re.sub("[.]xdmf2$", "", path)
     path = re.sub("[.]xyz[.]raw$", "", path)
@@ -21,31 +19,29 @@ for path in sys.argv[1:]:
         sys.stderr.write(f"post.py: {path}\n")
         root = xml.etree.ElementTree.parse(xdmf_path)
         time = root.find("Domain/Grid/Time").get("Value")
-        xyz = np.memmap(xyz_path, "float32", "r")
-        xyz = xyz.reshape(-1, 4, 2)
-        ncell = len(xyz)
+        xyz = np.memmap(xyz_path, "float32", "r").reshape(-1, 4, 2)
         rho = np.memmap(rho_path, "float64", "r")
-        patches = []
-        color = []
+        ncell = len(xyz)
+        hmin = min(xyz[i, 2, 0] - xyz[i, 0, 0] for i in range(ncell))
+        N = int(round(1.0 / hmin))
+        grid = np.full((N, N), np.nan)
         for i in range(ncell):
-            x = xyz[i, 0, 0]
-            y = xyz[i, 0, 1]
-            lx = xyz[i, 2, 0] - x
-            ly = xyz[i, 2, 1] - y
-            color.append(rho[i])
-            patches.append(matplotlib.patches.Rectangle((x, y), lx, ly))
-        p = matplotlib.collections.PatchCollection(patches,
-                                                   edgecolor='black',
-                                                   linewidth=0.1)
-        p.set_array(color)
-        p.set_clim(0, max(color))
-        plt.gca().add_collection(p)
-        plt.axis("scaled")
-        plt.gca().set_xlim(0, 1)
-        plt.gca().set_ylim(0, 1)
-        plt.colorbar(p, label='density')
-        plt.title(f't = {float(time):.4f}')
+            ix0 = int(round(xyz[i, 0, 0] * N))
+            iy0 = int(round(xyz[i, 0, 1] * N))
+            ix1 = int(round(xyz[i, 2, 0] * N))
+            iy1 = int(round(xyz[i, 2, 1] * N))
+            grid[iy0:iy1, ix0:ix1] = rho[i]
+        fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+        levels = np.arange(0.15, 7.0, 0.1)
+        ax.contour(np.linspace(0, N, N), np.linspace(0, N, N),
+                   grid, levels=levels, colors='k', linewidths=0.5)
+        ax.set_xlim(0, N)
+        ax.set_ylim(0, N)
+        ax.set_aspect('equal')
+        ax.set_title(f't = {float(time):.3e}')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
         plt.tight_layout()
-        plt.savefig(png_path, dpi=400, bbox_inches='tight', pad_inches=0)
+        plt.savefig(png_path, dpi=200, bbox_inches='tight', pad_inches=0.05)
         plt.close()
         sys.stderr.write(f"post.py: {png_path}\n")
