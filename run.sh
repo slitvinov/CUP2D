@@ -7,6 +7,6 @@ ${main=./main} \
 -levelMax 8 \
 -levelStart 2 \
 -Rtol 0.5 \
--sdump 100 \
+-sdump 20 \
 -tdump 0 \
--tend 0.01
+-tend 0.1

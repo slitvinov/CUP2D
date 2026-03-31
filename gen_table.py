@@ -280,12 +280,10 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
         # Corner: reflect both velocity components using diagonal mirror
         side_x = 1 if cx > 0 else 0
         side_y = 1 if cy > 0 else 0
-        mirror_x = (0 if side_x == 0 else BS - 1)
-        mirror_y = (0 if side_y == 0 else BS - 1)
         for iy in range(fs1, fe1):
             for ix in range(fs0, fe0):
-                mx = mirror_x + ss
-                my = mirror_y + ss
+                mx = (-ix - 1 if side_x == 0 else 2*BS - 1 - ix) + ss
+                my = (-iy - 1 if side_y == 0 else 2*BS - 1 - iy) + ss
                 i0 = (ix + ss) + nm * (iy + ss)
                 i1 = mx + nm * my
                 if dim == 1:
@@ -305,11 +303,14 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
             gs[1] = (-ss if side == 0 else BS) if dirn == 1 else fs1
             ge[0] = (0 if side == 0 else BS + ss) if dirn == 0 else fe0
             ge[1] = (0 if side == 0 else BS + ss) if dirn == 1 else fe1
-            mirror = 0 if side == 0 else BS - 1
             for iy in range(gs[1], ge[1]):
                 for ix in range(gs[0], ge[0]):
-                    mx = (mirror if dirn == 0 else ix) + ss
-                    my = (mirror if dirn == 1 else iy) + ss
+                    if dirn == 0:
+                        mx = (-ix - 1 if side == 0 else 2*BS - 1 - ix) + ss
+                        my = iy + ss
+                    else:
+                        mx = ix + ss
+                        my = (-iy - 1 if side == 0 else 2*BS - 1 - iy) + ss
                     i0 = (ix + ss) + nm * (iy + ss)
                     i1 = mx + nm * my
                     if dim == 1:
@@ -323,11 +324,14 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
             cgs[1] = (sI if side == 0 else BS // 2) if dirn == 1 else cs1
             cge[0] = (0 if side == 0 else min(BS // 2 + eI0 - 1, sI + nc)) if dirn == 0 else ce0
             cge[1] = (0 if side == 0 else min(BS // 2 + eI0 - 1, sI + nc)) if dirn == 1 else ce1
-            cmirror = 0 if side == 0 else BS // 2 - 1
             for iy in range(cgs[1], cge[1]):
                 for ix in range(cgs[0], cge[0]):
-                    mx = (cmirror if dirn == 0 else ix) - sI
-                    my = (cmirror if dirn == 1 else iy) - sI
+                    if dirn == 0:
+                        mx = (-ix - 1 if side == 0 else 2*(BS//2) - 1 - ix) - sI
+                        my = iy - sI
+                    else:
+                        mx = ix - sI
+                        my = (-iy - 1 if side == 0 else 2*(BS//2) - 1 - iy) - sI
                     i0 = (ix - sI) + nc * (iy - sI)
                     i1 = mx + nc * my
                     if dim == 1:
@@ -339,12 +343,10 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
         sI = (-ss - 1) // 2 - 1
         side_x = 1 if cx > 0 else 0
         side_y = 1 if cy > 0 else 0
-        cmirror_x = (0 if side_x == 0 else BS // 2 - 1)
-        cmirror_y = (0 if side_y == 0 else BS // 2 - 1)
         for iy in range(cs1, ce1):
             for ix in range(cs0, ce0):
-                mx = cmirror_x - sI
-                my = cmirror_y - sI
+                mx = (-ix - 1 if side_x == 0 else 2*(BS//2) - 1 - ix) - sI
+                my = (-iy - 1 if side_y == 0 else 2*(BS//2) - 1 - iy) - sI
                 i0 = (ix - sI) + nc * (iy - sI)
                 i1 = mx + nc * my
                 if dim == 1:
