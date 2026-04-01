@@ -44,12 +44,15 @@ static int hm_get(const struct HMap *m, long long key) {
   }
   return -1;
 }
+enum { BC_WALL=0, BC_SYMMETRY=1, BC_INFLOW=2, BC_OUTFLOW=3 };
 static struct Sim {
   int AdaptSteps;
   int levelMax;
   int levelStart;
   int step;
   int dump_count;
+  int nb[3];        /* base blocks per direction at levelStart */
+  int bc[6];        /* BC type: x-,x+,y-,y+,z-,z+ */
   Real CFL;
   Real Ctol;
   Real dt;
@@ -58,6 +61,8 @@ static struct Sim {
   Real nextDumpTime;
   Real Rtol;
   Real time;
+  Real L[3];        /* domain size */
+  Real inflow[5];   /* inflow state: rho, mx, my, mz, E */
   long long n;
   struct HMap hm;
   struct Blk *blk;
@@ -119,10 +124,13 @@ static void bl_fill(struct Blk *b, int level, int ix, int iy, int iz) {
   b->ix = ix;
   b->iy = iy;
   b->iz = iz;
-  b->h = 1.0 / BS / n;
-  b->origin[0] = (Real)ix / n;
-  b->origin[1] = (Real)iy / n;
-  b->origin[2] = (Real)iz / n;
+  /* h = smallest domain extent / (BS * n_blocks_in_that_dir * 2^(level-levelStart)) */
+  /* For cubic cells: h is the same in all directions */
+  int s = 1 << sim.levelStart;
+  b->h = sim.L[0] / (BS * sim.nb[0]) / (1 << (level - sim.levelStart));
+  b->origin[0] = b->h * BS * ix;
+  b->origin[1] = b->h * BS * iy;
+  b->origin[2] = b->h * BS * iz;
 }
 struct {
   int offset;
@@ -194,10 +202,11 @@ struct Nb {
 static struct Nb nb_find(int level, int ix, int iy, int iz, int icode) {
   struct Nb r = {0, -1, {-1, -1, -1, -1}};
   int cx = icode % 3 - 1, cy = (icode / 3) % 3 - 1, cz = icode / 9 - 1;
-  int n = 1 << level;
-  int xskin = nb_skin(cx, ix, n);
-  int yskin = nb_skin(cy, iy, n);
-  int zskin = nb_skin(cz, iz, n);
+  int scale = 1 << (level - sim.levelStart);
+  int nd[3] = {sim.nb[0]*scale, sim.nb[1]*scale, sim.nb[2]*scale};
+  int xskin = nb_skin(cx, ix, nd[0]);
+  int yskin = nb_skin(cy, iy, nd[1]);
+  int zskin = nb_skin(cz, iz, nd[2]);
   int nbc = xskin + yskin + zskin;
   if (nbc == 3) { r.s = 9; return r; }
   if (nbc == 2) {
@@ -212,15 +221,15 @@ static struct Nb nb_find(int level, int ix, int iy, int iz, int icode) {
     else r.s = 5;
     return r;
   }
-  int nx = (ix + cx + n) % n, ny = (iy + cy + n) % n, nz = (iz + cz + n) % n;
-  int idx = hm_get(&sim.hm, hm_key(level, nx, ny, nz));
+  int nnx = (ix + cx + nd[0]) % nd[0], nny = (iy + cy + nd[1]) % nd[1], nnz = (iz + cz + nd[2]) % nd[2];
+  int idx = hm_get(&sim.hm, hm_key(level, nnx, nny, nnz));
   if (idx >= 0) {
     r.s = 0;
     r.idx = idx;
     return r;
   }
   if (level > 0) {
-    idx = hm_get(&sim.hm, hm_key(level - 1, nx / 2, ny / 2, nz / 2));
+    idx = hm_get(&sim.hm, hm_key(level - 1, nnx / 2, nny / 2, nnz / 2));
     if (idx >= 0) {
       r.s = 2;
       r.idx = idx;
@@ -228,7 +237,7 @@ static struct Nb nb_find(int level, int ix, int iy, int iz, int icode) {
     }
   }
   if (level > 1) {
-    idx = hm_get(&sim.hm, hm_key(level - 2, nx / 4, ny / 4, nz / 4));
+    idx = hm_get(&sim.hm, hm_key(level - 2, nnx / 4, nny / 4, nnz / 4));
     if (idx >= 0) {
       r.s = 2;
       r.idx = idx;
@@ -253,7 +262,7 @@ static struct Nb nb_find(int level, int ix, int iy, int iz, int icode) {
 enum {
   OP_COPY,
   OP_AVG,
-  OP_INTERP,
+  OP_INTERP27,
   OP_BC_SCALAR,
   OP_BC_VECTOR,
 };
@@ -272,7 +281,7 @@ struct LbSrc {
   int8_t is_self;
   int8_t self_idx;
 };
-enum { MAX_PRE = 300, MAX_POST = 64, MAX_OPS = MAX_PRE + MAX_POST };
+enum { MAX_PRE = 400, MAX_POST = 64, MAX_OPS = MAX_PRE + MAX_POST };
 struct LbTab {
   int8_t n_blk;
   struct LbSrc blk_src[4];
@@ -323,9 +332,9 @@ static void lb_exec(Real *const blk[], Real *const dst[],
     case OP_AVG: {
       Real *src = blk[o->blk_idx] + o->src_off;
       Real *d = dst[o->dst_idx] + o->dst_off;
-      int stride1 = o->p2 * dim;        /* row stride in source */
-      int stride2 = o->flags * dim;     /* plane stride in source */
-      int cols = o->p1;
+      int stride1 = o->p1 * dim;        /* row stride in source */
+      int stride2 = o->p2 * dim;        /* plane stride in source */
+      int cols = o->flags;              /* number of output cells */
       for (int k = 0; k < cols; k++)
         for (int dd = 0; dd < dim; dd++) {
           d[k * dim + dd] =
@@ -334,6 +343,26 @@ static void lb_exec(Real *const blk[], Real *const dst[],
            + src[2*k*dim+dd+stride2] + src[(2*k+1)*dim+dd+stride2]
            + src[2*k*dim+dd+stride1+stride2] + src[(2*k+1)*dim+dd+stride1+stride2]) / 8;
         }
+      break;
+    }
+    case OP_INTERP27: {
+      /* Trilinear-cubic 27-point interpolation from coarse buffer to fine cell.
+         flags = parity index px|(py<<1)|(pz<<2)
+         src_off = center of 3x3x3 stencil in coarse buffer (c)
+         dst_off = destination in fine buffer (m)
+         1D weights: sub-cell at -1/4 -> {5,30,-3}/32
+                     sub-cell at +1/4 -> {-3,30,5}/32 */
+      static const int W1[2][3] = {{5,30,-3},{-3,30,5}};
+      int px = o->flags & 1, py = (o->flags>>1) & 1, pz = (o->flags>>2) & 1;
+      for (int d = 0; d < dim; d++) {
+        Real sum = 0;
+        for (int kk = -1; kk <= 1; kk++)
+          for (int jj = -1; jj <= 1; jj++)
+            for (int ii = -1; ii <= 1; ii++)
+              sum += (Real)W1[px][ii+1] * W1[py][jj+1] * W1[pz][kk+1]
+                   * c[o->src_off + d + dim*(ii + nc*jj + nc*nc*kk)];
+        m[o->dst_off + d] = sum / 32768.0;
+      }
       break;
     }
     case OP_BC_SCALAR: {
@@ -385,6 +414,15 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
     struct Nb nr = nb_find(level, xi, yi, zi, icode);
     int tidx = ((((((cx+1)*3+(cy+1))*3+(cz+1))*2+(xi%2))*2+(yi%2))*2+(zi%2))*10 + nr.s;
     const struct LbTab *te = &tab[tidx];
+    /* Skip neighbors with missing block data */
+    if (nr.s == 0 && nr.idx < 0) continue;
+    if (nr.s == 2 && nr.idx < 0) continue;
+    if (nr.s == 1) {
+      int nch = nb_ch_n_3d(cx, cy, cz);
+      int skip = 0;
+      for (int b = 0; b < nch; b++) if (nr.ch[b] < 0) skip = 1;
+      if (skip) continue;
+    }
     Real *blk[4] = {NULL, NULL, NULL, NULL};
     for (int b = 0; b < te->n_blk; b++) {
       const struct LbSrc *bs = &te->blk_src[b];
@@ -407,6 +445,51 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
   for (int i = 0; i < nd; i++)
     lb_exec(dirs[i].blk, dst, dirs[i].e->ops + MAX_PRE,
             dirs[i].e->n_post, dim, nm, nc);
+
+  /* Fixup inflow/outflow BCs (override table's wall reflection) */
+  {
+    int scl = 1 << (level - sim.levelStart);
+    int nd3[3] = {sim.nb[0]*scl, sim.nb[1]*scl, sim.nb[2]*scl};
+    int coords[3] = {xi, yi, zi};
+    /* 6 faces: axis 0,1,2 × side 0,1 */
+    for (int axis = 0; axis < 3; axis++) {
+      for (int side = 0; side < 2; side++) {
+        int face = 2*axis + side;
+        int bc = sim.bc[face];
+        if (bc != BC_INFLOW && bc != BC_OUTFLOW) continue;
+        int at_bnd = (side == 0) ? (coords[axis] == 0) : (coords[axis] == nd3[axis]-1);
+        if (!at_bnd) continue;
+        /* Iterate over ghost cells on this face */
+        int gs[3] = {0, 0, 0}, ge[3] = {BS, BS, BS};
+        gs[axis] = side == 0 ? -ss : BS;
+        ge[axis] = side == 0 ? 0 : BS + ss;
+        for (int iz2 = gs[2]; iz2 < ge[2]; iz2++)
+          for (int iy2 = gs[1]; iy2 < ge[1]; iy2++)
+            for (int ix2 = gs[0]; ix2 < ge[0]; ix2++) {
+              int gi = dim * ((iz2+ss)*nm*nm + (iy2+ss)*nm + (ix2+ss));
+              if (bc == BC_INFLOW) {
+                /* Fixed inflow state */
+                if (blk_offset == F_RHO) m[gi] = sim.inflow[0];
+                else if (blk_offset == F_MOM) {
+                  m[gi] = sim.inflow[1]; m[gi+1] = sim.inflow[2]; m[gi+2] = sim.inflow[3];
+                } else if (blk_offset == F_ENE) m[gi] = sim.inflow[4];
+                else {
+                  /* For indicator/scratch fields, copy from interior */
+                  int ic[3] = {ix2, iy2, iz2};
+                  ic[axis] = side == 0 ? 0 : BS-1;
+                  int ii = dim * ((ic[2]+ss)*nm*nm + (ic[1]+ss)*nm + (ic[0]+ss));
+                  for (int d = 0; d < dim; d++) m[gi+d] = m[ii+d];
+                }
+              } else { /* BC_OUTFLOW: zero-gradient (copy from interior) */
+                int ic[3] = {ix2, iy2, iz2};
+                ic[axis] = side == 0 ? 0 : BS-1;
+                int ii = dim * ((ic[2]+ss)*nm*nm + (ic[1]+ss)*nm + (ic[0]+ss));
+                for (int d = 0; d < dim; d++) m[gi+d] = m[ii+d];
+              }
+            }
+      }
+    }
+  }
 }
 
 /* ---- Physics ---- */
@@ -916,7 +999,7 @@ static int ad_run(void) {
       ref_idx[n_ref++] = j;
     else if (state[j] == Compress && !((sim.blk[j].ix|sim.blk[j].iy|sim.blk[j].iz) & 1))
       com_idx[n_com++] = j;
-  fprintf(stderr, "%s:%d: com/ref: %lld %lld\n", __FILE__, __LINE__, n_com, n_ref);
+  fprintf(stderr, "%s:%d: com/ref: %lld %lld (n=%lld)\n", __FILE__, __LINE__, n_com, n_ref, sim.n);
   if (n_ref == 0 && n_com == 0) goto done;
 
   /* Refinement: 1 block -> 8 children */
@@ -988,6 +1071,8 @@ static int ad_run(void) {
     bl_fill(p0, level-1, x/2, y/2, z/2);
   }
 
+  fprintf(stderr, "  refine done, n=%lld\n", sim.n);
+  fflush(stderr);
   /* Compact */
   long long cnt = 0;
   for (long long i = 0; i < sim.n; i++) {
@@ -1001,7 +1086,9 @@ static int ad_run(void) {
   sim.n = cnt;
   sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
   sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  fprintf(stderr, "  compact: %lld blocks\n", sim.n); fflush(stderr);
   hm_rebuild();
+  fprintf(stderr, "  hm_rebuild done\n"); fflush(stderr);
 
 done:
   free(state); free(ref_idx); free(com_idx);
@@ -1051,64 +1138,92 @@ int main(int argc, char **argv) {
     else
       *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
   int dumpSteps = arg_i_opt(argc, argv, "sdump", 0);
+  /* Domain: 1 x 1/4 x 1/4 (Khokhlov Section 7.5) */
+  sim.L[0] = 1.0; sim.L[1] = 0.25; sim.L[2] = 0.25;
+  /* BCs: x-: inflow, x+: outflow, y-: wall, y+: symmetry, z-: wall, z+: symmetry */
+  sim.bc[0]=BC_INFLOW; sim.bc[1]=BC_OUTFLOW;
+  sim.bc[2]=BC_WALL; sim.bc[3]=BC_SYMMETRY;
+  sim.bc[4]=BC_WALL; sim.bc[5]=BC_SYMMETRY;
+  /* Blocks per direction at levelStart */
   {
-    int ns = 1 << sim.levelStart;
-    sim.n = (long long)ns * ns * ns;
+    Real h0 = sim.L[0] / (BS * (1 << sim.levelStart)); /* cell size */
+    /* Use Lx to determine h, then compute block counts */
+    sim.nb[0] = (int)(sim.L[0] / (h0 * BS) + 0.5);
+    sim.nb[1] = (int)(sim.L[1] / (h0 * BS) + 0.5);
+    sim.nb[2] = (int)(sim.L[2] / (h0 * BS) + 0.5);
+    if (sim.nb[1] < 1) sim.nb[1] = 1;
+    if (sim.nb[2] < 1) sim.nb[2] = 1;
+    fprintf(stderr, "main.c: domain [%.2f x %.2f x %.2f] blocks %d x %d x %d\n",
+            sim.L[0], sim.L[1], sim.L[2], sim.nb[0], sim.nb[1], sim.nb[2]);
+    sim.n = (long long)sim.nb[0] * sim.nb[1] * sim.nb[2];
     sim.blk = calloc(sim.n, sizeof *sim.blk);
     sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
     long long idx = 0;
-    for (int iz = 0; iz < ns; iz++)
-      for (int iy = 0; iy < ns; iy++)
-        for (int ix = 0; ix < ns; ix++)
+    for (int iz = 0; iz < sim.nb[2]; iz++)
+      for (int iy = 0; iy < sim.nb[1]; iy++)
+        for (int ix = 0; ix < sim.nb[0]; ix++)
           bl_fill(&sim.blk[idx++], sim.levelStart, ix, iy, iz);
   }
   hm_rebuild();
   lb_init();
-  /* Initial condition: 3D point explosion in a cube */
+  /* IC: Shock-bubble interaction (Khokhlov Section 7.5)
+     M=1.25 shock from left, bubble at (0.25, 0.25, 0.25) R=0.125
+     Pre-shock: rho=1, P=1, u=0
+     Post-shock (Rankine-Hugoniot M=1.25, gamma=1.4):
+       rho2 = 1.4286, P2 = 1.6563, u2 = 0.4437
+     Bubble: rho_b=0.166, P=1 (pressure equilibrium) */
+  {
+    Real M = 1.25, g = GAMMA;
+    Real rho1=1, P1=1;
+    Real P2 = P1*(1 + 2*g/(g+1)*(M*M-1));
+    Real rho2 = rho1*((g+1)*M*M)/((g-1)*M*M+2);
+    Real Us = M*sqrt(g*P1/rho1);
+    Real u2 = (1-rho1/rho2)*Us;
+    Real E2 = P2/(g-1) + 0.5*rho2*u2*u2;
+    Real E1 = P1/(g-1);
+    Real x_shock = 0.05; /* initial shock position */
+    Real xb=0.25, yb=0.25, zb=0.25, Rb=0.125;
+    Real rho_b=0.166, E_b=P1/(g-1); /* bubble: low density, same pressure */
+    /* Save inflow state for BC */
+    sim.inflow[0]=rho2; sim.inflow[1]=rho2*u2; sim.inflow[2]=0;
+    sim.inflow[3]=0; sim.inflow[4]=E2;
+    fprintf(stderr, "main.c: shock M=%.2f rho2=%.4f P2=%.4f u2=%.4f\n", M,rho2,P2,u2);
+    fprintf(stderr, "main.c: bubble at (%.2f,%.2f,%.2f) R=%.3f rho_b=%.3f\n", xb,yb,zb,Rb,rho_b);
 #pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    Real *rho = BLK(i)+BS*BS*BS*F_RHO;
-    Real *mom = BLK(i)+BS*BS*BS*F_MOM;
-    Real *ene = BLK(i)+BS*BS*BS*F_ENE;
-    Real h = info->h;
-    for (int iz = 0; iz < BS; iz++)
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          Real x0 = info->origin[0]+h*ix;
-          Real y0 = info->origin[1]+h*iy;
-          Real z0 = info->origin[2]+h*iz;
-          int j = (iz*BS+iy)*BS+ix;
-          Real p = 1.0;
-          if (x0<=0.35&&0.35<x0+h && y0<=0.2&&0.2<y0+h && z0<=0.2&&0.2<z0+h)
-            p += (GAMMA-1)*1e5/(h*h*h);
-          rho[j] = 1.0;
-          mom[3*j] = 0; mom[3*j+1] = 0; mom[3*j+2] = 0;
-          ene[j] = p / (GAMMA-1);
-        }
+    for (long long i = 0; i < sim.n; i++) {
+      struct Blk *info = &sim.blk[i];
+      Real *rho = BLK(i)+BS*BS*BS*F_RHO;
+      Real *mom = BLK(i)+BS*BS*BS*F_MOM;
+      Real *ene = BLK(i)+BS*BS*BS*F_ENE;
+      Real h = info->h;
+      for (int iz = 0; iz < BS; iz++)
+        for (int iy = 0; iy < BS; iy++)
+          for (int ix = 0; ix < BS; ix++) {
+            Real x=info->origin[0]+h*(ix+0.5);
+            Real y=info->origin[1]+h*(iy+0.5);
+            Real z=info->origin[2]+h*(iz+0.5);
+            int j = (iz*BS+iy)*BS+ix;
+            Real dr = sqrt((x-xb)*(x-xb)+(y-yb)*(y-yb)+(z-zb)*(z-zb));
+            if (dr < Rb) {
+              /* inside bubble */
+              rho[j] = rho_b;
+              mom[3*j]=0; mom[3*j+1]=0; mom[3*j+2]=0;
+              ene[j] = E_b;
+            } else if (x < x_shock) {
+              /* post-shock */
+              rho[j] = rho2;
+              mom[3*j]=rho2*u2; mom[3*j+1]=0; mom[3*j+2]=0;
+              ene[j] = E2;
+            } else {
+              /* pre-shock */
+              rho[j] = rho1;
+              mom[3*j]=0; mom[3*j+1]=0; mom[3*j+2]=0;
+              ene[j] = E1;
+            }
+          }
+    }
   }
   for (int i = 0; i < sim.levelMax; i++) ad_run();
-  /* Re-init IC at finest level */
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    Real *rho = BLK(i)+BS*BS*BS*F_RHO;
-    Real *mom = BLK(i)+BS*BS*BS*F_MOM;
-    Real *ene = BLK(i)+BS*BS*BS*F_ENE;
-    Real h = info->h;
-    for (int iz = 0; iz < BS; iz++)
-      for (int iy = 0; iy < BS; iy++)
-        for (int ix = 0; ix < BS; ix++) {
-          int j = (iz*BS+iy)*BS+ix;
-          Real x0=info->origin[0]+h*ix, y0=info->origin[1]+h*iy, z0=info->origin[2]+h*iz;
-          rho[j] = 1.0;
-          mom[3*j]=0; mom[3*j+1]=0; mom[3*j+2]=0;
-          Real p = 1.0;
-          if (x0<=0.35&&0.35<x0+h && y0<=0.2&&0.2<y0+h && z0<=0.2&&0.2<z0+h)
-            p += (GAMMA-1)*1e5/(h*h*h);
-          ene[j] = p / (GAMMA-1);
-        }
-  }
   /* Main loop */
   while (1) {
     if (sim.step % 10 == 0)
