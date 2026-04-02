@@ -823,6 +823,34 @@ static void hll_y(Real rL, Real mxL, Real myL, Real eL,
     *gV=(SR*(myL*vL+pL)-SL*(myR*vR+pR)+SL*SR*(myR-myL))*s;
     *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
 }
+/*
+ * U^o / U^n two-state system (Khokhlov Eq. 5).
+ *
+ * Sweeps reconstruct from U^o (F_DRHO/F_DMOM/F_DENE) and update U^n
+ * (F_RHO/F_MOM/F_ENE).  After each directional sweep, U^o is synced
+ * from U^n for interior blocks; boundary blocks (with coarser neighbors)
+ * keep U^o frozen across directional sweeps for interface consistency.
+ */
+static void state_to_old(int level, int interior_only) {
+  static const int face_ic[] = {1, 3, 5, 7};
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    if (sim.blk[id].level != level) continue;
+    if (interior_only) {
+      struct Blk *b = &sim.blk[id];
+      int skip = 0;
+      for (int f = 0; f < 4 && !skip; f++) {
+        struct Nb nr = nb_find(b->level, b->ix, b->iy, face_ic[f]);
+        if (nr.s == 2) skip = 1;
+      }
+      if (skip) continue;
+    }
+    memcpy(BLK(id)+BS*BS*F_DRHO, BLK(id)+BS*BS*F_RHO, BS*BS*sizeof(Real));
+    memcpy(BLK(id)+BS*BS*F_DMOM, BLK(id)+BS*BS*F_MOM, 2*BS*BS*sizeof(Real));
+    memcpy(BLK(id)+BS*BS*F_DENE, BLK(id)+BS*BS*F_ENE, BS*BS*sizeof(Real));
+  }
+}
+
 static void euler_x_sweep(Real dt, int level) {
 #pragma omp parallel
   {
@@ -830,9 +858,9 @@ static void euler_x_sweep(Real dt, int level) {
 #pragma omp for
     for (long long id = 0; id < sim.n; ++id) {
       if (sim.blk[id].level != level) continue;
-      lb_load(br, 1, F_RHO, 1, id);
-      lb_load(bm, 2, F_MOM, 1, id);
-      lb_load(be, 1, F_ENE, 1, id);
+      lb_load(br, 1, F_DRHO, 1, id);
+      lb_load(bm, 2, F_DMOM, 1, id);
+      lb_load(be, 1, F_DENE, 1, id);
       int ss = 1, nm = 2*ss + BS;
       Real dth = dt / sim.blk[id].h;
 #define RH(di,dj) br[nm*((dj)+ss)+(di)+ss]
@@ -878,9 +906,9 @@ static void euler_y_sweep(Real dt, int level) {
 #pragma omp for
     for (long long id = 0; id < sim.n; ++id) {
       if (sim.blk[id].level != level) continue;
-      lb_load(br, 1, F_RHO, 1, id);
-      lb_load(bm, 2, F_MOM, 1, id);
-      lb_load(be, 1, F_ENE, 1, id);
+      lb_load(br, 1, F_DRHO, 1, id);
+      lb_load(bm, 2, F_DMOM, 1, id);
+      lb_load(be, 1, F_DENE, 1, id);
       int ss = 1, nm = 2*ss + BS;
       Real dth = dt / sim.blk[id].h;
 #define RH(di,dj) br[nm*((dj)+ss)+(di)+ss]
@@ -933,26 +961,50 @@ static const struct {
     {"tend", 1, offsetof(struct Sim, endTime)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
+/*
+ * Subcycle with Strang splitting and U^o/U^n two-state system
+ * (Khokhlov 1998, Eqs. 5-7).
+ *
+ * S(l) = A†(l) S(l+1) A(l) S(l+1) R(l)
+ *
+ * Sweeps reconstruct from U^o (F_DRHO/F_DMOM/F_DENE) and accumulate
+ * flux updates into U^n (F_RHO/F_MOM/F_ENE).  After each directional
+ * sweep, U^o is synced from U^n for interior blocks; boundary blocks
+ * (with coarser neighbors) keep U^o frozen for interface consistency.
+ */
 static void subcycle(int level, int lmax, Real dt, int order) {
-  /* Paper eq 7: S(l) = A†(l) S(l+1) A(l) S(l+1) R(l)
-     A(l): X->Y sweep,  A†(l): Y->X sweep
-     Fine levels advance BETWEEN the two coarse half-steps */
-  if (level < lmax) {
-    /* first fine substep (uses old coarse state for ghost fill) */
-    subcycle(level + 1, lmax, dt / 2, order);
-  }
-  /* advance this level: A(l) with current sweep order */
+  Real dth = dt / 2;
+
+  /* Initialize U^o for this level */
+  state_to_old(level, 0);
+
+  /* S(l+1): first fine full step */
+  if (level < lmax)
+    subcycle(level + 1, lmax, dth, order);
+
+  /* A(l): first coarse half-step */
   if (order) {
-    euler_y_sweep(dt, level);
-    euler_x_sweep(dt, level);
+    euler_y_sweep(dth, level); state_to_old(level, 1);
+    euler_x_sweep(dth, level);
   } else {
-    euler_x_sweep(dt, level);
-    euler_y_sweep(dt, level);
+    euler_x_sweep(dth, level); state_to_old(level, 1);
+    euler_y_sweep(dth, level);
   }
-  if (level < lmax) {
-    /* second fine substep (uses new coarse state for ghost fill) */
-    subcycle(level + 1, lmax, dt / 2, order ^ 1);
+  state_to_old(level, 0); /* end of A: sync all blocks */
+
+  /* S(l+1): second fine full step */
+  if (level < lmax)
+    subcycle(level + 1, lmax, dth, order ^ 1);
+
+  /* A†(l): second coarse half-step (reversed) */
+  if (order) {
+    euler_x_sweep(dth, level); state_to_old(level, 1);
+    euler_y_sweep(dth, level);
+  } else {
+    euler_y_sweep(dth, level); state_to_old(level, 1);
+    euler_x_sweep(dth, level);
   }
+  state_to_old(level, 0); /* end of A†: sync all blocks */
 }
 int main(int argc, char **argv) {
 #ifdef _OPENMP
