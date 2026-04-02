@@ -527,6 +527,44 @@ static void hll_z(Real rL, Real mxL, Real myL, Real mzL, Real eL,
   }
 }
 
+/*
+ * Flux registers for refluxing at coarse-fine interfaces.
+ *
+ * Two registers per block, both with layout:
+ *   [axis=0..2][side=0,1][face_cell = d1*BS+d0][component 0..4]
+ *
+ * freg_fine:   accumulated F*dt over fine half-steps (for reflux with coarser level)
+ * freg_coarse: F*dt from one coarse step (for reflux with finer level)
+ */
+enum { FLUX_FACE = BS * BS * 5 };
+enum { FLUX_BLK = 3 * 2 * FLUX_FACE }; /* 3 axes * 2 sides */
+static Real *freg_fine;    /* [sim.n * FLUX_BLK] */
+static Real *freg_coarse;  /* [sim.n * FLUX_BLK] */
+static long long freg_n;
+
+static void freg_alloc(void) {
+  if (sim.n > freg_n) {
+    free(freg_fine); free(freg_coarse);
+    freg_n = sim.n;
+    freg_fine = calloc(freg_n * FLUX_BLK, sizeof(Real));
+    freg_coarse = calloc(freg_n * FLUX_BLK, sizeof(Real));
+  }
+}
+static void freg_clear_fine(int level) {
+  for (long long id = 0; id < sim.n; id++)
+    if (sim.blk[id].level == level)
+      memset(freg_fine + id * FLUX_BLK, 0, FLUX_BLK * sizeof(Real));
+}
+/* Save boundary flux F*dt: accumulate into fine reg, overwrite coarse reg */
+static void freg_save(long long id, int axis, int side, int d0, int d1,
+                      Real dt, Real fD, Real fU, Real fV, Real fW, Real fE) {
+  int off = axis * 2 * FLUX_FACE + side * FLUX_FACE + (d1*BS + d0)*5;
+  Real *fi = freg_fine + id * FLUX_BLK + off;
+  Real *co = freg_coarse + id * FLUX_BLK + off;
+  fi[0]+=fD*dt; fi[1]+=fU*dt; fi[2]+=fV*dt; fi[3]+=fW*dt; fi[4]+=fE*dt;
+  co[0] =fD*dt; co[1] =fU*dt; co[2] =fV*dt; co[3] =fW*dt; co[4] =fE*dt;
+}
+
 /* X-sweep: update all cells in blocks at given level using x-direction fluxes */
 static void euler_x_sweep(Real dt, int level) {
 #pragma omp parallel
@@ -581,6 +619,8 @@ static void euler_x_sweep(Real dt, int level) {
             if(rr<=0){rr=rR;xr=mxR;yr=myR;zr=mzR;er=eR;}
             Real fD,fU,fV,fW,fE;
             hll_x(rl,xl,yl,zl,el,rr,xr,yr,zr,er,&fD,&fU,&fV,&fW,&fE);
+            if (i == 0) freg_save(id, 0, 0, j, k, dt, fD,fU,fV,fW,fE);
+            if (i == BS) freg_save(id, 0, 1, j, k, dt, fD,fU,fV,fW,fE);
             if (i > 0) {
               int c = (k*BS+j)*BS+(i-1);
               rho[c]-=fD*dth; mom[3*c]-=fU*dth; mom[3*c+1]-=fV*dth;
@@ -654,6 +694,8 @@ static void euler_y_sweep(Real dt, int level) {
             if(rr<=0){rr=rR;xr=mxR;yr=myR;zr=mzR;er=eR;}
             Real gD,gU,gV,gW,gE;
             hll_y(rl,xl,yl,zl,el,rr,xr,yr,zr,er,&gD,&gU,&gV,&gW,&gE);
+            if (j == 0) freg_save(id, 1, 0, i, k, dt, gD,gU,gV,gW,gE);
+            if (j == BS) freg_save(id, 1, 1, i, k, dt, gD,gU,gV,gW,gE);
             if (j > 0) {
               int c = (k*BS+(j-1))*BS+i;
               rho[c]-=gD*dth; mom[3*c]-=gU*dth; mom[3*c+1]-=gV*dth;
@@ -726,6 +768,8 @@ static void euler_z_sweep(Real dt, int level) {
             if(rr<=0){rr=rR;xr=mxR;yr=myR;zr=mzR;er=eR;}
             Real hD,hU,hV,hW,hE;
             hll_z(rl,xl,yl,zl,el,rr,xr,yr,zr,er,&hD,&hU,&hV,&hW,&hE);
+            if (k == 0) freg_save(id, 2, 0, i, j, dt, hD,hU,hV,hW,hE);
+            if (k == BS) freg_save(id, 2, 1, i, j, dt, hD,hU,hV,hW,hE);
             if (k > 0) {
               int c = ((k-1)*BS+j)*BS+i;
               rho[c]-=hD*dth; mom[3*c]-=hU*dth; mom[3*c+1]-=hV*dth;
@@ -1079,102 +1123,85 @@ static const struct {
 /*
  * Flux correction (refluxing) at coarse-fine interfaces.
  *
- * During each sweep, boundary fluxes are saved to F_DRHO scratch for fine
- * blocks at coarse-fine interfaces. After the fine sweep, corrections are
- * applied to coarse cells: undo the coarse ghost-based flux, apply the
- * averaged fine flux. This ensures conservation across AMR levels.
+ * For each fine block adjacent to a coarser block, compare the accumulated
+ * fine boundary flux (F*dt summed over 2 half-steps) with the coarse
+ * boundary flux (F*dt from the single coarse step).  Apply the difference
+ * as a correction to the coarse cell so that total flux is conserved.
  *
- * Layout in F_DRHO scratch (per fine block, per sweep):
- *   [0..BS*BS*5-1]:          low face fluxes  (side=0)
- *   [BS*BS*5..2*BS*BS*5-1]:  high face fluxes (side=1)
- *   Each face cell stores 5 values: fD, fU, fV, fW, fE
+ * Correction to coarse cell:
+ *   coarse_side=1 (right face): U_c += (1/h_c) * [coarse_Fdt - avg4(fine_Fdt)]
+ *   coarse_side=0 (left  face): U_c -= (1/h_c) * [coarse_Fdt - avg4(fine_Fdt)]
  */
-enum { FLUX_STRIDE = BS * BS * 5 };
-
-static void reflux_apply(int fine_level, int axis, Real dt) {
+static void reflux_apply(int fine_level) {
   if (fine_level <= sim.levelStart) return;
   for (long long id = 0; id < sim.n; id++) {
     if (sim.blk[id].level != fine_level) continue;
     int pos[3] = {sim.blk[id].ix, sim.blk[id].iy, sim.blk[id].iz};
     int parity[3] = {pos[0]%2, pos[1]%2, pos[2]%2};
-    Real h_f = sim.blk[id].h;
-    Real dth_c = dt / (2 * h_f); /* dt/h_coarse */
-    Real *fsave = BLK(id) + BS*BS*BS * F_DRHO;
+    Real h_c = 2 * sim.blk[id].h;
+    Real inv_hc = 1.0 / h_c;
 
-    int other[2], oi = 0;
-    for (int d = 0; d < 3; d++) if (d != axis) other[oi++] = d;
+    for (int axis = 0; axis < 3; axis++) {
+      int other[2], oi = 0;
+      for (int d = 0; d < 3; d++) if (d != axis) other[oi++] = d;
 
-    for (int side = 0; side < 2; side++) {
-      int c[3] = {0,0,0};
-      c[axis] = side ? 1 : -1;
-      int icode = (c[0]+1) + 3*(c[1]+1) + 9*(c[2]+1);
-      struct Nb nr = nb_find(fine_level, pos[0], pos[1], pos[2], icode);
-      if (nr.s != 2 || nr.idx < 0) continue;
+      for (int side = 0; side < 2; side++) {
+        int c[3] = {0,0,0};
+        c[axis] = side ? 1 : -1;
+        int icode = (c[0]+1) + 3*(c[1]+1) + 9*(c[2]+1);
+        struct Nb nr = nb_find(fine_level, pos[0], pos[1], pos[2], icode);
+        if (nr.s != 2 || nr.idx < 0) continue;
 
-      Real *fs = fsave + side * FLUX_STRIDE;
+        int coarse_side = 1 - side;
+        Real sgn = coarse_side ? 1.0 : -1.0;
 
-      /* Average 2x2 fine fluxes → 1 coarse flux, apply correction */
-      for (int d1 = 0; d1 < BS; d1 += 2)
-        for (int d0 = 0; d0 < BS; d0 += 2) {
-          Real favg[5] = {0};
-          for (int dd1 = 0; dd1 < 2; dd1++)
-            for (int dd0 = 0; dd0 < 2; dd0++) {
-              int fi = (d1+dd1)*BS + (d0+dd0);
-              for (int v = 0; v < 5; v++) favg[v] += fs[fi*5+v];
-            }
-          for (int v = 0; v < 5; v++) favg[v] /= 4;
+        Real *ff = freg_fine + id * FLUX_BLK
+                   + axis * 2 * FLUX_FACE + side * FLUX_FACE;
+        Real *fc = freg_coarse + nr.idx * FLUX_BLK
+                   + axis * 2 * FLUX_FACE + coarse_side * FLUX_FACE;
 
-          /* Coarse cell index */
-          int ci[3];
-          ci[axis] = side == 0 ? BS-1 : 0;
-          ci[other[0]] = parity[other[0]] * BS/2 + d0/2;
-          ci[other[1]] = parity[other[1]] * BS/2 + d1/2;
-          int cc = (ci[2]*BS+ci[1])*BS+ci[0];
-          if (cc < 0 || cc >= BS*BS*BS) continue;
+        Real *rho = BLK(nr.idx)+BS*BS*BS*F_RHO;
+        Real *mom = BLK(nr.idx)+BS*BS*BS*F_MOM;
+        Real *ene = BLK(nr.idx)+BS*BS*BS*F_ENE;
 
-          /* The coarse cell was updated by: U -= dth_c * F_coarse_ghost (right face)
-             or U += dth_c * F_coarse_ghost (left face).
-             We want to replace F_coarse_ghost with favg (averaged fine flux).
-             But we don't have F_coarse_ghost saved.
+        for (int d1 = 0; d1 < BS; d1 += 2)
+          for (int d0 = 0; d0 < BS; d0 += 2) {
+            /* Average 2x2 fine accumulated F*dt */
+            Real favg[5] = {0};
+            for (int dd1 = 0; dd1 < 2; dd1++)
+              for (int dd0 = 0; dd0 < 2; dd0++) {
+                int fi = ((d1+dd1)*BS + (d0+dd0))*5;
+                for (int v = 0; v < 5; v++) favg[v] += ff[fi+v];
+              }
+            for (int v = 0; v < 5; v++) favg[v] *= 0.25;
 
-             Instead, we apply the DIFFERENCE directly to the coarse cell.
-             The fine sweep applied: fine_cell += sign * dth_f * F_fine
-             The coarse sweep applied: coarse_cell += sign * dth_c * F_coarse_ghost
-             We want: coarse_cell += sign * dth_c * favg(F_fine)
-             Correction: sign * dth_c * (favg(F_fine) - F_coarse_ghost)
+            /* Coarse cell index on the interface face */
+            int ci[3];
+            ci[axis] = coarse_side == 0 ? 0 : BS-1;
+            ci[other[0]] = parity[other[0]] * BS/2 + d0/2;
+            ci[other[1]] = parity[other[1]] * BS/2 + d1/2;
+            int cc = (ci[2]*BS+ci[1])*BS+ci[0];
 
-             Since F_coarse_ghost is unknown, use the conservative fix:
-             replace the coarse boundary cell with the average of fine cells. */
-          int fc_fine = side == 0 ? 0 : BS-1;
-          Real avg[5] = {0};
-          for (int dd1 = 0; dd1 < 2; dd1++)
-            for (int dd0 = 0; dd0 < 2; dd0++) {
-              int fi[3];
-              fi[axis] = fc_fine;
-              fi[other[0]] = d0 + dd0;
-              fi[other[1]] = d1 + dd1;
-              int fc_idx = (fi[2]*BS+fi[1])*BS+fi[0];
-              avg[0] += BLK(id)[BS*BS*BS*F_RHO + fc_idx];
-              avg[1] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx];
-              avg[2] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+1];
-              avg[3] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+2];
-              avg[4] += BLK(id)[BS*BS*BS*F_ENE + fc_idx];
-            }
-          for (int v = 0; v < 5; v++) avg[v] /= 4;
+            /* Coarse F*dt at this face cell */
+            int cfi = (ci[other[1]]*BS + ci[other[0]])*5;
 
-          BLK(nr.idx)[BS*BS*BS*F_RHO + cc] = avg[0];
-          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc]   = avg[1];
-          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc+1] = avg[2];
-          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc+2] = avg[3];
-          BLK(nr.idx)[BS*BS*BS*F_ENE + cc] = avg[4];
-        }
+            /* delta = sgn * inv_hc * (coarse_Fdt - avg_fine_Fdt) */
+            rho[cc]      += sgn * inv_hc * (fc[cfi]   - favg[0]);
+            mom[3*cc]    += sgn * inv_hc * (fc[cfi+1] - favg[1]);
+            mom[3*cc+1]  += sgn * inv_hc * (fc[cfi+2] - favg[2]);
+            mom[3*cc+2]  += sgn * inv_hc * (fc[cfi+3] - favg[3]);
+            ene[cc]      += sgn * inv_hc * (fc[cfi+4] - favg[4]);
+          }
+      }
     }
   }
 }
 
 static void subcycle(int level, int lmax, Real dt, int order) {
-  if (level < lmax)
+  if (level < lmax) {
+    freg_clear_fine(level + 1);
     subcycle(level + 1, lmax, dt / 2, order);
+  }
   if (order) {
     euler_z_sweep(dt, level);
     euler_y_sweep(dt, level);
@@ -1184,14 +1211,10 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     euler_y_sweep(dt, level);
     euler_z_sweep(dt, level);
   }
-  /* Reflux: restrict fine boundary cells to coarse for conservation */
   if (level < lmax) {
-    reflux_apply(level + 1, 0, dt);
-    reflux_apply(level + 1, 1, dt);
-    reflux_apply(level + 1, 2, dt);
-  }
-  if (level < lmax)
     subcycle(level + 1, lmax, dt / 2, order ^ 1);
+    reflux_apply(level + 1);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -1342,6 +1365,7 @@ int main(int argc, char **argv) {
     }
     sim.dt = sim.CFL / (smax + 1e-30);
     if (sim.step > 0 && sim.step % sim.AdaptSteps == 0) ad_run();
+    freg_alloc();
     subcycle(lmin, lmax, sim.dt, sim.step & 1);
     sim.time += sim.dt;
     sim.step++;
