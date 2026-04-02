@@ -555,14 +555,19 @@ static void freg_clear_fine(int level) {
     if (sim.blk[id].level == level)
       memset(freg_fine + id * FLUX_BLK, 0, FLUX_BLK * sizeof(Real));
 }
-/* Save boundary flux F*dt: accumulate into fine reg, overwrite coarse reg */
+static void freg_clear_coarse(int level) {
+  for (long long id = 0; id < sim.n; id++)
+    if (sim.blk[id].level == level)
+      memset(freg_coarse + id * FLUX_BLK, 0, FLUX_BLK * sizeof(Real));
+}
+/* Save boundary flux F*dt: accumulate into both fine and coarse regs */
 static void freg_save(long long id, int axis, int side, int d0, int d1,
                       Real dt, Real fD, Real fU, Real fV, Real fW, Real fE) {
   int off = axis * 2 * FLUX_FACE + side * FLUX_FACE + (d1*BS + d0)*5;
   Real *fi = freg_fine + id * FLUX_BLK + off;
   Real *co = freg_coarse + id * FLUX_BLK + off;
   fi[0]+=fD*dt; fi[1]+=fU*dt; fi[2]+=fV*dt; fi[3]+=fW*dt; fi[4]+=fE*dt;
-  co[0] =fD*dt; co[1] =fU*dt; co[2] =fV*dt; co[3] =fW*dt; co[4] =fE*dt;
+  co[0]+=fD*dt; co[1]+=fU*dt; co[2]+=fV*dt; co[3]+=fW*dt; co[4]+=fE*dt;
 }
 
 /* X-sweep: update all cells in blocks at given level using x-direction fluxes */
@@ -1106,6 +1111,125 @@ done:
   return Changed;
 }
 
+/*
+ * Interleaved refinement: refine blocks at 'level' only (no coarsening).
+ * Called at the start of each subcycle to create fine mesh ahead of features.
+ * Only refines blocks that have no coarser neighbors (to maintain 2:1 balance
+ * without propagating to already-advanced coarser levels).
+ */
+static void ad_refine_level(int level) {
+  if (level >= sim.levelMax - 1) return;
+
+  compute_indicator();
+
+  long long n_ref = 0;
+  enum AdSt *state = calloc(sim.n, sizeof *state);
+  long long *ref_idx = malloc(sim.n * sizeof *ref_idx);
+
+  for (long long i = 0; i < sim.n; i++) {
+    if (sim.blk[i].level != level) { state[i] = Leave; continue; }
+    Real *b = BLK(i) + BS*BS*BS * F_TMP;
+    double Linf = 0;
+    for (int j = 0; j < BS*BS*BS; j++) Linf = fmax(Linf, fabs(b[j]));
+    state[i] = Linf > sim.Rtol ? Refine : Leave;
+  }
+
+  /* Drop blocks whose refinement would violate 2:1 with coarser levels */
+  for (long long i = 0; i < sim.n; i++) {
+    if (state[i] != Refine) continue;
+    struct Blk *bi = &sim.blk[i];
+    for (int ic = 0; ic < 27; ic++) {
+      if (ic == 13) continue;
+      struct Nb nr = nb_find(bi->level, bi->ix, bi->iy, bi->iz, ic);
+      if (nr.s == 2) { state[i] = Leave; break; } /* has coarser neighbor */
+    }
+  }
+
+  /* 2:1 balance within level: if block is Refine and same-level neighbor
+     would get a 2-level-finer child, mark neighbor for Refine too */
+  for (int More = 1; More;) {
+    More = 0;
+    for (long long j = 0; j < sim.n; j++) {
+      if (state[j] != Refine) continue;
+      struct Blk *bj = &sim.blk[j];
+      for (int ic = 0; ic < 27; ic++) {
+        if (ic == 13) continue;
+        struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, bj->iz, ic);
+        if (nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Leave
+            && sim.blk[nr.idx].level == level) {
+          /* Check this neighbor also has no coarser neighbors */
+          struct Blk *bn = &sim.blk[nr.idx];
+          int has_coarser = 0;
+          for (int jc = 0; jc < 27 && !has_coarser; jc++) {
+            if (jc == 13) continue;
+            struct Nb nr2 = nb_find(bn->level, bn->ix, bn->iy, bn->iz, jc);
+            if (nr2.s == 2) has_coarser = 1;
+          }
+          if (!has_coarser) { state[nr.idx] = Refine; More = 1; }
+        }
+      }
+    }
+  }
+
+  for (long long j = 0; j < sim.n; j++)
+    if (state[j] == Refine)
+      ref_idx[n_ref++] = j;
+
+  if (n_ref == 0) { free(state); free(ref_idx); return; }
+
+  /* Create 8 children per refined block */
+  long long nprev = sim.n;
+  sim.n += 8 * n_ref;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  memset(BLK(nprev), 0, 8 * n_ref * BLK_S * sizeof(Real));
+  state = realloc(state, sim.n * sizeof *state);
+  for (long long i = nprev; i < sim.n; i++) state[i] = Leave;
+
+#pragma omp parallel for
+  for (long long r = 0; r < n_ref; r++) {
+    struct Blk *par = &sim.blk[ref_idx[r]];
+    int px=par->ix, py=par->iy, pz=par->iz;
+    for (int K = 0; K < 2; K++)
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long ci = nprev + 8*r + 4*K + 2*J + I;
+          bl_fill(&sim.blk[ci], par->level+1, 2*px+I, 2*py+J, 2*pz+K);
+          for (size_t v = 0; v < NVARS; v++) {
+            int dim = fld_t[v].dim, off = fld_t[v].offset;
+            Real *src = BLK(ref_idx[r]) + off * BS*BS*BS;
+            Real *dst = BLK(ci) + off * BS*BS*BS;
+            for (int kk = 0; kk < BS; kk++)
+              for (int jj = 0; jj < BS; jj++)
+                for (int ii = 0; ii < BS; ii++) {
+                  int si = I*(BS/2)+ii/2, sj = J*(BS/2)+jj/2, sk = K*(BS/2)+kk/2;
+                  for (int d = 0; d < dim; d++)
+                    dst[dim*((kk*BS+jj)*BS+ii)+d] = src[dim*((sk*BS+sj)*BS+si)+d];
+                }
+          }
+        }
+    state[ref_idx[r]] = Dealloc;
+  }
+
+  /* Compact */
+  long long cnt = 0;
+  for (long long i = 0; i < sim.n; i++) {
+    if (state[i] == Dealloc) continue;
+    if (cnt != i) {
+      memmove(BLK(cnt), BLK(i), BLK_S * sizeof(Real));
+      sim.blk[cnt] = sim.blk[i];
+    }
+    cnt++;
+  }
+  sim.n = cnt;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  hm_rebuild();
+  freg_alloc();
+
+  free(state); free(ref_idx);
+}
+
 /* ---- Time stepping ---- */
 static const struct {
   const char *name; int type; size_t off;
@@ -1197,24 +1321,62 @@ static void reflux_apply(int fine_level) {
   }
 }
 
+/*
+ * Subcycle with Strang splitting and interleaved refinement.
+ *
+ * Per Khokhlov (1998) Eq. (7): S(l) = A†(l) S(l+1) A(l) S(l+1) R(l)
+ * Executed right-to-left:
+ *   1. R(l)    — interleaved refinement at level l
+ *   2. S(l+1)  — first fine full step
+ *   3. A(l)    — first coarse half-step (XYZ or ZYX per 'order')
+ *   4. S(l+1)  — second fine full step
+ *   5. A†(l)   — second coarse half-step (reversed sweep order)
+ *   6. Reflux  — flux correction at coarse-fine interface
+ */
 static void subcycle(int level, int lmax, Real dt, int order) {
-  if (level < lmax) {
+  /* R(l): interleaved refinement */
+  if (level < lmax)
+    ad_refine_level(level);
+
+  Real dth = dt / 2;
+
+  if (level < lmax)
     freg_clear_fine(level + 1);
-    subcycle(level + 1, lmax, dt / 2, order);
-  }
+  freg_clear_coarse(level);
+
+  /* S(l+1): first fine full step */
+  if (level < lmax)
+    subcycle(level + 1, lmax, dth, order);
+
+  /* A(l): first coarse half-step */
   if (order) {
-    euler_z_sweep(dt, level);
-    euler_y_sweep(dt, level);
-    euler_x_sweep(dt, level);
+    euler_z_sweep(dth, level);
+    euler_y_sweep(dth, level);
+    euler_x_sweep(dth, level);
   } else {
-    euler_x_sweep(dt, level);
-    euler_y_sweep(dt, level);
-    euler_z_sweep(dt, level);
+    euler_x_sweep(dth, level);
+    euler_y_sweep(dth, level);
+    euler_z_sweep(dth, level);
   }
-  if (level < lmax) {
-    subcycle(level + 1, lmax, dt / 2, order ^ 1);
+
+  /* S(l+1): second fine full step */
+  if (level < lmax)
+    subcycle(level + 1, lmax, dth, order);
+
+  /* A†(l): second coarse half-step (reversed) */
+  if (order) {
+    euler_x_sweep(dth, level);
+    euler_y_sweep(dth, level);
+    euler_z_sweep(dth, level);
+  } else {
+    euler_z_sweep(dth, level);
+    euler_y_sweep(dth, level);
+    euler_x_sweep(dth, level);
+  }
+
+  /* Flux correction */
+  if (level < lmax)
     reflux_apply(level + 1);
-  }
 }
 
 int main(int argc, char **argv) {
