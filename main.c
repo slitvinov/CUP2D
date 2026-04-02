@@ -482,25 +482,28 @@ static void compute_indicator() {
   for (long long id = 0; id < sim.n; ++id)
     memcpy(raw_buf + id*BS*BS, BLK(id) + BS*BS*F_TMP, BS*BS*sizeof(Real));
   for (int iter = 0; iter < 3; iter++) {
-#pragma omp parallel for
-    for (long long id = 0; id < sim.n; ++id) {
-      Real *TMP = BLK(id) + BS * BS * F_TMP;
-      Real *RAW = raw_buf + id*BS*BS;
-      Real *D = smo_buf + id*BS*BS;
-      for (int j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++) {
-          int k = j * BS + i;
-          Real xi = TMP[k];
-          Real xim = (i > 0) ? TMP[k-1] : xi;
-          Real xip = (i < BS-1) ? TMP[k+1] : xi;
-          Real xjm = (j > 0) ? TMP[k-BS] : xi;
-          Real xjp = (j < BS-1) ? TMP[k+BS] : xi;
-          Real lap = xim + xip + xjm + xjp - 4*xi;
-          Real Q = (xi > sim.Rtol) ? 1 : 0;
-          D[k] = xi + 0.25 * (lap + Q);
-          D[k] = fmax(D[k], RAW[k]);
-          D[k] = fmax(0, fmin(1, D[k]));
-        }
+#pragma omp parallel
+    {
+      Real tb[LB_BUF];
+#pragma omp for
+      for (long long id = 0; id < sim.n; ++id) {
+        lb_load(tb, 1, F_TMP, 1, id);
+        Real *RAW = raw_buf + id*BS*BS;
+        Real *D = smo_buf + id*BS*BS;
+        int ss=1, nm=2*ss+BS;
+        for (int j = 0; j < BS; j++)
+          for (int i = 0; i < BS; i++) {
+            int k = j * BS + i;
+#define T(di,dj) tb[nm*((j)+(dj)+ss)+(i)+(di)+ss]
+            Real xi = T(0,0);
+            Real lap = T(-1,0)+T(1,0)+T(0,-1)+T(0,1) - 4*xi;
+#undef T
+            Real Q = (xi > sim.Rtol) ? 1 : 0;
+            D[k] = xi + 0.25 * (lap + Q);
+            D[k] = fmax(D[k], RAW[k]);
+            D[k] = fmax(0, fmin(1, D[k]));
+          }
+      }
     }
 #pragma omp parallel for
     for (long long id = 0; id < sim.n; ++id)
@@ -822,6 +825,48 @@ static void hll_y(Real rL, Real mxL, Real myL, Real eL,
     *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
 }
 /*
+ * Flux registers for refluxing at coarse-fine interfaces.
+ *
+ * Two registers per block:
+ *   [axis=0,1][side=0,1][face_cell 0..BS-1][component 0..3]
+ *
+ * freg_fine:   accumulated F*dt over fine half-steps
+ * freg_coarse: F*dt from the coarse step
+ */
+enum { FLUX_FACE = BS * 4 };
+enum { FLUX_BLK = 2 * 2 * FLUX_FACE }; /* 2 axes * 2 sides */
+static Real *freg_fine;
+static Real *freg_coarse;
+static long long freg_n;
+
+static void freg_alloc(void) {
+  if (sim.n > freg_n) {
+    free(freg_fine); free(freg_coarse);
+    freg_n = sim.n;
+    freg_fine = calloc(freg_n * FLUX_BLK, sizeof(Real));
+    freg_coarse = calloc(freg_n * FLUX_BLK, sizeof(Real));
+  }
+}
+static void freg_clear_fine(int level) {
+  for (long long id = 0; id < sim.n; id++)
+    if (sim.blk[id].level == level)
+      memset(freg_fine + id * FLUX_BLK, 0, FLUX_BLK * sizeof(Real));
+}
+static void freg_clear_coarse(int level) {
+  for (long long id = 0; id < sim.n; id++)
+    if (sim.blk[id].level == level)
+      memset(freg_coarse + id * FLUX_BLK, 0, FLUX_BLK * sizeof(Real));
+}
+static void freg_save(long long id, int axis, int side, int d0,
+                      Real dt, Real f0, Real f1, Real f2, Real f3) {
+  int off = axis * 2 * FLUX_FACE + side * FLUX_FACE + d0*4;
+  Real *fi = freg_fine + id * FLUX_BLK + off;
+  Real *co = freg_coarse + id * FLUX_BLK + off;
+  fi[0]+=f0*dt; fi[1]+=f1*dt; fi[2]+=f2*dt; fi[3]+=f3*dt;
+  co[0]+=f0*dt; co[1]+=f1*dt; co[2]+=f2*dt; co[3]+=f3*dt;
+}
+
+/*
  * U^o / U^n two-state system (Khokhlov Eq. 5).
  *
  * Sweeps reconstruct from U^o (F_DRHO/F_DMOM/F_DENE) and update U^n
@@ -887,6 +932,8 @@ static void euler_x_sweep(Real dt, int level) {
           if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real fD,fU,fV,fE;
           hll_x(rl,xl,yl,el,rr,xr,yr,er,&fD,&fU,&fV,&fE);
+          if (i == 0) freg_save(id, 0, 0, j, dt, fD,fU,fV,fE);
+          if (i == BS) freg_save(id, 0, 1, j, dt, fD,fU,fV,fE);
           if(i>0){int k=BS*j+(i-1);rho[k]-=fD*dth;mom[2*k]-=fU*dth;mom[2*k+1]-=fV*dth;ene[k]-=fE*dth;}
           if(i<BS){int k=BS*j+i;rho[k]+=fD*dth;mom[2*k]+=fU*dth;mom[2*k+1]+=fV*dth;ene[k]+=fE*dth;}
         }
@@ -935,6 +982,8 @@ static void euler_y_sweep(Real dt, int level) {
           if(rr<=0){rr=rR;xr=mxR;yr=myR;er=eR;}
           Real gD,gU,gV,gE;
           hll_y(rl,xl,yl,el,rr,xr,yr,er,&gD,&gU,&gV,&gE);
+          if (j == 0) freg_save(id, 1, 0, i, dt, gD,gU,gV,gE);
+          if (j == BS) freg_save(id, 1, 1, i, dt, gD,gU,gV,gE);
           if(j>0){int k=BS*(j-1)+i;rho[k]-=gD*dth;mom[2*k]-=gU*dth;mom[2*k+1]-=gV*dth;ene[k]-=gE*dth;}
           if(j<BS){int k=BS*j+i;rho[k]+=gD*dth;mom[2*k]+=gU*dth;mom[2*k+1]+=gV*dth;ene[k]+=gE*dth;}
         }
@@ -960,6 +1009,207 @@ static const struct {
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
 /*
+ * Interleaved refinement: refine blocks at 'level' only (no coarsening).
+ * Only refines blocks that have no coarser neighbors (to maintain 2:1 balance
+ * without propagating to already-advanced coarser levels).
+ */
+static void ad_refine_level(int level) {
+  if (level >= sim.levelMax - 1) return;
+
+  compute_indicator();
+
+  long long n_ref = 0;
+  enum AdSt *state = calloc(sim.n, sizeof *state);
+  long long *ref_idx = malloc(sim.n * sizeof *ref_idx);
+
+  for (long long i = 0; i < sim.n; i++) {
+    if (sim.blk[i].level != level) { state[i] = Leave; continue; }
+    Real *b = BLK(i) + BS*BS * F_TMP;
+    double Linf = 0;
+    for (int j = 0; j < BS*BS; j++) Linf = fmax(Linf, fabs(b[j]));
+    state[i] = Linf > sim.Rtol ? Refine : Leave;
+  }
+
+  /* Drop blocks whose refinement would violate 2:1 with coarser levels */
+  for (long long i = 0; i < sim.n; i++) {
+    if (state[i] != Refine) continue;
+    struct Blk *bi = &sim.blk[i];
+    for (int ic = 0; ic < 9; ic++) {
+      if (ic == 4) continue;
+      struct Nb nr = nb_find(bi->level, bi->ix, bi->iy, ic);
+      if (nr.s == 2) { state[i] = Leave; break; }
+    }
+  }
+
+  /* 2:1 balance within level */
+  for (int More = 1; More;) {
+    More = 0;
+    for (long long j = 0; j < sim.n; j++) {
+      if (state[j] != Refine) continue;
+      struct Blk *bj = &sim.blk[j];
+      for (int ic = 0; ic < 9; ic++) {
+        if (ic == 4) continue;
+        struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ic);
+        if (nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Leave
+            && sim.blk[nr.idx].level == level) {
+          struct Blk *bn = &sim.blk[nr.idx];
+          int has_coarser = 0;
+          for (int jc = 0; jc < 9 && !has_coarser; jc++) {
+            if (jc == 4) continue;
+            struct Nb nr2 = nb_find(bn->level, bn->ix, bn->iy, jc);
+            if (nr2.s == 2) has_coarser = 1;
+          }
+          if (!has_coarser) { state[nr.idx] = Refine; More = 1; }
+        }
+      }
+    }
+  }
+
+  for (long long j = 0; j < sim.n; j++)
+    if (state[j] == Refine)
+      ref_idx[n_ref++] = j;
+
+  if (n_ref == 0) { free(state); free(ref_idx); return; }
+
+  /* Create 4 children per refined block */
+  long long nprev = sim.n;
+  sim.n += 4 * n_ref;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  memset(BLK(nprev), 0, 4 * n_ref * BLK_S * sizeof(Real));
+  state = realloc(state, sim.n * sizeof *state);
+  for (long long i = nprev; i < sim.n; i++) state[i] = Leave;
+
+#pragma omp parallel
+  {
+    Real lm0[LB_BUF], lm1[LB_BUF];
+    Real *lm[2] = {lm0, lm1};
+#pragma omp for
+    for (long long k = 0; k < n_ref; k++) {
+      struct Blk *par = &sim.blk[ref_idx[k]];
+      int px = par->ix, py = par->iy;
+      Real *blks[4];
+      for (int J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++) {
+          long long ci = nprev + 4 * k + 2 * J + I;
+          bl_fill(&sim.blk[ci], par->level + 1, 2 * px + I, 2 * py + J);
+          blks[2 * J + I] = BLK(ci);
+        }
+      int nm = 2 + BS;
+      for (size_t m = 0; m < NVARS; m++) {
+        int dim = fld_t[m].dim;
+        int offset = fld_t[m].offset;
+        lb_load(lm[dim - 1], dim, offset, 1, ref_idx[k]);
+        Real *um = lm[dim - 1];
+        for (int J = 0; J < 2; J++)
+          for (int I = 0; I < 2; I++) {
+            Real *b = blks[J * 2 + I] + offset * BS * BS;
+            for (int j = 0; j < BS; j += 2)
+              for (int i = 0; i < BS; i += 2) {
+                int i0 = i / 2 + I * (BS / 2) + 1;
+                int j0 = j / 2 + J * (BS / 2) + 1;
+                int sub[4] = {BS*j+i, BS*j+i+1, BS*(j+1)+i, BS*(j+1)+i+1};
+                for (int s = 0; s < 4; s++)
+                  for (int d = 0; d < dim; d++) {
+                    Real val = 0;
+                    for (int kk = 0; kk < 9; kk++)
+                      val += ad_ref_w[s][kk] * um[dim*(nm*(j0+kk/3-1)+i0+kk%3-1)+d];
+                    b[dim * sub[s] + d] = val;
+                  }
+              }
+          }
+      }
+      state[ref_idx[k]] = Dealloc;
+    }
+  }
+
+  /* Compact */
+  long long cnt = 0;
+  for (long long i = 0; i < sim.n; i++) {
+    if (state[i] == Dealloc) continue;
+    if (cnt != i) {
+      memmove(BLK(cnt), BLK(i), BLK_S * sizeof(Real));
+      sim.blk[cnt] = sim.blk[i];
+    }
+    cnt++;
+  }
+  sim.n = cnt;
+  sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
+  sim.fld = realloc(sim.fld, sim.n * BLK_S * sizeof(Real));
+  hm_rebuild();
+  freg_alloc();
+
+  free(state); free(ref_idx);
+}
+
+/*
+ * Flux correction (refluxing) at coarse-fine interfaces.
+ *
+ * For each fine block adjacent to a coarser block, compare the accumulated
+ * fine boundary flux (F*dt summed over 2 half-steps) with the coarse
+ * boundary flux (F*dt from the single coarse step).  Apply the difference
+ * as a correction to the coarse cell so that total flux is conserved.
+ */
+static void reflux_apply(int fine_level) {
+  if (fine_level <= sim.levelStart) return;
+  for (long long id = 0; id < sim.n; id++) {
+    if (sim.blk[id].level != fine_level) continue;
+    int pos[2] = {sim.blk[id].ix, sim.blk[id].iy};
+    int parity[2] = {pos[0]%2, pos[1]%2};
+    Real h_c = 2 * sim.blk[id].h;
+    Real inv_hc = 1.0 / h_c;
+
+    for (int axis = 0; axis < 2; axis++) {
+      int other = 1 - axis;
+
+      for (int side = 0; side < 2; side++) {
+        int c[2] = {0, 0};
+        c[axis] = side ? 1 : -1;
+        int icode = (c[0]+1) + 3*(c[1]+1);
+        struct Nb nr = nb_find(fine_level, pos[0], pos[1], icode);
+        if (nr.s != 2 || nr.idx < 0) continue;
+
+        int coarse_side = 1 - side;
+        Real sgn = coarse_side ? 1.0 : -1.0;
+
+        Real *ff = freg_fine + id * FLUX_BLK
+                   + axis * 2 * FLUX_FACE + side * FLUX_FACE;
+        Real *fc = freg_coarse + nr.idx * FLUX_BLK
+                   + axis * 2 * FLUX_FACE + coarse_side * FLUX_FACE;
+
+        Real *rho = BLK(nr.idx)+BS*BS*F_RHO;
+        Real *mom = BLK(nr.idx)+BS*BS*F_MOM;
+        Real *ene = BLK(nr.idx)+BS*BS*F_ENE;
+
+        for (int d0 = 0; d0 < BS; d0 += 2) {
+          /* Average 2 fine accumulated F*dt */
+          Real favg[4] = {0};
+          for (int dd = 0; dd < 2; dd++) {
+            int fi = (d0+dd)*4;
+            for (int v = 0; v < 4; v++) favg[v] += ff[fi+v];
+          }
+          for (int v = 0; v < 4; v++) favg[v] *= 0.5;
+
+          /* Coarse cell index on the interface face */
+          int ci[2];
+          ci[axis] = coarse_side == 0 ? 0 : BS-1;
+          ci[other] = parity[other] * BS/2 + d0/2;
+          int cc = ci[1]*BS + ci[0];
+
+          /* Coarse F*dt at this face cell */
+          int cfi = ci[other]*4;
+
+          rho[cc]      += sgn * inv_hc * (fc[cfi]   - favg[0]);
+          mom[2*cc]    += sgn * inv_hc * (fc[cfi+1] - favg[1]);
+          mom[2*cc+1]  += sgn * inv_hc * (fc[cfi+2] - favg[2]);
+          ene[cc]      += sgn * inv_hc * (fc[cfi+3] - favg[3]);
+        }
+      }
+    }
+  }
+}
+
+/*
  * Subcycle with Strang splitting and U^o/U^n two-state system
  * (Khokhlov 1998, Eqs. 5-7).
  *
@@ -971,7 +1221,15 @@ static const struct {
  * (with coarser neighbors) keep U^o frozen for interface consistency.
  */
 static void subcycle(int level, int lmax, Real dt, int order) {
+  /* R(l): interleaved refinement */
+  if (level < lmax)
+    ad_refine_level(level);
+
   Real dth = dt / 2;
+
+  if (level < lmax)
+    freg_clear_fine(level + 1);
+  freg_clear_coarse(level);
 
   /* Initialize U^o for this level */
   state_to_old(level, 0);
@@ -1003,6 +1261,12 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     euler_x_sweep(dth, level);
   }
   state_to_old(level, 0); /* end of A†: sync all blocks */
+
+  /* Flux correction + sync U^o so parent's ghost fill sees corrected data */
+  if (level < lmax) {
+    reflux_apply(level + 1);
+    state_to_old(level, 0);
+  }
 }
 int main(int argc, char **argv) {
 #ifdef _OPENMP
@@ -1127,6 +1391,7 @@ int main(int argc, char **argv) {
     sim.dt = sim.CFL / (smax + 1e-30);
     if (sim.step > 0 && sim.step % sim.AdaptSteps == 0)
       ad_run();
+    freg_alloc();
     subcycle(lmin, lmax, sim.dt, sim.step & 1);
     sim.time += sim.dt;
     sim.step++;
