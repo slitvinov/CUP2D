@@ -474,19 +474,19 @@ static void compute_indicator() {
         }
     }
   }
-  /* Save raw indicator in DENE scratch before smoothing */
+  /* Save raw indicator, then smooth with reaction-diffusion (eq 14).
+   * Use heap scratch instead of F_DRHO/F_DENE (reserved for two-state system). */
+  Real *raw_buf = malloc(sim.n * BS*BS * sizeof(Real));
+  Real *smo_buf = malloc(sim.n * BS*BS * sizeof(Real));
 #pragma omp parallel for
   for (long long id = 0; id < sim.n; ++id)
-    memcpy(BLK(id) + BS*BS*F_DENE, BLK(id) + BS*BS*F_TMP, BS*BS*sizeof(Real));
-  /* Smoothing: reaction-diffusion eq 14 */
-  /* ∂ξ/∂t = K∇²ξ + Q, K=h², Q=1 if ξ>ξ_split else 0 */
-  /* Iterate ~3 times to advance front ~2-3 cells */
+    memcpy(raw_buf + id*BS*BS, BLK(id) + BS*BS*F_TMP, BS*BS*sizeof(Real));
   for (int iter = 0; iter < 3; iter++) {
 #pragma omp parallel for
     for (long long id = 0; id < sim.n; ++id) {
       Real *TMP = BLK(id) + BS * BS * F_TMP;
-      Real *RAW = BLK(id) + BS * BS * F_DENE;
-      Real *D = BLK(id) + BS * BS * F_DRHO;
+      Real *RAW = raw_buf + id*BS*BS;
+      Real *D = smo_buf + id*BS*BS;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++) {
           int k = j * BS + i;
@@ -498,17 +498,15 @@ static void compute_indicator() {
           Real lap = xim + xip + xjm + xjp - 4*xi;
           Real Q = (xi > sim.Rtol) ? 1 : 0;
           D[k] = xi + 0.25 * (lap + Q);
-          D[k] = fmax(D[k], RAW[k]); /* never drop below raw indicator */
+          D[k] = fmax(D[k], RAW[k]);
           D[k] = fmax(0, fmin(1, D[k]));
         }
     }
 #pragma omp parallel for
-    for (long long id = 0; id < sim.n; ++id) {
-      Real *TMP = BLK(id) + BS * BS * F_TMP;
-      Real *D = BLK(id) + BS * BS * F_DRHO;
-      memcpy(TMP, D, BS * BS * sizeof(Real));
-    }
+    for (long long id = 0; id < sim.n; ++id)
+      memcpy(BLK(id) + BS*BS*F_TMP, smo_buf + id*BS*BS, BS*BS*sizeof(Real));
   }
+  free(raw_buf); free(smo_buf);
 }
 static void dump(Real time, int step, char *path) {
   long i, j, k, x, y;
