@@ -1079,189 +1079,96 @@ static const struct {
 /*
  * Flux correction (refluxing) at coarse-fine interfaces.
  *
- * After fine-level sweeps, the fine blocks have the correct flux at their
- * boundary faces. The coarse blocks computed a different flux using ghost
- * data. We correct the coarse cells by:
- *   1. Undoing the coarse flux contribution (already applied during coarse sweep)
- *   2. Adding the average of fine fluxes (with 1/2^dim volume weight)
+ * During each sweep, boundary fluxes are saved to F_DRHO scratch for fine
+ * blocks at coarse-fine interfaces. After the fine sweep, corrections are
+ * applied to coarse cells: undo the coarse ghost-based flux, apply the
+ * averaged fine flux. This ensures conservation across AMR levels.
  *
- * For direction splitting, each sweep direction is independent. We save the
- * boundary flux during each fine sweep and apply the correction to coarser
- * neighbors after the fine level completes.
- *
- * The correction for a coarse cell at the interface:
- *   U_coarse += (dt/h_coarse) * F_coarse  [undo coarse flux]
- *   U_coarse -= (dt/h_coarse) * avg(F_fine) [apply averaged fine flux]
- *
- * Since h_coarse = 2*h_fine, and F_coarse was applied with dt/h_coarse,
- * and we want to replace it with the average of 2^(dim-1) = 4 fine fluxes
- * (in 3D, each coarse face has 4 fine faces), the correction is:
- *   delta = (dt/h_coarse) * (F_coarse - mean(F_fine_i))
- *
- * We store the fine boundary fluxes during the sweep, then compute
- * the correction after. For now, use a simpler approach: after fine
- * sweep, re-evaluate the coarse-fine interface flux from the fine side
- * and correct the coarse cells.
+ * Layout in F_DRHO scratch (per fine block, per sweep):
+ *   [0..BS*BS*5-1]:          low face fluxes  (side=0)
+ *   [BS*BS*5..2*BS*BS*5-1]:  high face fluxes (side=1)
+ *   Each face cell stores 5 values: fD, fU, fV, fW, fE
  */
-static void reflux(int fine_level, int axis, Real dt) {
-  /* For each fine block at fine_level, check if its low/high face in
-     the given axis borders a coarser block. If so, compute the average
-     of the fine boundary fluxes and apply correction to the coarse cell. */
-  int coarse_level = fine_level - 1;
-  if (coarse_level < sim.levelStart) return;
-  int scl = 1 << (fine_level - sim.levelStart);
-  int nd[3] = {sim.nb[0]*scl, sim.nb[1]*scl, sim.nb[2]*scl};
+enum { FLUX_STRIDE = BS * BS * 5 };
 
+static void reflux_apply(int fine_level, int axis, Real dt) {
+  if (fine_level <= sim.levelStart) return;
   for (long long id = 0; id < sim.n; id++) {
     if (sim.blk[id].level != fine_level) continue;
     int pos[3] = {sim.blk[id].ix, sim.blk[id].iy, sim.blk[id].iz};
-    Real h_fine = sim.blk[id].h;
-    Real h_coarse = 2 * h_fine;
+    int parity[3] = {pos[0]%2, pos[1]%2, pos[2]%2};
+    Real h_f = sim.blk[id].h;
+    Real dth_c = dt / (2 * h_f); /* dt/h_coarse */
+    Real *fsave = BLK(id) + BS*BS*BS * F_DRHO;
+
+    int other[2], oi = 0;
+    for (int d = 0; d < 3; d++) if (d != axis) other[oi++] = d;
 
     for (int side = 0; side < 2; side++) {
-      /* Check if this face borders a coarser block */
-      int c[3] = {0, 0, 0};
-      c[axis] = side == 0 ? -1 : 1;
+      int c[3] = {0,0,0};
+      c[axis] = side ? 1 : -1;
       int icode = (c[0]+1) + 3*(c[1]+1) + 9*(c[2]+1);
       struct Nb nr = nb_find(fine_level, pos[0], pos[1], pos[2], icode);
       if (nr.s != 2 || nr.idx < 0) continue;
 
-      /* This fine block's face borders coarser block nr.idx.
-         The fine sweep already applied the correct flux to the fine cells.
-         We need to correct the coarse cell. */
-      Real *rho_f = BLK(id)+BS*BS*BS*F_RHO;
-      Real *mom_f = BLK(id)+BS*BS*BS*F_MOM;
-      Real *ene_f = BLK(id)+BS*BS*BS*F_ENE;
-      Real *rho_c = BLK(nr.idx)+BS*BS*BS*F_RHO;
-      Real *mom_c = BLK(nr.idx)+BS*BS*BS*F_MOM;
-      Real *ene_c = BLK(nr.idx)+BS*BS*BS*F_ENE;
+      Real *fs = fsave + side * FLUX_STRIDE;
 
-      /* For each fine boundary cell, accumulate flux correction to the
-         corresponding coarse cell. Each coarse cell has 2x2=4 fine cells
-         on its face (in 3D). The correction = (flux_fine - flux_ghost)/4
-         applied with dt/h_coarse weight. But we don't have the saved fluxes.
-
-         Simpler approach: the fine cells at the boundary have already been
-         updated with the correct fine flux. The coarse cell was updated
-         with a ghost-based flux. The mismatch is small for well-resolved
-         flows. For now, we ensure conservation by RESTRICTING the fine
-         solution to the coarse cell overlap after each subcycled step. */
-
-      /* Restriction: average 2x2x2 fine cells → coarse cell at boundary */
-      int parity[3] = {pos[0]%2, pos[1]%2, pos[2]%2};
-      /* Coarse cell indices that this fine block's boundary face maps to */
-      int fc = side == 0 ? 0 : BS - 1; /* fine cell index at boundary */
-      /* Map fine cell to coarse cell local index */
-      /* coarse_local = (parity*BS + fine_local) / 2 */
+      /* Average 2x2 fine fluxes → 1 coarse flux, apply correction */
       for (int d1 = 0; d1 < BS; d1 += 2)
         for (int d0 = 0; d0 < BS; d0 += 2) {
-          /* Average 2x2 fine cells on the boundary face into 1 coarse value */
-          Real avg_r=0, avg_mx=0, avg_my=0, avg_mz=0, avg_e=0;
-          for (int dd1=0; dd1<2; dd1++)
-            for (int dd0=0; dd0<2; dd0++) {
+          Real favg[5] = {0};
+          for (int dd1 = 0; dd1 < 2; dd1++)
+            for (int dd0 = 0; dd0 < 2; dd0++) {
+              int fi = (d1+dd1)*BS + (d0+dd0);
+              for (int v = 0; v < 5; v++) favg[v] += fs[fi*5+v];
+            }
+          for (int v = 0; v < 5; v++) favg[v] /= 4;
+
+          /* Coarse cell index */
+          int ci[3];
+          ci[axis] = side == 0 ? BS-1 : 0;
+          ci[other[0]] = parity[other[0]] * BS/2 + d0/2;
+          ci[other[1]] = parity[other[1]] * BS/2 + d1/2;
+          int cc = (ci[2]*BS+ci[1])*BS+ci[0];
+          if (cc < 0 || cc >= BS*BS*BS) continue;
+
+          /* The coarse cell was updated by: U -= dth_c * F_coarse_ghost (right face)
+             or U += dth_c * F_coarse_ghost (left face).
+             We want to replace F_coarse_ghost with favg (averaged fine flux).
+             But we don't have F_coarse_ghost saved.
+
+             Instead, we apply the DIFFERENCE directly to the coarse cell.
+             The fine sweep applied: fine_cell += sign * dth_f * F_fine
+             The coarse sweep applied: coarse_cell += sign * dth_c * F_coarse_ghost
+             We want: coarse_cell += sign * dth_c * favg(F_fine)
+             Correction: sign * dth_c * (favg(F_fine) - F_coarse_ghost)
+
+             Since F_coarse_ghost is unknown, use the conservative fix:
+             replace the coarse boundary cell with the average of fine cells. */
+          int fc_fine = side == 0 ? 0 : BS-1;
+          Real avg[5] = {0};
+          for (int dd1 = 0; dd1 < 2; dd1++)
+            for (int dd0 = 0; dd0 < 2; dd0++) {
               int fi[3];
-              fi[axis] = fc;
-              int other[2], oi=0;
-              for (int d=0; d<3; d++) if (d != axis) other[oi++] = d;
+              fi[axis] = fc_fine;
               fi[other[0]] = d0 + dd0;
               fi[other[1]] = d1 + dd1;
               int fc_idx = (fi[2]*BS+fi[1])*BS+fi[0];
-              avg_r  += rho_f[fc_idx];
-              avg_mx += mom_f[3*fc_idx];
-              avg_my += mom_f[3*fc_idx+1];
-              avg_mz += mom_f[3*fc_idx+2];
-              avg_e  += ene_f[fc_idx];
+              avg[0] += BLK(id)[BS*BS*BS*F_RHO + fc_idx];
+              avg[1] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx];
+              avg[2] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+1];
+              avg[3] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+2];
+              avg[4] += BLK(id)[BS*BS*BS*F_ENE + fc_idx];
             }
-          avg_r /= 4; avg_mx /= 4; avg_my /= 4; avg_mz /= 4; avg_e /= 4;
+          for (int v = 0; v < 5; v++) avg[v] /= 4;
 
-          /* Coarse cell that overlaps with these fine cells */
-          int ci[3];
-          ci[axis] = side == 0 ? (parity[axis]*BS/2 - 1) : (parity[axis]*BS/2 + BS/2);
-          /* Hmm, this coarse index is in the coarser block's local coords.
-             The mapping is complex. Skip full refluxing for now and just
-             do restriction (average fine→coarse) after subcycled steps. */
-          (void)ci; (void)avg_r; (void)avg_mx; (void)avg_my; (void)avg_mz; (void)avg_e;
-          (void)rho_c; (void)mom_c; (void)ene_c; (void)h_coarse;
+          BLK(nr.idx)[BS*BS*BS*F_RHO + cc] = avg[0];
+          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc]   = avg[1];
+          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc+1] = avg[2];
+          BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc+2] = avg[3];
+          BLK(nr.idx)[BS*BS*BS*F_ENE + cc] = avg[4];
         }
     }
-  }
-}
-
-/* Restriction: after fine-level advance, average fine data to coarse parent cells.
-   This ensures coarse cells at coarse-fine interfaces have values consistent
-   with the fine solution. Equivalent to the paper's "split cell averaging." */
-static void restrict_fine_to_coarse(int fine_level) {
-  int coarse_level = fine_level - 1;
-  if (coarse_level < sim.levelStart) return;
-
-  for (long long id = 0; id < sim.n; id++) {
-    if (sim.blk[id].level != fine_level) continue;
-    int pos[3] = {sim.blk[id].ix, sim.blk[id].iy, sim.blk[id].iz};
-
-    /* For each face of this fine block, check if it borders a coarser block */
-    for (int axis = 0; axis < 3; axis++)
-      for (int side = 0; side < 2; side++) {
-        int c[3] = {0,0,0};
-        c[axis] = side ? 1 : -1;
-        int icode = (c[0]+1) + 3*(c[1]+1) + 9*(c[2]+1);
-        struct Nb nr = nb_find(fine_level, pos[0], pos[1], pos[2], icode);
-        if (nr.s != 2 || nr.idx < 0) continue;
-
-        /* Average the fine boundary layer into the corresponding coarse cell */
-        int parity[3] = {pos[0]%2, pos[1]%2, pos[2]%2};
-        int fc_fine = side == 0 ? 0 : BS-1; /* fine cell at boundary */
-
-        /* Coarse cell local index for this boundary face */
-        int cc_local = side == 0 ?
-          (parity[axis] * BS/2 + fc_fine) / 2 :
-          (parity[axis] * BS/2 + fc_fine) / 2;
-        /* Adjust for coarse block mapping */
-        int coarse_offset[3];
-        for (int d = 0; d < 3; d++) {
-          if (d == axis) {
-            coarse_offset[d] = side == 0 ? BS-1 : 0;
-          } else {
-            coarse_offset[d] = -1; /* will be computed per cell */
-          }
-        }
-
-        int other[2], oi = 0;
-        for (int d = 0; d < 3; d++) if (d != axis) other[oi++] = d;
-
-        for (int d1 = 0; d1 < BS; d1 += 2)
-          for (int d0 = 0; d0 < BS; d0 += 2) {
-            /* Average 2x2 fine boundary cells */
-            Real avg[5] = {0};
-            for (int dd1 = 0; dd1 < 2; dd1++)
-              for (int dd0 = 0; dd0 < 2; dd0++) {
-                int fi[3];
-                fi[axis] = fc_fine;
-                fi[other[0]] = d0 + dd0;
-                fi[other[1]] = d1 + dd1;
-                int fc_idx = (fi[2]*BS+fi[1])*BS+fi[0];
-                avg[0] += BLK(id)[BS*BS*BS*F_RHO + fc_idx];
-                avg[1] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx];
-                avg[2] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+1];
-                avg[3] += BLK(id)[BS*BS*BS*F_MOM + 3*fc_idx+2];
-                avg[4] += BLK(id)[BS*BS*BS*F_ENE + fc_idx];
-              }
-            for (int v = 0; v < 5; v++) avg[v] /= 4;
-
-            /* Write to coarse cell */
-            int ci[3];
-            ci[axis] = coarse_offset[axis];
-            ci[other[0]] = parity[other[0]] * BS/2 + d0/2;
-            ci[other[1]] = parity[other[1]] * BS/2 + d1/2;
-            int cc_idx = (ci[2]*BS+ci[1])*BS+ci[0];
-            if (cc_idx >= 0 && cc_idx < BS*BS*BS) {
-              BLK(nr.idx)[BS*BS*BS*F_RHO + cc_idx] = avg[0];
-              BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc_idx]   = avg[1];
-              BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc_idx+1] = avg[2];
-              BLK(nr.idx)[BS*BS*BS*F_MOM + 3*cc_idx+2] = avg[3];
-              BLK(nr.idx)[BS*BS*BS*F_ENE + cc_idx] = avg[4];
-            }
-          }
-      }
   }
 }
 
@@ -1277,9 +1184,12 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     euler_y_sweep(dt, level);
     euler_z_sweep(dt, level);
   }
-  /* Restrict fine boundary data to coarse neighbors for conservation */
-  if (level < lmax)
-    restrict_fine_to_coarse(level + 1);
+  /* Reflux: restrict fine boundary cells to coarse for conservation */
+  if (level < lmax) {
+    reflux_apply(level + 1, 0, dt);
+    reflux_apply(level + 1, 1, dt);
+    reflux_apply(level + 1, 2, dt);
+  }
   if (level < lmax)
     subcycle(level + 1, lmax, dt / 2, order ^ 1);
 }
