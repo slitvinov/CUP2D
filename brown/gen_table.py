@@ -453,10 +453,21 @@ def poisson_interp_ops(add, c_blk, cix, ciy, f_blk, fc_ix, fc_iy, ff_ix, ff_iy,
 
 
 def build_poisson_entry(edge, tc, parity, state):
-    dir = edge >> 1
-    side = edge & 1
+    """Wide Laplacian (stride 2) for projection method.
+
+    L(φ)_{i,j} = (-4φ_{i,j} + φ_{i+2,j} + φ_{i-2,j} + φ_{i,j+2} + φ_{i,j-2}) / (4h²)
+
+    Each entry encodes ONE neighbor contribution for cell (ix,iy) at block edge.
+    edge: 0=left(x-), 1=right(x+), 2=bottom(y-), 3=top(y+)
+    tc: tangent coordinate (0..BS-1)
+    state: 0=same-level, 1=same-level neighbor, 2=coarser, 3=finer
+    """
+    dir = edge >> 1   # 0=x, 1=y
+    side = edge & 1   # 0=low, 1=high
+    # stride-2 step in normal direction
     sign = 2 * side - 1
-    dx, dy = (1 - dir) * sign, dir * sign
+    dx, dy = 2 * (1 - dir) * sign, 2 * dir * sign
+    # cell at the block edge
     ix = (0 if side == 0 else BS - 1) if dir == 0 else tc
     iy = tc if dir == 0 else (0 if side == 0 else BS - 1)
 
@@ -467,22 +478,30 @@ def build_poisson_entry(edge, tc, parity, state):
         ops[key] = ops.get(key, 0.0) + coeff
 
     if state == 0:
+        # Interior: stride-2 neighbor is within the block
         add(0, ix + dx, iy + dy, 1.0)
         add(0, ix, iy, -1.0)
     elif state == 1:
-        ne = (1 - side) * (BS - 1)
-        add(1, ne if dir == 0 else tc, tc if dir == 0 else ne, 1.0)
+        # Same-level neighbor block: stride-2 neighbor crosses into neighbor
+        # For side=0 (left edge, ix=0): need cell at ix-2 = neighbor's BS-2
+        # For side=1 (right edge, ix=BS-1): need cell at ix+2 = neighbor's 1
+        ne_normal = (BS - 2) if side == 0 else 1
+        ne_ix = ne_normal if dir == 0 else tc
+        ne_iy = tc if dir == 0 else ne_normal
+        add(1, ne_ix, ne_iy, 1.0)
         add(0, ix, iy, -1.0)
     elif state == 2:
+        # Coarser neighbor: interpolate from coarse grid
         cix = (1 - side) * (BS - 1) if dir == 0 else tc // 2 + parity * (BS // 2)
         ciy = tc // 2 + parity * (BS // 2) if dir == 0 else (1 - side) * (BS - 1)
         signTaylor = -1.0 if tc % 2 == 0 else 1.0
-        poisson_interp_ops(add, 2, cix, ciy, 0, ix, iy, ix - dx, iy - dy,
+        poisson_interp_ops(add, 2, cix, ciy, 0, ix, iy, ix - dx // 2, iy - dy // 2,
                            1.0, signTaylor, dir)
         add(0, ix, iy, -1.0)
     elif state == 3:
-        fe0 = BS - 1 if side == 0 else 0
-        fe1 = BS - 2 if side == 0 else 1
+        # Finer neighbor: restrict from fine grid
+        fe0 = BS - 2 if side == 0 else 1  # stride-2 position in fine block
+        fe1 = BS - 3 if side == 0 else 2  # one more step for gradient
         ft = (tc % (BS // 2)) * 2
         for dt in range(2):
             fc = (fe0, ft + dt) if dir == 0 else (ft + dt, fe0)
@@ -521,6 +540,6 @@ def build_poisson_table():
 
 
 if __name__ == '__main__':
-    for ss, dim in [(1, 1), (1, 2), (4, 1)]:
+    for ss, dim in [(1, 1), (1, 2), (2, 1), (4, 1)]:
         build_and_write(f'tab_ss{ss}_dim{dim}.bin', ss, dim)
     build_poisson_table()

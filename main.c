@@ -25,6 +25,8 @@ enum {
   BLK_S = F_N *BS *BS,
 };
 
+enum { BC_WALL = 0, BC_SYMMETRY, BC_INFLOW, BC_OUTFLOW };
+struct FaceBC { int type; Real val[F_N]; };
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Blk;
 struct HMap {
@@ -58,8 +60,11 @@ static struct Sim {
   Real nextDumpTime;
   Real Rtol;
   Real time;
+  Real L[2];
+  int nb[2];
   long long n;
   struct HMap hm;
+  struct FaceBC bc[4]; /* x-, x+, y-, y+ */
   struct Blk *blk;
   Real *fld;
 } sim;
@@ -113,14 +118,14 @@ struct Blk {
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
 static void bl_fill(struct Blk *b, int level, int ix, int iy) {
-  int n = 1 << level;
+  int scale = 1 << (level - sim.levelStart);
   b->level = level;
-  b->n = n;
+  b->n = 1 << level;
   b->ix = ix;
   b->iy = iy;
-  b->h = 1.0 / BS / n;
-  b->origin[0] = (Real)ix / n;
-  b->origin[1] = (Real)iy / n;
+  b->h = sim.L[0] / (BS * sim.nb[0] * scale);
+  b->origin[0] = b->h * BS * ix;
+  b->origin[1] = b->h * BS * iy;
 }
 struct {
   int offset;
@@ -176,13 +181,34 @@ struct Nb {
 static struct Nb nb_find(int level, int ix, int iy, int icode) {
   struct Nb r = {0, -1, {-1, -1}};
   int cx = icode % 3 - 1, cy = icode / 3 - 1;
-  int n = 1 << level;
-  int xskin = nb_skin(cx, ix, n);
-  int yskin = nb_skin(cy, iy, n);
-  if (xskin && yskin) { r.s = 5; return r; }
-  if (xskin) { r.s = 3; return r; }
-  if (yskin) { r.s = 4; return r; }
-  int nx = (ix + cx + n) % n, ny = (iy + cy + n) % n;
+  int scale = 1 << (level - sim.levelStart);
+  int nd[2] = {sim.nb[0]*scale, sim.nb[1]*scale};
+  int pos[2] = {ix, iy};
+  int c[2] = {cx, cy};
+  int skin[2], nbc = 0;
+  for (int d = 0; d < 2; d++) { skin[d] = nb_skin(c[d], pos[d], nd[d]); nbc += skin[d]; }
+  if (nbc > 0) {
+    if (nbc == 1) {
+      for (int d = 0; d < 2; d++) {
+        if (!skin[d]) continue;
+        int face = 2*d + (pos[d] == nd[d]-1 ? 1 : (pos[d] == 0 && c[d] == -1 ? 0 : 1));
+        int bt = sim.bc[face].type;
+        if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
+        if (bt == BC_INFLOW) { r.s = 8+d; return r; }
+        r.s = 3+d; return r; /* wall/symmetry */
+      }
+    }
+    /* Multi-axis: outflow/inflow dominates */
+    for (int d = 0; d < 2; d++) {
+      if (!skin[d]) continue;
+      int face = 2*d + (pos[d] == nd[d]-1 ? 1 : (pos[d] == 0 && c[d] == -1 ? 0 : 1));
+      int bt = sim.bc[face].type;
+      if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
+      if (bt == BC_INFLOW) { r.s = 8+d; return r; }
+    }
+    r.s = 5; return r; /* wall corner */
+  }
+  int nx = (ix + cx + nd[0]) % nd[0], ny = (iy + cy + nd[1]) % nd[1];
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
     r.s = 0;
@@ -223,6 +249,7 @@ enum {
   OP_BC_SCALAR,
   OP_BC_VECTOR,
   OP_BC_CORNER,
+  OP_BC_FIXED,
 };
 struct LbOp {
   int8_t type;
@@ -326,11 +353,19 @@ static void lb_exec(Real *const blk[], Real *const dst[],
       buf[o->dst_off + 1] = -buf[o->src_off + 1];
       break;
     }
+    case OP_BC_FIXED: {
+      Real *src = dst[o->blk_idx]; /* bc_const buffer */
+      Real *buf = dst[o->dst_idx];
+      for (int d = 0; d < dim; d++)
+        buf[o->dst_off + d] = src[d];
+      break;
+    }
     }
   }
 }
 
-static const struct LbTab (*lb_tab[5][3])[3][2][2][6];
+enum { N_STATUS = 10 };
+static const struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
   int configs[][2] = {{1,1}, {1,2}, {4,1}};
   for (int ci = 0; ci < 3; ci++) {
@@ -342,14 +377,14 @@ static void lb_init(void) {
       fprintf(stderr, "main.c: cannot open %s\n", fname);
       exit(1);
     }
-    size_t sz = 3 * 3 * 2 * 2 * 6 * sizeof(struct LbTab);
+    size_t sz = 3 * 3 * 2 * 2 * N_STATUS * sizeof(struct LbTab);
     struct LbTab *tab = malloc(sz);
     if (fread(tab, 1, sz, fp) != sz) {
       fprintf(stderr, "main.c: short read from %s\n", fname);
       exit(1);
     }
     fclose(fp);
-    lb_tab[ss][dim] = (const struct LbTab (*)[3][2][2][6])tab;
+    lb_tab[ss][dim] = (const struct LbTab (*)[3][2][2][N_STATUS])tab;
   }
 }
 enum { LB_BUF = ((2*4+BS)*(2*4+BS) + (BS/2+4+3)*(BS/2+4+3)) * 2 };
@@ -359,7 +394,7 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
   int nc = BS / 2 + ss + 3;
   int level = info->level;
   int xi = info->ix, yi = info->iy;
-  const struct LbTab (*cflb_tab)[3][2][2][6] = lb_tab[ss][dim];
+  const struct LbTab (*cflb_tab)[3][2][2][N_STATUS] = lb_tab[ss][dim];
 
   Real *p0 = BLK(info_idx) + BS * BS * blk_offset;
   for (int i = 0; i < BS; i++)
@@ -367,7 +402,11 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
            BS * dim * sizeof(Real));
 
   Real *c = m + nm * nm * dim;
-  Real *dst[2] = {m, c};
+  Real bc_const[2] = {0};
+  Real *dst[3] = {m, c, bc_const};
+  int scale = 1 << (level - sim.levelStart);
+  int nd2[2] = {sim.nb[0]*scale, sim.nb[1]*scale};
+  int pos[2] = {xi, yi};
 
   struct {
     const struct LbTab *e;
@@ -379,6 +418,13 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
     if (!cx && !cy)
       continue;
     struct Nb nr = nb_find(level, xi, yi, icode);
+
+    /* Fill bc_const for inflow faces */
+    if (nr.s == 8 || nr.s == 9) {
+      int axis = nr.s - 8;
+      int face = 2*axis + (pos[axis] == nd2[axis]-1 ? 1 : 0);
+      memcpy(bc_const, &sim.bc[face].val[blk_offset], dim * sizeof(Real));
+    }
     const struct LbTab *te =
         &cflb_tab[cx + 1][cy + 1][xi % 2][yi % 2][nr.s];
     Real *blk[2] = {NULL, NULL};
@@ -1221,10 +1267,7 @@ static void reflux_apply(int fine_level) {
  * (with coarser neighbors) keep U^o frozen for interface consistency.
  */
 static void subcycle(int level, int lmax, Real dt, int order) {
-  /* R(l): interleaved refinement */
-  if (level < lmax)
-    ad_refine_level(level);
-
+#if 1 /* Khokhlov: Strang + two-state + reflux */
   Real dth = dt / 2;
 
   if (level < lmax)
@@ -1267,6 +1310,20 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     reflux_apply(level + 1);
     state_to_old(level, 0);
   }
+#else /* Original: simple Lie splitting */
+  state_to_old(level, 0);
+  if (level < lmax)
+    subcycle(level + 1, lmax, dt / 2, order);
+  if (order) {
+    euler_y_sweep(dt, level);
+    euler_x_sweep(dt, level);
+  } else {
+    euler_x_sweep(dt, level);
+    euler_y_sweep(dt, level);
+  }
+  if (level < lmax)
+    subcycle(level + 1, lmax, dt / 2, order ^ 1);
+#endif
 }
 int main(int argc, char **argv) {
 #ifdef _OPENMP
@@ -1281,8 +1338,13 @@ int main(int argc, char **argv) {
     else
       *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
   int dumpSteps = arg_i_opt(argc, argv, "sdump", 0);
+  /* Domain: 1 x 1, solid walls (Khokhlov Section 7.4, Fig. 8-9) */
+  sim.L[0] = 1.0; sim.L[1] = 1.0;
+  sim.bc[0].type = BC_WALL; sim.bc[1].type = BC_WALL;
+  sim.bc[2].type = BC_WALL; sim.bc[3].type = BC_WALL;
   {
     int ns = 1 << sim.levelStart;
+    sim.nb[0] = ns; sim.nb[1] = ns;
     sim.n = (long long)ns * ns;
     sim.blk = calloc(sim.n, sizeof *sim.blk);
     sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
@@ -1293,6 +1355,8 @@ int main(int argc, char **argv) {
   }
   hm_rebuild();
   lb_init();
+  /* IC: Cylindrical strong point explosion (Khokhlov Section 7.4)
+     rho0=1, P0=1, E=1e5 in one finest cell at (0.35, 0.2) */
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
@@ -1302,9 +1366,9 @@ int main(int argc, char **argv) {
     Real h = info->h;
     for (int iy = 0; iy < BS; iy++)
       for (int ix = 0; ix < BS; ix++) {
+        int j = BS * iy + ix;
         Real x0 = info->origin[0] + h * ix;
         Real y0 = info->origin[1] + h * iy;
-        int j = BS * iy + ix;
         Real p = 1.0;
         if (x0 <= 0.35 && 0.35 < x0+h && y0 <= 0.2 && 0.2 < y0+h)
           p += (GAMMA - 1) * 1e5 / (h * h);
@@ -1316,6 +1380,7 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sim.levelMax; i++)
     ad_run();
+  /* Re-apply IC on adapted mesh */
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
