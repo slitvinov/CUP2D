@@ -6,10 +6,207 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "solver.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+
+/* --- solver (BiCGStab with block-diagonal preconditioner) --- */
+struct Solver {
+  int blen, m, nnz, mean_row;
+  const double *coo_val;
+  const int *coo_row, *coo_col;
+  const double *h2;
+  double *precond;
+  double *r, *rhat, *p, *nu, *t, *z, *x_opt;
+};
+
+static struct Solver *solver_create(int blen, const double *precond) {
+  struct Solver *s = calloc(1, sizeof *s);
+  s->blen = blen;
+  s->precond = malloc(blen * blen * sizeof(double));
+  memcpy(s->precond, precond, blen * blen * sizeof(double));
+  return s;
+}
+
+static void solver_destroy(struct Solver *s) {
+  free(s->precond);
+  free(s->r);
+  free(s->rhat);
+  free(s->p);
+  free(s->nu);
+  free(s->t);
+  free(s->z);
+  free(s->x_opt);
+  free(s);
+}
+
+static void sol_spmv(int m, int nnz, const double *val, const int *row,
+                     const int *col, const double *x, double *y) {
+  memset(y, 0, m * sizeof(double));
+  for (int i = 0; i < nnz; i++)
+    y[row[i]] += val[i] * x[col[i]];
+}
+
+static void sol_precond_apply(int m, int blen, const double *P,
+                              const double *x, double *y) {
+  int nb = m / blen;
+#pragma omp parallel for schedule(static)
+  for (int b = 0; b < nb; b++) {
+    const double *xb = x + b * blen;
+    double *yb = y + b * blen;
+    for (int i = 0; i < blen; i++) {
+      double s = 0;
+      const double *row = P + i * blen;
+      for (int j = 0; j < blen; j++)
+        s += row[j] * xb[j];
+      yb[i] = s;
+    }
+  }
+}
+
+static void sol_axpy(int m, double a, const double *x, double *y) {
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < m; i++)
+    y[i] += a * x[i];
+}
+
+static void sol_scal(int m, double a, double *x) {
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < m; i++)
+    x[i] *= a;
+}
+
+static double sol_dot(int m, const double *a, const double *b) {
+  double s = 0;
+#pragma omp parallel for reduction(+:s) schedule(static)
+  for (int i = 0; i < m; i++)
+    s += a[i] * b[i];
+  return s;
+}
+
+static double sol_amax(int m, const double *x) {
+  double mx = 0;
+#pragma omp parallel for reduction(max:mx) schedule(static)
+  for (int i = 0; i < m; i++) {
+    double a = fabs(x[i]);
+    if (a > mx) mx = a;
+  }
+  return mx;
+}
+
+static void sol_matvec(struct Solver *s, const double *x, double *y) {
+  sol_spmv(s->m, s->nnz, s->coo_val, s->coo_row, s->coo_col, x, y);
+  if (s->mean_row >= 0) {
+    double sum = 0;
+    for (int i = 0; i < s->m; i++)
+      sum += s->h2[i / s->blen] * x[i];
+    y[s->mean_row] = sum;
+  }
+}
+
+static void bicgstab(struct Solver *s, double *x, double max_error,
+                     double max_rel_error, int max_restarts) {
+  int m = s->m;
+  double *r = s->r, *rhat = s->rhat, *p = s->p;
+  double *nu = s->nu, *t = s->t, *z = s->z, *x_opt = s->x_opt;
+  double eps = 1e-21;
+
+  sol_matvec(s, x, nu);
+  sol_axpy(m, -1.0, nu, r);
+
+  double error = sol_amax(m, r);
+  double error_init = error;
+  double error_opt = error;
+  memcpy(x_opt, x, m * sizeof(double));
+  memcpy(rhat, r, m * sizeof(double));
+  memset(nu, 0, m * sizeof(double));
+  memset(p, 0, m * sizeof(double));
+
+  double rho_prev = 1, alpha = 1, omega = 1;
+  int restarts = 0;
+
+  for (int k = 0; k < 1000; k++) {
+    double rho = sol_dot(m, rhat, r);
+    double nr = sol_dot(m, r, r);
+    double nrh = sol_dot(m, rhat, rhat);
+    int serious_breakdown = rho * rho < 1e-16 * nr * nrh;
+
+    double beta = (rho / (rho_prev + eps)) * (alpha / (omega + eps));
+
+    if (serious_breakdown && max_restarts > 0) {
+      restarts++;
+      if (restarts >= max_restarts) break;
+      memcpy(rhat, r, m * sizeof(double));
+      rho = sol_dot(m, r, r);
+      memset(nu, 0, m * sizeof(double));
+      memset(p, 0, m * sizeof(double));
+      rho_prev = 1; alpha = 1; omega = 1;
+      beta = (rho / (rho_prev + eps)) * (alpha / (omega + eps));
+    }
+
+    sol_axpy(m, -omega, nu, p);
+    sol_scal(m, beta, p);
+    sol_axpy(m, 1.0, r, p);
+
+    sol_precond_apply(m, s->blen, s->precond, p, z);
+    sol_matvec(s, z, nu);
+
+    double rhat_nu = sol_dot(m, rhat, nu);
+    alpha = rho / (rhat_nu + eps);
+
+    sol_axpy(m, alpha, z, x);
+    sol_axpy(m, -alpha, nu, r);
+
+    sol_precond_apply(m, s->blen, s->precond, r, z);
+    sol_matvec(s, z, t);
+
+    double tr = sol_dot(m, t, r);
+    double tt = sol_dot(m, t, t);
+    omega = tr / (tt + eps);
+
+    sol_axpy(m, omega, z, x);
+    sol_axpy(m, -omega, t, r);
+
+    error = sol_amax(m, r);
+    if (error < error_opt) {
+      error_opt = error;
+      memcpy(x_opt, x, m * sizeof(double));
+      if (error <= max_error || error / error_init <= max_rel_error)
+        break;
+    }
+    rho_prev = rho;
+  }
+  memcpy(x, x_opt, m * sizeof(double));
+}
+
+static void solver_solve(struct Solver *s, int update_matrix,
+    int m, int nnz,
+    const double *coo_val, const int *coo_row, const int *coo_col,
+    double *x, const double *b, const double *h2, int mean_row,
+    double tol, double rtol, int restarts) {
+  if (update_matrix || s->m != m) {
+    free(s->r);     free(s->rhat);  free(s->p);
+    free(s->nu);    free(s->t);     free(s->z);
+    free(s->x_opt);
+    s->r     = malloc(m * sizeof(double));
+    s->rhat  = malloc(m * sizeof(double));
+    s->p     = malloc(m * sizeof(double));
+    s->nu    = malloc(m * sizeof(double));
+    s->t     = malloc(m * sizeof(double));
+    s->z     = malloc(m * sizeof(double));
+    s->x_opt = malloc(m * sizeof(double));
+  }
+  s->m = m;
+  s->nnz = nnz;
+  s->coo_val = coo_val;
+  s->coo_row = coo_row;
+  s->coo_col = coo_col;
+  s->h2 = h2;
+  s->mean_row = mean_row;
+  memcpy(s->r, b, m * sizeof(double));
+  bicgstab(s, x, tol, rtol, restarts);
+}
+/* --- end solver --- */
 
 typedef double Real;
 enum { BS = 8 };
@@ -927,187 +1124,297 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
   free(rr); free(z); free(p); free(Ap); free(r_tmp);
 }
 
-/* Advect + diffuse with MAC projection (Brown & Minion Eq. 18-23).
-   Steps: (A) Predict edge velocities (B) Transverse+viscous+pressure corrections
-   (C) MAC projection (D) Advection from projected edges (E) CN update */
-static void advect_diffuse(Real dt) {
-  Real h0 = sim.blk[0].h;
-  int ns = sim.nb[0] * (1 << (sim.blk[0].level - sim.levelStart));
-  int Ng = ns * BS;
-  Real ih = 1.0/h0;
+/* --- AMR-aware gather/scatter: flatten to finest-level uniform grid --- */
+static Real amr_finest_h(void) {
+  Real hmin = sim.blk[0].h;
+  for (long long i = 1; i < sim.n; i++)
+    if (sim.blk[i].h < hmin) hmin = sim.blk[i].h;
+  return hmin;
+}
+static int amr_finest_N(Real hf) { return (int)(sim.L[0] / hf + 0.5); }
 
-  /* Flat MAC face arrays: umac at x-faces (Ng+1)*Ng, vmac at y-faces Ng*(Ng+1)
-     On periodic grid, face (Ng) wraps to face (0), so store Ng faces each. */
-  double *umac = calloc(Ng*Ng, sizeof(double)); /* u at face (i+1/2, j) for i=0..Ng-1 */
-  double *vmac = calloc(Ng*Ng, sizeof(double)); /* v at face (i, j+1/2) for j=0..Ng-1 */
-  /* Also store transported quantities at faces for advection flux */
-  double *umac_v = calloc(Ng*Ng, sizeof(double)); /* v at x-faces */
-  double *vmac_u = calloc(Ng*Ng, sizeof(double)); /* u at y-faces */
-
-  /* Pass 1: Godunov edge prediction → fill umac, vmac, umac_v, vmac_u */
-#pragma omp parallel
-  {
-    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF];
-#pragma omp for
-    for (long long id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, 2, id);
-      lb_load(bv, 1, F_V, 2, id);
-      lb_load(bp, 1, F_P, 1, id);
-      int ss=2, nm=2*ss+BS;
-      int ss1=1, nm1=2*ss1+BS;
-      int bx = (int)(sim.blk[id].origin[0]/h0 + 0.5);
-      int by = (int)(sim.blk[id].origin[1]/h0 + 0.5);
-      Real c_dt = 0.5*dt*ih;
-#define U(di,dj) bu[nm*((j)+(dj)+ss)+(i)+(di)+ss]
-#define V(di,dj) bv[nm*((j)+(dj)+ss)+(i)+(di)+ss]
-#define P(di,dj) bp[nm1*((j)+(dj)+ss1)+(i)+(di)+ss1]
+/* Gather block field → flat Ng×Ng array.
+   Fine blocks (ratio=1): direct copy.
+   Coarse blocks: bilinear interpolation from cell centers using lb_load ghost data. */
+static void amr_gather(double *dst, int field, int Ng, Real hf) {
+  memset(dst, 0, (size_t)Ng * Ng * sizeof(double));
+  Real lb[LB_BUF];
+  for (long long id = 0; id < sim.n; id++) {
+    Real h = sim.blk[id].h;
+    int ratio = (int)(h / hf + 0.5);
+    int bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
+    int by = (int)(sim.blk[id].origin[1] / hf + 0.5);
+    if (ratio == 1) {
+      /* Fine block: direct copy */
+      Real *src = BLK(id) + BS * BS * field;
       for (int j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++) {
-          Real uc = U(0,0), vc = V(0,0);
-          /* Slopes */
-          Real su = slope4(U(-2,0),U(-1,0),U(0,0),U(1,0),U(2,0));
-          Real sv = slope4(V(-2,0),V(-1,0),V(0,0),V(1,0),V(2,0));
-          Real su_p = minmod(U(1,0)-U(0,0), U(2,0)-U(1,0));
-          Real sv_p = minmod(V(1,0)-V(0,0), V(2,0)-V(1,0));
-          Real su_y = slope4(U(0,-2),U(0,-1),U(0,0),U(0,1),U(0,2));
-          Real sv_y = slope4(V(0,-2),V(0,-1),V(0,0),V(0,1),V(0,2));
-          Real su_yp = minmod(U(0,1)-U(0,0), U(0,2)-U(0,1));
-          Real sv_yp = minmod(V(0,1)-V(0,0), V(0,2)-V(0,1));
-
-          /* Right face (i+1/2): Riemann solve */
-          Real sL = uc > 0 ? 1 : 0;
-          Real sR = U(1,0) < 0 ? 1 : 0;
-          Real uR_L = U(0,0) + (0.5 - sL*c_dt*uc)*su;
-          Real vR_L = V(0,0) + (0.5 - sL*c_dt*uc)*sv;
-          Real uR_R = U(1,0) + (-0.5 - sR*c_dt*U(1,0))*su_p;
-          Real vR_R = V(1,0) + (-0.5 - sR*c_dt*U(1,0))*sv_p;
-          Real u_xR, v_xR;
-          if (uc > 0 && U(1,0) > 0)      { u_xR=uR_L; v_xR=vR_L; }
-          else if (uc < 0 && U(1,0) < 0) { u_xR=uR_R; v_xR=vR_R; }
-          else                            { u_xR=0.5*(uR_L+uR_R); v_xR=0.5*(vR_L+vR_R); }
-
-          /* Top face (j+1/2): Riemann solve */
-          sL = vc > 0 ? 1 : 0;
-          sR = V(0,1) < 0 ? 1 : 0;
-          Real uT_L = U(0,0) + (0.5 - sL*c_dt*vc)*su_y;
-          Real vT_L = V(0,0) + (0.5 - sL*c_dt*vc)*sv_y;
-          Real uT_R = U(0,1) + (-0.5 - sR*c_dt*V(0,1))*su_yp;
-          Real vT_R = V(0,1) + (-0.5 - sR*c_dt*V(0,1))*sv_yp;
-          Real u_yT, v_yT;
-          if (vc > 0 && V(0,1) > 0)      { u_yT=uT_L; v_yT=vT_L; }
-          else if (vc < 0 && V(0,1) < 0) { u_yT=uT_R; v_yT=vT_R; }
-          else                            { u_yT=0.5*(uT_L+uT_R); v_yT=0.5*(vT_L+vT_R); }
-
-          /* Add transverse + viscous + pressure corrections (Eq. 22) */
-          Real lap_u = (U(1,0)+U(-1,0)+U(0,1)+U(0,-1)-4*uc)*ih*ih;
-          Real lap_v = (V(1,0)+V(-1,0)+V(0,1)+V(0,-1)-4*vc)*ih*ih;
-          Real dpx = (P(1,0)-P(-1,0))*0.5*ih;
-          Real dpy = (P(0,1)-P(0,-1))*0.5*ih;
-          Real cu = 0.5*dt*(NU*lap_u - dpx);
-          Real cv = 0.5*dt*(NU*lap_v - dpy);
-
-          /* Store at right face (i+1/2, j) — each face written once by the left cell */
-          int fi = (bx+i+1)%Ng, fj = by+j;
-          umac[fj*Ng+fi] = u_xR + cu;
-          umac_v[fj*Ng+fi] = v_xR + cv;
-
-          /* Store at top face (i, j+1/2) */
-          fi = bx+i; fj = (by+j+1)%Ng;
-          vmac[fj*Ng+fi] = v_yT + cv;
-          vmac_u[fj*Ng+fi] = u_yT + cu;
-        }
-#undef U
-#undef V
-#undef P
+        for (int i = 0; i < BS; i++)
+          dst[(by + j) * Ng + bx + i] = src[j * BS + i];
+    } else {
+      /* Coarse block: bilinear interpolation from cell centers.
+         Load with 1-cell ghost layer for interpolation at edges. */
+      lb_load(lb, 1, field, 1, id);
+      int ss = 1, nm = 2 * ss + BS;
+      /* Each coarse cell (i,j) maps to ratio×ratio fine cells.
+         Fine cell (di,dj) within coarse cell has fractional position
+         fx = (di + 0.5) / ratio - 0.5, fy = (dj + 0.5) / ratio - 0.5
+         Bilinear interpolation from 4 nearest coarse cell centers. */
+      for (int j = 0; j < BS; j++)
+        for (int i = 0; i < BS; i++)
+          for (int dj = 0; dj < ratio; dj++)
+            for (int di = 0; di < ratio; di++) {
+              double fx = ((double)di + 0.5) / ratio - 0.5;
+              double fy = ((double)dj + 0.5) / ratio - 0.5;
+              int i0 = (fx < 0) ? -1 : 0, j0 = (fy < 0) ? -1 : 0;
+              double wx = fx - i0, wy = fy - j0;
+              /* lb indices: cell (i,j) in block → lb[nm*(j+ss)+i+ss] */
+              #define LB(ci,cj) lb[nm*((j)+(cj)+ss)+(i)+(ci)+ss]
+              double v00 = LB(i0, j0);
+              double v10 = LB(i0 + 1, j0);
+              double v01 = LB(i0, j0 + 1);
+              double v11 = LB(i0 + 1, j0 + 1);
+              #undef LB
+              double val = (1 - wx) * (1 - wy) * v00 + wx * (1 - wy) * v10
+                         + (1 - wx) * wy * v01 + wx * wy * v11;
+              int gx = bx + i * ratio + di;
+              int gy = by + j * ratio + dj;
+              if (gx >= 0 && gx < Ng && gy >= 0 && gy < Ng)
+                dst[gy * Ng + gx] = val;
+            }
     }
   }
-
-  /* Pass 2: MAC projection — make umac,vmac divergence-free.
-     D_MAC = (umac_{i+1/2} - umac_{i-1/2})/h + (vmac_{j+1/2} - vmac_{j-1/2})/h
-     Solve: ∆⁵ φ_mac = D_MAC  (standard 5-point compact Laplacian)
-     Correct: umac -= (φ_{i+1}-φ_i)/h, vmac -= (φ_{j+1}-φ_j)/h */
-  {
-    double *div_mac = calloc(Ng*Ng, sizeof(double));
-    double *phi_mac = calloc(Ng*Ng, sizeof(double));
-    /* Compute MAC divergence */
-    for (int j=0;j<Ng;j++) for (int i=0;i<Ng;i++) {
-      int ip1=(i+1)%Ng, jp1=(j+1)%Ng;
-      div_mac[j*Ng+i] = (umac[j*Ng+ip1]-umac[j*Ng+i]+vmac[jp1*Ng+i]-vmac[j*Ng+i])*ih;
-    }
-    /* Solve ∆⁵ φ = div*h² using multigrid-preconditioned CG */
-    for (int k=0;k<Ng*Ng;k++) div_mac[k] *= h0*h0;
-    mg_solve_periodic(phi_mac, div_mac, Ng, 1e-10);
-
-    /* Correct MAC velocities: umac -= (φ_{i}-φ_{i-1})/h, vmac -= (φ_{j}-φ_{j-1})/h
-       Note: face (i+1/2) stored at index i+1, so φ gradient uses φ[i+1]-φ[i] */
-    for (int j=0;j<Ng;j++) for (int i=0;i<Ng;i++) {
-      int im=(i-1+Ng)%Ng, jm=(j-1+Ng)%Ng;
-      umac[j*Ng+i]   -= (phi_mac[j*Ng+i]-phi_mac[j*Ng+im])*ih;
-      umac_v[j*Ng+i] -= 0; /* only correct advecting velocity, not transported */
-      vmac[j*Ng+i]   -= (phi_mac[j*Ng+i]-phi_mac[jm*Ng+i])*ih;
-      vmac_u[j*Ng+i] -= 0;
-    }
-    free(div_mac); free(phi_mac);
-  }
-
-  /* Pass 3: Compute advection from MAC-projected faces and form CN RHS */
-#pragma omp parallel
-  {
-    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF];
-#pragma omp for
-    for (long long id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, 1, id);
-      lb_load(bv, 1, F_V, 1, id);
-      lb_load(bp, 1, F_P, 1, id);
-      Real *u = BLK(id)+BS*BS*F_U;
-      Real *v = BLK(id)+BS*BS*F_V;
-      int ss1=1, nm1=2*ss1+BS;
-      int bx = (int)(sim.blk[id].origin[0]/h0 + 0.5);
-      int by = (int)(sim.blk[id].origin[1]/h0 + 0.5);
-#define UU(di,dj) bu[nm1*((j)+(dj)+ss1)+(i)+(di)+ss1]
-#define VV(di,dj) bv[nm1*((j)+(dj)+ss1)+(i)+(di)+ss1]
-#define PP(di,dj) bp[nm1*((j)+(dj)+ss1)+(i)+(di)+ss1]
-      for (int j=0;j<BS;j++) for (int i=0;i<BS;i++) {
-        int k = j*BS+i;
-        Real uc = UU(0,0), vc = VV(0,0);
-        int gi=bx+i, gj=by+j;
-        int gip=(gi+1)%Ng, gjp=(gj+1)%Ng;
-        /* MAC face values */
-        Real uR = umac[gj*Ng+gip];    /* u at right face (i+1/2) */
-        Real uL = umac[gj*Ng+gi];     /* u at left face (i-1/2) stored at i */
-        Real vT = vmac[gjp*Ng+gi];    /* v at top face (j+1/2) */
-        Real vB = vmac[gj*Ng+gi];     /* v at bottom face (j-1/2) stored at j */
-        /* Transported quantities at faces */
-        Real u_at_yT = vmac_u[gjp*Ng+gi];
-        Real u_at_yB = vmac_u[gj*Ng+gi];
-        Real v_at_xR = umac_v[gj*Ng+gip];
-        Real v_at_xL = umac_v[gj*Ng+gi];
-        /* Advection: (u·∇)U using MAC-projected advecting velocity */
-        Real adv_u = uR*(uR>0?uc:UU(1,0))*ih - uL*(uL>0?UU(-1,0):uc)*ih
-                   + vT*u_at_yT*ih - vB*u_at_yB*ih;
-        Real adv_v = uR*v_at_xR*ih - uL*v_at_xL*ih
-                   + vT*(vT>0?vc:VV(0,1))*ih - vB*(vB>0?VV(0,-1):vc)*ih;
-        /* Viscous and pressure (centered at cell) */
-        Real lap_u = (UU(1,0)+UU(-1,0)+UU(0,1)+UU(0,-1)-4*uc)*ih*ih;
-        Real lap_v = (VV(1,0)+VV(-1,0)+VV(0,1)+VV(0,-1)-4*vc)*ih*ih;
-        Real dpx = (PP(1,0)-PP(-1,0))*0.5*ih;
-        Real dpy = (PP(0,1)-PP(0,-1))*0.5*ih;
-        /* CN RHS */
-        Real alpha = NU*dt*0.5;
-        u[k] = uc + alpha*lap_u + dt*(-adv_u - dpx);
-        v[k] = vc + alpha*lap_v + dt*(-adv_v - dpy);
-      }
-#undef UU
-#undef VV
-#undef PP
-    }
-  }
-  free(umac); free(vmac); free(umac_v); free(vmac_u);
 }
 
-/* Helmholtz solve: (I - α∆)U* = RHS for one scalar field.
-   After advect_diffuse, F_U and F_V contain the RHS.
-   Solve in-place: on entry field has RHS, on exit has solution U*. */
+/* Scatter flat Ng×Ng → block field (average for coarse blocks) */
+static void amr_scatter(double *src, int field, int Ng, Real hf) {
+  for (long long id = 0; id < sim.n; id++) {
+    Real *dst = BLK(id) + BS * BS * field;
+    Real h = sim.blk[id].h;
+    int ratio = (int)(h / hf + 0.5);
+    int bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
+    int by = (int)(sim.blk[id].origin[1] / hf + 0.5);
+    Real inv = 1.0 / (ratio * ratio);
+    for (int j = 0; j < BS; j++)
+      for (int i = 0; i < BS; i++) {
+        double sum = 0;
+        for (int dj = 0; dj < ratio; dj++)
+          for (int di = 0; di < ratio; di++)
+            sum += src[(by + j * ratio + dj) * Ng + bx + i * ratio + di];
+        dst[j * BS + i] = sum * inv;
+      }
+  }
+}
+
+/*
+ * AMReX-style 2D Godunov edge state computation + MAC projection.
+ * Ported from amrex-hydro/Godunov/hydro_godunov_edge_state_2D.cpp
+ *
+ * Algorithm:
+ * 1. PLM prediction: L/R states at all faces using 4th-order slopes
+ * 2. Upwind y-edges (yzlo) using vmac for x-direction transverse
+ * 3. Final x-edge: xlo/xhi + normal div + transverse flux → Riemann with umac
+ * 4. Upwind x-edges (xzlo) using umac for y-direction transverse
+ * 5. Final y-edge: ylo/yhi + normal div + transverse flux → Riemann with vmac
+ * 6. MAC projection on final edges
+ * 7. Advection from projected edges → CN update
+ */
+static void advect_diffuse(Real dt) {
+  Real h0 = amr_finest_h();
+  int N = amr_finest_N(h0);
+  Real ih = 1.0/h0;
+  Real dtdx = dt/h0, dtdy = dt/h0;
+  int NN = N*N;
+  /* Periodic index helpers */
+  #define IDX(i,j) (((j)+N)%N*N + ((i)+N)%N)
+
+  /* Flat cell-centered fields (gathered from AMR blocks) */
+  double *qu = calloc(NN,8), *qv = calloc(NN,8);
+  amr_gather(qu, F_U, N, h0);
+  amr_gather(qv, F_V, N, h0);
+
+  /* Flat MAC velocities (from previous step or initial MAC projection) */
+  /* For first call: compute preliminary MAC from simple PLM + upwind + project */
+  double *umac = calloc(NN,8), *vmac = calloc(NN,8);
+  /* Simple PLM + upwind for preliminary MAC */
+  for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+    /* x-face at (i+1/2, j): left state from cell (i), right state from cell (i+1) */
+    Real su_i = slope4(qu[IDX(i-2,j)],qu[IDX(i-1,j)],qu[IDX(i,j)],qu[IDX(i+1,j)],qu[IDX(i+2,j)]);
+    Real su_ip = slope4(qu[IDX(i-1,j)],qu[IDX(i,j)],qu[IDX(i+1,j)],qu[IDX(i+2,j)],qu[IDX(i+3,j)]);
+    Real uc = qu[IDX(i,j)], un = qu[IDX(i+1,j)];
+    Real sL = uc > 0 ? 1 : 0, sR = un < 0 ? 1 : 0;
+    Real lo = uc + (0.5 - sL*0.5*dtdx*uc)*su_i;
+    Real hi = un + (-0.5 - sR*0.5*dtdx*un)*su_ip;
+    Real uface = (lo+hi)*0.5;
+    umac[IDX(i+1,j)] = (uface >= 0) ? lo : hi;
+    if (fabs(uface) < 1e-10) umac[IDX(i+1,j)] = 0.5*(lo+hi);
+
+    /* y-face at (i, j+1/2) */
+    Real sv_j = slope4(qv[IDX(i,j-2)],qv[IDX(i,j-1)],qv[IDX(i,j)],qv[IDX(i,j+1)],qv[IDX(i,j+2)]);
+    Real sv_jp = slope4(qv[IDX(i,j-1)],qv[IDX(i,j)],qv[IDX(i,j+1)],qv[IDX(i,j+2)],qv[IDX(i,j+3)]);
+    Real vc = qv[IDX(i,j)], vn = qv[IDX(i,j+1)];
+    sL = vc > 0 ? 1 : 0; sR = vn < 0 ? 1 : 0;
+    lo = vc + (0.5 - sL*0.5*dtdy*vc)*sv_j;
+    hi = vn + (-0.5 - sR*0.5*dtdy*vn)*sv_jp;
+    Real vface = (lo+hi)*0.5;
+    vmac[IDX(i,j+1)] = (vface >= 0) ? lo : hi;
+    if (fabs(vface) < 1e-10) vmac[IDX(i,j+1)] = 0.5*(lo+hi);
+  }
+  /* MAC projection */
+  {
+    double *div = calloc(NN,8), *phi = calloc(NN,8);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++)
+      div[IDX(i,j)] = (umac[IDX(i+1,j)]-umac[IDX(i,j)] + vmac[IDX(i,j+1)]-vmac[IDX(i,j)])*ih;
+    for (int k=0;k<NN;k++) div[k] *= h0*h0;
+    mg_solve_periodic(phi, div, N, 1e-10);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      umac[IDX(i,j)] -= (phi[IDX(i,j)]-phi[IDX(i-1,j)])*ih;
+      vmac[IDX(i,j)] -= (phi[IDX(i,j)]-phi[IDX(i,j-1)])*ih;
+    }
+    free(div); free(phi);
+  }
+
+  /* Step 1: PLM L/R states at all faces for EACH component */
+  /* Process one component at a time (n=0 for u, n=1 for v) */
+  double *xedge_u = calloc(NN,8), *xedge_v = calloc(NN,8);
+  double *yedge_u = calloc(NN,8), *yedge_v = calloc(NN,8);
+
+  for (int n = 0; n < 2; n++) {
+    double *q = (n==0) ? qu : qv;
+    double *xedge = (n==0) ? xedge_u : xedge_v;
+    double *yedge = (n==0) ? yedge_u : yedge_v;
+
+    /* xlo[i,j] = left state at face (i+1/2,j) from cell i
+       xhi[i,j] = right state at face (i-1/2,j) from cell i
+       Note: xlo[i] is stored at face index i+1, xhi[i] at face index i */
+    double *xlo = calloc(NN,8), *xhi = calloc(NN,8);
+    double *ylo = calloc(NN,8), *yhi = calloc(NN,8);
+
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      Real s = slope4(q[IDX(i-2,j)],q[IDX(i-1,j)],q[IDX(i,j)],q[IDX(i+1,j)],q[IDX(i+2,j)]);
+      Real uc = qu[IDX(i,j)]; /* advecting velocity at cell center */
+      /* Ipx: left state at face i+1/2 (AMReX: umns = S(i) + 0.5*(1-u*dt/dx)*slope) */
+      xlo[IDX(i+1,j)] = q[IDX(i,j)] + 0.5*(1.0 - umac[IDX(i+1,j)]*dtdx)*s;
+      /* Imx: right state at face i+1/2 from cell i+1 — computed by cell i+1 */
+      /* Instead: right state at face i-1/2 from cell i */
+      xhi[IDX(i,j)] = q[IDX(i,j)] + 0.5*(-1.0 - umac[IDX(i,j)]*dtdx)*s;
+
+      Real sy = slope4(q[IDX(i,j-2)],q[IDX(i,j-1)],q[IDX(i,j)],q[IDX(i,j+1)],q[IDX(i,j+2)]);
+      Real vc = qv[IDX(i,j)];
+      ylo[IDX(i,j+1)] = q[IDX(i,j)] + 0.5*(1.0 - vmac[IDX(i,j+1)]*dtdy)*sy;
+      yhi[IDX(i,j)] = q[IDX(i,j)] + 0.5*(-1.0 - vmac[IDX(i,j)]*dtdy)*sy;
+    }
+
+    /* Step 2: Upwind y-edges (yzlo) using vmac */
+    double *yzlo = calloc(NN,8);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      Real vad = vmac[IDX(i,j)];
+      Real lo_v = ylo[IDX(i,j)], hi_v = yhi[IDX(i,j)];
+      yzlo[IDX(i,j)] = (fabs(vad) < 1e-10) ? 0.5*(lo_v+hi_v) : ((vad >= 0) ? lo_v : hi_v);
+    }
+
+    /* Step 3: Final x-edge with full transverse correction (AMReX lines 220-274)
+       stl = xlo(i,j) + correction at cell (i-1,j)
+       sth = xhi(i,j) + correction at cell (i,j)
+       Correction = -(dt/2) * [q*du/dx + d(vmac*q)/dy] + (non-conservative: q*divu)
+       For incompressible: divu=0, so correction = -(dt/2) * div(u_vec * q) */
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      /* Left state: from cell (i-1,j) */
+      Real quxl = (umac[IDX(i,j)] - umac[IDX(i-1,j)]) * q[IDX(i-1,j)];
+      Real stl = xlo[IDX(i,j)]
+        - 0.5*dtdx * quxl
+        - 0.5*dtdy * (yzlo[IDX(i-1,j+1)]*vmac[IDX(i-1,j+1)]
+                      -yzlo[IDX(i-1,j  )]*vmac[IDX(i-1,j  )]);
+      /* For non-conservative (incompressible): add q*divu = 0 */
+
+      /* Right state: from cell (i,j) */
+      Real quxh = (umac[IDX(i+1,j)] - umac[IDX(i,j)]) * q[IDX(i,j)];
+      Real sth = xhi[IDX(i,j)]
+        - 0.5*dtdx * quxh
+        - 0.5*dtdy * (yzlo[IDX(i,j+1)]*vmac[IDX(i,j+1)]
+                      -yzlo[IDX(i,j  )]*vmac[IDX(i,j  )]);
+
+      /* Riemann solve using MAC velocity */
+      Real uad = umac[IDX(i,j)];
+      xedge[IDX(i,j)] = (fabs(uad) < 1e-10) ? 0.5*(stl+sth) : ((uad >= 0) ? stl : sth);
+    }
+
+    /* Step 4: Upwind x-edges (xzlo) using umac */
+    double *xzlo = calloc(NN,8);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      Real uad = umac[IDX(i,j)];
+      Real lo_u = xlo[IDX(i,j)], hi_u = xhi[IDX(i,j)];
+      xzlo[IDX(i,j)] = (fabs(uad) < 1e-10) ? 0.5*(lo_u+hi_u) : ((uad >= 0) ? lo_u : hi_u);
+    }
+
+    /* Step 5: Final y-edge with full transverse correction (AMReX lines 302-358) */
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      Real qvyl = (vmac[IDX(i,j)] - vmac[IDX(i,j-1)]) * q[IDX(i,j-1)];
+      Real stl = ylo[IDX(i,j)]
+        - 0.5*dtdy * qvyl
+        - 0.5*dtdx * (xzlo[IDX(i+1,j-1)]*umac[IDX(i+1,j-1)]
+                      -xzlo[IDX(i  ,j-1)]*umac[IDX(i  ,j-1)]);
+
+      Real qvyh = (vmac[IDX(i,j+1)] - vmac[IDX(i,j)]) * q[IDX(i,j)];
+      Real sth = yhi[IDX(i,j)]
+        - 0.5*dtdy * qvyh
+        - 0.5*dtdx * (xzlo[IDX(i+1,j)]*umac[IDX(i+1,j)]
+                      -xzlo[IDX(i  ,j)]*umac[IDX(i  ,j)]);
+
+      Real vad = vmac[IDX(i,j)];
+      yedge[IDX(i,j)] = (fabs(vad) < 1e-10) ? 0.5*(stl+sth) : ((vad >= 0) ? stl : sth);
+    }
+
+    free(xlo); free(xhi); free(ylo); free(yhi); free(yzlo); free(xzlo);
+  }
+
+  /* Step 6: MAC projection on final edges (make advecting velocity div-free) */
+  /* The edge velocities for advection are xedge_u (u at x-faces) and yedge_v (v at y-faces) */
+  {
+    double *div = calloc(NN,8), *phi = calloc(NN,8);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++)
+      div[IDX(i,j)] = (xedge_u[IDX(i+1,j)]-xedge_u[IDX(i,j)]
+                       +yedge_v[IDX(i,j+1)]-yedge_v[IDX(i,j)])*ih;
+    for (int k=0;k<NN;k++) div[k] *= h0*h0;
+    mg_solve_periodic(phi, div, N, 1e-10);
+    for (int j=0;j<N;j++) for (int i=0;i<N;i++) {
+      xedge_u[IDX(i,j)] -= (phi[IDX(i,j)]-phi[IDX(i-1,j)])*ih;
+      yedge_v[IDX(i,j)] -= (phi[IDX(i,j)]-phi[IDX(i,j-1)])*ih;
+    }
+    free(div); free(phi);
+  }
+
+  /* Step 7: Compute advection from edges → CN update (on flat grid) */
+  { double *qp = calloc(NN, 8);
+    amr_gather(qp, F_P, N, h0);
+    double *u_new = calloc(NN, 8), *v_new = calloc(NN, 8);
+    for (int gj = 0; gj < N; gj++) for (int gi = 0; gi < N; gi++) {
+      Real uc = qu[IDX(gi,gj)], vc = qv[IDX(gi,gj)];
+      Real uR=xedge_u[IDX(gi+1,gj)], uL=xedge_u[IDX(gi,gj)];
+      Real vT=yedge_v[IDX(gi,gj+1)], vB=yedge_v[IDX(gi,gj)];
+      Real uu_R=xedge_u[IDX(gi+1,gj)], uu_L=xedge_u[IDX(gi,gj)];
+      Real vv_T=yedge_v[IDX(gi,gj+1)], vv_B=yedge_v[IDX(gi,gj)];
+      Real u_yT=yedge_u[IDX(gi,gj+1)], u_yB=yedge_u[IDX(gi,gj)];
+      Real v_xR=xedge_v[IDX(gi+1,gj)], v_xL=xedge_v[IDX(gi,gj)];
+      Real adv_u = 0.5*(uR+uL)*(uu_R-uu_L)*ih + 0.5*(vT+vB)*(u_yT-u_yB)*ih;
+      Real adv_v = 0.5*(uR+uL)*(v_xR-v_xL)*ih + 0.5*(vT+vB)*(vv_T-vv_B)*ih;
+      Real lap_u = (qu[IDX(gi+1,gj)]+qu[IDX(gi-1,gj)]+qu[IDX(gi,gj+1)]+qu[IDX(gi,gj-1)]-4*uc)*ih*ih;
+      Real lap_v = (qv[IDX(gi+1,gj)]+qv[IDX(gi-1,gj)]+qv[IDX(gi,gj+1)]+qv[IDX(gi,gj-1)]-4*vc)*ih*ih;
+      Real dpx = (qp[IDX(gi+1,gj)]-qp[IDX(gi-1,gj)])*0.5*ih;
+      Real dpy = (qp[IDX(gi,gj+1)]-qp[IDX(gi,gj-1)])*0.5*ih;
+      Real alpha = NU*dt*0.5;
+      u_new[IDX(gi,gj)] = uc + alpha*lap_u + dt*(-adv_u - dpx);
+      v_new[IDX(gi,gj)] = vc + alpha*lap_v + dt*(-adv_v - dpy);
+    }
+    /* Scatter result back to blocks */
+    amr_scatter(u_new, F_U, N, h0);
+    amr_scatter(v_new, F_V, N, h0);
+    free(qp); free(u_new); free(v_new);
+  }
+
+  free(qu); free(qv); free(umac); free(vmac);
+  free(xedge_u); free(xedge_v); free(yedge_u); free(yedge_v);
+  #undef IDX
+}
 static void helmholtz_solve(Real dt, int field) {
   Real alpha = NU * dt * 0.5;
   int N = BS * BS * sim.n;
@@ -1194,25 +1501,28 @@ static void poisson_solve(Real dt) {
   /* Multigrid Poisson solve on flat periodic grid.
      The wide Laplacian L = (-4φ + φ_{i±2} + φ_{j±2}) decouples into 4 sub-grids
      based on (i%2, j%2). Each sub-grid is a standard 5-point Laplacian on (N/2)².
-     Solve each sub-grid independently with multigrid V-cycles. */
-  Real h = sim.blk[0].h;
-  int ns = sim.nb[0] * (1 << (sim.blk[0].level - sim.levelStart));
-  int Ng = ns * BS; /* full grid size */
-  int M = Ng / 2;  /* sub-grid size */
+     Solve each sub-grid independently with multigrid V-cycles.
+     For AMR: gather to finest-level grid, solve, scatter back. */
+  Real hf = amr_finest_h();
+  int Ng = amr_finest_N(hf);
+  int M = Ng / 2;
 
-  /* Gather RHS and phi from blocks into flat N×N array */
+  /* Recompute RHS on fine grid: the RHS was computed per-block with each block's h,
+     but we need it consistent on the fine grid. Recompute from gathered velocity. */
   double *rhs_full = calloc(Ng * Ng, sizeof(double));
   double *phi_full = calloc(Ng * Ng, sizeof(double));
-  for (long long id = 0; id < sim.n; id++) {
-    Real *rhs = BLK(id)+BS*BS*F_TMP;
-    Real *phi = BLK(id)+BS*BS*F_PHI;
-    int bx = (int)(sim.blk[id].origin[0] / h + 0.5);
-    int by = (int)(sim.blk[id].origin[1] / h + 0.5);
-    for (int j=0;j<BS;j++) for (int i=0;i<BS;i++) {
-      rhs_full[(by+j)*Ng + bx+i] = rhs[j*BS+i];
-      phi_full[(by+j)*Ng + bx+i] = phi[j*BS+i];
-    }
+  { double *gu = calloc(Ng*Ng, 8), *gv = calloc(Ng*Ng, 8);
+    amr_gather(gu, F_U, Ng, hf);
+    amr_gather(gv, F_V, Ng, hf);
+    Real fac = 2.0 * hf / dt;
+    #define GI(i,j) (((j)+Ng)%Ng*Ng + ((i)+Ng)%Ng)
+    for (int j=0;j<Ng;j++) for (int i=0;i<Ng;i++)
+      rhs_full[j*Ng+i] = fac * (gu[GI(i+1,j)]-gu[GI(i-1,j)]
+                                +gv[GI(i,j+1)]-gv[GI(i,j-1)]);
+    #undef GI
+    free(gu); free(gv);
   }
+  amr_gather(phi_full, F_PHI, Ng, hf);
 
   /* For each sub-grid (sx, sy) in {0,1}², extract, solve, scatter back */
   for (int sy = 0; sy < 2; sy++)
@@ -1247,13 +1557,7 @@ static void poisson_solve(Real dt) {
   }
 
   /* Scatter back to blocks */
-  for (long long id = 0; id < sim.n; id++) {
-    Real *phi = BLK(id)+BS*BS*F_PHI;
-    int bx = (int)(sim.blk[id].origin[0] / h + 0.5);
-    int by = (int)(sim.blk[id].origin[1] / h + 0.5);
-    for (int j=0;j<BS;j++) for (int i=0;i<BS;i++)
-      phi[j*BS+i] = phi_full[(by+j)*Ng + bx+i];
-  }
+  amr_scatter(phi_full, F_PHI, Ng, hf);
   free(rhs_full); free(phi_full);
 }
 
@@ -1286,11 +1590,7 @@ static void project(Real dt) {
 static const struct {
   const char *name; int type; size_t off;
 } param_tab[] = {
-  {"levelMax", 0, offsetof(struct Sim, levelMax)},
-  {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
   {"levelStart", 0, offsetof(struct Sim, levelStart)},
-  {"Rtol", 1, offsetof(struct Sim, Rtol)},
-  {"Ctol", 1, offsetof(struct Sim, Ctol)},
   {"CFL", 1, offsetof(struct Sim, CFL)},
   {"tend", 1, offsetof(struct Sim, endTime)},
   {"tdump", 1, offsetof(struct Sim, dumpTime)},
@@ -1360,7 +1660,7 @@ int main(int argc, char **argv) {
      Run a few projection steps with dt→0 to establish pressure field. */
   {
     Real dt0 = sim.blk[0].h / 10.0; /* small dt */
-    for (int iter = 0; iter < 5; iter++) {
+    for (int iter = 0; iter < 0; iter++) { /* disabled — too slow with flat-array advect */
       advect_diffuse(dt0);
       helmholtz_solve(dt0, F_U);
       helmholtz_solve(dt0, F_V);
