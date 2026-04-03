@@ -125,7 +125,7 @@ def plot_mesh(ax, blocks, hs):
 levels = np.arange(-36, 37, 6)
 levels = levels[levels != 0]
 
-run = "run_amr"
+run = "."
 paper_label = 'C'
 
 # Auto-detect dump indices closest to t=0.8 and t=1.2

@@ -249,7 +249,6 @@ static struct Sim {
   int step;
   int dump_count;
   Real CFL;
-  Real Ctol;
   Real dt;
   Real dumpTime;
   Real endTime;
@@ -734,16 +733,60 @@ static void compute_vorticity(void) {
   }
 }
 
-/* Refinement indicator based on vorticity magnitude */
+static const Real ad_ref_w[4][9] = {
+  { 1./64, 10./64, -1./64, 10./64, 56./64, -6./64, -1./64, -6./64,  1./64},
+  {-1./64, 10./64,  1./64, -6./64, 56./64, 10./64,  1./64, -6./64, -1./64},
+  {-1./64, -6./64,  1./64, 10./64, 56./64, -6./64,  1./64, 10./64, -1./64},
+  { 1./64, -6./64, -1./64, -6./64, 56./64, 10./64, -1./64, 10./64,  1./64},
+};
+
+/* Wavelet-based refinement indicator (Basilisk-style).
+   For each block, restrict 2x2→1 to get coarse representation,
+   prolongate back with ad_ref_w, and measure interpolation error. */
 static void compute_indicator(void) {
-  compute_vorticity();
-#pragma omp parallel for
-  for (long long id = 0; id < sim.n; id++) {
-    Real *w = BLK(id) + BS*BS*F_W;
-    Real *t = BLK(id) + BS*BS*F_TMP;
-    Real h = sim.blk[id].h;
-    for (int j = 0; j < BS*BS; j++)
-      t[j] = fabs(w[j]) * h; /* scale by h for resolution-independent threshold */
+#pragma omp parallel
+  {
+    Real bu[LB_BUF], bv[LB_BUF];
+    int ss = 1, nm = 2*ss + BS;
+    /* coarse grid: (BS/2+2) x (BS/2+2) with 1-cell ghost */
+    int nc = BS/2 + 2;
+    Real cu[nc*nc], cv[nc*nc];
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      lb_load(bu, 1, F_U, ss, id);
+      lb_load(bv, 1, F_V, ss, id);
+      /* restrict: average 2x2 fine cells → 1 coarse cell */
+      for (int jc = 0; jc < nc; jc++)
+        for (int ic = 0; ic < nc; ic++) {
+          int fi = 2*ic - 1, fj = 2*jc - 1; /* fine index in ghost-padded array */
+          Real su = 0, sv = 0;
+          for (int dj = 0; dj < 2; dj++)
+            for (int di = 0; di < 2; di++) {
+              su += bu[nm*(fj+dj+ss) + fi+di+ss];
+              sv += bv[nm*(fj+dj+ss) + fi+di+ss];
+            }
+          cu[jc*nc+ic] = su * 0.25;
+          cv[jc*nc+ic] = sv * 0.25;
+        }
+      /* prolongate back and measure error */
+      Real *t = BLK(id) + BS*BS*F_TMP;
+      for (int j = 0; j < BS; j += 2)
+        for (int i = 0; i < BS; i += 2) {
+          int ic = i/2 + 1, jc = j/2 + 1;
+          for (int s = 0; s < 4; s++) {
+            int di = s & 1, dj = s >> 1;
+            Real pu = 0, pv = 0;
+            for (int kk = 0; kk < 9; kk++) {
+              int ci = ic + kk%3 - 1, cj = jc + kk/3 - 1;
+              pu += ad_ref_w[s][kk] * cu[cj*nc+ci];
+              pv += ad_ref_w[s][kk] * cv[cj*nc+ci];
+            }
+            Real au = bu[nm*(j+dj+ss)+i+di+ss];
+            Real av = bv[nm*(j+dj+ss)+i+di+ss];
+            t[BS*(j+dj)+i+di] = fmax(fabs(au-pu), fabs(av-pv));
+          }
+        }
+    }
   }
 }
 
@@ -805,13 +848,6 @@ static void dump(Real time, int step, char *path) {
   fclose(xdmf);
 }
 
-/* AMR adaptation (reuse from main.c but simpler indicator) */
-static const Real ad_ref_w[4][9] = {
-  { 1./64, 10./64, -1./64, 10./64, 56./64, -6./64, -1./64, -6./64,  1./64},
-  {-1./64, 10./64,  1./64, -6./64, 56./64, 10./64,  1./64, -6./64, -1./64},
-  {-1./64, -6./64,  1./64, 10./64, 56./64, -6./64,  1./64, 10./64, -1./64},
-  { 1./64, -6./64, -1./64, -6./64, 56./64, 10./64, -1./64, 10./64,  1./64},
-};
 static const int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
   compute_indicator();
@@ -826,8 +862,8 @@ static int ad_run(void) {
     double Linf = 0;
     for (int j = 0; j < BS*BS; j++) Linf = fmax(Linf, fabs(b[j]));
     int lev = sim.blk[i].level;
-    state[i] = Linf > sim.Rtol && lev < sim.levelMax-1 ? Refine
-             : Linf < sim.Ctol && lev > sim.levelStart ? Compress
+    state[i] = Linf > sim.Rtol && lev < sim.levelMax ? Refine
+             : Linf < sim.Rtol / 1.5 && lev > sim.levelStart ? Compress
              : Leave;
     Changed |= state[i] != Leave;
   }
@@ -1585,7 +1621,6 @@ static const struct {
   {"levelMax", 0, offsetof(struct Sim, levelMax)},
   {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
   {"Rtol", 1, offsetof(struct Sim, Rtol)},
-  {"Ctol", 1, offsetof(struct Sim, Ctol)},
   {"CFL", 1, offsetof(struct Sim, CFL)},
   {"tend", 1, offsetof(struct Sim, endTime)},
   {"tdump", 1, offsetof(struct Sim, dumpTime)},
