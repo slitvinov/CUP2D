@@ -305,15 +305,6 @@ static int arg_i(int argc, char **argv, const char *key) {
   }
   return (int)v;
 }
-static int arg_i_opt(int argc, char **argv, const char *key, int def) {
-  for (int i = 1; i < argc; i++)
-    if (argv[i][0] == '-' && strcmp(argv[i] + 1, key) == 0 && i + 1 < argc) {
-      char *end;
-      long v = strtol(argv[i + 1], &end, 10);
-      if (end != argv[i + 1]) return (int)v;
-    }
-  return def;
-}
 struct Blk {
   double h, origin[2];
   int level, n, ix, iy;
@@ -1591,6 +1582,10 @@ static const struct {
   const char *name; int type; size_t off;
 } param_tab[] = {
   {"levelStart", 0, offsetof(struct Sim, levelStart)},
+  {"levelMax", 0, offsetof(struct Sim, levelMax)},
+  {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
+  {"Rtol", 1, offsetof(struct Sim, Rtol)},
+  {"Ctol", 1, offsetof(struct Sim, Ctol)},
   {"CFL", 1, offsetof(struct Sim, CFL)},
   {"tend", 1, offsetof(struct Sim, endTime)},
   {"tdump", 1, offsetof(struct Sim, dumpTime)},
@@ -1608,7 +1603,7 @@ int main(int argc, char **argv) {
       *(int *)(base + param_tab[i].off) = arg_i(argc, argv, param_tab[i].name);
     else
       *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
-  int dumpSteps = arg_i_opt(argc, argv, "sdump", 0);
+  int dumpSteps = arg_i(argc, argv, "sdump");
   NU = arg_r(argc, argv, "nu");
 
   /* Domain: [0,1]^2, doubly periodic (Brown & Minion 1995) */
