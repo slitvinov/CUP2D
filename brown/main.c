@@ -798,6 +798,135 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1, Real ph
   return fmin(fabs(d4), dlim) * sgn;
 }
 
+/* Multigrid Poisson solver for periodic cell-centered grid.
+   Solves (-4u + u_{i+1} + u_{i-1} + u_{j+1} + u_{j-1}) = f on M×M periodic grid.
+   Uses W-cycle with cell-centered bilinear prolongation. */
+static void mg_smooth(double *u, const double *f, int m, int niter) {
+  for (int sw = 0; sw < niter; sw++) {
+    for (int color = 0; color < 2; color++)
+      for (int j = 0; j < m; j++)
+        for (int i = 0; i < m; i++) {
+          if ((i + j) % 2 != color) continue;
+          int ip = (i+1)%m, im = (i-1+m)%m, jp = (j+1)%m, jm = (j-1+m)%m;
+          u[j*m+i] = 0.25 * (u[j*m+ip]+u[j*m+im]+u[jp*m+i]+u[jm*m+i] - f[j*m+i]);
+        }
+    double mn = 0;
+    for (int k = 0; k < m*m; k++) mn += u[k];
+    mn /= m*m;
+    for (int k = 0; k < m*m; k++) u[k] -= mn;
+  }
+}
+
+static void mg_residual(const double *u, const double *f, double *r, int m) {
+  for (int j = 0; j < m; j++)
+    for (int i = 0; i < m; i++) {
+      int ip = (i+1)%m, im = (i-1+m)%m, jp = (j+1)%m, jm = (j-1+m)%m;
+      r[j*m+i] = f[j*m+i] - (-4*u[j*m+i]+u[j*m+ip]+u[j*m+im]+u[jp*m+i]+u[jm*m+i]);
+    }
+}
+
+static void mg_restrict(const double *rf, double *rc, int mf) {
+  /* Full-weighting restriction (9-point stencil, variational pair of bilinear prolongation) */
+  int mc = mf / 2;
+  for (int j = 0; j < mc; j++)
+    for (int i = 0; i < mc; i++) {
+      int i2=2*i, j2=2*j;
+      int i2p=(i2+1)%mf, i2m=(i2-1+mf)%mf, j2p=(j2+1)%mf, j2m=(j2-1+mf)%mf;
+      rc[j*mc+i] = (4*rf[j2*mf+i2]
+        + 2*(rf[j2*mf+i2p]+rf[j2*mf+i2m]+rf[j2p*mf+i2]+rf[j2m*mf+i2])
+        + rf[j2p*mf+i2p]+rf[j2p*mf+i2m]+rf[j2m*mf+i2p]+rf[j2m*mf+i2m]) / 16.0;
+    }
+}
+
+static void mg_prolong_add(const double *ec, double *uf, int mc) {
+  /* Cell-centered bilinear prolongation.
+     Fine cell (2j, 2i) center at (j+1/4)*hc — closest to coarse(j,i), then (j-1,i-1).
+     Weights: 9/16 from nearest, 3/16 from face-adjacent, 1/16 from diagonal. */
+  int mf = mc * 2;
+  for (int j = 0; j < mc; j++)
+    for (int i = 0; i < mc; i++) {
+      int im = (i-1+mc)%mc, jm = (j-1+mc)%mc;
+      int ip = (i+1)%mc,    jp = (j+1)%mc;
+      double cij = ec[j*mc+i];
+      int fi = 2*i, fj = 2*j, fi1 = (2*i+1)%mf, fj1 = (2*j+1)%mf;
+      /* fine(2j,  2i)   — lower-left quarter: uses (j,i), (j,i-1), (j-1,i), (j-1,i-1) */
+      uf[fj*mf+fi]   += (9*cij + 3*ec[j*mc+im] + 3*ec[jm*mc+i] + ec[jm*mc+im]) / 16.0;
+      /* fine(2j,  2i+1) — lower-right quarter: uses (j,i), (j,i+1), (j-1,i), (j-1,i+1) */
+      uf[fj*mf+fi1]  += (9*cij + 3*ec[j*mc+ip] + 3*ec[jm*mc+i] + ec[jm*mc+ip]) / 16.0;
+      /* fine(2j+1,2i)   — upper-left quarter: uses (j,i), (j,i-1), (j+1,i), (j+1,i-1) */
+      uf[fj1*mf+fi]  += (9*cij + 3*ec[j*mc+im] + 3*ec[jp*mc+i] + ec[jp*mc+im]) / 16.0;
+      /* fine(2j+1,2i+1) — upper-right quarter: uses (j,i), (j,i+1), (j+1,i), (j+1,i+1) */
+      uf[fj1*mf+fi1] += (9*cij + 3*ec[j*mc+ip] + 3*ec[jp*mc+i] + ec[jp*mc+ip]) / 16.0;
+    }
+}
+
+static void mg_vcycle(double *u, double *f, double *r, int m) {
+  if (m <= 4) { mg_smooth(u, f, m, 50); return; }
+  int mc = m / 2;
+  double *uc = calloc(mc*mc, sizeof(double));
+  double *fc = calloc(mc*mc, sizeof(double));
+  double *rc = calloc(mc*mc, sizeof(double));
+
+  mg_smooth(u, f, m, 4);
+  mg_residual(u, f, r, m);
+  mg_restrict(r, fc, m);
+  mg_vcycle(uc, fc, rc, mc);
+  mg_prolong_add(uc, u, mc);
+  mg_smooth(u, f, m, 4);
+
+  free(uc); free(fc); free(rc);
+}
+
+/* PCG solver for (-4φ + Σφ_nb) = f on M×M periodic grid.
+   Uses multigrid V-cycle as preconditioner. */
+static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
+  int N = M*M;
+  double *rr = malloc(N*sizeof(double));
+  double *z = calloc(N, sizeof(double));
+  double *p = malloc(N*sizeof(double));
+  double *Ap = malloc(N*sizeof(double));
+  double *r_tmp = malloc(N*sizeof(double));
+
+  /* r = f - A*x */
+  mg_residual(x, f, rr, M);
+  { double mn=0; for(int k=0;k<N;k++) mn+=rr[k]; mn/=N; for(int k=0;k<N;k++) rr[k]-=mn; }
+
+  /* z = M^{-1} r (one V-cycle) */
+  memset(z, 0, N*sizeof(double));
+  mg_vcycle(z, rr, r_tmp, M);
+  { double mn=0; for(int k=0;k<N;k++) mn+=z[k]; mn/=N; for(int k=0;k<N;k++) z[k]-=mn; }
+  memcpy(p, z, N*sizeof(double));
+  double rz = 0; for(int k=0;k<N;k++) rz += rr[k]*z[k];
+
+  for (int it = 0; it < 100; it++) {
+    /* Ap = A*p */
+    for (int j=0;j<M;j++) for (int i=0;i<M;i++) {
+      int ip=(i+1)%M,im=(i-1+M)%M,jp=(j+1)%M,jm=(j-1+M)%M;
+      Ap[j*M+i] = -4*p[j*M+i]+p[j*M+ip]+p[j*M+im]+p[jp*M+i]+p[jm*M+i];
+    }
+    double pAp = 0; for(int k=0;k<N;k++) pAp += p[k]*Ap[k];
+    if (fabs(pAp) < 1e-30) break;
+    double alpha = rz / pAp;
+    for(int k=0;k<N;k++) { x[k] += alpha*p[k]; rr[k] -= alpha*Ap[k]; }
+    { double mn=0; for(int k=0;k<N;k++) mn+=rr[k]; mn/=N; for(int k=0;k<N;k++) rr[k]-=mn; }
+    { double mn=0; for(int k=0;k<N;k++) mn+=x[k]; mn/=N; for(int k=0;k<N;k++) x[k]-=mn; }
+
+    double rmax = 0; for(int k=0;k<N;k++) if(fabs(rr[k])>rmax) rmax=fabs(rr[k]);
+    if (rmax < tol) break;
+
+    /* z = M^{-1} r */
+    memset(z, 0, N*sizeof(double));
+    mg_vcycle(z, rr, r_tmp, M);
+    { double mn=0; for(int k=0;k<N;k++) mn+=z[k]; mn/=N; for(int k=0;k<N;k++) z[k]-=mn; }
+    double rz2 = 0; for(int k=0;k<N;k++) rz2 += rr[k]*z[k];
+    double beta = rz2 / (rz + 1e-30);
+    for(int k=0;k<N;k++) p[k] = z[k] + beta*p[k];
+    rz = rz2;
+  }
+  { double mn=0; for(int k=0;k<N;k++) mn+=x[k]; mn/=N; for(int k=0;k<N;k++) x[k]-=mn; }
+  free(rr); free(z); free(p); free(Ap); free(r_tmp);
+}
+
 /* Advect + diffuse with MAC projection (Brown & Minion Eq. 18-23).
    Steps: (A) Predict edge velocities (B) Transverse+viscous+pressure corrections
    (C) MAC projection (D) Advection from projected edges (E) CN update */
@@ -905,90 +1034,9 @@ static void advect_diffuse(Real dt) {
       int ip1=(i+1)%Ng, jp1=(j+1)%Ng;
       div_mac[j*Ng+i] = (umac[j*Ng+ip1]-umac[j*Ng+i]+vmac[jp1*Ng+i]-vmac[j*Ng+i])*ih;
     }
-    /* Solve ∆⁵ φ = div*h² (standard 5-point, use same PCG multigrid on full grid) */
-    /* Scale RHS by h² for unitless stencil */
+    /* Solve ∆⁵ φ = div*h² using multigrid-preconditioned CG */
     for (int k=0;k<Ng*Ng;k++) div_mac[k] *= h0*h0;
-    /* PCG solve with multigrid preconditioner on Ng×Ng grid */
-    int M = Ng;
-    int nlev=0; {int mm=M; while(mm>4){mm/=2;nlev++;} nlev++;}
-    int *msz = malloc(nlev*sizeof(int));
-    double **muu = malloc(nlev*sizeof(double*));
-    double **mff = malloc(nlev*sizeof(double*));
-    double **mrr = malloc(nlev*sizeof(double*));
-    msz[0]=M; for(int l=1;l<nlev;l++) msz[l]=msz[l-1]/2;
-    for(int l=0;l<nlev;l++){int m=msz[l]; muu[l]=calloc(m*m,sizeof(double)); mff[l]=calloc(m*m,sizeof(double)); mrr[l]=calloc(m*m,sizeof(double));}
-
-    #define MG_VCYCLE() do { \
-      for(int l=0;l<nlev-1;l++){int m=msz[l]; \
-        for(int sw=0;sw<4;sw++){for(int c=0;c<2;c++) \
-          for(int jj=0;jj<m;jj++)for(int ii=0;ii<m;ii++){if((ii+jj)%2!=c)continue; \
-            int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(jj+1)%m,jm=(jj-1+m)%m; \
-            muu[l][jj*m+ii]=0.25*(muu[l][jj*m+iip]+muu[l][jj*m+iim]+muu[l][jp*m+ii]+muu[l][jm*m+ii]-mff[l][jj*m+ii]);} \
-          double mn=0;for(int k=0;k<m*m;k++)mn+=muu[l][k];mn/=m*m;for(int k=0;k<m*m;k++)muu[l][k]-=mn;} \
-        int mc=msz[l+1];memset(mff[l+1],0,mc*mc*sizeof(double));memset(muu[l+1],0,mc*mc*sizeof(double)); \
-        for(int jj=0;jj<m;jj++)for(int ii=0;ii<m;ii++){int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(jj+1)%m,jm=(jj-1+m)%m; \
-          mrr[l][jj*m+ii]=mff[l][jj*m+ii]-(-4*muu[l][jj*m+ii]+muu[l][jj*m+iip]+muu[l][jj*m+iim]+muu[l][jp*m+ii]+muu[l][jm*m+ii]);} \
-        for(int jj=0;jj<mc;jj++)for(int ii=0;ii<mc;ii++) \
-          mff[l+1][jj*mc+ii]=0.25*(mrr[l][(2*jj)*m+2*ii]+mrr[l][(2*jj)*m+2*ii+1]+mrr[l][(2*jj+1)*m+2*ii]+mrr[l][(2*jj+1)*m+2*ii+1]);} \
-      {int l=nlev-1,m=msz[l];for(int sw=0;sw<50;sw++){for(int c=0;c<2;c++) \
-        for(int jj=0;jj<m;jj++)for(int ii=0;ii<m;ii++){if((ii+jj)%2!=c)continue; \
-          int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(jj+1)%m,jm=(jj-1+m)%m; \
-          muu[l][jj*m+ii]=0.25*(muu[l][jj*m+iip]+muu[l][jj*m+iim]+muu[l][jp*m+ii]+muu[l][jm*m+ii]-mff[l][jj*m+ii]);} \
-        double mn=0;for(int k=0;k<m*m;k++)mn+=muu[l][k];mn/=m*m;for(int k=0;k<m*m;k++)muu[l][k]-=mn;}} \
-      for(int l=nlev-2;l>=0;l--){int m=msz[l],mc=msz[l+1]; \
-        for(int jj=0;jj<mc;jj++)for(int ii=0;ii<mc;ii++){double c=muu[l+1][jj*mc+ii]; \
-          int fi=2*ii,fj=2*jj,fi1=(2*ii+1)%m,fj1=(2*jj+1)%m; \
-          muu[l][fj*m+fi]+=c;muu[l][fj*m+fi1]+=c;muu[l][fj1*m+fi]+=c;muu[l][fj1*m+fi1]+=c;} \
-        for(int sw=0;sw<4;sw++){for(int c=0;c<2;c++) \
-          for(int jj=0;jj<m;jj++)for(int ii=0;ii<m;ii++){if((ii+jj)%2!=c)continue; \
-            int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(jj+1)%m,jm=(jj-1+m)%m; \
-            muu[l][jj*m+ii]=0.25*(muu[l][jj*m+iip]+muu[l][jj*m+iim]+muu[l][jp*m+ii]+muu[l][jm*m+ii]-mff[l][jj*m+ii]);} \
-          double mn=0;for(int k=0;k<m*m;k++)mn+=muu[l][k];mn/=m*m;for(int k=0;k<m*m;k++)muu[l][k]-=mn;}} \
-    } while(0)
-
-    /* PCG */
-    int MM=M*M;
-    double *cr=calloc(MM,sizeof(double)),*cz=calloc(MM,sizeof(double));
-    double *cp=calloc(MM,sizeof(double)),*cAp=calloc(MM,sizeof(double));
-    /* r = f - A*x (x=0 initially) */
-    memcpy(cr, div_mac, MM*sizeof(double));
-    {double mn=0;for(int k=0;k<MM;k++)mn+=cr[k];mn/=MM;for(int k=0;k<MM;k++)cr[k]-=mn;}
-    /* z = M^{-1}r */
-    memset(muu[0],0,MM*sizeof(double)); memcpy(mff[0],cr,MM*sizeof(double));
-    MG_VCYCLE();
-    memcpy(cz,muu[0],MM*sizeof(double));
-    {double mn=0;for(int k=0;k<MM;k++)mn+=cz[k];mn/=MM;for(int k=0;k<MM;k++)cz[k]-=mn;}
-    memcpy(cp,cz,MM*sizeof(double));
-    double rz=0;for(int k=0;k<MM;k++)rz+=cr[k]*cz[k];
-    memset(phi_mac,0,MM*sizeof(double));
-
-    for(int it=0;it<50;it++){
-      for(int jj=0;jj<M;jj++)for(int ii=0;ii<M;ii++){
-        int iip=(ii+1)%M,iim=(ii-1+M)%M,jp=(jj+1)%M,jm=(jj-1+M)%M;
-        cAp[jj*M+ii]=-4*cp[jj*M+ii]+cp[jj*M+iip]+cp[jj*M+iim]+cp[jp*M+ii]+cp[jm*M+ii];}
-      double pAp=0;for(int k=0;k<MM;k++)pAp+=cp[k]*cAp[k];
-      if(fabs(pAp)<1e-30)break;
-      double al=rz/pAp;
-      for(int k=0;k<MM;k++){phi_mac[k]+=al*cp[k];cr[k]-=al*cAp[k];}
-      {double mn=0;for(int k=0;k<MM;k++)mn+=cr[k];mn/=MM;for(int k=0;k<MM;k++)cr[k]-=mn;}
-      {double mn=0;for(int k=0;k<MM;k++)mn+=phi_mac[k];mn/=MM;for(int k=0;k<MM;k++)phi_mac[k]-=mn;}
-      double rmax=0;for(int k=0;k<MM;k++)if(fabs(cr[k])>rmax)rmax=fabs(cr[k]);
-      if(rmax<1e-10)break;
-      double *sv=malloc(MM*sizeof(double));memcpy(sv,phi_mac,MM*sizeof(double));
-      memset(muu[0],0,MM*sizeof(double));memcpy(mff[0],cr,MM*sizeof(double));
-      MG_VCYCLE();
-      memcpy(cz,muu[0],MM*sizeof(double));
-      {double mn=0;for(int k=0;k<MM;k++)mn+=cz[k];mn/=MM;for(int k=0;k<MM;k++)cz[k]-=mn;}
-      memcpy(phi_mac,sv,MM*sizeof(double));free(sv);
-      double rz2=0;for(int k=0;k<MM;k++)rz2+=cr[k]*cz[k];
-      double bt=rz2/(rz+1e-30);
-      for(int k=0;k<MM;k++)cp[k]=cz[k]+bt*cp[k];
-      rz=rz2;
-    }
-    free(cr);free(cz);free(cp);free(cAp);
-    for(int l=0;l<nlev;l++){free(muu[l]);free(mff[l]);free(mrr[l]);}
-    free(msz);free(muu);free(mff);free(mrr);
-    #undef MG_VCYCLE
+    mg_solve_periodic(phi_mac, div_mac, Ng, 1e-10);
 
     /* Correct MAC velocities: umac -= (φ_{i}-φ_{i-1})/h, vmac -= (φ_{j}-φ_{j-1})/h
        Note: face (i+1/2) stored at index i+1, so φ gradient uses φ[i+1]-φ[i] */
@@ -1178,134 +1226,14 @@ static void poisson_solve(Real dt) {
         x[j*M+i] = phi_full[(2*j+sy)*Ng + 2*i+sx];
       }
 
-      /* Multigrid V-cycle on standard 5-point Laplacian: (-4u+Σnb)=f, periodic */
-      /* Allocate hierarchy */
-      int nlev = 0; { int mm=M; while(mm>4){mm/=2;nlev++;} nlev++; }
-      int *msz = malloc(nlev*sizeof(int));
-      double **uu = malloc(nlev*sizeof(double*));
-      double **ff = malloc(nlev*sizeof(double*));
-      double **rr = malloc(nlev*sizeof(double*));
-      msz[0] = M;
-      for (int l=1;l<nlev;l++) msz[l] = msz[l-1]/2;
-      for (int l=0;l<nlev;l++) {
-        int m=msz[l];
-        uu[l] = calloc(m*m, sizeof(double));
-        ff[l] = calloc(m*m, sizeof(double));
-        rr[l] = calloc(m*m, sizeof(double));
-      }
-      /* Apply one V-cycle: given uu[0] and ff[0], improve uu[0] */
-      #define VCYCLE() do { \
-        for (int l=0;l<nlev-1;l++) { \
-          int m=msz[l]; \
-          for (int sw=0;sw<4;sw++) { \
-            for (int color=0;color<2;color++) \
-              for (int j=0;j<m;j++) for (int ii=0;ii<m;ii++) { \
-                if ((ii+j)%2!=color) continue; \
-                int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(j+1)%m,jm=(j-1+m)%m; \
-                uu[l][j*m+ii]=0.25*(uu[l][j*m+iip]+uu[l][j*m+iim]+uu[l][jp*m+ii]+uu[l][jm*m+ii]-ff[l][j*m+ii]); \
-              } \
-            double mn=0;for(int k=0;k<m*m;k++)mn+=uu[l][k];mn/=m*m; \
-            for(int k=0;k<m*m;k++)uu[l][k]-=mn; \
-          } \
-          int mc=msz[l+1]; \
-          memset(ff[l+1],0,mc*mc*sizeof(double)); \
-          memset(uu[l+1],0,mc*mc*sizeof(double)); \
-          for (int j=0;j<m;j++) for (int ii=0;ii<m;ii++) { \
-            int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(j+1)%m,jm=(j-1+m)%m; \
-            rr[l][j*m+ii]=ff[l][j*m+ii]-(-4*uu[l][j*m+ii]+uu[l][j*m+iip]+uu[l][j*m+iim]+uu[l][jp*m+ii]+uu[l][jm*m+ii]); \
-          } \
-          for (int j=0;j<mc;j++) for (int ii=0;ii<mc;ii++) \
-            ff[l+1][j*mc+ii]=0.25*(rr[l][(2*j)*m+2*ii]+rr[l][(2*j)*m+2*ii+1]+rr[l][(2*j+1)*m+2*ii]+rr[l][(2*j+1)*m+2*ii+1]); \
-        } \
-        {int l=nlev-1,m=msz[l]; \
-          for(int sw=0;sw<50;sw++){for(int color=0;color<2;color++) \
-            for(int j=0;j<m;j++)for(int ii=0;ii<m;ii++){if((ii+j)%2!=color)continue; \
-              int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(j+1)%m,jm=(j-1+m)%m; \
-              uu[l][j*m+ii]=0.25*(uu[l][j*m+iip]+uu[l][j*m+iim]+uu[l][jp*m+ii]+uu[l][jm*m+ii]-ff[l][j*m+ii]);} \
-            double mn=0;for(int k=0;k<m*m;k++)mn+=uu[l][k];mn/=m*m;for(int k=0;k<m*m;k++)uu[l][k]-=mn;} \
-        } \
-        for (int l=nlev-2;l>=0;l--) { \
-          int m=msz[l],mc=msz[l+1]; \
-          for(int j=0;j<mc;j++)for(int ii=0;ii<mc;ii++){double c=uu[l+1][j*mc+ii]; \
-            int fi=2*ii,fj=2*j,fi1=(2*ii+1)%m,fj1=(2*j+1)%m; \
-            uu[l][fj*m+fi]+=c;uu[l][fj*m+fi1]+=c;uu[l][fj1*m+fi]+=c;uu[l][fj1*m+fi1]+=c;} \
-          for(int sw=0;sw<4;sw++){for(int color=0;color<2;color++) \
-            for(int j=0;j<m;j++)for(int ii=0;ii<m;ii++){if((ii+j)%2!=color)continue; \
-              int iip=(ii+1)%m,iim=(ii-1+m)%m,jp=(j+1)%m,jm=(j-1+m)%m; \
-              uu[l][j*m+ii]=0.25*(uu[l][j*m+iip]+uu[l][j*m+iim]+uu[l][jp*m+ii]+uu[l][jm*m+ii]-ff[l][j*m+ii]);} \
-            double mn=0;for(int k=0;k<m*m;k++)mn+=uu[l][k];mn/=m*m;for(int k=0;k<m*m;k++)uu[l][k]-=mn;} \
-        } \
-      } while(0)
-
-      /* PCG: Conjugate Gradient preconditioned by V-cycle */
-      int MM = M*M;
-      double *cg_r = calloc(MM, sizeof(double));  /* residual */
-      double *cg_z = calloc(MM, sizeof(double));  /* preconditioned residual */
-      double *cg_p = calloc(MM, sizeof(double));  /* search direction */
-      double *cg_Ap = calloc(MM, sizeof(double)); /* A*p */
-
-      memcpy(uu[0], x, MM*sizeof(double));
-      /* Compute initial residual: r = f - A*x */
-      for (int j=0;j<M;j++) for (int ii=0;ii<M;ii++) {
-        int iip=(ii+1)%M,iim=(ii-1+M)%M,jp=(j+1)%M,jm=(j-1+M)%M;
-        cg_r[j*M+ii] = f[j*M+ii] - (-4*uu[0][j*M+ii]+uu[0][j*M+iip]+uu[0][j*M+iim]+uu[0][jp*M+ii]+uu[0][jm*M+ii]);
-      }
-      { double mn=0; for(int k=0;k<MM;k++) mn+=cg_r[k]; mn/=MM; for(int k=0;k<MM;k++) cg_r[k]-=mn; }
-
-      /* Precondition: z = M^{-1} r (one V-cycle with zero initial guess) */
-      memset(uu[0], 0, MM*sizeof(double));
-      memcpy(ff[0], cg_r, MM*sizeof(double));
-      VCYCLE();
-      memcpy(cg_z, uu[0], MM*sizeof(double));
-      { double mn=0; for(int k=0;k<MM;k++) mn+=cg_z[k]; mn/=MM; for(int k=0;k<MM;k++) cg_z[k]-=mn; }
-      memcpy(cg_p, cg_z, MM*sizeof(double));
-      double rz = 0; for(int k=0;k<MM;k++) rz += cg_r[k]*cg_z[k];
-
-      /* Restore solution */
-      memcpy(uu[0], x, MM*sizeof(double));
-
-      for (int cg_iter=0; cg_iter<100; cg_iter++) {
-        /* Ap = A*p */
-        for (int j=0;j<M;j++) for (int ii=0;ii<M;ii++) {
-          int iip=(ii+1)%M,iim=(ii-1+M)%M,jp=(j+1)%M,jm=(j-1+M)%M;
-          cg_Ap[j*M+ii] = -4*cg_p[j*M+ii]+cg_p[j*M+iip]+cg_p[j*M+iim]+cg_p[jp*M+ii]+cg_p[jm*M+ii];
-        }
-        double pAp=0; for(int k=0;k<MM;k++) pAp+=cg_p[k]*cg_Ap[k];
-        if (fabs(pAp) < 1e-30) break;
-        double alpha = rz / pAp;
-        for(int k=0;k<MM;k++) { uu[0][k] += alpha*cg_p[k]; cg_r[k] -= alpha*cg_Ap[k]; }
-        { double mn=0; for(int k=0;k<MM;k++) mn+=cg_r[k]; mn/=MM; for(int k=0;k<MM;k++) cg_r[k]-=mn; }
-        { double mn=0; for(int k=0;k<MM;k++) mn+=uu[0][k]; mn/=MM; for(int k=0;k<MM;k++) uu[0][k]-=mn; }
-
-        double rmax=0; for(int k=0;k<MM;k++) if(fabs(cg_r[k])>rmax) rmax=fabs(cg_r[k]);
-        if (rmax < 1e-10) break;
-
-        /* Precondition: z = M^{-1} r */
-        double *save_u = malloc(MM*sizeof(double));
-        memcpy(save_u, uu[0], MM*sizeof(double));
-        memset(uu[0], 0, MM*sizeof(double));
-        memcpy(ff[0], cg_r, MM*sizeof(double));
-        VCYCLE();
-        memcpy(cg_z, uu[0], MM*sizeof(double));
-        { double mn=0; for(int k=0;k<MM;k++) mn+=cg_z[k]; mn/=MM; for(int k=0;k<MM;k++) cg_z[k]-=mn; }
-        memcpy(uu[0], save_u, MM*sizeof(double));
-        free(save_u);
-
-        double rz_new=0; for(int k=0;k<MM;k++) rz_new+=cg_r[k]*cg_z[k];
-        double beta = rz_new / (rz + 1e-30);
-        for(int k=0;k<MM;k++) cg_p[k] = cg_z[k] + beta*cg_p[k];
-        rz = rz_new;
-      }
-      { double mn=0; for(int k=0;k<MM;k++) mn+=uu[0][k]; mn/=MM; for(int k=0;k<MM;k++) uu[0][k]-=mn; }
-      free(cg_r); free(cg_z); free(cg_p); free(cg_Ap);
-      #undef VCYCLE
+      /* Solve using multigrid-preconditioned CG */
+      mg_solve_periodic(x, f, M, 1e-10);
 
       /* Scatter back to full grid */
       for (int j=0;j<M;j++) for (int i=0;i<M;i++)
-        phi_full[(2*j+sy)*Ng + 2*i+sx] = uu[0][j*M+i];
+        phi_full[(2*j+sy)*Ng + 2*i+sx] = x[j*M+i];
 
-      for (int l=0;l<nlev;l++) { free(uu[l]); free(ff[l]); free(rr[l]); }
-      free(msz); free(uu); free(ff); free(rr); free(f); free(x);
+      free(f); free(x);
     }
 
   /* Check wide Laplacian residual on full grid */
