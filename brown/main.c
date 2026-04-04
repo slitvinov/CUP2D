@@ -8,6 +8,8 @@
 #include <string.h>
 #ifdef _OPENMP
 #include <omp.h>
+#else
+#define omp_get_max_threads() 1
 #endif
 
 typedef double Real;
@@ -51,6 +53,7 @@ static struct Sim {
   int levelMax;
   int levelStart;
   int step;
+  int sdump;
   int dump_count;
   Real CFL;
   Real dt;
@@ -58,6 +61,7 @@ static struct Sim {
   Real endTime;
   Real nextDumpTime;
   Real Rtol;
+  Real nu;
   Real time;
   Real L[2];
   int nb[2];
@@ -69,37 +73,6 @@ static struct Sim {
 static long long hm_key(int level, int ix, int iy) {
   long long n = 1LL << level;
   return ((n * n) - 1) / 3 + iy * n + ix;
-}
-static const char *arg_find(int argc, char **argv, const char *key) {
-  for (int i = 1; i < argc; i++)
-    if (argv[i][0] == '-' && strcmp(argv[i] + 1, key) == 0) {
-      if (i + 1 < argc)
-        return argv[i + 1];
-      fprintf(stderr, "main.c: error: option -%s has no value\n", key);
-      exit(1);
-    }
-  fprintf(stderr, "main.c: error: option -%s is not set\n", key);
-  exit(1);
-}
-static Real arg_r(int argc, char **argv, const char *key) {
-  const char *s = arg_find(argc, argv, key);
-  char *end;
-  Real v = strtod(s, &end);
-  if (end == s || *end != '\0') {
-    fprintf(stderr, "main.c: error: -%s: bad real '%s'\n", key, s);
-    exit(1);
-  }
-  return v;
-}
-static int arg_i(int argc, char **argv, const char *key) {
-  const char *s = arg_find(argc, argv, key);
-  char *end;
-  long v = strtol(s, &end, 10);
-  if (end == s || *end != '\0') {
-    fprintf(stderr, "main.c: error: -%s: bad integer '%s'\n", key, s);
-    exit(1);
-  }
-  return (int)v;
 }
 struct Blk {
   double h, origin[2];
@@ -369,7 +342,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss,
             nm, nc);
 }
 
-static Real NU = 1e-4;
 
 static inline Real minmod(Real a, Real b) {
   return a * b <= 0 ? 0 : fabs(a) < fabs(b) ? a : b;
@@ -1245,7 +1217,7 @@ static void advect_diffuse(Real dt) {
                      ih * ih;
         Real dpx = (qp[IDX(gi + 1, gj)] - qp[IDX(gi - 1, gj)]) * 0.5 * ih;
         Real dpy = (qp[IDX(gi, gj + 1)] - qp[IDX(gi, gj - 1)]) * 0.5 * ih;
-        Real alpha = NU * dt * 0.5;
+        Real alpha = sim.nu * dt * 0.5;
         u_new[IDX(gi, gj)] = uc + alpha * lap_u + dt * (-adv_u - dpx);
         v_new[IDX(gi, gj)] = vc + alpha * lap_v + dt * (-adv_v - dpy);
       }
@@ -1256,7 +1228,7 @@ static void advect_diffuse(Real dt) {
 #undef IDX
 }
 static void helmholtz_solve(Real dt, int field) {
-  Real alpha = NU * dt * 0.5;
+  Real alpha = sim.nu * dt * 0.5;
   Real hf = amr_finest_h();
   int Ng = amr_finest_N(hf);
   double *flat_f = calloc(Ng * Ng, sizeof(double));
@@ -1391,26 +1363,35 @@ static const struct {
     {"levelStart", 0, offsetof(struct Sim, levelStart)},
     {"levelMax", 0, offsetof(struct Sim, levelMax)},
     {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
+    {"sdump", 0, offsetof(struct Sim, sdump)},
     {"Rtol", 1, offsetof(struct Sim, Rtol)},
     {"CFL", 1, offsetof(struct Sim, CFL)},
+    {"nu", 1, offsetof(struct Sim, nu)},
     {"tend", 1, offsetof(struct Sim, endTime)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
 
 int main(int argc, char **argv) {
-#ifdef _OPENMP
-#pragma omp parallel
-#pragma omp master
-  fprintf(stderr, "main.c: %d threads\n", omp_get_num_threads());
-#endif
+  fprintf(stderr, "main.c: %d threads\n", omp_get_max_threads());
   char *base = (char *)&sim;
-  for (size_t i = 0; i < sizeof param_tab / sizeof *param_tab; i++)
-    if (param_tab[i].type == 0)
-      *(int *)(base + param_tab[i].off) = arg_i(argc, argv, param_tab[i].name);
-    else
-      *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
-  int dumpSteps = arg_i(argc, argv, "sdump");
-  NU = arg_r(argc, argv, "nu");
+  for (size_t i = 0; i < sizeof param_tab / sizeof *param_tab; i++) {
+    const char *key = param_tab[i].name;
+    const char *val = NULL;
+    for (int a = 1; a < argc; a++)
+      if (argv[a][0] == '-' && strcmp(argv[a] + 1, key) == 0) {
+        if (a + 1 >= argc) { fprintf(stderr, "-%s: no value\n", key); exit(1); }
+        val = argv[a + 1];
+        break;
+      }
+    if (!val) { fprintf(stderr, "-%s: not set\n", key); exit(1); }
+    char *end;
+    if (param_tab[i].type == 0) {
+      *(int *)(base + param_tab[i].off) = (int)strtol(val, &end, 10);
+    } else {
+      *(Real *)(base + param_tab[i].off) = strtod(val, &end);
+    }
+    if (end == val || *end) { fprintf(stderr, "-%s: bad value '%s'\n", key, val); exit(1); }
+  }
 
   sim.L[0] = 1.0;
   sim.L[1] = 1.0;
@@ -1430,7 +1411,7 @@ int main(int argc, char **argv) {
   lb_init();
 
   Real rho_layer = 30.0, delta = 0.05;
-  fprintf(stderr, "main.c: IC rho=%g delta=%g nu=%g\n", rho_layer, delta, NU);
+  fprintf(stderr, "main.c: IC rho=%g delta=%g nu=%g\n", rho_layer, delta, sim.nu);
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
@@ -1460,7 +1441,7 @@ int main(int argc, char **argv) {
         sim.nextDumpTime += sim.dumpTime;
         do_dump = 1;
       }
-      if (dumpSteps > 0 && sim.step % dumpSteps == 0)
+      if (sim.sdump > 0 && sim.step % sim.sdump == 0)
         do_dump = 1;
       if (do_dump) {
         compute_vorticity();
