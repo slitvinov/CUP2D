@@ -530,17 +530,17 @@ static void dump(Real time, int step, char *path) {
 
 static int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
-  int Changed, J, More, dim_omp, ic, j, level_omp, nm_ad, off_omp, ok, px, py,
-      s, x_omp, y_omp;
-  long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
+  Real *b, *blk_omp[4], *blks[4], *dst_omp;
+  Real Linf;
+  Real lm[LB_BUF];
+  enum AdSt *state;
+  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok, px, py, s, x_omp, y_omp;
   long long *com_idx, *ref_idx;
+  long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
   long long sib_ad[4], sib_omp[4];
   size_t m, v;
-  Real *blk_omp[4], *blks[4], *dst_omp;
-  Real lm[LB_BUF];
   struct Blk *bj, *bs_blk, *p0_ad, *p0_omp, *par;
   struct Nb nr;
-  enum AdSt *state;
 
   n_ref = 0;
   n_com = 0;
@@ -550,9 +550,8 @@ static int ad_run(void) {
   ref_idx = malloc(sim.n * sizeof *ref_idx);
   com_idx = malloc(sim.n * sizeof *com_idx);
   for (i = 0; i < sim.n; i++) {
-    Real *b = BLK(i) + BS * BS * F_TMP;
-    Real Linf = 0;
-    int lev;
+        b = BLK(i) + BS * BS * F_TMP;
+        Linf = 0;
     for (j = 0; j < BS * BS; j++) Linf = fmax(Linf, fabs(b[j]));
     lev = sim.blk[i].level;
     state[i] = Linf > sim.Rtol && lev < sim.levelMax           ? Refine
@@ -626,7 +625,7 @@ static int ad_run(void) {
     py = par->iy;
     nm_ad = 2 + BS;
     for (J = 0; J < 2; J++)
-      for (int I = 0; I < 2; I++) {
+      for (I = 0; I < 2; I++) {
         ci_omp = nprev + 4 * k + 2 * J + I;
         bl_fill(&sim.blk[ci_omp], par->level + 1, 2 * px + I, 2 * py + J);
         blks[2 * J + I] = BLK(ci_omp);
@@ -636,7 +635,7 @@ static int ad_run(void) {
       off_omp = fld_t[m].offset;
       lb_load(lm, dim_omp, off_omp, 1, ref_idx[k]);
       for (J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++)
+        for (I = 0; I < 2; I++)
           prolong_2to1(lm, blks[J * 2 + I] + off_omp * BS * BS, dim_omp, nm_ad,
                        BS, BS / 2, BS / 2, I * (BS / 2) + 1, J * (BS / 2) + 1);
     }
@@ -660,7 +659,7 @@ static int ad_run(void) {
       off_omp = fld_t[v].offset;
       dst_omp = blk_omp[0] + off_omp * BS * BS;
       for (J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++)
+        for (I = 0; I < 2; I++)
           restrict_2to1(blk_omp[J * 2 + I] + off_omp * BS * BS,
                         dst_omp + dim_omp * (J * (BS / 2) * BS + I * (BS / 2)),
                         dim_omp, BS, BS, BS / 2, BS / 2);
@@ -686,6 +685,7 @@ done:
   free(com_idx);
   return Changed;
 }
+
 
 static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
                           Real phip2) {
