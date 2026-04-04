@@ -728,7 +728,7 @@ static void advect_diffuse(Real dt) {
   int i, j, nm, nm1, nm2, nm3;
   long long id;
 
-  uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT, vn, vn1, vx, vy,
+  Real uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT, vn, vn1, vx, vy,
       vy1;
   alpha = sim.nu * dt * 0.5;
   dth = 0.5 * dt;

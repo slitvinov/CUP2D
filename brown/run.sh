@@ -12,7 +12,7 @@ ${main=./main} \
 -levelStart 3 \
 -nu 1e-4 \
 -sdump 0 \
--tdump 0.1 \
+-tdump 0.01 \
 -tend 1.2 \
 &&
 set -- *.xyz.raw
