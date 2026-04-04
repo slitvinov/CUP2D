@@ -21,7 +21,9 @@ enum {
   F_TMP = 5,
   F_TMP2 = 6,
   F_TMP3 = 7,
-  F_N = 8,
+  F_UMAC = 8,
+  F_VMAC = 9,
+  F_N = 10,
   BLK_S = F_N * BS * BS,
 };
 
@@ -701,54 +703,136 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
   return fmin(fabs(d4), dlim) * sgn;
 }
 
+static void mac_project(Real dt);
 
 static void advect_diffuse(Real dt) {
   Real alpha = sim.nu * dt * 0.5;
+  Real dth = 0.5 * dt;
+  /* Step 1-2: preliminary MAC velocities from PLM + Riemann (Eq. 20-21) */
 #pragma omp parallel
   {
-    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF];
+    Real bu[LB_BUF], bv[LB_BUF];
     int nm = BS + 4;
-#define U2(i, j) bu[nm * ((j) + 2) + (i) + 2]
-#define V2(i, j) bv[nm * ((j) + 2) + (i) + 2]
+#define Q(b,i,j) b[nm*((j)+2)+(i)+2]
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      Real *uo = BLK(id) + BS * BS * F_U;
-      Real *vo = BLK(id) + BS * BS * F_V;
-      Real *un = BLK(id) + BS * BS * F_TMP;
-      Real *vn = BLK(id) + BS * BS * F_TMP2;
+      Real *um = BLK(id)+BS*BS*F_UMAC;
+      Real *vm = BLK(id)+BS*BS*F_VMAC;
+      Real h = sim.blk[id].h;
+      Real dtdx = dt / h;
+      int i, j;
+      lb_load(bu, 1, F_U, 2, id);
+      lb_load(bv, 1, F_V, 2, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+          Real uc = Q(bu,i,j), un = Q(bu,i+1,j);
+          Real su = slope4(Q(bu,i-2,j),Q(bu,i-1,j),Q(bu,i,j),Q(bu,i+1,j),Q(bu,i+2,j));
+          Real su1 = slope4(Q(bu,i-1,j),Q(bu,i,j),Q(bu,i+1,j),Q(bu,i+2,j),Q(bu,i+3,j));
+          Real sL = uc > 0 ? 1 : 0, sR = un < 0 ? 1 : 0;
+          Real uL = uc + (0.5 - sL*0.5*dtdx*uc)*su;
+          Real uR = un + (-0.5 - sR*0.5*dtdx*un)*su1;
+          /* Riemann (Eq. 21) */
+          um[j*BS+i] = (uc > 0 && un > 0) ? uL : (uc < 0 && un < 0) ? uR : 0.5*(uL+uR);
+
+          Real vc = Q(bv,i,j), vn = Q(bv,i,j+1);
+          Real sv = slope4(Q(bv,i,j-2),Q(bv,i,j-1),Q(bv,i,j),Q(bv,i,j+1),Q(bv,i,j+2));
+          Real sv1 = slope4(Q(bv,i,j-1),Q(bv,i,j),Q(bv,i,j+1),Q(bv,i,j+2),Q(bv,i,j+3));
+          Real svL = vc > 0 ? 1 : 0, svR = vn < 0 ? 1 : 0;
+          Real vL = vc + (0.5 - svL*0.5*dtdx*vc)*sv;
+          Real vR = vn + (-0.5 - svR*0.5*dtdx*vn)*sv1;
+          vm[j*BS+i] = (vc > 0 && vn > 0) ? vL : (vc < 0 && vn < 0) ? vR : 0.5*(vL+vR);
+        }
+    }
+#undef Q
+  }
+  /* Step 3: MAC projection */
+  mac_project(dt);
+  /* Step 4-6: Full edge states with transverse + viscous + pressure,
+     then compute advective flux and CN explicit half (Eq. 19, 22).
+     Edge values stored at cell centers: umac[i,j] = u at face (i+1/2,j). */
+#pragma omp parallel
+  {
+    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
+    int nm2 = BS + 4, nm1 = BS + 2;
+#define Q2(b,i,j) b[nm2*((j)+2)+(i)+2]
+#define Q1(b,i,j) b[nm1*((j)+1)+(i)+1]
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *un = BLK(id)+BS*BS*F_TMP;
+      Real *vn = BLK(id)+BS*BS*F_TMP2;
       Real h = sim.blk[id].h;
       Real ih = 1.0 / h;
-      Real ah2 = alpha * ih * ih;
+      Real dtdx = dt / h;
       int i, j;
       lb_load(bu, 1, F_U, 2, id);
       lb_load(bv, 1, F_V, 2, id);
       lb_load(bp, 1, F_P, 1, id);
+      lb_load(bum, 1, F_UMAC, 1, id);
+      lb_load(bvm, 1, F_VMAC, 1, id);
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
-          Real uc = U2(i, j), vc = V2(i, j);
-          Real sx_u = slope4(U2(i-2,j),U2(i-1,j),U2(i,j),U2(i+1,j),U2(i+2,j));
-          Real sy_u = slope4(U2(i,j-2),U2(i,j-1),U2(i,j),U2(i,j+1),U2(i,j+2));
-          Real sx_v = slope4(V2(i-2,j),V2(i-1,j),V2(i,j),V2(i+1,j),V2(i+2,j));
-          Real sy_v = slope4(V2(i,j-2),V2(i,j-1),V2(i,j),V2(i,j+1),V2(i,j+2));
-          Real uR = (uc >= 0) ? uc + 0.5*sx_u : U2(i+1,j) - 0.5*slope4(U2(i-1,j),U2(i,j),U2(i+1,j),U2(i+2,j),U2(i+3,j));
-          Real uL = (U2(i-1,j) >= 0) ? U2(i-1,j) + 0.5*slope4(U2(i-3,j),U2(i-2,j),U2(i-1,j),U2(i,j),U2(i+1,j)) : uc - 0.5*sx_u;
-          Real vT = (vc >= 0) ? vc + 0.5*sy_v : V2(i,j+1) - 0.5*slope4(V2(i,j-1),V2(i,j),V2(i,j+1),V2(i,j+2),V2(i,j+3));
-          Real vB = (V2(i,j-1) >= 0) ? V2(i,j-1) + 0.5*slope4(V2(i,j-3),V2(i,j-2),V2(i,j-1),V2(i,j),V2(i,j+1)) : vc - 0.5*sy_v;
-          Real adv_u = (uR*uR - uL*uL)*0.5*ih + 0.5*(vT+vB)*(U2(i,j+1)-U2(i,j-1))*0.5*ih;
-          Real adv_v = 0.5*(uR+uL)*(V2(i+1,j)-V2(i-1,j))*0.5*ih + (vT*vT - vB*vB)*0.5*ih;
-          Real lap_u = (U2(i+1,j)+U2(i-1,j)+U2(i,j+1)+U2(i,j-1)-4*uc)*ih*ih;
-          Real lap_v = (V2(i+1,j)+V2(i-1,j)+V2(i,j+1)+V2(i,j-1)-4*vc)*ih*ih;
-          int nm1 = BS + 2;
-#define P1(di, dj) bp[nm1 * ((j)+(dj)+1) + (i)+(di)+1]
-          Real dpx = (P1(1,0)-P1(-1,0))*0.5*ih;
-          Real dpy = (P1(0,1)-P1(0,-1))*0.5*ih;
-#undef P1
+          Real uc = Q2(bu,i,j), vc = Q2(bv,i,j);
+          /* For each component q, compute edge states with full corrections */
+          /* === u-component at x-faces === */
+          Real su = slope4(Q2(bu,i-2,j),Q2(bu,i-1,j),Q2(bu,i,j),Q2(bu,i+1,j),Q2(bu,i+2,j));
+          /* left state at face (i+1/2,j) from cell (i,j): Eq. 20 with MAC vel */
+          Real xlo_u = Q2(bu,i,j) + 0.5*(1.0 - Q1(bum,i,j)*dtdx)*su;
+          /* right state at face (i-1/2,j) from cell (i,j) */
+          Real xhi_u = Q2(bu,i,j) + 0.5*(-1.0 - Q1(bum,i-1,j)*dtdx)*su;
+          /* transverse (Eq. 22): -(dt/2)*(vmac*∂u/∂y) */
+          Real sy_u = slope4(Q2(bu,i,j-2),Q2(bu,i,j-1),Q2(bu,i,j),Q2(bu,i,j+1),Q2(bu,i,j+2));
+          Real uy_lo = Q2(bu,i,j) + 0.5*(1.0 - Q1(bvm,i,j)*dtdx)*sy_u;
+          Real uy_hi = Q2(bu,i,j) + 0.5*(-1.0 - Q1(bvm,i,j-1)*dtdx)*sy_u;
+          Real uy_face = (Q1(bvm,i,j) >= 0) ? uy_lo : uy_hi;
+          /* viscous + pressure (Eq. 19) */
+          Real lap_u = (Q2(bu,i+1,j)+Q2(bu,i-1,j)+Q2(bu,i,j+1)+Q2(bu,i,j-1)-4*uc)*ih*ih;
+          Real dpx = (Q1(bp,i+1,j)-Q1(bp,i-1,j))*0.5*ih;
+          Real corr_u = dth*(sim.nu*lap_u - dpx);
+          xlo_u += corr_u - dth*(Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
+          xhi_u += corr_u - dth*(Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
+          /* Riemann at face (i+1/2,j) using left from (i) and right from (i+1) */
+          Real xhi_u1 = Q2(bu,i+1,j) + 0.5*(-1.0 - Q1(bum,i,j)*dtdx)*
+            slope4(Q2(bu,i-1,j),Q2(bu,i,j),Q2(bu,i+1,j),Q2(bu,i+2,j),Q2(bu,i+3,j));
+          /* add same corrections for right state from cell (i+1) */
+          Real lap_u1 = (Q2(bu,i+2,j)+Q2(bu,i,j)+Q2(bu,i+1,j+1)+Q2(bu,i+1,j-1)-4*Q2(bu,i+1,j))*ih*ih;
+          Real dpx1 = (Q1(bp,i+2,j)-Q1(bp,i,j))*0.5*ih;
+          xhi_u1 += dth*(sim.nu*lap_u1 - dpx1);
+          Real uface = Q1(bum,i,j);
+          Real eu = (uface >= 0) ? xlo_u : xhi_u1;
+          /* === v-component at y-faces === */
+          Real sv = slope4(Q2(bv,i,j-2),Q2(bv,i,j-1),Q2(bv,i,j),Q2(bv,i,j+1),Q2(bv,i,j+2));
+          Real ylo_v = Q2(bv,i,j) + 0.5*(1.0 - Q1(bvm,i,j)*dtdx)*sv;
+          Real sy_v_x = slope4(Q2(bv,i-2,j),Q2(bv,i-1,j),Q2(bv,i,j),Q2(bv,i+1,j),Q2(bv,i+2,j));
+          Real vx_lo = Q2(bv,i,j) + 0.5*(1.0 - Q1(bum,i,j)*dtdx)*sy_v_x;
+          Real vx_hi = Q2(bv,i,j) + 0.5*(-1.0 - Q1(bum,i-1,j)*dtdx)*sy_v_x;
+          Real vx_face = (Q1(bum,i,j) >= 0) ? vx_lo : vx_hi;
+          Real lap_v = (Q2(bv,i+1,j)+Q2(bv,i-1,j)+Q2(bv,i,j+1)+Q2(bv,i,j-1)-4*vc)*ih*ih;
+          Real dpy = (Q1(bp,i,j+1)-Q1(bp,i,j-1))*0.5*ih;
+          Real corr_v = dth*(sim.nu*lap_v - dpy);
+          ylo_v += corr_v - dth*(Q1(bum,i,j)*vx_face - Q1(bum,i-1,j)*vx_hi)*ih;
+          Real yhi_v1 = Q2(bv,i,j+1) + 0.5*(-1.0 - Q1(bvm,i,j)*dtdx)*
+            slope4(Q2(bv,i,j-1),Q2(bv,i,j),Q2(bv,i,j+1),Q2(bv,i,j+2),Q2(bv,i,j+3));
+          Real lap_v1 = (Q2(bv,i+1,j+1)+Q2(bv,i-1,j+1)+Q2(bv,i,j+2)+Q2(bv,i,j)-4*Q2(bv,i,j+1))*ih*ih;
+          Real dpy1 = (Q1(bp,i,j+2)-Q1(bp,i,j))*0.5*ih;
+          yhi_v1 += dth*(sim.nu*lap_v1 - dpy1);
+          Real vface = Q1(bvm,i,j);
+          Real ev = (vface >= 0) ? ylo_v : yhi_v1;
+          /* Step 6: advective flux (conservative form) */
+          /* Need left face values too: at (i-1/2,j) for u, (i,j-1/2) for v */
+          /* Use xhi_u for u at face (i-1/2,j), use stored vmac for upwind */
+          Real eu_L = xhi_u; /* right state arriving at face (i-1/2) from cell (i) */
+          Real ev_B = Q2(bv,i,j) + 0.5*(-1.0 - Q1(bvm,i,j-1)*dtdx)*sv + corr_v;
+          Real adv_u = (Q1(bum,i,j)*eu - Q1(bum,i-1,j)*eu_L)*ih
+                     + (Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
+          Real adv_v = (Q1(bum,i,j)*vx_face - Q1(bum,i-1,j)*vx_hi)*ih
+                     + (Q1(bvm,i,j)*ev - Q1(bvm,i,j-1)*ev_B)*ih;
+          /* Step 7: CN explicit half */
           un[j*BS+i] = uc + alpha*lap_u + dt*(-adv_u - dpx);
           vn[j*BS+i] = vc + alpha*lap_v + dt*(-adv_v - dpy);
         }
     }
-#undef U2
-#undef V2
+#undef Q2
+#undef Q1
   }
 #pragma omp parallel for
   for (long long id = 0; id < sim.n; id++) {
@@ -863,6 +947,134 @@ static void blk_mean_sub(int field) {
   }
 }
 
+static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
+  int it;
+  for (it = 0; it < niter; it++) {
+#pragma omp parallel
+    {
+      Real buf[LB_BUF];
+      int nm = BS + 2;
+#pragma omp for
+      for (long long id = 0; id < sim.n; id++) {
+        Real *u = BLK(id) + BS * BS * sol_field;
+        Real *f = BLK(id) + BS * BS * rhs_field;
+        Real h2 = sim.blk[id].h * sim.blk[id].h;
+        int i, j;
+        lb_load(buf, 1, sol_field, 1, id);
+        for (j = 0; j < BS; j++)
+          for (i = 0; i < BS; i++) {
+#define PB(di, dj) buf[nm*((j)+(dj)+1)+(i)+(di)+1]
+            u[j*BS+i] = 0.25*(PB(1,0)+PB(-1,0)+PB(0,1)+PB(0,-1) - h2*f[j*BS+i]);
+#undef PB
+          }
+      }
+    }
+    blk_mean_sub(sol_field);
+  }
+}
+
+static void mac_project(Real dt) {
+  /* Poisson solve for MAC correction: Δφ = div(umac,vmac)
+     Then umac -= ∂φ/∂x, vmac -= ∂φ/∂y */
+  int iter;
+  Real rz, pAp, al, rz2, beta, rmax;
+#pragma omp parallel
+  {
+    Real bum[LB_BUF], bvm[LB_BUF];
+    int nm = BS + 2;
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *rhs = BLK(id) + BS * BS * F_TMP;
+      Real h = sim.blk[id].h;
+      int i, j;
+      lb_load(bum, 1, F_UMAC, 1, id);
+      lb_load(bvm, 1, F_VMAC, 1, id);
+#define UM(di,dj) bum[nm*((j)+(dj)+1)+(i)+(di)+1]
+#define VM(di,dj) bvm[nm*((j)+(dj)+1)+(i)+(di)+1]
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++)
+          rhs[j*BS+i] = 0.5*h*(UM(1,0)-UM(-1,0)+VM(0,1)-VM(0,-1));
+#undef UM
+#undef VM
+    }
+  }
+  /* zero initial guess */
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++)
+    memset(BLK(id)+BS*BS*F_TMP2, 0, BS*BS*sizeof(Real));
+  /* CG: F_TMP2=φ, F_TMP=rhs, F_W=r, F_TMP3=p, F_UMAC/F_VMAC untouched */
+  blk_laplacian(F_TMP2, F_W);
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    Real *r = BLK(id)+BS*BS*F_W;
+    Real *f = BLK(id)+BS*BS*F_TMP;
+    int k;
+    for (k = 0; k < BS*BS; k++) r[k] = f[k] - r[k];
+  }
+  blk_mean_sub(F_W);
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++)
+    memset(BLK(id)+BS*BS*F_PHI, 0, BS*BS*sizeof(Real));
+  blk_smooth_poisson(F_W, F_PHI, 4);
+  blk_copy(F_PHI, F_TMP3);
+  rz = blk_dot(F_W, F_PHI);
+  for (iter = 0; iter < 200; iter++) {
+    blk_laplacian(F_TMP3, F_PHI);
+    pAp = blk_dot(F_TMP3, F_PHI);
+    if (fabs(pAp) < 1e-30) break;
+    al = rz / pAp;
+    blk_axpy(al, F_TMP3, F_TMP2);
+    blk_axpy(-al, F_PHI, F_W);
+    blk_mean_sub(F_W);
+    blk_mean_sub(F_TMP2);
+    rmax = 0;
+#pragma omp parallel for reduction(max:rmax)
+    for (long long id = 0; id < sim.n; id++) {
+      Real *r = BLK(id)+BS*BS*F_W;
+      int k;
+      for (k = 0; k < BS*BS; k++)
+        if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
+    }
+    if (rmax < 1e-10) break;
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; id++)
+      memset(BLK(id)+BS*BS*F_PHI, 0, BS*BS*sizeof(Real));
+    blk_smooth_poisson(F_W, F_PHI, 4);
+    rz2 = blk_dot(F_W, F_PHI);
+    beta = rz2 / (rz + 1e-30);
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *p = BLK(id)+BS*BS*F_TMP3;
+      Real *z = BLK(id)+BS*BS*F_PHI;
+      int k;
+      for (k = 0; k < BS*BS; k++) p[k] = z[k] + beta*p[k];
+    }
+    rz = rz2;
+  }
+  blk_mean_sub(F_TMP2);
+  /* correct: umac -= ∂φ/∂x, vmac -= ∂φ/∂y */
+#pragma omp parallel
+  {
+    Real bphi[LB_BUF];
+    int nm = BS + 2;
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *um = BLK(id)+BS*BS*F_UMAC;
+      Real *vm = BLK(id)+BS*BS*F_VMAC;
+      Real ih = 0.5 / sim.blk[id].h;
+      int i, j;
+      lb_load(bphi, 1, F_TMP2, 1, id);
+#define PH(di,dj) bphi[nm*((j)+(dj)+1)+(i)+(di)+1]
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+          um[j*BS+i] -= (PH(1,0)-PH(-1,0))*ih;
+          vm[j*BS+i] -= (PH(0,1)-PH(0,-1))*ih;
+        }
+#undef PH
+    }
+  }
+}
+
 static void poisson_solve(Real dt) {
   int iter;
   Real rz, pAp, al, rz2, beta, rmax;
@@ -891,7 +1103,8 @@ static void poisson_solve(Real dt) {
         }
     }
   }
-  /* CG: F_PHI=x, F_TMP=rhs(f), F_W=residual(r), F_TMP2=direction(p), F_TMP3=Ap */
+  /* PCG: F_PHI=x, F_TMP=f, F_W=r, F_TMP2=p, F_TMP3=z/Ap (reused) */
+  /* r = f - Ax */
   blk_laplacian(F_PHI, F_W);
 #pragma omp parallel for
   for (long long id = 0; id < sim.n; id++) {
@@ -901,16 +1114,21 @@ static void poisson_solve(Real dt) {
     for (k = 0; k < BS * BS; k++) r[k] = f[k] - r[k];
   }
   blk_mean_sub(F_W);
-  blk_copy(F_W, F_TMP2);
-  rz = blk_dot(F_W, F_W);
+  /* z = M⁻¹r (preconditioner: a few Jacobi sweeps on ∆z = r) */
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++)
+    memset(BLK(id) + BS * BS * F_TMP3, 0, BS * BS * sizeof(Real));
+  blk_smooth_poisson(F_W, F_TMP3, 4);
+  blk_copy(F_TMP3, F_TMP2); /* p = z */
+  rz = blk_dot(F_W, F_TMP3); /* rz = <r, z> */
 
-  for (iter = 0; iter < 1000; iter++) {
-    blk_laplacian(F_TMP2, F_TMP3);    /* Ap = ∆p */
+  for (iter = 0; iter < 200; iter++) {
+    blk_laplacian(F_TMP2, F_TMP3); /* Ap = ∆p (reuses F_TMP3) */
     pAp = blk_dot(F_TMP2, F_TMP3);
     if (fabs(pAp) < 1e-30) break;
     al = rz / pAp;
-    blk_axpy(al, F_TMP2, F_PHI);      /* x += al*p */
-    blk_axpy(-al, F_TMP3, F_W);       /* r -= al*Ap */
+    blk_axpy(al, F_TMP2, F_PHI);   /* x += al*p */
+    blk_axpy(-al, F_TMP3, F_W);    /* r -= al*Ap */
     blk_mean_sub(F_W);
     blk_mean_sub(F_PHI);
     rmax = 0;
@@ -922,15 +1140,20 @@ static void poisson_solve(Real dt) {
         if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
     }
     if (rmax < 1e-10) break;
-    rz2 = blk_dot(F_W, F_W);
+    /* z = M⁻¹r */
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; id++)
+      memset(BLK(id) + BS * BS * F_TMP3, 0, BS * BS * sizeof(Real));
+    blk_smooth_poisson(F_W, F_TMP3, 4);
+    rz2 = blk_dot(F_W, F_TMP3); /* <r, z_new> */
     beta = rz2 / (rz + 1e-30);
-    /* p = r + beta*p */
+    /* p = z + beta*p */
 #pragma omp parallel for
     for (long long id = 0; id < sim.n; id++) {
       Real *p = BLK(id) + BS * BS * F_TMP2;
-      Real *r = BLK(id) + BS * BS * F_W;
+      Real *z = BLK(id) + BS * BS * F_TMP3;
       int k;
-      for (k = 0; k < BS * BS; k++) p[k] = r[k] + beta * p[k];
+      for (k = 0; k < BS * BS; k++) p[k] = z[k] + beta * p[k];
     }
     rz = rz2;
   }
