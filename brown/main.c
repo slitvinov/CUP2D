@@ -1000,41 +1000,46 @@ static int amr_finest_N(Real hf) { return (int)(1.0 / hf + 0.5); }
 
 static void amr_gather(double *dst, int field, int Ng, Real hf) {
   Real lb[LB_BUF];
+  Real h;
+  int ratio, bx, by;
+  Real *gsrc;
+  int nm_g;
+  double gfx, gfy, wx, wy, v00, v10, v01, v11, val;
+  int i0, j0, gx, gy;
   memset(dst, 0, (size_t)Ng * Ng * sizeof(double));
   for (long long id = 0; id < sim.n; id++) {
-    Real h = sim.blk[id].h;
-    int ratio = (int)(h / hf + 0.5);
-    int bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
-    int by = (int)(sim.blk[id].origin[1] / hf + 0.5);
+    h = sim.blk[id].h;
+    ratio = (int)(h / hf + 0.5);
+    bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
+    by = (int)(sim.blk[id].origin[1] / hf + 0.5);
     if (ratio == 1) {
-
-      Real *src = BLK(id) + BS * BS * field;
+      gsrc = BLK(id) + BS * BS * field;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++)
-          dst[(by + j) * Ng + bx + i] = src[j * BS + i];
+          dst[(by + j) * Ng + bx + i] = gsrc[j * BS + i];
     } else {
-      int nm = BS + 2;
+      nm_g = BS + 2;
       lb_load(lb, 1, field, 1, id);
 
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++)
           for (int dj = 0; dj < ratio; dj++)
             for (int di = 0; di < ratio; di++) {
-              double fx = ((double)di + 0.5) / ratio - 0.5;
-              double fy = ((double)dj + 0.5) / ratio - 0.5;
-              int i0 = (fx < 0) ? -1 : 0, j0 = (fy < 0) ? -1 : 0;
-              double wx = fx - i0, wy = fy - j0;
+              gfx = ((double)di + 0.5) / ratio - 0.5;
+              gfy = ((double)dj + 0.5) / ratio - 0.5;
+              i0 = (gfx < 0) ? -1 : 0; j0 = (gfy < 0) ? -1 : 0;
+              wx = gfx - i0; wy = gfy - j0;
 
-#define LB(ci, cj) lb[nm * ((j) + (cj) + 1) + (i) + (ci) + 1]
-              double v00 = LB(i0, j0);
-              double v10 = LB(i0 + 1, j0);
-              double v01 = LB(i0, j0 + 1);
-              double v11 = LB(i0 + 1, j0 + 1);
+#define LB(ci, cj) lb[nm_g * ((j) + (cj) + 1) + (i) + (ci) + 1]
+              v00 = LB(i0, j0);
+              v10 = LB(i0 + 1, j0);
+              v01 = LB(i0, j0 + 1);
+              v11 = LB(i0 + 1, j0 + 1);
 #undef LB
-              double val = (1 - wx) * (1 - wy) * v00 + wx * (1 - wy) * v10 +
+              val = (1 - wx) * (1 - wy) * v00 + wx * (1 - wy) * v10 +
                            (1 - wx) * wy * v01 + wx * wy * v11;
-              int gx = bx + i * ratio + di;
-              int gy = by + j * ratio + dj;
+              gx = bx + i * ratio + di;
+              gy = by + j * ratio + dj;
               if (gx >= 0 && gx < Ng && gy >= 0 && gy < Ng)
                 dst[gy * Ng + gx] = val;
             }
@@ -1043,20 +1048,25 @@ static void amr_gather(double *dst, int field, int Ng, Real hf) {
 }
 
 static void amr_scatter(double *src, int field, int Ng, Real hf) {
+  Real *sdst;
+  Real sh;
+  int sratio, sbx, sby;
+  Real sinv;
+  double ssum;
   for (long long id = 0; id < sim.n; id++) {
-    Real *dst = BLK(id) + BS * BS * field;
-    Real h = sim.blk[id].h;
-    int ratio = (int)(h / hf + 0.5);
-    int bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
-    int by = (int)(sim.blk[id].origin[1] / hf + 0.5);
-    Real inv = 1.0 / (ratio * ratio);
+    sdst = BLK(id) + BS * BS * field;
+    sh = sim.blk[id].h;
+    sratio = (int)(sh / hf + 0.5);
+    sbx = (int)(sim.blk[id].origin[0] / hf + 0.5);
+    sby = (int)(sim.blk[id].origin[1] / hf + 0.5);
+    sinv = 1.0 / (sratio * sratio);
     for (int j = 0; j < BS; j++)
       for (int i = 0; i < BS; i++) {
-        double sum = 0;
-        for (int dj = 0; dj < ratio; dj++)
-          for (int di = 0; di < ratio; di++)
-            sum += src[(by + j * ratio + dj) * Ng + bx + i * ratio + di];
-        dst[j * BS + i] = sum * inv;
+        ssum = 0;
+        for (int dj = 0; dj < sratio; dj++)
+          for (int di = 0; di < sratio; di++)
+            ssum += src[(sby + j * sratio + dj) * Ng + sbx + i * sratio + di];
+        sdst[j * BS + i] = ssum * sinv;
       }
   }
 }
@@ -1128,52 +1138,46 @@ static void advect_diffuse(Real dt) {
         vmac[IDX(i, j + 1)] = 0.5 * (lo + hi);
     }
 
-  {
-    double *div = abuf + 8 * NN, *phi = abuf + 9 * NN;
-    memset(div, 0, NN * sizeof(double));
-    memset(phi, 0, NN * sizeof(double));
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++)
-        div[IDX(i, j)] = (umac[IDX(i + 1, j)] - umac[IDX(i, j)] +
-                          vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) *
-                         ih;
-    for (int k = 0; k < NN; k++)
-      div[k] *= h0 * h0;
-    mg_solve_periodic(phi, div, N, 1e-10);
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        umac[IDX(i, j)] -= (phi[IDX(i, j)] - phi[IDX(i - 1, j)]) * ih;
-        vmac[IDX(i, j)] -= (phi[IDX(i, j)] - phi[IDX(i, j - 1)]) * ih;
-      }
-  }
+  div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
+  memset(div_ad, 0, NN * sizeof(double));
+  memset(phi_ad, 0, NN * sizeof(double));
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++)
+      div_ad[IDX(i, j)] = (umac[IDX(i + 1, j)] - umac[IDX(i, j)] +
+                        vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) *
+                       ih;
+  for (int k = 0; k < NN; k++)
+    div_ad[k] *= h0 * h0;
+  mg_solve_periodic(phi_ad, div_ad, N, 1e-10);
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++) {
+      umac[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i - 1, j)]) * ih;
+      vmac[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i, j - 1)]) * ih;
+    }
 
   for (int n = 0; n < 2; n++) {
-    double *q = (n == 0) ? qu : qv;
-    double *xedge = (n == 0) ? xedge_u : xedge_v;
-    double *yedge = (n == 0) ? yedge_u : yedge_v;
-    double *xlo = abuf + 8 * NN, *xhi = abuf + 9 * NN, *ylo = abuf + 10 * NN,
-           *yhi = abuf + 11 * NN;
-    double *yzlo = abuf + 12 * NN;
-    double *xzlo = abuf + 13 * NN;
+    q = (n == 0) ? qu : qv;
+    xedge = (n == 0) ? xedge_u : xedge_v;
+    yedge = (n == 0) ? yedge_u : yedge_v;
+    xlo = abuf + 8 * NN; xhi = abuf + 9 * NN; ylo = abuf + 10 * NN;
+    yhi = abuf + 11 * NN;
+    yzlo = abuf + 12 * NN;
+    xzlo = abuf + 13 * NN;
     memset(xlo, 0, 4 * NN * sizeof(double));
 
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-        Real s = slope4(q[IDX(i - 2, j)], q[IDX(i - 1, j)], q[IDX(i, j)],
+        s_ad = slope4(q[IDX(i - 2, j)], q[IDX(i - 1, j)], q[IDX(i, j)],
                         q[IDX(i + 1, j)], q[IDX(i + 2, j)]);
-        Real uc = qu[IDX(i, j)];
-        Real sy;
-        Real vc;
 
         xlo[IDX(i + 1, j)] =
-            q[IDX(i, j)] + 0.5 * (1.0 - umac[IDX(i + 1, j)] * dtdx) * s;
+            q[IDX(i, j)] + 0.5 * (1.0 - umac[IDX(i + 1, j)] * dtdx) * s_ad;
 
         xhi[IDX(i, j)] =
-            q[IDX(i, j)] + 0.5 * (-1.0 - umac[IDX(i, j)] * dtdx) * s;
+            q[IDX(i, j)] + 0.5 * (-1.0 - umac[IDX(i, j)] * dtdx) * s_ad;
 
         sy = slope4(q[IDX(i, j - 2)], q[IDX(i, j - 1)], q[IDX(i, j)],
                          q[IDX(i, j + 1)], q[IDX(i, j + 2)]);
-        vc = qv[IDX(i, j)];
         ylo[IDX(i, j + 1)] =
             q[IDX(i, j)] + 0.5 * (1.0 - vmac[IDX(i, j + 1)] * dtdy) * sy;
         yhi[IDX(i, j)] =
@@ -1183,28 +1187,27 @@ static void advect_diffuse(Real dt) {
     memset(yzlo, 0, NN * sizeof(double));
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-        Real vad = vmac[IDX(i, j)];
-        Real lo_v = ylo[IDX(i, j)], hi_v = yhi[IDX(i, j)];
+        vad = vmac[IDX(i, j)];
+        lo_v = ylo[IDX(i, j)]; hi_v = yhi[IDX(i, j)];
         yzlo[IDX(i, j)] = (fabs(vad) < 1e-10) ? 0.5 * (lo_v + hi_v)
                                               : ((vad >= 0) ? lo_v : hi_v);
       }
 
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-
-        Real quxl = (umac[IDX(i, j)] - umac[IDX(i - 1, j)]) * q[IDX(i - 1, j)];
-        Real stl = xlo[IDX(i, j)] - 0.5 * dtdx * quxl -
+        quxl = (umac[IDX(i, j)] - umac[IDX(i - 1, j)]) * q[IDX(i - 1, j)];
+        stl = xlo[IDX(i, j)] - 0.5 * dtdx * quxl -
                    0.5 * dtdy *
                        (yzlo[IDX(i - 1, j + 1)] * vmac[IDX(i - 1, j + 1)] -
                         yzlo[IDX(i - 1, j)] * vmac[IDX(i - 1, j)]);
 
-        Real quxh = (umac[IDX(i + 1, j)] - umac[IDX(i, j)]) * q[IDX(i, j)];
-        Real sth = xhi[IDX(i, j)] - 0.5 * dtdx * quxh -
+        quxh = (umac[IDX(i + 1, j)] - umac[IDX(i, j)]) * q[IDX(i, j)];
+        sth = xhi[IDX(i, j)] - 0.5 * dtdx * quxh -
                    0.5 * dtdy *
                        (yzlo[IDX(i, j + 1)] * vmac[IDX(i, j + 1)] -
                         yzlo[IDX(i, j)] * vmac[IDX(i, j)]);
 
-        Real uad = umac[IDX(i, j)];
+        uad = umac[IDX(i, j)];
         xedge[IDX(i, j)] =
             (fabs(uad) < 1e-10) ? 0.5 * (stl + sth) : ((uad >= 0) ? stl : sth);
       }
@@ -1212,84 +1215,80 @@ static void advect_diffuse(Real dt) {
     memset(xzlo, 0, NN * sizeof(double));
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-        Real uad = umac[IDX(i, j)];
-        Real lo_u = xlo[IDX(i, j)], hi_u = xhi[IDX(i, j)];
+        uad = umac[IDX(i, j)];
+        lo_u = xlo[IDX(i, j)]; hi_u = xhi[IDX(i, j)];
         xzlo[IDX(i, j)] = (fabs(uad) < 1e-10) ? 0.5 * (lo_u + hi_u)
                                               : ((uad >= 0) ? lo_u : hi_u);
       }
 
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
-        Real qvyl = (vmac[IDX(i, j)] - vmac[IDX(i, j - 1)]) * q[IDX(i, j - 1)];
-        Real stl = ylo[IDX(i, j)] - 0.5 * dtdy * qvyl -
+        qvyl = (vmac[IDX(i, j)] - vmac[IDX(i, j - 1)]) * q[IDX(i, j - 1)];
+        stl = ylo[IDX(i, j)] - 0.5 * dtdy * qvyl -
                    0.5 * dtdx *
                        (xzlo[IDX(i + 1, j - 1)] * umac[IDX(i + 1, j - 1)] -
                         xzlo[IDX(i, j - 1)] * umac[IDX(i, j - 1)]);
 
-        Real qvyh = (vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) * q[IDX(i, j)];
-        Real sth = yhi[IDX(i, j)] - 0.5 * dtdy * qvyh -
+        qvyh = (vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) * q[IDX(i, j)];
+        sth = yhi[IDX(i, j)] - 0.5 * dtdy * qvyh -
                    0.5 * dtdx *
                        (xzlo[IDX(i + 1, j)] * umac[IDX(i + 1, j)] -
                         xzlo[IDX(i, j)] * umac[IDX(i, j)]);
 
-        Real vad = vmac[IDX(i, j)];
+        vad = vmac[IDX(i, j)];
         yedge[IDX(i, j)] =
             (fabs(vad) < 1e-10) ? 0.5 * (stl + sth) : ((vad >= 0) ? stl : sth);
       }
   }
 
-  {
-    double *div = abuf + 8 * NN, *phi = abuf + 9 * NN;
-    memset(div, 0, NN * sizeof(double));
-    memset(phi, 0, NN * sizeof(double));
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++)
-        div[IDX(i, j)] = (xedge_u[IDX(i + 1, j)] - xedge_u[IDX(i, j)] +
-                          yedge_v[IDX(i, j + 1)] - yedge_v[IDX(i, j)]) *
-                         ih;
-    for (int k = 0; k < NN; k++)
-      div[k] *= h0 * h0;
-    mg_solve_periodic(phi, div, N, 1e-10);
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        xedge_u[IDX(i, j)] -= (phi[IDX(i, j)] - phi[IDX(i - 1, j)]) * ih;
-        yedge_v[IDX(i, j)] -= (phi[IDX(i, j)] - phi[IDX(i, j - 1)]) * ih;
-      }
-  }
+  div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
+  memset(div_ad, 0, NN * sizeof(double));
+  memset(phi_ad, 0, NN * sizeof(double));
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++)
+      div_ad[IDX(i, j)] = (xedge_u[IDX(i + 1, j)] - xedge_u[IDX(i, j)] +
+                        yedge_v[IDX(i, j + 1)] - yedge_v[IDX(i, j)]) *
+                       ih;
+  for (int k = 0; k < NN; k++)
+    div_ad[k] *= h0 * h0;
+  mg_solve_periodic(phi_ad, div_ad, N, 1e-10);
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++) {
+      xedge_u[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i - 1, j)]) * ih;
+      yedge_v[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i, j - 1)]) * ih;
+    }
 
-  {
-    double *qp = abuf + 8 * NN, *u_new = abuf + 9 * NN, *v_new = abuf + 10 * NN;
-    memset(qp, 0, 3 * NN * sizeof(double));
-    amr_gather(qp, F_P, N, h0);
-    for (int gj = 0; gj < N; gj++)
-      for (int gi = 0; gi < N; gi++) {
-        Real uc = qu[IDX(gi, gj)], vc = qv[IDX(gi, gj)];
-        Real uR = xedge_u[IDX(gi + 1, gj)], uL = xedge_u[IDX(gi, gj)];
-        Real vT = yedge_v[IDX(gi, gj + 1)], vB = yedge_v[IDX(gi, gj)];
-        Real uu_R = xedge_u[IDX(gi + 1, gj)], uu_L = xedge_u[IDX(gi, gj)];
-        Real vv_T = yedge_v[IDX(gi, gj + 1)], vv_B = yedge_v[IDX(gi, gj)];
-        Real u_yT = yedge_u[IDX(gi, gj + 1)], u_yB = yedge_u[IDX(gi, gj)];
-        Real v_xR = xedge_v[IDX(gi + 1, gj)], v_xL = xedge_v[IDX(gi, gj)];
-        Real adv_u = 0.5 * (uR + uL) * (uu_R - uu_L) * ih +
-                     0.5 * (vT + vB) * (u_yT - u_yB) * ih;
-        Real adv_v = 0.5 * (uR + uL) * (v_xR - v_xL) * ih +
-                     0.5 * (vT + vB) * (vv_T - vv_B) * ih;
-        Real lap_u = (qu[IDX(gi + 1, gj)] + qu[IDX(gi - 1, gj)] +
-                      qu[IDX(gi, gj + 1)] + qu[IDX(gi, gj - 1)] - 4 * uc) *
-                     ih * ih;
-        Real lap_v = (qv[IDX(gi + 1, gj)] + qv[IDX(gi - 1, gj)] +
-                      qv[IDX(gi, gj + 1)] + qv[IDX(gi, gj - 1)] - 4 * vc) *
-                     ih * ih;
-        Real dpx = (qp[IDX(gi + 1, gj)] - qp[IDX(gi - 1, gj)]) * 0.5 * ih;
-        Real dpy = (qp[IDX(gi, gj + 1)] - qp[IDX(gi, gj - 1)]) * 0.5 * ih;
-        Real alpha = sim.nu * dt * 0.5;
-        u_new[IDX(gi, gj)] = uc + alpha * lap_u + dt * (-adv_u - dpx);
-        v_new[IDX(gi, gj)] = vc + alpha * lap_v + dt * (-adv_v - dpy);
-      }
+  qp = abuf + 8 * NN; u_new = abuf + 9 * NN; v_new = abuf + 10 * NN;
+  memset(qp, 0, 3 * NN * sizeof(double));
+  amr_gather(qp, F_P, N, h0);
+  for (int gj = 0; gj < N; gj++)
+    for (int gi = 0; gi < N; gi++) {
+      uc_g = qu[IDX(gi, gj)]; vc_g = qv[IDX(gi, gj)];
+      uR = xedge_u[IDX(gi + 1, gj)]; uL = xedge_u[IDX(gi, gj)];
+      vT = yedge_v[IDX(gi, gj + 1)]; vB = yedge_v[IDX(gi, gj)];
+      uu_R = xedge_u[IDX(gi + 1, gj)]; uu_L = xedge_u[IDX(gi, gj)];
+      vv_T = yedge_v[IDX(gi, gj + 1)]; vv_B = yedge_v[IDX(gi, gj)];
+      u_yT = yedge_u[IDX(gi, gj + 1)]; u_yB = yedge_u[IDX(gi, gj)];
+      v_xR = xedge_v[IDX(gi + 1, gj)]; v_xL = xedge_v[IDX(gi, gj)];
+      adv_u = 0.5 * (uR + uL) * (uu_R - uu_L) * ih +
+                   0.5 * (vT + vB) * (u_yT - u_yB) * ih;
+      adv_v = 0.5 * (uR + uL) * (v_xR - v_xL) * ih +
+                   0.5 * (vT + vB) * (vv_T - vv_B) * ih;
+      lap_u = (qu[IDX(gi + 1, gj)] + qu[IDX(gi - 1, gj)] +
+                    qu[IDX(gi, gj + 1)] + qu[IDX(gi, gj - 1)] - 4 * uc_g) *
+                   ih * ih;
+      lap_v = (qv[IDX(gi + 1, gj)] + qv[IDX(gi - 1, gj)] +
+                    qv[IDX(gi, gj + 1)] + qv[IDX(gi, gj - 1)] - 4 * vc_g) *
+                   ih * ih;
+      dpx = (qp[IDX(gi + 1, gj)] - qp[IDX(gi - 1, gj)]) * 0.5 * ih;
+      dpy = (qp[IDX(gi, gj + 1)] - qp[IDX(gi, gj - 1)]) * 0.5 * ih;
+      alpha_g = sim.nu * dt * 0.5;
+      u_new[IDX(gi, gj)] = uc_g + alpha_g * lap_u + dt * (-adv_u - dpx);
+      v_new[IDX(gi, gj)] = vc_g + alpha_g * lap_v + dt * (-adv_v - dpy);
+    }
 
-    amr_scatter(u_new, F_U, N, h0);
-    amr_scatter(v_new, F_V, N, h0);
-  }
+  amr_scatter(u_new, F_U, N, h0);
+  amr_scatter(v_new, F_V, N, h0);
 #undef IDX
 }
 static void helmholtz_solve(Real dt, int field) {
@@ -1339,11 +1338,11 @@ static void project(Real dt) {
 #pragma omp parallel
   {
     Real bp[LB_BUF];
+    Real *u, *v, *p, *phi;
+    int nm;
+    Real ih;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      Real *u, *v, *p, *phi;
-      int nm;
-      Real ih;
       lb_load(bp, 1, F_PHI, 1, id);
       u = BLK(id) + BS * BS * F_U;
       v = BLK(id) + BS * BS * F_V;
@@ -1387,26 +1386,30 @@ int main(int argc, char **argv) {
   int seen[sizeof param_tab / sizeof *param_tab] = {0};
   Real rho_layer, delta;
   Real smax;
+  const char *mkey, *mval;
+  int mi;
+  char *mend;
+  int ns;
+  long long midx;
+  int do_dump;
+  char mpath[FILENAME_MAX];
 #ifdef _OPENMP
   nthreads = omp_get_max_threads();
 #endif
   fprintf(stderr, "main.c: %d threads\n", nthreads);
   argv++;
   while (*argv) {
-    const char *key, *val;
-    int i;
-    char *end;
     if ((*argv)[0] != '-' || !argv[1]) { fprintf(stderr, "usage: main -key val ...\n"); exit(1); }
-    key = *argv++ + 1; val = *argv++;
-    for (i = 0; i < ntab; i++)
-      if (strcmp(key, param_tab[i].name) == 0) break;
-    if (i == ntab) { fprintf(stderr, "unknown: -%s\n", key); exit(1); }
-    if (param_tab[i].type == 0)
-      *(int *)(base + param_tab[i].off) = (int)strtol(val, &end, 10);
+    mkey = *argv++ + 1; mval = *argv++;
+    for (mi = 0; mi < ntab; mi++)
+      if (strcmp(mkey, param_tab[mi].name) == 0) break;
+    if (mi == ntab) { fprintf(stderr, "unknown: -%s\n", mkey); exit(1); }
+    if (param_tab[mi].type == 0)
+      *(int *)(base + param_tab[mi].off) = (int)strtol(mval, &mend, 10);
     else
-      *(Real *)(base + param_tab[i].off) = strtod(val, &end);
-    if (end == val || *end) { fprintf(stderr, "-%s: bad '%s'\n", key, val); exit(1); }
-    seen[i] = 1;
+      *(Real *)(base + param_tab[mi].off) = strtod(mval, &mend);
+    if (mend == mval || *mend) { fprintf(stderr, "-%s: bad '%s'\n", mkey, mval); exit(1); }
+    seen[mi] = 1;
   }
   for (int i = 0; i < ntab; i++)
     if (!seen[i]) { fprintf(stderr, "-%s: not set\n", param_tab[i].name); exit(1); }
