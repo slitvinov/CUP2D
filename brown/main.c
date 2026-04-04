@@ -309,7 +309,6 @@ static void lb_init(void) {
   }
 }
 
-
 enum {
   LB_BUF =
       ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2
@@ -529,14 +528,14 @@ static void dump(Real time, int step, char *path) {
     }
 }
 
-
 static int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
   Real *b, *blk_omp[4], *blks[4], *dst_omp;
   Real Linf;
   Real lm[LB_BUF];
   enum AdSt *state;
-  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok, px, py, s, x_omp, y_omp;
+  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok,
+      px, py, s, x_omp, y_omp;
   long long *com_idx, *ref_idx;
   long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
   long long sib_ad[4], sib_omp[4];
@@ -687,7 +686,6 @@ done:
   free(com_idx);
   return Changed;
 }
-
 
 static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
                           Real phip2) {
@@ -1059,10 +1057,10 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
   long long id;
 
   for (it = 0; it < niter; it++) {
-        nm = BS + 4;
+    nm = BS + 4;
     for (id = 0; id < sim.n; id++) {
-            u = BLK(id) + BS * BS * sol_field;
-            f = BLK(id) + BS * BS * rhs_field;
+      u = BLK(id) + BS * BS * sol_field;
+      f = BLK(id) + BS * BS * rhs_field;
       lb_load(buf, 1, sol_field, 2, id);
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
@@ -1076,18 +1074,17 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
   }
 }
 
-
 static void mac_project(Real dt) {
-  int iter, nm;
-  Real al, beta, pAp, rmax, rz, rz2;
-  long long id;
+  Real *f, *p, *r, *rhs, *um, *vm, *z;
+  Real al, beta, h, ih, pAp, rmax, rz, rz2;
   Real bphi[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
+  int i, iter, j, k, nm;
+  long long id;
 
   nm = BS + 2;
   for (id = 0; id < sim.n; id++) {
-    Real *rhs = BLK(id) + BS * BS * F_TMP;
-    Real h = sim.blk[id].h;
-    int i, j;
+    rhs = BLK(id) + BS * BS * F_TMP;
+    h = sim.blk[id].h;
     lb_load(bum, 1, F_UMAC, 1, id);
     lb_load(bvm, 1, F_VMAC, 1, id);
 #define UM(di, dj) bum[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
@@ -1105,9 +1102,8 @@ static void mac_project(Real dt) {
 
   blk_laplacian(F_TMP2, F_W);
   for (id = 0; id < sim.n; id++) {
-    Real *r = BLK(id) + BS * BS * F_W;
-    Real *f = BLK(id) + BS * BS * F_TMP;
-    int k;
+    r = BLK(id) + BS * BS * F_W;
+    f = BLK(id) + BS * BS * F_TMP;
     for (k = 0; k < BS * BS; k++) r[k] = f[k] - r[k];
   }
   blk_mean_sub(F_W);
@@ -1127,8 +1123,7 @@ static void mac_project(Real dt) {
     blk_mean_sub(F_TMP2);
     rmax = 0;
     for (id = 0; id < sim.n; id++) {
-      Real *r = BLK(id) + BS * BS * F_W;
-      int k;
+      r = BLK(id) + BS * BS * F_W;
       for (k = 0; k < BS * BS; k++)
         if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
     }
@@ -1139,9 +1134,8 @@ static void mac_project(Real dt) {
     rz2 = blk_dot(F_W, F_PHI);
     beta = rz2 / (rz + 1e-30);
     for (id = 0; id < sim.n; id++) {
-      Real *p = BLK(id) + BS * BS * F_TMP3;
-      Real *z = BLK(id) + BS * BS * F_PHI;
-      int k;
+      p = BLK(id) + BS * BS * F_TMP3;
+      z = BLK(id) + BS * BS * F_PHI;
       for (k = 0; k < BS * BS; k++) p[k] = z[k] + beta * p[k];
     }
     rz = rz2;
@@ -1150,10 +1144,9 @@ static void mac_project(Real dt) {
 
   nm = BS + 2;
   for (id = 0; id < sim.n; id++) {
-    Real *um = BLK(id) + BS * BS * F_UMAC;
-    Real *vm = BLK(id) + BS * BS * F_VMAC;
-    Real ih = 0.5 / sim.blk[id].h;
-    int i, j;
+    um = BLK(id) + BS * BS * F_UMAC;
+    vm = BLK(id) + BS * BS * F_VMAC;
+    ih = 0.5 / sim.blk[id].h;
     lb_load(bphi, 1, F_TMP2, 1, id);
 #define PH(di, dj) bphi[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
     for (j = 0; j < BS; j++)
