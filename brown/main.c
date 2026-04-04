@@ -1051,16 +1051,16 @@ static void blk_mean_sub(int field) {
 }
 
 static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
-  int it;
+  Real *f, *u;
+  Real buf[LB_BUF];
+  int i, it, j, nm;
   long long id;
 
   for (it = 0; it < niter; it++) {
-    Real buf[LB_BUF];
-    int nm = BS + 4;
+        nm = BS + 4;
     for (id = 0; id < sim.n; id++) {
-      Real *u = BLK(id) + BS * BS * sol_field;
-      Real *f = BLK(id) + BS * BS * rhs_field;
-      int i, j;
+            u = BLK(id) + BS * BS * sol_field;
+            f = BLK(id) + BS * BS * rhs_field;
       lb_load(buf, 1, sol_field, 2, id);
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
@@ -1073,6 +1073,7 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
     blk_mean_sub(sol_field);
   }
 }
+
 
 static void mac_project(Real dt) {
   int iter, nm;

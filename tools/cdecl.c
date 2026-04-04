@@ -433,7 +433,9 @@ static void process_function(struct Func *f) {
   /* emit body, replacing declarations with assignments */
   p = f->body_start + 1;
   /* skip whitespace before first real content */
-  while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
+  { int lim = f->body_end - 1;
+    while (p < lim && isspace((unsigned char)src[p])) p++;
+  }
   int need_sep = 1; /* emit one blank line after declarations */
   while (p < f->body_end - 1) {
     /* check if current position matches a collected declaration */
@@ -477,12 +479,16 @@ static void process_function(struct Func *f) {
             eq++;
           }
           fprintf(outfp, "%s ", decls[di].name);
-          emit(src + eq, decls[di].val_end - eq);
+          if (eq < decls[di].val_end)
+            emit(src + eq, decls[di].val_end - eq);
           emit(";\n", 2);
           any_init = 1;
         }
-        p = d->end;
-        if (!any_init)
+        if (d->end > p)
+          p = d->end;
+        else
+          p++; /* safety: always advance */
+        if (!any_init && p < f->body_end)
           while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
       }
     } else {
