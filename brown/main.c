@@ -138,8 +138,7 @@ struct Nb {
   int ch[2];
 };
 static struct Nb nb_find(int level, int ix, int iy, int icode) {
-  int L1, b, cx, cy, fx, fy, nL1, nd, nx, ny, scale;
-
+  int L1, b, cx, cy, fx, fy, idx, nL1, nd, nx, ny, scale;
   struct Nb r = {0, -1, {-1, -1}};
   cx = icode % 3 - 1;
   cy = icode / 3 - 1;
@@ -147,7 +146,7 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   nd = sim.nb * scale;
   nx = (ix + cx + nd) % nd;
   ny = (iy + cy + nd) % nd;
-  int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
+  idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
     r.s = 0;
     r.idx = idx;
@@ -206,9 +205,9 @@ static void lb_exec(Real *const blk[], Real *const dst[],
   Real a, b, cv, sum;
   int i;
 
+  const struct LbOp *o;
   m = dst[0];
   c = dst[1];
-  const struct LbOp *o;
   for (i = 0; i < n; i++) {
     o = &ops[i];
     switch (o->type) {
@@ -523,20 +522,21 @@ static void dump(Real time, int step, char *path) {
 
 static const int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
+  int Changed, J, More, dim_omp, ic, j, level_omp, nm_ad, off_omp, ok, px, py,
+      s, x_omp, y_omp;
+  long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
   long long *com_idx, *ref_idx;
-  long long ci_ad, cnt, i, k, n_com, n_ref, nprev;
-  int Changed, J, More, ic, j, ok, s;
-  long long sib_ad[4];
+  long long sib_ad[4], sib_omp[4];
   size_t m, v;
-
+  Real *blk_omp[4], *blks[4], *dst_omp;
+  Real lm[LB_BUF];
+  struct Blk *bj, *bs_blk, *p0_ad, *p0_omp, *par;
+  struct Nb nr;
   enum AdSt *state;
+
   n_ref = 0;
   n_com = 0;
   Changed = 0;
-  struct Blk *bj;
-  struct Nb nr;
-  struct Blk *bs_blk;
-  struct Blk *p0_ad;
   compute_indicator();
   state = calloc(sim.n, sizeof *state);
   ref_idx = malloc(sim.n * sizeof *ref_idx);
@@ -612,18 +612,6 @@ static int ad_run(void) {
       state[nb_find(p0_ad->level, p0_ad->ix, p0_ad->iy, ad_sib_ic[s]).idx] =
           Dealloc;
   }
-  Real lm[LB_BUF];
-  struct Blk *par;
-  int px, py;
-  Real *blks[4];
-  int nm_ad;
-  long long ci_omp;
-  struct Blk *p0_omp;
-  int level_omp, x_omp, y_omp;
-  long long sib_omp[4];
-  Real *blk_omp[4];
-  int dim_omp, off_omp;
-  Real *dst_omp;
   for (k = 0; k < n_ref; k++) {
     par = &sim.blk[ref_idx[k]];
     px = par->ix;
@@ -1375,7 +1363,7 @@ static const struct {
 };
 
 int main(int argc, char **argv) {
-  int do_dump, i, iy, j, mi, ns, ntab, nthreads;
+  int do_dump, i, iy, j, mi, ns, ntab, nthreads, seen[16];
   char *base, *mend;
   Real delta, rho_layer, smax;
   const char *mkey, *mval;
@@ -1385,7 +1373,7 @@ int main(int argc, char **argv) {
   nthreads = 1;
   base = (char *)&sim;
   ntab = sizeof param_tab / sizeof *param_tab;
-  int seen[sizeof param_tab / sizeof *param_tab] = {0};
+  memset(seen, 0, sizeof seen);
   nthreads = 1;
   fprintf(stderr, "main.c: %d threads\n", nthreads);
   argv++;

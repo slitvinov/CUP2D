@@ -68,7 +68,20 @@ def process(src, only_func=None):
             return
         insert_pos = open_brace.end_byte
 
-        decls = [c for c in body.children if c.type == 'declaration']
+        def collect_decls(node):
+            result = []
+            for child in node.children:
+                if child.type == 'declaration':
+                    result.append(child)
+                elif child.type == 'for_statement':
+                    for c in child.children:
+                        if c.type == 'compound_statement':
+                            result.extend(collect_decls(c))
+                elif child.type in ('compound_statement', 'if_statement',
+                                    'while_statement', 'do_statement'):
+                    result.extend(collect_decls(child))
+            return result
+        decls = collect_decls(body)
         if not decls:
             return
 
@@ -97,10 +110,6 @@ def process(src, only_func=None):
                 continue
 
             base_type = src[decl.start_byte:type_node_end].strip()
-            if b'const' in base_type:
-                line = src[:decl.start_byte].count(b'\n') + 1
-                sys.stderr.write(f"  skip: const declaration (line {line})\n")
-                continue
             assignments = []
             new_names = []
             all_handled = True
@@ -125,14 +134,6 @@ def process(src, only_func=None):
                     kind = 'ptr' if name_n.type == 'pointer_declarator' else \
                            'arr' if name_n.type == 'array_declarator' else 'plain'
 
-                    # Check for unsafe initializers
-                    unsafe = b'->' in val_text
-                    if unsafe:
-                        line = src[:val_n.start_byte].count(b'\n') + 1
-                        sys.stderr.write(
-                            f"  skip: {bname.decode()} = ... (unsafe init, line {line})\n")
-                        all_handled = False
-                        continue
 
                     # Build assignment
                     assign_name = name_text
