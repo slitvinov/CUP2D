@@ -1414,17 +1414,15 @@ int main(int argc, char **argv) {
   for (int i = 0; i < ntab; i++)
     if (!seen[i]) { fprintf(stderr, "-%s: not set\n", param_tab[i].name); exit(1); }
 
-  {
-    int ns = 1 << sim.levelStart;
-    long long idx = 0;
-    sim.nb = ns;
-    sim.n = (long long)ns * ns;
-    sim.blk = calloc(sim.n, sizeof *sim.blk);
-    sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
-    for (int iy = 0; iy < ns; iy++)
-      for (int ix = 0; ix < ns; ix++)
-        bl_fill(&sim.blk[idx++], sim.levelStart, ix, iy);
-  }
+  ns = 1 << sim.levelStart;
+  midx = 0;
+  sim.nb = ns;
+  sim.n = (long long)ns * ns;
+  sim.blk = calloc(sim.n, sizeof *sim.blk);
+  sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
+  for (int iy = 0; iy < ns; iy++)
+    for (int ix = 0; ix < ns; ix++)
+      bl_fill(&sim.blk[midx++], sim.levelStart, ix, iy);
   hm_rebuild();
   lb_init();
 
