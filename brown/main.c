@@ -448,28 +448,27 @@ static void prolong_2to1(Real *coarse, Real *fine, int dim, int cs, int fs,
 }
 
 static void compute_indicator(void) {
-  long long id;
-  int j, jc0;
-
-  Real bu[LB_BUF], bv[LB_BUF];
-  int nm = BS + 2;
-  int nc = BS / 2 + 2;
-  Real cu[nc * nc], cv[nc * nc];
   Real *t;
-  int fi, fj, ic, jc, di, dj, ci, cj;
-  Real su, sv, pu, pv, au, av;
+  Real au, av, pu, pv, su, sv;
+  Real bu[LB_BUF], bv[LB_BUF];
+  int ci, cj, di, di0, dj, dj0, fi, fj, i, ic, ic0, j, jc, jc0, kk, nc, nm, s;
+  long long id;
+
+  nm = BS + 2;
+  nc = BS / 2 + 2;
+  Real cu[nc * nc], cv[nc * nc];
   for (id = 0; id < sim.n; id++) {
     lb_load(bu, 1, F_U, 1, id);
     lb_load(bv, 1, F_V, 1, id);
 
     for (jc0 = 0; jc0 < nc; jc0++)
-      for (int ic0 = 0; ic0 < nc; ic0++) {
+      for (ic0 = 0; ic0 < nc; ic0++) {
         fi = 2 * ic0 - 1;
         fj = 2 * jc0 - 1;
         su = 0;
         sv = 0;
-        for (int dj0 = 0; dj0 < 2; dj0++)
-          for (int di0 = 0; di0 < 2; di0++) {
+        for (dj0 = 0; dj0 < 2; dj0++)
+          for (di0 = 0; di0 < 2; di0++) {
             su += bu[nm * (fj + dj0 + 1) + fi + di0 + 1];
             sv += bv[nm * (fj + dj0 + 1) + fi + di0 + 1];
           }
@@ -479,15 +478,15 @@ static void compute_indicator(void) {
 
     t = BLK(id) + BS * BS * F_TMP;
     for (j = 0; j < BS; j += 2)
-      for (int i = 0; i < BS; i += 2) {
+      for (i = 0; i < BS; i += 2) {
         ic = i / 2 + 1;
         jc = j / 2 + 1;
-        for (int s = 0; s < 4; s++) {
+        for (s = 0; s < 4; s++) {
           di = s & 1;
           dj = s >> 1;
           pu = 0;
           pv = 0;
-          for (int kk = 0; kk < 9; kk++) {
+          for (kk = 0; kk < 9; kk++) {
             ci = ic + kk % 3 - 1;
             cj = jc + kk / 3 - 1;
             pu += ad_ref_w[s][kk] * cu[cj * nc + ci];

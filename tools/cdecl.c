@@ -84,6 +84,7 @@ struct Decl {
   int has_init;        /* has = initializer */
   int has_brace;       /* initializer contains { */
   int is_for;          /* declaration inside for() init */
+  int is_vla;          /* array size is not constant */
   char type[128];      /* base type string */
   char name[MAXNAME];  /* variable name (without * or []) */
   char full_name[128]; /* full declarator e.g. "*p" or "buf[100]" */
@@ -158,11 +159,17 @@ static int parse_declarator(int p, struct Decl *d) {
     for (i = 0; word[i] && fi < 126; i++) d->full_name[fi++] = word[i];
   }
 
+  d->is_vla = 0;
   p = skipws(p);
   while (p < srcn && src[p] == '[') {
     int bs = p;
     p = skip_balanced(p);
     int blen = p - bs;
+    /* check if array size contains variables (lowercase = VLA) */
+    { int k;
+      for (k = bs + 1; k < p - 1; k++)
+        if (islower((unsigned char)src[k])) d->is_vla = 1;
+    }
     if (fi + blen < 126) {
       memcpy(d->full_name + fi, src + bs, blen);
       fi += blen;
@@ -298,8 +305,12 @@ static void process_function(struct Func *f) {
     int ndd = 0;
     int end = try_parse_decls(p, dd, 32, &ndd);
     if (end > 0 && ndd > 0 && !dd[0].has_brace) {
-      int k;
-      for (k = 0; k < ndd && ndecl < MAXDECL; k++) decls[ndecl++] = dd[k];
+      /* if any declarator is VLA, skip the whole line */
+      int k, has_vla = 0;
+      for (k = 0; k < ndd; k++)
+        if (dd[k].is_vla) has_vla = 1;
+      if (!has_vla)
+        for (k = 0; k < ndd && ndecl < MAXDECL; k++) decls[ndecl++] = dd[k];
       p = end;
     } else if (src[p] == '{') {
       /* enter block, continue looking for declarations */
@@ -445,6 +456,7 @@ static void process_function(struct Func *f) {
         p = d->end;
       } else if (d->has_init) {
         if (need_sep) { emit("\n", 1); need_sep = 0; }
+
         /* emit assignment: name = value; */
         int eq = d->start;
         while (eq < d->end && src[eq] != '=') eq++;
@@ -460,11 +472,19 @@ static void process_function(struct Func *f) {
         p = d->end;
       } else {
         p = d->end;
-        /* skip blank lines after removed declaration, preserve indentation */
-        while (p < f->body_end - 1 && src[p] == '\n') p++;
+        /* skip all whitespace after removed declaration */
+        while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
       }
     } else {
-      if (need_sep) { emit("\n", 1); need_sep = 0; }
+      if (need_sep) {
+        emit("\n", 1);
+        /* restore indentation from original source */
+        int ls = p;
+        while (ls > 0 && src[ls - 1] != '\n') ls--;
+        while (ls < p && isspace((unsigned char)src[ls]))
+          fputc(src[ls++], outfp);
+        need_sep = 0;
+      }
       fputc(src[p], outfp);
       p++;
     }
