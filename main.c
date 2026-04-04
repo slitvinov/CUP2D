@@ -64,7 +64,7 @@ static struct Sim {
   int nb[2];
   long long n;
   struct HMap hm;
-  struct FaceBC bc[4]; /* x-, x+, y-, y+ */
+  struct FaceBC bc[4]; 
   struct Blk *blk;
   Real *fld;
 } sim;
@@ -195,10 +195,10 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
         int bt = sim.bc[face].type;
         if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
         if (bt == BC_INFLOW) { r.s = 8+d; return r; }
-        r.s = 3+d; return r; /* wall/symmetry */
+        r.s = 3+d; return r; 
       }
     }
-    /* Multi-axis: outflow/inflow dominates */
+    
     for (int d = 0; d < 2; d++) {
       if (!skin[d]) continue;
       int face = 2*d + (pos[d] == nd[d]-1 ? 1 : (pos[d] == 0 && c[d] == -1 ? 0 : 1));
@@ -206,7 +206,7 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
       if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
       if (bt == BC_INFLOW) { r.s = 8+d; return r; }
     }
-    r.s = 5; return r; /* wall corner */
+    r.s = 5; return r; 
   }
   int nx = (ix + cx + nd[0]) % nd[0], ny = (iy + cy + nd[1]) % nd[1];
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
@@ -354,7 +354,7 @@ static void lb_exec(Real *const blk[], Real *const dst[],
       break;
     }
     case OP_BC_FIXED: {
-      Real *src = dst[o->blk_idx]; /* bc_const buffer */
+      Real *src = dst[o->blk_idx]; 
       Real *buf = dst[o->dst_idx];
       for (int d = 0; d < dim; d++)
         buf[o->dst_off + d] = src[d];
@@ -419,7 +419,7 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
       continue;
     struct Nb nr = nb_find(level, xi, yi, icode);
 
-    /* Fill bc_const for inflow faces */
+    
     if (nr.s == 8 || nr.s == 9) {
       int axis = nr.s - 8;
       int face = 2*axis + (pos[axis] == nd2[axis]-1 ? 1 : 0);
@@ -464,8 +464,8 @@ static inline Real pres(Real r, Real mx, Real my, Real e) {
   return fmax(0, (GAMMA-1)*(e - 0.5*(mx*mx+my*my)/r));
 }
 static void compute_indicator() {
-  enum { EPS_S_NUM = 1, EPS_S_DEN = 5 }; /* eps_s = 0.2 */
-  enum { EPS_C_NUM = 1, EPS_C_DEN = 5 }; /* eps_c = 0.2 */
+  enum { EPS_S_NUM = 1, EPS_S_DEN = 5 }; 
+  enum { EPS_C_NUM = 1, EPS_C_DEN = 5 }; 
 #pragma omp parallel
   {
     Real ur[LB_BUF], um[LB_BUF], ue[LB_BUF];
@@ -485,7 +485,7 @@ static void compute_indicator() {
           Real r0=R(0,0), p0=pres(r0,MX(0,0),MY(0,0),E(0,0));
           Real ux0=MX(0,0)/r0, uy0=MY(0,0)/r0;
           Real xi = 0;
-          /* 4 face neighbors: 0=left,1=right,2=bottom,3=top */
+          
           int di[]={-1,1,0,0}, dj[]={0,0,-1,1};
           for (int nb = 0; nb < 4; nb++) {
             int ii=di[nb], jj=dj[nb];
@@ -493,21 +493,21 @@ static void compute_indicator() {
             Real uxn=MX(ii,jj)/rn, uyn=MY(ii,jj)/rn;
             Real pmin=fmin(pn,p0)+1e-30;
             Real dp=fabs(pn-p0)/pmin;
-            /* normal velocity difference for compression check */
-            int dir = nb < 2 ? 0 : 1; /* 0=x, 1=y */
+            
+            int dir = nb < 2 ? 0 : 1; 
             Real un0 = dir==0 ? ux0 : uy0;
             Real unn = dir==0 ? uxn : uyn;
-            int sign = (nb==0||nb==2) ? -1 : 1; /* -1 for left/bottom, +1 for right/top */
+            int sign = (nb==0||nb==2) ? -1 : 1; 
             int compressing = sign*(unn - un0) < 0;
-            /* eq 11: shock indicator */
+            
             if (dp > (Real)EPS_S_NUM/EPS_S_DEN && compressing)
               xi = 1;
-            /* eq 12: contact indicator */
+            
             Real rmin=fmin(rn,r0)+1e-30;
             Real dr=fabs(rn-r0)/rmin;
             if (dp <= (Real)EPS_S_NUM/EPS_S_DEN && dr > (Real)EPS_C_NUM/EPS_C_DEN)
               xi = 1;
-            /* eq 13: gradient indicator (pressure) */
+            
             Real amax=fmax(fabs(pn),fabs(p0))+1e-30;
             Real grad=(fabs(pn)-fabs(p0))/amax;
             xi = fmax(xi, grad);
@@ -520,8 +520,7 @@ static void compute_indicator() {
         }
     }
   }
-  /* Save raw indicator, then smooth with reaction-diffusion (eq 14).
-   * Use heap scratch instead of F_DRHO/F_DENE (reserved for two-state system). */
+  
   Real *raw_buf = malloc(sim.n * BS*BS * sizeof(Real));
   Real *smo_buf = malloc(sim.n * BS*BS * sizeof(Real));
 #pragma omp parallel for
@@ -870,17 +869,9 @@ static void hll_y(Real rL, Real mxL, Real myL, Real eL,
     *gV=(SR*(myL*vL+pL)-SL*(myR*vR+pR)+SL*SR*(myR-myL))*s;
     *gE=(SR*(eL+pL)*vL-SL*(eR+pR)*vR+SL*SR*(eR-eL))*s; }
 }
-/*
- * Flux registers for refluxing at coarse-fine interfaces.
- *
- * Two registers per block:
- *   [axis=0,1][side=0,1][face_cell 0..BS-1][component 0..3]
- *
- * freg_fine:   accumulated F*dt over fine half-steps
- * freg_coarse: F*dt from the coarse step
- */
+
 enum { FLUX_FACE = BS * 4 };
-enum { FLUX_BLK = 2 * 2 * FLUX_FACE }; /* 2 axes * 2 sides */
+enum { FLUX_BLK = 2 * 2 * FLUX_FACE }; 
 static Real *freg_fine;
 static Real *freg_coarse;
 static long long freg_n;
@@ -912,14 +903,6 @@ static void freg_save(long long id, int axis, int side, int d0,
   co[0]+=f0*dt; co[1]+=f1*dt; co[2]+=f2*dt; co[3]+=f3*dt;
 }
 
-/*
- * U^o / U^n two-state system (Khokhlov Eq. 5).
- *
- * Sweeps reconstruct from U^o (F_DRHO/F_DMOM/F_DENE) and update U^n
- * (F_RHO/F_MOM/F_ENE).  After each directional sweep, U^o is synced
- * from U^n for interior blocks; boundary blocks (with coarser neighbors)
- * keep U^o frozen across directional sweeps for interface consistency.
- */
 static void state_to_old(int level, int interior_only) {
   static const int face_ic[] = {1, 3, 5, 7};
 #pragma omp parallel for
@@ -1054,11 +1037,7 @@ static const struct {
     {"tend", 1, offsetof(struct Sim, endTime)},
     {"tdump", 1, offsetof(struct Sim, dumpTime)},
 };
-/*
- * Interleaved refinement: refine blocks at 'level' only (no coarsening).
- * Only refines blocks that have no coarser neighbors (to maintain 2:1 balance
- * without propagating to already-advanced coarser levels).
- */
+
 static void ad_refine_level(int level) {
   if (level >= sim.levelMax - 1) return;
 
@@ -1076,7 +1055,7 @@ static void ad_refine_level(int level) {
     state[i] = Linf > sim.Rtol ? Refine : Leave;
   }
 
-  /* Drop blocks whose refinement would violate 2:1 with coarser levels */
+  
   for (long long i = 0; i < sim.n; i++) {
     if (state[i] != Refine) continue;
     struct Blk *bi = &sim.blk[i];
@@ -1087,7 +1066,7 @@ static void ad_refine_level(int level) {
     }
   }
 
-  /* 2:1 balance within level */
+  
   for (int More = 1; More;) {
     More = 0;
     for (long long j = 0; j < sim.n; j++) {
@@ -1117,7 +1096,7 @@ static void ad_refine_level(int level) {
 
   if (n_ref == 0) { free(state); free(ref_idx); return; }
 
-  /* Create 4 children per refined block */
+  
   long long nprev = sim.n;
   sim.n += 4 * n_ref;
   sim.blk = realloc(sim.blk, sim.n * sizeof *sim.blk);
@@ -1169,7 +1148,7 @@ static void ad_refine_level(int level) {
     }
   }
 
-  /* Compact */
+  
   long long cnt = 0;
   for (long long i = 0; i < sim.n; i++) {
     if (state[i] == Dealloc) continue;
@@ -1188,14 +1167,6 @@ static void ad_refine_level(int level) {
   free(state); free(ref_idx);
 }
 
-/*
- * Flux correction (refluxing) at coarse-fine interfaces.
- *
- * For each fine block adjacent to a coarser block, compare the accumulated
- * fine boundary flux (F*dt summed over 2 half-steps) with the coarse
- * boundary flux (F*dt from the single coarse step).  Apply the difference
- * as a correction to the coarse cell so that total flux is conserved.
- */
 static void reflux_apply(int fine_level) {
   if (fine_level <= sim.levelStart) return;
   for (long long id = 0; id < sim.n; id++) {
@@ -1228,7 +1199,7 @@ static void reflux_apply(int fine_level) {
         Real *ene = BLK(nr.idx)+BS*BS*F_ENE;
 
         for (int d0 = 0; d0 < BS; d0 += 2) {
-          /* Average 2 fine accumulated F*dt */
+          
           Real favg[4] = {0};
           for (int dd = 0; dd < 2; dd++) {
             int fi = (d0+dd)*4;
@@ -1236,13 +1207,13 @@ static void reflux_apply(int fine_level) {
           }
           for (int v = 0; v < 4; v++) favg[v] *= 0.5;
 
-          /* Coarse cell index on the interface face */
+          
           int ci[2];
           ci[axis] = coarse_side == 0 ? 0 : BS-1;
           ci[other] = parity[other] * BS/2 + d0/2;
           int cc = ci[1]*BS + ci[0];
 
-          /* Coarse F*dt at this face cell */
+          
           int cfi = ci[other]*4;
 
           rho[cc]      += sgn * inv_hc * (fc[cfi]   - favg[0]);
@@ -1255,33 +1226,22 @@ static void reflux_apply(int fine_level) {
   }
 }
 
-/*
- * Subcycle with Strang splitting and U^o/U^n two-state system
- * (Khokhlov 1998, Eqs. 5-7).
- *
- * S(l) = A†(l) S(l+1) A(l) S(l+1) R(l)
- *
- * Sweeps reconstruct from U^o (F_DRHO/F_DMOM/F_DENE) and accumulate
- * flux updates into U^n (F_RHO/F_MOM/F_ENE).  After each directional
- * sweep, U^o is synced from U^n for interior blocks; boundary blocks
- * (with coarser neighbors) keep U^o frozen for interface consistency.
- */
 static void subcycle(int level, int lmax, Real dt, int order) {
-#if 1 /* Khokhlov: Strang + two-state + reflux */
+#if 1 
   Real dth = dt / 2;
 
   if (level < lmax)
     freg_clear_fine(level + 1);
   freg_clear_coarse(level);
 
-  /* Initialize U^o for this level */
+  
   state_to_old(level, 0);
 
-  /* S(l+1): first fine full step */
+  
   if (level < lmax)
     subcycle(level + 1, lmax, dth, order);
 
-  /* A(l): first coarse half-step */
+  
   if (order) {
     euler_y_sweep(dth, level); state_to_old(level, 1);
     euler_x_sweep(dth, level);
@@ -1289,13 +1249,13 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     euler_x_sweep(dth, level); state_to_old(level, 1);
     euler_y_sweep(dth, level);
   }
-  state_to_old(level, 0); /* end of A: sync all blocks */
+  state_to_old(level, 0); 
 
-  /* S(l+1): second fine full step */
+  
   if (level < lmax)
     subcycle(level + 1, lmax, dth, order ^ 1);
 
-  /* A†(l): second coarse half-step (reversed) */
+  
   if (order) {
     euler_x_sweep(dth, level); state_to_old(level, 1);
     euler_y_sweep(dth, level);
@@ -1303,14 +1263,14 @@ static void subcycle(int level, int lmax, Real dt, int order) {
     euler_y_sweep(dth, level); state_to_old(level, 1);
     euler_x_sweep(dth, level);
   }
-  state_to_old(level, 0); /* end of A†: sync all blocks */
+  state_to_old(level, 0); 
 
-  /* Flux correction + sync U^o so parent's ghost fill sees corrected data */
+  
   if (level < lmax) {
     reflux_apply(level + 1);
     state_to_old(level, 0);
   }
-#else /* Original: simple Lie splitting */
+#else 
   state_to_old(level, 0);
   if (level < lmax)
     subcycle(level + 1, lmax, dt / 2, order);
@@ -1338,7 +1298,7 @@ int main(int argc, char **argv) {
     else
       *(Real *)(base + param_tab[i].off) = arg_r(argc, argv, param_tab[i].name);
   int dumpSteps = arg_i_opt(argc, argv, "sdump", 0);
-  /* Domain: 1 x 1, solid walls (Khokhlov Section 7.4, Fig. 8-9) */
+  
   sim.L[0] = 1.0; sim.L[1] = 1.0;
   sim.bc[0].type = BC_WALL; sim.bc[1].type = BC_WALL;
   sim.bc[2].type = BC_WALL; sim.bc[3].type = BC_WALL;
@@ -1355,8 +1315,7 @@ int main(int argc, char **argv) {
   }
   hm_rebuild();
   lb_init();
-  /* IC: Cylindrical strong point explosion (Khokhlov Section 7.4)
-     rho0=1, P0=1, E=1e5 in one finest cell at (0.35, 0.2) */
+  
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
@@ -1380,7 +1339,7 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < sim.levelMax; i++)
     ad_run();
-  /* Re-apply IC on adapted mesh */
+  
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
