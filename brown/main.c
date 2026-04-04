@@ -170,9 +170,6 @@ struct LbOp {
 };
 struct LbSrc {
   int8_t level_delta;
-  int8_t xi_mul, yi_mul;
-  int8_t xi_add, yi_add;
-  int8_t xi_shift, yi_shift;
   int8_t is_self;
   int8_t self_idx;
 };

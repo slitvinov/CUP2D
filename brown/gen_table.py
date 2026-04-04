@@ -95,9 +95,7 @@ def coarse_bounds(c, ss, coff):
 
 def make_blksrc(level_delta=0, xi_mul=0, yi_mul=0, xi_add=0, yi_add=0,
                 xi_shift=0, yi_shift=0, is_self=0, self_idx=0):
-    return dict(level_delta=level_delta, xi_mul=xi_mul, yi_mul=yi_mul,
-                xi_add=xi_add, yi_add=yi_add, xi_shift=xi_shift,
-                yi_shift=yi_shift, is_self=is_self, self_idx=self_idx)
+    return dict(level_delta=level_delta, is_self=is_self, self_idx=self_idx)
 
 
 def build_entry(cx, cy, xp, yp, s, ss, dim):
@@ -360,7 +358,7 @@ def build_entry(cx, cy, xp, yp, s, ss, dim):
 
 # ---- Binary serialization ----
 
-ENTRY_SIZE = 20 + 8 + MAX_OPS * 20
+ENTRY_SIZE = 8 + 8 + MAX_OPS * 20
 
 
 def pack_op(op):
@@ -368,10 +366,9 @@ def pack_op(op):
 
 
 def pack_blksrc(b):
-    return struct.pack('<bbbbbbb?b',
-                       b['level_delta'], b['xi_mul'], b['yi_mul'],
-                       b['xi_add'], b['yi_add'], b['xi_shift'], b['yi_shift'],
-                       bool(b['is_self']), b['self_idx'])
+    return struct.pack('<bbb',
+                       b['level_delta'],
+                       b['is_self'], b['self_idx'])
 
 
 ZERO_OP = pack_op((0, 0, 0, 0, 0, 0, 0, 0))
@@ -387,7 +384,7 @@ def pack_entry(e):
     for b in blks:
         buf += pack_blksrc(b)
     buf += b'\x00'
-    assert len(buf) == 20
+    assert len(buf) == 8
 
     pre_ops = e['fill'] + e['cbc']
     post_ops = e['interp_ops'] + e['fbc']
