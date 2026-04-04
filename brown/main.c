@@ -1159,17 +1159,17 @@ static void mac_project(Real dt) {
 }
 
 static void poisson_solve(Real dt) {
-  int iter;
-  Real al, beta, pAp, rmax, rz, rz2;
+  Real *f, *p, *r, *rhs, *z;
+  Real al, beta, fac, h, pAp, rmax, rz, rz2;
+  Real bu[LB_BUF], bv[LB_BUF];
+  int i, iter, j, k, nm;
   long long id;
 
-  Real bu[LB_BUF], bv[LB_BUF];
-  int nm = BS + 2;
+  nm = BS + 2;
   for (id = 0; id < sim.n; id++) {
-    Real *rhs = BLK(id) + BS * BS * F_TMP;
-    Real h = sim.blk[id].h;
-    Real fac = 2.0 * h / dt;
-    int i, j;
+        rhs = BLK(id) + BS * BS * F_TMP;
+        h = sim.blk[id].h;
+        fac = 2.0 * h / dt;
     lb_load(bu, 1, F_U, 1, id);
     lb_load(bv, 1, F_V, 1, id);
     for (j = 0; j < BS; j++)
@@ -1184,9 +1184,8 @@ static void poisson_solve(Real dt) {
 
   blk_laplacian(F_PHI, F_W);
   for (id = 0; id < sim.n; id++) {
-    Real *r = BLK(id) + BS * BS * F_W;
-    Real *f = BLK(id) + BS * BS * F_TMP;
-    int k;
+        r = BLK(id) + BS * BS * F_W;
+        f = BLK(id) + BS * BS * F_TMP;
     for (k = 0; k < BS * BS; k++) r[k] = f[k] - r[k];
   }
   blk_mean_sub(F_W);
@@ -1208,8 +1207,7 @@ static void poisson_solve(Real dt) {
     blk_mean_sub(F_PHI);
     rmax = 0;
     for (id = 0; id < sim.n; id++) {
-      Real *r = BLK(id) + BS * BS * F_W;
-      int k;
+            r = BLK(id) + BS * BS * F_W;
       for (k = 0; k < BS * BS; k++)
         if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
     }
@@ -1222,15 +1220,15 @@ static void poisson_solve(Real dt) {
     beta = rz2 / (rz + 1e-30);
 
     for (id = 0; id < sim.n; id++) {
-      Real *p = BLK(id) + BS * BS * F_TMP2;
-      Real *z = BLK(id) + BS * BS * F_TMP3;
-      int k;
+            p = BLK(id) + BS * BS * F_TMP2;
+            z = BLK(id) + BS * BS * F_TMP3;
       for (k = 0; k < BS * BS; k++) p[k] = z[k] + beta * p[k];
     }
     rz = rz2;
   }
   blk_mean_sub(F_PHI);
 }
+
 
 static void project(Real dt) {
   long long id;
