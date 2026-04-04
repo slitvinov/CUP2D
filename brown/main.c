@@ -10,6 +10,10 @@
 typedef double Real;
 enum { BS = 8, NM = BS + 2, NC = BS / 2 + 2 };
 enum {
+  LB_BUF =
+      ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2
+};
+enum {
   F_U = 0,
   F_V = 1,
   F_P = 2,
@@ -23,7 +27,36 @@ enum {
   F_N = 10,
   BLK_S = F_N * BS * BS,
 };
-
+enum {
+  OP_COPY,
+  OP_AVG,
+  OP_INTERP9,
+  OP_INTERP3,
+  OP_LELI,
+};
+struct LbOp {
+  int8_t type;
+  int8_t blk_idx;
+  int8_t dst_idx;
+  int8_t flags;
+  int32_t src_off, dst_off, p1, p2;
+};
+struct LbSrc {
+  int8_t level_delta;
+  int8_t is_self;
+  int8_t self_idx;
+};
+enum { MAX_PRE = 32, MAX_POST = 48, MAX_OPS = MAX_PRE + MAX_POST };
+struct LbTab {
+  int8_t n_blk;
+  struct LbSrc blk_src[2];
+  int8_t _pad;
+  int32_t n_pre;
+  int32_t n_post;
+  struct LbOp ops[MAX_OPS];
+};
+enum { N_STATUS = 10 };
+static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Blk;
 struct HMEntry {
@@ -34,24 +67,6 @@ struct HMap {
   struct HMEntry *e;
   int cap;
 };
-static int hm_slot(struct HMap *m, long long key) {
-  unsigned long long h;
-
-  h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
-  return (int)(h >> 32) & (m->cap - 1);
-}
-
-static int hm_get(struct HMap *m, long long key) {
-  int i;
-
-  i = hm_slot(m, key);
-  while (m->e[i].key >= 0) {
-    if (m->e[i].key == key) return m->e[i].val;
-    i = (i + 1) & (m->cap - 1);
-  }
-  return -1;
-}
-
 static struct Sim {
   int AdaptSteps;
   int levelMax;
@@ -73,30 +88,11 @@ static struct Sim {
   struct Blk *blk;
   Real *fld;
 } sim;
-static long long hm_key(int level, int ix, int iy) {
-  long long n;
-
-  n = 1LL << level;
-  return ((n * n) - 1) / 3 + iy * n + ix;
-}
-
 struct Blk {
   Real h, origin[2];
   int level, n, ix, iy;
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
-static void bl_fill(struct Blk *b, int level, int ix, int iy) {
-  int scale;
-
-  scale = 1 << (level - sim.levelStart);
-  b->level = level;
-  b->n = 1 << level;
-  b->ix = ix;
-  b->iy = iy;
-  b->h = 1.0 / (BS * sim.nb * scale);
-  b->origin[0] = b->h * BS * ix;
-  b->origin[1] = b->h * BS * iy;
-}
 
 struct FldDesc {
   int offset;
@@ -114,6 +110,68 @@ static int nb_ch_off[9][2][2] = {
     [6] = {{-1, 2}, {0, 0}},  [7] = {{0, 2}, {1, 2}},   [8] = {{2, 2}, {0, 0}},
 };
 static int nb_ch_n[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
+
+
+struct Nb {
+  int8_t s;
+  int idx;
+  int ch[2];
+};
+static int ad_sib_ic[4] = {-1, 5, 7, 8};
+struct Param {
+  char *name;
+  int type;
+  size_t off;
+};
+static struct Param param_tab[] = {
+    {"levelStart", 0, offsetof(struct Sim, levelStart)},
+    {"levelMax", 0, offsetof(struct Sim, levelMax)},
+    {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
+    {"sdump", 0, offsetof(struct Sim, sdump)},
+    {"Rtol", 1, offsetof(struct Sim, Rtol)},
+    {"CFL", 1, offsetof(struct Sim, CFL)},
+    {"nu", 1, offsetof(struct Sim, nu)},
+    {"tend", 1, offsetof(struct Sim, endTime)},
+    {"tdump", 1, offsetof(struct Sim, dumpTime)},
+};
+
+static int hm_slot(struct HMap *m, long long key) {
+  unsigned long long h;
+
+  h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
+  return (int)(h >> 32) & (m->cap - 1);
+}
+
+static int hm_get(struct HMap *m, long long key) {
+  int i;
+
+  i = hm_slot(m, key);
+  while (m->e[i].key >= 0) {
+    if (m->e[i].key == key) return m->e[i].val;
+    i = (i + 1) & (m->cap - 1);
+  }
+  return -1;
+}
+static long long hm_key(int level, int ix, int iy) {
+  long long n;
+
+  n = 1LL << level;
+  return ((n * n) - 1) / 3 + iy * n + ix;
+}
+
+static void bl_fill(struct Blk *b, int level, int ix, int iy) {
+  int scale;
+
+  scale = 1 << (level - sim.levelStart);
+  b->level = level;
+  b->n = 1 << level;
+  b->ix = ix;
+  b->iy = iy;
+  b->h = 1.0 / (BS * sim.nb * scale);
+  b->origin[0] = b->h * BS * ix;
+  b->origin[1] = b->h * BS * iy;
+}
+
 static void hm_rebuild(void) {
   int cap, j, s;
   long long i, key;
@@ -140,12 +198,6 @@ static void hm_rebuild(void) {
   fprintf(stderr, "  hm: get(21)=%d get(22)=%d\n", hm_get(&sim.hm, 21),
           hm_get(&sim.hm, 22));
 }
-
-struct Nb {
-  int8_t s;
-  int idx;
-  int ch[2];
-};
 static struct Nb nb_find(int level, int ix, int iy, int icode) {
   int L1, b, cx, cy, fx, fy, idx, nL1, nd, nx, ny, scale;
 
@@ -181,34 +233,6 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   return r;
 }
 
-enum {
-  OP_COPY,
-  OP_AVG,
-  OP_INTERP9,
-  OP_INTERP3,
-  OP_LELI,
-};
-struct LbOp {
-  int8_t type;
-  int8_t blk_idx;
-  int8_t dst_idx;
-  int8_t flags;
-  int32_t src_off, dst_off, p1, p2;
-};
-struct LbSrc {
-  int8_t level_delta;
-  int8_t is_self;
-  int8_t self_idx;
-};
-enum { MAX_PRE = 32, MAX_POST = 48, MAX_OPS = MAX_PRE + MAX_POST };
-struct LbTab {
-  int8_t n_blk;
-  struct LbSrc blk_src[2];
-  int8_t _pad;
-  int32_t n_pre;
-  int32_t n_post;
-  struct LbOp ops[MAX_OPS];
-};
 static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
                     int nm, int nc) {
   Real *avg_d, *avg_q1, *avg_src, *c, *m;
@@ -280,8 +304,6 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
   }
 }
 
-enum { N_STATUS = 10 };
-static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
   FILE *fp;
   char fname[64];
@@ -311,10 +333,6 @@ static void lb_init(void) {
   }
 }
 
-enum {
-  LB_BUF =
-      ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2
-};
 struct LbDir {
   struct LbTab *e;
   Real *blk[2];
@@ -530,7 +548,6 @@ static void dump(Real time, int step, char *path) {
     }
 }
 
-static int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
   Real *b, *blk_omp[4], *blks[4], *dst_omp;
   Real Linf;
@@ -1305,23 +1322,6 @@ static void project(Real dt) {
       }
   }
 }
-
-struct Param {
-  char *name;
-  int type;
-  size_t off;
-};
-static struct Param param_tab[] = {
-    {"levelStart", 0, offsetof(struct Sim, levelStart)},
-    {"levelMax", 0, offsetof(struct Sim, levelMax)},
-    {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
-    {"sdump", 0, offsetof(struct Sim, sdump)},
-    {"Rtol", 1, offsetof(struct Sim, Rtol)},
-    {"CFL", 1, offsetof(struct Sim, CFL)},
-    {"nu", 1, offsetof(struct Sim, nu)},
-    {"tend", 1, offsetof(struct Sim, endTime)},
-    {"tdump", 1, offsetof(struct Sim, dumpTime)},
-};
 
 int main(int argc, char **argv) {
   Real *u, *v;
