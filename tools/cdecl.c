@@ -469,8 +469,9 @@ static void process_function(struct Func *f) {
             fputc(src[il], outfp);
           /* find = for this declarator: search for "name" then = after it */
           int eq = d->start, nlen = strlen(decls[di].name);
-          while (eq < decls[di].val_end) {
+          while (eq + nlen <= decls[di].val_end) {
             if (memcmp(src + eq, decls[di].name, nlen) == 0 &&
+                (eq == 0 || !is_ident_char(src[eq - 1])) &&
                 !is_ident_char(src[eq + nlen])) {
               eq += nlen;
               while (eq < decls[di].val_end && src[eq] != '=') eq++;
@@ -478,10 +479,11 @@ static void process_function(struct Func *f) {
             }
             eq++;
           }
-          fprintf(outfp, "%s ", decls[di].name);
-          if (eq < decls[di].val_end)
+          if (eq < decls[di].val_end) {
+            fprintf(outfp, "%s ", decls[di].name);
             emit(src + eq, decls[di].val_end - eq);
-          emit(";\n", 2);
+            emit(";\n", 2);
+          }
           any_init = 1;
         }
         if (d->end > p)
