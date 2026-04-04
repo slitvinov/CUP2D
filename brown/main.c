@@ -336,12 +336,12 @@ static void compute_vorticity(void) {
       lb_load(bu, 1, F_U, 1, id);
       lb_load(bv, 1, F_V, 1, id);
       Real *w = BLK(id) + BS * BS * F_W;
-      int ss = 1, nm = 2 * ss + BS;
+      int nm = BS + 2;
       Real ih = 0.5 / sim.blk[id].h;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++) {
-#define U(di, dj) bu[nm * ((j) + (dj) + ss) + (i) + (di) + ss]
-#define V(di, dj) bv[nm * ((j) + (dj) + ss) + (i) + (di) + ss]
+#define U(di, dj) bu[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
+#define V(di, dj) bv[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
           w[j * BS + i] = (V(1, 0) - V(-1, 0)) * ih - (U(0, 1) - U(0, -1)) * ih;
 #undef U
 #undef V
@@ -396,14 +396,14 @@ static void compute_indicator(void) {
 #pragma omp parallel
   {
     Real bu[LB_BUF], bv[LB_BUF];
-    int ss = 1, nm = 2 * ss + BS;
+    int nm = BS + 2;
 
     int nc = BS / 2 + 2;
     Real cu[nc * nc], cv[nc * nc];
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, ss, id);
-      lb_load(bv, 1, F_V, ss, id);
+      lb_load(bu, 1, F_U, 1, id);
+      lb_load(bv, 1, F_V, 1, id);
 
       for (int jc = 0; jc < nc; jc++)
         for (int ic = 0; ic < nc; ic++) {
@@ -411,8 +411,8 @@ static void compute_indicator(void) {
           Real su = 0, sv = 0;
           for (int dj = 0; dj < 2; dj++)
             for (int di = 0; di < 2; di++) {
-              su += bu[nm * (fj + dj + ss) + fi + di + ss];
-              sv += bv[nm * (fj + dj + ss) + fi + di + ss];
+              su += bu[nm * (fj + dj + 1) + fi + di + 1];
+              sv += bv[nm * (fj + dj + 1) + fi + di + 1];
             }
           cu[jc * nc + ic] = su * 0.25;
           cv[jc * nc + ic] = sv * 0.25;
@@ -430,8 +430,8 @@ static void compute_indicator(void) {
               pu += ad_ref_w[s][kk] * cu[cj * nc + ci];
               pv += ad_ref_w[s][kk] * cv[cj * nc + ci];
             }
-            Real au = bu[nm * (j + dj + ss) + i + di + ss];
-            Real av = bv[nm * (j + dj + ss) + i + di + ss];
+            Real au = bu[nm * (j + dj + 1) + i + di + 1];
+            Real av = bv[nm * (j + dj + 1) + i + di + 1];
             t[BS * (j + dj) + i + di] = fmax(fabs(au - pu), fabs(av - pv));
           }
         }
@@ -954,7 +954,7 @@ static void amr_gather(double *dst, int field, int Ng, Real hf) {
     } else {
 
       lb_load(lb, 1, field, 1, id);
-      int ss = 1, nm = 2 * ss + BS;
+      int nm = BS + 2;
 
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++)
@@ -1270,7 +1270,7 @@ static void project(Real dt) {
       Real *v = BLK(id) + BS * BS * F_V;
       Real *p = BLK(id) + BS * BS * F_P;
       Real *phi = BLK(id) + BS * BS * F_PHI;
-      int ss = 1, nm = 2 * ss + BS;
+      int nm = BS + 2;
       Real ih = 0.5 / sim.blk[id].h;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++) {
