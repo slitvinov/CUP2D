@@ -73,7 +73,6 @@ int main(int argc, char **argv) {
     fseek(fp, (long)(BS*BS-1)*8*sizeof(float), SEEK_CUR);
   }
   fclose(fp);
-  fprintf(stderr, "%d blocks, h=[%g,%g]\n", nblk, hmin, hmax);
 
   /* write PNG */
   FILE *out = fopen(outf, "wb");
@@ -99,8 +98,8 @@ int main(int argc, char **argv) {
       float x0=blk[b].ox, y0=blk[b].oy, bw=blk[b].bw;
       float x1=x0+bw, y1=y0+bw;
       /* horizontal edges */
-      float htol = (lw-0.5f) / sc;
-      if (fabsf(wy-y0)<htol || fabsf(wy-y1)<htol) {
+      float htol = lw * 0.5f / sc;
+      if (fabsf(wy-y0)<=htol || fabsf(wy-y1)<=htol) {
         int px0=(int)(x0*sc), px1=(int)(x1*sc);
         if (px0<0) px0=0; if (px1>N) px1=N;
         for (int p=px0;p<px1;p++) row[1+p]=0;
@@ -126,6 +125,5 @@ int main(int argc, char **argv) {
   deflateEnd(&z);
   chunk(out, "IEND", NULL, 0);
   fclose(out); free(row); free(blk);
-  fprintf(stderr, "wrote %s (%dx%d)\n", outf, N, N);
   return 0;
 }

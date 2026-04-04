@@ -1738,7 +1738,7 @@ int main(int argc, char **argv) {
       if (do_dump) {
         compute_vorticity();
         char path[FILENAME_MAX];
-        snprintf(path, sizeof path, "vel.%08d", sim.dump_count++);
+        snprintf(path, sizeof path, "%08d", sim.dump_count++);
         dump(sim.time, sim.step, path);
       }
     }

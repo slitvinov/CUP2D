@@ -13,4 +13,6 @@ ${main=./main} \
 -tdump 0.4 \
 -tend 1.2 \
 &&
-python3 make_amr_panels.py
+set -- vel.*.xyz.raw
+for i; do ./mesh2png -i $i -o ${i/.xyz.raw/}.msh.png -s 1024 -w 5; done
+for i; do ./mesh2iso -i $i -o ${i/.xyz.raw/}.iso.png -s 1024 -w 5; done

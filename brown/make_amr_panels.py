@@ -132,7 +132,7 @@ paper_label = 'C'
 import glob, xml.etree.ElementTree as ET
 dumps = {}
 dump_times = {}
-for xf in sorted(glob.glob(f"{run}/vel.*.xdmf2")):
+for xf in sorted(glob.glob(f"{run}/*.xdmf2")):
     idx = int(xf.split('.')[-2])
     tree = ET.parse(xf)
     t = float(tree.find('.//{http://www.w3.org/2001/XMLSchema}' if False else './/Time').get('Value'))
@@ -151,7 +151,7 @@ for tgt in targets:
         best[tgt] = bi
 
 for tgt, idx in best.items():
-    prefix = f"{run}/vel.{idx:08d}"
+    prefix = f"{run}/{idx:08d}"
     try:
         dumps[idx] = load_dump(prefix)
     except Exception as e:

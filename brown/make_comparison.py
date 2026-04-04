@@ -63,7 +63,7 @@ for row, N in enumerate(resolutions):
         axes[row, paper_col].set_yticks([])
 
         # Computed
-        vort_path = f"{run_dir}/vel.{dump_idx:08d}.vort.raw"
+        vort_path = f"{run_dir}/{dump_idx:08d}.vort.raw"
         try:
             w = read_vort(vort_path, N)
             plot_vort(axes[row, comp_col], w, N)
