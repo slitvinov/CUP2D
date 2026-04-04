@@ -213,7 +213,7 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
   int8_t *w;
   struct LbOp *o;
 
-                  m = dst[0];
+  m = dst[0];
   c = dst[1];
   for (i = 0; i < n; i++) {
     o = &ops[i];
@@ -276,20 +276,18 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
   }
 }
 
-
-
 enum { N_STATUS = 10 };
 static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
+  FILE *fp;
   char fname[64];
   int ci, dim, ss;
   size_t sz;
   struct LbTab *tab;
 
-    FILE *fp;
-    int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {3, 1}};
+  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {3, 1}};
 
-    for (ci = 0; ci < 4; ci++) {
+  for (ci = 0; ci < 4; ci++) {
     ss = configs[ci][0];
     dim = configs[ci][1];
     snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);

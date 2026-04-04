@@ -22,7 +22,8 @@ static int is_type_kw(const char *w) {
       "double",   "void",     "unsigned", "signed",   "size_t",
       "int8_t",   "int16_t",  "int32_t",  "int64_t",  "uint8_t",
       "uint16_t", "uint32_t", "uint64_t", "Real",     "enum",
-      "struct",   "const",    "static",   "volatile", NULL};
+      "struct",   "const",    "static",   "volatile", "FILE",
+      NULL};
   for (int i = 0; kw[i]; i++)
     if (strcmp(w, kw[i]) == 0) return 1;
   return 0;
