@@ -723,11 +723,11 @@ static void subtract_mean(double *v, int n) {
 }
 
 static void mg_smooth(double *u, const double *f, int m, int niter) {
+  int ip, im, jp, jm;
   for (int sw = 0; sw < niter; sw++) {
     for (int color = 0; color < 2; color++)
       for (int j = 0; j < m; j++)
         for (int i = 0; i < m; i++) {
-          int ip, im, jp, jm;
           if ((i + j) % 2 != color)
             continue;
           ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
