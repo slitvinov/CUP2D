@@ -659,25 +659,30 @@ done:
 
 static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
                           Real phip2) {
-  Real DC = 0.5 * (phip1 - phim1);
-  Real DL = phi0 - phim1;
-  Real DR = phip1 - phi0;
-  Real dlim = DL * DR > 0 ? fmin(2 * fabs(DL), 2 * fabs(DR)) : 0;
+  Real DC, DL, DR, dlim;
+  Real DC_p, DL_p, DR_p, dlim_p, dp_p;
+  Real DC_m, DL_m, DR_m, dlim_m, dp_m;
+  Real d4, sgn;
 
-  Real DC_p = 0.5 * (phip2 - phi0);
-  Real DL_p = phip1 - phi0;
-  Real DR_p = phip2 - phip1;
-  Real dlim_p = DL_p * DR_p > 0 ? fmin(2 * fabs(DL_p), 2 * fabs(DR_p)) : 0;
-  Real dp_p = fmin(fabs(DC_p), dlim_p) * (DC_p > 0 ? 1 : (DC_p < 0 ? -1 : 0));
+  DC = 0.5 * (phip1 - phim1);
+  DL = phi0 - phim1;
+  DR = phip1 - phi0;
+  dlim = DL * DR > 0 ? fmin(2 * fabs(DL), 2 * fabs(DR)) : 0;
 
-  Real DC_m = 0.5 * (phi0 - phim2);
-  Real DL_m = phim1 - phim2;
-  Real DR_m = phi0 - phim1;
-  Real dlim_m = DL_m * DR_m > 0 ? fmin(2 * fabs(DL_m), 2 * fabs(DR_m)) : 0;
-  Real dp_m = fmin(fabs(DC_m), dlim_m) * (DC_m > 0 ? 1 : (DC_m < 0 ? -1 : 0));
+  DC_p = 0.5 * (phip2 - phi0);
+  DL_p = phip1 - phi0;
+  DR_p = phip2 - phip1;
+  dlim_p = DL_p * DR_p > 0 ? fmin(2 * fabs(DL_p), 2 * fabs(DR_p)) : 0;
+  dp_p = fmin(fabs(DC_p), dlim_p) * (DC_p > 0 ? 1 : (DC_p < 0 ? -1 : 0));
 
-  Real d4 = 4.0 / 3.0 * DC - (dp_p + dp_m) / 6.0;
-  Real sgn = DC > 0 ? 1 : (DC < 0 ? -1 : 0);
+  DC_m = 0.5 * (phi0 - phim2);
+  DL_m = phim1 - phim2;
+  DR_m = phi0 - phim1;
+  dlim_m = DL_m * DR_m > 0 ? fmin(2 * fabs(DL_m), 2 * fabs(DR_m)) : 0;
+  dp_m = fmin(fabs(DC_m), dlim_m) * (DC_m > 0 ? 1 : (DC_m < 0 ? -1 : 0));
+
+  d4 = 4.0 / 3.0 * DC - (dp_p + dp_m) / 6.0;
+  sgn = DC > 0 ? 1 : (DC < 0 ? -1 : 0);
   return fmin(fabs(d4), dlim) * sgn;
 }
 
