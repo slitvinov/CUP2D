@@ -407,7 +407,10 @@ int main(int argc, char **argv) {
   int i;
 
   for (i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
+    if (strcmp(argv[i], "-h") == 0) {
+      fprintf(stderr, "usage: cinfo [-f func] [file]\n");
+      return 0;
+    } else if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
     else if (argv[i][0] != '-') {
       filename = argv[i];
       fp = fopen(argv[i], "r");

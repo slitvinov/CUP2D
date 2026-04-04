@@ -496,22 +496,28 @@ static void process_function(struct Func *f) {
 
 int main(int argc, char **argv) {
   char *only_func = NULL;
-  char *inplace = NULL;
+  char *filename = NULL;
   int list_mode = 0;
+  int inplace = 0;
   int i;
 
   for (i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
+    if (strcmp(argv[i], "-h") == 0) {
+      fprintf(stderr, "usage: cdecl [-f func] [-l] [-i] [file]\n");
+      return 0;
+    } else if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
     else if (strcmp(argv[i], "-l") == 0)
       list_mode = 1;
-    else if (strcmp(argv[i], "-i") == 0 && i + 1 < argc)
-      inplace = argv[++i];
+    else if (strcmp(argv[i], "-i") == 0)
+      inplace = 1;
+    else if (argv[i][0] != '-')
+      filename = argv[i];
   }
 
-  if (inplace) {
-    FILE *fp = fopen(inplace, "r");
+  if (filename) {
+    FILE *fp = fopen(filename, "r");
     if (!fp) {
-      fprintf(stderr, "cdecl: cannot open %s\n", inplace);
+      fprintf(stderr, "cdecl: cannot open %s\n", filename);
       return 1;
     }
     srcn = fread(src, 1, MAXSRC - 1, fp);
@@ -528,6 +534,11 @@ int main(int argc, char **argv) {
       fprintf(stdout, "%4d  %s\n", funcs[i].body_end - funcs[i].body_start,
               funcs[i].name);
     return 0;
+  }
+
+  if (inplace && !filename) {
+    fprintf(stderr, "cdecl: -i requires a file argument\n");
+    return 1;
   }
 
   char tmppath[512] = "";
@@ -560,9 +571,9 @@ int main(int argc, char **argv) {
     fwrite(src + last, 1, srcn - last, outfp);
   }
 
-  if (inplace) {
+  if (inplace && filename) {
     fclose(outfp);
-    rename(tmppath, inplace);
+    rename(tmppath, filename);
   }
   return 0;
 }
