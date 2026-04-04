@@ -8,7 +8,7 @@
 #include <string.h>
 
 typedef double Real;
-enum { BS = 8 };
+enum { BS = 8, NM = BS + 2, NC = BS / 2 + 2 };
 enum {
   F_U = 0,
   F_V = 1,
@@ -451,30 +451,27 @@ static void prolong_2to1(Real *coarse, Real *fine, int dim, int cs, int fs,
 static void compute_indicator(void) {
   Real *t;
   Real au, av, pu, pv, su, sv;
-  Real bu[LB_BUF], bv[LB_BUF];
-  int ci, cj, di, di0, dj, dj0, fi, fj, i, ic, ic0, j, jc, jc0, kk, nc, nm, s;
+  Real bu[LB_BUF], bv[LB_BUF], cu[NC * NC], cv[NC * NC];
+  int ci, cj, di, di0, dj, dj0, fi, fj, i, ic, ic0, j, jc, jc0, kk, s;
   long long id;
 
-  nm = BS + 2;
-  nc = BS / 2 + 2;
-  Real cu[nc * nc], cv[nc * nc];
   for (id = 0; id < sim.n; id++) {
     lb_load(bu, 1, F_U, 1, id);
     lb_load(bv, 1, F_V, 1, id);
 
-    for (jc0 = 0; jc0 < nc; jc0++)
-      for (ic0 = 0; ic0 < nc; ic0++) {
+    for (jc0 = 0; jc0 < NC; jc0++)
+      for (ic0 = 0; ic0 < NC; ic0++) {
         fi = 2 * ic0 - 1;
         fj = 2 * jc0 - 1;
         su = 0;
         sv = 0;
         for (dj0 = 0; dj0 < 2; dj0++)
           for (di0 = 0; di0 < 2; di0++) {
-            su += bu[nm * (fj + dj0 + 1) + fi + di0 + 1];
-            sv += bv[nm * (fj + dj0 + 1) + fi + di0 + 1];
+            su += bu[NM * (fj + dj0 + 1) + fi + di0 + 1];
+            sv += bv[NM * (fj + dj0 + 1) + fi + di0 + 1];
           }
-        cu[jc0 * nc + ic0] = su * 0.25;
-        cv[jc0 * nc + ic0] = sv * 0.25;
+        cu[jc0 * NC + ic0] = su * 0.25;
+        cv[jc0 * NC + ic0] = sv * 0.25;
       }
 
     t = BLK(id) + BS * BS * F_TMP;
@@ -490,11 +487,11 @@ static void compute_indicator(void) {
           for (kk = 0; kk < 9; kk++) {
             ci = ic + kk % 3 - 1;
             cj = jc + kk / 3 - 1;
-            pu += ad_ref_w[s][kk] * cu[cj * nc + ci];
-            pv += ad_ref_w[s][kk] * cv[cj * nc + ci];
+            pu += ad_ref_w[s][kk] * cu[cj * NC + ci];
+            pv += ad_ref_w[s][kk] * cv[cj * NC + ci];
           }
-          au = bu[nm * (j + dj + 1) + i + di + 1];
-          av = bv[nm * (j + dj + 1) + i + di + 1];
+          au = bu[NM * (j + dj + 1) + i + di + 1];
+          av = bv[NM * (j + dj + 1) + i + di + 1];
           t[BS * (j + dj) + i + di] = fmax(fabs(au - pu), fabs(av - pv));
         }
       }

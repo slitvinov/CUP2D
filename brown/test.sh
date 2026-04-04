@@ -10,8 +10,8 @@ python3 gen_table.py
 D=/tmp/brown_test_$$
 mkdir -p $D/uni $D/amr $D/san_uni $D/san_amr $D/warn
 
-ARGS_UNI="-levelStart 3 -levelMax 3 -AdaptSteps 0 -Rtol 1 -nu 1e-4 -CFL 0.4 -tend 0.05 -tdump 0.05 -sdump 0"
-ARGS_AMR="-levelStart 2 -levelMax 4 -AdaptSteps 2 -Rtol 0.5 -nu 1e-4 -CFL 0.4 -tend 0.05 -tdump 0.05 -sdump 0"
+ARGS_UNI="-levelStart 3 -levelMax 3 -AdaptSteps 0 -Rtol 1 -nu 1e-4 -CFL 0.4 -tend 0.08 -tdump 0.08 -sdump 0"
+ARGS_AMR="-levelStart 2 -levelMax 4 -AdaptSteps 2 -Rtol 0.5 -nu 1e-4 -CFL 0.4 -tend 0.08 -tdump 0.08 -sdump 0"
 
 for f in tab_*.bin; do for d in $D/uni $D/amr $D/san_uni $D/san_amr; do cp $f $d/; done; done
 
