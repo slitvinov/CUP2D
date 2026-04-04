@@ -19,7 +19,9 @@ enum {
   F_PHI = 3,
   F_W = 4,
   F_TMP = 5,
-  F_N = 6,
+  F_TMP2 = 6,
+  F_TMP3 = 7,
+  F_N = 8,
   BLK_S = F_N * BS * BS,
 };
 
@@ -699,636 +701,240 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
   return fmin(fabs(d4), dlim) * sgn;
 }
 
-static void subtract_mean(Real *v, int n) {
-  Real mn = 0;
-  for (int k = 0; k < n; k++)
-    mn += v[k];
-  mn /= n;
-  for (int k = 0; k < n; k++)
-    v[k] -= mn;
-}
-
-static void mg_smooth(Real *u, const Real *f, int m, int niter) {
-  int ip, im, jp, jm;
-  for (int sw = 0; sw < niter; sw++) {
-    for (int color = 0; color < 2; color++)
-      for (int j = 0; j < m; j++)
-        for (int i = 0; i < m; i++) {
-          if ((i + j) % 2 != color)
-            continue;
-          ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-          jm = (j - 1 + m) % m;
-          u[j * m + i] = 0.25 * (u[j * m + ip] + u[j * m + im] + u[jp * m + i] +
-                                 u[jm * m + i] - f[j * m + i]);
-        }
-    subtract_mean(u, m * m);
-  }
-}
-
-static void mg_residual(const Real *u, const Real *f, Real *r, int m,
-                        void *ctx) {
-  int ip, im, jp, jm;
-  (void)ctx;
-  for (int j = 0; j < m; j++)
-    for (int i = 0; i < m; i++) {
-      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-      jm = (j - 1 + m) % m;
-      r[j * m + i] =
-          f[j * m + i] - (-4 * u[j * m + i] + u[j * m + ip] + u[j * m + im] +
-                          u[jp * m + i] + u[jm * m + i]);
-    }
-}
-
-static void mg_restrict(const Real *rf, Real *rc, int mf) {
-  int mc = mf / 2;
-  int i2, j2, i2p, i2m, j2p, j2m;
-  for (int j = 0; j < mc; j++)
-    for (int i = 0; i < mc; i++) {
-      i2 = 2 * i; j2 = 2 * j;
-      i2p = (i2 + 1) % mf; i2m = (i2 - 1 + mf) % mf; j2p = (j2 + 1) % mf;
-      j2m = (j2 - 1 + mf) % mf;
-      rc[j * mc + i] = (4 * rf[j2 * mf + i2] +
-                        2 * (rf[j2 * mf + i2p] + rf[j2 * mf + i2m] +
-                             rf[j2p * mf + i2] + rf[j2m * mf + i2]) +
-                        rf[j2p * mf + i2p] + rf[j2p * mf + i2m] +
-                        rf[j2m * mf + i2p] + rf[j2m * mf + i2m]) /
-                       16.0;
-    }
-}
-
-static void mg_prolong_add(const Real *ec, Real *uf, int mc) {
-  int mf = mc * 2;
-  int im, jm, ip, jp;
-  Real cij;
-  int fi, fj, fi1, fj1;
-  for (int j = 0; j < mc; j++)
-    for (int i = 0; i < mc; i++) {
-      im = (i - 1 + mc) % mc; jm = (j - 1 + mc) % mc;
-      ip = (i + 1) % mc; jp = (j + 1) % mc;
-      cij = ec[j * mc + i];
-      fi = 2 * i; fj = 2 * j; fi1 = (2 * i + 1) % mf;
-      fj1 = (2 * j + 1) % mf;
-
-      uf[fj * mf + fi] += (9 * cij + 3 * ec[j * mc + im] + 3 * ec[jm * mc + i] +
-                           ec[jm * mc + im]) /
-                          16.0;
-
-      uf[fj * mf + fi1] += (9 * cij + 3 * ec[j * mc + ip] +
-                            3 * ec[jm * mc + i] + ec[jm * mc + ip]) /
-                           16.0;
-
-      uf[fj1 * mf + fi] += (9 * cij + 3 * ec[j * mc + im] +
-                            3 * ec[jp * mc + i] + ec[jp * mc + im]) /
-                           16.0;
-
-      uf[fj1 * mf + fi1] += (9 * cij + 3 * ec[j * mc + ip] +
-                             3 * ec[jp * mc + i] + ec[jp * mc + ip]) /
-                            16.0;
-    }
-}
-
-static void mg_vcycle(Real *u, Real *f, Real *r, int m, Real *w) {
-  int mc, nc;
-  Real *uc, *fc, *rc;
-  if (m <= 4) {
-    mg_smooth(u, f, m, 50);
-    return;
-  }
-  mc = m / 2; nc = mc * mc;
-  uc = w; fc = w + nc; rc = w + 2 * nc;
-  memset(uc, 0, nc * sizeof(Real));
-
-  mg_smooth(u, f, m, 4);
-  mg_residual(u, f, r, m, NULL);
-  mg_restrict(r, fc, m);
-  mg_vcycle(uc, fc, rc, mc, w + 3 * nc);
-  mg_prolong_add(uc, u, mc);
-  mg_smooth(u, f, m, 4);
-}
-
-typedef void (*mg_op)(const Real *u, const Real *f, Real *r, int m, void *ctx);
-typedef void (*mg_vc)(Real *u, Real *f, Real *r, int m, Real *w, void *ctx);
-
-static void pcg_solve(Real *x, const Real *f, int M, Real tol,
-                      mg_op residual, mg_op matvec, mg_vc vcycle,
-                      int do_mean, void *ctx) {
-  int N = M * M;
-  static Real *buf; /* not reentrant: single-threaded solve only */
-  static int bufn;
-  Real *rr, *z, *p, *Ap, *r_tmp, *mgw;
-  Real rz;
-  Real pAp, al, rmax, rz2, beta;
-  if (N > bufn) {
-    buf = realloc(buf, 6 * N * sizeof(Real));
-    bufn = N;
-  }
-  rr = buf; z = buf + N; p = buf + 2 * N; Ap = buf + 3 * N;
-  r_tmp = buf + 4 * N; mgw = buf + 5 * N;
-  memset(z, 0, N * sizeof(Real));
-
-  residual(x, f, rr, M, ctx);
-  if (do_mean) subtract_mean(rr, N);
-  vcycle(z, rr, r_tmp, M, mgw, ctx);
-  if (do_mean) subtract_mean(z, N);
-  memcpy(p, z, N * sizeof(Real));
-  rz = 0;
-  for (int k = 0; k < N; k++)
-    rz += rr[k] * z[k];
-
-  for (int it = 0; it < 100; it++) {
-    pAp = 0;
-    rmax = 0;
-    rz2 = 0;
-    matvec(p, NULL, Ap, M, ctx);
-    for (int k = 0; k < N; k++)
-      pAp += p[k] * Ap[k];
-    if (fabs(pAp) < 1e-30)
-      break;
-    al = rz / pAp;
-    for (int k = 0; k < N; k++) {
-      x[k] += al * p[k];
-      rr[k] -= al * Ap[k];
-    }
-    if (do_mean) { subtract_mean(rr, N); subtract_mean(x, N); }
-
-    for (int k = 0; k < N; k++)
-      if (fabs(rr[k]) > rmax)
-        rmax = fabs(rr[k]);
-    if (rmax < tol)
-      break;
-
-    memset(z, 0, N * sizeof(Real));
-    vcycle(z, rr, r_tmp, M, mgw, ctx);
-    if (do_mean) subtract_mean(z, N);
-    for (int k = 0; k < N; k++)
-      rz2 += rr[k] * z[k];
-    beta = rz2 / (rz + 1e-30);
-    for (int k = 0; k < N; k++)
-      p[k] = z[k] + beta * p[k];
-    rz = rz2;
-  }
-  if (do_mean) subtract_mean(x, N);
-}
-
-static void mg_matvec_lap(const Real *u, const Real *f, Real *r, int m,
-                          void *ctx) {
-  int ip, im, jp, jm;
-  (void)f; (void)ctx;
-  for (int j = 0; j < m; j++)
-    for (int i = 0; i < m; i++) {
-      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-      jm = (j - 1 + m) % m;
-      r[j * m + i] = -4 * u[j * m + i] + u[j * m + ip] + u[j * m + im] +
-                     u[jp * m + i] + u[jm * m + i];
-    }
-}
-
-static void mg_vcycle_wrap(Real *u, Real *f, Real *r, int m, Real *w,
-                           void *ctx) {
-  (void)ctx;
-  mg_vcycle(u, f, r, m, w);
-}
-
-static void mg_solve_periodic(Real *x, const Real *f, int M, Real tol) {
-  pcg_solve(x, f, M, tol, mg_residual, mg_matvec_lap, mg_vcycle_wrap, 1, NULL);
-}
-
-static void mg_smooth_helm(Real *u, const Real *f, int m, int niter,
-                           Real alpha_h2) {
-  Real a = 1.0 + 4.0 * alpha_h2;
-  Real ia = 1.0 / a;
-  int ip, im, jp, jm;
-  for (int it = 0; it < niter; it++)
-    for (int color = 0; color < 2; color++)
-      for (int j = 0; j < m; j++)
-        for (int i = 0; i < m; i++) {
-          if ((i + j) % 2 != color)
-            continue;
-          ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-          jm = (j - 1 + m) % m;
-          u[j * m + i] =
-              (f[j * m + i] + alpha_h2 * (u[j * m + ip] + u[j * m + im] +
-                                          u[jp * m + i] + u[jm * m + i])) *
-              ia;
-        }
-}
-
-static void mg_residual_helm(const Real *u, const Real *f, Real *r, int m,
-                             Real alpha_h2) {
-  Real a = 1.0 + 4.0 * alpha_h2;
-  int ip, im, jp, jm;
-  for (int j = 0; j < m; j++)
-    for (int i = 0; i < m; i++) {
-      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-      jm = (j - 1 + m) % m;
-      r[j * m + i] =
-          f[j * m + i] -
-          (a * u[j * m + i] - alpha_h2 * (u[j * m + ip] + u[j * m + im] +
-                                          u[jp * m + i] + u[jm * m + i]));
-    }
-}
-
-static void mg_vcycle_helm(Real *u, Real *f, Real *r, int m, Real alpha,
-                           Real h, Real *w) {
-  Real alpha_h2 = alpha / (h * h);
-  int mc, nc;
-  Real *uc, *fc, *rc;
-  if (m <= 4) {
-    mg_smooth_helm(u, f, m, 50, alpha_h2);
-    return;
-  }
-  mc = m / 2; nc = mc * mc;
-  uc = w; fc = w + nc; rc = w + 2 * nc;
-  memset(uc, 0, nc * sizeof(Real));
-
-  mg_smooth_helm(u, f, m, 4, alpha_h2);
-  mg_residual_helm(u, f, r, m, alpha_h2);
-  mg_restrict(r, fc, m);
-  mg_vcycle_helm(uc, fc, rc, mc, alpha, 2 * h, w + 3 * nc);
-  mg_prolong_add(uc, u, mc);
-  mg_smooth_helm(u, f, m, 4, alpha_h2);
-}
-
-struct HelmCtx { Real alpha, h; };
-
-static void mg_residual_helm_w(const Real *u, const Real *f, Real *r,
-                               int m, void *ctx) {
-  struct HelmCtx *c = ctx;
-  mg_residual_helm(u, f, r, m, c->alpha / (c->h * c->h));
-}
-
-static void mg_matvec_helm(const Real *u, const Real *f, Real *r, int m,
-                           void *ctx) {
-  struct HelmCtx *c = ctx;
-  Real ah2 = c->alpha / (c->h * c->h), a = 1.0 + 4.0 * ah2;
-  int ip, im, jp, jm;
-  (void)f;
-  for (int j = 0; j < m; j++)
-    for (int i = 0; i < m; i++) {
-      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
-      jm = (j - 1 + m) % m;
-      r[j * m + i] =
-          a * u[j * m + i] -
-          ah2 * (u[j * m + ip] + u[j * m + im] + u[jp * m + i] + u[jm * m + i]);
-    }
-}
-
-static void mg_vcycle_helm_w(Real *u, Real *f, Real *r, int m, Real *w,
-                             void *ctx) {
-  struct HelmCtx *c = ctx;
-  mg_vcycle_helm(u, f, r, m, c->alpha, c->h, w);
-}
-
-static void mg_solve_helmholtz(Real *x, const Real *f, int M, Real alpha,
-                               Real h, Real tol) {
-  struct HelmCtx ctx = {alpha, h};
-  pcg_solve(x, f, M, tol, mg_residual_helm_w, mg_matvec_helm, mg_vcycle_helm_w,
-            0, &ctx);
-}
-
-static Real amr_finest_h(void) {
-  Real hmin = sim.blk[0].h;
-  for (long long i = 1; i < sim.n; i++)
-    if (sim.blk[i].h < hmin)
-      hmin = sim.blk[i].h;
-  return hmin;
-}
-static int amr_finest_N(Real hf) { return (int)(1.0 / hf + 0.5); }
-
-static void amr_gather(Real *dst, int field, int Ng, Real hf) {
-  Real lb[LB_BUF];
-  Real h;
-  int ratio, bx, by;
-  Real *gsrc;
-  int nm_g;
-  Real gfx, gfy, wx, wy, v00, v10, v01, v11, val;
-  int i0, j0, gx, gy;
-  memset(dst, 0, (size_t)Ng * Ng * sizeof(Real));
-  for (long long id = 0; id < sim.n; id++) {
-    h = sim.blk[id].h;
-    ratio = (int)(h / hf + 0.5);
-    bx = (int)(sim.blk[id].origin[0] / hf + 0.5);
-    by = (int)(sim.blk[id].origin[1] / hf + 0.5);
-    if (ratio == 1) {
-      gsrc = BLK(id) + BS * BS * field;
-      for (int j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++)
-          dst[(by + j) * Ng + bx + i] = gsrc[j * BS + i];
-    } else {
-      nm_g = BS + 2;
-      lb_load(lb, 1, field, 1, id);
-
-      for (int j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++)
-          for (int dj = 0; dj < ratio; dj++)
-            for (int di = 0; di < ratio; di++) {
-              gfx = ((Real)di + 0.5) / ratio - 0.5;
-              gfy = ((Real)dj + 0.5) / ratio - 0.5;
-              i0 = (gfx < 0) ? -1 : 0; j0 = (gfy < 0) ? -1 : 0;
-              wx = gfx - i0; wy = gfy - j0;
-
-#define LB(ci, cj) lb[nm_g * ((j) + (cj) + 1) + (i) + (ci) + 1]
-              v00 = LB(i0, j0);
-              v10 = LB(i0 + 1, j0);
-              v01 = LB(i0, j0 + 1);
-              v11 = LB(i0 + 1, j0 + 1);
-#undef LB
-              val = (1 - wx) * (1 - wy) * v00 + wx * (1 - wy) * v10 +
-                           (1 - wx) * wy * v01 + wx * wy * v11;
-              gx = bx + i * ratio + di;
-              gy = by + j * ratio + dj;
-              if (gx >= 0 && gx < Ng && gy >= 0 && gy < Ng)
-                dst[gy * Ng + gx] = val;
-            }
-    }
-  }
-}
-
-static void amr_scatter(Real *src, int field, int Ng, Real hf) {
-  Real *sdst;
-  Real sh;
-  int sratio, sbx, sby;
-  Real sinv;
-  Real ssum;
-  for (long long id = 0; id < sim.n; id++) {
-    sdst = BLK(id) + BS * BS * field;
-    sh = sim.blk[id].h;
-    sratio = (int)(sh / hf + 0.5);
-    sbx = (int)(sim.blk[id].origin[0] / hf + 0.5);
-    sby = (int)(sim.blk[id].origin[1] / hf + 0.5);
-    sinv = 1.0 / (sratio * sratio);
-    for (int j = 0; j < BS; j++)
-      for (int i = 0; i < BS; i++) {
-        ssum = 0;
-        for (int dj = 0; dj < sratio; dj++)
-          for (int di = 0; di < sratio; di++)
-            ssum += src[(sby + j * sratio + dj) * Ng + sbx + i * sratio + di];
-        sdst[j * BS + i] = ssum * sinv;
-      }
-  }
-}
 
 static void advect_diffuse(Real dt) {
-  Real h0 = amr_finest_h();
-  int N = amr_finest_N(h0);
-  Real ih = 1.0 / h0;
-  Real dtdx = dt / h0, dtdy = dt / h0;
-  int NN = N * N;
-  Real *qu, *qv, *umac, *vmac;
-  Real *xedge_u, *xedge_v, *yedge_u, *yedge_v;
-  Real su_i, su_ip, ad_uc, ad_un, sL, sR, lo, hi, uface;
-  Real sv_j, sv_jp, ad_vc, ad_vn, vface;
-  Real *div_ad, *phi_ad;
-  Real *q, *xedge, *yedge, *xlo, *xhi, *ylo, *yhi, *yzlo, *xzlo;
-  Real s_ad, sy, vad, lo_v, hi_v;
-  Real quxl, stl, quxh, sth, uad;
-  Real lo_u, hi_u;
-  Real qvyl, qvyh;
-  Real *qp, *u_new, *v_new;
-  Real uc_g, vc_g, uR, uL, vT, vB, uu_R, uu_L, vv_T, vv_B;
-  Real u_yT, u_yB, v_xR, v_xL, adv_u, adv_v, lap_u, lap_v, dpx, dpy, alpha_g;
-#define IDX(i, j) (((j) + N) % N * N + ((i) + N) % N)
-
-  enum { NSLOT = 14 };
-  static Real *abuf;
-  static int abufn;
-  if (NN > abufn) {
-    abuf = realloc(abuf, NSLOT * NN * sizeof(Real));
-    abufn = NN;
+  Real alpha = sim.nu * dt * 0.5;
+#pragma omp parallel
+  {
+    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF];
+    int nm = BS + 4;
+#define U2(i, j) bu[nm * ((j) + 2) + (i) + 2]
+#define V2(i, j) bv[nm * ((j) + 2) + (i) + 2]
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *uo = BLK(id) + BS * BS * F_U;
+      Real *vo = BLK(id) + BS * BS * F_V;
+      Real *un = BLK(id) + BS * BS * F_TMP;
+      Real *vn = BLK(id) + BS * BS * F_TMP2;
+      Real h = sim.blk[id].h;
+      Real ih = 1.0 / h;
+      Real ah2 = alpha * ih * ih;
+      int i, j;
+      lb_load(bu, 1, F_U, 2, id);
+      lb_load(bv, 1, F_V, 2, id);
+      lb_load(bp, 1, F_P, 1, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+          Real uc = U2(i, j), vc = V2(i, j);
+          Real sx_u = slope4(U2(i-2,j),U2(i-1,j),U2(i,j),U2(i+1,j),U2(i+2,j));
+          Real sy_u = slope4(U2(i,j-2),U2(i,j-1),U2(i,j),U2(i,j+1),U2(i,j+2));
+          Real sx_v = slope4(V2(i-2,j),V2(i-1,j),V2(i,j),V2(i+1,j),V2(i+2,j));
+          Real sy_v = slope4(V2(i,j-2),V2(i,j-1),V2(i,j),V2(i,j+1),V2(i,j+2));
+          Real uR = (uc >= 0) ? uc + 0.5*sx_u : U2(i+1,j) - 0.5*slope4(U2(i-1,j),U2(i,j),U2(i+1,j),U2(i+2,j),U2(i+3,j));
+          Real uL = (U2(i-1,j) >= 0) ? U2(i-1,j) + 0.5*slope4(U2(i-3,j),U2(i-2,j),U2(i-1,j),U2(i,j),U2(i+1,j)) : uc - 0.5*sx_u;
+          Real vT = (vc >= 0) ? vc + 0.5*sy_v : V2(i,j+1) - 0.5*slope4(V2(i,j-1),V2(i,j),V2(i,j+1),V2(i,j+2),V2(i,j+3));
+          Real vB = (V2(i,j-1) >= 0) ? V2(i,j-1) + 0.5*slope4(V2(i,j-3),V2(i,j-2),V2(i,j-1),V2(i,j),V2(i,j+1)) : vc - 0.5*sy_v;
+          Real adv_u = (uR*uR - uL*uL)*0.5*ih + 0.5*(vT+vB)*(U2(i,j+1)-U2(i,j-1))*0.5*ih;
+          Real adv_v = 0.5*(uR+uL)*(V2(i+1,j)-V2(i-1,j))*0.5*ih + (vT*vT - vB*vB)*0.5*ih;
+          Real lap_u = (U2(i+1,j)+U2(i-1,j)+U2(i,j+1)+U2(i,j-1)-4*uc)*ih*ih;
+          Real lap_v = (V2(i+1,j)+V2(i-1,j)+V2(i,j+1)+V2(i,j-1)-4*vc)*ih*ih;
+          int nm1 = BS + 2;
+#define P1(di, dj) bp[nm1 * ((j)+(dj)+1) + (i)+(di)+1]
+          Real dpx = (P1(1,0)-P1(-1,0))*0.5*ih;
+          Real dpy = (P1(0,1)-P1(0,-1))*0.5*ih;
+#undef P1
+          un[j*BS+i] = uc + alpha*lap_u + dt*(-adv_u - dpx);
+          vn[j*BS+i] = vc + alpha*lap_v + dt*(-adv_v - dpy);
+        }
+    }
+#undef U2
+#undef V2
   }
-  memset(abuf, 0, NSLOT * NN * sizeof(Real));
-  qu = abuf; qv = abuf + NN; umac = abuf + 2 * NN;
-  vmac = abuf + 3 * NN;
-  xedge_u = abuf + 4 * NN; xedge_v = abuf + 5 * NN;
-  yedge_u = abuf + 6 * NN; yedge_v = abuf + 7 * NN;
-
-  amr_gather(qu, F_U, N, h0);
-  amr_gather(qv, F_V, N, h0);
-
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++) {
-      su_i = slope4(qu[IDX(i - 2, j)], qu[IDX(i - 1, j)], qu[IDX(i, j)],
-                         qu[IDX(i + 1, j)], qu[IDX(i + 2, j)]);
-      su_ip = slope4(qu[IDX(i - 1, j)], qu[IDX(i, j)], qu[IDX(i + 1, j)],
-                          qu[IDX(i + 2, j)], qu[IDX(i + 3, j)]);
-      ad_uc = qu[IDX(i, j)]; ad_un = qu[IDX(i + 1, j)];
-      sL = ad_uc > 0 ? 1 : 0; sR = ad_un < 0 ? 1 : 0;
-      lo = ad_uc + (0.5 - sL * 0.5 * dtdx * ad_uc) * su_i;
-      hi = ad_un + (-0.5 - sR * 0.5 * dtdx * ad_un) * su_ip;
-      uface = (lo + hi) * 0.5;
-      umac[IDX(i + 1, j)] = (uface >= 0) ? lo : hi;
-      if (fabs(uface) < 1e-10)
-        umac[IDX(i + 1, j)] = 0.5 * (lo + hi);
-
-      sv_j = slope4(qv[IDX(i, j - 2)], qv[IDX(i, j - 1)], qv[IDX(i, j)],
-                         qv[IDX(i, j + 1)], qv[IDX(i, j + 2)]);
-      sv_jp = slope4(qv[IDX(i, j - 1)], qv[IDX(i, j)], qv[IDX(i, j + 1)],
-                          qv[IDX(i, j + 2)], qv[IDX(i, j + 3)]);
-      ad_vc = qv[IDX(i, j)]; ad_vn = qv[IDX(i, j + 1)];
-      sL = ad_vc > 0 ? 1 : 0;
-      sR = ad_vn < 0 ? 1 : 0;
-      lo = ad_vc + (0.5 - sL * 0.5 * dtdy * ad_vc) * sv_j;
-      hi = ad_vn + (-0.5 - sR * 0.5 * dtdy * ad_vn) * sv_jp;
-      vface = (lo + hi) * 0.5;
-      vmac[IDX(i, j + 1)] = (vface >= 0) ? lo : hi;
-      if (fabs(vface) < 1e-10)
-        vmac[IDX(i, j + 1)] = 0.5 * (lo + hi);
-    }
-
-  div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
-  memset(div_ad, 0, NN * sizeof(Real));
-  memset(phi_ad, 0, NN * sizeof(Real));
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++)
-      div_ad[IDX(i, j)] = (umac[IDX(i + 1, j)] - umac[IDX(i, j)] +
-                        vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) *
-                       ih;
-  for (int k = 0; k < NN; k++)
-    div_ad[k] *= h0 * h0;
-  mg_solve_periodic(phi_ad, div_ad, N, 1e-10);
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++) {
-      umac[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i - 1, j)]) * ih;
-      vmac[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i, j - 1)]) * ih;
-    }
-
-  for (int n = 0; n < 2; n++) {
-    q = (n == 0) ? qu : qv;
-    xedge = (n == 0) ? xedge_u : xedge_v;
-    yedge = (n == 0) ? yedge_u : yedge_v;
-    xlo = abuf + 8 * NN; xhi = abuf + 9 * NN; ylo = abuf + 10 * NN;
-    yhi = abuf + 11 * NN;
-    yzlo = abuf + 12 * NN;
-    xzlo = abuf + 13 * NN;
-    memset(xlo, 0, 4 * NN * sizeof(Real));
-
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        s_ad = slope4(q[IDX(i - 2, j)], q[IDX(i - 1, j)], q[IDX(i, j)],
-                        q[IDX(i + 1, j)], q[IDX(i + 2, j)]);
-
-        xlo[IDX(i + 1, j)] =
-            q[IDX(i, j)] + 0.5 * (1.0 - umac[IDX(i + 1, j)] * dtdx) * s_ad;
-
-        xhi[IDX(i, j)] =
-            q[IDX(i, j)] + 0.5 * (-1.0 - umac[IDX(i, j)] * dtdx) * s_ad;
-
-        sy = slope4(q[IDX(i, j - 2)], q[IDX(i, j - 1)], q[IDX(i, j)],
-                         q[IDX(i, j + 1)], q[IDX(i, j + 2)]);
-        ylo[IDX(i, j + 1)] =
-            q[IDX(i, j)] + 0.5 * (1.0 - vmac[IDX(i, j + 1)] * dtdy) * sy;
-        yhi[IDX(i, j)] =
-            q[IDX(i, j)] + 0.5 * (-1.0 - vmac[IDX(i, j)] * dtdy) * sy;
-      }
-
-    memset(yzlo, 0, NN * sizeof(Real));
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        vad = vmac[IDX(i, j)];
-        lo_v = ylo[IDX(i, j)]; hi_v = yhi[IDX(i, j)];
-        yzlo[IDX(i, j)] = (fabs(vad) < 1e-10) ? 0.5 * (lo_v + hi_v)
-                                              : ((vad >= 0) ? lo_v : hi_v);
-      }
-
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        quxl = (umac[IDX(i, j)] - umac[IDX(i - 1, j)]) * q[IDX(i - 1, j)];
-        stl = xlo[IDX(i, j)] - 0.5 * dtdx * quxl -
-                   0.5 * dtdy *
-                       (yzlo[IDX(i - 1, j + 1)] * vmac[IDX(i - 1, j + 1)] -
-                        yzlo[IDX(i - 1, j)] * vmac[IDX(i - 1, j)]);
-
-        quxh = (umac[IDX(i + 1, j)] - umac[IDX(i, j)]) * q[IDX(i, j)];
-        sth = xhi[IDX(i, j)] - 0.5 * dtdx * quxh -
-                   0.5 * dtdy *
-                       (yzlo[IDX(i, j + 1)] * vmac[IDX(i, j + 1)] -
-                        yzlo[IDX(i, j)] * vmac[IDX(i, j)]);
-
-        uad = umac[IDX(i, j)];
-        xedge[IDX(i, j)] =
-            (fabs(uad) < 1e-10) ? 0.5 * (stl + sth) : ((uad >= 0) ? stl : sth);
-      }
-
-    memset(xzlo, 0, NN * sizeof(Real));
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        uad = umac[IDX(i, j)];
-        lo_u = xlo[IDX(i, j)]; hi_u = xhi[IDX(i, j)];
-        xzlo[IDX(i, j)] = (fabs(uad) < 1e-10) ? 0.5 * (lo_u + hi_u)
-                                              : ((uad >= 0) ? lo_u : hi_u);
-      }
-
-    for (int j = 0; j < N; j++)
-      for (int i = 0; i < N; i++) {
-        qvyl = (vmac[IDX(i, j)] - vmac[IDX(i, j - 1)]) * q[IDX(i, j - 1)];
-        stl = ylo[IDX(i, j)] - 0.5 * dtdy * qvyl -
-                   0.5 * dtdx *
-                       (xzlo[IDX(i + 1, j - 1)] * umac[IDX(i + 1, j - 1)] -
-                        xzlo[IDX(i, j - 1)] * umac[IDX(i, j - 1)]);
-
-        qvyh = (vmac[IDX(i, j + 1)] - vmac[IDX(i, j)]) * q[IDX(i, j)];
-        sth = yhi[IDX(i, j)] - 0.5 * dtdy * qvyh -
-                   0.5 * dtdx *
-                       (xzlo[IDX(i + 1, j)] * umac[IDX(i + 1, j)] -
-                        xzlo[IDX(i, j)] * umac[IDX(i, j)]);
-
-        vad = vmac[IDX(i, j)];
-        yedge[IDX(i, j)] =
-            (fabs(vad) < 1e-10) ? 0.5 * (stl + sth) : ((vad >= 0) ? stl : sth);
-      }
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    memcpy(BLK(id)+BS*BS*F_U, BLK(id)+BS*BS*F_TMP, BS*BS*sizeof(Real));
+    memcpy(BLK(id)+BS*BS*F_V, BLK(id)+BS*BS*F_TMP2, BS*BS*sizeof(Real));
   }
-
-  div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
-  memset(div_ad, 0, NN * sizeof(Real));
-  memset(phi_ad, 0, NN * sizeof(Real));
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++)
-      div_ad[IDX(i, j)] = (xedge_u[IDX(i + 1, j)] - xedge_u[IDX(i, j)] +
-                        yedge_v[IDX(i, j + 1)] - yedge_v[IDX(i, j)]) *
-                       ih;
-  for (int k = 0; k < NN; k++)
-    div_ad[k] *= h0 * h0;
-  mg_solve_periodic(phi_ad, div_ad, N, 1e-10);
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++) {
-      xedge_u[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i - 1, j)]) * ih;
-      yedge_v[IDX(i, j)] -= (phi_ad[IDX(i, j)] - phi_ad[IDX(i, j - 1)]) * ih;
-    }
-
-  qp = abuf + 8 * NN; u_new = abuf + 9 * NN; v_new = abuf + 10 * NN;
-  memset(qp, 0, 3 * NN * sizeof(Real));
-  amr_gather(qp, F_P, N, h0);
-  for (int gj = 0; gj < N; gj++)
-    for (int gi = 0; gi < N; gi++) {
-      uc_g = qu[IDX(gi, gj)]; vc_g = qv[IDX(gi, gj)];
-      uR = xedge_u[IDX(gi + 1, gj)]; uL = xedge_u[IDX(gi, gj)];
-      vT = yedge_v[IDX(gi, gj + 1)]; vB = yedge_v[IDX(gi, gj)];
-      uu_R = xedge_u[IDX(gi + 1, gj)]; uu_L = xedge_u[IDX(gi, gj)];
-      vv_T = yedge_v[IDX(gi, gj + 1)]; vv_B = yedge_v[IDX(gi, gj)];
-      u_yT = yedge_u[IDX(gi, gj + 1)]; u_yB = yedge_u[IDX(gi, gj)];
-      v_xR = xedge_v[IDX(gi + 1, gj)]; v_xL = xedge_v[IDX(gi, gj)];
-      adv_u = 0.5 * (uR + uL) * (uu_R - uu_L) * ih +
-                   0.5 * (vT + vB) * (u_yT - u_yB) * ih;
-      adv_v = 0.5 * (uR + uL) * (v_xR - v_xL) * ih +
-                   0.5 * (vT + vB) * (vv_T - vv_B) * ih;
-      lap_u = (qu[IDX(gi + 1, gj)] + qu[IDX(gi - 1, gj)] +
-                    qu[IDX(gi, gj + 1)] + qu[IDX(gi, gj - 1)] - 4 * uc_g) *
-                   ih * ih;
-      lap_v = (qv[IDX(gi + 1, gj)] + qv[IDX(gi - 1, gj)] +
-                    qv[IDX(gi, gj + 1)] + qv[IDX(gi, gj - 1)] - 4 * vc_g) *
-                   ih * ih;
-      dpx = (qp[IDX(gi + 1, gj)] - qp[IDX(gi - 1, gj)]) * 0.5 * ih;
-      dpy = (qp[IDX(gi, gj + 1)] - qp[IDX(gi, gj - 1)]) * 0.5 * ih;
-      alpha_g = sim.nu * dt * 0.5;
-      u_new[IDX(gi, gj)] = uc_g + alpha_g * lap_u + dt * (-adv_u - dpx);
-      v_new[IDX(gi, gj)] = vc_g + alpha_g * lap_v + dt * (-adv_v - dpy);
-    }
-
-  amr_scatter(u_new, F_U, N, h0);
-  amr_scatter(v_new, F_V, N, h0);
-#undef IDX
 }
 static void helmholtz_solve(Real dt, int field) {
   Real alpha = sim.nu * dt * 0.5;
-  Real hf = amr_finest_h();
-  int Ng = amr_finest_N(hf);
-  int NN = Ng * Ng;
-  static Real *hbuf; static int hbufn;
-  Real *flat_f, *flat_x;
-  if (NN > hbufn) { hbuf = realloc(hbuf, 2 * NN * sizeof(Real)); hbufn = NN; }
-  flat_f = hbuf; flat_x = hbuf + NN;
-  memset(hbuf, 0, 2 * NN * sizeof(Real));
-  amr_gather(flat_f, field, Ng, hf);
-  memcpy(flat_x, flat_f, NN * sizeof(Real));
-  mg_solve_helmholtz(flat_x, flat_f, Ng, alpha, hf, 1e-10);
-  amr_scatter(flat_x, field, Ng, hf);
+  int iter;
+  /* copy RHS to F_TMP (f = current field before solve) */
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++)
+    memcpy(BLK(id) + BS * BS * F_TMP, BLK(id) + BS * BS * field,
+           BS * BS * sizeof(Real));
+  /* block-Jacobi: (1+4α/h²)u - (α/h²)Σu_nb = f
+     α/h² is O(1e-3) so spectral radius ~0.01, converges in ~5 iterations */
+  for (iter = 0; iter < 10; iter++) {
+#pragma omp parallel
+    {
+      Real buf[LB_BUF];
+      int nm = BS + 2;
+#pragma omp for
+      for (long long id = 0; id < sim.n; id++) {
+        Real *u = BLK(id) + BS * BS * field;
+        Real *f = BLK(id) + BS * BS * F_TMP;
+        Real h = sim.blk[id].h;
+        Real ah2 = alpha / (h * h);
+        Real ia = 1.0 / (1.0 + 4.0 * ah2);
+        int i, j;
+        lb_load(buf, 1, field, 1, id);
+        for (j = 0; j < BS; j++)
+          for (i = 0; i < BS; i++) {
+#define HB(di, dj) buf[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
+            u[j * BS + i] =
+                (f[j * BS + i] +
+                 ah2 * (HB(1, 0) + HB(-1, 0) + HB(0, 1) + HB(0, -1))) *
+                ia;
+#undef HB
+          }
+      }
+    }
+  }
+}
+
+static void blk_laplacian(int src, int dst_field) {
+#pragma omp parallel
+  {
+    Real buf[LB_BUF];
+    int nm = BS + 2;
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *out = BLK(id) + BS * BS * dst_field;
+      Real h = sim.blk[id].h;
+      Real ih2 = 1.0 / (h * h);
+      int i, j;
+      lb_load(buf, 1, src, 1, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+#define PH(di, dj) buf[nm * ((j)+(dj)+1) + (i)+(di)+1]
+          out[j * BS + i] = (PH(1,0)+PH(-1,0)+PH(0,1)+PH(0,-1)-4*PH(0,0))*ih2;
+#undef PH
+        }
+    }
+  }
+}
+
+static Real blk_dot(int fa, int fb) {
+  Real s = 0;
+#pragma omp parallel for reduction(+:s)
+  for (long long id = 0; id < sim.n; id++) {
+    Real *a = BLK(id) + BS * BS * fa;
+    Real *b = BLK(id) + BS * BS * fb;
+    int k;
+    for (k = 0; k < BS * BS; k++) s += a[k] * b[k];
+  }
+  return s;
+}
+
+static void blk_axpy(Real alpha, int src, int dst_field) {
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    Real *d = BLK(id) + BS * BS * dst_field;
+    Real *s = BLK(id) + BS * BS * src;
+    int k;
+    for (k = 0; k < BS * BS; k++) d[k] += alpha * s[k];
+  }
+}
+
+static void blk_copy(int src, int dst_field) {
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++)
+    memcpy(BLK(id) + BS * BS * dst_field, BLK(id) + BS * BS * src,
+           BS * BS * sizeof(Real));
+}
+
+static void blk_mean_sub(int field) {
+  Real s = 0;
+  long long ntot = sim.n * BS * BS;
+#pragma omp parallel for reduction(+:s)
+  for (long long id = 0; id < sim.n; id++) {
+    Real *f = BLK(id) + BS * BS * field;
+    int k;
+    for (k = 0; k < BS * BS; k++) s += f[k];
+  }
+  s /= ntot;
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    Real *f = BLK(id) + BS * BS * field;
+    int k;
+    for (k = 0; k < BS * BS; k++) f[k] -= s;
+  }
 }
 
 static void poisson_solve(Real dt) {
-  Real hf = amr_finest_h();
-  int N = amr_finest_N(hf);
-  int NN = N * N;
-  static Real *pbuf; static int pbufn;
-  Real *rhs, *phi, *gu, *gv;
-  Real fac;
-  if (NN > pbufn) { pbuf = realloc(pbuf, 4 * NN * sizeof(Real)); pbufn = NN; }
-  rhs = pbuf; phi = pbuf + NN; gu = pbuf + 2*NN; gv = pbuf + 3*NN;
-  memset(pbuf, 0, 4 * NN * sizeof(Real));
-  amr_gather(gu, F_U, N, hf);
-  amr_gather(gv, F_V, N, hf);
-  amr_gather(phi, F_PHI, N, hf);
-  /* Solve: (-4φ + Σφ_nb) = (h²/dt) * div(u*)
-     where div = (u_{i+1}-u_{i-1})/(2h) + (v_{j+1}-v_{j-1})/(2h).
-     φ is the pressure increment; project() applies u -= dt*∇φ, p += φ. */
-#define GI(i, j) (((j) + N) % N * N + ((i) + N) % N)
-  fac = 0.5 * hf / dt;
-  for (int j = 0; j < N; j++)
-    for (int i = 0; i < N; i++)
-      rhs[j * N + i] = fac * (gu[GI(i + 1, j)] - gu[GI(i - 1, j)] +
-                               gv[GI(i, j + 1)] - gv[GI(i, j - 1)]);
-#undef GI
-  mg_solve_periodic(phi, rhs, N, 1e-10);
-  amr_scatter(phi, F_PHI, N, hf);
+  int iter;
+  Real rz, pAp, al, rz2, beta, rmax;
+  /* RHS = h²·div(u*)/dt stored in F_TMP.
+     Solve: ∆φ = div(u*)/dt, i.e. (-4φ+Σφ_nb)/h² = div/dt.
+     Multiply both sides by h²: (-4φ+Σφ_nb) = h²·div/dt = (h/2dt)(u_{i+1}-u_{i-1}+...) */
+#pragma omp parallel
+  {
+    Real bu[LB_BUF], bv[LB_BUF];
+    int nm = BS + 2;
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *rhs = BLK(id) + BS * BS * F_TMP;
+      Real h = sim.blk[id].h;
+      Real fac = 0.5 * h / dt;
+      int i, j;
+      lb_load(bu, 1, F_U, 1, id);
+      lb_load(bv, 1, F_V, 1, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+#define UB(di, dj) bu[nm*((j)+(dj)+1)+(i)+(di)+1]
+#define VB(di, dj) bv[nm*((j)+(dj)+1)+(i)+(di)+1]
+          rhs[j*BS+i] = fac*(UB(1,0)-UB(-1,0)+VB(0,1)-VB(0,-1));
+#undef UB
+#undef VB
+        }
+    }
+  }
+  /* CG: F_PHI=x, F_TMP=rhs(f), F_W=residual(r), F_TMP2=direction(p), F_TMP3=Ap */
+  blk_laplacian(F_PHI, F_W);
+#pragma omp parallel for
+  for (long long id = 0; id < sim.n; id++) {
+    Real *r = BLK(id) + BS * BS * F_W;
+    Real *f = BLK(id) + BS * BS * F_TMP;
+    int k;
+    for (k = 0; k < BS * BS; k++) r[k] = f[k] - r[k];
+  }
+  blk_mean_sub(F_W);
+  blk_copy(F_W, F_TMP2);
+  rz = blk_dot(F_W, F_W);
+
+  for (iter = 0; iter < 1000; iter++) {
+    blk_laplacian(F_TMP2, F_TMP3);    /* Ap = ∆p */
+    pAp = blk_dot(F_TMP2, F_TMP3);
+    if (fabs(pAp) < 1e-30) break;
+    al = rz / pAp;
+    blk_axpy(al, F_TMP2, F_PHI);      /* x += al*p */
+    blk_axpy(-al, F_TMP3, F_W);       /* r -= al*Ap */
+    blk_mean_sub(F_W);
+    blk_mean_sub(F_PHI);
+    rmax = 0;
+#pragma omp parallel for reduction(max:rmax)
+    for (long long id = 0; id < sim.n; id++) {
+      Real *r = BLK(id) + BS * BS * F_W;
+      int k;
+      for (k = 0; k < BS * BS; k++)
+        if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
+    }
+    if (rmax < 1e-10) break;
+    rz2 = blk_dot(F_W, F_W);
+    beta = rz2 / (rz + 1e-30);
+    /* p = r + beta*p */
+#pragma omp parallel for
+    for (long long id = 0; id < sim.n; id++) {
+      Real *p = BLK(id) + BS * BS * F_TMP2;
+      Real *r = BLK(id) + BS * BS * F_W;
+      int k;
+      for (k = 0; k < BS * BS; k++) p[k] = r[k] + beta * p[k];
+    }
+    rz = rz2;
+  }
+  blk_mean_sub(F_PHI);
 }
 
 static void project(Real dt) {

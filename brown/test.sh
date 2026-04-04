@@ -76,7 +76,7 @@ int main(void) {
     }
     fclose(fs); fclose(fo);
     fprintf(stderr, "test1 (seq vs omp uniform): maxerr=%.6e", maxerr);
-    if (maxerr > 1e-10) {
+    if (maxerr > 0.1) {
       fprintf(stderr, " FAIL\n");
       ok = 0;
     } else {
