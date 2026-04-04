@@ -1448,44 +1448,65 @@ static void helmholtz_solve(Real dt, int field) {
   sim.sol_x = realloc(sim.sol_x, N * sizeof(double));
   sim.sol_b = realloc(sim.sol_b, N * sizeof(double));
   sim.sol_h2 = realloc(sim.sol_h2, sim.n * sizeof(double));
-  sim.coo_nnz = 0;
-  if (sim.coo_cap < 8 * N) {
-    sim.coo_cap = 8 * N;
+  if (sim.coo_cap < 5 * N) {
+    sim.coo_cap = 5 * N;
     sim.coo_val = realloc(sim.coo_val, sim.coo_cap * sizeof(double));
     sim.coo_row = realloc(sim.coo_row, sim.coo_cap * sizeof(int));
     sim.coo_col = realloc(sim.coo_col, sim.coo_cap * sizeof(int));
   }
-#define COO(v, r, c) do { \
-    sim.coo_val[sim.coo_nnz]=(v); sim.coo_row[sim.coo_nnz]=(r); \
-    sim.coo_col[sim.coo_nnz]=(c); sim.coo_nnz++; } while(0)
   /* Assemble (I - α∆_h) where ∆_h = (-4 + Σnb)/h².
-     Matrix entry: (1 + 4α/h²) on diagonal, (-α/h²) on neighbors. */
+     Matrix entry: (1 + 4α/h²) on diagonal, (-α/h²) on neighbors.
+     Each block contributes at most BS*BS*5 entries. Precompute per-block
+     offsets so threads write to disjoint regions. */
   static const int nb_dx[4] = {-1, 1, 0, 0};
   static const int nb_dy[4] = {0, 0, -1, 1};
   static const int nb_ic[4] = {3, 5, 1, 7};
+  int *blk_off = malloc((sim.n + 1) * sizeof *blk_off);
+  blk_off[0] = 0;
+  for (long long i = 0; i < sim.n; i++) {
+    struct Blk *info = &sim.blk[i];
+    int cnt = 0;
+    for (int iy = 0; iy < BS; iy++)
+      for (int ix = 0; ix < BS; ix++) {
+        cnt++; /* diagonal */
+        for (int d = 0; d < 4; d++) {
+          int nx = ix + nb_dx[d], ny = iy + nb_dy[d];
+          if (nx >= 0 && nx < BS && ny >= 0 && ny < BS) {
+            cnt++;
+          } else {
+            struct Nb pnr = nb_find(info->level, info->ix, info->iy, nb_ic[d]);
+            if (pnr.s == 0 && pnr.idx >= 0) cnt++;
+          }
+        }
+      }
+    blk_off[i + 1] = blk_off[i] + cnt;
+  }
+  sim.coo_nnz = blk_off[sim.n];
+#pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     struct Blk *info = &sim.blk[i];
     Real h = info->h;
     Real ah2 = alpha / (h * h);
+    int k = blk_off[i];
     for (int iy = 0; iy < BS; iy++)
       for (int ix = 0; ix < BS; ix++) {
         int sfc = i * BS * BS + iy * BS + ix;
-        COO(1.0 + 4.0 * ah2, sfc, sfc);
+        sim.coo_val[k]=(1.0+4.0*ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=sfc; k++;
         for (int d = 0; d < 4; d++) {
           int nx = ix + nb_dx[d], ny = iy + nb_dy[d];
           if (nx >= 0 && nx < BS && ny >= 0 && ny < BS) {
-            COO(-ah2, sfc, i * BS * BS + ny * BS + nx);
+            sim.coo_val[k]=(-ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=i*BS*BS+ny*BS+nx; k++;
           } else {
             struct Nb pnr = nb_find(info->level, info->ix, info->iy, nb_ic[d]);
             if (pnr.s != 0 || pnr.idx < 0) continue;
             int nnx = ((nx % BS) + BS) % BS;
             int nny = ((ny % BS) + BS) % BS;
-            COO(-ah2, sfc, pnr.idx * BS * BS + nny * BS + nnx);
+            sim.coo_val[k]=(-ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=pnr.idx*BS*BS+nny*BS+nnx; k++;
           }
         }
       }
   }
-#undef COO
+  free(blk_off);
   /* Gather RHS and initial guess */
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
