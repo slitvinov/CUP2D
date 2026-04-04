@@ -792,14 +792,10 @@ static void compute_indicator(void) {
 
 /* Output dump */
 static void dump(Real time, int step, char *path) {
-  long i, j, k, x, y;
-  char xyz_path[FILENAME_MAX], attr_path[FILENAME_MAX];
+  long i, j, k;
+  char attr_path[FILENAME_MAX], xyz_path[FILENAME_MAX];
   FILE *file;
   float xyz[4 * BS * BS][2];
-  char *xyz_base, xdmf_path[FILENAME_MAX];
-  FILE *xdmf;
-  long long ncell = 0;
-  for (i = 0; i < sim.n; i++) ncell += BS * BS;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   file = fopen(xyz_path, "wb");
   for (i = 0; i < sim.n; i++) {
@@ -816,36 +812,15 @@ static void dump(Real time, int step, char *path) {
     fwrite(xyz, sizeof(float), 4*2*BS*BS, file);
   }
   fclose(file);
-  snprintf(xdmf_path, sizeof xdmf_path, "%s.xdmf2", path);
-  xdmf = fopen(xdmf_path, "w");
-  fprintf(xdmf,
-    "<Xdmf Version=\"2.0\">\n<Domain><Grid>\n"
-    "  <Time Value=\"%.16e\"/>\n"
-    "  <Information Name=\"Step\" Value=\"%d\"/>\n"
-    "  <Topology Dimensions=\"%lld\" TopologyType=\"Quadrilateral\"/>\n"
-    "  <Geometry Type=\"XY\">\n"
-    "    <DataItem Dimensions=\"%lld 4 2\" Format=\"Binary\""
-    " DataType=\"Float\" Precision=\"4\" Endian=\"Little\">%s</DataItem>\n"
-    "  </Geometry>\n", time, step, ncell, ncell, xyz_path);
   for (size_t fi = 0; fi < NVARS; fi++)
     if (fld_t[fi].prefix) {
       int dim = fld_t[fi].dim, offset = fld_t[fi].offset;
       snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path, fld_t[fi].prefix);
-      fprintf(xdmf,
-        "  <Attribute Name=\"%s\" Center=\"Cell\" AttributeType=\"%s\">\n"
-        "    <DataItem Dimensions=\"%lld %s\" Format=\"Binary\""
-        " DataType=\"Float\" Precision=\"8\" Endian=\"Little\">%s</DataItem>\n"
-        "  </Attribute>\n",
-        fld_t[fi].prefix,
-        dim > 1 ? "Vector" : "Scalar", ncell,
-        dim > 1 ? "2" : "1", attr_path);
       file = fopen(attr_path, "wb");
       for (j = 0; j < sim.n; j++)
         fwrite(BLK(j) + offset*BS*BS, sizeof(Real), dim*BS*BS, file);
       fclose(file);
     }
-  fprintf(xdmf, "</Grid></Domain></Xdmf>\n");
-  fclose(xdmf);
 }
 
 static const int ad_sib_ic[4] = {-1, 5, 7, 8};
