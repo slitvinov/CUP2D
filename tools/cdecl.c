@@ -214,7 +214,10 @@ static void find_functions(void) {
           }
         }
       }
-      p = funcs[nfuncs-1].body_end;
+      if (nfuncs > 0 && funcs[nfuncs-1].body_start == p)
+        p = funcs[nfuncs-1].body_end;
+      else
+        p = skip_balanced(p); /* skip non-function { } block */
     } else {
       p++;
     }
@@ -256,13 +259,19 @@ static void process_function(struct Func *f) {
     } else if (strncmp(src + p, "while", 5) == 0 && !is_ident_char(src[p+5])) {
       p += 5; p = skipws(p);
       if (src[p] == '(') p = skip_balanced(p);
+    } else if (src[p] == '#') {
+      /* skip preprocessor directive */
+      while (p < body_end && src[p] != '\n') p++;
+      if (p < body_end) p++;
     } else {
       /* skip to end of statement */
-      while (p < body_end && src[p] != ';' && src[p] != '{' && src[p] != '}') {
+      int p0 = p;
+      while (p < body_end && src[p] != ';' && src[p] != '{' && src[p] != '}' && src[p] != '#') {
         if (src[p] == '(' || src[p] == '[') p = skip_balanced(p);
         else p++;
       }
       if (p < body_end && src[p] == ';') p++;
+      if (p == p0) p++; /* safety: always advance */
     }
   }
 
