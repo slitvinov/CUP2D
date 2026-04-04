@@ -53,7 +53,7 @@ for row, N in enumerate(resolutions):
         comp_col = col_pair * 2 + 1
 
         # Paper image
-        img_path = f"/tmp/brown_imgs/{fig_name}_{label}.png"
+        img_path = f"ref/{fig_name}_{label}.png"
         try:
             img = Image.open(img_path)
             axes[row, paper_col].imshow(img, cmap='gray', aspect='equal')

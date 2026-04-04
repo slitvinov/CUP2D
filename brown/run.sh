@@ -2,6 +2,8 @@
 
 python3 gen_table.py &&
 gcc-15 -O2 -o main main.c -fopenmp -lm &&
+cc -O2 -o mesh2png ../tools/mesh2png.c -lz &&
+cc -O2 -o mesh2iso ../tools/mesh2iso.c -lz -lm &&
 ${main=./main} \
 -AdaptSteps 2 \
 -CFL 0.8 \
@@ -10,9 +12,9 @@ ${main=./main} \
 -levelStart 2 \
 -nu 1e-4 \
 -sdump 0 \
--tdump 0.4 \
--tend 1.2 \
+-tdump 0.01 \
+-tend 0.1 \
 &&
-set -- vel.*.xyz.raw
-for i; do ./mesh2png -i $i -o ${i/.xyz.raw/}.msh.png -s 1024 -w 5; done
-for i; do ./mesh2iso -i $i -o ${i/.xyz.raw/}.iso.png -s 1024 -w 5; done
+set -- *.xyz.raw
+for i; do ./mesh2png -i "$i" -o "${i%.xyz.raw}.msh.png" -s 1024 -w 1; done
+for i; do ./mesh2iso -g "$i" -s "${i%.xyz.raw}.vort.raw" -o "${i%.xyz.raw}.iso.png" -n 1024 -w 1 < levels.txt; done

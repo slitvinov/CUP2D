@@ -180,7 +180,7 @@ fig, axes = plt.subplots(1, 4, figsize=(16, 4))
 for col_pair, (dump_idx, tlabel) in enumerate(time_data):
     pcol = col_pair * 2
     ccol = col_pair * 2 + 1
-    img_path = f"/tmp/brown_imgs/fig{dump_idx}_{paper_label}.png"
+    img_path = f"ref/fig{dump_idx}_{paper_label}.png"
     try:
         img = Image.open(img_path)
         axes[pcol].imshow(img, cmap='gray', aspect='equal')

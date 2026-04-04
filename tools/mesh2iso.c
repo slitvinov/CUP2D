@@ -296,10 +296,36 @@ int main(int argc, char **argv) {
     segs[i].y1 = segs[i].y1 * hmin + oy;
   }
 
-  /* sort segments by min-y for sweep (optional optimization) */
-  /* for now, brute force: check all segments per scanline */
+  /* rasterize segments with Bresenham into framebuffer */
+  unsigned char *fb = calloc(N * N, 1);
+  float sc = (float)N;
+  float Lx = 1.0f, Ly = 1.0f;
+  for (long long i = 0; i < nseg; i++) {
+    int x0 = (int)((segs[i].x0 - ox) * sc / Lx);
+    int y0 = (int)((segs[i].y0 - oy) * sc / Ly);
+    int x1 = (int)((segs[i].x1 - ox) * sc / Lx);
+    int y1 = (int)((segs[i].y1 - oy) * sc / Ly);
+    /* flip y for image coordinates */
+    y0 = N - 1 - y0; y1 = N - 1 - y1;
+    int dx = abs(x1-x0), dy = abs(y1-y0);
+    int sx = x0<x1 ? 1 : -1, sy = y0<y1 ? 1 : -1;
+    int err = dx - dy;
+    for (;;) {
+      /* draw pixel with line width */
+      for (int dj = -(lw/2); dj <= (lw-1)/2; dj++)
+        for (int di = -(lw/2); di <= (lw-1)/2; di++) {
+          int px = x0+di, py = y0+dj;
+          if (px>=0 && px<N && py>=0 && py<N) fb[py*N+px] = 1;
+        }
+      if (x0==x1 && y0==y1) break;
+      int e2 = 2*err;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 <  dx) { err += dx; y0 += sy; }
+    }
+  }
+  free(segs);
 
-  /* write PNG scanline by scanline */
+  /* write PNG from framebuffer */
   FILE *out = fopen(out_path, "wb");
   unsigned char sig[] = {137,80,78,71,13,10,26,10};
   fwrite(sig,1,8,out);
@@ -311,34 +337,10 @@ int main(int argc, char **argv) {
   deflateInit(&z, Z_DEFAULT_COMPRESSION);
   unsigned char *row = malloc(N+1);
   unsigned char zbuf[ZBUF];
-  float sc = (float)N;
-  float Lx = 1.0f, Ly = 1.0f; /* domain */
-
   for (int y = 0; y < N; y++) {
-    float wy = oy + (N-1-y+0.5f) * Ly / sc;
-    row[0] = 0;
-    memset(row+1, 255, N);
-    float htol = lw * 0.5f * Ly / sc;
-    for (long long i = 0; i < nseg; i++) {
-      float sy0 = segs[i].y0, sy1 = segs[i].y1;
-      float sx0 = segs[i].x0, sx1 = segs[i].x1;
-      float ylo = sy0 < sy1 ? sy0 : sy1;
-      float yhi = sy0 > sy1 ? sy0 : sy1;
-      if (wy < ylo - htol || wy > yhi + htol) continue;
-      /* compute x intersection */
-      float t;
-      if (fabsf(sy1 - sy0) < 1e-12f)
-        t = 0.5f;
-      else
-        t = (wy - sy0) / (sy1 - sy0);
-      if (t < -0.01f || t > 1.01f) continue;
-      float wx = sx0 + t * (sx1 - sx0);
-      int px = (int)((wx - ox) * sc / Lx + 0.5f);
-      for (int d = -(lw/2); d <= (lw-1)/2; d++) {
-        int p = px + d;
-        if (p >= 0 && p < N) row[1+p] = 0;
-      }
-    }
+    row[0] = 0; /* filter: none */
+    for (int x = 0; x < N; x++)
+      row[1+x] = fb[y*N+x] ? 0 : 255;
     z.next_in = row; z.avail_in = N+1;
     int flush = y==N-1 ? Z_FINISH : Z_NO_FLUSH;
     do {
@@ -349,7 +351,8 @@ int main(int argc, char **argv) {
     } while (z.avail_out==0);
   }
   deflateEnd(&z);
+  free(fb);
   png_chunk(out, "IEND", NULL, 0);
-  fclose(out); free(row); free(segs);
+  fclose(out); free(row);
   return 0;
 }
