@@ -9,7 +9,7 @@
 #include <string.h>
 #include <zlib.h>
 
-enum { ZBUF = 64 * 1024 };
+enum { BS = 8, ZBUF = 64 * 1024 };
 
 /* ---- arg parsing (plan9 style, no defaults) ---- */
 static const char *arg_find(int argc, char **argv, const char *key) {
@@ -226,36 +226,39 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  /* read geometry */
+  /* read geometry: (ix, iy, level) per block, [0,1]^2 domain, BS=8 */
   FILE *fp = fopen(geo_path, "rb");
   if (!fp) { perror(geo_path); return 1; }
   long geo_sz = fsize(fp);
-  long long ncell = geo_sz / (4 * 2 * sizeof(float));
-  float *geo = malloc(8 * ncell * sizeof(float));
-  fread(geo, sizeof(float), 8 * ncell, fp);
+  int nblk = geo_sz / (3 * sizeof(int32_t));
+  long long ncell = (long long)nblk * BS * BS;
+  int32_t *binfo = malloc(3 * nblk * sizeof(int32_t));
+  fread(binfo, sizeof(int32_t), 3 * nblk, fp);
   fclose(fp);
 
-  /* find h_min, origin */
-  float hmin = 1e30f, ox = 1e30f, oy = 1e30f;
-  for (long long i = 0; i < ncell; i++) {
-    float x0 = geo[8*i+0], y0 = geo[8*i+1];
-    float h = geo[8*i+6] - x0; /* corner3.x - corner0.x */
-    if (h < hmin) hmin = h;
-    if (x0 < ox) ox = x0;
-    if (y0 < oy) oy = y0;
-  }
+  /* find finest level */
+  int lmax = 0;
+  for (int b = 0; b < nblk; b++)
+    if (binfo[3*b+2] > lmax) lmax = binfo[3*b+2];
 
-  /* build cells */
+  /* build cells from blocks */
   struct Cell *cells = malloc(ncell * sizeof *cells);
-  for (long long i = 0; i < ncell; i++) {
-    float x0 = geo[8*i+0], y0 = geo[8*i+1];
-    float h = geo[8*i+6] - x0;
-    cells[i].lower.x = (int)roundf((x0 - ox) / hmin);
-    cells[i].lower.y = (int)roundf((y0 - oy) / hmin);
-    cells[i].level = (int)roundf(log2f(h / hmin));
-    cells[i].morton = morton_code(cells[i].lower.x, cells[i].lower.y);
+  long long ci = 0;
+  for (int b = 0; b < nblk; b++) {
+    int bix = binfo[3*b], biy = binfo[3*b+1], lev = binfo[3*b+2];
+    int ratio = 1 << (lmax - lev);
+    int bx = bix * BS * ratio, by = biy * BS * ratio;
+    for (int j = 0; j < BS; j++)
+      for (int i = 0; i < BS; i++) {
+        int cx = bx + i * ratio, cy = by + j * ratio;
+        cells[ci].lower.x = cx;
+        cells[ci].lower.y = cy;
+        cells[ci].level = lmax - lev;
+        cells[ci].morton = morton_code(cx, cy);
+        ci++;
+      }
   }
-  free(geo);
+  free(binfo);
 
   /* read scalar field (float64 or float32) */
   fp = fopen(sc_path, "rb");
@@ -289,22 +292,23 @@ int main(int argc, char **argv) {
   free(isovals);
 
   /* convert segment coords from integer grid to world [0,1] */
-  for (long long i = 0; i < nseg; i++) {
-    segs[i].x0 = segs[i].x0 * hmin + ox;
-    segs[i].y0 = segs[i].y0 * hmin + oy;
-    segs[i].x1 = segs[i].x1 * hmin + ox;
-    segs[i].y1 = segs[i].y1 * hmin + oy;
+  { float hmin = 1.0f / (BS << lmax);
+    for (long long i = 0; i < nseg; i++) {
+      segs[i].x0 *= hmin;
+      segs[i].y0 *= hmin;
+      segs[i].x1 *= hmin;
+      segs[i].y1 *= hmin;
+    }
   }
 
   /* rasterize segments with Bresenham into framebuffer */
   unsigned char *fb = calloc(N * N, 1);
   float sc = (float)N;
-  float Lx = 1.0f, Ly = 1.0f;
   for (long long i = 0; i < nseg; i++) {
-    int x0 = (int)((segs[i].x0 - ox) * sc / Lx);
-    int y0 = (int)((segs[i].y0 - oy) * sc / Ly);
-    int x1 = (int)((segs[i].x1 - ox) * sc / Lx);
-    int y1 = (int)((segs[i].y1 - oy) * sc / Ly);
+    int x0 = (int)(segs[i].x0 * sc);
+    int y0 = (int)(segs[i].y0 * sc);
+    int x1 = (int)(segs[i].x1 * sc);
+    int y1 = (int)(segs[i].y1 * sc);
     /* flip y for image coordinates */
     y0 = N - 1 - y0; y1 = N - 1 - y1;
     int dx = abs(x1-x0), dy = abs(y1-y0);

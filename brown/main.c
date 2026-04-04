@@ -466,32 +466,18 @@ static void compute_indicator(void) {
 }
 
 static void dump(Real time, int step, char *path) {
-  long i, j, k;
+  long i, j;
   char attr_path[FILENAME_MAX], xyz_path[FILENAME_MAX];
   FILE *file;
-  float xyz[4 * BS * BS][2];
-  int c;
-  float x0, y0, x1, y1;
-  Real h, ox, oy;
   int dim, offset;
+  int32_t blk_info[3];
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   file = fopen(xyz_path, "wb");
   for (i = 0; i < sim.n; i++) {
-    h = sim.blk[i].h; ox = sim.blk[i].origin[0]; oy = sim.blk[i].origin[1];
-    for (j = 0; j < BS; j++)
-      for (k = 0; k < BS; k++) {
-        c = j * BS + k;
-        x0 = ox + k * h; y0 = oy + j * h; x1 = x0 + h; y1 = y0 + h;
-        xyz[4 * c + 0][0] = x0;
-        xyz[4 * c + 0][1] = y0;
-        xyz[4 * c + 1][0] = x0;
-        xyz[4 * c + 1][1] = y1;
-        xyz[4 * c + 2][0] = x1;
-        xyz[4 * c + 2][1] = y1;
-        xyz[4 * c + 3][0] = x1;
-        xyz[4 * c + 3][1] = y0;
-      }
-    fwrite(xyz, sizeof(float), 4 * 2 * BS * BS, file);
+    blk_info[0] = sim.blk[i].ix;
+    blk_info[1] = sim.blk[i].iy;
+    blk_info[2] = sim.blk[i].level;
+    fwrite(blk_info, sizeof(int32_t), 3, file);
   }
   fclose(file);
   for (size_t fi = 0; fi < NVARS; fi++)
