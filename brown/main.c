@@ -41,13 +41,16 @@ static int hm_slot(struct HMap *m, long long key) {
   return (int)(h >> 32) & (m->cap - 1);
 }
 static int hm_get(struct HMap *m, long long key) {
-  int i = hm_slot(m, key);
+  int i;
+
+  i = hm_slot(m, key);
   while (m->e[i].key >= 0) {
     if (m->e[i].key == key) return m->e[i].val;
     i = (i + 1) & (m->cap - 1);
   }
   return -1;
 }
+
 static struct Sim {
   int AdaptSteps;
   int levelMax;
@@ -141,6 +144,7 @@ struct Nb {
 };
 static struct Nb nb_find(int level, int ix, int iy, int icode) {
   int L1, b, cx, cy, fx, fy, idx, nL1, nd, nx, ny, scale;
+
   struct Nb r = {0, -1, {-1, -1}};
   cx = icode % 3 - 1;
   cy = icode / 3 - 1;
@@ -172,6 +176,7 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   }
   return r;
 }
+
 enum {
   OP_COPY,
   OP_AVG,
@@ -208,7 +213,7 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
   int8_t *w;
   struct LbOp *o;
 
-          m = dst[0];
+                  m = dst[0];
   c = dst[1];
   for (i = 0; i < n; i++) {
     o = &ops[i];
@@ -272,18 +277,19 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
 }
 
 
+
 enum { N_STATUS = 10 };
 static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
-  int ci, dim, ss;
   char fname[64];
-  FILE *fp;
+  int ci, dim, ss;
   size_t sz;
-
-  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {3, 1}};
-
   struct LbTab *tab;
-  for (ci = 0; ci < 4; ci++) {
+
+    FILE *fp;
+    int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {3, 1}};
+
+    for (ci = 0; ci < 4; ci++) {
     ss = configs[ci][0];
     dim = configs[ci][1];
     snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
@@ -302,6 +308,7 @@ static void lb_init(void) {
     lb_tab[ss][dim] = (struct LbTab(*)[3][2][2][N_STATUS])tab;
   }
 }
+
 enum {
   LB_BUF =
       ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2
