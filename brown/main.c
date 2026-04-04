@@ -8,8 +8,6 @@
 #include <string.h>
 #ifdef _OPENMP
 #include <omp.h>
-#else
-#define omp_get_max_threads() 1
 #endif
 
 typedef double Real;
@@ -63,8 +61,7 @@ static struct Sim {
   Real Rtol;
   Real nu;
   Real time;
-  Real L[2];
-  int nb[2];
+  int nb;
   long long n;
   struct HMap hm;
   struct Blk *blk;
@@ -85,7 +82,7 @@ static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   b->n = 1 << level;
   b->ix = ix;
   b->iy = iy;
-  b->h = sim.L[0] / (BS * sim.nb[0] * scale);
+  b->h = 1.0 / (BS * sim.nb * scale);
   b->origin[0] = b->h * BS * ix;
   b->origin[1] = b->h * BS * iy;
 }
@@ -132,11 +129,11 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   struct Nb r = {0, -1, {-1, -1}};
   int cx = icode % 3 - 1, cy = icode / 3 - 1;
   int scale = 1 << (level - sim.levelStart);
-  int nd[2] = {sim.nb[0] * scale, sim.nb[1] * scale};
+  int nd = sim.nb * scale;
   int pos[2] = {ix, iy};
   int c[2] = {cx, cy};
 
-  int nx = (ix + cx + nd[0]) % nd[0], ny = (iy + cy + nd[1]) % nd[1];
+  int nx = (ix + cx + nd) % nd, ny = (iy + cy + nd) % nd;
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
     r.s = 0;
@@ -943,7 +940,7 @@ static Real amr_finest_h(void) {
       hmin = sim.blk[i].h;
   return hmin;
 }
-static int amr_finest_N(Real hf) { return (int)(sim.L[0] / hf + 0.5); }
+static int amr_finest_N(Real hf) { return (int)(1.0 / hf + 0.5); }
 
 static void amr_gather(double *dst, int field, int Ng, Real hf) {
   memset(dst, 0, (size_t)Ng * Ng * sizeof(double));
@@ -1372,33 +1369,36 @@ static const struct {
 };
 
 int main(int argc, char **argv) {
-  fprintf(stderr, "main.c: %d threads\n", omp_get_max_threads());
+  int nthreads = 1;
+#ifdef _OPENMP
+  nthreads = omp_get_max_threads();
+#endif
+  fprintf(stderr, "main.c: %d threads\n", nthreads);
   char *base = (char *)&sim;
-  for (size_t i = 0; i < sizeof param_tab / sizeof *param_tab; i++) {
-    const char *key = param_tab[i].name;
-    const char *val = NULL;
-    for (int a = 1; a < argc; a++)
-      if (argv[a][0] == '-' && strcmp(argv[a] + 1, key) == 0) {
-        if (a + 1 >= argc) { fprintf(stderr, "-%s: no value\n", key); exit(1); }
-        val = argv[a + 1];
-        break;
-      }
-    if (!val) { fprintf(stderr, "-%s: not set\n", key); exit(1); }
+  int ntab = sizeof param_tab / sizeof *param_tab;
+  int seen[sizeof param_tab / sizeof *param_tab] = {0};
+  argv++;
+  while (*argv) {
+    if ((*argv)[0] != '-' || !argv[1]) { fprintf(stderr, "usage: main -key val ...\n"); exit(1); }
+    const char *key = *argv++ + 1, *val = *argv++;
+    int i;
+    for (i = 0; i < ntab; i++)
+      if (strcmp(key, param_tab[i].name) == 0) break;
+    if (i == ntab) { fprintf(stderr, "unknown: -%s\n", key); exit(1); }
     char *end;
-    if (param_tab[i].type == 0) {
+    if (param_tab[i].type == 0)
       *(int *)(base + param_tab[i].off) = (int)strtol(val, &end, 10);
-    } else {
+    else
       *(Real *)(base + param_tab[i].off) = strtod(val, &end);
-    }
-    if (end == val || *end) { fprintf(stderr, "-%s: bad value '%s'\n", key, val); exit(1); }
+    if (end == val || *end) { fprintf(stderr, "-%s: bad '%s'\n", key, val); exit(1); }
+    seen[i] = 1;
   }
+  for (int i = 0; i < ntab; i++)
+    if (!seen[i]) { fprintf(stderr, "-%s: not set\n", param_tab[i].name); exit(1); }
 
-  sim.L[0] = 1.0;
-  sim.L[1] = 1.0;
   {
     int ns = 1 << sim.levelStart;
-    sim.nb[0] = ns;
-    sim.nb[1] = ns;
+    sim.nb = ns;
     sim.n = (long long)ns * ns;
     sim.blk = calloc(sim.n, sizeof *sim.blk);
     sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
