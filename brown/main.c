@@ -26,19 +26,16 @@ enum {
 
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Blk;
-struct HMap {
-  long long *keys;
-  int *vals;
-  int cap;
-};
+struct HMEntry { long long key; int val; };
+struct HMap { struct HMEntry *e; int cap; };
 static int hm_slot(const struct HMap *m, long long key) {
   unsigned long long h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
   return (int)(h >> 32) & (m->cap - 1);
 }
 static int hm_get(const struct HMap *m, long long key) {
   int i = hm_slot(m, key);
-  while (m->keys[i] >= 0) {
-    if (m->keys[i] == key) return m->vals[i];
+  while (m->e[i].key >= 0) {
+    if (m->e[i].key == key) return m->e[i].val;
     i = (i + 1) & (m->cap - 1);
   }
   return -1;
