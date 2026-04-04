@@ -717,7 +717,9 @@ static void mg_smooth(double *u, const double *f, int m, int niter) {
   }
 }
 
-static void mg_residual(const double *u, const double *f, double *r, int m) {
+static void mg_residual(const double *u, const double *f, double *r, int m,
+                        void *ctx) {
+  (void)ctx;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
       int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
@@ -784,14 +786,19 @@ static void mg_vcycle(double *u, double *f, double *r, int m, double *w) {
   memset(uc, 0, nc * sizeof(double));
 
   mg_smooth(u, f, m, 4);
-  mg_residual(u, f, r, m);
+  mg_residual(u, f, r, m, NULL);
   mg_restrict(r, fc, m);
   mg_vcycle(uc, fc, rc, mc, w + 3 * nc);
   mg_prolong_add(uc, u, mc);
   mg_smooth(u, f, m, 4);
 }
 
-static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
+typedef void (*mg_op)(const double *u, const double *f, double *r, int m, void *ctx);
+typedef void (*mg_vc)(double *u, double *f, double *r, int m, double *w, void *ctx);
+
+static void pcg_solve(double *x, const double *f, int M, double tol,
+                      mg_op residual, mg_op matvec, mg_vc vcycle,
+                      int do_mean, void *ctx) {
   int N = M * M;
   static double *buf;
   static int bufn;
@@ -803,35 +810,28 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
          *r_tmp = buf + 4 * N, *mgw = buf + 5 * N;
   memset(z, 0, N * sizeof(double));
 
-  mg_residual(x, f, rr, M);
-  subtract_mean(rr, N);
-  mg_vcycle(z, rr, r_tmp, M, mgw);
-  subtract_mean(z, N);
+  residual(x, f, rr, M, ctx);
+  if (do_mean) subtract_mean(rr, N);
+  vcycle(z, rr, r_tmp, M, mgw, ctx);
+  if (do_mean) subtract_mean(z, N);
   memcpy(p, z, N * sizeof(double));
   double rz = 0;
   for (int k = 0; k < N; k++)
     rz += rr[k] * z[k];
 
   for (int it = 0; it < 100; it++) {
-    for (int j = 0; j < M; j++)
-      for (int i = 0; i < M; i++) {
-        int ip = (i + 1) % M, im = (i - 1 + M) % M, jp = (j + 1) % M,
-            jm = (j - 1 + M) % M;
-        Ap[j * M + i] = -4 * p[j * M + i] + p[j * M + ip] + p[j * M + im] +
-                        p[jp * M + i] + p[jm * M + i];
-      }
+    matvec(p, NULL, Ap, M, ctx);
     double pAp = 0;
     for (int k = 0; k < N; k++)
       pAp += p[k] * Ap[k];
     if (fabs(pAp) < 1e-30)
       break;
-    double alpha = rz / pAp;
+    double al = rz / pAp;
     for (int k = 0; k < N; k++) {
-      x[k] += alpha * p[k];
-      rr[k] -= alpha * Ap[k];
+      x[k] += al * p[k];
+      rr[k] -= al * Ap[k];
     }
-    subtract_mean(rr, N);
-    subtract_mean(x, N);
+    if (do_mean) { subtract_mean(rr, N); subtract_mean(x, N); }
 
     double rmax = 0;
     for (int k = 0; k < N; k++)
@@ -841,8 +841,8 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
       break;
 
     memset(z, 0, N * sizeof(double));
-    mg_vcycle(z, rr, r_tmp, M, mgw);
-    subtract_mean(z, N);
+    vcycle(z, rr, r_tmp, M, mgw, ctx);
+    if (do_mean) subtract_mean(z, N);
     double rz2 = 0;
     for (int k = 0; k < N; k++)
       rz2 += rr[k] * z[k];
@@ -851,7 +851,29 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
       p[k] = z[k] + beta * p[k];
     rz = rz2;
   }
-  subtract_mean(x, N);
+  if (do_mean) subtract_mean(x, N);
+}
+
+static void mg_matvec_lap(const double *u, const double *f, double *r, int m,
+                          void *ctx) {
+  (void)f; (void)ctx;
+  for (int j = 0; j < m; j++)
+    for (int i = 0; i < m; i++) {
+      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
+          jm = (j - 1 + m) % m;
+      r[j * m + i] = -4 * u[j * m + i] + u[j * m + ip] + u[j * m + im] +
+                     u[jp * m + i] + u[jm * m + i];
+    }
+}
+
+static void mg_vcycle_wrap(double *u, double *f, double *r, int m, double *w,
+                           void *ctx) {
+  (void)ctx;
+  mg_vcycle(u, f, r, m, w);
+}
+
+static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
+  pcg_solve(x, f, M, tol, mg_residual, mg_matvec_lap, mg_vcycle_wrap, 1, NULL);
 }
 
 static void mg_smooth_helm(double *u, const double *f, int m, int niter,
@@ -906,65 +928,40 @@ static void mg_vcycle_helm(double *u, double *f, double *r, int m, double alpha,
   mg_smooth_helm(u, f, m, 4, alpha_h2);
 }
 
+struct HelmCtx { double alpha, h; };
+
+static void mg_residual_helm_w(const double *u, const double *f, double *r,
+                               int m, void *ctx) {
+  struct HelmCtx *c = ctx;
+  mg_residual_helm(u, f, r, m, c->alpha / (c->h * c->h));
+}
+
+static void mg_matvec_helm(const double *u, const double *f, double *r, int m,
+                           void *ctx) {
+  (void)f;
+  struct HelmCtx *c = ctx;
+  double ah2 = c->alpha / (c->h * c->h), a = 1.0 + 4.0 * ah2;
+  for (int j = 0; j < m; j++)
+    for (int i = 0; i < m; i++) {
+      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
+          jm = (j - 1 + m) % m;
+      r[j * m + i] =
+          a * u[j * m + i] -
+          ah2 * (u[j * m + ip] + u[j * m + im] + u[jp * m + i] + u[jm * m + i]);
+    }
+}
+
+static void mg_vcycle_helm_w(double *u, double *f, double *r, int m, double *w,
+                             void *ctx) {
+  struct HelmCtx *c = ctx;
+  mg_vcycle_helm(u, f, r, m, c->alpha, c->h, w);
+}
+
 static void mg_solve_helmholtz(double *x, const double *f, int M, double alpha,
                                double h, double tol) {
-  int N = M * M;
-  double alpha_h2 = alpha / (h * h);
-  double a = 1.0 + 4.0 * alpha_h2;
-  static double *buf;
-  static int bufn;
-  if (N > bufn) {
-    buf = realloc(buf, 6 * N * sizeof(double));
-    bufn = N;
-  }
-  double *rr = buf, *z = buf + N, *p = buf + 2 * N, *Ap = buf + 3 * N,
-         *r_tmp = buf + 4 * N, *mgw = buf + 5 * N;
-  memset(z, 0, N * sizeof(double));
-
-  mg_residual_helm(x, f, rr, M, alpha_h2);
-  mg_vcycle_helm(z, rr, r_tmp, M, alpha, h, mgw);
-  memcpy(p, z, N * sizeof(double));
-  double rz = 0;
-  for (int k = 0; k < N; k++)
-    rz += rr[k] * z[k];
-
-  for (int it = 0; it < 100; it++) {
-    for (int j = 0; j < M; j++)
-      for (int i = 0; i < M; i++) {
-        int ip = (i + 1) % M, im = (i - 1 + M) % M, jp = (j + 1) % M,
-            jm = (j - 1 + M) % M;
-        Ap[j * M + i] =
-            a * p[j * M + i] - alpha_h2 * (p[j * M + ip] + p[j * M + im] +
-                                           p[jp * M + i] + p[jm * M + i]);
-      }
-    double pAp = 0;
-    for (int k = 0; k < N; k++)
-      pAp += p[k] * Ap[k];
-    if (fabs(pAp) < 1e-30)
-      break;
-    double al = rz / pAp;
-    for (int k = 0; k < N; k++) {
-      x[k] += al * p[k];
-      rr[k] -= al * Ap[k];
-    }
-
-    double rmax = 0;
-    for (int k = 0; k < N; k++)
-      if (fabs(rr[k]) > rmax)
-        rmax = fabs(rr[k]);
-    if (rmax < tol)
-      break;
-
-    memset(z, 0, N * sizeof(double));
-    mg_vcycle_helm(z, rr, r_tmp, M, alpha, h, mgw);
-    double rz2 = 0;
-    for (int k = 0; k < N; k++)
-      rz2 += rr[k] * z[k];
-    double beta = rz2 / (rz + 1e-30);
-    for (int k = 0; k < N; k++)
-      p[k] = z[k] + beta * p[k];
-    rz = rz2;
-  }
+  struct HelmCtx ctx = {alpha, h};
+  pcg_solve(x, f, M, tol, mg_residual_helm_w, mg_matvec_helm, mg_vcycle_helm_w,
+            0, &ctx);
 }
 
 static Real amr_finest_h(void) {
