@@ -350,6 +350,18 @@ static void compute_vorticity(void) {
   }
 }
 
+static void restrict_2to1(const Real *fine, Real *coarse, int dim,
+                          int fs, int cs, int ni, int nj) {
+  for (int j = 0; j < nj; j++)
+    for (int i = 0; i < ni; i++)
+      for (int d = 0; d < dim; d++)
+        coarse[dim * (j * cs + i) + d] =
+            0.25 * (fine[dim * ((2*j) * fs + 2*i) + d] +
+                    fine[dim * ((2*j) * fs + 2*i+1) + d] +
+                    fine[dim * ((2*j+1) * fs + 2*i) + d] +
+                    fine[dim * ((2*j+1) * fs + 2*i+1) + d]);
+}
+
 static const Real ad_ref_w[4][9] = {
     {1. / 64, 10. / 64, -1. / 64, 10. / 64, 56. / 64, -6. / 64, -1. / 64,
      -6. / 64, 1. / 64},
@@ -360,6 +372,25 @@ static const Real ad_ref_w[4][9] = {
     {1. / 64, -6. / 64, -1. / 64, -6. / 64, 56. / 64, 10. / 64, -1. / 64,
      10. / 64, 1. / 64},
 };
+
+static void prolong_2to1(const Real *coarse, Real *fine, int dim,
+                         int cs, int fs, int ni, int nj,
+                         int ci0, int cj0) {
+  for (int j = 0; j < nj; j++)
+    for (int i = 0; i < ni; i++) {
+      int ic = i + ci0, jc = j + cj0;
+      for (int s = 0; s < 4; s++) {
+        int di = s & 1, dj = s >> 1;
+        for (int d = 0; d < dim; d++) {
+          Real val = 0;
+          for (int kk = 0; kk < 9; kk++)
+            val += ad_ref_w[s][kk] *
+                   coarse[dim * ((jc + kk / 3 - 1) * cs + ic + kk % 3 - 1) + d];
+          fine[dim * ((2 * j + dj) * fs + 2 * i + di) + d] = val;
+        }
+      }
+    }
+}
 
 static void compute_indicator(void) {
 #pragma omp parallel
@@ -550,26 +581,10 @@ static int ad_run(void) {
         int dim = fld_t[m].dim, offset = fld_t[m].offset;
         lb_load(lm, dim, offset, 1, ref_idx[k]);
         for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            Real *b = blks[J * 2 + I] + offset * BS * BS;
-            for (int j = 0; j < BS; j += 2)
-              for (int i = 0; i < BS; i += 2) {
-                int i0 = i / 2 + I * (BS / 2) + 1,
-                    j0 = j / 2 + J * (BS / 2) + 1;
-                int sub[4] = {BS * j + i, BS * j + i + 1, BS * (j + 1) + i,
-                              BS * (j + 1) + i + 1};
-                for (int s = 0; s < 4; s++)
-                  for (int d = 0; d < dim; d++) {
-                    Real val = 0;
-                    for (int kk = 0; kk < 9; kk++)
-                      val +=
-                          ad_ref_w[s][kk] *
-                          lm[dim * (nm * (j0 + kk / 3 - 1) + i0 + kk % 3 - 1) +
-                             d];
-                    b[dim * sub[s] + d] = val;
-                  }
-              }
-          }
+          for (int I = 0; I < 2; I++)
+            prolong_2to1(lm, blks[J * 2 + I] + offset * BS * BS,
+                         dim, nm, BS, BS / 2, BS / 2,
+                         I * (BS / 2) + 1, J * (BS / 2) + 1);
       }
       state[ref_idx[k]] = Dealloc;
     }
@@ -588,19 +603,10 @@ static int ad_run(void) {
         int dim = fld_t[v].dim, off = fld_t[v].offset;
         Real *dst = blk[0] + off * BS * BS;
         for (int J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++) {
-            Real *src = blk[J * 2 + I] + off * BS * BS;
-            for (int j = 0; j < BS; j += 2)
-              for (int i = 0; i < BS; i += 2) {
-                int o = BS * (j / 2 + J * (BS / 2)) + i / 2 + I * (BS / 2);
-                for (int d = 0; d < dim; d++)
-                  dst[dim * o + d] = (src[dim * (BS * j + i) + d] +
-                                      src[dim * (BS * j + i + 1) + d] +
-                                      src[dim * (BS * (j + 1) + i) + d] +
-                                      src[dim * (BS * (j + 1) + i + 1) + d]) /
-                                     4;
-              }
-          }
+          for (int I = 0; I < 2; I++)
+            restrict_2to1(blk[J * 2 + I] + off * BS * BS,
+                          dst + dim * (J * (BS / 2) * BS + I * (BS / 2)),
+                          dim, BS, BS, BS / 2, BS / 2);
       }
       bl_fill(p0, level - 1, x / 2, y / 2);
     }
