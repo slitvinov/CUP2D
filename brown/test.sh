@@ -32,6 +32,7 @@ mv *.raw _test_amr/
 # --- Check ---
 cc -O2 -x c -o check_dumps - -lm <<'EOF'
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,7 @@ static long fsize(const char *path) {
 
 static int nblocks(const char *path) {
   long sz = fsize(path);
-  return (int)(sz / (4 * 2 * sizeof(float))) / (BS * BS);
+  return (int)(sz / (3 * sizeof(int32_t)));
 }
 
 int main(void) {

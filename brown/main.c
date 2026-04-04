@@ -72,7 +72,7 @@ static long long hm_key(int level, int ix, int iy) {
   return ((n * n) - 1) / 3 + iy * n + ix;
 }
 struct Blk {
-  double h, origin[2];
+  Real h, origin[2];
   int level, n, ix, iy;
 };
 #define BLK(i) (sim.fld + (long long)(i) * BLK_S)
@@ -515,7 +515,7 @@ static int ad_run(void) {
 #pragma omp parallel for reduction(|| : Changed)
   for (long long i = 0; i < sim.n; i++) {
     Real *b = BLK(i) + BS * BS * F_TMP;
-    double Linf = 0;
+    Real Linf = 0;
     int lev;
     for (int j = 0; j < BS * BS; j++)
       Linf = fmax(Linf, fabs(b[j]));
@@ -699,8 +699,8 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
   return fmin(fabs(d4), dlim) * sgn;
 }
 
-static void subtract_mean(double *v, int n) {
-  double mn = 0;
+static void subtract_mean(Real *v, int n) {
+  Real mn = 0;
   for (int k = 0; k < n; k++)
     mn += v[k];
   mn /= n;
@@ -708,7 +708,7 @@ static void subtract_mean(double *v, int n) {
     v[k] -= mn;
 }
 
-static void mg_smooth(double *u, const double *f, int m, int niter) {
+static void mg_smooth(Real *u, const Real *f, int m, int niter) {
   int ip, im, jp, jm;
   for (int sw = 0; sw < niter; sw++) {
     for (int color = 0; color < 2; color++)
@@ -725,7 +725,7 @@ static void mg_smooth(double *u, const double *f, int m, int niter) {
   }
 }
 
-static void mg_residual(const double *u, const double *f, double *r, int m,
+static void mg_residual(const Real *u, const Real *f, Real *r, int m,
                         void *ctx) {
   int ip, im, jp, jm;
   (void)ctx;
@@ -739,7 +739,7 @@ static void mg_residual(const double *u, const double *f, double *r, int m,
     }
 }
 
-static void mg_restrict(const double *rf, double *rc, int mf) {
+static void mg_restrict(const Real *rf, Real *rc, int mf) {
   int mc = mf / 2;
   int i2, j2, i2p, i2m, j2p, j2m;
   for (int j = 0; j < mc; j++)
@@ -756,10 +756,10 @@ static void mg_restrict(const double *rf, double *rc, int mf) {
     }
 }
 
-static void mg_prolong_add(const double *ec, double *uf, int mc) {
+static void mg_prolong_add(const Real *ec, Real *uf, int mc) {
   int mf = mc * 2;
   int im, jm, ip, jp;
-  double cij;
+  Real cij;
   int fi, fj, fi1, fj1;
   for (int j = 0; j < mc; j++)
     for (int i = 0; i < mc; i++) {
@@ -787,16 +787,16 @@ static void mg_prolong_add(const double *ec, double *uf, int mc) {
     }
 }
 
-static void mg_vcycle(double *u, double *f, double *r, int m, double *w) {
+static void mg_vcycle(Real *u, Real *f, Real *r, int m, Real *w) {
   int mc, nc;
-  double *uc, *fc, *rc;
+  Real *uc, *fc, *rc;
   if (m <= 4) {
     mg_smooth(u, f, m, 50);
     return;
   }
   mc = m / 2; nc = mc * mc;
   uc = w; fc = w + nc; rc = w + 2 * nc;
-  memset(uc, 0, nc * sizeof(double));
+  memset(uc, 0, nc * sizeof(Real));
 
   mg_smooth(u, f, m, 4);
   mg_residual(u, f, r, m, NULL);
@@ -806,31 +806,31 @@ static void mg_vcycle(double *u, double *f, double *r, int m, double *w) {
   mg_smooth(u, f, m, 4);
 }
 
-typedef void (*mg_op)(const double *u, const double *f, double *r, int m, void *ctx);
-typedef void (*mg_vc)(double *u, double *f, double *r, int m, double *w, void *ctx);
+typedef void (*mg_op)(const Real *u, const Real *f, Real *r, int m, void *ctx);
+typedef void (*mg_vc)(Real *u, Real *f, Real *r, int m, Real *w, void *ctx);
 
-static void pcg_solve(double *x, const double *f, int M, double tol,
+static void pcg_solve(Real *x, const Real *f, int M, Real tol,
                       mg_op residual, mg_op matvec, mg_vc vcycle,
                       int do_mean, void *ctx) {
   int N = M * M;
-  static double *buf; /* not reentrant: single-threaded solve only */
+  static Real *buf; /* not reentrant: single-threaded solve only */
   static int bufn;
-  double *rr, *z, *p, *Ap, *r_tmp, *mgw;
-  double rz;
-  double pAp, al, rmax, rz2, beta;
+  Real *rr, *z, *p, *Ap, *r_tmp, *mgw;
+  Real rz;
+  Real pAp, al, rmax, rz2, beta;
   if (N > bufn) {
-    buf = realloc(buf, 6 * N * sizeof(double));
+    buf = realloc(buf, 6 * N * sizeof(Real));
     bufn = N;
   }
   rr = buf; z = buf + N; p = buf + 2 * N; Ap = buf + 3 * N;
   r_tmp = buf + 4 * N; mgw = buf + 5 * N;
-  memset(z, 0, N * sizeof(double));
+  memset(z, 0, N * sizeof(Real));
 
   residual(x, f, rr, M, ctx);
   if (do_mean) subtract_mean(rr, N);
   vcycle(z, rr, r_tmp, M, mgw, ctx);
   if (do_mean) subtract_mean(z, N);
-  memcpy(p, z, N * sizeof(double));
+  memcpy(p, z, N * sizeof(Real));
   rz = 0;
   for (int k = 0; k < N; k++)
     rz += rr[k] * z[k];
@@ -857,7 +857,7 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
     if (rmax < tol)
       break;
 
-    memset(z, 0, N * sizeof(double));
+    memset(z, 0, N * sizeof(Real));
     vcycle(z, rr, r_tmp, M, mgw, ctx);
     if (do_mean) subtract_mean(z, N);
     for (int k = 0; k < N; k++)
@@ -870,7 +870,7 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
   if (do_mean) subtract_mean(x, N);
 }
 
-static void mg_matvec_lap(const double *u, const double *f, double *r, int m,
+static void mg_matvec_lap(const Real *u, const Real *f, Real *r, int m,
                           void *ctx) {
   int ip, im, jp, jm;
   (void)f; (void)ctx;
@@ -883,20 +883,20 @@ static void mg_matvec_lap(const double *u, const double *f, double *r, int m,
     }
 }
 
-static void mg_vcycle_wrap(double *u, double *f, double *r, int m, double *w,
+static void mg_vcycle_wrap(Real *u, Real *f, Real *r, int m, Real *w,
                            void *ctx) {
   (void)ctx;
   mg_vcycle(u, f, r, m, w);
 }
 
-static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
+static void mg_solve_periodic(Real *x, const Real *f, int M, Real tol) {
   pcg_solve(x, f, M, tol, mg_residual, mg_matvec_lap, mg_vcycle_wrap, 1, NULL);
 }
 
-static void mg_smooth_helm(double *u, const double *f, int m, int niter,
-                           double alpha_h2) {
-  double a = 1.0 + 4.0 * alpha_h2;
-  double ia = 1.0 / a;
+static void mg_smooth_helm(Real *u, const Real *f, int m, int niter,
+                           Real alpha_h2) {
+  Real a = 1.0 + 4.0 * alpha_h2;
+  Real ia = 1.0 / a;
   int ip, im, jp, jm;
   for (int it = 0; it < niter; it++)
     for (int color = 0; color < 2; color++)
@@ -913,9 +913,9 @@ static void mg_smooth_helm(double *u, const double *f, int m, int niter,
         }
 }
 
-static void mg_residual_helm(const double *u, const double *f, double *r, int m,
-                             double alpha_h2) {
-  double a = 1.0 + 4.0 * alpha_h2;
+static void mg_residual_helm(const Real *u, const Real *f, Real *r, int m,
+                             Real alpha_h2) {
+  Real a = 1.0 + 4.0 * alpha_h2;
   int ip, im, jp, jm;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
@@ -928,18 +928,18 @@ static void mg_residual_helm(const double *u, const double *f, double *r, int m,
     }
 }
 
-static void mg_vcycle_helm(double *u, double *f, double *r, int m, double alpha,
-                           double h, double *w) {
-  double alpha_h2 = alpha / (h * h);
+static void mg_vcycle_helm(Real *u, Real *f, Real *r, int m, Real alpha,
+                           Real h, Real *w) {
+  Real alpha_h2 = alpha / (h * h);
   int mc, nc;
-  double *uc, *fc, *rc;
+  Real *uc, *fc, *rc;
   if (m <= 4) {
     mg_smooth_helm(u, f, m, 50, alpha_h2);
     return;
   }
   mc = m / 2; nc = mc * mc;
   uc = w; fc = w + nc; rc = w + 2 * nc;
-  memset(uc, 0, nc * sizeof(double));
+  memset(uc, 0, nc * sizeof(Real));
 
   mg_smooth_helm(u, f, m, 4, alpha_h2);
   mg_residual_helm(u, f, r, m, alpha_h2);
@@ -949,18 +949,18 @@ static void mg_vcycle_helm(double *u, double *f, double *r, int m, double alpha,
   mg_smooth_helm(u, f, m, 4, alpha_h2);
 }
 
-struct HelmCtx { double alpha, h; };
+struct HelmCtx { Real alpha, h; };
 
-static void mg_residual_helm_w(const double *u, const double *f, double *r,
+static void mg_residual_helm_w(const Real *u, const Real *f, Real *r,
                                int m, void *ctx) {
   struct HelmCtx *c = ctx;
   mg_residual_helm(u, f, r, m, c->alpha / (c->h * c->h));
 }
 
-static void mg_matvec_helm(const double *u, const double *f, double *r, int m,
+static void mg_matvec_helm(const Real *u, const Real *f, Real *r, int m,
                            void *ctx) {
   struct HelmCtx *c = ctx;
-  double ah2 = c->alpha / (c->h * c->h), a = 1.0 + 4.0 * ah2;
+  Real ah2 = c->alpha / (c->h * c->h), a = 1.0 + 4.0 * ah2;
   int ip, im, jp, jm;
   (void)f;
   for (int j = 0; j < m; j++)
@@ -973,14 +973,14 @@ static void mg_matvec_helm(const double *u, const double *f, double *r, int m,
     }
 }
 
-static void mg_vcycle_helm_w(double *u, double *f, double *r, int m, double *w,
+static void mg_vcycle_helm_w(Real *u, Real *f, Real *r, int m, Real *w,
                              void *ctx) {
   struct HelmCtx *c = ctx;
   mg_vcycle_helm(u, f, r, m, c->alpha, c->h, w);
 }
 
-static void mg_solve_helmholtz(double *x, const double *f, int M, double alpha,
-                               double h, double tol) {
+static void mg_solve_helmholtz(Real *x, const Real *f, int M, Real alpha,
+                               Real h, Real tol) {
   struct HelmCtx ctx = {alpha, h};
   pcg_solve(x, f, M, tol, mg_residual_helm_w, mg_matvec_helm, mg_vcycle_helm_w,
             0, &ctx);
@@ -995,15 +995,15 @@ static Real amr_finest_h(void) {
 }
 static int amr_finest_N(Real hf) { return (int)(1.0 / hf + 0.5); }
 
-static void amr_gather(double *dst, int field, int Ng, Real hf) {
+static void amr_gather(Real *dst, int field, int Ng, Real hf) {
   Real lb[LB_BUF];
   Real h;
   int ratio, bx, by;
   Real *gsrc;
   int nm_g;
-  double gfx, gfy, wx, wy, v00, v10, v01, v11, val;
+  Real gfx, gfy, wx, wy, v00, v10, v01, v11, val;
   int i0, j0, gx, gy;
-  memset(dst, 0, (size_t)Ng * Ng * sizeof(double));
+  memset(dst, 0, (size_t)Ng * Ng * sizeof(Real));
   for (long long id = 0; id < sim.n; id++) {
     h = sim.blk[id].h;
     ratio = (int)(h / hf + 0.5);
@@ -1022,8 +1022,8 @@ static void amr_gather(double *dst, int field, int Ng, Real hf) {
         for (int i = 0; i < BS; i++)
           for (int dj = 0; dj < ratio; dj++)
             for (int di = 0; di < ratio; di++) {
-              gfx = ((double)di + 0.5) / ratio - 0.5;
-              gfy = ((double)dj + 0.5) / ratio - 0.5;
+              gfx = ((Real)di + 0.5) / ratio - 0.5;
+              gfy = ((Real)dj + 0.5) / ratio - 0.5;
               i0 = (gfx < 0) ? -1 : 0; j0 = (gfy < 0) ? -1 : 0;
               wx = gfx - i0; wy = gfy - j0;
 
@@ -1044,12 +1044,12 @@ static void amr_gather(double *dst, int field, int Ng, Real hf) {
   }
 }
 
-static void amr_scatter(double *src, int field, int Ng, Real hf) {
+static void amr_scatter(Real *src, int field, int Ng, Real hf) {
   Real *sdst;
   Real sh;
   int sratio, sbx, sby;
   Real sinv;
-  double ssum;
+  Real ssum;
   for (long long id = 0; id < sim.n; id++) {
     sdst = BLK(id) + BS * BS * field;
     sh = sim.blk[id].h;
@@ -1074,29 +1074,29 @@ static void advect_diffuse(Real dt) {
   Real ih = 1.0 / h0;
   Real dtdx = dt / h0, dtdy = dt / h0;
   int NN = N * N;
-  double *qu, *qv, *umac, *vmac;
-  double *xedge_u, *xedge_v, *yedge_u, *yedge_v;
+  Real *qu, *qv, *umac, *vmac;
+  Real *xedge_u, *xedge_v, *yedge_u, *yedge_v;
   Real su_i, su_ip, ad_uc, ad_un, sL, sR, lo, hi, uface;
   Real sv_j, sv_jp, ad_vc, ad_vn, vface;
-  double *div_ad, *phi_ad;
-  double *q, *xedge, *yedge, *xlo, *xhi, *ylo, *yhi, *yzlo, *xzlo;
+  Real *div_ad, *phi_ad;
+  Real *q, *xedge, *yedge, *xlo, *xhi, *ylo, *yhi, *yzlo, *xzlo;
   Real s_ad, sy, vad, lo_v, hi_v;
   Real quxl, stl, quxh, sth, uad;
   Real lo_u, hi_u;
   Real qvyl, qvyh;
-  double *qp, *u_new, *v_new;
+  Real *qp, *u_new, *v_new;
   Real uc_g, vc_g, uR, uL, vT, vB, uu_R, uu_L, vv_T, vv_B;
   Real u_yT, u_yB, v_xR, v_xL, adv_u, adv_v, lap_u, lap_v, dpx, dpy, alpha_g;
 #define IDX(i, j) (((j) + N) % N * N + ((i) + N) % N)
 
   enum { NSLOT = 14 };
-  static double *abuf;
+  static Real *abuf;
   static int abufn;
   if (NN > abufn) {
-    abuf = realloc(abuf, NSLOT * NN * sizeof(double));
+    abuf = realloc(abuf, NSLOT * NN * sizeof(Real));
     abufn = NN;
   }
-  memset(abuf, 0, NSLOT * NN * sizeof(double));
+  memset(abuf, 0, NSLOT * NN * sizeof(Real));
   qu = abuf; qv = abuf + NN; umac = abuf + 2 * NN;
   vmac = abuf + 3 * NN;
   xedge_u = abuf + 4 * NN; xedge_v = abuf + 5 * NN;
@@ -1136,8 +1136,8 @@ static void advect_diffuse(Real dt) {
     }
 
   div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
-  memset(div_ad, 0, NN * sizeof(double));
-  memset(phi_ad, 0, NN * sizeof(double));
+  memset(div_ad, 0, NN * sizeof(Real));
+  memset(phi_ad, 0, NN * sizeof(Real));
   for (int j = 0; j < N; j++)
     for (int i = 0; i < N; i++)
       div_ad[IDX(i, j)] = (umac[IDX(i + 1, j)] - umac[IDX(i, j)] +
@@ -1160,7 +1160,7 @@ static void advect_diffuse(Real dt) {
     yhi = abuf + 11 * NN;
     yzlo = abuf + 12 * NN;
     xzlo = abuf + 13 * NN;
-    memset(xlo, 0, 4 * NN * sizeof(double));
+    memset(xlo, 0, 4 * NN * sizeof(Real));
 
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
@@ -1181,7 +1181,7 @@ static void advect_diffuse(Real dt) {
             q[IDX(i, j)] + 0.5 * (-1.0 - vmac[IDX(i, j)] * dtdy) * sy;
       }
 
-    memset(yzlo, 0, NN * sizeof(double));
+    memset(yzlo, 0, NN * sizeof(Real));
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
         vad = vmac[IDX(i, j)];
@@ -1209,7 +1209,7 @@ static void advect_diffuse(Real dt) {
             (fabs(uad) < 1e-10) ? 0.5 * (stl + sth) : ((uad >= 0) ? stl : sth);
       }
 
-    memset(xzlo, 0, NN * sizeof(double));
+    memset(xzlo, 0, NN * sizeof(Real));
     for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++) {
         uad = umac[IDX(i, j)];
@@ -1239,8 +1239,8 @@ static void advect_diffuse(Real dt) {
   }
 
   div_ad = abuf + 8 * NN; phi_ad = abuf + 9 * NN;
-  memset(div_ad, 0, NN * sizeof(double));
-  memset(phi_ad, 0, NN * sizeof(double));
+  memset(div_ad, 0, NN * sizeof(Real));
+  memset(phi_ad, 0, NN * sizeof(Real));
   for (int j = 0; j < N; j++)
     for (int i = 0; i < N; i++)
       div_ad[IDX(i, j)] = (xedge_u[IDX(i + 1, j)] - xedge_u[IDX(i, j)] +
@@ -1256,7 +1256,7 @@ static void advect_diffuse(Real dt) {
     }
 
   qp = abuf + 8 * NN; u_new = abuf + 9 * NN; v_new = abuf + 10 * NN;
-  memset(qp, 0, 3 * NN * sizeof(double));
+  memset(qp, 0, 3 * NN * sizeof(Real));
   amr_gather(qp, F_P, N, h0);
   for (int gj = 0; gj < N; gj++)
     for (int gi = 0; gi < N; gi++) {
@@ -1293,13 +1293,13 @@ static void helmholtz_solve(Real dt, int field) {
   Real hf = amr_finest_h();
   int Ng = amr_finest_N(hf);
   int NN = Ng * Ng;
-  static double *hbuf; static int hbufn;
-  double *flat_f, *flat_x;
-  if (NN > hbufn) { hbuf = realloc(hbuf, 2 * NN * sizeof(double)); hbufn = NN; }
+  static Real *hbuf; static int hbufn;
+  Real *flat_f, *flat_x;
+  if (NN > hbufn) { hbuf = realloc(hbuf, 2 * NN * sizeof(Real)); hbufn = NN; }
   flat_f = hbuf; flat_x = hbuf + NN;
-  memset(hbuf, 0, 2 * NN * sizeof(double));
+  memset(hbuf, 0, 2 * NN * sizeof(Real));
   amr_gather(flat_f, field, Ng, hf);
-  memcpy(flat_x, flat_f, NN * sizeof(double));
+  memcpy(flat_x, flat_f, NN * sizeof(Real));
   mg_solve_helmholtz(flat_x, flat_f, Ng, alpha, hf, 1e-10);
   amr_scatter(flat_x, field, Ng, hf);
 }
@@ -1308,12 +1308,12 @@ static void poisson_solve(Real dt) {
   Real hf = amr_finest_h();
   int N = amr_finest_N(hf);
   int NN = N * N;
-  static double *pbuf; static int pbufn;
-  double *rhs, *phi, *gu, *gv;
+  static Real *pbuf; static int pbufn;
+  Real *rhs, *phi, *gu, *gv;
   Real fac;
-  if (NN > pbufn) { pbuf = realloc(pbuf, 4 * NN * sizeof(double)); pbufn = NN; }
+  if (NN > pbufn) { pbuf = realloc(pbuf, 4 * NN * sizeof(Real)); pbufn = NN; }
   rhs = pbuf; phi = pbuf + NN; gu = pbuf + 2*NN; gv = pbuf + 3*NN;
-  memset(pbuf, 0, 4 * NN * sizeof(double));
+  memset(pbuf, 0, 4 * NN * sizeof(Real));
   amr_gather(gu, F_U, N, hf);
   amr_gather(gv, F_V, N, hf);
   amr_gather(phi, F_PHI, N, hf);
