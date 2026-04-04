@@ -82,6 +82,7 @@ struct Decl {
   int start, end;      /* byte range in src */
   int has_init;        /* has = initializer */
   int has_brace;       /* initializer contains { */
+  int is_for;          /* declaration inside for() init */
   char type[128];      /* base type string */
   char name[MAXNAME];  /* variable name (without * or []) */
   char full_name[128]; /* full declarator e.g. "*p" or "buf[100]" */
@@ -157,7 +158,7 @@ static int parse_declarator(int p, struct Decl *d) {
   }
 
   p = skipws(p);
-  if (p < srcn && src[p] == '[') {
+  while (p < srcn && src[p] == '[') {
     int bs = p;
     p = skip_balanced(p);
     int blen = p - bs;
@@ -305,11 +306,29 @@ static void process_function(struct Func *f) {
     } else if (src[p] == '}') {
       p++;
     } else if (strncmp(src + p, "for", 3) == 0 && !is_ident_char(src[p + 3])) {
-      /* skip for(...) but look inside the body */
       p += 3;
       p = skipws(p);
-      if (src[p] == '(') p = skip_balanced(p);
-      /* the body will be scanned by the outer loop */
+      if (p < body_end && src[p] == '(') {
+        int paren_end = skip_balanced(p);
+        int fp = p + 1; /* after ( */
+        fp = skipws(fp);
+        /* try to parse declaration in for-init */
+        char type_str[128];
+        int tp = parse_type(fp, type_str, sizeof type_str);
+        if (tp > 0 && ndecl < MAXDECL) {
+          struct Decl fd;
+          memset(&fd, 0, sizeof fd);
+          strcpy(fd.type, type_str);
+          int dp = parse_declarator(tp, &fd);
+          if (dp > 0) {
+            fd.start = fp;
+            fd.end = dp; /* at ; */
+            fd.is_for = 1;
+            decls[ndecl++] = fd;
+          }
+        }
+        p = paren_end;
+      }
     } else if (strncmp(src + p, "if", 2) == 0 && !is_ident_char(src[p + 2])) {
       p += 2;
       p = skipws(p);
@@ -362,7 +381,12 @@ static void process_function(struct Func *f) {
     for (int j = i + 1; j < ndecl; j++) {
       int ci = order[i], cj = order[j];
       int cmp = strcmp(decls[ci].type, decls[cj].type);
-      if (cmp == 0) cmp = strcmp(decls[ci].full_name, decls[cj].full_name);
+      if (cmp == 0) {
+        int ki = (decls[ci].full_name[0] == '*') ? 0 : strchr(decls[ci].full_name, '[') ? 2 : 1;
+        int kj = (decls[cj].full_name[0] == '*') ? 0 : strchr(decls[cj].full_name, '[') ? 2 : 1;
+        cmp = ki - kj; /* pointers, then scalars, then arrays */
+      }
+      if (cmp == 0) cmp = strcmp(decls[ci].name, decls[cj].name);
       if (cmp > 0) {
         int t = order[i];
         order[i] = order[j];
@@ -373,16 +397,19 @@ static void process_function(struct Func *f) {
   /* emit { */
   emit("{\n", 2);
 
-  /* emit grouped declarations */
+  /* emit grouped declarations: separate line for pointers vs scalars */
   char prev_type[128] = "";
+  int prev_ptr = -1;
   int line_start = 1;
   for (int oi = 0; oi < ndecl; oi++) {
     int i = order[oi];
     if (!keep[i]) continue;
-    if (strcmp(decls[i].type, prev_type) != 0) {
+    int kind = (decls[i].full_name[0] == '*') ? 0 : strchr(decls[i].full_name, '[') ? 2 : 1;
+    if (strcmp(decls[i].type, prev_type) != 0 || kind != prev_ptr) {
       if (!line_start) emit(";\n", 2);
       fprintf(outfp, "  %s %s", decls[i].type, decls[i].full_name);
       strcpy(prev_type, decls[i].type);
+      prev_ptr = kind;
       line_start = 0;
     } else {
       fprintf(outfp, ", %s", decls[i].full_name);
@@ -392,6 +419,9 @@ static void process_function(struct Func *f) {
 
   /* emit body, replacing declarations with assignments */
   p = f->body_start + 1;
+  /* skip whitespace before first real content */
+  while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
+  int need_sep = 1; /* emit one blank line after declarations */
   while (p < f->body_end - 1) {
     /* check if current position matches a collected declaration */
     int found = -1;
@@ -403,26 +433,37 @@ static void process_function(struct Func *f) {
     }
     if (found >= 0) {
       struct Decl *d = &decls[found];
-      if (d->has_init) {
-        /* emit assignment: name = value; */
-        /* find = in the original text */
-        int eq = d->start;
-        while (eq < d->end && src[eq] != '=') eq++;
-        if (eq < d->end) {
-          /* emit indentation from original */
-          int ls = d->start;
-          while (ls < eq && isspace((unsigned char)src[ls])) {
-            fputc(src[ls], outfp);
-            ls++;
-          }
-          /* emit name = rest */
+      if (d->is_for) {
+        /* for-loop decl: replace "int k = 0" with "k = 0" */
+        if (d->has_init) {
+          int eq = d->start;
+          while (eq < d->end && src[eq] != '=') eq++;
           fprintf(outfp, "%s ", d->name);
           emit(src + eq, d->end - eq);
         }
+        p = d->end;
+      } else if (d->has_init) {
+        if (need_sep) { emit("\n", 1); need_sep = 0; }
+        /* emit assignment: name = value; */
+        int eq = d->start;
+        while (eq < d->end && src[eq] != '=') eq++;
+        if (eq < d->end) {
+          /* find line start for indentation */
+          int ls = d->start;
+          while (ls > 0 && src[ls - 1] != '\n') ls--;
+          while (ls < d->start && isspace((unsigned char)src[ls]))
+            fputc(src[ls++], outfp);
+          fprintf(outfp, "%s ", d->name);
+          emit(src + eq, d->end - eq);
+        }
+        p = d->end;
+      } else {
+        p = d->end;
+        /* skip blank lines after removed declaration, preserve indentation */
+        while (p < f->body_end - 1 && src[p] == '\n') p++;
       }
-      /* skip the declaration in source */
-      p = d->end;
     } else {
+      if (need_sep) { emit("\n", 1); need_sep = 0; }
       fputc(src[p], outfp);
       p++;
     }

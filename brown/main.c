@@ -203,12 +203,12 @@ struct LbTab {
 static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
                     int nm, int nc) {
   Real *avg_d, *avg_q1, *avg_src, *c, *m;
-  int8_t *w;
   Real a, b, cv, sum;
-  int i;
-
+  int d, dd, i, ii, jj, k;
+  int8_t *w;
   struct LbOp *o;
-  m = dst[0];
+
+          m = dst[0];
   c = dst[1];
   for (i = 0; i < n; i++) {
     o = &ops[i];
@@ -221,8 +221,8 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
       avg_src = blk[o->blk_idx] + o->src_off;
       avg_d = dst[o->dst_idx] + o->dst_off;
       avg_q1 = avg_src + o->p2 * dim;
-      for (int k = 0; k < o->p1; k++)
-        for (int dd = 0; dd < dim; dd++)
+      for (k = 0; k < o->p1; k++)
+        for (dd = 0; dd < dim; dd++)
           avg_d[k * dim + dd] =
               (avg_src[2 * k * dim + dd] + avg_src[(2 * k + 1) * dim + dd] +
                avg_q1[2 * k * dim + dd] + avg_q1[(2 * k + 1) * dim + dd]) /
@@ -236,10 +236,10 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
           {1, -6, -1, -6, 56, 10, -1, 10, 1},
       };
       w = W[o->flags & 3];
-      for (int d = 0; d < dim; d++) {
+      for (d = 0; d < dim; d++) {
         sum = 0;
-        for (int jj = 0; jj < 3; jj++)
-          for (int ii = 0; ii < 3; ii++)
+        for (jj = 0; jj < 3; jj++)
+          for (ii = 0; ii < 3; ii++)
             sum += w[3 * jj + ii] *
                    c[o->src_off + d + dim * ((ii - 1) + nc * (jj - 1))];
         m[o->dst_off + d] = sum / 64.0;
@@ -259,7 +259,7 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
           {24, -15, 6},
       };
       w = W[o->flags & 1];
-      for (int d = 0; d < dim; d++) {
+      for (d = 0; d < dim; d++) {
         a = m[o->src_off + d];
         b = m[o->dst_off + d];
         cv = m[o->p1 + d];
@@ -270,6 +270,7 @@ static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
     }
   }
 }
+
 
 enum { N_STATUS = 10 };
 static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
