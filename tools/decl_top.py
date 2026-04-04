@@ -106,13 +106,7 @@ def process(src):
                     if not name_n or not val_n:
                         continue
                     val_text = src[val_n.start_byte:val_n.end_byte]
-                    if b'->' in val_text:
-                        continue
-                    has_call = any(c.type == 'call_expression'
-                                  for c in val_n.children) if val_n.child_count else False
-                    if not has_call:
-                        has_call = val_n.type == 'call_expression'
-                    if has_call:
+                    if b'->' in val_text or b'(' in val_text:
                         continue
                     name_text = src[name_n.start_byte:name_n.end_byte]
                     kind = 'ptr' if name_n.type == 'pointer_declarator' else \
@@ -165,7 +159,7 @@ def process(src):
                 else:
                     edits.append((decl.start_byte, end, b''))
 
-        for for_stmt, for_decl in for_decls:
+        for for_stmt, for_decl in []:  # disabled: for-loop hoisting causes crashes
             declarators = []
             type_node_end = for_decl.start_byte
             for c in for_decl.children:

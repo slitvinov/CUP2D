@@ -37,6 +37,7 @@ struct HMap {
 static int hm_slot(const struct HMap *m, long long key) {
   unsigned long long h;
 
+  h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
   return (int)(h >> 32) & (m->cap - 1);
 }
 static int hm_get(const struct HMap *m, long long key) {
@@ -82,6 +83,7 @@ struct Blk {
 static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   int scale;
 
+  scale = 1 << (level - sim.levelStart);
   b->level = level;
   b->n = 1 << level;
   b->ix = ix;
@@ -123,7 +125,12 @@ static void hm_rebuild(void) {
       s = (s + 1) & (cap - 1);
     sim.hm.e[s].key = key;
     sim.hm.e[s].val = i;
+    if (i < 3)
+      fprintf(stderr, "  hm: blk %lld lev=%d ix=%d iy=%d key=%lld slot=%d\n",
+              i, sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy, key, s);
   }
+  fprintf(stderr, "  hm: get(21)=%d get(22)=%d\n",
+          hm_get(&sim.hm, 21), hm_get(&sim.hm, 22));
 }
 struct Nb {
   int8_t s;
@@ -136,7 +143,10 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   struct Nb r = {0, -1, {-1, -1}};
   cx = icode % 3 - 1;
   cy = icode / 3 - 1;
+  scale = 1 << (level - sim.levelStart);
   nd = sim.nb * scale;
+  nx = (ix + cx + nd) % nd;
+  ny = (iy + cy + nd) % nd;
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
     r.s = 0;
@@ -1399,6 +1409,7 @@ int main(int argc, char **argv) {
   char mpath[FILENAME_MAX];
 
   nthreads = 1;
+  base = (char *)&sim;
   ntab = sizeof param_tab / sizeof *param_tab;
   int seen[sizeof param_tab / sizeof *param_tab] = {0};
   nthreads = 1;
@@ -1494,7 +1505,7 @@ int main(int argc, char **argv) {
     }
     sim.dt = sim.CFL / (smax + 1e-30);
 
-    if (sim.step > 0 && sim.step % sim.AdaptSteps == 0) {
+    if (sim.AdaptSteps > 0 && sim.step > 0 && sim.step % sim.AdaptSteps == 0) {
       ad_run();
       poisson_solve(sim.dt);
       project(sim.dt);
