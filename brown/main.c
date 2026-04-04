@@ -130,9 +130,6 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   int cx = icode % 3 - 1, cy = icode / 3 - 1;
   int scale = 1 << (level - sim.levelStart);
   int nd = sim.nb * scale;
-  int pos[2] = {ix, iy};
-  int c[2] = {cx, cy};
-
   int nx = (ix + cx + nd) % nd, ny = (iy + cy + nd) % nd;
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
@@ -332,9 +329,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss,
 }
 
 
-static inline Real minmod(Real a, Real b) {
-  return a * b <= 0 ? 0 : fabs(a) < fabs(b) ? a : b;
-}
 
 static void compute_vorticity(void) {
 #pragma omp parallel
@@ -641,7 +635,6 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
   Real DL = phi0 - phim1;
   Real DR = phip1 - phi0;
   Real dlim = DL * DR > 0 ? fmin(2 * fabs(DL), 2 * fabs(DR)) : 0;
-  Real dprime = fmin(fabs(DC), dlim) * (DC > 0 ? 1 : (DC < 0 ? -1 : 0));
 
   Real DC_p = 0.5 * (phip2 - phi0);
   Real DL_p = phip1 - phi0;
@@ -768,7 +761,7 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
                       mg_op residual, mg_op matvec, mg_vc vcycle,
                       int do_mean, void *ctx) {
   int N = M * M;
-  static double *buf;
+  static double *buf; /* not reentrant: single-threaded solve only */
   static int bufn;
   if (N > bufn) {
     buf = realloc(buf, 6 * N * sizeof(double));
@@ -1227,41 +1220,40 @@ static void helmholtz_solve(Real dt, int field) {
   Real alpha = sim.nu * dt * 0.5;
   Real hf = amr_finest_h();
   int Ng = amr_finest_N(hf);
-  double *flat_f = calloc(Ng * Ng, sizeof(double));
-  double *flat_x = calloc(Ng * Ng, sizeof(double));
+  int NN = Ng * Ng;
+  static double *hbuf; static int hbufn;
+  if (NN > hbufn) { hbuf = realloc(hbuf, 2 * NN * sizeof(double)); hbufn = NN; }
+  double *flat_f = hbuf, *flat_x = hbuf + NN;
+  memset(hbuf, 0, 2 * NN * sizeof(double));
   amr_gather(flat_f, field, Ng, hf);
-  memcpy(flat_x, flat_f, Ng * Ng * sizeof(double));
+  memcpy(flat_x, flat_f, NN * sizeof(double));
   mg_solve_helmholtz(flat_x, flat_f, Ng, alpha, hf, 1e-10);
   amr_scatter(flat_x, field, Ng, hf);
-  free(flat_f);
-  free(flat_x);
 }
 
 static void poisson_solve(Real dt) {
   Real hf = amr_finest_h();
   int N = amr_finest_N(hf);
   int NN = N * N;
-  double *rhs = calloc(NN, sizeof(double));
-  double *phi = calloc(NN, sizeof(double));
-  double *gu = calloc(NN, sizeof(double));
-  double *gv = calloc(NN, sizeof(double));
+  static double *pbuf; static int pbufn;
+  if (NN > pbufn) { pbuf = realloc(pbuf, 4 * NN * sizeof(double)); pbufn = NN; }
+  double *rhs = pbuf, *phi = pbuf + NN, *gu = pbuf + 2*NN, *gv = pbuf + 3*NN;
+  memset(pbuf, 0, 4 * NN * sizeof(double));
   amr_gather(gu, F_U, N, hf);
   amr_gather(gv, F_V, N, hf);
   amr_gather(phi, F_PHI, N, hf);
+  /* Solve: (-4φ + Σφ_nb) = (h²/dt) * div(u*)
+     where div = (u_{i+1}-u_{i-1})/(2h) + (v_{j+1}-v_{j-1})/(2h).
+     φ is the pressure increment; project() applies u -= dt*∇φ, p += φ. */
 #define GI(i, j) (((j) + N) % N * N + ((i) + N) % N)
-  Real fac = hf * hf / dt;
+  Real fac = 0.5 * hf / dt;
   for (int j = 0; j < N; j++)
     for (int i = 0; i < N; i++)
-      rhs[j * N + i] =
-          fac * ((gu[GI(i + 1, j)] - gu[GI(i - 1, j)]) * 0.5 / hf +
-                 (gv[GI(i, j + 1)] - gv[GI(i, j - 1)]) * 0.5 / hf);
+      rhs[j * N + i] = fac * (gu[GI(i + 1, j)] - gu[GI(i - 1, j)] +
+                               gv[GI(i, j + 1)] - gv[GI(i, j - 1)]);
 #undef GI
-  free(gu);
-  free(gv);
   mg_solve_periodic(phi, rhs, N, 1e-10);
   amr_scatter(phi, F_PHI, N, hf);
-  free(rhs);
-  free(phi);
 }
 
 static void project(Real dt) {
