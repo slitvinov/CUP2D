@@ -741,11 +741,12 @@ static void mg_smooth(double *u, const double *f, int m, int niter) {
 
 static void mg_residual(const double *u, const double *f, double *r, int m,
                         void *ctx) {
+  int ip, im, jp, jm;
   (void)ctx;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
-      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
-          jm = (j - 1 + m) % m;
+      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
+      jm = (j - 1 + m) % m;
       r[j * m + i] =
           f[j * m + i] - (-4 * u[j * m + i] + u[j * m + ip] + u[j * m + im] +
                           u[jp * m + i] + u[jm * m + i]);
@@ -753,13 +754,13 @@ static void mg_residual(const double *u, const double *f, double *r, int m,
 }
 
 static void mg_restrict(const double *rf, double *rc, int mf) {
-
   int mc = mf / 2;
+  int i2, j2, i2p, i2m, j2p, j2m;
   for (int j = 0; j < mc; j++)
     for (int i = 0; i < mc; i++) {
-      int i2 = 2 * i, j2 = 2 * j;
-      int i2p = (i2 + 1) % mf, i2m = (i2 - 1 + mf) % mf, j2p = (j2 + 1) % mf,
-          j2m = (j2 - 1 + mf) % mf;
+      i2 = 2 * i; j2 = 2 * j;
+      i2p = (i2 + 1) % mf; i2m = (i2 - 1 + mf) % mf; j2p = (j2 + 1) % mf;
+      j2m = (j2 - 1 + mf) % mf;
       rc[j * mc + i] = (4 * rf[j2 * mf + i2] +
                         2 * (rf[j2 * mf + i2p] + rf[j2 * mf + i2m] +
                              rf[j2p * mf + i2] + rf[j2m * mf + i2]) +
@@ -770,15 +771,17 @@ static void mg_restrict(const double *rf, double *rc, int mf) {
 }
 
 static void mg_prolong_add(const double *ec, double *uf, int mc) {
-
   int mf = mc * 2;
+  int im, jm, ip, jp;
+  double cij;
+  int fi, fj, fi1, fj1;
   for (int j = 0; j < mc; j++)
     for (int i = 0; i < mc; i++) {
-      int im = (i - 1 + mc) % mc, jm = (j - 1 + mc) % mc;
-      int ip = (i + 1) % mc, jp = (j + 1) % mc;
-      double cij = ec[j * mc + i];
-      int fi = 2 * i, fj = 2 * j, fi1 = (2 * i + 1) % mf,
-          fj1 = (2 * j + 1) % mf;
+      im = (i - 1 + mc) % mc; jm = (j - 1 + mc) % mc;
+      ip = (i + 1) % mc; jp = (j + 1) % mc;
+      cij = ec[j * mc + i];
+      fi = 2 * i; fj = 2 * j; fi1 = (2 * i + 1) % mf;
+      fj1 = (2 * j + 1) % mf;
 
       uf[fj * mf + fi] += (9 * cij + 3 * ec[j * mc + im] + 3 * ec[jm * mc + i] +
                            ec[jm * mc + im]) /
@@ -883,11 +886,12 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
 
 static void mg_matvec_lap(const double *u, const double *f, double *r, int m,
                           void *ctx) {
+  int ip, im, jp, jm;
   (void)f; (void)ctx;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
-      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
-          jm = (j - 1 + m) % m;
+      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
+      jm = (j - 1 + m) % m;
       r[j * m + i] = -4 * u[j * m + i] + u[j * m + ip] + u[j * m + im] +
                      u[jp * m + i] + u[jm * m + i];
     }
@@ -907,11 +911,11 @@ static void mg_smooth_helm(double *u, const double *f, int m, int niter,
                            double alpha_h2) {
   double a = 1.0 + 4.0 * alpha_h2;
   double ia = 1.0 / a;
+  int ip, im, jp, jm;
   for (int it = 0; it < niter; it++)
     for (int color = 0; color < 2; color++)
       for (int j = 0; j < m; j++)
         for (int i = 0; i < m; i++) {
-          int ip, im, jp, jm;
           if ((i + j) % 2 != color)
             continue;
           ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
@@ -926,10 +930,11 @@ static void mg_smooth_helm(double *u, const double *f, int m, int niter,
 static void mg_residual_helm(const double *u, const double *f, double *r, int m,
                              double alpha_h2) {
   double a = 1.0 + 4.0 * alpha_h2;
+  int ip, im, jp, jm;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
-      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
-          jm = (j - 1 + m) % m;
+      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
+      jm = (j - 1 + m) % m;
       r[j * m + i] =
           f[j * m + i] -
           (a * u[j * m + i] - alpha_h2 * (u[j * m + ip] + u[j * m + im] +
