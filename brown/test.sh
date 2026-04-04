@@ -5,37 +5,26 @@ cd "$(dirname "$0")"
 
 python3 gen_table.py
 
-gcc-15 -O2 -o main_omp main.c -fopenmp -lm
-gcc-15 -O2 -o main_seq main.c -lm
+cc -O2 -o main main.c -lm
 
-# --- Test 1: uniform grid, seq vs omp must match ---
 args_uni="-AdaptSteps 0 -CFL 0.8 -Rtol 1 -levelMax 3 -levelStart 3 -nu 1e-4 -sdump 0 -tdump 0.15 -tend 0.15"
+args_amr="-AdaptSteps 2 -CFL 0.8 -Rtol 0.5 -levelMax 4 -levelStart 2 -nu 1e-4 -sdump 0 -tdump 0.15 -tend 0.15"
 
 rm -f *.raw
-./main_seq $args_uni 2>/dev/null
-mkdir -p _test_seq
-mv *.raw _test_seq/
+./main $args_uni 2>/dev/null
+mkdir -p _test_uni
+mv *.raw _test_uni/
 
 rm -f *.raw
-./main_omp $args_uni 2>/dev/null
-mkdir -p _test_omp
-mv *.raw _test_omp/
-
-# --- Test 2: AMR run, check refine+coarsen happens ---
-args_amr="-AdaptSteps 2 -CFL 0.8 -Rtol 0.1 -levelMax 5 -levelStart 2 -nu 1e-4 -sdump 0 -tdump 0.15 -tend 0.15"
-
-rm -f *.raw
-./main_omp $args_amr 2>_test_amr.log
+./main $args_amr 2>_test_amr.log
 mkdir -p _test_amr
 mv *.raw _test_amr/
 
-# --- Check ---
 cc -O2 -x c -o check_dumps - -lm <<'EOF'
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 enum { BS = 8 };
 
@@ -49,34 +38,38 @@ static long fsize(const char *path) {
 }
 
 static int nblocks(const char *path) {
-  long sz = fsize(path);
-  return (int)(sz / (3 * sizeof(int32_t)));
+  return (int)(fsize(path) / (3 * sizeof(int32_t)));
 }
 
 int main(void) {
   int ok = 1;
 
-  /* Test 1: seq vs omp on uniform grid */
   {
-    long n_seq = fsize("_test_seq/00000001.vort.raw") / sizeof(double);
-    long n_omp = fsize("_test_omp/00000001.vort.raw") / sizeof(double);
-    if (n_seq != n_omp) {
-      fprintf(stderr, "FAIL test1: cell count seq=%ld omp=%ld\n", n_seq, n_omp);
-      return 1;
+    long n = fsize("_test_uni/00000001.vort.raw") / sizeof(double);
+    FILE *f = fopen("_test_uni/00000001.vort.raw", "rb");
+    double wmin = 1e30, wmax = -1e30;
+    long i;
+    for (i = 0; i < n; i++) {
+      double v;
+      fread(&v, sizeof(double), 1, f);
+      if (v < wmin) wmin = v;
+      if (v > wmax) wmax = v;
     }
-    FILE *fs = fopen("_test_seq/00000001.vort.raw", "rb");
-    FILE *fo = fopen("_test_omp/00000001.vort.raw", "rb");
-    double maxerr = 0;
-    for (long i = 0; i < n_seq; i++) {
-      double vs, vo;
-      fread(&vs, sizeof(double), 1, fs);
-      fread(&vo, sizeof(double), 1, fo);
-      double e = fabs(vs - vo);
-      if (e > maxerr) maxerr = e;
+    fclose(f);
+    fprintf(stderr, "test1 (uniform): vort [%.1f, %.1f]", wmin, wmax);
+    if (wmax < 5 || wmin > -5) {
+      fprintf(stderr, " FAIL (vorticity too small)\n");
+      ok = 0;
+    } else {
+      fprintf(stderr, " PASS\n");
     }
-    fclose(fs); fclose(fo);
-    fprintf(stderr, "test1 (seq vs omp uniform): maxerr=%.6e", maxerr);
-    if (maxerr > 10.0) {
+  }
+
+  {
+    int nb0 = nblocks("_test_amr/00000000.xyz.raw");
+    int nb1 = nblocks("_test_amr/00000001.xyz.raw");
+    fprintf(stderr, "test2 (AMR): %d -> %d blocks", nb0, nb1);
+    if (nb0 == nb1) {
       fprintf(stderr, " FAIL\n");
       ok = 0;
     } else {
@@ -84,26 +77,12 @@ int main(void) {
     }
   }
 
-  /* Test 2: AMR triggers refine and coarsen */
-  {
-    int nb0 = nblocks("_test_amr/00000000.xyz.raw");
-    int nb1 = nblocks("_test_amr/00000001.xyz.raw");
-    fprintf(stderr, "test2 (AMR): %d -> %d blocks", nb0, nb1);
-    if (nb0 == nb1) {
-      fprintf(stderr, " FAIL (no adaptation)\n");
-      ok = 0;
-    } else {
-      fprintf(stderr, " PASS\n");
-    }
-  }
-
-  /* Test 3: check refine and coarsen both happened */
   {
     FILE *f = fopen("_test_amr.log", "r");
     int saw_ref = 0, saw_com = 0;
     char line[256];
+    int c, r;
     while (fgets(line, sizeof line, f)) {
-      int c, r;
       if (sscanf(line, "  ad: com/ref %d/%d", &c, &r) == 2) {
         if (r > 0) saw_ref = 1;
         if (c > 0) saw_com = 1;
@@ -124,5 +103,5 @@ int main(void) {
 EOF
 
 ./check_dumps
-rm -f check_dumps main_seq main_omp _test_amr.log
-rm -rf _test_seq _test_omp _test_amr
+rm -f check_dumps main _test_amr.log
+rm -rf _test_uni _test_amr

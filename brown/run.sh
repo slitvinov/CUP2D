@@ -1,7 +1,7 @@
 #!/bin/sh
 
 python3 gen_table.py &&
-gcc-15 -O2 -o main main.c -fopenmp -lm &&
+cc -O2 -o main main.c -lm &&
 cc -O2 -o mesh2png ../tools/mesh2png.c -lz &&
 cc -O2 -o mesh2iso ../tools/mesh2iso.c -lz -lm &&
 ${main=./main} \
