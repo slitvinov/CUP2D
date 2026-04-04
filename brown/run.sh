@@ -5,14 +5,14 @@ cc -O2 -o main main.c -lm &&
 cc -O2 -o mesh2png ../tools/mesh2png.c -lz &&
 cc -O2 -o mesh2iso ../tools/mesh2iso.c -lz -lm &&
 ${main=./main} \
--AdaptSteps 2 \
--CFL 0.8 \
+-AdaptSteps 0 \
+-CFL 0.9 \
 -Rtol 0.1 \
--levelMax 5 \
+-levelMax 3 \
 -levelStart 3 \
 -nu 1e-4 \
 -sdump 0 \
--tdump 0.01 \
+-tdump 0.4 \
 -tend 1.2 \
 &&
 set -- *.xyz.raw

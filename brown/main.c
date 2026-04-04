@@ -722,17 +722,15 @@ static void advect_diffuse(Real dt) {
   Real *um, *un_out, *vm, *vn_out;
   Real adv_u, adv_v, alpha, cu, cv, dpx, dpy, dtdx, dth, euR, euT, evR, evT, h,
       ih, lap_u, lap_v, nu, sL, sR, su, su1, sv, sv1, svL, svR, tu, tv, uL, uR,
-      uR_L, uR_R;
+      uR_L, uR_R, uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT,
+      vn, vn1, vx, vy, vy1;
   Real beu[LB_BUF], beut[LB_BUF], bev[LB_BUF], bevr[LB_BUF], bp[LB_BUF],
       bu[LB_BUF], bum[LB_BUF], bv[LB_BUF], bvm[LB_BUF];
   int i, j, nm, nm1, nm2, nm3;
   long long id;
 
-  Real uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT, vn, vn1, vx, vy,
-      vy1;
   alpha = sim.nu * dt * 0.5;
   dth = 0.5 * dt;
-
   nm = BS + 6;
 #define Q(b, i, j) b[nm * ((j) + 3) + (i) + 3]
   for (id = 0; id < sim.n; id++) {
@@ -779,8 +777,10 @@ static void advect_diffuse(Real dt) {
   mac_project(dt);
 
   nm3 = BS + 6;
+  nm2 = BS + 4;
   nm1 = BS + 2;
 #define Q3(b, i, j) b[nm3 * ((j) + 3) + (i) + 3]
+#define Q2(b, i, j) b[nm2 * ((j) + 2) + (i) + 2]
 #define Q1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
   for (id = 0; id < sim.n; id++) {
     un_out = BLK(id) + BS * BS * F_TMP;
@@ -791,7 +791,7 @@ static void advect_diffuse(Real dt) {
     nu = sim.nu;
     lb_load(bu, 1, F_U, 3, id);
     lb_load(bv, 1, F_V, 3, id);
-    lb_load(bp, 1, F_P, 1, id);
+    lb_load(bp, 1, F_P, 2, id);
     lb_load(bum, 1, F_UMAC, 1, id);
     lb_load(bvm, 1, F_VMAC, 1, id);
     for (j = 0; j < BS; j++)
@@ -816,8 +816,8 @@ static void advect_diffuse(Real dt) {
         lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
                  Q3(bv, i, j - 1) - 4 * vc) *
                 ih * ih;
-        dpx = (Q1(bp, i + 1, j) - Q1(bp, i - 1, j)) * 0.5 * ih;
-        dpy = (Q1(bp, i, j + 1) - Q1(bp, i, j - 1)) * 0.5 * ih;
+        dpx = (Q2(bp, i + 1, j) - Q2(bp, i - 1, j)) * 0.5 * ih;
+        dpy = (Q2(bp, i, j + 1) - Q2(bp, i, j - 1)) * 0.5 * ih;
 
         cu = dth * (nu * lap_u - dpx);
         cv = dth * (nu * lap_v - dpy);
@@ -838,7 +838,7 @@ static void advect_diffuse(Real dt) {
                        (Q3(bu, i + 2, j) + Q3(bu, i, j) + Q3(bu, i + 1, j + 1) +
                         Q3(bu, i + 1, j - 1) - 4 * un1) *
                        ih * ih -
-                   (Q1(bp, i + 2, j) - Q1(bp, i, j)) * 0.5 * ih);
+                   (Q2(bp, i + 2, j) - Q2(bp, i, j)) * 0.5 * ih);
 
         vn1 = Q3(bv, i, j + 1);
         vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1, Q3(bv, i, j + 2),
@@ -848,7 +848,7 @@ static void advect_diffuse(Real dt) {
                           (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
                            Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
                           ih * ih -
-                      (Q1(bp, i, j + 2) - Q1(bp, i, j)) * 0.5 * ih);
+                      (Q2(bp, i, j + 2) - Q2(bp, i, j)) * 0.5 * ih);
 
         euR = (umR >= 0) ? uR_L : uR_R;
         evT = (vmT >= 0) ? vT_B : vT_T;
@@ -872,6 +872,7 @@ static void advect_diffuse(Real dt) {
       }
   }
 #undef Q3
+#undef Q2
 #undef Q1
 
   nm1 = BS + 2;
@@ -1077,6 +1078,53 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
   }
 }
 
+static void blk_laplacian_std(int src, int dst_field) {
+  Real *out;
+  Real c, h;
+  Real buf[LB_BUF];
+  int i, j, nm;
+  long long id;
+
+  nm = BS + 2;
+  for (id = 0; id < sim.n; id++) {
+    out = BLK(id) + BS * BS * dst_field;
+    h = sim.blk[id].h;
+    c = 1.0 / (h * h);
+    lb_load(buf, 1, src, 1, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
+#define PH(di, dj) buf[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
+        out[j * BS + i] =
+            (PH(1, 0) + PH(-1, 0) + PH(0, 1) + PH(0, -1) - 4 * PH(0, 0)) * c;
+#undef PH
+      }
+  }
+}
+
+static void blk_smooth_poisson_std(int rhs_field, int sol_field, int niter) {
+  Real *f, *u;
+  Real buf[LB_BUF];
+  int i, it, j, nm;
+  long long id;
+
+  for (it = 0; it < niter; it++) {
+    nm = BS + 2;
+    for (id = 0; id < sim.n; id++) {
+      u = BLK(id) + BS * BS * sol_field;
+      f = BLK(id) + BS * BS * rhs_field;
+      lb_load(buf, 1, sol_field, 1, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+#define PB(di, dj) buf[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
+          u[j * BS + i] = 0.25 * (PB(1, 0) + PB(-1, 0) + PB(0, 1) + PB(0, -1) -
+                                  f[j * BS + i]);
+#undef PB
+        }
+    }
+    blk_mean_sub(sol_field);
+  }
+}
+
 static void mac_project(Real dt) {
   Real *f, *p, *r, *rhs, *um, *vm, *z;
   Real al, beta, h, ih, pAp, rmax, rz, rz2;
@@ -1087,15 +1135,14 @@ static void mac_project(Real dt) {
   nm = BS + 2;
   for (id = 0; id < sim.n; id++) {
     rhs = BLK(id) + BS * BS * F_TMP;
-    h = sim.blk[id].h;
+    ih = 1.0 / sim.blk[id].h;
     lb_load(bum, 1, F_UMAC, 1, id);
     lb_load(bvm, 1, F_VMAC, 1, id);
 #define UM(di, dj) bum[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
 #define VM(di, dj) bvm[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++)
-        rhs[j * BS + i] =
-            2.0 * h * (UM(1, 0) - UM(-1, 0) + VM(0, 1) - VM(0, -1));
+        rhs[j * BS + i] = (UM(0, 0) - UM(-1, 0) + VM(0, 0) - VM(0, -1)) * ih;
 #undef UM
 #undef VM
   }
@@ -1103,7 +1150,7 @@ static void mac_project(Real dt) {
   for (id = 0; id < sim.n; id++)
     memset(BLK(id) + BS * BS * F_TMP2, 0, BS * BS * sizeof(Real));
 
-  blk_laplacian(F_TMP2, F_W);
+  blk_laplacian_std(F_TMP2, F_W);
   for (id = 0; id < sim.n; id++) {
     r = BLK(id) + BS * BS * F_W;
     f = BLK(id) + BS * BS * F_TMP;
@@ -1112,11 +1159,11 @@ static void mac_project(Real dt) {
   blk_mean_sub(F_W);
   for (id = 0; id < sim.n; id++)
     memset(BLK(id) + BS * BS * F_PHI, 0, BS * BS * sizeof(Real));
-  blk_smooth_poisson(F_W, F_PHI, 4);
+  blk_smooth_poisson_std(F_W, F_PHI, 4);
   blk_copy(F_PHI, F_TMP3);
   rz = blk_dot(F_W, F_PHI);
   for (iter = 0; iter < 200; iter++) {
-    blk_laplacian(F_TMP3, F_PHI);
+    blk_laplacian_std(F_TMP3, F_PHI);
     pAp = blk_dot(F_TMP3, F_PHI);
     if (fabs(pAp) < 1e-30) break;
     al = rz / pAp;
@@ -1133,7 +1180,7 @@ static void mac_project(Real dt) {
     if (rmax < 1e-10) break;
     for (id = 0; id < sim.n; id++)
       memset(BLK(id) + BS * BS * F_PHI, 0, BS * BS * sizeof(Real));
-    blk_smooth_poisson(F_W, F_PHI, 4);
+    blk_smooth_poisson_std(F_W, F_PHI, 4);
     rz2 = blk_dot(F_W, F_PHI);
     beta = rz2 / (rz + 1e-30);
     for (id = 0; id < sim.n; id++) {
@@ -1149,13 +1196,13 @@ static void mac_project(Real dt) {
   for (id = 0; id < sim.n; id++) {
     um = BLK(id) + BS * BS * F_UMAC;
     vm = BLK(id) + BS * BS * F_VMAC;
-    ih = 0.5 / sim.blk[id].h;
+    ih = 1.0 / sim.blk[id].h;
     lb_load(bphi, 1, F_TMP2, 1, id);
 #define PH(di, dj) bphi[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        um[j * BS + i] -= (PH(1, 0) - PH(-1, 0)) * ih;
-        vm[j * BS + i] -= (PH(0, 1) - PH(0, -1)) * ih;
+        um[j * BS + i] -= (PH(1, 0) - PH(0, 0)) * ih;
+        vm[j * BS + i] -= (PH(0, 1) - PH(0, 0)) * ih;
       }
 #undef PH
   }
@@ -1185,7 +1232,7 @@ static void poisson_solve(Real dt) {
       }
   }
 
-  blk_laplacian(F_PHI, F_W);
+  blk_laplacian_std(F_PHI, F_W);
   for (id = 0; id < sim.n; id++) {
     r = BLK(id) + BS * BS * F_W;
     f = BLK(id) + BS * BS * F_TMP;
@@ -1195,12 +1242,12 @@ static void poisson_solve(Real dt) {
 
   for (id = 0; id < sim.n; id++)
     memset(BLK(id) + BS * BS * F_TMP3, 0, BS * BS * sizeof(Real));
-  blk_smooth_poisson(F_W, F_TMP3, 4);
+  blk_smooth_poisson_std(F_W, F_TMP3, 4);
   blk_copy(F_TMP3, F_TMP2);
   rz = blk_dot(F_W, F_TMP3);
 
   for (iter = 0; iter < 200; iter++) {
-    blk_laplacian(F_TMP2, F_TMP3);
+    blk_laplacian_std(F_TMP2, F_TMP3);
     pAp = blk_dot(F_TMP2, F_TMP3);
     if (fabs(pAp) < 1e-30) break;
     al = rz / pAp;
@@ -1218,7 +1265,7 @@ static void poisson_solve(Real dt) {
 
     for (id = 0; id < sim.n; id++)
       memset(BLK(id) + BS * BS * F_TMP3, 0, BS * BS * sizeof(Real));
-    blk_smooth_poisson(F_W, F_TMP3, 4);
+    blk_smooth_poisson_std(F_W, F_TMP3, 4);
     rz2 = blk_dot(F_W, F_TMP3);
     beta = rz2 / (rz + 1e-30);
 
@@ -1281,17 +1328,14 @@ int main(int argc, char **argv) {
   Real delta, h, ih, rho_layer, smax, x, y;
   char *base, *mend, *mkey, *mval;
   char mpath[FILENAME_MAX];
-  int do_dump, i, ix, iy, j, mi, ns, ntab, nthreads;
+  int do_dump, i, ix, iy, j, mi, ns, ntab;
   int seen[16];
   long long midx;
   struct Blk *info;
 
-  nthreads = 1;
   base = (char *)&sim;
   ntab = sizeof param_tab / sizeof *param_tab;
   memset(seen, 0, sizeof seen);
-  nthreads = 1;
-  fprintf(stderr, "main.c: %d threads\n", nthreads);
   argv++;
   while (*argv) {
     if ((*argv)[0] != '-' || !argv[1]) {
