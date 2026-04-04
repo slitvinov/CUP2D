@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 enum { MAXSRC = 4 * 1024 * 1024, MAXDECL = 1024, MAXNAME = 64 };
 
@@ -16,13 +17,12 @@ static char src[MAXSRC];
 static int srcn;
 
 static int is_type_kw(const char *w) {
-  static const char *kw[] = {"int",    "long",     "char",    "short",
-                             "float",  "double",   "void",    "unsigned",
-                             "signed", "size_t",   "int8_t",  "int16_t",
-                             "int32_t","int64_t",  "uint8_t", "uint16_t",
-                             "uint32_t","uint64_t","Real",    "enum",
-                             "struct", "const",    "static",  "volatile",
-                             NULL};
+  static const char *kw[] = {
+      "int",      "long",     "char",     "short",    "float",
+      "double",   "void",     "unsigned", "signed",   "size_t",
+      "int8_t",   "int16_t",  "int32_t",  "int64_t",  "uint8_t",
+      "uint16_t", "uint32_t", "uint64_t", "Real",     "enum",
+      "struct",   "const",    "static",   "volatile", NULL};
   for (int i = 0; kw[i]; i++)
     if (strcmp(w, kw[i]) == 0) return 1;
   return 0;
@@ -50,18 +50,25 @@ static int skip_balanced(int p) {
   char open = src[p], close;
   int depth = 1;
   if (open == '(') close = ')';
-  else if (open == '[') close = ']';
-  else if (open == '{') close = '}';
-  else return p + 1;
+  else if (open == '[')
+    close = ']';
+  else if (open == '{')
+    close = '}';
+  else
+    return p + 1;
   p++;
   while (p < srcn && depth > 0) {
     if (src[p] == '"' || src[p] == '\'') {
       char q = src[p++];
-      while (p < srcn && src[p] != q) { if (src[p] == '\\') p++; p++; }
+      while (p < srcn && src[p] != q) {
+        if (src[p] == '\\') p++;
+        p++;
+      }
       if (p < srcn) p++;
     } else {
       if (src[p] == open) depth++;
-      else if (src[p] == close) depth--;
+      else if (src[p] == close)
+        depth--;
       p++;
     }
   }
@@ -72,11 +79,11 @@ static int skip_balanced(int p) {
 static int find_close_brace(int p) { return skip_balanced(p); }
 
 struct Decl {
-  int start, end;  /* byte range in src */
-  int has_init;    /* has = initializer */
-  int has_brace;   /* initializer contains { */
-  char type[128];  /* base type string */
-  char name[MAXNAME]; /* variable name (without * or []) */
+  int start, end;      /* byte range in src */
+  int has_init;        /* has = initializer */
+  int has_brace;       /* initializer contains { */
+  char type[128];      /* base type string */
+  char name[MAXNAME];  /* variable name (without * or []) */
   char full_name[128]; /* full declarator e.g. "*p" or "buf[100]" */
 };
 
@@ -90,90 +97,135 @@ struct Func {
 static struct Func funcs[256];
 static int nfuncs;
 
-/* try to parse a declaration at position p inside a block.
-   returns end position if found, or 0 if not a declaration. */
-static int try_parse_decl(int p, struct Decl *d) {
+/* parse type prefix at p, return position after type keywords.
+   fills type_str. returns 0 if no type found. */
+static int parse_type(int p, char *type_str, int type_sz) {
   int p0 = p;
   char word[128];
   int type_end;
 
-  /* skip qualifiers and type keywords */
   p = skipws(p);
   type_end = p;
   while (1) {
     int wp = p;
     p = read_ident(p, word, sizeof word);
     if (word[0] == 0) break;
-    if (!is_type_kw(word)) { p = wp; break; }
+    if (!is_type_kw(word)) {
+      p = wp;
+      break;
+    }
     p = skipws(p);
-    /* handle 'struct Name' or 'enum Name' */
     if (strcmp(word, "struct") == 0 || strcmp(word, "enum") == 0) {
       p = read_ident(p, word, sizeof word);
       p = skipws(p);
-      /* anonymous struct definition { ... } — not a declaration we hoist */
       if (p < srcn && src[p] == '{') return 0;
     }
     type_end = p;
   }
-  if (type_end == p0 + (skipws(p0) - p0)) return 0; /* no type found */
+  if (type_end <= skipws(p0)) return 0;
 
-  /* extract type string */
-  { int ts = skipws(p0), te = type_end;
-    while (te > ts && isspace((unsigned char)src[te-1])) te--;
+  {
+    int ts = skipws(p0), te = type_end;
+    while (te > ts && isspace((unsigned char)src[te - 1])) te--;
     int len = te - ts;
-    if (len <= 0 || len >= (int)sizeof(d->type)) return 0;
-    memcpy(d->type, src + ts, len);
-    d->type[len] = 0;
+    if (len <= 0 || len >= type_sz) return 0;
+    memcpy(type_str, src + ts, len);
+    type_str[len] = 0;
+  }
+  return type_end;
+}
+
+/* parse one declarator at p (after type): optional *, name, optional [].
+   fills d->name, d->full_name, d->has_init, d->has_brace.
+   returns position after this declarator (at , or ;), or 0 on failure. */
+static int parse_declarator(int p, struct Decl *d) {
+  char word[128];
+  int fi = 0;
+
+  p = skipws(p);
+  while (p < srcn && src[p] == '*') {
+    d->full_name[fi++] = '*';
+    p++;
+    p = skipws(p);
+  }
+  p = read_ident(p, word, sizeof word);
+  if (word[0] == 0) return 0;
+  strncpy(d->name, word, MAXNAME - 1);
+  {
+    int i;
+    for (i = 0; word[i] && fi < 126; i++) d->full_name[fi++] = word[i];
   }
 
-  /* now expect declarator: optional *, name, optional [size] */
   p = skipws(p);
-  int fi = 0;
-  while (p < srcn && src[p] == '*') { d->full_name[fi++] = '*'; p++; p = skipws(p); }
-  p = read_ident(p, word, sizeof word);
-  if (word[0] == 0) return 0; /* no identifier — not a declaration */
-  strncpy(d->name, word, MAXNAME - 1);
-  for (int i = 0; word[i] && fi < 126; i++) d->full_name[fi++] = word[i];
-
-  p = skipws(p);
-  /* array suffix */
   if (p < srcn && src[p] == '[') {
-    int bracket_start = p;
+    int bs = p;
     p = skip_balanced(p);
-    int blen = p - bracket_start;
-    if (fi + blen < 126) { memcpy(d->full_name + fi, src + bracket_start, blen); fi += blen; }
+    int blen = p - bs;
+    if (fi + blen < 126) {
+      memcpy(d->full_name + fi, src + bs, blen);
+      fi += blen;
+    }
     p = skipws(p);
   }
   d->full_name[fi] = 0;
 
-  /* check for = initializer */
   d->has_init = 0;
   d->has_brace = 0;
   if (p < srcn && src[p] == '=') {
     d->has_init = 1;
-    p++; p = skipws(p);
+    p++;
+    p = skipws(p);
     if (p < srcn && src[p] == '{') d->has_brace = 1;
   }
 
-  /* skip to ; or , */
+  /* skip to , or ; */
   while (p < srcn && src[p] != ';' && src[p] != ',') {
     if (src[p] == '(' || src[p] == '[' || src[p] == '{') p = skip_balanced(p);
-    else p++;
+    else
+      p++;
+  }
+  return p;
+}
+
+/* try to parse declaration(s) at p. may produce multiple Decl for
+   "int a, b, c;". returns end position, or 0 if not a declaration.
+   *ndecl_out receives number of declarations added to d[]. */
+static int try_parse_decls(int p, struct Decl *d, int maxd, int *ndecl_out) {
+  int p0 = p;
+  char type_str[128];
+  int nd = 0;
+
+  int tp = parse_type(p, type_str, sizeof type_str);
+  if (tp == 0) return 0;
+  p = tp;
+
+  /* parse comma-separated declarators */
+  while (nd < maxd) {
+    struct Decl dd;
+    memset(&dd, 0, sizeof dd);
+    strcpy(dd.type, type_str);
+    int dp = parse_declarator(p, &dd);
+    if (dp == 0) return 0;
+    dd.start = p0;
+    /* dd.end will be set to the full statement end below */
+    d[nd++] = dd;
+    p = dp;
+    if (p < srcn && src[p] == ',') {
+      p++;
+      continue;
+    }
+    break;
   }
 
-  /* for now, handle single-declarator lines only (stop at ;) */
-  /* skip multi-declarator (,) — just consume to ; */
-  while (p < srcn && src[p] != ';') {
-    if (src[p] == '(' || src[p] == '[' || src[p] == '{') p = skip_balanced(p);
-    else p++;
-  }
-  if (p < srcn) p++; /* skip ; */
-
-  /* skip trailing newline */
+  if (p < srcn && src[p] == ';') p++;
   if (p < srcn && src[p] == '\n') p++;
 
-  d->start = p0;
-  d->end = p;
+  /* set end for all declarators to the full statement end */
+  {
+    int i;
+    for (i = 0; i < nd; i++) d[i].end = p;
+  }
+  *ndecl_out = nd;
   return p;
 }
 
@@ -193,7 +245,8 @@ static void find_functions(void) {
         int depth = 1, r = q - 1;
         while (r >= 0 && depth > 0) {
           if (src[r] == ')') depth++;
-          else if (src[r] == '(') depth--;
+          else if (src[r] == '(')
+            depth--;
           r--;
         }
         r++; /* r is at ( */
@@ -201,7 +254,7 @@ static void find_functions(void) {
         int ne = r - 1;
         while (ne >= 0 && isspace((unsigned char)src[ne])) ne--;
         int ns = ne;
-        while (ns > 0 && is_ident_char(src[ns-1])) ns--;
+        while (ns > 0 && is_ident_char(src[ns - 1])) ns--;
         if (ns <= ne && ne >= 0) {
           int len = ne - ns + 1;
           if (len > 0 && len < MAXNAME && nfuncs < 256) {
@@ -214,8 +267,8 @@ static void find_functions(void) {
           }
         }
       }
-      if (nfuncs > 0 && funcs[nfuncs-1].body_start == p)
-        p = funcs[nfuncs-1].body_end;
+      if (nfuncs > 0 && funcs[nfuncs - 1].body_start == p)
+        p = funcs[nfuncs - 1].body_end;
       else
         p = skip_balanced(p); /* skip non-function { } block */
     } else {
@@ -224,12 +277,13 @@ static void find_functions(void) {
   }
 }
 
-static void emit(const char *s, int len) { fwrite(s, 1, len, stdout); }
+static FILE *outfp;
+static void emit(const char *s, int len) { fwrite(s, 1, len, outfp); }
 
 static void process_function(struct Func *f) {
   struct Decl decls[MAXDECL];
   int ndecl = 0;
-  int body = f->body_start + 1; /* after { */
+  int body = f->body_start + 1;   /* after { */
   int body_end = f->body_end - 1; /* before } */
 
   /* collect all declarations recursively */
@@ -238,26 +292,32 @@ static void process_function(struct Func *f) {
     p = skipws(p);
     if (p >= body_end) break;
     /* try to parse a declaration */
-    struct Decl d;
-    int end = try_parse_decl(p, &d);
-    if (end > 0 && !d.has_brace) {
-      decls[ndecl++] = d;
+    struct Decl dd[32];
+    int ndd = 0;
+    int end = try_parse_decls(p, dd, 32, &ndd);
+    if (end > 0 && ndd > 0 && !dd[0].has_brace) {
+      int k;
+      for (k = 0; k < ndd && ndecl < MAXDECL; k++) decls[ndecl++] = dd[k];
       p = end;
     } else if (src[p] == '{') {
       /* enter block, continue looking for declarations */
       p++;
     } else if (src[p] == '}') {
       p++;
-    } else if (strncmp(src + p, "for", 3) == 0 && !is_ident_char(src[p+3])) {
+    } else if (strncmp(src + p, "for", 3) == 0 && !is_ident_char(src[p + 3])) {
       /* skip for(...) but look inside the body */
-      p += 3; p = skipws(p);
+      p += 3;
+      p = skipws(p);
       if (src[p] == '(') p = skip_balanced(p);
       /* the body will be scanned by the outer loop */
-    } else if (strncmp(src + p, "if", 2) == 0 && !is_ident_char(src[p+2])) {
-      p += 2; p = skipws(p);
+    } else if (strncmp(src + p, "if", 2) == 0 && !is_ident_char(src[p + 2])) {
+      p += 2;
+      p = skipws(p);
       if (src[p] == '(') p = skip_balanced(p);
-    } else if (strncmp(src + p, "while", 5) == 0 && !is_ident_char(src[p+5])) {
-      p += 5; p = skipws(p);
+    } else if (strncmp(src + p, "while", 5) == 0 &&
+               !is_ident_char(src[p + 5])) {
+      p += 5;
+      p = skipws(p);
       if (src[p] == '(') p = skip_balanced(p);
     } else if (src[p] == '#') {
       /* skip preprocessor directive */
@@ -266,9 +326,11 @@ static void process_function(struct Func *f) {
     } else {
       /* skip to end of statement */
       int p0 = p;
-      while (p < body_end && src[p] != ';' && src[p] != '{' && src[p] != '}' && src[p] != '#') {
+      while (p < body_end && src[p] != ';' && src[p] != '{' && src[p] != '}' &&
+             src[p] != '#') {
         if (src[p] == '(' || src[p] == '[') p = skip_balanced(p);
-        else p++;
+        else
+          p++;
       }
       if (p < body_end && src[p] == ';') p++;
       if (p == p0) p++; /* safety: always advance */
@@ -301,7 +363,11 @@ static void process_function(struct Func *f) {
       int ci = order[i], cj = order[j];
       int cmp = strcmp(decls[ci].type, decls[cj].type);
       if (cmp == 0) cmp = strcmp(decls[ci].full_name, decls[cj].full_name);
-      if (cmp > 0) { int t = order[i]; order[i] = order[j]; order[j] = t; }
+      if (cmp > 0) {
+        int t = order[i];
+        order[i] = order[j];
+        order[j] = t;
+      }
     }
 
   /* emit { */
@@ -315,11 +381,11 @@ static void process_function(struct Func *f) {
     if (!keep[i]) continue;
     if (strcmp(decls[i].type, prev_type) != 0) {
       if (!line_start) emit(";\n", 2);
-      fprintf(stdout, "  %s %s", decls[i].type, decls[i].full_name);
+      fprintf(outfp, "  %s %s", decls[i].type, decls[i].full_name);
       strcpy(prev_type, decls[i].type);
       line_start = 0;
     } else {
-      fprintf(stdout, ", %s", decls[i].full_name);
+      fprintf(outfp, ", %s", decls[i].full_name);
     }
   }
   if (!line_start) emit(";\n", 2);
@@ -330,7 +396,10 @@ static void process_function(struct Func *f) {
     /* check if current position matches a collected declaration */
     int found = -1;
     for (int i = 0; i < ndecl; i++) {
-      if (decls[i].start == p) { found = i; break; }
+      if (decls[i].start == p) {
+        found = i;
+        break;
+      }
     }
     if (found >= 0) {
       struct Decl *d = &decls[found];
@@ -342,16 +411,19 @@ static void process_function(struct Func *f) {
         if (eq < d->end) {
           /* emit indentation from original */
           int ls = d->start;
-          while (ls < eq && isspace((unsigned char)src[ls])) { fputc(src[ls], stdout); ls++; }
+          while (ls < eq && isspace((unsigned char)src[ls])) {
+            fputc(src[ls], outfp);
+            ls++;
+          }
           /* emit name = rest */
-          fprintf(stdout, "%s ", d->name);
+          fprintf(outfp, "%s ", d->name);
           emit(src + eq, d->end - eq);
         }
       }
       /* skip the declaration in source */
       p = d->end;
     } else {
-      fputc(src[p], stdout);
+      fputc(src[p], outfp);
       p++;
     }
   }
@@ -362,47 +434,73 @@ static void process_function(struct Func *f) {
 
 int main(int argc, char **argv) {
   char *only_func = NULL;
+  char *inplace = NULL;
   int list_mode = 0;
   int i;
 
   for (i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc)
-      only_func = argv[++i];
+    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
     else if (strcmp(argv[i], "-l") == 0)
       list_mode = 1;
+    else if (strcmp(argv[i], "-i") == 0 && i + 1 < argc)
+      inplace = argv[++i];
   }
 
-  srcn = fread(src, 1, MAXSRC - 1, stdin);
+  if (inplace) {
+    FILE *fp = fopen(inplace, "r");
+    if (!fp) {
+      fprintf(stderr, "cdecl: cannot open %s\n", inplace);
+      return 1;
+    }
+    srcn = fread(src, 1, MAXSRC - 1, fp);
+    fclose(fp);
+  } else {
+    srcn = fread(src, 1, MAXSRC - 1, stdin);
+  }
   src[srcn] = 0;
 
   find_functions();
 
   if (list_mode) {
     for (i = 0; i < nfuncs; i++)
-      fprintf(stdout, "%4d  %s\n",
-              funcs[i].body_end - funcs[i].body_start, funcs[i].name);
+      fprintf(stdout, "%4d  %s\n", funcs[i].body_end - funcs[i].body_start,
+              funcs[i].name);
     return 0;
   }
 
+  char tmppath[512] = "";
+  outfp = stdout;
+  if (inplace) {
+    snprintf(tmppath, sizeof tmppath, "/tmp/cdecl.%d.tmp", (int)getpid());
+    outfp = fopen(tmppath, "w");
+    if (!outfp) {
+      fprintf(stderr, "cdecl: cannot write %s\n", tmppath);
+      return 1;
+    }
+  }
+
   if (only_func) {
-    /* emit everything, replacing only the target function */
     int last = 0;
     for (i = 0; i < nfuncs; i++) {
       if (strcmp(funcs[i].name, only_func) != 0) continue;
-      emit(src + last, funcs[i].body_start - last);
+      fwrite(src + last, 1, funcs[i].body_start - last, outfp);
       process_function(&funcs[i]);
       last = funcs[i].body_end;
     }
-    emit(src + last, srcn - last);
+    fwrite(src + last, 1, srcn - last, outfp);
   } else {
-    /* process all functions */
     int last = 0;
     for (i = 0; i < nfuncs; i++) {
-      emit(src + last, funcs[i].body_start - last);
+      fwrite(src + last, 1, funcs[i].body_start - last, outfp);
       process_function(&funcs[i]);
       last = funcs[i].body_end;
     }
-    emit(src + last, srcn - last);
+    fwrite(src + last, 1, srcn - last, outfp);
+  }
+
+  if (inplace) {
+    fclose(outfp);
+    rename(tmppath, inplace);
   }
   return 0;
 }

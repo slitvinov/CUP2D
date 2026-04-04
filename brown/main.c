@@ -1276,12 +1276,11 @@ static struct Param param_tab[] = {
 };
 
 int main(int argc, char **argv) {
+  Real *u, *v, delta, h, ih, rho_layer, smax, x, y;
+  char *base, *mend, *mkey, *mval, mpath[FILENAME_MAX];
   int do_dump, i, iy, j, mi, ns, ntab, nthreads, seen[16];
-  char *base, *mend;
-  Real delta, rho_layer, smax;
-  char *mkey, *mval;
   long long midx;
-  char mpath[FILENAME_MAX];
+  struct Blk *info;
 
   nthreads = 1;
   base = (char *)&sim;
@@ -1336,15 +1335,15 @@ int main(int argc, char **argv) {
   fprintf(stderr, "main.c: IC rho=%g delta=%g nu=%g\n", rho_layer, delta,
           sim.nu);
   for (i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    Real *u = BLK(i) + BS * BS * F_U;
-    Real *v = BLK(i) + BS * BS * F_V;
-    Real h = info->h;
+    info = &sim.blk[i];
+    u = BLK(i) + BS * BS * F_U;
+    v = BLK(i) + BS * BS * F_V;
+    h = info->h;
     for (iy = 0; iy < BS; iy++)
       for (int ix = 0; ix < BS; ix++) {
-        int j = BS * iy + ix;
-        Real x = info->origin[0] + (ix + 0.5) * h;
-        Real y = info->origin[1] + (iy + 0.5) * h;
+        j = BS * iy + ix;
+        x = info->origin[0] + (ix + 0.5) * h;
+        y = info->origin[1] + (iy + 0.5) * h;
         u[j] = y <= 0.5 ? tanh(rho_layer * (y - 0.25))
                         : tanh(rho_layer * (0.75 - y));
         v[j] = delta * sin(2 * M_PI * x);
@@ -1372,9 +1371,9 @@ int main(int argc, char **argv) {
 
     smax = 0;
     for (i = 0; i < sim.n; i++) {
-      Real *u = BLK(i) + BS * BS * F_U;
-      Real *v = BLK(i) + BS * BS * F_V;
-      Real ih = 1.0 / sim.blk[i].h;
+      u = BLK(i) + BS * BS * F_U;
+      v = BLK(i) + BS * BS * F_V;
+      ih = 1.0 / sim.blk[i].h;
       for (j = 0; j < BS * BS; j++)
         smax = fmax(smax, fmax(fabs(u[j]), fabs(v[j])) * ih);
     }

@@ -16,13 +16,12 @@ static char src[MAXSRC];
 static int srcn;
 
 static int is_type_kw(const char *w) {
-  static const char *kw[] = {"int",     "long",     "char",     "short",
-                             "float",   "double",   "void",     "unsigned",
-                             "signed",  "size_t",   "int8_t",   "int16_t",
-                             "int32_t", "int64_t",  "uint8_t",  "uint16_t",
-                             "uint32_t","uint64_t", "Real",     "enum",
-                             "struct",  "const",    "static",   "volatile",
-                             NULL};
+  static const char *kw[] = {
+      "int",      "long",     "char",     "short",    "float",
+      "double",   "void",     "unsigned", "signed",   "size_t",
+      "int8_t",   "int16_t",  "int32_t",  "int64_t",  "uint8_t",
+      "uint16_t", "uint32_t", "uint64_t", "Real",     "enum",
+      "struct",   "const",    "static",   "volatile", NULL};
   int i;
   for (i = 0; kw[i]; i++)
     if (strcmp(w, kw[i]) == 0) return 1;
@@ -48,18 +47,25 @@ static int skip_balanced(int p) {
   char open = src[p], close;
   int depth = 1;
   if (open == '(') close = ')';
-  else if (open == '[') close = ']';
-  else if (open == '{') close = '}';
-  else return p + 1;
+  else if (open == '[')
+    close = ']';
+  else if (open == '{')
+    close = '}';
+  else
+    return p + 1;
   p++;
   while (p < srcn && depth > 0) {
     if (src[p] == '"' || src[p] == '\'') {
       char q = src[p++];
-      while (p < srcn && src[p] != q) { if (src[p] == '\\') p++; p++; }
+      while (p < srcn && src[p] != q) {
+        if (src[p] == '\\') p++;
+        p++;
+      }
       if (p < srcn) p++;
     } else {
       if (src[p] == open) depth++;
-      else if (src[p] == close) depth--;
+      else if (src[p] == close)
+        depth--;
       p++;
     }
   }
@@ -92,6 +98,7 @@ struct Func {
 
 static struct Func funcs[256];
 static int nfuncs;
+static const char *filename = "<stdin>";
 
 static int try_parse_decl(int p, struct Decl *d, int depth) {
   int p0 = p;
@@ -104,7 +111,10 @@ static int try_parse_decl(int p, struct Decl *d, int depth) {
     int wp = p;
     p = read_ident(p, word, sizeof word);
     if (word[0] == 0) break;
-    if (!is_type_kw(word)) { p = wp; break; }
+    if (!is_type_kw(word)) {
+      p = wp;
+      break;
+    }
     p = skipws(p);
     if (strcmp(word, "struct") == 0 || strcmp(word, "enum") == 0) {
       p = read_ident(p, word, sizeof word);
@@ -115,8 +125,9 @@ static int try_parse_decl(int p, struct Decl *d, int depth) {
   }
   if (type_end <= skipws(p0)) return 0;
 
-  { int ts = skipws(p0), te = type_end;
-    while (te > ts && isspace((unsigned char)src[te-1])) te--;
+  {
+    int ts = skipws(p0), te = type_end;
+    while (te > ts && isspace((unsigned char)src[te - 1])) te--;
     int len = te - ts;
     if (len <= 0 || len >= (int)sizeof(d->type)) return 0;
     memcpy(d->type, src + ts, len);
@@ -125,18 +136,28 @@ static int try_parse_decl(int p, struct Decl *d, int depth) {
 
   p = skipws(p);
   int fi = 0;
-  while (p < srcn && src[p] == '*') { d->full_name[fi++] = '*'; p++; p = skipws(p); }
+  while (p < srcn && src[p] == '*') {
+    d->full_name[fi++] = '*';
+    p++;
+    p = skipws(p);
+  }
   p = read_ident(p, word, sizeof word);
   if (word[0] == 0) return 0;
   strncpy(d->name, word, MAXNAME - 1);
-  { int i; for (i = 0; word[i] && fi < 126; i++) d->full_name[fi++] = word[i]; }
+  {
+    int i;
+    for (i = 0; word[i] && fi < 126; i++) d->full_name[fi++] = word[i];
+  }
 
   p = skipws(p);
   if (p < srcn && src[p] == '[') {
     int bs = p;
     p = skip_balanced(p);
     int blen = p - bs;
-    if (fi + blen < 126) { memcpy(d->full_name + fi, src + bs, blen); fi += blen; }
+    if (fi + blen < 126) {
+      memcpy(d->full_name + fi, src + bs, blen);
+      fi += blen;
+    }
     p = skipws(p);
   }
   d->full_name[fi] = 0;
@@ -147,20 +168,26 @@ static int try_parse_decl(int p, struct Decl *d, int depth) {
   if (p < srcn && src[p] == '=') {
     d->has_init = 1;
     int eq = p + 1;
-    p++; p = skipws(p);
+    p++;
+    p = skipws(p);
     if (p < srcn && src[p] == '{') d->has_brace = 1;
     int vs = p;
     while (p < srcn && src[p] != ';' && src[p] != ',') {
       if (src[p] == '(' || src[p] == '[' || src[p] == '{') p = skip_balanced(p);
-      else p++;
+      else
+        p++;
     }
     int vlen = p - vs;
-    if (vlen > 0 && vlen < 255) { memcpy(d->init_text, src + vs, vlen); d->init_text[vlen] = 0; }
+    if (vlen > 0 && vlen < 255) {
+      memcpy(d->init_text, src + vs, vlen);
+      d->init_text[vlen] = 0;
+    }
   }
 
   while (p < srcn && src[p] != ';') {
     if (src[p] == '(' || src[p] == '[' || src[p] == '{') p = skip_balanced(p);
-    else p++;
+    else
+      p++;
   }
   if (p < srcn) p++;
   if (p < srcn && src[p] == '\n') p++;
@@ -172,8 +199,8 @@ static int try_parse_decl(int p, struct Decl *d, int depth) {
   return p;
 }
 
-static void collect_decls(int start, int end, int depth,
-                          struct Decl *decls, int *ndecl) {
+static void collect_decls(int start, int end, int depth, struct Decl *decls,
+                          int *ndecl) {
   int p = start;
   while (p < end && *ndecl < MAXDECL) {
     p = skipws(p);
@@ -187,21 +214,26 @@ static void collect_decls(int start, int end, int depth,
       int close = skip_balanced(p);
       collect_decls(p + 1, close - 1, depth + 1, decls, ndecl);
       p = close;
-    } else if (strncmp(src+p, "for", 3) == 0 && !is_ident_char(src[p+3])) {
-      p += 3; p = skipws(p);
+    } else if (strncmp(src + p, "for", 3) == 0 && !is_ident_char(src[p + 3])) {
+      p += 3;
+      p = skipws(p);
       if (p < end && src[p] == '(') p = skip_balanced(p);
-    } else if (strncmp(src+p, "if", 2) == 0 && !is_ident_char(src[p+2])) {
-      p += 2; p = skipws(p);
+    } else if (strncmp(src + p, "if", 2) == 0 && !is_ident_char(src[p + 2])) {
+      p += 2;
+      p = skipws(p);
       if (p < end && src[p] == '(') p = skip_balanced(p);
-    } else if (strncmp(src+p, "while", 5) == 0 && !is_ident_char(src[p+5])) {
-      p += 5; p = skipws(p);
+    } else if (strncmp(src + p, "while", 5) == 0 &&
+               !is_ident_char(src[p + 5])) {
+      p += 5;
+      p = skipws(p);
       if (p < end && src[p] == '(') p = skip_balanced(p);
     } else if (src[p] == '}') {
       p++;
     } else {
       while (p < end && src[p] != ';' && src[p] != '{' && src[p] != '}') {
         if (src[p] == '(' || src[p] == '[') p = skip_balanced(p);
-        else p++;
+        else
+          p++;
       }
       if (p < end && src[p] == ';') p++;
     }
@@ -219,14 +251,15 @@ static void find_functions(void) {
         int depth = 1, r = q - 1;
         while (r >= 0 && depth > 0) {
           if (src[r] == ')') depth++;
-          else if (src[r] == '(') depth--;
+          else if (src[r] == '(')
+            depth--;
           r--;
         }
         r++;
         int ne = r - 1;
         while (ne >= 0 && isspace((unsigned char)src[ne])) ne--;
         int ns = ne;
-        while (ns > 0 && is_ident_char(src[ns-1])) ns--;
+        while (ns > 0 && is_ident_char(src[ns - 1])) ns--;
         if (ns <= ne && ne >= 0 && nfuncs < 256) {
           int len = ne - ns + 1;
           memcpy(funcs[nfuncs].name, src + ns, len);
@@ -234,7 +267,7 @@ static void find_functions(void) {
           funcs[nfuncs].body_start = p;
           funcs[nfuncs].body_end = skip_balanced(p);
           nfuncs++;
-          p = funcs[nfuncs-1].body_end;
+          p = funcs[nfuncs - 1].body_end;
           continue;
         }
       }
@@ -264,8 +297,7 @@ static int first_use_line(const char *name, int start, int end) {
   int nlen = strlen(name), p = start;
   while (p < end - nlen) {
     if (memcmp(src + p, name, nlen) == 0 &&
-        (p == 0 || !is_ident_char(src[p - 1])) &&
-        !is_ident_char(src[p + nlen]))
+        (p == 0 || !is_ident_char(src[p - 1])) && !is_ident_char(src[p + nlen]))
       return line_of(p);
     p++;
   }
@@ -291,13 +323,12 @@ static void report_function(struct Func *f) {
     for (j = i + 1; j < ndecl; j++) {
       if (strcmp(decls[i].name, decls[j].name) == 0) {
         dup[j] = i + 1;
-        if (strcmp(decls[i].type, decls[j].type) != 0)
-          shadow[j] = 1;
+        if (strcmp(decls[i].type, decls[j].type) != 0) shadow[j] = 1;
       }
     }
   }
 
-  printf("%s (line %d, %d lines)\n", f->name, fline, lines);
+  printf("%s:%d: %s (%d lines)\n", filename, fline, f->name, lines);
 
   for (i = 0; i < ndecl; i++) {
     struct Decl *d = &decls[i];
@@ -322,11 +353,10 @@ static void report_function(struct Func *f) {
     /* unusual situations */
     if (shadow[i])
       fl += snprintf(flags + fl, sizeof(flags) - fl, " SHADOW(%s->%s)",
-                     decls[dup[i]-1].type, d->type);
+                     decls[dup[i] - 1].type, d->type);
 
     if (d->has_brace)
       fl += snprintf(flags + fl, sizeof(flags) - fl, " BRACE_INIT");
-
 
     if (d->has_init && strstr(d->init_text, "->"))
       fl += snprintf(flags + fl, sizeof(flags) - fl, " MEMBER_INIT");
@@ -334,8 +364,7 @@ static void report_function(struct Func *f) {
     /* check if unused (count uses in function body excluding declaration) */
     if (!dup[i]) {
       int uses = count_uses(d->name, f->body_start, f->body_end);
-      if (uses <= 1)
-        fl += snprintf(flags + fl, sizeof(flags) - fl, " UNUSED");
+      if (uses <= 1) fl += snprintf(flags + fl, sizeof(flags) - fl, " UNUSED");
     }
 
     /* check late first use */
@@ -350,8 +379,8 @@ static void report_function(struct Func *f) {
     /* (detected by the parser as depth > 0 in for context — not easily
        distinguishable here, so skip) */
 
-    printf("  %-12s %-18s %-15s line %-4d",
-           flags, d->type, d->full_name, d->line);
+    printf("%s:%d: %-12s %-18s %s", filename, d->line, flags, d->type,
+           d->full_name);
     if (d->has_init) {
       char init_short[40];
       int ilen = strlen(d->init_text);
@@ -367,20 +396,29 @@ static void report_function(struct Func *f) {
     if (flags[0] != 'o') n_warn++;
   }
 
-  printf("  --- %d ok, %d to hoist, %d dup, %d warnings\n\n",
-         n_top, n_hoist, n_dup, n_warn);
+  printf("  --- %d ok, %d to hoist, %d dup, %d warnings\n\n", n_top, n_hoist,
+         n_dup, n_warn);
 }
 
 int main(int argc, char **argv) {
   char *only_func = NULL;
+  FILE *fp = stdin;
   int i;
 
   for (i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc)
-      only_func = argv[++i];
+    if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) only_func = argv[++i];
+    else if (argv[i][0] != '-') {
+      filename = argv[i];
+      fp = fopen(argv[i], "r");
+      if (!fp) {
+        fprintf(stderr, "cannot open %s\n", argv[i]);
+        return 1;
+      }
+    }
   }
 
-  srcn = fread(src, 1, MAXSRC - 1, stdin);
+  srcn = fread(src, 1, MAXSRC - 1, fp);
+  if (fp != stdin) fclose(fp);
   src[srcn] = 0;
   find_functions();
 
