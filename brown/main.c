@@ -500,11 +500,11 @@ static void compute_indicator(void) {
 }
 
 static void dump(Real time, int step, char *path) {
-  long i, j;
-  char attr_path[FILENAME_MAX], xyz_path[FILENAME_MAX];
   FILE *file;
+  char attr_path[FILENAME_MAX], xyz_path[FILENAME_MAX];
   int dim, offset;
   int32_t blk_info[3];
+  long i, j;
   size_t fi;
 
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
@@ -529,14 +529,14 @@ static void dump(Real time, int step, char *path) {
     }
 }
 
+
 static int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
   Real *b, *blk_omp[4], *blks[4], *dst_omp;
   Real Linf;
   Real lm[LB_BUF];
   enum AdSt *state;
-  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok,
-      px, py, s, x_omp, y_omp;
+  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok, px, py, s, x_omp, y_omp;
   long long *com_idx, *ref_idx;
   long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
   long long sib_ad[4], sib_omp[4];
@@ -687,6 +687,7 @@ done:
   free(com_idx);
   return Changed;
 }
+
 
 static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
                           Real phip2) {
