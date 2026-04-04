@@ -309,6 +309,7 @@ static void lb_init(void) {
   }
 }
 
+
 enum {
   LB_BUF =
       ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2

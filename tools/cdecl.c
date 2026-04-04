@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
 
   if (list_mode) {
     for (i = 0; i < nfuncs; i++)
-      fprintf(stdout, "%4d  %s\n", funcs[i].body_end - funcs[i].body_start,
+      fprintf(stderr, "%4d  %s\n", funcs[i].body_end - funcs[i].body_start,
               funcs[i].name);
     return 0;
   }
