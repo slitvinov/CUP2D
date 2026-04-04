@@ -24,8 +24,8 @@ cp $D/san_uni/main $D/san_amr/main
 (cd $D/amr && ./main $ARGS_AMR 2>log && echo OK >status) &
 (cd $D/san_uni && ./main $ARGS_UNI 2>log && echo OK >status) &
 (cd $D/san_amr && ./main $ARGS_AMR 2>log && echo OK >status) &
-(cc -O1 -Wall -Wextra -Wuninitialized -Wsometimes-uninitialized -Werror \
-   -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter \
+(cc -O1 -Wall -Wextra -Wuninitialized -Wsometimes-uninitialized \
+   -Wdeclaration-after-statement -Wno-unused-parameter -Werror \
    -o /dev/null main.c -lm 2>$D/warn/log && echo OK >$D/warn/status) &
 wait
 

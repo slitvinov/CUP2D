@@ -34,13 +34,13 @@ struct HMap {
   struct HMEntry *e;
   int cap;
 };
-static int hm_slot(const struct HMap *m, long long key) {
+static int hm_slot(struct HMap *m, long long key) {
   unsigned long long h;
 
   h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
   return (int)(h >> 32) & (m->cap - 1);
 }
-static int hm_get(const struct HMap *m, long long key) {
+static int hm_get(struct HMap *m, long long key) {
   int i = hm_slot(m, key);
   while (m->e[i].key >= 0) {
     if (m->e[i].key == key) return m->e[i].val;
@@ -92,20 +92,22 @@ static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   b->origin[0] = b->h * BS * ix;
   b->origin[1] = b->h * BS * iy;
 }
-struct {
+struct FldDesc {
   int offset;
   int dim;
-  const char *prefix;
-} fld_t[] = {{F_U, 1, "u"},    {F_V, 1, "v"},    {F_P, 1, "p"},
-             {F_PHI, 1, NULL}, {F_W, 1, "vort"}, {F_TMP, 1, NULL}};
+  char *prefix;
+};
+static struct FldDesc fld_t[] = {{F_U, 1, "u"},    {F_V, 1, "v"},
+                                 {F_P, 1, "p"},    {F_PHI, 1, NULL},
+                                 {F_W, 1, "vort"}, {F_TMP, 1, NULL}};
 enum { NVARS = sizeof fld_t / sizeof *fld_t };
 
-static const int nb_ch_off[9][2][2] = {
+static int nb_ch_off[9][2][2] = {
     [0] = {{-1, -1}, {0, 0}}, [1] = {{0, -1}, {1, -1}}, [2] = {{2, -1}, {0, 0}},
     [3] = {{-1, 0}, {-1, 1}}, [4] = {{0, 0}, {0, 0}},   [5] = {{2, 0}, {2, 1}},
     [6] = {{-1, 2}, {0, 0}},  [7] = {{0, 2}, {1, 2}},   [8] = {{2, 2}, {0, 0}},
 };
-static const int nb_ch_n[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
+static int nb_ch_n[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
 static void hm_rebuild(void) {
   int cap, j, s;
   long long i, key;
@@ -198,14 +200,14 @@ struct LbTab {
   int32_t n_post;
   struct LbOp ops[MAX_OPS];
 };
-static void lb_exec(Real *const blk[], Real *const dst[],
-                    const struct LbOp *ops, int n, int dim, int nm, int nc) {
+static void lb_exec(Real *blk[], Real *dst[], struct LbOp *ops, int n, int dim,
+                    int nm, int nc) {
   Real *avg_d, *avg_q1, *avg_src, *c, *m;
-  const int8_t *w;
+  int8_t *w;
   Real a, b, cv, sum;
   int i;
 
-  const struct LbOp *o;
+  struct LbOp *o;
   m = dst[0];
   c = dst[1];
   for (i = 0; i < n; i++) {
@@ -227,7 +229,7 @@ static void lb_exec(Real *const blk[], Real *const dst[],
               4;
       break;
     case OP_INTERP9: {
-      static const int8_t W[4][9] = {
+      static int8_t W[4][9] = {
           {1, 10, -1, 10, 56, -6, -1, -6, 1},
           {-1, 10, 1, -6, 56, 10, 1, -6, -1},
           {-1, -6, 1, 10, 56, -6, 1, 10, -1},
@@ -252,7 +254,7 @@ static void lb_exec(Real *const blk[], Real *const dst[],
             32.0;
       break;
     case OP_LELI: {
-      static const int8_t W[2][3] = {
+      static int8_t W[2][3] = {
           {8, 10, -3},
           {24, -15, 6},
       };
@@ -270,7 +272,7 @@ static void lb_exec(Real *const blk[], Real *const dst[],
 }
 
 enum { N_STATUS = 10 };
-static const struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
+static struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
   int ci, dim, ss;
   char fname[64];
@@ -296,33 +298,36 @@ static void lb_init(void) {
       exit(1);
     }
     fclose(fp);
-    lb_tab[ss][dim] = (const struct LbTab(*)[3][2][2][N_STATUS])tab;
+    lb_tab[ss][dim] = (struct LbTab(*)[3][2][2][N_STATUS])tab;
   }
 }
 enum {
   LB_BUF =
       ((2 * 4 + BS) * (2 * 4 + BS) + (BS / 2 + 4 + 3) * (BS / 2 + 4 + 3)) * 2
 };
+struct LbDir {
+  struct LbTab *e;
+  Real *blk[2];
+};
 static void lb_load(Real *m, int dim, int blk_offset, int ss,
                     long long info_idx) {
-  int b, cx, cy, i, icode, nc, nd, nm;
-  Real *c, *dst[2], *lblk[2];
+  int b, cx, cy, i, icode, level, nc, nd, nm, xi, yi;
+  Real *c, *dst[2], *lblk[2], *p0;
+  struct Blk *info;
+  struct LbTab *te, (*cflb_tab)[3][2][2][N_STATUS];
+  struct LbSrc *bs;
+  struct Nb nr;
+  struct LbDir dirs[8];
 
-  struct Blk *info = &sim.blk[info_idx];
+  info = &sim.blk[info_idx];
   nm = 2 * ss + BS;
   nc = BS / 2 + ss + 3;
-  int level = info->level;
-  int xi = info->ix, yi = info->iy;
-  const struct LbTab(*cflb_tab)[3][2][2][N_STATUS] = lb_tab[ss][dim];
-  Real *p0 = BLK(info_idx) + BS * BS * blk_offset;
-  struct {
-    const struct LbTab *e;
-    Real *blk[2];
-  } dirs[8];
+  level = info->level;
+  xi = info->ix;
+  yi = info->iy;
+  cflb_tab = lb_tab[ss][dim];
+  p0 = BLK(info_idx) + BS * BS * blk_offset;
   nd = 0;
-  struct Nb nr;
-  const struct LbTab *te;
-  const struct LbSrc *bs;
 
   for (i = 0; i < BS; i++)
     memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
@@ -388,8 +393,8 @@ static void compute_vorticity(void) {
   }
 }
 
-static void restrict_2to1(const Real *fine, Real *coarse, int dim, int fs,
-                          int cs, int ni, int nj) {
+static void restrict_2to1(Real *fine, Real *coarse, int dim, int fs, int cs,
+                          int ni, int nj) {
   int j;
 
   for (j = 0; j < nj; j++)
@@ -402,7 +407,7 @@ static void restrict_2to1(const Real *fine, Real *coarse, int dim, int fs,
                     fine[dim * ((2 * j + 1) * fs + 2 * i + 1) + d]);
 }
 
-static const Real ad_ref_w[4][9] = {
+static Real ad_ref_w[4][9] = {
     {1. / 64, 10. / 64, -1. / 64, 10. / 64, 56. / 64, -6. / 64, -1. / 64,
      -6. / 64, 1. / 64},
     {-1. / 64, 10. / 64, 1. / 64, -6. / 64, 56. / 64, 10. / 64, 1. / 64,
@@ -413,8 +418,8 @@ static const Real ad_ref_w[4][9] = {
      10. / 64, 1. / 64},
 };
 
-static void prolong_2to1(const Real *coarse, Real *fine, int dim, int cs,
-                         int fs, int ni, int nj, int ci0, int cj0) {
+static void prolong_2to1(Real *coarse, Real *fine, int dim, int cs, int fs,
+                         int ni, int nj, int ci0, int cj0) {
   int di, dj, ic, j, jc;
   Real val;
 
@@ -520,7 +525,7 @@ static void dump(Real time, int step, char *path) {
     }
 }
 
-static const int ad_sib_ic[4] = {-1, 5, 7, 8};
+static int ad_sib_ic[4] = {-1, 5, 7, 8};
 static int ad_run(void) {
   int Changed, J, More, dim_omp, ic, j, level_omp, nm_ad, off_omp, ok, px, py,
       s, x_omp, y_omp;
@@ -708,94 +713,6 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
 
 static void mac_project(Real dt);
 
-static void reflux(Real dt) {
-  long long id;
-  int f;
-
-  int face_ic[4] = {3, 5, 1, 7};
-  for (id = 0; id < sim.n; id++) {
-    struct Blk *b = &sim.blk[id];
-    Real *u = BLK(id) + BS * BS * F_U;
-    Real *v = BLK(id) + BS * BS * F_V;
-    Real h = b->h;
-    Real dth = dt / h;
-    for (f = 0; f < 4; f++) {
-      struct Nb nr = nb_find(b->level, b->ix, b->iy, face_ic[f]);
-      int dir, side, c0, c1, ci, k;
-      Real *cf_u, *cf_v, *ff0_u, *ff0_v, *ff1_u, *ff1_v;
-      Real coarse_flux, fine_avg;
-      if (nr.s != 1) continue;
-      dir = f / 2;
-      side = f % 2;
-      c0 = nr.ch[0];
-      c1 = nr.ch[1];
-      if (c0 < 0 || c1 < 0) continue;
-
-      if (dir == 0) {
-
-        int fi;
-        cf_u = BLK(id) + BS * BS * F_UMAC;
-        cf_v = BLK(id) + BS * BS * F_W;
-        ci = side ? BS - 1 : 0;
-
-        ff0_u = BLK(c0) + BS * BS * F_UMAC;
-        ff0_v = BLK(c0) + BS * BS * F_W;
-        ff1_u = BLK(c1) + BS * BS * F_UMAC;
-        ff1_v = BLK(c1) + BS * BS * F_W;
-
-        fi = side ? 0 : BS - 1;
-
-        for (k = 0; k < BS; k++) {
-          int fk0 = 2 * k, fk1 = 2 * k + 1;
-
-          Real fu0, fu1, coarse_u, delta, fv0, fv1, coarse_v, deltav;
-          coarse_flux = cf_u[k * BS + ci];
-
-          fu0 = (BLK(c0) + BS * BS * F_U)[fk0 * BS + (side ? 0 : BS - 1)];
-          fu1 = (fk1 < BS)
-                    ? (BLK(c0) + BS * BS * F_U)[fk1 * BS + (side ? 0 : BS - 1)]
-                    : (BLK(c1) +
-                       BS * BS * F_U)[(fk1 - BS) * BS + (side ? 0 : BS - 1)];
-          coarse_u = u[k * BS + ci];
-          delta = 0.5 * (fu0 + fu1) - coarse_u;
-          u[k * BS + ci] += 0.25 * delta;
-
-          fv0 = (BLK(c0) + BS * BS * F_V)[fk0 * BS + (side ? 0 : BS - 1)];
-          fv1 = (fk1 < BS)
-                    ? (BLK(c0) + BS * BS * F_V)[fk1 * BS + (side ? 0 : BS - 1)]
-                    : (BLK(c1) +
-                       BS * BS * F_V)[(fk1 - BS) * BS + (side ? 0 : BS - 1)];
-          coarse_v = v[k * BS + ci];
-          deltav = 0.5 * (fv0 + fv1) - coarse_v;
-          v[k * BS + ci] += 0.25 * deltav;
-        }
-      } else {
-
-        int cj = side ? BS - 1 : 0;
-        for (k = 0; k < BS; k++) {
-          int fk0 = 2 * k, fk1 = 2 * k + 1;
-          Real fu0 = (BLK(c0) + BS * BS * F_U)[(side ? 0 : BS - 1) * BS + fk0];
-          Real fu1 =
-              (fk1 < BS)
-                  ? (BLK(c0) + BS * BS * F_U)[(side ? 0 : BS - 1) * BS + fk1]
-                  : (BLK(c1) +
-                     BS * BS * F_U)[(side ? 0 : BS - 1) * BS + (fk1 - BS)];
-          Real coarse_u = u[cj * BS + k];
-          Real fv0, fv1, coarse_v;
-          u[cj * BS + k] += 0.25 * (0.5 * (fu0 + fu1) - coarse_u);
-          fv0 = (BLK(c0) + BS * BS * F_V)[(side ? 0 : BS - 1) * BS + fk0];
-          fv1 = (fk1 < BS)
-                    ? (BLK(c0) + BS * BS * F_V)[(side ? 0 : BS - 1) * BS + fk1]
-                    : (BLK(c1) +
-                       BS * BS * F_V)[(side ? 0 : BS - 1) * BS + (fk1 - BS)];
-          coarse_v = v[cj * BS + k];
-          v[cj * BS + k] += 0.25 * (0.5 * (fv0 + fv1) - coarse_v);
-        }
-      }
-    }
-  }
-}
-
 static void advect_diffuse(Real dt) {
   Real alpha, dth;
   long long id;
@@ -871,8 +788,8 @@ static void advect_diffuse(Real dt) {
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
         Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
-        Real umR = Q1(bum, i, j), umL = Q1(bum, i - 1, j);
-        Real vmT = Q1(bvm, i, j), vmB = Q1(bvm, i, j - 1);
+        Real umR = Q1(bum, i, j);
+        Real vmT = Q1(bvm, i, j);
 
         Real ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc,
                          Q3(bu, i + 1, j), Q3(bu, i + 2, j));
@@ -900,11 +817,7 @@ static void advect_diffuse(Real dt) {
 
         Real uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
 
-        Real uL_R = uc + 0.5 * (-1.0 - umL * dtdx) * ux + cu + tu;
-
         Real vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
-
-        Real vB_T = vc + 0.5 * (-1.0 - vmB * dtdx) * vy + cv + tv;
 
         Real un1 = Q3(bu, i + 1, j);
         Real ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1, Q3(bu, i + 2, j),
@@ -1018,7 +931,6 @@ static void advect_diffuse(Real dt) {
     memcpy(BLK(id) + BS * BS * F_V, BLK(id) + BS * BS * F_TMP2,
            BS * BS * sizeof(Real));
   }
-  reflux(dt);
 }
 static void helmholtz_solve(Real dt, int field) {
   Real alpha;
@@ -1346,11 +1258,12 @@ static void project(Real dt) {
   }
 }
 
-static const struct {
-  const char *name;
+struct Param {
+  char *name;
   int type;
   size_t off;
-} param_tab[] = {
+};
+static struct Param param_tab[] = {
     {"levelStart", 0, offsetof(struct Sim, levelStart)},
     {"levelMax", 0, offsetof(struct Sim, levelMax)},
     {"AdaptSteps", 0, offsetof(struct Sim, AdaptSteps)},
@@ -1366,7 +1279,7 @@ int main(int argc, char **argv) {
   int do_dump, i, iy, j, mi, ns, ntab, nthreads, seen[16];
   char *base, *mend;
   Real delta, rho_layer, smax;
-  const char *mkey, *mval;
+  char *mkey, *mval;
   long long midx;
   char mpath[FILENAME_MAX];
 
