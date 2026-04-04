@@ -336,6 +336,7 @@ static void process_function(struct Func *f) {
           if (dp > 0) {
             fd.start = fp;
             fd.end = dp; /* at ; */
+            fd.val_end = dp;
             fd.is_for = 1;
             decls[ndecl++] = fd;
           }
