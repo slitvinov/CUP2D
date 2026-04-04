@@ -424,34 +424,35 @@ static void compute_indicator(void) {
     int nc = BS / 2 + 2;
     Real cu[nc * nc], cv[nc * nc];
     Real *t;
+    int fi, fj, ic, jc, di, dj, ci, cj;
+    Real su, sv, pu, pv, au, av;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
       lb_load(bu, 1, F_U, 1, id);
       lb_load(bv, 1, F_V, 1, id);
 
-      for (int jc = 0; jc < nc; jc++)
-        for (int ic = 0; ic < nc; ic++) {
-          int fi = 2 * ic - 1, fj = 2 * jc - 1;
-          Real su = 0, sv = 0;
-          for (int dj = 0; dj < 2; dj++)
-            for (int di = 0; di < 2; di++) {
-              su += bu[nm * (fj + dj + 1) + fi + di + 1];
-              sv += bv[nm * (fj + dj + 1) + fi + di + 1];
+      for (int jc0 = 0; jc0 < nc; jc0++)
+        for (int ic0 = 0; ic0 < nc; ic0++) {
+          fi = 2 * ic0 - 1; fj = 2 * jc0 - 1;
+          su = 0; sv = 0;
+          for (int dj0 = 0; dj0 < 2; dj0++)
+            for (int di0 = 0; di0 < 2; di0++) {
+              su += bu[nm * (fj + dj0 + 1) + fi + di0 + 1];
+              sv += bv[nm * (fj + dj0 + 1) + fi + di0 + 1];
             }
-          cu[jc * nc + ic] = su * 0.25;
-          cv[jc * nc + ic] = sv * 0.25;
+          cu[jc0 * nc + ic0] = su * 0.25;
+          cv[jc0 * nc + ic0] = sv * 0.25;
         }
 
       t = BLK(id) + BS * BS * F_TMP;
       for (int j = 0; j < BS; j += 2)
         for (int i = 0; i < BS; i += 2) {
-          int ic = i / 2 + 1, jc = j / 2 + 1;
+          ic = i / 2 + 1; jc = j / 2 + 1;
           for (int s = 0; s < 4; s++) {
-            int di = s & 1, dj = s >> 1;
-            Real pu = 0, pv = 0;
-            Real au, av;
+            di = s & 1; dj = s >> 1;
+            pu = 0; pv = 0;
             for (int kk = 0; kk < 9; kk++) {
-              int ci = ic + kk % 3 - 1, cj = jc + kk / 3 - 1;
+              ci = ic + kk % 3 - 1; cj = jc + kk / 3 - 1;
               pu += ad_ref_w[s][kk] * cu[cj * nc + ci];
               pv += ad_ref_w[s][kk] * cv[cj * nc + ci];
             }
@@ -471,10 +472,12 @@ static void dump(Real time, int step, char *path) {
   float xyz[4 * BS * BS][2];
   int c;
   float x0, y0, x1, y1;
+  Real h, ox, oy;
+  int dim, offset;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   file = fopen(xyz_path, "wb");
   for (i = 0; i < sim.n; i++) {
-    Real h = sim.blk[i].h, ox = sim.blk[i].origin[0], oy = sim.blk[i].origin[1];
+    h = sim.blk[i].h; ox = sim.blk[i].origin[0]; oy = sim.blk[i].origin[1];
     for (j = 0; j < BS; j++)
       for (k = 0; k < BS; k++) {
         c = j * BS + k;
