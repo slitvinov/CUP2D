@@ -398,13 +398,15 @@ static const Real ad_ref_w[4][9] = {
 static void prolong_2to1(const Real *coarse, Real *fine, int dim,
                          int cs, int fs, int ni, int nj,
                          int ci0, int cj0) {
+  int ic, jc, di, dj;
+  Real val;
   for (int j = 0; j < nj; j++)
     for (int i = 0; i < ni; i++) {
-      int ic = i + ci0, jc = j + cj0;
+      ic = i + ci0; jc = j + cj0;
       for (int s = 0; s < 4; s++) {
-        int di = s & 1, dj = s >> 1;
+        di = s & 1; dj = s >> 1;
         for (int d = 0; d < dim; d++) {
-          Real val = 0;
+          val = 0;
           for (int kk = 0; kk < 9; kk++)
             val += ad_ref_w[s][kk] *
                    coarse[dim * ((jc + kk / 3 - 1) * cs + ic + kk % 3 - 1) + d];
@@ -1451,20 +1453,17 @@ int main(int argc, char **argv) {
       fprintf(stderr, "main.c: %08d %.6e dt=%.3e blk=%lld\n", sim.step,
               sim.time, sim.dt, sim.n);
     }
-    {
-      int do_dump = 0;
-      if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
-        sim.nextDumpTime += sim.dumpTime;
-        do_dump = 1;
-      }
-      if (sim.sdump > 0 && sim.step % sim.sdump == 0)
-        do_dump = 1;
-      if (do_dump) {
-        char path[FILENAME_MAX];
-        compute_vorticity();
-        snprintf(path, sizeof path, "%08d", sim.dump_count++);
-        dump(sim.time, sim.step, path);
-      }
+    do_dump = 0;
+    if (sim.dumpTime > 0 && sim.time >= sim.nextDumpTime) {
+      sim.nextDumpTime += sim.dumpTime;
+      do_dump = 1;
+    }
+    if (sim.sdump > 0 && sim.step % sim.sdump == 0)
+      do_dump = 1;
+    if (do_dump) {
+      compute_vorticity();
+      snprintf(mpath, sizeof mpath, "%08d", sim.dump_count++);
+      dump(sim.time, sim.step, mpath);
     }
     if (sim.endTime > 0 && sim.time >= sim.endTime)
       break;
