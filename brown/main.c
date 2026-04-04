@@ -1100,17 +1100,14 @@ static void advect_diffuse(Real dt) {
 
   for (int j = 0; j < N; j++)
     for (int i = 0; i < N; i++) {
-      Real su_i, su_ip, uc, un, sL, sR, lo, hi, uface;
-      Real sv_j, sv_jp, vc, vn, vface;
-
       su_i = slope4(qu[IDX(i - 2, j)], qu[IDX(i - 1, j)], qu[IDX(i, j)],
                          qu[IDX(i + 1, j)], qu[IDX(i + 2, j)]);
       su_ip = slope4(qu[IDX(i - 1, j)], qu[IDX(i, j)], qu[IDX(i + 1, j)],
                           qu[IDX(i + 2, j)], qu[IDX(i + 3, j)]);
-      uc = qu[IDX(i, j)]; un = qu[IDX(i + 1, j)];
-      sL = uc > 0 ? 1 : 0; sR = un < 0 ? 1 : 0;
-      lo = uc + (0.5 - sL * 0.5 * dtdx * uc) * su_i;
-      hi = un + (-0.5 - sR * 0.5 * dtdx * un) * su_ip;
+      ad_uc = qu[IDX(i, j)]; ad_un = qu[IDX(i + 1, j)];
+      sL = ad_uc > 0 ? 1 : 0; sR = ad_un < 0 ? 1 : 0;
+      lo = ad_uc + (0.5 - sL * 0.5 * dtdx * ad_uc) * su_i;
+      hi = ad_un + (-0.5 - sR * 0.5 * dtdx * ad_un) * su_ip;
       uface = (lo + hi) * 0.5;
       umac[IDX(i + 1, j)] = (uface >= 0) ? lo : hi;
       if (fabs(uface) < 1e-10)
@@ -1120,11 +1117,11 @@ static void advect_diffuse(Real dt) {
                          qv[IDX(i, j + 1)], qv[IDX(i, j + 2)]);
       sv_jp = slope4(qv[IDX(i, j - 1)], qv[IDX(i, j)], qv[IDX(i, j + 1)],
                           qv[IDX(i, j + 2)], qv[IDX(i, j + 3)]);
-      vc = qv[IDX(i, j)]; vn = qv[IDX(i, j + 1)];
-      sL = vc > 0 ? 1 : 0;
-      sR = vn < 0 ? 1 : 0;
-      lo = vc + (0.5 - sL * 0.5 * dtdy * vc) * sv_j;
-      hi = vn + (-0.5 - sR * 0.5 * dtdy * vn) * sv_jp;
+      ad_vc = qv[IDX(i, j)]; ad_vn = qv[IDX(i, j + 1)];
+      sL = ad_vc > 0 ? 1 : 0;
+      sR = ad_vn < 0 ? 1 : 0;
+      lo = ad_vc + (0.5 - sL * 0.5 * dtdy * ad_vc) * sv_j;
+      hi = ad_vn + (-0.5 - sR * 0.5 * dtdy * ad_vn) * sv_jp;
       vface = (lo + hi) * 0.5;
       vmac[IDX(i, j + 1)] = (vface >= 0) ? lo : hi;
       if (fabs(vface) < 1e-10)
