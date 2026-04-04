@@ -732,21 +732,18 @@ static void mg_prolong_add(const double *ec, double *uf, int mc) {
     }
 }
 
-static void mg_vcycle(double *u, double *f, double *r, int m) {
+static void mg_vcycle(double *u, double *f, double *r, int m, double *w) {
   if (m <= 4) { mg_smooth(u, f, m, 50); return; }
-  int mc = m / 2;
-  double *uc = calloc(mc*mc, sizeof(double));
-  double *fc = calloc(mc*mc, sizeof(double));
-  double *rc = calloc(mc*mc, sizeof(double));
+  int mc = m / 2, nc = mc*mc;
+  double *uc = w, *fc = w + nc, *rc = w + 2*nc;
+  memset(uc, 0, nc*sizeof(double));
 
   mg_smooth(u, f, m, 4);
   mg_residual(u, f, r, m);
   mg_restrict(r, fc, m);
-  mg_vcycle(uc, fc, rc, mc);
+  mg_vcycle(uc, fc, rc, mc, w + 3*nc);
   mg_prolong_add(uc, u, mc);
   mg_smooth(u, f, m, 4);
-
-  free(uc); free(fc); free(rc);
 }
 
 /* PCG solver for (-4φ + Σφ_nb) = f on M×M periodic grid.
@@ -758,14 +755,13 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
   double *p = malloc(N*sizeof(double));
   double *Ap = malloc(N*sizeof(double));
   double *r_tmp = malloc(N*sizeof(double));
+  double *mgw = malloc(N*sizeof(double)); /* MG work buffer */
 
-  /* r = f - A*x */
   mg_residual(x, f, rr, M);
   subtract_mean(rr, N);
 
-  /* z = M^{-1} r (one V-cycle) */
   memset(z, 0, N*sizeof(double));
-  mg_vcycle(z, rr, r_tmp, M);
+  mg_vcycle(z, rr, r_tmp, M, mgw);
   subtract_mean(z, N);
   memcpy(p, z, N*sizeof(double));
   double rz = 0; for(int k=0;k<N;k++) rz += rr[k]*z[k];
@@ -788,7 +784,7 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
 
     /* z = M^{-1} r */
     memset(z, 0, N*sizeof(double));
-    mg_vcycle(z, rr, r_tmp, M);
+    mg_vcycle(z, rr, r_tmp, M, mgw);
     subtract_mean(z, N);
     double rz2 = 0; for(int k=0;k<N;k++) rz2 += rr[k]*z[k];
     double beta = rz2 / (rz + 1e-30);
@@ -796,7 +792,7 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
     rz = rz2;
   }
   subtract_mean(x, N);
-  free(rr); free(z); free(p); free(Ap); free(r_tmp);
+  free(rr); free(z); free(p); free(Ap); free(r_tmp); free(mgw);
 }
 
 /* Helmholtz MG: solves (1 + 4α/h²)u - (α/h²)Σu_nb = f on periodic grid.
@@ -827,22 +823,19 @@ static void mg_residual_helm(const double *u, const double *f, double *r,
 }
 
 static void mg_vcycle_helm(double *u, double *f, double *r, int m,
-                           double alpha, double h) {
+                           double alpha, double h, double *w) {
   double alpha_h2 = alpha / (h*h);
   if (m <= 4) { mg_smooth_helm(u, f, m, 50, alpha_h2); return; }
-  int mc = m/2;
-  double *uc = calloc(mc*mc, sizeof(double));
-  double *fc = malloc(mc*mc*sizeof(double));
-  double *rc = malloc(mc*mc*sizeof(double));
+  int mc = m/2, nc = mc*mc;
+  double *uc = w, *fc = w + nc, *rc = w + 2*nc;
+  memset(uc, 0, nc*sizeof(double));
 
   mg_smooth_helm(u, f, m, 4, alpha_h2);
   mg_residual_helm(u, f, r, m, alpha_h2);
   mg_restrict(r, fc, m);
-  mg_vcycle_helm(uc, fc, rc, mc, alpha, 2*h);
+  mg_vcycle_helm(uc, fc, rc, mc, alpha, 2*h, w + 3*nc);
   mg_prolong_add(uc, u, mc);
   mg_smooth_helm(u, f, m, 4, alpha_h2);
-
-  free(uc); free(fc); free(rc);
 }
 
 /* PCG solver for (I - α∆)u = f on M×M periodic grid.
@@ -857,16 +850,16 @@ static void mg_solve_helmholtz(double *x, const double *f, int M,
   double *p = malloc(N*sizeof(double));
   double *Ap = malloc(N*sizeof(double));
   double *r_tmp = malloc(N*sizeof(double));
+  double *mgw = malloc(N*sizeof(double));
 
   mg_residual_helm(x, f, rr, M, alpha_h2);
 
   memset(z, 0, N*sizeof(double));
-  mg_vcycle_helm(z, rr, r_tmp, M, alpha, h);
+  mg_vcycle_helm(z, rr, r_tmp, M, alpha, h, mgw);
   memcpy(p, z, N*sizeof(double));
   double rz = 0; for(int k=0;k<N;k++) rz += rr[k]*z[k];
 
   for (int it = 0; it < 100; it++) {
-    /* Ap = A*p */
     for (int j=0;j<M;j++) for (int i=0;i<M;i++) {
       int ip=(i+1)%M,im=(i-1+M)%M,jp=(j+1)%M,jm=(j-1+M)%M;
       Ap[j*M+i] = a*p[j*M+i] - alpha_h2*(p[j*M+ip]+p[j*M+im]+p[jp*M+i]+p[jm*M+i]);
@@ -880,13 +873,13 @@ static void mg_solve_helmholtz(double *x, const double *f, int M,
     if (rmax < tol) break;
 
     memset(z, 0, N*sizeof(double));
-    mg_vcycle_helm(z, rr, r_tmp, M, alpha, h);
+    mg_vcycle_helm(z, rr, r_tmp, M, alpha, h, mgw);
     double rz2 = 0; for(int k=0;k<N;k++) rz2 += rr[k]*z[k];
     double beta = rz2 / (rz + 1e-30);
     for(int k=0;k<N;k++) p[k] = z[k] + beta*p[k];
     rz = rz2;
   }
-  free(rr); free(z); free(p); free(Ap); free(r_tmp);
+  free(rr); free(z); free(p); free(Ap); free(r_tmp); free(mgw);
 }
 
 /* --- AMR-aware gather/scatter: flatten to finest-level uniform grid --- */
