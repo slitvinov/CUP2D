@@ -97,6 +97,7 @@ static void bl_fill(struct Blk *b, int level, int ix, int iy) {
   b->origin[0] = b->h * BS * ix;
   b->origin[1] = b->h * BS * iy;
 }
+
 struct FldDesc {
   int offset;
   int dim;
@@ -139,6 +140,7 @@ static void hm_rebuild(void) {
   fprintf(stderr, "  hm: get(21)=%d get(22)=%d\n", hm_get(&sim.hm, 21),
           hm_get(&sim.hm, 22));
 }
+
 struct Nb {
   int8_t s;
   int idx;
@@ -319,14 +321,14 @@ struct LbDir {
 };
 static void lb_load(Real *m, int dim, int blk_offset, int ss,
                     long long info_idx) {
-  int b, cx, cy, i, icode, level, nc, nd, nm, xi, yi;
   Real *c, *dst[2], *lblk[2], *p0;
+  int b, cx, cy, i, icode, level, nc, nd, nm, xi, yi;
   struct Blk *info;
-  struct LbTab *te, (*cflb_tab)[3][2][2][N_STATUS];
+  struct LbDir dirs[8];
   struct LbSrc *bs;
   struct Nb nr;
-  struct LbDir dirs[8];
 
+  struct LbTab *te, (*cflb_tab)[3][2][2][N_STATUS];
   info = &sim.blk[info_idx];
   nm = 2 * ss + BS;
   nc = BS / 2 + ss + 3;
@@ -720,13 +722,14 @@ static void advect_diffuse(Real dt) {
   Real *um, *un_out, *vm, *vn_out;
   Real adv_u, adv_v, alpha, cu, cv, dpx, dpy, dtdx, dth, euR, euT, evR, evT, h,
       ih, lap_u, lap_v, nu, sL, sR, su, su1, sv, sv1, svL, svR, tu, tv, uL, uR,
-      uR_L, uR_R, uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT,
-      vn, vn1, vx, vy, vy1;
+      uR_L, uR_R;
   Real beu[LB_BUF], beut[LB_BUF], bev[LB_BUF], bevr[LB_BUF], bp[LB_BUF],
       bu[LB_BUF], bum[LB_BUF], bv[LB_BUF], bvm[LB_BUF];
   int i, j, nm, nm1, nm2, nm3;
   long long id;
 
+  uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT, vn, vn1, vx, vy,
+      vy1;
   alpha = sim.nu * dt * 0.5;
   dth = 0.5 * dt;
 
@@ -1167,9 +1170,9 @@ static void poisson_solve(Real dt) {
 
   nm = BS + 2;
   for (id = 0; id < sim.n; id++) {
-        rhs = BLK(id) + BS * BS * F_TMP;
-        h = sim.blk[id].h;
-        fac = 2.0 * h / dt;
+    rhs = BLK(id) + BS * BS * F_TMP;
+    h = sim.blk[id].h;
+    fac = 2.0 * h / dt;
     lb_load(bu, 1, F_U, 1, id);
     lb_load(bv, 1, F_V, 1, id);
     for (j = 0; j < BS; j++)
@@ -1184,8 +1187,8 @@ static void poisson_solve(Real dt) {
 
   blk_laplacian(F_PHI, F_W);
   for (id = 0; id < sim.n; id++) {
-        r = BLK(id) + BS * BS * F_W;
-        f = BLK(id) + BS * BS * F_TMP;
+    r = BLK(id) + BS * BS * F_W;
+    f = BLK(id) + BS * BS * F_TMP;
     for (k = 0; k < BS * BS; k++) r[k] = f[k] - r[k];
   }
   blk_mean_sub(F_W);
@@ -1207,7 +1210,7 @@ static void poisson_solve(Real dt) {
     blk_mean_sub(F_PHI);
     rmax = 0;
     for (id = 0; id < sim.n; id++) {
-            r = BLK(id) + BS * BS * F_W;
+      r = BLK(id) + BS * BS * F_W;
       for (k = 0; k < BS * BS; k++)
         if (fabs(r[k]) > rmax) rmax = fabs(r[k]);
     }
@@ -1220,8 +1223,8 @@ static void poisson_solve(Real dt) {
     beta = rz2 / (rz + 1e-30);
 
     for (id = 0; id < sim.n; id++) {
-            p = BLK(id) + BS * BS * F_TMP2;
-            z = BLK(id) + BS * BS * F_TMP3;
+      p = BLK(id) + BS * BS * F_TMP2;
+      z = BLK(id) + BS * BS * F_TMP3;
       for (k = 0; k < BS * BS; k++) p[k] = z[k] + beta * p[k];
     }
     rz = rz2;
@@ -1229,16 +1232,13 @@ static void poisson_solve(Real dt) {
   blk_mean_sub(F_PHI);
 }
 
-
 static void project(Real dt) {
-  long long id;
-  int j;
-
-  Real bp[LB_BUF];
-  Real *u, *v, *p, *phi;
-  int nm;
+  Real *p, *phi, *u, *v;
   Real ih;
-  int k;
+  Real bp[LB_BUF];
+  int i, j, k, nm;
+  long long id;
+
   for (id = 0; id < sim.n; id++) {
     lb_load(bp, 1, F_PHI, 1, id);
     u = BLK(id) + BS * BS * F_U;
@@ -1248,7 +1248,7 @@ static void project(Real dt) {
     nm = BS + 2;
     ih = 0.5 / sim.blk[id].h;
     for (j = 0; j < BS; j++)
-      for (int i = 0; i < BS; i++) {
+      for (i = 0; i < BS; i++) {
         k = j * BS + i;
 #define PH(di, dj) bp[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
         u[k] -= dt * (PH(1, 0) - PH(-1, 0)) * ih;
@@ -1277,9 +1277,12 @@ static struct Param param_tab[] = {
 };
 
 int main(int argc, char **argv) {
-  Real *u, *v, delta, h, ih, rho_layer, smax, x, y;
-  char *base, *mend, *mkey, *mval, mpath[FILENAME_MAX];
-  int do_dump, i, iy, j, mi, ns, ntab, nthreads, seen[16];
+  Real *u, *v;
+  Real delta, h, ih, rho_layer, smax, x, y;
+  char *base, *mend, *mkey, *mval;
+  char mpath[FILENAME_MAX];
+  int do_dump, i, ix, iy, j, mi, ns, ntab, nthreads;
+  int seen[16];
   long long midx;
   struct Blk *info;
 
@@ -1326,7 +1329,7 @@ int main(int argc, char **argv) {
   sim.blk = calloc(sim.n, sizeof *sim.blk);
   sim.fld = calloc(sim.n * BLK_S, sizeof(Real));
   for (iy = 0; iy < ns; iy++)
-    for (int ix = 0; ix < ns; ix++)
+    for (ix = 0; ix < ns; ix++)
       bl_fill(&sim.blk[midx++], sim.levelStart, ix, iy);
   hm_rebuild();
   lb_init();
@@ -1341,7 +1344,7 @@ int main(int argc, char **argv) {
     v = BLK(i) + BS * BS * F_V;
     h = info->h;
     for (iy = 0; iy < BS; iy++)
-      for (int ix = 0; ix < BS; ix++) {
+      for (ix = 0; ix < BS; ix++) {
         j = BS * iy + ix;
         x = info->origin[0] + (ix + 0.5) * h;
         y = info->origin[1] + (iy + 0.5) * h;
