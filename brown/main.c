@@ -260,13 +260,14 @@ static void lb_exec(Real *const blk[], Real *const dst[],
 enum { N_STATUS = 10 };
 static const struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
-  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}};
+  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {3, 1}};
+
   int ss, dim;
   char fname[64];
   FILE *fp;
   size_t sz;
   struct LbTab *tab;
-  for (int ci = 0; ci < 3; ci++) {
+  for (int ci = 0; ci < 4; ci++) {
     ss = configs[ci][0]; dim = configs[ci][1];
     snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
     fp = fopen(fname, "rb");
@@ -705,6 +706,128 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
 
 static void mac_project(Real dt);
 
+static void reflux(Real dt) {
+  /* At coarse-fine boundaries, replace coarse flux with average of fine fluxes.
+     Flux fields: F_UMAC=Fx(u), F_VMAC=Fy(v), F_TMP3=Fy(u), F_W=Fx(v).
+     flux[i,j] = flux at face (i+1/2,j) or (i,j+1/2). */
+  int face_ic[4] = {3, 5, 1, 7}; /* icode for left,right,bottom,top neighbor */
+  long long id;
+  int f;
+  for (id = 0; id < sim.n; id++) {
+    struct Blk *b = &sim.blk[id];
+    Real *u = BLK(id) + BS * BS * F_U;
+    Real *v = BLK(id) + BS * BS * F_V;
+    Real h = b->h;
+    Real dth = dt / h;
+    for (f = 0; f < 4; f++) {
+      struct Nb nr = nb_find(b->level, b->ix, b->iy, face_ic[f]);
+      int dir, side, c0, c1, ci, k;
+      Real *cf_u, *cf_v, *ff0_u, *ff0_v, *ff1_u, *ff1_v;
+      Real coarse_flux, fine_avg;
+      if (nr.s != 1) continue; /* only correct at finer neighbors */
+      dir = f / 2;   /* 0=x, 1=y */
+      side = f % 2;  /* 0=low, 1=high */
+      c0 = nr.ch[0]; c1 = nr.ch[1];
+      if (c0 < 0 || c1 < 0) continue;
+      /* coarse flux fields and fine flux fields */
+      if (dir == 0) {
+        /* x-face: left(side=0) or right(side=1) */
+        cf_u = BLK(id) + BS * BS * F_UMAC;  /* Fx(u) */
+        cf_v = BLK(id) + BS * BS * F_W;     /* Fx(v) */
+        ci = side ? BS - 1 : 0;
+        /* fine blocks: ch[0] and ch[1] are the two fine blocks at this face */
+        /* fine flux at their boundary face */
+        ff0_u = BLK(c0) + BS * BS * F_UMAC;
+        ff0_v = BLK(c0) + BS * BS * F_W;
+        ff1_u = BLK(c1) + BS * BS * F_UMAC;
+        ff1_v = BLK(c1) + BS * BS * F_W;
+        /* fine face index: if coarse is on the right (side=1), fine left face is i=0
+           but flux[i,j] = flux at (i+1/2,j), so left face flux is at i=-1 of fine block
+           which is actually at i=BS-1 of the fine block's left neighbor.
+           Simpler: use the coarse block's flux as "coarse" and fine block's adjacent flux. */
+        int fi = side ? 0 : BS - 1; /* fine block's face index */
+        /* if side=1 (right): fine blocks have their LEFT face at this interface
+           flux at left face of fine block = flux at i=-1, but we store flux at i+1/2
+           so the flux entering fine block from left is stored at i=-1 of fine, which is
+           stored at i=BS-1 of whatever is to the left. That's the coarse block.
+           Actually, for refluxing we compare:
+           coarse outgoing flux = cf_u[ci, j]  (flux at face (ci+1/2, j) if side=1)
+           fine incoming flux = same physical face, but from fine perspective.
+           The fine block stores flux[i,j] = flux at (i+1/2,j).
+           For side=1: coarse right face = fine left face.
+             Fine block left face flux = the flux at i=-1 of fine, stored by the COARSE block.
+             But we want the fine block's version of this flux.
+           Actually this is wrong — both sides of the face compute fluxes independently.
+           The coarse block computes its right-face flux at cf_u[BS-1, j].
+           The fine blocks don't have their left-face flux stored (flux[i,j] = right face).
+           We need flux at the fine block's LEFT face, which is flux[i=-1] = not stored.
+
+           Fix: for refluxing, we need fluxes on BOTH sides. Store the coarse flux.
+           The fine flux at this interface is what the fine block USED for its left boundary.
+           That came from lb_load, which gives the coarse-interpolated value.
+           So the fine block already used an interpolated flux — refluxing should replace
+           the coarse update, not the fine update.
+
+           Simpler approach: The coarse cell adjacent to the fine boundary gets corrected.
+           The correction = (sum of fine cell updates at this face) / 2 - (coarse cell update at this face).
+           But we don't have the fine cell's face flux separately.
+
+           Alternative: store the flux at BOTH left and right faces per cell.
+           That doubles storage. Too many fields.
+
+           Simplest correct reflux: for the coarse cell at the boundary,
+           recompute its flux using the fine neighbor data directly. */
+
+        /* For now: correct coarse boundary cells by averaging fine neighbor values */
+        for (k = 0; k < BS; k++) {
+          int fk0 = 2 * k, fk1 = 2 * k + 1;
+          /* coarse flux at face (ci+1/2, k) if side=1, or (ci-1/2, k) if side=0 */
+          coarse_flux = cf_u[k * BS + ci];
+          /* fine flux: for side=1, fine blocks' left face = coarse right face
+             fine blocks store flux at (i+1/2). Fine left face flux is at index BS-1
+             of whichever block is to the left — that's the coarse block itself.
+             So we can't directly get the fine flux from the fine block.
+             Instead: use restriction — average fine cell values at boundary. */
+          /* Direct approach: read fine block boundary cells and compute flux correction */
+          Real fu0 = (BLK(c0) + BS * BS * F_U)[fk0 * BS + (side ? 0 : BS-1)];
+          Real fu1 = (fk1 < BS) ?
+                     (BLK(c0) + BS * BS * F_U)[fk1 * BS + (side ? 0 : BS-1)] :
+                     (BLK(c1) + BS * BS * F_U)[(fk1-BS) * BS + (side ? 0 : BS-1)];
+          Real coarse_u = u[k * BS + ci];
+          Real delta = 0.5 * (fu0 + fu1) - coarse_u;
+          u[k * BS + ci] += 0.25 * delta;
+          /* same for v */
+          Real fv0 = (BLK(c0) + BS * BS * F_V)[fk0 * BS + (side ? 0 : BS-1)];
+          Real fv1 = (fk1 < BS) ?
+                     (BLK(c0) + BS * BS * F_V)[fk1 * BS + (side ? 0 : BS-1)] :
+                     (BLK(c1) + BS * BS * F_V)[(fk1-BS) * BS + (side ? 0 : BS-1)];
+          Real coarse_v = v[k * BS + ci];
+          Real deltav = 0.5 * (fv0 + fv1) - coarse_v;
+          v[k * BS + ci] += 0.25 * deltav;
+        }
+      } else {
+        /* y-face: bottom(side=0) or top(side=1) */
+        int cj = side ? BS - 1 : 0;
+        for (k = 0; k < BS; k++) {
+          int fk0 = 2 * k, fk1 = 2 * k + 1;
+          Real fu0 = (BLK(c0) + BS * BS * F_U)[(side ? 0 : BS-1) * BS + fk0];
+          Real fu1 = (fk1 < BS) ?
+                     (BLK(c0) + BS * BS * F_U)[(side ? 0 : BS-1) * BS + fk1] :
+                     (BLK(c1) + BS * BS * F_U)[(side ? 0 : BS-1) * BS + (fk1-BS)];
+          Real coarse_u = u[cj * BS + k];
+          u[cj * BS + k] += 0.25 * (0.5*(fu0+fu1) - coarse_u);
+          Real fv0 = (BLK(c0) + BS * BS * F_V)[(side ? 0 : BS-1) * BS + fk0];
+          Real fv1 = (fk1 < BS) ?
+                     (BLK(c0) + BS * BS * F_V)[(side ? 0 : BS-1) * BS + fk1] :
+                     (BLK(c1) + BS * BS * F_V)[(side ? 0 : BS-1) * BS + (fk1-BS)];
+          Real coarse_v = v[cj * BS + k];
+          v[cj * BS + k] += 0.25 * (0.5*(fv0+fv1) - coarse_v);
+        }
+      }
+    }
+  }
+}
+
 static void advect_diffuse(Real dt) {
   Real alpha = sim.nu * dt * 0.5;
   Real dth = 0.5 * dt;
@@ -747,9 +870,10 @@ static void advect_diffuse(Real dt) {
   }
   /* Step 3: MAC projection */
   mac_project(dt);
-  /* Step 4-6: Full edge states with transverse + viscous + pressure,
-     then compute advective flux and CN explicit half (Eq. 19, 22).
-     Edge values stored at cell centers: umac[i,j] = u at face (i+1/2,j). */
+  /* Steps 4-7: Edge states with transverse + viscous + pressure (Eq. 19-22),
+     advective flux (Eq. 3.6), CN explicit half.
+     For each cell, compute upwinded edge values at all 4 faces,
+     then difference to get (U·∇)U. */
 #pragma omp parallel
   {
     Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
@@ -758,11 +882,12 @@ static void advect_diffuse(Real dt) {
 #define Q1(b,i,j) b[nm1*((j)+1)+(i)+1]
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      Real *un = BLK(id)+BS*BS*F_TMP;
-      Real *vn = BLK(id)+BS*BS*F_TMP2;
+      Real *un_out = BLK(id)+BS*BS*F_TMP;
+      Real *vn_out = BLK(id)+BS*BS*F_TMP2;
       Real h = sim.blk[id].h;
       Real ih = 1.0 / h;
       Real dtdx = dt / h;
+      Real nu = sim.nu;
       int i, j;
       lb_load(bu, 1, F_U, 2, id);
       lb_load(bv, 1, F_V, 2, id);
@@ -772,67 +897,121 @@ static void advect_diffuse(Real dt) {
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
           Real uc = Q2(bu,i,j), vc = Q2(bv,i,j);
-          /* For each component q, compute edge states with full corrections */
-          /* === u-component at x-faces === */
-          Real su = slope4(Q2(bu,i-2,j),Q2(bu,i-1,j),Q2(bu,i,j),Q2(bu,i+1,j),Q2(bu,i+2,j));
-          /* left state at face (i+1/2,j) from cell (i,j): Eq. 20 with MAC vel */
-          Real xlo_u = Q2(bu,i,j) + 0.5*(1.0 - Q1(bum,i,j)*dtdx)*su;
-          /* right state at face (i-1/2,j) from cell (i,j) */
-          Real xhi_u = Q2(bu,i,j) + 0.5*(-1.0 - Q1(bum,i-1,j)*dtdx)*su;
-          /* transverse (Eq. 22): -(dt/2)*(vmac*∂u/∂y) */
-          Real sy_u = slope4(Q2(bu,i,j-2),Q2(bu,i,j-1),Q2(bu,i,j),Q2(bu,i,j+1),Q2(bu,i,j+2));
-          Real uy_lo = Q2(bu,i,j) + 0.5*(1.0 - Q1(bvm,i,j)*dtdx)*sy_u;
-          Real uy_hi = Q2(bu,i,j) + 0.5*(-1.0 - Q1(bvm,i,j-1)*dtdx)*sy_u;
-          Real uy_face = (Q1(bvm,i,j) >= 0) ? uy_lo : uy_hi;
-          /* viscous + pressure (Eq. 19) */
+          Real umR = Q1(bum,i,j), umL = Q1(bum,i-1,j);
+          Real vmT = Q1(bvm,i,j), vmB = Q1(bvm,i,j-1);
+          /* slopes (4th-order limited, Eq. 20 of Brown & Minion) */
+          Real ux = slope4(Q2(bu,i-2,j),Q2(bu,i-1,j),uc,Q2(bu,i+1,j),Q2(bu,i+2,j));
+          Real uy = slope4(Q2(bu,i,j-2),Q2(bu,i,j-1),uc,Q2(bu,i,j+1),Q2(bu,i,j+2));
+          Real vx = slope4(Q2(bv,i-2,j),Q2(bv,i-1,j),vc,Q2(bv,i+1,j),Q2(bv,i+2,j));
+          Real vy = slope4(Q2(bv,i,j-2),Q2(bv,i,j-1),vc,Q2(bv,i,j+1),Q2(bv,i,j+2));
+          /* Laplacians and pressure gradients */
           Real lap_u = (Q2(bu,i+1,j)+Q2(bu,i-1,j)+Q2(bu,i,j+1)+Q2(bu,i,j-1)-4*uc)*ih*ih;
-          Real dpx = (Q1(bp,i+1,j)-Q1(bp,i-1,j))*0.5*ih;
-          Real corr_u = dth*(sim.nu*lap_u - dpx);
-          xlo_u += corr_u - dth*(Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
-          xhi_u += corr_u - dth*(Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
-          /* Riemann at face (i+1/2,j) using left from (i) and right from (i+1) */
-          Real xhi_u1 = Q2(bu,i+1,j) + 0.5*(-1.0 - Q1(bum,i,j)*dtdx)*
-            slope4(Q2(bu,i-1,j),Q2(bu,i,j),Q2(bu,i+1,j),Q2(bu,i+2,j),Q2(bu,i+3,j));
-          /* add same corrections for right state from cell (i+1) */
-          Real lap_u1 = (Q2(bu,i+2,j)+Q2(bu,i,j)+Q2(bu,i+1,j+1)+Q2(bu,i+1,j-1)-4*Q2(bu,i+1,j))*ih*ih;
-          Real dpx1 = (Q1(bp,i+2,j)-Q1(bp,i,j))*0.5*ih;
-          xhi_u1 += dth*(sim.nu*lap_u1 - dpx1);
-          Real uface = Q1(bum,i,j);
-          Real eu = (uface >= 0) ? xlo_u : xhi_u1;
-          /* === v-component at y-faces === */
-          Real sv = slope4(Q2(bv,i,j-2),Q2(bv,i,j-1),Q2(bv,i,j),Q2(bv,i,j+1),Q2(bv,i,j+2));
-          Real ylo_v = Q2(bv,i,j) + 0.5*(1.0 - Q1(bvm,i,j)*dtdx)*sv;
-          Real sy_v_x = slope4(Q2(bv,i-2,j),Q2(bv,i-1,j),Q2(bv,i,j),Q2(bv,i+1,j),Q2(bv,i+2,j));
-          Real vx_lo = Q2(bv,i,j) + 0.5*(1.0 - Q1(bum,i,j)*dtdx)*sy_v_x;
-          Real vx_hi = Q2(bv,i,j) + 0.5*(-1.0 - Q1(bum,i-1,j)*dtdx)*sy_v_x;
-          Real vx_face = (Q1(bum,i,j) >= 0) ? vx_lo : vx_hi;
           Real lap_v = (Q2(bv,i+1,j)+Q2(bv,i-1,j)+Q2(bv,i,j+1)+Q2(bv,i,j-1)-4*vc)*ih*ih;
+          Real dpx = (Q1(bp,i+1,j)-Q1(bp,i-1,j))*0.5*ih;
           Real dpy = (Q1(bp,i,j+1)-Q1(bp,i,j-1))*0.5*ih;
-          Real corr_v = dth*(sim.nu*lap_v - dpy);
-          ylo_v += corr_v - dth*(Q1(bum,i,j)*vx_face - Q1(bum,i-1,j)*vx_hi)*ih;
-          Real yhi_v1 = Q2(bv,i,j+1) + 0.5*(-1.0 - Q1(bvm,i,j)*dtdx)*
-            slope4(Q2(bv,i,j-1),Q2(bv,i,j),Q2(bv,i,j+1),Q2(bv,i,j+2),Q2(bv,i,j+3));
-          Real lap_v1 = (Q2(bv,i+1,j+1)+Q2(bv,i-1,j+1)+Q2(bv,i,j+2)+Q2(bv,i,j)-4*Q2(bv,i,j+1))*ih*ih;
-          Real dpy1 = (Q1(bp,i,j+2)-Q1(bp,i,j))*0.5*ih;
-          yhi_v1 += dth*(sim.nu*lap_v1 - dpy1);
-          Real vface = Q1(bvm,i,j);
-          Real ev = (vface >= 0) ? ylo_v : yhi_v1;
-          /* Step 6: advective flux (conservative form) */
-          /* Need left face values too: at (i-1/2,j) for u, (i,j-1/2) for v */
-          /* Use xhi_u for u at face (i-1/2,j), use stored vmac for upwind */
-          Real eu_L = xhi_u; /* right state arriving at face (i-1/2) from cell (i) */
-          Real ev_B = Q2(bv,i,j) + 0.5*(-1.0 - Q1(bvm,i,j-1)*dtdx)*sv + corr_v;
-          Real adv_u = (Q1(bum,i,j)*eu - Q1(bum,i-1,j)*eu_L)*ih
-                     + (Q1(bvm,i,j)*uy_face - Q1(bvm,i,j-1)*uy_hi)*ih;
-          Real adv_v = (Q1(bum,i,j)*vx_face - Q1(bum,i-1,j)*vx_hi)*ih
-                     + (Q1(bvm,i,j)*ev - Q1(bvm,i,j-1)*ev_B)*ih;
-          /* Step 7: CN explicit half */
-          un[j*BS+i] = uc + alpha*lap_u + dt*(-adv_u - dpx);
-          vn[j*BS+i] = vc + alpha*lap_v + dt*(-adv_v - dpy);
+          /* corrections from viscosity + pressure (Eq. 19) */
+          Real cu = dth*(nu*lap_u - dpx);
+          Real cv = dth*(nu*lap_v - dpy);
+          /* transverse derivatives (upwinded, Eq. 3.4c-d of BCG) */
+          Real uT = (vmT >= 0) ? uc + 0.5*uy : Q2(bu,i,j+1) - 0.5*
+                    slope4(Q2(bu,i,j-1),Q2(bu,i,j),Q2(bu,i,j+1),Q2(bu,i,j+2),Q2(bu,i,j+3));
+          Real uB = (vmB >= 0) ? Q2(bu,i,j-1) + 0.5*
+                    slope4(Q2(bu,i,j-3),Q2(bu,i,j-2),Q2(bu,i,j-1),Q2(bu,i,j),Q2(bu,i,j+1)) : uc - 0.5*uy;
+          Real vR = (umR >= 0) ? vc + 0.5*vx : Q2(bv,i+1,j) - 0.5*
+                    slope4(Q2(bv,i-1,j),Q2(bv,i,j),Q2(bv,i+1,j),Q2(bv,i+2,j),Q2(bv,i+3,j));
+          Real vL = (umL >= 0) ? Q2(bv,i-1,j) + 0.5*
+                    slope4(Q2(bv,i-3,j),Q2(bv,i-2,j),Q2(bv,i-1,j),Q2(bv,i,j),Q2(bv,i+1,j)) : vc - 0.5*vx;
+          /* transverse flux corrections */
+          Real tu = -dth*(vmT*uT - vmB*uB)*ih;
+          Real tv = -dth*(umR*vR - umL*vL)*ih;
+          /* full edge states: normal extrapolation + all corrections */
+          /* u at right face (i+1/2,j) — left state from cell (i,j) */
+          Real uR_L = uc + 0.5*(1.0 - umR*dtdx)*ux + cu + tu;
+          /* u at left face (i-1/2,j) — right state from cell (i,j) */
+          Real uL_R = uc + 0.5*(-1.0 - umL*dtdx)*ux + cu + tu;
+          /* v at top face (i,j+1/2) — bottom state from cell (i,j) */
+          Real vT_B = vc + 0.5*(1.0 - vmT*dtdx)*vy + cv + tv;
+          /* v at bottom face (i,j-1/2) — top state from cell (i,j) */
+          Real vB_T = vc + 0.5*(-1.0 - vmB*dtdx)*vy + cv + tv;
+          /* Riemann upwinding at each face using MAC velocity */
+          /* face (i+1/2,j): need right state from cell (i+1,j) */
+          Real un1 = Q2(bu,i+1,j);
+          Real ux1 = slope4(Q2(bu,i-1,j),Q2(bu,i,j),un1,Q2(bu,i+2,j),Q2(bu,i+3,j));
+          Real uR_R = un1 + 0.5*(-1.0 - umR*dtdx)*ux1
+                    + dth*(nu*(Q2(bu,i+2,j)+Q2(bu,i,j)+Q2(bu,i+1,j+1)+Q2(bu,i+1,j-1)-4*un1)*ih*ih
+                          - (Q1(bp,i+2,j)-Q1(bp,i,j))*0.5*ih);
+          /* face (i,j+1/2): need top state from cell (i,j+1) */
+          Real vn1 = Q2(bv,i,j+1);
+          Real vy1 = slope4(Q2(bv,i,j-1),Q2(bv,i,j),vn1,Q2(bv,i,j+2),Q2(bv,i,j+3));
+          Real vT_T = vn1 + 0.5*(-1.0 - vmT*dtdx)*vy1
+                    + dth*(nu*(Q2(bv,i+1,j+1)+Q2(bv,i-1,j+1)+Q2(bv,i,j+2)+Q2(bv,i,j)-4*vn1)*ih*ih
+                          - (Q1(bp,i,j+2)-Q1(bp,i,j))*0.5*ih);
+          /* store upwinded edge values at right/top face of cell (i,j)
+             u at face (i+1/2,j): upwind using MAC velocity */
+          Real euR = (umR >= 0) ? uR_L : uR_R;
+          Real evT = (vmT >= 0) ? vT_B : vT_T;
+          /* also need u at y-faces and v at x-faces (cross transport) */
+          Real euT = uT; /* u transported by vmac at face (j+1/2) */
+          Real evR = vR; /* v transported by umac at face (i+1/2) */
+          /* store edge values for flux differencing in pass 2 */
+          un_out[j*BS+i] = euR;  /* u at face (i+1/2,j) */
+          vn_out[j*BS+i] = evT;  /* v at face (i,j+1/2) */
+          /* store cross-component edge values */
+          (BLK(id)+BS*BS*F_TMP3)[j*BS+i] = euT; /* u at face (i,j+1/2) */
+          (BLK(id)+BS*BS*F_W)[j*BS+i] = evR;    /* v at face (i+1/2,j) */
         }
     }
 #undef Q2
 #undef Q1
+  }
+  /* Pass 2: flux differencing + CN update using stored edge values */
+#pragma omp parallel
+  {
+    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
+    Real beu[LB_BUF], bev[LB_BUF], beut[LB_BUF], bevr[LB_BUF];
+    int nm1 = BS + 2, nm2 = BS + 4;
+#define E1(b,i,j) b[nm1*((j)+1)+(i)+1]
+#define Q2(b,i,j) b[nm2*((j)+2)+(i)+2]
+#pragma omp for
+    for (long long id = 0; id < sim.n; id++) {
+      Real h = sim.blk[id].h;
+      Real ih = 1.0 / h;
+      int i, j;
+      lb_load(bu, 1, F_U, 2, id);
+      lb_load(bv, 1, F_V, 2, id);
+      lb_load(bp, 1, F_P, 1, id);
+      lb_load(bum, 1, F_UMAC, 1, id);
+      lb_load(bvm, 1, F_VMAC, 1, id);
+      lb_load(beu, 1, F_TMP, 1, id);   /* u at x-faces */
+      lb_load(bev, 1, F_TMP2, 1, id);  /* v at y-faces */
+      lb_load(beut, 1, F_TMP3, 1, id); /* u at y-faces */
+      lb_load(bevr, 1, F_W, 1, id);    /* v at x-faces */
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
+          Real uc = Q2(bu,i,j), vc = Q2(bv,i,j);
+          /* edge[i,j] = value at face (i+1/2,j) or (i,j+1/2) */
+          /* flux at face (i+1/2) = umac * edge_u, at (i-1/2) = umac_{i-1} * edge_u_{i-1} */
+          Real adv_u = (E1(bum,i,j)*E1(beu,i,j) - E1(bum,i-1,j)*E1(beu,i-1,j))*ih
+                     + (E1(bvm,i,j)*E1(beut,i,j) - E1(bvm,i,j-1)*E1(beut,i,j-1))*ih;
+          Real adv_v = (E1(bum,i,j)*E1(bevr,i,j) - E1(bum,i-1,j)*E1(bevr,i-1,j))*ih
+                     + (E1(bvm,i,j)*E1(bev,i,j) - E1(bvm,i,j-1)*E1(bev,i,j-1))*ih;
+          Real lap_u = (Q2(bu,i+1,j)+Q2(bu,i-1,j)+Q2(bu,i,j+1)+Q2(bu,i,j-1)-4*uc)*ih*ih;
+          Real lap_v = (Q2(bv,i+1,j)+Q2(bv,i-1,j)+Q2(bv,i,j+1)+Q2(bv,i,j-1)-4*vc)*ih*ih;
+          Real dpx = ((BLK(id)+BS*BS*F_P)[j*BS+i] > -1e30) ?
+                     (Q2(bu,i,j) > -1e30 ? (E1(bp,i+1,j)-E1(bp,i-1,j))*0.5*ih : 0) : 0;
+          dpx = (E1(bp,i+1,j)-E1(bp,i-1,j))*0.5*ih;
+          Real dpy = (E1(bp,i,j+1)-E1(bp,i,j-1))*0.5*ih;
+          (BLK(id)+BS*BS*F_TMP)[j*BS+i] = uc + alpha*lap_u + dt*(-adv_u - dpx);
+          (BLK(id)+BS*BS*F_TMP2)[j*BS+i] = vc + alpha*lap_v + dt*(-adv_v - dpy);
+          /* store conservative fluxes at right/top face for refluxing */
+          (BLK(id)+BS*BS*F_UMAC)[j*BS+i] = E1(bum,i,j)*E1(beu,i,j);  /* Fx(u) */
+          (BLK(id)+BS*BS*F_VMAC)[j*BS+i] = E1(bvm,i,j)*E1(bev,i,j);  /* Fy(v) */
+          (BLK(id)+BS*BS*F_TMP3)[j*BS+i] = E1(bvm,i,j)*E1(beut,i,j); /* Fy(u) */
+          (BLK(id)+BS*BS*F_W)[j*BS+i] = E1(bum,i,j)*E1(bevr,i,j);    /* Fx(v) */
+        }
+    }
+#undef E1
+#undef Q2
   }
 #pragma omp parallel for
   for (long long id = 0; id < sim.n; id++) {
@@ -879,21 +1058,22 @@ static void helmholtz_solve(Real dt, int field) {
 }
 
 static void blk_laplacian(int src, int dst_field) {
+  /* Wide Laplacian L=DG: (-4φ + φ_{i±2} + φ_{j±2}) / (4h²) */
 #pragma omp parallel
   {
     Real buf[LB_BUF];
-    int nm = BS + 2;
+    int nm = BS + 4;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
       Real *out = BLK(id) + BS * BS * dst_field;
       Real h = sim.blk[id].h;
-      Real ih2 = 1.0 / (h * h);
+      Real c = 1.0 / (4.0 * h * h);
       int i, j;
-      lb_load(buf, 1, src, 1, id);
+      lb_load(buf, 1, src, 2, id);
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
-#define PH(di, dj) buf[nm * ((j)+(dj)+1) + (i)+(di)+1]
-          out[j * BS + i] = (PH(1,0)+PH(-1,0)+PH(0,1)+PH(0,-1)-4*PH(0,0))*ih2;
+#define PH(di, dj) buf[nm * ((j)+(dj)+2) + (i)+(di)+2]
+          out[j * BS + i] = (PH(2,0)+PH(-2,0)+PH(0,2)+PH(0,-2)-4*PH(0,0))*c;
 #undef PH
         }
     }
@@ -948,23 +1128,24 @@ static void blk_mean_sub(int field) {
 }
 
 static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
+  /* Smoother for wide Laplacian: (-4φ + Σφ_{±2}) = f
+     φ_new = (f + Σφ_{±2}) / 4 */
   int it;
   for (it = 0; it < niter; it++) {
 #pragma omp parallel
     {
       Real buf[LB_BUF];
-      int nm = BS + 2;
+      int nm = BS + 4;
 #pragma omp for
       for (long long id = 0; id < sim.n; id++) {
         Real *u = BLK(id) + BS * BS * sol_field;
         Real *f = BLK(id) + BS * BS * rhs_field;
-        Real h2 = sim.blk[id].h * sim.blk[id].h;
         int i, j;
-        lb_load(buf, 1, sol_field, 1, id);
+        lb_load(buf, 1, sol_field, 2, id);
         for (j = 0; j < BS; j++)
           for (i = 0; i < BS; i++) {
-#define PB(di, dj) buf[nm*((j)+(dj)+1)+(i)+(di)+1]
-            u[j*BS+i] = 0.25*(PB(1,0)+PB(-1,0)+PB(0,1)+PB(0,-1) - h2*f[j*BS+i]);
+#define PB(di, dj) buf[nm*((j)+(dj)+2)+(i)+(di)+2]
+            u[j*BS+i] = 0.25*(PB(2,0)+PB(-2,0)+PB(0,2)+PB(0,-2) - f[j*BS+i]);
 #undef PB
           }
       }
@@ -993,7 +1174,7 @@ static void mac_project(Real dt) {
 #define VM(di,dj) bvm[nm*((j)+(dj)+1)+(i)+(di)+1]
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++)
-          rhs[j*BS+i] = 0.5*h*(UM(1,0)-UM(-1,0)+VM(0,1)-VM(0,-1));
+          rhs[j*BS+i] = 2.0*h*(UM(1,0)-UM(-1,0)+VM(0,1)-VM(0,-1));
 #undef UM
 #undef VM
     }
@@ -1089,7 +1270,7 @@ static void poisson_solve(Real dt) {
     for (long long id = 0; id < sim.n; id++) {
       Real *rhs = BLK(id) + BS * BS * F_TMP;
       Real h = sim.blk[id].h;
-      Real fac = 0.5 * h / dt;
+      Real fac = 2.0 * h / dt;
       int i, j;
       lb_load(bu, 1, F_U, 1, id);
       lb_load(bv, 1, F_V, 1, id);

@@ -9,7 +9,7 @@ ${main=./main} \
 -CFL 0.8 \
 -Rtol 0.1 \
 -levelMax 5 \
--levelStart 2 \
+-levelStart 3 \
 -nu 1e-4 \
 -sdump 0 \
 -tdump 0.1 \
