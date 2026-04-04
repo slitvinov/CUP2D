@@ -534,6 +534,12 @@ static int ad_run(void) {
   state = realloc(state, sim.n * sizeof *state);
   for (long long i = nprev; i < sim.n; i++)
     state[i] = Leave;
+  for (long long k = 0; k < n_com; k++) {
+    long long ci = com_idx[k];
+    struct Blk *p0 = &sim.blk[ci];
+    for (int s = 1; s < 4; s++)
+      state[nb_find(p0->level, p0->ix, p0->iy, ad_sib_ic[s]).idx] = Dealloc;
+  }
 #pragma omp parallel
   {
     Real lm[LB_BUF];
@@ -581,11 +587,12 @@ static int ad_run(void) {
       long long ci = com_idx[k];
       struct Blk *p0 = &sim.blk[ci];
       int level = p0->level, x = p0->ix, y = p0->iy;
-      Real *blk[4] = {BLK(ci)};
-      for (int s = 1; s < 4; s++) {
-        blk[s] = BLK(nb_find(level, x, y, ad_sib_ic[s]).idx);
-        state[nb_find(level, x, y, ad_sib_ic[s]).idx] = Dealloc;
-      }
+      long long sib[4] = {ci};
+      for (int s = 1; s < 4; s++)
+        sib[s] = nb_find(level, x, y, ad_sib_ic[s]).idx;
+      Real *blk[4];
+      for (int s = 0; s < 4; s++)
+        blk[s] = BLK(sib[s]);
       for (size_t v = 0; v < NVARS; v++) {
         int dim = fld_t[v].dim, off = fld_t[v].offset;
         Real *dst = blk[0] + off * BS * BS;
