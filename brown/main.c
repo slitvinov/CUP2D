@@ -40,6 +40,7 @@ static int hm_slot(struct HMap *m, long long key) {
   h = (unsigned long long)key * 0x9E3779B97F4A7C15ULL;
   return (int)(h >> 32) & (m->cap - 1);
 }
+
 static int hm_get(struct HMap *m, long long key) {
   int i;
 
@@ -78,6 +79,7 @@ static long long hm_key(int level, int ix, int iy) {
   n = 1LL << level;
   return ((n * n) - 1) / 3 + iy * n + ix;
 }
+
 struct Blk {
   Real h, origin[2];
   int level, n, ix, iy;
@@ -375,13 +377,12 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss,
 }
 
 static void compute_vorticity(void) {
-  long long id;
-  int j;
-
-  Real bu[LB_BUF], bv[LB_BUF];
   Real *w;
-  int nm;
   Real ih;
+  Real bu[LB_BUF], bv[LB_BUF];
+  int i, j, nm;
+  long long id;
+
   for (id = 0; id < sim.n; id++) {
     lb_load(bu, 1, F_U, 1, id);
     lb_load(bv, 1, F_V, 1, id);
@@ -389,7 +390,7 @@ static void compute_vorticity(void) {
     nm = BS + 2;
     ih = 0.5 / sim.blk[id].h;
     for (j = 0; j < BS; j++)
-      for (int i = 0; i < BS; i++) {
+      for (i = 0; i < BS; i++) {
 #define U(di, dj) bu[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
 #define V(di, dj) bv[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
         w[j * BS + i] = (V(1, 0) - V(-1, 0)) * ih - (U(0, 1) - U(0, -1)) * ih;
@@ -401,11 +402,11 @@ static void compute_vorticity(void) {
 
 static void restrict_2to1(Real *fine, Real *coarse, int dim, int fs, int cs,
                           int ni, int nj) {
-  int j;
+  int d, i, j;
 
   for (j = 0; j < nj; j++)
-    for (int i = 0; i < ni; i++)
-      for (int d = 0; d < dim; d++)
+    for (i = 0; i < ni; i++)
+      for (d = 0; d < dim; d++)
         coarse[dim * (j * cs + i) + d] =
             0.25 * (fine[dim * ((2 * j) * fs + 2 * i) + d] +
                     fine[dim * ((2 * j) * fs + 2 * i + 1) + d] +
@@ -426,19 +427,19 @@ static Real ad_ref_w[4][9] = {
 
 static void prolong_2to1(Real *coarse, Real *fine, int dim, int cs, int fs,
                          int ni, int nj, int ci0, int cj0) {
-  int di, dj, ic, j, jc;
   Real val;
+  int d, di, dj, i, ic, j, jc, kk, s;
 
   for (j = 0; j < nj; j++)
-    for (int i = 0; i < ni; i++) {
+    for (i = 0; i < ni; i++) {
       ic = i + ci0;
       jc = j + cj0;
-      for (int s = 0; s < 4; s++) {
+      for (s = 0; s < 4; s++) {
         di = s & 1;
         dj = s >> 1;
-        for (int d = 0; d < dim; d++) {
+        for (d = 0; d < dim; d++) {
           val = 0;
-          for (int kk = 0; kk < 9; kk++)
+          for (kk = 0; kk < 9; kk++)
             val += ad_ref_w[s][kk] *
                    coarse[dim * ((jc + kk / 3 - 1) * cs + ic + kk % 3 - 1) + d];
           fine[dim * ((2 * j + dj) * fs + 2 * i + di) + d] = val;

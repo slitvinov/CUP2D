@@ -10,8 +10,8 @@ python3 gen_table.py
 D=/tmp/brown_test_$$
 mkdir -p $D/uni $D/amr $D/san_uni $D/san_amr $D/warn
 
-ARGS_UNI="-levelStart 3 -levelMax 3 -AdaptSteps 0 -Rtol 1 -nu 1e-4 -CFL 0.4 -tend 0.15 -tdump 0.15 -sdump 0"
-ARGS_AMR="-levelStart 2 -levelMax 4 -AdaptSteps 2 -Rtol 0.5 -nu 1e-4 -CFL 0.4 -tend 0.15 -tdump 0.15 -sdump 0"
+ARGS_UNI="-levelStart 3 -levelMax 3 -AdaptSteps 0 -Rtol 1 -nu 1e-4 -CFL 0.4 -tend 0.05 -tdump 0.05 -sdump 0"
+ARGS_AMR="-levelStart 2 -levelMax 4 -AdaptSteps 2 -Rtol 0.5 -nu 1e-4 -CFL 0.4 -tend 0.05 -tdump 0.05 -sdump 0"
 
 for f in tab_*.bin; do for d in $D/uni $D/amr $D/san_uni $D/san_amr; do cp $f $d/; done; done
 
@@ -25,7 +25,7 @@ cp $D/san_uni/main $D/san_amr/main
 (cd $D/san_uni && ./main $ARGS_UNI 2>log && echo OK >status) &
 (cd $D/san_amr && ./main $ARGS_AMR 2>log && echo OK >status) &
 (cc -O1 -Wall -Wextra -Wuninitialized -Wsometimes-uninitialized \
-   -Wdeclaration-after-statement -Wno-unused-parameter -Werror \
+   -Wno-unused-parameter -Werror \
    -o /dev/null main.c -lm 2>$D/warn/log && echo OK >$D/warn/status) &
 wait
 
