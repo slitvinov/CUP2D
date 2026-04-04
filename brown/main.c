@@ -965,7 +965,7 @@ static void amr_gather(double *dst, int field, int Ng, Real hf) {
               int i0 = (fx < 0) ? -1 : 0, j0 = (fy < 0) ? -1 : 0;
               double wx = fx - i0, wy = fy - j0;
 
-#define LB(ci, cj) lb[nm * ((j) + (cj) + ss) + (i) + (ci) + ss]
+#define LB(ci, cj) lb[nm * ((j) + (cj) + 1) + (i) + (ci) + 1]
               double v00 = LB(i0, j0);
               double v10 = LB(i0 + 1, j0);
               double v01 = LB(i0, j0 + 1);
@@ -1275,7 +1275,7 @@ static void project(Real dt) {
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++) {
           int k = j * BS + i;
-#define PH(di, dj) bp[nm * ((j) + (dj) + ss) + (i) + (di) + ss]
+#define PH(di, dj) bp[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
           u[k] -= dt * (PH(1, 0) - PH(-1, 0)) * ih;
           v[k] -= dt * (PH(0, 1) - PH(0, -1)) * ih;
           p[k] += phi[k];
