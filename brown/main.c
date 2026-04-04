@@ -975,11 +975,12 @@ static void mg_matvec_helm(const double *u, const double *f, double *r, int m,
                            void *ctx) {
   struct HelmCtx *c = ctx;
   double ah2 = c->alpha / (c->h * c->h), a = 1.0 + 4.0 * ah2;
+  int ip, im, jp, jm;
   (void)f;
   for (int j = 0; j < m; j++)
     for (int i = 0; i < m; i++) {
-      int ip = (i + 1) % m, im = (i - 1 + m) % m, jp = (j + 1) % m,
-          jm = (j - 1 + m) % m;
+      ip = (i + 1) % m; im = (i - 1 + m) % m; jp = (j + 1) % m;
+      jm = (j - 1 + m) % m;
       r[j * m + i] =
           a * u[j * m + i] -
           ah2 * (u[j * m + ip] + u[j * m + im] + u[jp * m + i] + u[jm * m + i]);
