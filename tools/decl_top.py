@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Move variable declarations to top of function, grouped by type and kind.
+"""Move variable declarations to top of function, grouped by type.
 
-Usage: python3 tools/decl_top.py --in-place file.c
-       python3 tools/decl_top.py file.c > file_fixed.c
+Usage: python3 tools/decl_top.py [--in-place] [-f func] file.c
+       -f func  only process the named function
+       --in-place  modify file in place
 
-Groups: Real a, b; Real *p, *q; int arr[10], brr[10];
-Sorted alphabetically within each group.
-Only hoists from direct function body (not nested blocks).
-Skips: struct/enum decls, initializers with -> . or () calls, for-loop vars.
-Run clang-format after.
+For each function, collects ALL declarations from the direct function body
+(not nested blocks), hoists them to the top, grouped by base type and sorted
+alphabetically. Initializers are split: "int x = expr;" becomes "int x;" at
+top + "x = expr;" at original position.
+
+Handles: scalars, pointers, arrays, struct types, const qualifiers.
+Skips: brace initializers ({...}), declarations in for-loop init.
+Warns: duplicate names, initializers referencing pointers (-> or function calls).
+Run clang-format -i after.
 """
 
 import sys
@@ -20,34 +25,38 @@ C_LANG = Language(tsc.language())
 parser = Parser(C_LANG)
 
 
-def process(src):
+def get_func_name(src, node):
+    for c in node.children:
+        if c.type == 'function_declarator':
+            for cc in c.children:
+                if cc.type == 'identifier':
+                    return src[cc.start_byte:cc.end_byte].decode()
+    return None
+
+
+def base_ident(name_bytes):
+    """Extract plain identifier from 'name', '*name', or 'name[SIZE]'."""
+    n = name_bytes.replace(b'*', b'').strip()
+    if b'[' in n:
+        n = n[:n.index(b'[')].strip()
+    return n
+
+
+def process(src, only_func=None):
     tree = parser.parse(src)
     edits = []
 
     def find_function_bodies(node):
         bodies = []
         if node.type == 'function_definition':
-            for c in node.children:
-                if c.type == 'compound_statement':
-                    bodies.append(c)
+            if only_func is None or get_func_name(src, node) == only_func:
+                for c in node.children:
+                    if c.type == 'compound_statement':
+                        bodies.append(c)
         else:
             for child in node.children:
                 bodies.extend(find_function_bodies(child))
         return bodies
-
-    def collect_for_decls(node, result):
-        for child in node.children:
-            if child.type == 'for_statement':
-                for c in child.children:
-                    if c.type == 'declaration':
-                        result.append((child, c))
-                        break
-                for c in child.children:
-                    if c.type == 'compound_statement':
-                        collect_for_decls(c, result)
-            elif child.type in ('compound_statement', 'if_statement',
-                                'while_statement', 'do_statement'):
-                collect_for_decls(child, result)
 
     def visit_function(body):
         open_brace = None
@@ -60,11 +69,7 @@ def process(src):
         insert_pos = open_brace.end_byte
 
         decls = [c for c in body.children if c.type == 'declaration']
-
-        for_decls = []
-        collect_for_decls(body, for_decls)
-
-        if not decls and not for_decls:
+        if not decls:
             return
 
         groups = OrderedDict()
@@ -72,11 +77,10 @@ def process(src):
 
         for decl in decls:
             decl_text = src[decl.start_byte:decl.end_byte]
-            if b'struct ' in decl_text or b'enum ' in decl_text:
-                continue
-            if b'{' in decl_text or b'[]' in decl_text:
+            if b'{' in decl_text:
                 continue
 
+            # Find base type and declarators
             declarators = []
             type_node_end = decl.start_byte
             for c in decl.children:
@@ -84,14 +88,22 @@ def process(src):
                               'pointer_declarator', 'array_declarator'):
                     declarators.append(c)
                 elif c.type in ('primitive_type', 'type_identifier',
-                                'sized_type_specifier', 'storage_class_specifier'):
+                                'sized_type_specifier', 'storage_class_specifier',
+                                'struct_specifier', 'enum_specifier',
+                                'type_qualifier'):
                     type_node_end = c.end_byte
 
             if not declarators:
                 continue
 
             base_type = src[decl.start_byte:type_node_end].strip()
-            any_moved = False
+            if b'const' in base_type:
+                line = src[:decl.start_byte].count(b'\n') + 1
+                sys.stderr.write(f"  skip: const declaration (line {line})\n")
+                continue
+            assignments = []
+            new_names = []
+            all_handled = True
 
             for d in declarators:
                 if d.type == 'init_declarator':
@@ -104,110 +116,83 @@ def process(src):
                         else:
                             val_n = c
                     if not name_n or not val_n:
+                        all_handled = False
                         continue
-                    val_text = src[val_n.start_byte:val_n.end_byte]
-                    if b'->' in val_text or b'(' in val_text:
-                        continue
+
                     name_text = src[name_n.start_byte:name_n.end_byte]
+                    val_text = src[val_n.start_byte:val_n.end_byte]
+                    bname = base_ident(name_text)
                     kind = 'ptr' if name_n.type == 'pointer_declarator' else \
                            'arr' if name_n.type == 'array_declarator' else 'plain'
+
+                    # Check for unsafe initializers
+                    unsafe = b'->' in val_text
+                    if unsafe:
+                        line = src[:val_n.start_byte].count(b'\n') + 1
+                        sys.stderr.write(
+                            f"  skip: {bname.decode()} = ... (unsafe init, line {line})\n")
+                        all_handled = False
+                        continue
+
+                    # Build assignment
+                    assign_name = name_text
+                    if b'*' in assign_name:
+                        assign_name = assign_name.replace(b'*', b'', 1).strip()
+                    assignments.append(assign_name + b' = ' + val_text + b';')
+
                     key = (base_type, kind)
-                    if name_text not in seen:
+                    if bname not in seen:
                         groups.setdefault(key, []).append(name_text)
-                        seen.add(name_text)
-                    any_moved = True
+                        seen.add(bname)
+                    else:
+                        line = src[:name_n.start_byte].count(b'\n') + 1
+                        sys.stderr.write(
+                            f"  warn: {bname.decode()} duplicate (line {line})\n")
+
                 else:
                     name_text = src[d.start_byte:d.end_byte]
+                    bname = base_ident(name_text)
                     kind = 'ptr' if d.type == 'pointer_declarator' else \
                            'arr' if d.type == 'array_declarator' else 'plain'
                     key = (base_type, kind)
-                    if name_text not in seen:
+                    if bname not in seen:
                         groups.setdefault(key, []).append(name_text)
-                        seen.add(name_text)
+                        seen.add(bname)
+                    else:
+                        line = src[:d.start_byte].count(b'\n') + 1
+                        sys.stderr.write(
+                            f"  warn: {bname.decode()} duplicate (line {line})\n")
                     any_moved = True
 
-            if any_moved:
-                assignments = []
-                for d in declarators:
-                    if d.type == 'init_declarator':
-                        eq = name_n = val_n = None
-                        for c in d.children:
-                            if c.type == '=':
-                                eq = c
-                            elif eq is None:
-                                name_n = c
-                            else:
-                                val_n = c
-                        if name_n and val_n:
-                            val_text = src[val_n.start_byte:val_n.end_byte]
-                            if b'->' in val_text or b'(' in val_text:
-                                continue
-                            name_raw = src[name_n.start_byte:name_n.end_byte]
-                            if b'*' in name_raw:
-                                name_assign = name_raw.replace(b'*', b'', 1)
-                            else:
-                                name_assign = name_raw
-                            assignments.append(name_assign + b' = ' + val_text + b';')
+            if not all_handled:
+                continue
 
-                end = decl.end_byte
-                if end < len(src) and src[end:end + 1] == b'\n':
-                    end += 1
-
-                if assignments:
-                    edits.append((decl.start_byte, end,
-                                  b'\n'.join(assignments) + b'\n'))
-                else:
-                    edits.append((decl.start_byte, end, b''))
-
-        for for_stmt, for_decl in []:  # disabled: for-loop hoisting causes crashes
-            declarators = []
-            type_node_end = for_decl.start_byte
-            for c in for_decl.children:
-                if c.type in ('init_declarator', 'identifier'):
-                    declarators.append(c)
-                elif c.type in ('primitive_type', 'type_identifier',
-                                'sized_type_specifier'):
-                    type_node_end = c.end_byte
-            base_type = src[for_decl.start_byte:type_node_end].strip()
-            assignments = []
-            for d in declarators:
-                if d.type == 'init_declarator':
-                    eq = name_n = val_n = None
-                    for c in d.children:
-                        if c.type == '=':
-                            eq = c
-                        elif eq is None:
-                            name_n = c
-                        else:
-                            val_n = c
-                    if name_n and val_n:
-                        name_text = src[name_n.start_byte:name_n.end_byte]
-                        val_text = src[val_n.start_byte:val_n.end_byte]
-                        key = (base_type, 'plain')
-                        if name_text not in seen:
-                            groups.setdefault(key, []).append(name_text)
-                            seen.add(name_text)
-                        assignments.append(name_text + b' = ' + val_text)
-                elif d.type == 'identifier':
-                    name_text = src[d.start_byte:d.end_byte]
-                    key = (base_type, 'plain')
-                    if name_text not in seen:
-                        groups.setdefault(key, []).append(name_text)
-                        seen.add(name_text)
+            # Replace declaration with assignments (or remove if no assignments)
+            end = decl.end_byte
+            if end < len(src) and src[end:end + 1] == b'\n':
+                end += 1
             if assignments:
-                repl = b', '.join(assignments)
-                end = for_decl.end_byte
-                if end < len(src) and src[end:end+1] != b';':
-                    pass
-                else:
-                    end += 1
-                edits.append((for_decl.start_byte, end, repl + b';'))
+                edits.append((decl.start_byte, end,
+                              b'\n'.join(assignments) + b'\n'))
+            else:
+                edits.append((decl.start_byte, end, b''))
 
         if groups:
+            TYPE_ORDER = [b'int', b'long long', b'long', b'size_t',
+                          b'Real', b'double', b'float',
+                          b'struct Blk', b'struct Nb', b'struct HMEntry']
+            KIND_ORDER = {'plain': 0, 'ptr': 1, 'arr': 2}
+            def sort_key(item):
+                (bt, kind) = item[0]
+                try:
+                    ti = TYPE_ORDER.index(bt)
+                except ValueError:
+                    ti = len(TYPE_ORDER)
+                return (ti, KIND_ORDER.get(kind, 9), bt)
             grouped = b'\n'
-            for (base_type, kind), names in groups.items():
-                snames = sorted(names)
-                grouped += base_type + b' ' + b', '.join(snames) + b';\n'
+            for (bt, kind), names in sorted(groups.items(), key=sort_key):
+                snames = sorted(names, key=lambda n: base_ident(n))
+                grouped += bt + b' ' + b', '.join(snames) + b';\n'
             edits.append((insert_pos, insert_pos, grouped))
 
     for body in find_function_bodies(tree.root_node):
@@ -221,15 +206,27 @@ def process(src):
 
 
 if __name__ == '__main__':
-    in_place = '--in-place' in sys.argv
-    files = [a for a in sys.argv[1:] if a != '--in-place']
+    in_place = False
+    only_func = None
+    files = []
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == '--in-place':
+            in_place = True
+        elif args[i] == '-f' and i + 1 < len(args):
+            i += 1
+            only_func = args[i]
+        else:
+            files.append(args[i])
+        i += 1
     if not files:
         print(__doc__, file=sys.stderr)
         sys.exit(1)
     for fname in files:
         with open(fname, 'rb') as f:
             src = f.read()
-        out = process(src)
+        out = process(src, only_func)
         if in_place:
             with open(fname, 'wb') as f:
                 f.write(out)

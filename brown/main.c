@@ -126,11 +126,11 @@ static void hm_rebuild(void) {
     sim.hm.e[s].key = key;
     sim.hm.e[s].val = i;
     if (i < 3)
-      fprintf(stderr, "  hm: blk %lld lev=%d ix=%d iy=%d key=%lld slot=%d\n",
-              i, sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy, key, s);
+      fprintf(stderr, "  hm: blk %lld lev=%d ix=%d iy=%d key=%lld slot=%d\n", i,
+              sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy, key, s);
   }
-  fprintf(stderr, "  hm: get(21)=%d get(22)=%d\n",
-          hm_get(&sim.hm, 21), hm_get(&sim.hm, 22));
+  fprintf(stderr, "  hm: get(21)=%d get(22)=%d\n", hm_get(&sim.hm, 21),
+          hm_get(&sim.hm, 22));
 }
 struct Nb {
   int8_t s;
@@ -368,26 +368,24 @@ static void compute_vorticity(void) {
   long long id;
   int j;
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF];
-    Real *w;
-    int nm;
-    Real ih;
-    for (id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, 1, id);
-      lb_load(bv, 1, F_V, 1, id);
-      w = BLK(id) + BS * BS * F_W;
-      nm = BS + 2;
-      ih = 0.5 / sim.blk[id].h;
-      for (j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++) {
+  Real bu[LB_BUF], bv[LB_BUF];
+  Real *w;
+  int nm;
+  Real ih;
+  for (id = 0; id < sim.n; id++) {
+    lb_load(bu, 1, F_U, 1, id);
+    lb_load(bv, 1, F_V, 1, id);
+    w = BLK(id) + BS * BS * F_W;
+    nm = BS + 2;
+    ih = 0.5 / sim.blk[id].h;
+    for (j = 0; j < BS; j++)
+      for (int i = 0; i < BS; i++) {
 #define U(di, dj) bu[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
 #define V(di, dj) bv[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
-          w[j * BS + i] = (V(1, 0) - V(-1, 0)) * ih - (U(0, 1) - U(0, -1)) * ih;
+        w[j * BS + i] = (V(1, 0) - V(-1, 0)) * ih - (U(0, 1) - U(0, -1)) * ih;
 #undef U
 #undef V
-        }
-    }
+      }
   }
 }
 
@@ -443,55 +441,53 @@ static void compute_indicator(void) {
   long long id;
   int j, jc0;
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF];
-    int nm = BS + 2;
-    int nc = BS / 2 + 2;
-    Real cu[nc * nc], cv[nc * nc];
-    Real *t;
-    int fi, fj, ic, jc, di, dj, ci, cj;
-    Real su, sv, pu, pv, au, av;
-    for (id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, 1, id);
-      lb_load(bv, 1, F_V, 1, id);
+  Real bu[LB_BUF], bv[LB_BUF];
+  int nm = BS + 2;
+  int nc = BS / 2 + 2;
+  Real cu[nc * nc], cv[nc * nc];
+  Real *t;
+  int fi, fj, ic, jc, di, dj, ci, cj;
+  Real su, sv, pu, pv, au, av;
+  for (id = 0; id < sim.n; id++) {
+    lb_load(bu, 1, F_U, 1, id);
+    lb_load(bv, 1, F_V, 1, id);
 
-      for (jc0 = 0; jc0 < nc; jc0++)
-        for (int ic0 = 0; ic0 < nc; ic0++) {
-          fi = 2 * ic0 - 1;
-          fj = 2 * jc0 - 1;
-          su = 0;
-          sv = 0;
-          for (int dj0 = 0; dj0 < 2; dj0++)
-            for (int di0 = 0; di0 < 2; di0++) {
-              su += bu[nm * (fj + dj0 + 1) + fi + di0 + 1];
-              sv += bv[nm * (fj + dj0 + 1) + fi + di0 + 1];
-            }
-          cu[jc0 * nc + ic0] = su * 0.25;
-          cv[jc0 * nc + ic0] = sv * 0.25;
-        }
-
-      t = BLK(id) + BS * BS * F_TMP;
-      for (j = 0; j < BS; j += 2)
-        for (int i = 0; i < BS; i += 2) {
-          ic = i / 2 + 1;
-          jc = j / 2 + 1;
-          for (int s = 0; s < 4; s++) {
-            di = s & 1;
-            dj = s >> 1;
-            pu = 0;
-            pv = 0;
-            for (int kk = 0; kk < 9; kk++) {
-              ci = ic + kk % 3 - 1;
-              cj = jc + kk / 3 - 1;
-              pu += ad_ref_w[s][kk] * cu[cj * nc + ci];
-              pv += ad_ref_w[s][kk] * cv[cj * nc + ci];
-            }
-            au = bu[nm * (j + dj + 1) + i + di + 1];
-            av = bv[nm * (j + dj + 1) + i + di + 1];
-            t[BS * (j + dj) + i + di] = fmax(fabs(au - pu), fabs(av - pv));
+    for (jc0 = 0; jc0 < nc; jc0++)
+      for (int ic0 = 0; ic0 < nc; ic0++) {
+        fi = 2 * ic0 - 1;
+        fj = 2 * jc0 - 1;
+        su = 0;
+        sv = 0;
+        for (int dj0 = 0; dj0 < 2; dj0++)
+          for (int di0 = 0; di0 < 2; di0++) {
+            su += bu[nm * (fj + dj0 + 1) + fi + di0 + 1];
+            sv += bv[nm * (fj + dj0 + 1) + fi + di0 + 1];
           }
+        cu[jc0 * nc + ic0] = su * 0.25;
+        cv[jc0 * nc + ic0] = sv * 0.25;
+      }
+
+    t = BLK(id) + BS * BS * F_TMP;
+    for (j = 0; j < BS; j += 2)
+      for (int i = 0; i < BS; i += 2) {
+        ic = i / 2 + 1;
+        jc = j / 2 + 1;
+        for (int s = 0; s < 4; s++) {
+          di = s & 1;
+          dj = s >> 1;
+          pu = 0;
+          pv = 0;
+          for (int kk = 0; kk < 9; kk++) {
+            ci = ic + kk % 3 - 1;
+            cj = jc + kk / 3 - 1;
+            pu += ad_ref_w[s][kk] * cu[cj * nc + ci];
+            pv += ad_ref_w[s][kk] * cv[cj * nc + ci];
+          }
+          au = bu[nm * (j + dj + 1) + i + di + 1];
+          av = bv[nm * (j + dj + 1) + i + di + 1];
+          t[BS * (j + dj) + i + di] = fmax(fabs(au - pu), fabs(av - pv));
         }
-    }
+      }
   }
 }
 
@@ -616,68 +612,64 @@ static int ad_run(void) {
       state[nb_find(p0_ad->level, p0_ad->ix, p0_ad->iy, ad_sib_ic[s]).idx] =
           Dealloc;
   }
-  {
-    Real lm[LB_BUF];
-    struct Blk *par;
-    int px, py;
-    Real *blks[4];
-    int nm_ad;
-    long long ci_omp;
-    struct Blk *p0_omp;
-    int level_omp, x_omp, y_omp;
-    long long sib_omp[4];
-    Real *blk_omp[4];
-    int dim_omp, off_omp;
-    Real *dst_omp;
-    for (k = 0; k < n_ref; k++) {
-      par = &sim.blk[ref_idx[k]];
-      px = par->ix;
-      py = par->iy;
-      nm_ad = 2 + BS;
+  Real lm[LB_BUF];
+  struct Blk *par;
+  int px, py;
+  Real *blks[4];
+  int nm_ad;
+  long long ci_omp;
+  struct Blk *p0_omp;
+  int level_omp, x_omp, y_omp;
+  long long sib_omp[4];
+  Real *blk_omp[4];
+  int dim_omp, off_omp;
+  Real *dst_omp;
+  for (k = 0; k < n_ref; k++) {
+    par = &sim.blk[ref_idx[k]];
+    px = par->ix;
+    py = par->iy;
+    nm_ad = 2 + BS;
+    for (J = 0; J < 2; J++)
+      for (int I = 0; I < 2; I++) {
+        ci_omp = nprev + 4 * k + 2 * J + I;
+        bl_fill(&sim.blk[ci_omp], par->level + 1, 2 * px + I, 2 * py + J);
+        blks[2 * J + I] = BLK(ci_omp);
+      }
+    for (m = 0; m < NVARS; m++) {
+      dim_omp = fld_t[m].dim;
+      off_omp = fld_t[m].offset;
+      lb_load(lm, dim_omp, off_omp, 1, ref_idx[k]);
       for (J = 0; J < 2; J++)
-        for (int I = 0; I < 2; I++) {
-          ci_omp = nprev + 4 * k + 2 * J + I;
-          bl_fill(&sim.blk[ci_omp], par->level + 1, 2 * px + I, 2 * py + J);
-          blks[2 * J + I] = BLK(ci_omp);
-        }
-      for (m = 0; m < NVARS; m++) {
-        dim_omp = fld_t[m].dim;
-        off_omp = fld_t[m].offset;
-        lb_load(lm, dim_omp, off_omp, 1, ref_idx[k]);
-        for (J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++)
-            prolong_2to1(lm, blks[J * 2 + I] + off_omp * BS * BS, dim_omp,
-                         nm_ad, BS, BS / 2, BS / 2, I * (BS / 2) + 1,
-                         J * (BS / 2) + 1);
-      }
-      state[ref_idx[k]] = Dealloc;
+        for (int I = 0; I < 2; I++)
+          prolong_2to1(lm, blks[J * 2 + I] + off_omp * BS * BS, dim_omp, nm_ad,
+                       BS, BS / 2, BS / 2, I * (BS / 2) + 1, J * (BS / 2) + 1);
     }
-    for (k = 0; k < n_com; k++) {
-      ci_omp = com_idx[k];
-      p0_omp = &sim.blk[ci_omp];
-      level_omp = p0_omp->level;
-      x_omp = p0_omp->ix;
-      y_omp = p0_omp->iy;
-      sib_omp[0] = ci_omp;
-      sib_omp[1] = 0;
-      sib_omp[2] = 0;
-      sib_omp[3] = 0;
-      for (s = 1; s < 4; s++)
-        sib_omp[s] = nb_find(level_omp, x_omp, y_omp, ad_sib_ic[s]).idx;
-      for (s = 0; s < 4; s++) blk_omp[s] = BLK(sib_omp[s]);
-      for (v = 0; v < NVARS; v++) {
-        dim_omp = fld_t[v].dim;
-        off_omp = fld_t[v].offset;
-        dst_omp = blk_omp[0] + off_omp * BS * BS;
-        for (J = 0; J < 2; J++)
-          for (int I = 0; I < 2; I++)
-            restrict_2to1(blk_omp[J * 2 + I] + off_omp * BS * BS,
-                          dst_omp +
-                              dim_omp * (J * (BS / 2) * BS + I * (BS / 2)),
-                          dim_omp, BS, BS, BS / 2, BS / 2);
-      }
-      bl_fill(p0_omp, level_omp - 1, x_omp / 2, y_omp / 2);
+    state[ref_idx[k]] = Dealloc;
+  }
+  for (k = 0; k < n_com; k++) {
+    ci_omp = com_idx[k];
+    p0_omp = &sim.blk[ci_omp];
+    level_omp = p0_omp->level;
+    x_omp = p0_omp->ix;
+    y_omp = p0_omp->iy;
+    sib_omp[0] = ci_omp;
+    sib_omp[1] = 0;
+    sib_omp[2] = 0;
+    sib_omp[3] = 0;
+    for (s = 1; s < 4; s++)
+      sib_omp[s] = nb_find(level_omp, x_omp, y_omp, ad_sib_ic[s]).idx;
+    for (s = 0; s < 4; s++) blk_omp[s] = BLK(sib_omp[s]);
+    for (v = 0; v < NVARS; v++) {
+      dim_omp = fld_t[v].dim;
+      off_omp = fld_t[v].offset;
+      dst_omp = blk_omp[0] + off_omp * BS * BS;
+      for (J = 0; J < 2; J++)
+        for (int I = 0; I < 2; I++)
+          restrict_2to1(blk_omp[J * 2 + I] + off_omp * BS * BS,
+                        dst_omp + dim_omp * (J * (BS / 2) * BS + I * (BS / 2)),
+                        dim_omp, BS, BS, BS / 2, BS / 2);
     }
+    bl_fill(p0_omp, level_omp - 1, x_omp / 2, y_omp / 2);
   }
   cnt = 0;
   for (i = 0; i < sim.n; i++) {
@@ -819,226 +811,219 @@ static void reflux(Real dt) {
 static void advect_diffuse(Real dt) {
   Real alpha, dth;
   long long id;
+  Real beu[LB_BUF], beut[LB_BUF], bev[LB_BUF], bevr[LB_BUF], bp[LB_BUF],
+      bu[LB_BUF], bum[LB_BUF], bv[LB_BUF], bvm[LB_BUF];
+  int nm, nm1, nm2, nm3;
 
   alpha = sim.nu * dt * 0.5;
   dth = 0.5 * dt;
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF];
-    int nm = BS + 6;
+  nm = BS + 6;
 #define Q(b, i, j) b[nm * ((j) + 3) + (i) + 3]
-    for (id = 0; id < sim.n; id++) {
-      Real *um = BLK(id) + BS * BS * F_UMAC;
-      Real *vm = BLK(id) + BS * BS * F_VMAC;
-      Real h = sim.blk[id].h;
-      Real dtdx = dt / h;
-      int i, j;
-      lb_load(bu, 1, F_U, 3, id);
-      lb_load(bv, 1, F_V, 3, id);
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
-          Real uc = Q(bu, i, j), un = Q(bu, i + 1, j);
-          Real su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), Q(bu, i, j),
-                           Q(bu, i + 1, j), Q(bu, i + 2, j));
-          Real su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), Q(bu, i + 1, j),
-                            Q(bu, i + 2, j), Q(bu, i + 3, j));
-          Real sL = uc > 0 ? 1 : 0, sR = un < 0 ? 1 : 0;
-          Real uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
-          Real uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
+  for (id = 0; id < sim.n; id++) {
+    Real *um = BLK(id) + BS * BS * F_UMAC;
+    Real *vm = BLK(id) + BS * BS * F_VMAC;
+    Real h = sim.blk[id].h;
+    Real dtdx = dt / h;
+    int i, j;
+    lb_load(bu, 1, F_U, 3, id);
+    lb_load(bv, 1, F_V, 3, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
+        Real uc = Q(bu, i, j), un = Q(bu, i + 1, j);
+        Real su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), Q(bu, i, j),
+                         Q(bu, i + 1, j), Q(bu, i + 2, j));
+        Real su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), Q(bu, i + 1, j),
+                          Q(bu, i + 2, j), Q(bu, i + 3, j));
+        Real sL = uc > 0 ? 1 : 0, sR = un < 0 ? 1 : 0;
+        Real uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
+        Real uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
 
-          Real vc = Q(bv, i, j), vn;
-          Real sv, sv1, vL, vR;
-          Real svL = vc > 0 ? 1 : 0, svR;
-          um[j * BS + i] = (uc > 0 && un > 0)   ? uL
-                           : (uc < 0 && un < 0) ? uR
-                                                : 0.5 * (uL + uR);
+        Real vc = Q(bv, i, j), vn;
+        Real sv, sv1, vL, vR;
+        Real svL = vc > 0 ? 1 : 0, svR;
+        um[j * BS + i] = (uc > 0 && un > 0)   ? uL
+                         : (uc < 0 && un < 0) ? uR
+                                              : 0.5 * (uL + uR);
 
-          vn = Q(bv, i, j + 1);
-          sv = slope4(Q(bv, i, j - 2), Q(bv, i, j - 1), Q(bv, i, j),
-                      Q(bv, i, j + 1), Q(bv, i, j + 2));
-          sv1 = slope4(Q(bv, i, j - 1), Q(bv, i, j), Q(bv, i, j + 1),
-                       Q(bv, i, j + 2), Q(bv, i, j + 3));
-          svR = vn < 0 ? 1 : 0;
-          vL = vc + (0.5 - svL * 0.5 * dtdx * vc) * sv;
-          vR = vn + (-0.5 - svR * 0.5 * dtdx * vn) * sv1;
-          vm[j * BS + i] = (vc > 0 && vn > 0)   ? vL
-                           : (vc < 0 && vn < 0) ? vR
-                                                : 0.5 * (vL + vR);
-        }
-    }
-#undef Q
+        vn = Q(bv, i, j + 1);
+        sv = slope4(Q(bv, i, j - 2), Q(bv, i, j - 1), Q(bv, i, j),
+                    Q(bv, i, j + 1), Q(bv, i, j + 2));
+        sv1 = slope4(Q(bv, i, j - 1), Q(bv, i, j), Q(bv, i, j + 1),
+                     Q(bv, i, j + 2), Q(bv, i, j + 3));
+        svR = vn < 0 ? 1 : 0;
+        vL = vc + (0.5 - svL * 0.5 * dtdx * vc) * sv;
+        vR = vn + (-0.5 - svR * 0.5 * dtdx * vn) * sv1;
+        vm[j * BS + i] = (vc > 0 && vn > 0)   ? vL
+                         : (vc < 0 && vn < 0) ? vR
+                                              : 0.5 * (vL + vR);
+      }
   }
+#undef Q
 
   mac_project(dt);
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
-    int nm3 = BS + 6, nm1 = BS + 2;
+  nm3 = BS + 6;
+  nm1 = BS + 2;
 #define Q3(b, i, j) b[nm3 * ((j) + 3) + (i) + 3]
 #define Q1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
-    for (id = 0; id < sim.n; id++) {
-      Real *un_out = BLK(id) + BS * BS * F_TMP;
-      Real *vn_out = BLK(id) + BS * BS * F_TMP2;
-      Real h = sim.blk[id].h;
-      Real ih = 1.0 / h;
-      Real dtdx = dt / h;
-      Real nu = sim.nu;
-      int i, j;
-      lb_load(bu, 1, F_U, 3, id);
-      lb_load(bv, 1, F_V, 3, id);
-      lb_load(bp, 1, F_P, 1, id);
-      lb_load(bum, 1, F_UMAC, 1, id);
-      lb_load(bvm, 1, F_VMAC, 1, id);
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
-          Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
-          Real umR = Q1(bum, i, j), umL = Q1(bum, i - 1, j);
-          Real vmT = Q1(bvm, i, j), vmB = Q1(bvm, i, j - 1);
+  for (id = 0; id < sim.n; id++) {
+    Real *un_out = BLK(id) + BS * BS * F_TMP;
+    Real *vn_out = BLK(id) + BS * BS * F_TMP2;
+    Real h = sim.blk[id].h;
+    Real ih = 1.0 / h;
+    Real dtdx = dt / h;
+    Real nu = sim.nu;
+    int i, j;
+    lb_load(bu, 1, F_U, 3, id);
+    lb_load(bv, 1, F_V, 3, id);
+    lb_load(bp, 1, F_P, 1, id);
+    lb_load(bum, 1, F_UMAC, 1, id);
+    lb_load(bvm, 1, F_VMAC, 1, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
+        Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
+        Real umR = Q1(bum, i, j), umL = Q1(bum, i - 1, j);
+        Real vmT = Q1(bvm, i, j), vmB = Q1(bvm, i, j - 1);
 
-          Real ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc,
-                           Q3(bu, i + 1, j), Q3(bu, i + 2, j));
-          Real uy = slope4(Q3(bu, i, j - 2), Q3(bu, i, j - 1), uc,
-                           Q3(bu, i, j + 1), Q3(bu, i, j + 2));
-          Real vx = slope4(Q3(bv, i - 2, j), Q3(bv, i - 1, j), vc,
-                           Q3(bv, i + 1, j), Q3(bv, i + 2, j));
-          Real vy = slope4(Q3(bv, i, j - 2), Q3(bv, i, j - 1), vc,
-                           Q3(bv, i, j + 1), Q3(bv, i, j + 2));
+        Real ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc,
+                         Q3(bu, i + 1, j), Q3(bu, i + 2, j));
+        Real uy = slope4(Q3(bu, i, j - 2), Q3(bu, i, j - 1), uc,
+                         Q3(bu, i, j + 1), Q3(bu, i, j + 2));
+        Real vx = slope4(Q3(bv, i - 2, j), Q3(bv, i - 1, j), vc,
+                         Q3(bv, i + 1, j), Q3(bv, i + 2, j));
+        Real vy = slope4(Q3(bv, i, j - 2), Q3(bv, i, j - 1), vc,
+                         Q3(bv, i, j + 1), Q3(bv, i, j + 2));
 
-          Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                        Q3(bu, i, j - 1) - 4 * uc) *
-                       ih * ih;
-          Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                        Q3(bv, i, j - 1) - 4 * vc) *
-                       ih * ih;
-          Real dpx = (Q1(bp, i + 1, j) - Q1(bp, i - 1, j)) * 0.5 * ih;
-          Real dpy = (Q1(bp, i, j + 1) - Q1(bp, i, j - 1)) * 0.5 * ih;
+        Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
+                      Q3(bu, i, j - 1) - 4 * uc) *
+                     ih * ih;
+        Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
+                      Q3(bv, i, j - 1) - 4 * vc) *
+                     ih * ih;
+        Real dpx = (Q1(bp, i + 1, j) - Q1(bp, i - 1, j)) * 0.5 * ih;
+        Real dpy = (Q1(bp, i, j + 1) - Q1(bp, i, j - 1)) * 0.5 * ih;
 
-          Real cu = dth * (nu * lap_u - dpx);
-          Real cv = dth * (nu * lap_v - dpy);
+        Real cu = dth * (nu * lap_u - dpx);
+        Real cv = dth * (nu * lap_v - dpy);
 
-          Real tu = -dth * vc * uy;
-          Real tv = -dth * uc * vx;
+        Real tu = -dth * vc * uy;
+        Real tv = -dth * uc * vx;
 
-          Real uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
+        Real uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
 
-          Real uL_R = uc + 0.5 * (-1.0 - umL * dtdx) * ux + cu + tu;
+        Real uL_R = uc + 0.5 * (-1.0 - umL * dtdx) * ux + cu + tu;
 
-          Real vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
+        Real vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
 
-          Real vB_T = vc + 0.5 * (-1.0 - vmB * dtdx) * vy + cv + tv;
+        Real vB_T = vc + 0.5 * (-1.0 - vmB * dtdx) * vy + cv + tv;
 
-          Real un1 = Q3(bu, i + 1, j);
-          Real ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1,
-                            Q3(bu, i + 2, j), Q3(bu, i + 3, j));
-          Real uR_R = un1 + 0.5 * (-1.0 - umR * dtdx) * ux1 +
-                      dth * (nu *
-                                 (Q3(bu, i + 2, j) + Q3(bu, i, j) +
-                                  Q3(bu, i + 1, j + 1) + Q3(bu, i + 1, j - 1) -
-                                  4 * un1) *
-                                 ih * ih -
-                             (Q1(bp, i + 2, j) - Q1(bp, i, j)) * 0.5 * ih);
+        Real un1 = Q3(bu, i + 1, j);
+        Real ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1, Q3(bu, i + 2, j),
+                          Q3(bu, i + 3, j));
+        Real uR_R =
+            un1 + 0.5 * (-1.0 - umR * dtdx) * ux1 +
+            dth * (nu *
+                       (Q3(bu, i + 2, j) + Q3(bu, i, j) + Q3(bu, i + 1, j + 1) +
+                        Q3(bu, i + 1, j - 1) - 4 * un1) *
+                       ih * ih -
+                   (Q1(bp, i + 2, j) - Q1(bp, i, j)) * 0.5 * ih);
 
-          Real vn1 = Q3(bv, i, j + 1);
-          Real vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1,
-                            Q3(bv, i, j + 2), Q3(bv, i, j + 3));
-          Real vT_T = vn1 + 0.5 * (-1.0 - vmT * dtdx) * vy1 +
-                      dth * (nu *
-                                 (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
-                                  Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
-                                 ih * ih -
-                             (Q1(bp, i, j + 2) - Q1(bp, i, j)) * 0.5 * ih);
+        Real vn1 = Q3(bv, i, j + 1);
+        Real vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1, Q3(bv, i, j + 2),
+                          Q3(bv, i, j + 3));
+        Real vT_T = vn1 + 0.5 * (-1.0 - vmT * dtdx) * vy1 +
+                    dth * (nu *
+                               (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
+                                Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
+                               ih * ih -
+                           (Q1(bp, i, j + 2) - Q1(bp, i, j)) * 0.5 * ih);
 
-          Real euR = (umR >= 0) ? uR_L : uR_R;
-          Real evT = (vmT >= 0) ? vT_B : vT_T;
+        Real euR = (umR >= 0) ? uR_L : uR_R;
+        Real evT = (vmT >= 0) ? vT_B : vT_T;
 
-          Real euT = (vmT >= 0)
-                         ? uc + 0.5 * uy
-                         : Q3(bu, i, j + 1) -
-                               0.5 * slope4(Q3(bu, i, j - 1), Q3(bu, i, j),
-                                            Q3(bu, i, j + 1), Q3(bu, i, j + 2),
-                                            Q3(bu, i, j + 3));
-          Real evR = (umR >= 0)
-                         ? vc + 0.5 * vx
-                         : Q3(bv, i + 1, j) -
-                               0.5 * slope4(Q3(bv, i - 1, j), Q3(bv, i, j),
-                                            Q3(bv, i + 1, j), Q3(bv, i + 2, j),
-                                            Q3(bv, i + 3, j));
+        Real euT = (vmT >= 0)
+                       ? uc + 0.5 * uy
+                       : Q3(bu, i, j + 1) -
+                             0.5 * slope4(Q3(bu, i, j - 1), Q3(bu, i, j),
+                                          Q3(bu, i, j + 1), Q3(bu, i, j + 2),
+                                          Q3(bu, i, j + 3));
+        Real evR = (umR >= 0)
+                       ? vc + 0.5 * vx
+                       : Q3(bv, i + 1, j) -
+                             0.5 * slope4(Q3(bv, i - 1, j), Q3(bv, i, j),
+                                          Q3(bv, i + 1, j), Q3(bv, i + 2, j),
+                                          Q3(bv, i + 3, j));
 
-          un_out[j * BS + i] = euR;
-          vn_out[j * BS + i] = evT;
+        un_out[j * BS + i] = euR;
+        vn_out[j * BS + i] = evT;
 
-          (BLK(id) + BS * BS * F_TMP3)[j * BS + i] = euT;
-          (BLK(id) + BS * BS * F_W)[j * BS + i] = evR;
-        }
-    }
+        (BLK(id) + BS * BS * F_TMP3)[j * BS + i] = euT;
+        (BLK(id) + BS * BS * F_W)[j * BS + i] = evR;
+      }
+  }
 #undef Q3
 #undef Q1
-  }
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
-    Real beu[LB_BUF], bev[LB_BUF], beut[LB_BUF], bevr[LB_BUF];
-    int nm1 = BS + 2, nm2 = BS + 4;
+  nm1 = BS + 2;
+  nm2 = BS + 4;
 #define E1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
 #define Q3(b, i, j) b[nm2 * ((j) + 2) + (i) + 2]
-    for (id = 0; id < sim.n; id++) {
-      Real h = sim.blk[id].h;
-      Real ih = 1.0 / h;
-      int i, j;
-      lb_load(bu, 1, F_U, 2, id);
-      lb_load(bv, 1, F_V, 2, id);
-      lb_load(bp, 1, F_P, 1, id);
-      lb_load(bum, 1, F_UMAC, 1, id);
-      lb_load(bvm, 1, F_VMAC, 1, id);
-      lb_load(beu, 1, F_TMP, 1, id);
-      lb_load(bev, 1, F_TMP2, 1, id);
-      lb_load(beut, 1, F_TMP3, 1, id);
-      lb_load(bevr, 1, F_W, 1, id);
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
-          Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
+  for (id = 0; id < sim.n; id++) {
+    Real h = sim.blk[id].h;
+    Real ih = 1.0 / h;
+    int i, j;
+    lb_load(bu, 1, F_U, 2, id);
+    lb_load(bv, 1, F_V, 2, id);
+    lb_load(bp, 1, F_P, 1, id);
+    lb_load(bum, 1, F_UMAC, 1, id);
+    lb_load(bvm, 1, F_VMAC, 1, id);
+    lb_load(beu, 1, F_TMP, 1, id);
+    lb_load(bev, 1, F_TMP2, 1, id);
+    lb_load(beut, 1, F_TMP3, 1, id);
+    lb_load(bevr, 1, F_W, 1, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
+        Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
 
-          Real adv_u = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                           (E1(beu, i, j) - E1(beu, i - 1, j)) * ih +
-                       0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                           (E1(beut, i, j) - E1(beut, i, j - 1)) * ih;
-          Real adv_v = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                           (E1(bevr, i, j) - E1(bevr, i - 1, j)) * ih +
-                       0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                           (E1(bev, i, j) - E1(bev, i, j - 1)) * ih;
-          Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                        Q3(bu, i, j - 1) - 4 * uc) *
-                       ih * ih;
-          Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                        Q3(bv, i, j - 1) - 4 * vc) *
-                       ih * ih;
-          Real dpx =
-              ((BLK(id) + BS * BS * F_P)[j * BS + i] > -1e30)
-                  ? (Q3(bu, i, j) > -1e30
-                         ? (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih
-                         : 0)
-                  : 0;
-          Real dpy;
-          dpx = (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih;
-          dpy = (E1(bp, i, j + 1) - E1(bp, i, j - 1)) * 0.5 * ih;
-          (BLK(id) + BS * BS * F_TMP)[j * BS + i] =
-              uc + alpha * lap_u + dt * (-adv_u - dpx);
-          (BLK(id) + BS * BS * F_TMP2)[j * BS + i] =
-              vc + alpha * lap_v + dt * (-adv_v - dpy);
+        Real adv_u = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
+                         (E1(beu, i, j) - E1(beu, i - 1, j)) * ih +
+                     0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
+                         (E1(beut, i, j) - E1(beut, i, j - 1)) * ih;
+        Real adv_v = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
+                         (E1(bevr, i, j) - E1(bevr, i - 1, j)) * ih +
+                     0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
+                         (E1(bev, i, j) - E1(bev, i, j - 1)) * ih;
+        Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
+                      Q3(bu, i, j - 1) - 4 * uc) *
+                     ih * ih;
+        Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
+                      Q3(bv, i, j - 1) - 4 * vc) *
+                     ih * ih;
+        Real dpx = ((BLK(id) + BS * BS * F_P)[j * BS + i] > -1e30)
+                       ? (Q3(bu, i, j) > -1e30
+                              ? (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih
+                              : 0)
+                       : 0;
+        Real dpy;
+        dpx = (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih;
+        dpy = (E1(bp, i, j + 1) - E1(bp, i, j - 1)) * 0.5 * ih;
+        (BLK(id) + BS * BS * F_TMP)[j * BS + i] =
+            uc + alpha * lap_u + dt * (-adv_u - dpx);
+        (BLK(id) + BS * BS * F_TMP2)[j * BS + i] =
+            vc + alpha * lap_v + dt * (-adv_v - dpy);
 
-          (BLK(id) + BS * BS * F_UMAC)[j * BS + i] =
-              E1(bum, i, j) * E1(beu, i, j);
-          (BLK(id) + BS * BS * F_VMAC)[j * BS + i] =
-              E1(bvm, i, j) * E1(bev, i, j);
-          (BLK(id) + BS * BS * F_TMP3)[j * BS + i] =
-              E1(bvm, i, j) * E1(beut, i, j);
-          (BLK(id) + BS * BS * F_W)[j * BS + i] =
-              E1(bum, i, j) * E1(bevr, i, j);
-        }
-    }
+        (BLK(id) + BS * BS * F_UMAC)[j * BS + i] =
+            E1(bum, i, j) * E1(beu, i, j);
+        (BLK(id) + BS * BS * F_VMAC)[j * BS + i] =
+            E1(bvm, i, j) * E1(bev, i, j);
+        (BLK(id) + BS * BS * F_TMP3)[j * BS + i] =
+            E1(bvm, i, j) * E1(beut, i, j);
+        (BLK(id) + BS * BS * F_W)[j * BS + i] = E1(bum, i, j) * E1(bevr, i, j);
+      }
+  }
 #undef E1
 #undef Q3
-  }
   for (id = 0; id < sim.n; id++) {
     memcpy(BLK(id) + BS * BS * F_U, BLK(id) + BS * BS * F_TMP,
            BS * BS * sizeof(Real));
@@ -1086,23 +1071,21 @@ static void helmholtz_solve(Real dt, int field) {
 static void blk_laplacian(int src, int dst_field) {
   long long id;
 
-  {
-    Real buf[LB_BUF];
-    int nm = BS + 4;
-    for (id = 0; id < sim.n; id++) {
-      Real *out = BLK(id) + BS * BS * dst_field;
-      Real h = sim.blk[id].h;
-      Real c = 1.0 / (4.0 * h * h);
-      int i, j;
-      lb_load(buf, 1, src, 2, id);
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
+  Real buf[LB_BUF];
+  int nm = BS + 4;
+  for (id = 0; id < sim.n; id++) {
+    Real *out = BLK(id) + BS * BS * dst_field;
+    Real h = sim.blk[id].h;
+    Real c = 1.0 / (4.0 * h * h);
+    int i, j;
+    lb_load(buf, 1, src, 2, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
 #define PH(di, dj) buf[nm * ((j) + (dj) + 2) + (i) + (di) + 2]
-          out[j * BS + i] =
-              (PH(2, 0) + PH(-2, 0) + PH(0, 2) + PH(0, -2) - 4 * PH(0, 0)) * c;
+        out[j * BS + i] =
+            (PH(2, 0) + PH(-2, 0) + PH(0, 2) + PH(0, -2) - 4 * PH(0, 0)) * c;
 #undef PH
-        }
-    }
+      }
   }
 }
 
@@ -1185,28 +1168,26 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
 }
 
 static void mac_project(Real dt) {
-  int iter;
+  int iter, nm;
   Real al, beta, pAp, rmax, rz, rz2;
   long long id;
+  Real bphi[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
 
-  {
-    Real bum[LB_BUF], bvm[LB_BUF];
-    int nm = BS + 2;
-    for (id = 0; id < sim.n; id++) {
-      Real *rhs = BLK(id) + BS * BS * F_TMP;
-      Real h = sim.blk[id].h;
-      int i, j;
-      lb_load(bum, 1, F_UMAC, 1, id);
-      lb_load(bvm, 1, F_VMAC, 1, id);
+  nm = BS + 2;
+  for (id = 0; id < sim.n; id++) {
+    Real *rhs = BLK(id) + BS * BS * F_TMP;
+    Real h = sim.blk[id].h;
+    int i, j;
+    lb_load(bum, 1, F_UMAC, 1, id);
+    lb_load(bvm, 1, F_VMAC, 1, id);
 #define UM(di, dj) bum[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
 #define VM(di, dj) bvm[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++)
-          rhs[j * BS + i] =
-              2.0 * h * (UM(1, 0) - UM(-1, 0) + VM(0, 1) - VM(0, -1));
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++)
+        rhs[j * BS + i] =
+            2.0 * h * (UM(1, 0) - UM(-1, 0) + VM(0, 1) - VM(0, -1));
 #undef UM
 #undef VM
-    }
   }
 
   for (id = 0; id < sim.n; id++)
@@ -1257,23 +1238,20 @@ static void mac_project(Real dt) {
   }
   blk_mean_sub(F_TMP2);
 
-  {
-    Real bphi[LB_BUF];
-    int nm = BS + 2;
-    for (id = 0; id < sim.n; id++) {
-      Real *um = BLK(id) + BS * BS * F_UMAC;
-      Real *vm = BLK(id) + BS * BS * F_VMAC;
-      Real ih = 0.5 / sim.blk[id].h;
-      int i, j;
-      lb_load(bphi, 1, F_TMP2, 1, id);
+  nm = BS + 2;
+  for (id = 0; id < sim.n; id++) {
+    Real *um = BLK(id) + BS * BS * F_UMAC;
+    Real *vm = BLK(id) + BS * BS * F_VMAC;
+    Real ih = 0.5 / sim.blk[id].h;
+    int i, j;
+    lb_load(bphi, 1, F_TMP2, 1, id);
 #define PH(di, dj) bphi[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
-          um[j * BS + i] -= (PH(1, 0) - PH(-1, 0)) * ih;
-          vm[j * BS + i] -= (PH(0, 1) - PH(0, -1)) * ih;
-        }
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
+        um[j * BS + i] -= (PH(1, 0) - PH(-1, 0)) * ih;
+        vm[j * BS + i] -= (PH(0, 1) - PH(0, -1)) * ih;
+      }
 #undef PH
-    }
   }
 }
 
@@ -1282,25 +1260,23 @@ static void poisson_solve(Real dt) {
   Real al, beta, pAp, rmax, rz, rz2;
   long long id;
 
-  {
-    Real bu[LB_BUF], bv[LB_BUF];
-    int nm = BS + 2;
-    for (id = 0; id < sim.n; id++) {
-      Real *rhs = BLK(id) + BS * BS * F_TMP;
-      Real h = sim.blk[id].h;
-      Real fac = 2.0 * h / dt;
-      int i, j;
-      lb_load(bu, 1, F_U, 1, id);
-      lb_load(bv, 1, F_V, 1, id);
-      for (j = 0; j < BS; j++)
-        for (i = 0; i < BS; i++) {
+  Real bu[LB_BUF], bv[LB_BUF];
+  int nm = BS + 2;
+  for (id = 0; id < sim.n; id++) {
+    Real *rhs = BLK(id) + BS * BS * F_TMP;
+    Real h = sim.blk[id].h;
+    Real fac = 2.0 * h / dt;
+    int i, j;
+    lb_load(bu, 1, F_U, 1, id);
+    lb_load(bv, 1, F_V, 1, id);
+    for (j = 0; j < BS; j++)
+      for (i = 0; i < BS; i++) {
 #define UB(di, dj) bu[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
 #define VB(di, dj) bv[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
-          rhs[j * BS + i] = fac * (UB(1, 0) - UB(-1, 0) + VB(0, 1) - VB(0, -1));
+        rhs[j * BS + i] = fac * (UB(1, 0) - UB(-1, 0) + VB(0, 1) - VB(0, -1));
 #undef UB
 #undef VB
-        }
-    }
+      }
   }
 
   blk_laplacian(F_PHI, F_W);
@@ -1357,30 +1333,28 @@ static void project(Real dt) {
   long long id;
   int j;
 
-  {
-    Real bp[LB_BUF];
-    Real *u, *v, *p, *phi;
-    int nm;
-    Real ih;
-    int k;
-    for (id = 0; id < sim.n; id++) {
-      lb_load(bp, 1, F_PHI, 1, id);
-      u = BLK(id) + BS * BS * F_U;
-      v = BLK(id) + BS * BS * F_V;
-      p = BLK(id) + BS * BS * F_P;
-      phi = BLK(id) + BS * BS * F_PHI;
-      nm = BS + 2;
-      ih = 0.5 / sim.blk[id].h;
-      for (j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++) {
-          k = j * BS + i;
+  Real bp[LB_BUF];
+  Real *u, *v, *p, *phi;
+  int nm;
+  Real ih;
+  int k;
+  for (id = 0; id < sim.n; id++) {
+    lb_load(bp, 1, F_PHI, 1, id);
+    u = BLK(id) + BS * BS * F_U;
+    v = BLK(id) + BS * BS * F_V;
+    p = BLK(id) + BS * BS * F_P;
+    phi = BLK(id) + BS * BS * F_PHI;
+    nm = BS + 2;
+    ih = 0.5 / sim.blk[id].h;
+    for (j = 0; j < BS; j++)
+      for (int i = 0; i < BS; i++) {
+        k = j * BS + i;
 #define PH(di, dj) bp[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
-          u[k] -= dt * (PH(1, 0) - PH(-1, 0)) * ih;
-          v[k] -= dt * (PH(0, 1) - PH(0, -1)) * ih;
-          p[k] += phi[k];
+        u[k] -= dt * (PH(1, 0) - PH(-1, 0)) * ih;
+        v[k] -= dt * (PH(0, 1) - PH(0, -1)) * ih;
+        p[k] += phi[k];
 #undef PH
-        }
-    }
+      }
   }
 }
 
