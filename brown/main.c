@@ -742,112 +742,77 @@ static Real upwind(Real qL, Real qR, Real umac) {
   return umac > 0 ? qL : umac < 0 ? qR : 0.5 * (qL + qR);
 }
 
+static inline void extrap(Real *buf, int stride, int idx, Real dtdx,
+                          Real vL, Real vR, Real *fL, Real *fR) {
+  Real q = buf[idx], qn = buf[idx + stride];
+  Real s = slope4(buf[idx - 2 * stride], buf[idx - stride], q,
+                  buf[idx + stride], buf[idx + 2 * stride]);
+  Real sn = slope4(buf[idx - stride], q, qn, buf[idx + 2 * stride],
+                   buf[idx + 3 * stride]);
+  *fL = q + (0.5 - (vL > 0) * 0.5 * dtdx * vL) * s;
+  *fR = qn + (-0.5 - (vR < 0) * 0.5 * dtdx * vR) * sn;
+}
+
+static inline Real face_riemann(Real *buf, int stride, int idx, Real dtdx) {
+  Real fL, fR;
+  extrap(buf, stride, idx, dtdx, buf[idx], buf[idx + stride], &fL, &fR);
+  return riemann(fL, fR);
+}
+
+static inline Real face_upwind(Real *buf, int stride, int idx, Real dtdx,
+                               Real vL, Real vR, Real umac) {
+  Real fL, fR;
+  extrap(buf, stride, idx, dtdx, vL, vR, &fL, &fR);
+  return upwind(fL, fR, umac);
+}
+
 static void advect_diffuse(Real dt) {
-  Real *um, *vm, *eu, *ev, *eut, *evr;
-  Real adv_u, adv_v, alpha, dpx, dpy, dtdx, dth, h, ih, lap_u, lap_v, nu,
-      su, su1, sv, sv1, uc, vc, un, vn, uL, uR, vL, vR, sL, sR;
-  Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF],
-      beu[LB_BUF], bev[LB_BUF], beut[LB_BUF], bevr[LB_BUF];
-  int i, j, nm;
+  Real *um, *vm, *eu, *ev;
+  Real adv_u, adv_v, alpha, dpx, dpy, dtdx, h, ih;
+  Real bu[LB_BUF], bv[LB_BUF], bp[LB_BUF], bum[LB_BUF], bvm[LB_BUF];
+  int i, j, nm, idx;
   long long id;
 
   alpha = sim.nu * dt * 0.5;
-  dth = 0.5 * dt;
-  nu = sim.nu;
 
-  /*------------------------------------------------------------
-   * PASS 1: normal-only prediction + Riemann  (Brown Eq 20-21)
-   * Produces:
-   *   F_UMAC = u_mac at x-face (i+1/2,j)   [MAC velocity]
-   *   F_VMAC = v_mac at y-face (i,j+1/2)   [MAC velocity]
-   *   F_TMP3 = u at y-face (i,j+1/2)       [for transverse]
-   *   F_W    = v at x-face (i+1/2,j)       [for transverse]
-   *------------------------------------------------------------*/
+  /* PASS 1 */
   nm = BS + 6;
-#define Q(b, i, j) b[nm * ((j) + 3) + (i) + 3]
   for (id = 0; id < sim.n; id++) {
     um = BLK(id) + BS * BS * F_UMAC;
     vm = BLK(id) + BS * BS * F_VMAC;
-    eut = BLK(id) + BS * BS * F_TMP3;
-    evr = BLK(id) + BS * BS * F_W;
+    Real *eut = BLK(id) + BS * BS * F_TMP3;
+    Real *evr = BLK(id) + BS * BS * F_W;
     h = sim.blk[id].h;
     dtdx = dt / h;
     lb_load(bu, 1, F_U, 3, id);
     lb_load(bv, 1, F_V, 3, id);
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        /* --- x-face (i+1/2, j) --- */
-        uc = Q(bu, i, j);
-        un = Q(bu, i + 1, j);
-        su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), uc,
-                    Q(bu, i + 1, j), Q(bu, i + 2, j));
-        su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), un,
-                     Q(bu, i + 2, j), Q(bu, i + 3, j));
-        sL = uc > 0 ? 1 : 0;
-        sR = un < 0 ? 1 : 0;
-        uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
-        uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
-        um[j * BS + i] = riemann(uL, uR);
+        idx = nm * (j + 3) + (i + 3);
 
-        /* v at x-face: extrapolate v using x-slope, speed = u */
-        vc = Q(bv, i, j);
-        vn = Q(bv, i + 1, j);
-        sv = slope4(Q(bv, i - 2, j), Q(bv, i - 1, j), vc,
-                    Q(bv, i + 1, j), Q(bv, i + 2, j));
-        sv1 = slope4(Q(bv, i - 1, j), Q(bv, i, j), vn,
-                     Q(bv, i + 2, j), Q(bv, i + 3, j));
-        vL = vc + (0.5 - sL * 0.5 * dtdx * uc) * sv;
-        vR = vn + (-0.5 - sR * 0.5 * dtdx * un) * sv1;
-        evr[j * BS + i] = upwind(vL, vR, um[j * BS + i]);
+        um[j * BS + i] = face_riemann(bu, 1, idx, dtdx);
+        evr[j * BS + i] =
+            face_upwind(bv, 1, idx, dtdx, bu[idx], bu[idx + 1], um[j * BS + i]);
 
-        /* --- y-face (i, j+1/2) --- */
-        vc = Q(bv, i, j);
-        vn = Q(bv, i, j + 1);
-        sv = slope4(Q(bv, i, j - 2), Q(bv, i, j - 1), vc,
-                    Q(bv, i, j + 1), Q(bv, i, j + 2));
-        sv1 = slope4(Q(bv, i, j - 1), Q(bv, i, j), vn,
-                     Q(bv, i, j + 2), Q(bv, i, j + 3));
-        sL = vc > 0 ? 1 : 0;
-        sR = vn < 0 ? 1 : 0;
-        vL = vc + (0.5 - sL * 0.5 * dtdx * vc) * sv;
-        vR = vn + (-0.5 - sR * 0.5 * dtdx * vn) * sv1;
-        vm[j * BS + i] = riemann(vL, vR);
-
-        /* u at y-face: extrapolate u using y-slope, speed = v */
-        uc = Q(bu, i, j);
-        un = Q(bu, i, j + 1);
-        su = slope4(Q(bu, i, j - 2), Q(bu, i, j - 1), uc,
-                    Q(bu, i, j + 1), Q(bu, i, j + 2));
-        su1 = slope4(Q(bu, i, j - 1), Q(bu, i, j), un,
-                     Q(bu, i, j + 2), Q(bu, i, j + 3));
-        uL = uc + (0.5 - (vc > 0 ? 1 : 0) * 0.5 * dtdx * vc) * su;
-        uR = un + (-0.5 - (vn < 0 ? 1 : 0) * 0.5 * dtdx * vn) * su1;
-        eut[j * BS + i] = upwind(uL, uR, vm[j * BS + i]);
+        vm[j * BS + i] = face_riemann(bv, nm, idx, dtdx);
+        eut[j * BS + i] =
+            face_upwind(bu, nm, idx, dtdx, bv[idx], bv[idx + nm], vm[j * BS + i]);
       }
   }
-#undef Q
 
-  /*------------------------------------------------------------
-   * MAC projection  (Brown Eq 23)
-   *------------------------------------------------------------*/
+  /* MAC projection */
   mac_project(dt);
 
-  /*------------------------------------------------------------
-   * PASS 2: full edge values  (Brown Eq 19/22)
-   * Add transverse + viscous + pressure to get time-centered
-   * edge values, then upwind using MAC velocities.
-   * Stores results in F_TMP (u at x-face), F_TMP2 (v at y-face).
-   *------------------------------------------------------------*/
+  /* PASS 2 */
   {
     int nm3 = BS + 6, nm1 = BS + 2, nm2 = BS + 4;
-#define U(b, di, dj) b[nm3 * ((j) + (dj) + 3) + (i) + (di) + 3]
-#define M(b, di, dj) b[nm1 * ((j) + (dj) + 1) + (i) + (di) + 1]
-#define P(b, di, dj) b[nm2 * ((j) + (dj) + 2) + (i) + (di) + 2]
+    int mi, pi;
     for (id = 0; id < sim.n; id++) {
       eu = BLK(id) + BS * BS * F_TMP;
       ev = BLK(id) + BS * BS * F_TMP2;
       h = sim.blk[id].h;
       ih = 1.0 / h;
+      dtdx = dt / h;
       lb_load(bu, 1, F_U, 3, id);
       lb_load(bv, 1, F_V, 3, id);
       lb_load(bp, 1, F_P, 2, id);
@@ -855,84 +820,49 @@ static void advect_diffuse(Real dt) {
       lb_load(bvm, 1, F_VMAC, 1, id);
       for (j = 0; j < BS; j++)
         for (i = 0; i < BS; i++) {
-          Real umR, umL, vmT, vmB;
-          Real euR, euL, evT, evB, eutT, eutB, evrR, evrL;
-          Real q, s, qn, sn;
+          Real uc, vc, euR, euL, evT, evB, eutT, eutB, evrR, evrL;
 
-          umR = M(bum, 0, 0);
-          umL = M(bum, -1, 0);
-          vmT = M(bvm, 0, 0);
-          vmB = M(bvm, 0, -1);
+          idx = nm3 * (j + 3) + (i + 3);
+          mi = nm1 * (j + 1) + (i + 1);
+          pi = nm2 * (j + 2) + (i + 2);
 
-          q = U(bu, 0, 0);
-          s = slope4(U(bu, -2, 0), U(bu, -1, 0), q, U(bu, 1, 0), U(bu, 2, 0));
-          qn = U(bu, 1, 0);
-          sn = slope4(U(bu, -1, 0), q, qn, U(bu, 2, 0), U(bu, 3, 0));
-          euR = riemann(q + (0.5 - (q > 0) * 0.5 * dtdx * q) * s,
-                        qn + (-0.5 - (qn < 0) * 0.5 * dtdx * qn) * sn);
-          qn = U(bu, -1, 0);
-          sn = slope4(U(bu, -3, 0), U(bu, -2, 0), qn, q, U(bu, 1, 0));
-          euL = riemann(qn + (0.5 - (qn > 0) * 0.5 * dtdx * qn) * sn,
-                        q + (-0.5 - (q < 0) * 0.5 * dtdx * q) * s);
+          Real umR = bum[mi], umL = bum[mi - 1];
+          Real vmT = bvm[mi], vmB = bvm[mi - nm1];
 
-          s = slope4(U(bu, 0, -2), U(bu, 0, -1), q, U(bu, 0, 1), U(bu, 0, 2));
-          qn = U(bu, 0, 1);
-          sn = slope4(U(bu, 0, -1), q, qn, U(bu, 0, 2), U(bu, 0, 3));
-          vc = U(bv, 0, 0);
-          vn = U(bv, 0, 1);
-          eutT = upwind(q + (0.5 - (vc > 0) * 0.5 * dtdx * vc) * s,
-                        qn + (-0.5 - (vn < 0) * 0.5 * dtdx * vn) * sn, vmT);
-          qn = U(bu, 0, -1);
-          sn = slope4(U(bu, 0, -3), U(bu, 0, -2), qn, q, U(bu, 0, 1));
-          vn = U(bv, 0, -1);
-          eutB = upwind(qn + (0.5 - (vn > 0) * 0.5 * dtdx * vn) * sn,
-                        q + (-0.5 - (vc < 0) * 0.5 * dtdx * vc) * s, vmB);
+          euR = face_riemann(bu, 1, idx, dtdx);
+          euL = face_riemann(bu, 1, idx - 1, dtdx);
 
-          q = U(bv, 0, 0);
-          s = slope4(U(bv, 0, -2), U(bv, 0, -1), q, U(bv, 0, 1), U(bv, 0, 2));
-          qn = U(bv, 0, 1);
-          sn = slope4(U(bv, 0, -1), q, qn, U(bv, 0, 2), U(bv, 0, 3));
-          evT = riemann(q + (0.5 - (q > 0) * 0.5 * dtdx * q) * s,
-                        qn + (-0.5 - (qn < 0) * 0.5 * dtdx * qn) * sn);
-          qn = U(bv, 0, -1);
-          sn = slope4(U(bv, 0, -3), U(bv, 0, -2), qn, q, U(bv, 0, 1));
-          evB = riemann(qn + (0.5 - (qn > 0) * 0.5 * dtdx * qn) * sn,
-                        q + (-0.5 - (q < 0) * 0.5 * dtdx * q) * s);
+          eutT = face_upwind(bu, nm3, idx, dtdx,
+                             bv[idx], bv[idx + nm3], vmT);
+          eutB = face_upwind(bu, nm3, idx - nm3, dtdx,
+                             bv[idx - nm3], bv[idx], vmB);
 
-          uc = U(bu, 0, 0);
-          s = slope4(U(bv, -2, 0), U(bv, -1, 0), q, U(bv, 1, 0), U(bv, 2, 0));
-          qn = U(bv, 1, 0);
-          sn = slope4(U(bv, -1, 0), q, qn, U(bv, 2, 0), U(bv, 3, 0));
-          un = U(bu, 1, 0);
-          evrR = upwind(q + (0.5 - (uc > 0) * 0.5 * dtdx * uc) * s,
-                        qn + (-0.5 - (un < 0) * 0.5 * dtdx * un) * sn, umR);
-          qn = U(bv, -1, 0);
-          sn = slope4(U(bv, -3, 0), U(bv, -2, 0), qn, q, U(bv, 1, 0));
-          un = U(bu, -1, 0);
-          evrL = upwind(qn + (0.5 - (un > 0) * 0.5 * dtdx * un) * sn,
-                        q + (-0.5 - (uc < 0) * 0.5 * dtdx * uc) * s, umL);
+          evT = face_riemann(bv, nm3, idx, dtdx);
+          evB = face_riemann(bv, nm3, idx - nm3, dtdx);
+
+          evrR = face_upwind(bv, 1, idx, dtdx,
+                             bu[idx], bu[idx + 1], umR);
+          evrL = face_upwind(bv, 1, idx - 1, dtdx,
+                             bu[idx - 1], bu[idx], umL);
 
           adv_u = 0.5 * (umR + umL) * (euR - euL) * ih +
                   0.5 * (vmT + vmB) * (eutT - eutB) * ih;
           adv_v = 0.5 * (umR + umL) * (evrR - evrL) * ih +
                   0.5 * (vmT + vmB) * (evT - evB) * ih;
-          uc = U(bu, 0, 0);
-          vc = U(bv, 0, 0);
-          lap_u = (U(bu, 1, 0) + U(bu, -1, 0) + U(bu, 0, 1) + U(bu, 0, -1) -
-                   4 * uc) *
-                  ih * ih;
-          lap_v = (U(bv, 1, 0) + U(bv, -1, 0) + U(bv, 0, 1) + U(bv, 0, -1) -
-                   4 * vc) *
-                  ih * ih;
-          dpx = (P(bp, 1, 0) - P(bp, -1, 0)) * 0.5 * ih;
-          dpy = (P(bp, 0, 1) - P(bp, 0, -1)) * 0.5 * ih;
+          uc = bu[idx];
+          vc = bv[idx];
+          Real lap_u = (bu[idx + 1] + bu[idx - 1] + bu[idx + nm3] +
+                        bu[idx - nm3] - 4 * uc) *
+                       ih * ih;
+          Real lap_v = (bv[idx + 1] + bv[idx - 1] + bv[idx + nm3] +
+                        bv[idx - nm3] - 4 * vc) *
+                       ih * ih;
+          dpx = (bp[pi + 1] - bp[pi - 1]) * 0.5 * ih;
+          dpy = (bp[pi + nm2] - bp[pi - nm2]) * 0.5 * ih;
           eu[j * BS + i] = uc + alpha * lap_u + dt * (-adv_u - dpx);
           ev[j * BS + i] = vc + alpha * lap_v + dt * (-adv_v - dpy);
         }
     }
-#undef U
-#undef M
-#undef P
   }
   for (id = 0; id < sim.n; id++) {
     memcpy(BLK(id) + BS * BS * F_U, BLK(id) + BS * BS * F_TMP,
