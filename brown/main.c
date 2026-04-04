@@ -496,7 +496,7 @@ static void dump(Real time, int step, char *path) {
   fclose(file);
   for (size_t fi = 0; fi < NVARS; fi++)
     if (fld_t[fi].prefix) {
-      int dim = fld_t[fi].dim, offset = fld_t[fi].offset;
+      dim = fld_t[fi].dim; offset = fld_t[fi].offset;
       snprintf(attr_path, sizeof attr_path, "%s.%s.raw", path,
                fld_t[fi].prefix);
       file = fopen(attr_path, "wb");
