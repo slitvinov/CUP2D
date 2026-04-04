@@ -534,7 +534,8 @@ static int ad_run(void) {
   Real Linf;
   Real lm[LB_BUF];
   enum AdSt *state;
-  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok, px, py, s, x_omp, y_omp;
+  int Changed, I, J, More, dim_omp, ic, j, lev, level_omp, nm_ad, off_omp, ok,
+      px, py, s, x_omp, y_omp;
   long long *com_idx, *ref_idx;
   long long ci_ad, ci_omp, cnt, i, k, n_com, n_ref, nprev;
   long long sib_ad[4], sib_omp[4];
@@ -550,8 +551,8 @@ static int ad_run(void) {
   ref_idx = malloc(sim.n * sizeof *ref_idx);
   com_idx = malloc(sim.n * sizeof *com_idx);
   for (i = 0; i < sim.n; i++) {
-        b = BLK(i) + BS * BS * F_TMP;
-        Linf = 0;
+    b = BLK(i) + BS * BS * F_TMP;
+    Linf = 0;
     for (j = 0; j < BS * BS; j++) Linf = fmax(Linf, fabs(b[j]));
     lev = sim.blk[i].level;
     state[i] = Linf > sim.Rtol && lev < sim.levelMax           ? Refine
@@ -686,7 +687,6 @@ done:
   return Changed;
 }
 
-
 static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
                           Real phip2) {
   Real DC, DC_m, DC_p, DL, DL_m, DL_p, DR, DR_m, DR_p, d4, dlim, dlim_m, dlim_p,
@@ -717,11 +717,15 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
 static void mac_project(Real dt);
 
 static void advect_diffuse(Real dt) {
-  Real alpha, dth;
-  long long id;
+  Real *um, *un_out, *vm, *vn_out;
+  Real adv_u, adv_v, alpha, cu, cv, dpx, dpy, dtdx, dth, euR, euT, evR, evT, h,
+      ih, lap_u, lap_v, nu, sL, sR, su, su1, sv, sv1, svL, svR, tu, tv, uL, uR,
+      uR_L, uR_R, uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT,
+      vn, vn1, vx, vy, vy1;
   Real beu[LB_BUF], beut[LB_BUF], bev[LB_BUF], bevr[LB_BUF], bp[LB_BUF],
       bu[LB_BUF], bum[LB_BUF], bv[LB_BUF], bvm[LB_BUF];
-  int nm, nm1, nm2, nm3;
+  int i, j, nm, nm1, nm2, nm3;
+  long long id;
 
   alpha = sim.nu * dt * 0.5;
   dth = 0.5 * dt;
@@ -729,27 +733,27 @@ static void advect_diffuse(Real dt) {
   nm = BS + 6;
 #define Q(b, i, j) b[nm * ((j) + 3) + (i) + 3]
   for (id = 0; id < sim.n; id++) {
-    Real *um = BLK(id) + BS * BS * F_UMAC;
-    Real *vm = BLK(id) + BS * BS * F_VMAC;
-    Real h = sim.blk[id].h;
-    Real dtdx = dt / h;
-    int i, j;
+    um = BLK(id) + BS * BS * F_UMAC;
+    vm = BLK(id) + BS * BS * F_VMAC;
+    h = sim.blk[id].h;
+    dtdx = dt / h;
     lb_load(bu, 1, F_U, 3, id);
     lb_load(bv, 1, F_V, 3, id);
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        Real uc = Q(bu, i, j), un = Q(bu, i + 1, j);
-        Real su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), Q(bu, i, j),
-                         Q(bu, i + 1, j), Q(bu, i + 2, j));
-        Real su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), Q(bu, i + 1, j),
-                          Q(bu, i + 2, j), Q(bu, i + 3, j));
-        Real sL = uc > 0 ? 1 : 0, sR = un < 0 ? 1 : 0;
-        Real uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
-        Real uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
+        uc = Q(bu, i, j);
+        un = Q(bu, i + 1, j);
+        su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), Q(bu, i, j),
+                    Q(bu, i + 1, j), Q(bu, i + 2, j));
+        su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), Q(bu, i + 1, j),
+                     Q(bu, i + 2, j), Q(bu, i + 3, j));
+        sL = uc > 0 ? 1 : 0;
+        sR = un < 0 ? 1 : 0;
+        uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
+        uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
 
-        Real vc = Q(bv, i, j), vn;
-        Real sv, sv1, vL, vR;
-        Real svL = vc > 0 ? 1 : 0, svR;
+        vc = Q(bv, i, j);
+        svL = vc > 0 ? 1 : 0;
         um[j * BS + i] = (uc > 0 && un > 0)   ? uL
                          : (uc < 0 && un < 0) ? uR
                                               : 0.5 * (uL + uR);
@@ -776,13 +780,12 @@ static void advect_diffuse(Real dt) {
 #define Q3(b, i, j) b[nm3 * ((j) + 3) + (i) + 3]
 #define Q1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
   for (id = 0; id < sim.n; id++) {
-    Real *un_out = BLK(id) + BS * BS * F_TMP;
-    Real *vn_out = BLK(id) + BS * BS * F_TMP2;
-    Real h = sim.blk[id].h;
-    Real ih = 1.0 / h;
-    Real dtdx = dt / h;
-    Real nu = sim.nu;
-    int i, j;
+    un_out = BLK(id) + BS * BS * F_TMP;
+    vn_out = BLK(id) + BS * BS * F_TMP2;
+    h = sim.blk[id].h;
+    ih = 1.0 / h;
+    dtdx = dt / h;
+    nu = sim.nu;
     lb_load(bu, 1, F_U, 3, id);
     lb_load(bv, 1, F_V, 3, id);
     lb_load(bp, 1, F_P, 1, id);
@@ -790,42 +793,43 @@ static void advect_diffuse(Real dt) {
     lb_load(bvm, 1, F_VMAC, 1, id);
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
-        Real umR = Q1(bum, i, j);
-        Real vmT = Q1(bvm, i, j);
+        uc = Q3(bu, i, j);
+        vc = Q3(bv, i, j);
+        umR = Q1(bum, i, j);
+        vmT = Q1(bvm, i, j);
 
-        Real ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc,
-                         Q3(bu, i + 1, j), Q3(bu, i + 2, j));
-        Real uy = slope4(Q3(bu, i, j - 2), Q3(bu, i, j - 1), uc,
-                         Q3(bu, i, j + 1), Q3(bu, i, j + 2));
-        Real vx = slope4(Q3(bv, i - 2, j), Q3(bv, i - 1, j), vc,
-                         Q3(bv, i + 1, j), Q3(bv, i + 2, j));
-        Real vy = slope4(Q3(bv, i, j - 2), Q3(bv, i, j - 1), vc,
-                         Q3(bv, i, j + 1), Q3(bv, i, j + 2));
+        ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc, Q3(bu, i + 1, j),
+                    Q3(bu, i + 2, j));
+        uy = slope4(Q3(bu, i, j - 2), Q3(bu, i, j - 1), uc, Q3(bu, i, j + 1),
+                    Q3(bu, i, j + 2));
+        vx = slope4(Q3(bv, i - 2, j), Q3(bv, i - 1, j), vc, Q3(bv, i + 1, j),
+                    Q3(bv, i + 2, j));
+        vy = slope4(Q3(bv, i, j - 2), Q3(bv, i, j - 1), vc, Q3(bv, i, j + 1),
+                    Q3(bv, i, j + 2));
 
-        Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                      Q3(bu, i, j - 1) - 4 * uc) *
-                     ih * ih;
-        Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                      Q3(bv, i, j - 1) - 4 * vc) *
-                     ih * ih;
-        Real dpx = (Q1(bp, i + 1, j) - Q1(bp, i - 1, j)) * 0.5 * ih;
-        Real dpy = (Q1(bp, i, j + 1) - Q1(bp, i, j - 1)) * 0.5 * ih;
+        lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
+                 Q3(bu, i, j - 1) - 4 * uc) *
+                ih * ih;
+        lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
+                 Q3(bv, i, j - 1) - 4 * vc) *
+                ih * ih;
+        dpx = (Q1(bp, i + 1, j) - Q1(bp, i - 1, j)) * 0.5 * ih;
+        dpy = (Q1(bp, i, j + 1) - Q1(bp, i, j - 1)) * 0.5 * ih;
 
-        Real cu = dth * (nu * lap_u - dpx);
-        Real cv = dth * (nu * lap_v - dpy);
+        cu = dth * (nu * lap_u - dpx);
+        cv = dth * (nu * lap_v - dpy);
 
-        Real tu = -dth * vc * uy;
-        Real tv = -dth * uc * vx;
+        tu = -dth * vc * uy;
+        tv = -dth * uc * vx;
 
-        Real uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
+        uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
 
-        Real vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
+        vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
 
-        Real un1 = Q3(bu, i + 1, j);
-        Real ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1, Q3(bu, i + 2, j),
-                          Q3(bu, i + 3, j));
-        Real uR_R =
+        un1 = Q3(bu, i + 1, j);
+        ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1, Q3(bu, i + 2, j),
+                     Q3(bu, i + 3, j));
+        uR_R =
             un1 + 0.5 * (-1.0 - umR * dtdx) * ux1 +
             dth * (nu *
                        (Q3(bu, i + 2, j) + Q3(bu, i, j) + Q3(bu, i + 1, j + 1) +
@@ -833,31 +837,29 @@ static void advect_diffuse(Real dt) {
                        ih * ih -
                    (Q1(bp, i + 2, j) - Q1(bp, i, j)) * 0.5 * ih);
 
-        Real vn1 = Q3(bv, i, j + 1);
-        Real vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1, Q3(bv, i, j + 2),
-                          Q3(bv, i, j + 3));
-        Real vT_T = vn1 + 0.5 * (-1.0 - vmT * dtdx) * vy1 +
-                    dth * (nu *
-                               (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
-                                Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
-                               ih * ih -
-                           (Q1(bp, i, j + 2) - Q1(bp, i, j)) * 0.5 * ih);
+        vn1 = Q3(bv, i, j + 1);
+        vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1, Q3(bv, i, j + 2),
+                     Q3(bv, i, j + 3));
+        vT_T = vn1 + 0.5 * (-1.0 - vmT * dtdx) * vy1 +
+               dth * (nu *
+                          (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
+                           Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
+                          ih * ih -
+                      (Q1(bp, i, j + 2) - Q1(bp, i, j)) * 0.5 * ih);
 
-        Real euR = (umR >= 0) ? uR_L : uR_R;
-        Real evT = (vmT >= 0) ? vT_B : vT_T;
+        euR = (umR >= 0) ? uR_L : uR_R;
+        evT = (vmT >= 0) ? vT_B : vT_T;
 
-        Real euT = (vmT >= 0)
-                       ? uc + 0.5 * uy
-                       : Q3(bu, i, j + 1) -
-                             0.5 * slope4(Q3(bu, i, j - 1), Q3(bu, i, j),
-                                          Q3(bu, i, j + 1), Q3(bu, i, j + 2),
-                                          Q3(bu, i, j + 3));
-        Real evR = (umR >= 0)
-                       ? vc + 0.5 * vx
-                       : Q3(bv, i + 1, j) -
-                             0.5 * slope4(Q3(bv, i - 1, j), Q3(bv, i, j),
-                                          Q3(bv, i + 1, j), Q3(bv, i + 2, j),
-                                          Q3(bv, i + 3, j));
+        euT = (vmT >= 0) ? uc + 0.5 * uy
+                         : Q3(bu, i, j + 1) -
+                               0.5 * slope4(Q3(bu, i, j - 1), Q3(bu, i, j),
+                                            Q3(bu, i, j + 1), Q3(bu, i, j + 2),
+                                            Q3(bu, i, j + 3));
+        evR = (umR >= 0) ? vc + 0.5 * vx
+                         : Q3(bv, i + 1, j) -
+                               0.5 * slope4(Q3(bv, i - 1, j), Q3(bv, i, j),
+                                            Q3(bv, i + 1, j), Q3(bv, i + 2, j),
+                                            Q3(bv, i + 3, j));
 
         un_out[j * BS + i] = euR;
         vn_out[j * BS + i] = evT;
@@ -874,9 +876,8 @@ static void advect_diffuse(Real dt) {
 #define E1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
 #define Q3(b, i, j) b[nm2 * ((j) + 2) + (i) + 2]
   for (id = 0; id < sim.n; id++) {
-    Real h = sim.blk[id].h;
-    Real ih = 1.0 / h;
-    int i, j;
+    h = sim.blk[id].h;
+    ih = 1.0 / h;
     lb_load(bu, 1, F_U, 2, id);
     lb_load(bv, 1, F_V, 2, id);
     lb_load(bp, 1, F_P, 1, id);
@@ -888,28 +889,28 @@ static void advect_diffuse(Real dt) {
     lb_load(bevr, 1, F_W, 1, id);
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        Real uc = Q3(bu, i, j), vc = Q3(bv, i, j);
+        uc = Q3(bu, i, j);
+        vc = Q3(bv, i, j);
 
-        Real adv_u = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                         (E1(beu, i, j) - E1(beu, i - 1, j)) * ih +
-                     0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                         (E1(beut, i, j) - E1(beut, i, j - 1)) * ih;
-        Real adv_v = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                         (E1(bevr, i, j) - E1(bevr, i - 1, j)) * ih +
-                     0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                         (E1(bev, i, j) - E1(bev, i, j - 1)) * ih;
-        Real lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                      Q3(bu, i, j - 1) - 4 * uc) *
-                     ih * ih;
-        Real lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                      Q3(bv, i, j - 1) - 4 * vc) *
-                     ih * ih;
-        Real dpx = ((BLK(id) + BS * BS * F_P)[j * BS + i] > -1e30)
-                       ? (Q3(bu, i, j) > -1e30
-                              ? (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih
-                              : 0)
-                       : 0;
-        Real dpy;
+        adv_u = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
+                    (E1(beu, i, j) - E1(beu, i - 1, j)) * ih +
+                0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
+                    (E1(beut, i, j) - E1(beut, i, j - 1)) * ih;
+        adv_v = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
+                    (E1(bevr, i, j) - E1(bevr, i - 1, j)) * ih +
+                0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
+                    (E1(bev, i, j) - E1(bev, i, j - 1)) * ih;
+        lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
+                 Q3(bu, i, j - 1) - 4 * uc) *
+                ih * ih;
+        lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
+                 Q3(bv, i, j - 1) - 4 * vc) *
+                ih * ih;
+        dpx = ((BLK(id) + BS * BS * F_P)[j * BS + i] > -1e30)
+                  ? (Q3(bu, i, j) > -1e30
+                         ? (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih
+                         : 0)
+                  : 0;
         dpx = (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih;
         dpy = (E1(bp, i, j + 1) - E1(bp, i, j - 1)) * 0.5 * ih;
         (BLK(id) + BS * BS * F_TMP)[j * BS + i] =
@@ -935,6 +936,7 @@ static void advect_diffuse(Real dt) {
            BS * BS * sizeof(Real));
   }
 }
+
 static void helmholtz_solve(Real dt, int field) {
   Real alpha;
   int iter;

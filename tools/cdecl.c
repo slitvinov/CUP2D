@@ -465,8 +465,17 @@ static void process_function(struct Func *f) {
           int il;
           for (il = ls; il < d->start && isspace((unsigned char)src[il]); il++)
             fputc(src[il], outfp);
-          int eq = decls[di].val_end - 1;
-          while (eq > d->start && src[eq] != '=') eq--;
+          /* find = for this declarator: search for "name" then = after it */
+          int eq = d->start, nlen = strlen(decls[di].name);
+          while (eq < decls[di].val_end) {
+            if (memcmp(src + eq, decls[di].name, nlen) == 0 &&
+                !is_ident_char(src[eq + nlen])) {
+              eq += nlen;
+              while (eq < decls[di].val_end && src[eq] != '=') eq++;
+              break;
+            }
+            eq++;
+          }
           fprintf(outfp, "%s ", decls[di].name);
           emit(src + eq, decls[di].val_end - eq);
           emit(";\n", 2);
