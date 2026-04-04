@@ -938,8 +938,10 @@ static void advect_diffuse(Real dt) {
 }
 
 static void helmholtz_solve(Real dt, int field) {
-  Real alpha;
-  int iter;
+  Real *f, *u;
+  Real ah2, alpha, h, ia;
+  Real buf[LB_BUF];
+  int i, iter, j, nm;
   long long id;
 
   alpha = sim.nu * dt * 0.5;
@@ -950,15 +952,13 @@ static void helmholtz_solve(Real dt, int field) {
 
   for (iter = 0; iter < 10; iter++) {
     {
-      Real buf[LB_BUF];
-      int nm = BS + 2;
+      nm = BS + 2;
       for (id = 0; id < sim.n; id++) {
-        Real *u = BLK(id) + BS * BS * field;
-        Real *f = BLK(id) + BS * BS * F_TMP;
-        Real h = sim.blk[id].h;
-        Real ah2 = alpha / (h * h);
-        Real ia = 1.0 / (1.0 + 4.0 * ah2);
-        int i, j;
+        u = BLK(id) + BS * BS * field;
+        f = BLK(id) + BS * BS * F_TMP;
+        h = sim.blk[id].h;
+        ah2 = alpha / (h * h);
+        ia = 1.0 / (1.0 + 4.0 * ah2);
         lb_load(buf, 1, field, 1, id);
         for (j = 0; j < BS; j++)
           for (i = 0; i < BS; i++) {
@@ -974,15 +974,17 @@ static void helmholtz_solve(Real dt, int field) {
 }
 
 static void blk_laplacian(int src, int dst_field) {
+  Real *out;
+  Real c, h;
+  Real buf[LB_BUF];
+  int i, j, nm;
   long long id;
 
-  Real buf[LB_BUF];
-  int nm = BS + 4;
+  nm = BS + 4;
   for (id = 0; id < sim.n; id++) {
-    Real *out = BLK(id) + BS * BS * dst_field;
-    Real h = sim.blk[id].h;
-    Real c = 1.0 / (4.0 * h * h);
-    int i, j;
+    out = BLK(id) + BS * BS * dst_field;
+    h = sim.blk[id].h;
+    c = 1.0 / (4.0 * h * h);
     lb_load(buf, 1, src, 2, id);
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
@@ -995,26 +997,28 @@ static void blk_laplacian(int src, int dst_field) {
 }
 
 static Real blk_dot(int fa, int fb) {
+  Real *a, *b;
   Real s;
+  int k;
   long long id;
 
   s = 0;
   for (id = 0; id < sim.n; id++) {
-    Real *a = BLK(id) + BS * BS * fa;
-    Real *b = BLK(id) + BS * BS * fb;
-    int k;
+    a = BLK(id) + BS * BS * fa;
+    b = BLK(id) + BS * BS * fb;
     for (k = 0; k < BS * BS; k++) s += a[k] * b[k];
   }
   return s;
 }
 
 static void blk_axpy(Real alpha, int src, int dst_field) {
+  Real *d, *s;
+  int k;
   long long id;
 
   for (id = 0; id < sim.n; id++) {
-    Real *d = BLK(id) + BS * BS * dst_field;
-    Real *s = BLK(id) + BS * BS * src;
-    int k;
+    d = BLK(id) + BS * BS * dst_field;
+    s = BLK(id) + BS * BS * src;
     for (k = 0; k < BS * BS; k++) d[k] += alpha * s[k];
   }
 }
@@ -1028,20 +1032,20 @@ static void blk_copy(int src, int dst_field) {
 }
 
 static void blk_mean_sub(int field) {
+  Real *f;
   Real s;
+  int k;
   long long id, ntot;
 
   s = 0;
   ntot = sim.n * BS * BS;
   for (id = 0; id < sim.n; id++) {
-    Real *f = BLK(id) + BS * BS * field;
-    int k;
+    f = BLK(id) + BS * BS * field;
     for (k = 0; k < BS * BS; k++) s += f[k];
   }
   s /= ntot;
   for (id = 0; id < sim.n; id++) {
-    Real *f = BLK(id) + BS * BS * field;
-    int k;
+    f = BLK(id) + BS * BS * field;
     for (k = 0; k < BS * BS; k++) f[k] -= s;
   }
 }
@@ -1051,22 +1055,20 @@ static void blk_smooth_poisson(int rhs_field, int sol_field, int niter) {
   long long id;
 
   for (it = 0; it < niter; it++) {
-    {
-      Real buf[LB_BUF];
-      int nm = BS + 4;
-      for (id = 0; id < sim.n; id++) {
-        Real *u = BLK(id) + BS * BS * sol_field;
-        Real *f = BLK(id) + BS * BS * rhs_field;
-        int i, j;
-        lb_load(buf, 1, sol_field, 2, id);
-        for (j = 0; j < BS; j++)
-          for (i = 0; i < BS; i++) {
+    Real buf[LB_BUF];
+    int nm = BS + 4;
+    for (id = 0; id < sim.n; id++) {
+      Real *u = BLK(id) + BS * BS * sol_field;
+      Real *f = BLK(id) + BS * BS * rhs_field;
+      int i, j;
+      lb_load(buf, 1, sol_field, 2, id);
+      for (j = 0; j < BS; j++)
+        for (i = 0; i < BS; i++) {
 #define PB(di, dj) buf[nm * ((j) + (dj) + 2) + (i) + (di) + 2]
-            u[j * BS + i] = 0.25 * (PB(2, 0) + PB(-2, 0) + PB(0, 2) +
-                                    PB(0, -2) - f[j * BS + i]);
+          u[j * BS + i] = 0.25 * (PB(2, 0) + PB(-2, 0) + PB(0, 2) + PB(0, -2) -
+                                  f[j * BS + i]);
 #undef PB
-          }
-      }
+        }
     }
     blk_mean_sub(sol_field);
   }
