@@ -102,6 +102,8 @@ static const int nb_ch_off[9][2][2] = {
 static const int nb_ch_n[9] = {1, 2, 1, 2, 0, 2, 1, 2, 1};
 static void hm_rebuild(void) {
   int cap = 1;
+  long long key;
+  int s;
   while (cap < 4 * sim.n)
     cap <<= 1;
   if (sim.hm.cap != cap) {
@@ -112,8 +114,8 @@ static void hm_rebuild(void) {
   for (int j = 0; j < cap; j++)
     sim.hm.e[j].key = -1;
   for (long long i = 0; i < sim.n; i++) {
-    long long key = hm_key(sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy);
-    int s = hm_slot(&sim.hm, key);
+    key = hm_key(sim.blk[i].level, sim.blk[i].ix, sim.blk[i].iy);
+    s = hm_slot(&sim.hm, key);
     while (sim.hm.e[s].key >= 0 && sim.hm.e[s].key != key)
       s = (s + 1) & (cap - 1);
     sim.hm.e[s].key = key;
@@ -133,6 +135,7 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   int nx = (ix + cx + nd) % nd, ny = (iy + cy + nd) % nd;
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   int L1, nL1;
+  int fx, fy;
   if (idx >= 0) {
     r.s = 0;
     r.idx = idx;
@@ -149,8 +152,8 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   r.s = 1;
   L1 = level + 1; nL1 = 1 << L1;
   for (int b = 0; b < nb_ch_n[icode]; b++) {
-    int fx = (ix * 2 + nb_ch_off[icode][b][0] + nL1) % nL1;
-    int fy = (iy * 2 + nb_ch_off[icode][b][1] + nL1) % nL1;
+    fx = (ix * 2 + nb_ch_off[icode][b][0] + nL1) % nL1;
+    fy = (iy * 2 + nb_ch_off[icode][b][1] + nL1) % nL1;
     r.ch[b] = hm_get(&sim.hm, hm_key(L1, fx, fy));
   }
   return r;
@@ -186,25 +189,29 @@ struct LbTab {
 static void lb_exec(Real *const blk[], Real *const dst[],
                     const struct LbOp *ops, int n, int dim, int nm, int nc) {
   Real *m = dst[0], *c = dst[1];
+  const struct LbOp *o;
+  Real *avg_src, *avg_d, *avg_q1;
+  const int8_t *w;
+  Real sum;
+  Real a, b, cv;
   for (int i = 0; i < n; i++) {
-    const struct LbOp *o = &ops[i];
+    o = &ops[i];
     switch (o->type) {
     case OP_COPY:
       memcpy(dst[o->dst_idx] + o->dst_off, blk[o->blk_idx] + o->src_off,
              o->p1 * dim * sizeof(Real));
       break;
-    case OP_AVG: {
-      Real *src = blk[o->blk_idx] + o->src_off;
-      Real *d = dst[o->dst_idx] + o->dst_off;
-      Real *q1 = src + o->p2 * dim;
+    case OP_AVG:
+      avg_src = blk[o->blk_idx] + o->src_off;
+      avg_d = dst[o->dst_idx] + o->dst_off;
+      avg_q1 = avg_src + o->p2 * dim;
       for (int k = 0; k < o->p1; k++)
         for (int dd = 0; dd < dim; dd++)
-          d[k * dim + dd] =
-              (src[2 * k * dim + dd] + src[(2 * k + 1) * dim + dd] +
-               q1[2 * k * dim + dd] + q1[(2 * k + 1) * dim + dd]) /
+          avg_d[k * dim + dd] =
+              (avg_src[2 * k * dim + dd] + avg_src[(2 * k + 1) * dim + dd] +
+               avg_q1[2 * k * dim + dd] + avg_q1[(2 * k + 1) * dim + dd]) /
               4;
       break;
-    }
     case OP_INTERP9: {
       static const int8_t W[4][9] = {
           {1, 10, -1, 10, 56, -6, -1, -6, 1},
@@ -212,9 +219,9 @@ static void lb_exec(Real *const blk[], Real *const dst[],
           {-1, -6, 1, 10, 56, -6, 1, 10, -1},
           {1, -6, -1, -6, 56, 10, -1, 10, 1},
       };
-      const int8_t *w = W[o->flags & 3];
+      w = W[o->flags & 3];
       for (int d = 0; d < dim; d++) {
-        Real sum = 0;
+        sum = 0;
         for (int jj = 0; jj < 3; jj++)
           for (int ii = 0; ii < 3; ii++)
             sum += w[3 * jj + ii] *
@@ -223,22 +230,21 @@ static void lb_exec(Real *const blk[], Real *const dst[],
       }
       break;
     }
-    case OP_INTERP3: {
+    case OP_INTERP3:
       for (int d = 0; d < dim; d++)
         m[o->dst_off + d] =
             (o->blk_idx * c[o->src_off + d] + o->dst_idx * c[o->p1 + d] +
              o->flags * c[o->p2 + d]) /
             32.0;
       break;
-    }
     case OP_LELI: {
       static const int8_t W[2][3] = {
           {8, 10, -3},
           {24, -15, 6},
       };
-      const int8_t *w = W[o->flags & 1];
+      w = W[o->flags & 1];
       for (int d = 0; d < dim; d++) {
-        Real a = m[o->src_off + d], b = m[o->dst_off + d], cv = m[o->p1 + d];
+        a = m[o->src_off + d]; b = m[o->dst_off + d]; cv = m[o->p1 + d];
         m[o->src_off + d] = (w[0] * a + w[1] * b + w[2] * cv) / 15.0;
       }
       break;
@@ -251,12 +257,13 @@ enum { N_STATUS = 10 };
 static const struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
   int configs[][2] = {{1, 1}, {1, 2}, {2, 1}};
+  int ss, dim;
+  char fname[64];
+  FILE *fp;
+  size_t sz;
+  struct LbTab *tab;
   for (int ci = 0; ci < 3; ci++) {
-    int ss = configs[ci][0], dim = configs[ci][1];
-    char fname[64];
-    FILE *fp;
-    size_t sz;
-    struct LbTab *tab;
+    ss = configs[ci][0]; dim = configs[ci][1];
     snprintf(fname, sizeof fname, "tab_ss%d_dim%d.bin", ss, dim);
     fp = fopen(fname, "rb");
     if (!fp) {
@@ -293,6 +300,11 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss,
     Real *blk[2];
   } dirs[8];
   int nd = 0;
+  int cx, cy;
+  struct Nb nr;
+  const struct LbTab *te;
+  Real *lblk[2];
+  const struct LbSrc *bs;
 
   for (int i = 0; i < BS; i++)
     memcpy(m + dim * ((i + ss) * nm + ss), p0 + dim * BS * i,
@@ -303,27 +315,25 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss,
   dst[1] = c;
 
   for (int icode = 0; icode < 9; icode++) {
-    int cx = icode % 3 - 1, cy = icode / 3 - 1;
-    struct Nb nr;
-    const struct LbTab *te;
-    Real *blk[2] = {NULL, NULL};
+    cx = icode % 3 - 1; cy = icode / 3 - 1;
+    lblk[0] = NULL; lblk[1] = NULL;
     if (!cx && !cy)
       continue;
     nr = nb_find(level, xi, yi, icode);
     te = &cflb_tab[cx + 1][cy + 1][xi % 2][yi % 2][nr.s];
     for (int b = 0; b < te->n_blk; b++) {
-      const struct LbSrc *bs = &te->blk_src[b];
+      bs = &te->blk_src[b];
       if (bs->is_self) {
-        blk[b] = dst[bs->self_idx];
+        lblk[b] = dst[bs->self_idx];
       } else if (bs->level_delta == 1) {
-        blk[b] = BLK(nr.ch[b]) + BS * BS * blk_offset;
+        lblk[b] = BLK(nr.ch[b]) + BS * BS * blk_offset;
       } else {
-        blk[b] = BLK(nr.idx) + BS * BS * blk_offset;
+        lblk[b] = BLK(nr.idx) + BS * BS * blk_offset;
       }
     }
     dirs[nd].e = te;
-    dirs[nd].blk[0] = blk[0];
-    dirs[nd].blk[1] = blk[1];
+    dirs[nd].blk[0] = lblk[0];
+    dirs[nd].blk[1] = lblk[1];
     nd++;
   }
 
@@ -340,11 +350,11 @@ static void compute_vorticity(void) {
 #pragma omp parallel
   {
     Real bu[LB_BUF], bv[LB_BUF];
+    Real *w;
+    int nm;
+    Real ih;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      Real *w;
-      int nm;
-      Real ih;
       lb_load(bu, 1, F_U, 1, id);
       lb_load(bv, 1, F_V, 1, id);
       w = BLK(id) + BS * BS * F_W;
@@ -409,12 +419,11 @@ static void compute_indicator(void) {
   {
     Real bu[LB_BUF], bv[LB_BUF];
     int nm = BS + 2;
-
     int nc = BS / 2 + 2;
     Real cu[nc * nc], cv[nc * nc];
+    Real *t;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
-      Real *t;
       lb_load(bu, 1, F_U, 1, id);
       lb_load(bv, 1, F_V, 1, id);
 
@@ -458,14 +467,16 @@ static void dump(Real time, int step, char *path) {
   char attr_path[FILENAME_MAX], xyz_path[FILENAME_MAX];
   FILE *file;
   float xyz[4 * BS * BS][2];
+  int c;
+  float x0, y0, x1, y1;
   snprintf(xyz_path, sizeof xyz_path, "%s.xyz.raw", path);
   file = fopen(xyz_path, "wb");
   for (i = 0; i < sim.n; i++) {
     Real h = sim.blk[i].h, ox = sim.blk[i].origin[0], oy = sim.blk[i].origin[1];
     for (j = 0; j < BS; j++)
       for (k = 0; k < BS; k++) {
-        int c = j * BS + k;
-        float x0 = ox + k * h, y0 = oy + j * h, x1 = x0 + h, y1 = y0 + h;
+        c = j * BS + k;
+        x0 = ox + k * h; y0 = oy + j * h; x1 = x0 + h; y1 = y0 + h;
         xyz[4 * c + 0][0] = x0;
         xyz[4 * c + 0][1] = y0;
         xyz[4 * c + 1][0] = x0;
@@ -499,6 +510,13 @@ static int ad_run(void) {
   int Changed = 0;
   long long nprev;
   long long cnt;
+  struct Blk *bj;
+  struct Nb nr;
+  long long sib_ad[4];
+  int ok;
+  struct Blk *bs_blk;
+  long long ci_ad;
+  struct Blk *p0_ad;
   compute_indicator();
   state = calloc(sim.n, sizeof *state);
   ref_idx = malloc(sim.n * sizeof *ref_idx);
@@ -521,12 +539,10 @@ static int ad_run(void) {
   for (int More = 1; More;) {
     More = 0;
     for (long long j = 0; j < sim.n; j++) {
-      struct Blk *bj;
       if (state[j] != Refine)
         continue;
       bj = &sim.blk[j];
       for (int ic = 0; ic < 9; ic++) {
-        struct Nb nr;
         if (ic == 4)
           continue;
         nr = nb_find(bj->level, bj->ix, bj->iy, ic);
@@ -541,26 +557,23 @@ static int ad_run(void) {
     }
   }
   for (long long j = 0; j < sim.n; j++) {
-    struct Blk *bj;
-    long long sib[4];
-    int ok;
     if (state[j] != Compress)
       continue;
     bj = &sim.blk[j];
     if ((bj->ix | bj->iy) & 1)
       continue;
-    sib[0] = j; sib[1] = 0; sib[2] = 0; sib[3] = 0;
+    sib_ad[0] = j; sib_ad[1] = 0; sib_ad[2] = 0; sib_ad[3] = 0;
     ok = 1;
     for (int s = 1; s < 4 && ok; s++) {
-      struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ad_sib_ic[s]);
+      nr = nb_find(bj->level, bj->ix, bj->iy, ad_sib_ic[s]);
       ok = nr.s == 0 && nr.idx >= 0 && state[nr.idx] == Compress;
-      sib[s] = nr.idx;
+      sib_ad[s] = nr.idx;
     }
     for (int s = 0; s < 4 && ok; s++) {
-      struct Blk *bs = &sim.blk[sib[s]];
+      bs_blk = &sim.blk[sib_ad[s]];
       for (int ic = 0; ic < 9 && ok; ic++)
         if (ic != 4)
-          ok = nb_find(bs->level, bs->ix, bs->iy, ic).s != 1;
+          ok = nb_find(bs_blk->level, bs_blk->ix, bs_blk->iy, ic).s != 1;
     }
     if (!ok)
       state[j] = Leave;
@@ -582,58 +595,67 @@ static int ad_run(void) {
   for (long long i = nprev; i < sim.n; i++)
     state[i] = Leave;
   for (long long k = 0; k < n_com; k++) {
-    long long ci = com_idx[k];
-    struct Blk *p0 = &sim.blk[ci];
+    ci_ad = com_idx[k];
+    p0_ad = &sim.blk[ci_ad];
     for (int s = 1; s < 4; s++)
-      state[nb_find(p0->level, p0->ix, p0->iy, ad_sib_ic[s]).idx] = Dealloc;
+      state[nb_find(p0_ad->level, p0_ad->ix, p0_ad->iy, ad_sib_ic[s]).idx] = Dealloc;
   }
 #pragma omp parallel
   {
     Real lm[LB_BUF];
+    struct Blk *par;
+    int px, py;
+    Real *blks[4];
+    int nm_ad;
+    long long ci_omp;
+    struct Blk *p0_omp;
+    int level_omp, x_omp, y_omp;
+    long long sib_omp[4];
+    Real *blk_omp[4];
+    int dim_omp, off_omp;
+    Real *dst_omp;
 #pragma omp for
     for (long long k = 0; k < n_ref; k++) {
-      struct Blk *par = &sim.blk[ref_idx[k]];
-      int px = par->ix, py = par->iy;
-      Real *blks[4];
-      int nm = 2 + BS;
+      par = &sim.blk[ref_idx[k]];
+      px = par->ix; py = par->iy;
+      nm_ad = 2 + BS;
       for (int J = 0; J < 2; J++)
         for (int I = 0; I < 2; I++) {
-          long long ci = nprev + 4 * k + 2 * J + I;
-          bl_fill(&sim.blk[ci], par->level + 1, 2 * px + I, 2 * py + J);
-          blks[2 * J + I] = BLK(ci);
+          ci_omp = nprev + 4 * k + 2 * J + I;
+          bl_fill(&sim.blk[ci_omp], par->level + 1, 2 * px + I, 2 * py + J);
+          blks[2 * J + I] = BLK(ci_omp);
         }
       for (size_t m = 0; m < NVARS; m++) {
-        int dim = fld_t[m].dim, offset = fld_t[m].offset;
-        lb_load(lm, dim, offset, 1, ref_idx[k]);
+        dim_omp = fld_t[m].dim; off_omp = fld_t[m].offset;
+        lb_load(lm, dim_omp, off_omp, 1, ref_idx[k]);
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++)
-            prolong_2to1(lm, blks[J * 2 + I] + offset * BS * BS,
-                         dim, nm, BS, BS / 2, BS / 2,
+            prolong_2to1(lm, blks[J * 2 + I] + off_omp * BS * BS,
+                         dim_omp, nm_ad, BS, BS / 2, BS / 2,
                          I * (BS / 2) + 1, J * (BS / 2) + 1);
       }
       state[ref_idx[k]] = Dealloc;
     }
 #pragma omp for
     for (long long k = 0; k < n_com; k++) {
-      long long ci = com_idx[k];
-      struct Blk *p0 = &sim.blk[ci];
-      int level = p0->level, x = p0->ix, y = p0->iy;
-      long long sib[4] = {ci};
-      Real *blk[4];
+      ci_omp = com_idx[k];
+      p0_omp = &sim.blk[ci_omp];
+      level_omp = p0_omp->level; x_omp = p0_omp->ix; y_omp = p0_omp->iy;
+      sib_omp[0] = ci_omp; sib_omp[1] = 0; sib_omp[2] = 0; sib_omp[3] = 0;
       for (int s = 1; s < 4; s++)
-        sib[s] = nb_find(level, x, y, ad_sib_ic[s]).idx;
+        sib_omp[s] = nb_find(level_omp, x_omp, y_omp, ad_sib_ic[s]).idx;
       for (int s = 0; s < 4; s++)
-        blk[s] = BLK(sib[s]);
+        blk_omp[s] = BLK(sib_omp[s]);
       for (size_t v = 0; v < NVARS; v++) {
-        int dim = fld_t[v].dim, off = fld_t[v].offset;
-        Real *dst = blk[0] + off * BS * BS;
+        dim_omp = fld_t[v].dim; off_omp = fld_t[v].offset;
+        dst_omp = blk_omp[0] + off_omp * BS * BS;
         for (int J = 0; J < 2; J++)
           for (int I = 0; I < 2; I++)
-            restrict_2to1(blk[J * 2 + I] + off * BS * BS,
-                          dst + dim * (J * (BS / 2) * BS + I * (BS / 2)),
-                          dim, BS, BS, BS / 2, BS / 2);
+            restrict_2to1(blk_omp[J * 2 + I] + off_omp * BS * BS,
+                          dst_omp + dim_omp * (J * (BS / 2) * BS + I * (BS / 2)),
+                          dim_omp, BS, BS, BS / 2, BS / 2);
       }
-      bl_fill(p0, level - 1, x / 2, y / 2);
+      bl_fill(p0_omp, level_omp - 1, x_omp / 2, y_omp / 2);
     }
   }
   cnt = 0;
@@ -801,6 +823,7 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
   static int bufn;
   double *rr, *z, *p, *Ap, *r_tmp, *mgw;
   double rz;
+  double pAp, al, rmax, rz2, beta;
   if (N > bufn) {
     buf = realloc(buf, 6 * N * sizeof(double));
     bufn = N;
@@ -819,11 +842,9 @@ static void pcg_solve(double *x, const double *f, int M, double tol,
     rz += rr[k] * z[k];
 
   for (int it = 0; it < 100; it++) {
-    double pAp = 0;
-    double al;
-    double rmax = 0;
-    double rz2 = 0;
-    double beta;
+    pAp = 0;
+    rmax = 0;
+    rz2 = 0;
     matvec(p, NULL, Ap, M, ctx);
     for (int k = 0; k < N; k++)
       pAp += p[k] * Ap[k];
@@ -1048,6 +1069,17 @@ static void advect_diffuse(Real dt) {
   int NN = N * N;
   double *qu, *qv, *umac, *vmac;
   double *xedge_u, *xedge_v, *yedge_u, *yedge_v;
+  Real su_i, su_ip, ad_uc, ad_un, sL, sR, lo, hi, uface;
+  Real sv_j, sv_jp, ad_vc, ad_vn, vface;
+  double *div_ad, *phi_ad;
+  double *q, *xedge, *yedge, *xlo, *xhi, *ylo, *yhi, *yzlo, *xzlo;
+  Real s_ad, sy, vad, lo_v, hi_v;
+  Real quxl, stl, quxh, sth, uad;
+  Real lo_u, hi_u;
+  Real qvyl, qvyh;
+  double *qp, *u_new, *v_new;
+  Real uc_g, vc_g, uR, uL, vT, vB, uu_R, uu_L, vv_T, vv_B;
+  Real u_yT, u_yB, v_xR, v_xL, adv_u, adv_v, lap_u, lap_v, dpx, dpy, alpha_g;
 #define IDX(i, j) (((j) + N) % N * N + ((i) + N) % N)
 
   enum { NSLOT = 14 };
