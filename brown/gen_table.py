@@ -429,5 +429,5 @@ def build_and_write(fname, ss, dim):
 
 
 if __name__ == '__main__':
-    for ss, dim in [(1, 1), (1, 2), (2, 1), (4, 1)]:
+    for ss, dim in [(1, 1), (1, 2), (2, 1)]:
         build_and_write(f'tab_ss{ss}_dim{dim}.bin', ss, dim)

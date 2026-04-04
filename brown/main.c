@@ -148,14 +148,6 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
       return r;
     }
   }
-  if (level > 1) {
-    idx = hm_get(&sim.hm, hm_key(level - 2, nx / 4, ny / 4));
-    if (idx >= 0) {
-      r.s = 2;
-      r.idx = idx;
-      return r;
-    }
-  }
   r.s = 1;
   int L1 = level + 1, nL1 = 1 << L1;
   for (int b = 0; b < nb_ch_n[icode]; b++) {
@@ -263,7 +255,7 @@ static void lb_exec(Real *const blk[], Real *const dst[],
 enum { N_STATUS = 10 };
 static const struct LbTab (*lb_tab[5][3])[3][2][2][N_STATUS];
 static void lb_init(void) {
-  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}, {4, 1}};
+  int configs[][2] = {{1, 1}, {1, 2}, {2, 1}};
   for (int ci = 0; ci < 3; ci++) {
     int ss = configs[ci][0], dim = configs[ci][1];
     char fname[64];
@@ -494,7 +486,7 @@ static int ad_run(void) {
         if (ic == 4)
           continue;
         struct Nb nr = nb_find(bj->level, bj->ix, bj->iy, ic);
-        if (nr.s >= 3 || nr.idx < 0)
+        if (nr.s == 1 || nr.idx < 0)
           continue;
         if (nr.s == 2 && state[nr.idx] != Refine) {
           state[nr.idx] = Refine;
@@ -1239,91 +1231,30 @@ static void helmholtz_solve(Real dt, int field) {
 }
 
 static void poisson_solve(Real dt) {
-
-#pragma omp parallel
-  {
-    Real bu[LB_BUF], bv[LB_BUF];
-#pragma omp for
-    for (long long id = 0; id < sim.n; id++) {
-      lb_load(bu, 1, F_U, 1, id);
-      lb_load(bv, 1, F_V, 1, id);
-      Real *rhs = BLK(id) + BS * BS * F_TMP;
-      int ss = 1, nm = 2 * ss + BS;
-      Real h = sim.blk[id].h;
-
-      Real fac = 2.0 * h / dt;
-      for (int j = 0; j < BS; j++)
-        for (int i = 0; i < BS; i++)
-          rhs[j * BS + i] =
-              fac *
-              (bu[nm * (j + ss) + i + 1 + ss] - bu[nm * (j + ss) + i - 1 + ss] +
-               bv[nm * (j + 1 + ss) + i + ss] - bv[nm * (j - 1 + ss) + i + ss]);
-    }
-  }
-
   Real hf = amr_finest_h();
-  int Ng = amr_finest_N(hf);
-  int M = Ng / 2;
-
-  double *rhs_full = calloc(Ng * Ng, sizeof(double));
-  double *phi_full = calloc(Ng * Ng, sizeof(double));
-  {
-    double *gu = calloc(Ng * Ng, 8), *gv = calloc(Ng * Ng, 8);
-    amr_gather(gu, F_U, Ng, hf);
-    amr_gather(gv, F_V, Ng, hf);
-    Real fac = 2.0 * hf / dt;
-#define GI(i, j) (((j) + Ng) % Ng * Ng + ((i) + Ng) % Ng)
-    for (int j = 0; j < Ng; j++)
-      for (int i = 0; i < Ng; i++)
-        rhs_full[j * Ng + i] = fac * (gu[GI(i + 1, j)] - gu[GI(i - 1, j)] +
-                                      gv[GI(i, j + 1)] - gv[GI(i, j - 1)]);
+  int N = amr_finest_N(hf);
+  int NN = N * N;
+  double *rhs = calloc(NN, sizeof(double));
+  double *phi = calloc(NN, sizeof(double));
+  double *gu = calloc(NN, sizeof(double));
+  double *gv = calloc(NN, sizeof(double));
+  amr_gather(gu, F_U, N, hf);
+  amr_gather(gv, F_V, N, hf);
+  amr_gather(phi, F_PHI, N, hf);
+#define GI(i, j) (((j) + N) % N * N + ((i) + N) % N)
+  Real fac = hf * hf / dt;
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++)
+      rhs[j * N + i] =
+          fac * ((gu[GI(i + 1, j)] - gu[GI(i - 1, j)]) * 0.5 / hf +
+                 (gv[GI(i, j + 1)] - gv[GI(i, j - 1)]) * 0.5 / hf);
 #undef GI
-    free(gu);
-    free(gv);
-  }
-  amr_gather(phi_full, F_PHI, Ng, hf);
-
-  for (int sy = 0; sy < 2; sy++)
-    for (int sx = 0; sx < 2; sx++) {
-
-      double *f = calloc(M * M, sizeof(double));
-      double *x = calloc(M * M, sizeof(double));
-      for (int j = 0; j < M; j++)
-        for (int i = 0; i < M; i++) {
-          f[j * M + i] = rhs_full[(2 * j + sy) * Ng + 2 * i + sx];
-          x[j * M + i] = phi_full[(2 * j + sy) * Ng + 2 * i + sx];
-        }
-
-      mg_solve_periodic(x, f, M, 1e-10);
-
-      for (int j = 0; j < M; j++)
-        for (int i = 0; i < M; i++)
-          phi_full[(2 * j + sy) * Ng + 2 * i + sx] = x[j * M + i];
-
-      free(f);
-      free(x);
-    }
-
-  {
-    double rmax = 0;
-    for (int j = 0; j < Ng; j++)
-      for (int i = 0; i < Ng; i++) {
-        int ip = (i + 2) % Ng, im = (i - 2 + Ng) % Ng, jp = (j + 2) % Ng,
-            jm = (j - 2 + Ng) % Ng;
-        double r = rhs_full[j * Ng + i] -
-                   (-4 * phi_full[j * Ng + i] + phi_full[j * Ng + ip] +
-                    phi_full[j * Ng + im] + phi_full[jp * Ng + i] +
-                    phi_full[jm * Ng + i]);
-        if (fabs(r) > rmax)
-          rmax = fabs(r);
-      }
-    if (rmax > 1e-4)
-      fprintf(stderr, "  poisson res=%.2e\n", rmax);
-  }
-
-  amr_scatter(phi_full, F_PHI, Ng, hf);
-  free(rhs_full);
-  free(phi_full);
+  free(gu);
+  free(gv);
+  mg_solve_periodic(phi, rhs, N, 1e-10);
+  amr_scatter(phi, F_PHI, N, hf);
+  free(rhs);
+  free(phi);
 }
 
 static void project(Real dt) {
