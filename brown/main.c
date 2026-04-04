@@ -221,8 +221,6 @@ enum {
   BLK_S = F_N *BS *BS,
 };
 
-enum { BC_WALL = 0, BC_SYMMETRY, BC_INFLOW, BC_OUTFLOW, BC_PERIODIC };
-struct FaceBC { int type; Real val[F_N]; };
 enum AdSt { Leave = 0, Refine = 1, Compress = -1, Dealloc = 2 };
 struct Blk;
 struct HMap {
@@ -259,7 +257,6 @@ static struct Sim {
   int nb[2];
   long long n;
   struct HMap hm;
-  struct FaceBC bc[4]; /* x-, x+, y-, y+ */
   struct Blk *blk;
   Real *fld;
   /* Solvers */
@@ -327,11 +324,6 @@ struct {
             {F_PHI, 1, NULL}, {F_W, 1, "vort"}, {F_TMP, 1, NULL}};
 enum { NVARS = sizeof fld_t / sizeof *fld_t };
 
-static inline int nb_skin(int c, int coord, int n) {
-  int skin = coord == 0 || coord == n - 1;
-  int skip = coord == 0 ? -1 : 1;
-  return c == skip && skin;
-}
 static const int nb_ch_off[9][2][2] = {
   [0] = {{-1, -1}, {0, 0}},
   [1] = {{ 0, -1}, {1, -1}},
@@ -376,39 +368,7 @@ static struct Nb nb_find(int level, int ix, int iy, int icode) {
   int nd[2] = {sim.nb[0]*scale, sim.nb[1]*scale};
   int pos[2] = {ix, iy};
   int c[2] = {cx, cy};
-  int skin[2], nbc = 0;
-  for (int d = 0; d < 2; d++) { skin[d] = nb_skin(c[d], pos[d], nd[d]); nbc += skin[d]; }
-  /* Periodic BCs: skip boundary handling, use wrapped coordinates */
-  if (nbc > 0) {
-    int all_periodic = 1;
-    for (int d = 0; d < 2; d++) {
-      if (!skin[d]) continue;
-      int face = 2*d + (pos[d] == nd[d]-1 ? 1 : 0);
-      if (sim.bc[face].type != BC_PERIODIC) all_periodic = 0;
-    }
-    if (all_periodic) { nbc = 0; for (int d = 0; d < 2; d++) skin[d] = 0; }
-  }
-  if (nbc > 0) {
-    if (nbc == 1) {
-      for (int d = 0; d < 2; d++) {
-        if (!skin[d]) continue;
-        int face = 2*d + (pos[d] == nd[d]-1 ? 1 : (pos[d] == 0 && c[d] == -1 ? 0 : 1));
-        int bt = sim.bc[face].type;
-        if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
-        if (bt == BC_INFLOW) { r.s = 8+d; return r; }
-        r.s = 3+d; return r; /* wall/symmetry */
-      }
-    }
-    /* Multi-axis: outflow/inflow dominates */
-    for (int d = 0; d < 2; d++) {
-      if (!skin[d]) continue;
-      int face = 2*d + (pos[d] == nd[d]-1 ? 1 : (pos[d] == 0 && c[d] == -1 ? 0 : 1));
-      int bt = sim.bc[face].type;
-      if (bt == BC_OUTFLOW) { r.s = 6+d; return r; }
-      if (bt == BC_INFLOW) { r.s = 8+d; return r; }
-    }
-    r.s = 5; return r; /* wall corner */
-  }
+  /* periodic wrap */
   int nx = (ix + cx + nd[0]) % nd[0], ny = (iy + cy + nd[1]) % nd[1];
   int idx = hm_get(&sim.hm, hm_key(level, nx, ny));
   if (idx >= 0) {
@@ -447,10 +407,6 @@ enum {
   OP_INTERP9,
   OP_INTERP3,
   OP_LELI,
-  OP_BC_SCALAR,
-  OP_BC_VECTOR,
-  OP_BC_CORNER,
-  OP_BC_FIXED,
 };
 struct LbOp {
   int8_t type;
@@ -535,32 +491,6 @@ static void lb_exec(Real *const blk[], Real *const dst[],
       }
       break;
     }
-    case OP_BC_SCALAR: {
-      Real *buf = dst[o->dst_idx];
-      for (int d = 0; d < dim; d++)
-        buf[o->dst_off + d] = buf[o->src_off + d];
-      break;
-    }
-    case OP_BC_VECTOR: {
-      Real *buf = dst[o->dst_idx];
-      int dir = o->flags & 1;
-      buf[o->dst_off + dir] = -buf[o->src_off + dir];
-      buf[o->dst_off + 1 - dir] = buf[o->src_off + 1 - dir];
-      break;
-    }
-    case OP_BC_CORNER: {
-      Real *buf = dst[o->dst_idx];
-      buf[o->dst_off] = -buf[o->src_off];
-      buf[o->dst_off + 1] = -buf[o->src_off + 1];
-      break;
-    }
-    case OP_BC_FIXED: {
-      Real *src = dst[o->blk_idx]; /* bc_const buffer */
-      Real *buf = dst[o->dst_idx];
-      for (int d = 0; d < dim; d++)
-        buf[o->dst_off + d] = src[d];
-      break;
-    }
     }
   }
 }
@@ -603,11 +533,7 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
            BS * dim * sizeof(Real));
 
   Real *c = m + nm * nm * dim;
-  Real bc_const[2] = {0};
-  Real *dst[3] = {m, c, bc_const};
-  int scale = 1 << (level - sim.levelStart);
-  int nd2[2] = {sim.nb[0]*scale, sim.nb[1]*scale};
-  int pos[2] = {xi, yi};
+  Real *dst[2] = {m, c};
 
   struct {
     const struct LbTab *e;
@@ -619,13 +545,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
     if (!cx && !cy)
       continue;
     struct Nb nr = nb_find(level, xi, yi, icode);
-
-    /* Fill bc_const for inflow faces */
-    if (nr.s == 8 || nr.s == 9) {
-      int axis = nr.s - 8;
-      int face = 2*axis + (pos[axis] == nd2[axis]-1 ? 1 : 0);
-      memcpy(bc_const, &sim.bc[face].val[blk_offset], dim * sizeof(Real));
-    }
     const struct LbTab *te =
         &cflb_tab[cx + 1][cy + 1][xi % 2][yi % 2][nr.s];
     Real *blk[2] = {NULL, NULL};
@@ -997,6 +916,13 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1, Real ph
   return fmin(fabs(d4), dlim) * sgn;
 }
 
+static void subtract_mean(double *v, int n) {
+  double mn = 0;
+  for (int k = 0; k < n; k++) mn += v[k];
+  mn /= n;
+  for (int k = 0; k < n; k++) v[k] -= mn;
+}
+
 /* Multigrid Poisson solver for periodic cell-centered grid.
    Solves (-4u + u_{i+1} + u_{i-1} + u_{j+1} + u_{j-1}) = f on M×M periodic grid.
    Uses W-cycle with cell-centered bilinear prolongation. */
@@ -1009,10 +935,7 @@ static void mg_smooth(double *u, const double *f, int m, int niter) {
           int ip = (i+1)%m, im = (i-1+m)%m, jp = (j+1)%m, jm = (j-1+m)%m;
           u[j*m+i] = 0.25 * (u[j*m+ip]+u[j*m+im]+u[jp*m+i]+u[jm*m+i] - f[j*m+i]);
         }
-    double mn = 0;
-    for (int k = 0; k < m*m; k++) mn += u[k];
-    mn /= m*m;
-    for (int k = 0; k < m*m; k++) u[k] -= mn;
+    subtract_mean(u, m*m);
   }
 }
 
@@ -1088,12 +1011,12 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
 
   /* r = f - A*x */
   mg_residual(x, f, rr, M);
-  { double mn=0; for(int k=0;k<N;k++) mn+=rr[k]; mn/=N; for(int k=0;k<N;k++) rr[k]-=mn; }
+  subtract_mean(rr, N);
 
   /* z = M^{-1} r (one V-cycle) */
   memset(z, 0, N*sizeof(double));
   mg_vcycle(z, rr, r_tmp, M);
-  { double mn=0; for(int k=0;k<N;k++) mn+=z[k]; mn/=N; for(int k=0;k<N;k++) z[k]-=mn; }
+  subtract_mean(z, N);
   memcpy(p, z, N*sizeof(double));
   double rz = 0; for(int k=0;k<N;k++) rz += rr[k]*z[k];
 
@@ -1107,8 +1030,8 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
     if (fabs(pAp) < 1e-30) break;
     double alpha = rz / pAp;
     for(int k=0;k<N;k++) { x[k] += alpha*p[k]; rr[k] -= alpha*Ap[k]; }
-    { double mn=0; for(int k=0;k<N;k++) mn+=rr[k]; mn/=N; for(int k=0;k<N;k++) rr[k]-=mn; }
-    { double mn=0; for(int k=0;k<N;k++) mn+=x[k]; mn/=N; for(int k=0;k<N;k++) x[k]-=mn; }
+    subtract_mean(rr, N);
+    subtract_mean(x, N);
 
     double rmax = 0; for(int k=0;k<N;k++) if(fabs(rr[k])>rmax) rmax=fabs(rr[k]);
     if (rmax < tol) break;
@@ -1116,7 +1039,7 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
     /* z = M^{-1} r */
     memset(z, 0, N*sizeof(double));
     mg_vcycle(z, rr, r_tmp, M);
-    { double mn=0; for(int k=0;k<N;k++) mn+=z[k]; mn/=N; for(int k=0;k<N;k++) z[k]-=mn; }
+    subtract_mean(z, N);
     double rz2 = 0; for(int k=0;k<N;k++) rz2 += rr[k]*z[k];
     double beta = rz2 / (rz + 1e-30);
     for(int k=0;k<N;k++) p[k] = z[k] + beta*p[k];
@@ -1486,8 +1409,9 @@ static void helmholtz_solve(Real dt, int field) {
 #pragma omp parallel for
   for (long long i = 0; i < sim.n; i++) {
     sim.sol_h2[i] = sim.blk[i].h * sim.blk[i].h;
-    memcpy(&sim.sol_b[i*BS*BS], BLK(i) + BS*BS*field, BS*BS*sizeof(Real));
-    memcpy(&sim.sol_x[i*BS*BS], BLK(i) + BS*BS*field, BS*BS*sizeof(Real));
+    Real *src = BLK(i) + BS*BS*field;
+    memcpy(&sim.sol_b[i*BS*BS], src, BS*BS*sizeof(Real));
+    memcpy(&sim.sol_x[i*BS*BS], src, BS*BS*sizeof(Real));
   }
   solver_solve(sim.helm_solver, 1, N, sim.coo_nnz,
       sim.coo_val, sim.coo_row, sim.coo_col,
@@ -1637,10 +1561,8 @@ int main(int argc, char **argv) {
   int dumpSteps = arg_i(argc, argv, "sdump");
   NU = arg_r(argc, argv, "nu");
 
-  /* Domain: [0,1]^2, doubly periodic (Brown & Minion 1995) */
+  /* Domain: [0,1]^2, doubly periodic */
   sim.L[0] = 1.0; sim.L[1] = 1.0;
-  sim.bc[0].type = BC_PERIODIC; sim.bc[1].type = BC_PERIODIC;
-  sim.bc[2].type = BC_PERIODIC; sim.bc[3].type = BC_PERIODIC;
   {
     int ns = 1 << sim.levelStart;
     sim.nb[0] = ns; sim.nb[1] = ns;
@@ -1682,41 +1604,6 @@ int main(int argc, char **argv) {
       }
   }
 
-  /* Compute initial pressure p^{-1/2} by iteration (paper Sec. 3).
-     Run a few projection steps with dt→0 to establish pressure field. */
-  {
-    Real dt0 = sim.blk[0].h / 10.0; /* small dt */
-    for (int iter = 0; iter < 0; iter++) { /* disabled — too slow with flat-array advect */
-      advect_diffuse(dt0);
-      helmholtz_solve(dt0, F_U);
-      helmholtz_solve(dt0, F_V);
-      poisson_solve(dt0);
-      /* Don't project — just accumulate pressure, then restore velocity */
-#pragma omp parallel for
-      for (long long i = 0; i < sim.n; i++) {
-        Real *p = BLK(i)+BS*BS*F_P;
-        Real *phi = BLK(i)+BS*BS*F_PHI;
-        for (int j = 0; j < BS*BS; j++) p[j] += phi[j];
-      }
-      /* Restore IC velocity */
-#pragma omp parallel for
-      for (long long i = 0; i < sim.n; i++) {
-        struct Blk *info = &sim.blk[i];
-        Real *uu = BLK(i)+BS*BS*F_U;
-        Real *vv = BLK(i)+BS*BS*F_V;
-        Real hh = info->h;
-        for (int iy = 0; iy < BS; iy++)
-          for (int ix = 0; ix < BS; ix++) {
-            int j = BS*iy+ix;
-            Real x = info->origin[0]+(ix+0.5)*hh;
-            Real y = info->origin[1]+(iy+0.5)*hh;
-            uu[j] = y <= 0.5 ? tanh(rho_layer*(y-0.25)) : tanh(rho_layer*(0.75-y));
-            vv[j] = delta * sin(2*M_PI*x);
-          }
-      }
-    }
-    fprintf(stderr, "main.c: initial pressure computed\n");
-  }
 
   /* Main loop */
   while (1) {
