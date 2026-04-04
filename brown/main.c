@@ -10,203 +10,6 @@
 #include <omp.h>
 #endif
 
-/* --- solver (BiCGStab with block-diagonal preconditioner) --- */
-struct Solver {
-  int blen, m, nnz, mean_row;
-  const double *coo_val;
-  const int *coo_row, *coo_col;
-  const double *h2;
-  double *precond;
-  double *r, *rhat, *p, *nu, *t, *z, *x_opt;
-};
-
-static struct Solver *solver_create(int blen, const double *precond) {
-  struct Solver *s = calloc(1, sizeof *s);
-  s->blen = blen;
-  s->precond = malloc(blen * blen * sizeof(double));
-  memcpy(s->precond, precond, blen * blen * sizeof(double));
-  return s;
-}
-
-static void solver_destroy(struct Solver *s) {
-  free(s->precond);
-  free(s->r);
-  free(s->rhat);
-  free(s->p);
-  free(s->nu);
-  free(s->t);
-  free(s->z);
-  free(s->x_opt);
-  free(s);
-}
-
-static void sol_spmv(int m, int nnz, const double *val, const int *row,
-                     const int *col, const double *x, double *y) {
-  memset(y, 0, m * sizeof(double));
-  for (int i = 0; i < nnz; i++)
-    y[row[i]] += val[i] * x[col[i]];
-}
-
-static void sol_precond_apply(int m, int blen, const double *P,
-                              const double *x, double *y) {
-  int nb = m / blen;
-#pragma omp parallel for schedule(static)
-  for (int b = 0; b < nb; b++) {
-    const double *xb = x + b * blen;
-    double *yb = y + b * blen;
-    for (int i = 0; i < blen; i++) {
-      double s = 0;
-      const double *row = P + i * blen;
-      for (int j = 0; j < blen; j++)
-        s += row[j] * xb[j];
-      yb[i] = s;
-    }
-  }
-}
-
-static void sol_axpy(int m, double a, const double *x, double *y) {
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < m; i++)
-    y[i] += a * x[i];
-}
-
-static void sol_scal(int m, double a, double *x) {
-#pragma omp parallel for schedule(static)
-  for (int i = 0; i < m; i++)
-    x[i] *= a;
-}
-
-static double sol_dot(int m, const double *a, const double *b) {
-  double s = 0;
-#pragma omp parallel for reduction(+:s) schedule(static)
-  for (int i = 0; i < m; i++)
-    s += a[i] * b[i];
-  return s;
-}
-
-static double sol_amax(int m, const double *x) {
-  double mx = 0;
-#pragma omp parallel for reduction(max:mx) schedule(static)
-  for (int i = 0; i < m; i++) {
-    double a = fabs(x[i]);
-    if (a > mx) mx = a;
-  }
-  return mx;
-}
-
-static void sol_matvec(struct Solver *s, const double *x, double *y) {
-  sol_spmv(s->m, s->nnz, s->coo_val, s->coo_row, s->coo_col, x, y);
-  if (s->mean_row >= 0) {
-    double sum = 0;
-    for (int i = 0; i < s->m; i++)
-      sum += s->h2[i / s->blen] * x[i];
-    y[s->mean_row] = sum;
-  }
-}
-
-static void bicgstab(struct Solver *s, double *x, double max_error,
-                     double max_rel_error, int max_restarts) {
-  int m = s->m;
-  double *r = s->r, *rhat = s->rhat, *p = s->p;
-  double *nu = s->nu, *t = s->t, *z = s->z, *x_opt = s->x_opt;
-  double eps = 1e-21;
-
-  sol_matvec(s, x, nu);
-  sol_axpy(m, -1.0, nu, r);
-
-  double error = sol_amax(m, r);
-  double error_init = error;
-  double error_opt = error;
-  memcpy(x_opt, x, m * sizeof(double));
-  memcpy(rhat, r, m * sizeof(double));
-  memset(nu, 0, m * sizeof(double));
-  memset(p, 0, m * sizeof(double));
-
-  double rho_prev = 1, alpha = 1, omega = 1;
-  int restarts = 0;
-
-  for (int k = 0; k < 1000; k++) {
-    double rho = sol_dot(m, rhat, r);
-    double nr = sol_dot(m, r, r);
-    double nrh = sol_dot(m, rhat, rhat);
-    int serious_breakdown = rho * rho < 1e-16 * nr * nrh;
-
-    double beta = (rho / (rho_prev + eps)) * (alpha / (omega + eps));
-
-    if (serious_breakdown && max_restarts > 0) {
-      restarts++;
-      if (restarts >= max_restarts) break;
-      memcpy(rhat, r, m * sizeof(double));
-      rho = sol_dot(m, r, r);
-      memset(nu, 0, m * sizeof(double));
-      memset(p, 0, m * sizeof(double));
-      rho_prev = 1; alpha = 1; omega = 1;
-      beta = (rho / (rho_prev + eps)) * (alpha / (omega + eps));
-    }
-
-    sol_axpy(m, -omega, nu, p);
-    sol_scal(m, beta, p);
-    sol_axpy(m, 1.0, r, p);
-
-    sol_precond_apply(m, s->blen, s->precond, p, z);
-    sol_matvec(s, z, nu);
-
-    double rhat_nu = sol_dot(m, rhat, nu);
-    alpha = rho / (rhat_nu + eps);
-
-    sol_axpy(m, alpha, z, x);
-    sol_axpy(m, -alpha, nu, r);
-
-    sol_precond_apply(m, s->blen, s->precond, r, z);
-    sol_matvec(s, z, t);
-
-    double tr = sol_dot(m, t, r);
-    double tt = sol_dot(m, t, t);
-    omega = tr / (tt + eps);
-
-    sol_axpy(m, omega, z, x);
-    sol_axpy(m, -omega, t, r);
-
-    error = sol_amax(m, r);
-    if (error < error_opt) {
-      error_opt = error;
-      memcpy(x_opt, x, m * sizeof(double));
-      if (error <= max_error || error / error_init <= max_rel_error)
-        break;
-    }
-    rho_prev = rho;
-  }
-  memcpy(x, x_opt, m * sizeof(double));
-}
-
-static void solver_solve(struct Solver *s, int update_matrix,
-    int m, int nnz,
-    const double *coo_val, const int *coo_row, const int *coo_col,
-    double *x, const double *b, const double *h2, int mean_row,
-    double tol, double rtol, int restarts) {
-  if (update_matrix || s->m != m) {
-    free(s->r);     free(s->rhat);  free(s->p);
-    free(s->nu);    free(s->t);     free(s->z);
-    free(s->x_opt);
-    s->r     = malloc(m * sizeof(double));
-    s->rhat  = malloc(m * sizeof(double));
-    s->p     = malloc(m * sizeof(double));
-    s->nu    = malloc(m * sizeof(double));
-    s->t     = malloc(m * sizeof(double));
-    s->z     = malloc(m * sizeof(double));
-    s->x_opt = malloc(m * sizeof(double));
-  }
-  s->m = m;
-  s->nnz = nnz;
-  s->coo_val = coo_val;
-  s->coo_row = coo_row;
-  s->coo_col = coo_col;
-  s->h2 = h2;
-  s->mean_row = mean_row;
-  memcpy(s->r, b, m * sizeof(double));
-  bicgstab(s, x, tol, rtol, restarts);
-}
-/* --- end solver --- */
 
 typedef double Real;
 enum { BS = 8 };
@@ -259,12 +62,6 @@ static struct Sim {
   struct HMap hm;
   struct Blk *blk;
   Real *fld;
-  /* Solvers */
-  struct Solver *solver;      /* Poisson (Cholesky precond) */
-  struct Solver *helm_solver; /* Helmholtz (identity precond) */
-  int coo_nnz, coo_cap;
-  double *coo_val, *sol_x, *sol_b, *sol_h2;
-  int *coo_row, *coo_col;
 } sim;
 static long long hm_key(int level, int ix, int iy) {
   long long n = 1LL << level;
@@ -573,53 +370,6 @@ static void lb_load(Real *m, int dim, int blk_offset, int ss, long long info_idx
 }
 
 /* ---- Poisson solver infrastructure ---- */
-/* Wide Laplacian: (-4φ + φ_{i+2} + φ_{i-2} + φ_{j+2} + φ_{j-2}) / (4h²)
-   Local block stencil: stride-2 neighbors */
-static double ps_Aloc(int I1, int I2) {
-  int j1=I1/BS, i1=I1%BS, j2=I2/BS, i2=I2%BS;
-  if (i1==i2 && j1==j2) return 4.0;
-  if ((abs(i1-i2)==2 && j1==j2) || (i1==i2 && abs(j1-j2)==2)) return -1.0;
-  return 0.0;
-}
-static void ps_prec(double *P_inv) {
-  double L[64][64], L_inv[64][64];
-  memset(L, 0, sizeof L); memset(L_inv, 0, sizeof L_inv);
-  for (int i=0; i<BS*BS; i++) L_inv[i][i]=1.0;
-  for (int i=0; i<BS*BS; i++) {
-    double s1=0; for (int k=0; k<i; k++) s1+=L[i][k]*L[i][k];
-    L[i][i]=sqrt(ps_Aloc(i,i)-s1);
-    for (int j=i+1; j<BS*BS; j++) {
-      double s2=0; for (int k=0; k<i; k++) s2+=L[i][k]*L[j][k];
-      L[j][i]=(ps_Aloc(j,i)-s2)/L[i][i];
-    }
-  }
-  for (int br=0; br<BS*BS; br++) {
-    double bsf=1./L[br][br];
-    for (int c=0; c<=br; c++) L_inv[br][c]*=bsf;
-    for (int wr=br+1; wr<BS*BS; wr++) {
-      double wsf=L[wr][br];
-      for (int c=0; c<=br; c++) L_inv[wr][c]-=wsf*L_inv[br][c];
-    }
-  }
-  for (int i=0; i<BS*BS; i++) for (int j=0; j<BS*BS; j++) {
-    double aux=0;
-    for (int k=0; k<BS*BS; k++) aux += i<=k && j<=k ? L_inv[k][i]*L_inv[k][j] : 0;
-    P_inv[i*BS*BS+j] = -aux;
-  }
-}
-struct PsOp { int8_t blk_ref, cell_ix, cell_iy, _pad; float coeff; };
-enum { PS_MAX_OPS = 16 };
-struct PsEnt { int32_t n_ops; struct PsOp ops[PS_MAX_OPS]; };
-static const struct PsEnt *ps_tab;
-static void ps_load(void) {
-  FILE *fp = fopen("tab_poisson.bin", "rb");
-  if (!fp) { fprintf(stderr, "cannot open tab_poisson.bin\n"); exit(1); }
-  size_t sz = 4*BS*2*4*sizeof(struct PsEnt);
-  struct PsEnt *tab = malloc(sz);
-  if (fread(tab,1,sz,fp) != sz) { fprintf(stderr, "short read tab_poisson.bin\n"); exit(1); }
-  fclose(fp); ps_tab = tab;
-}
-
 /* ---- Incompressible NS: Godunov-projection (Brown & Minion 1995) ---- */
 
 static Real NU = 1e-4; /* kinematic viscosity */
@@ -1045,7 +795,97 @@ static void mg_solve_periodic(double *x, const double *f, int M, double tol) {
     for(int k=0;k<N;k++) p[k] = z[k] + beta*p[k];
     rz = rz2;
   }
-  { double mn=0; for(int k=0;k<N;k++) mn+=x[k]; mn/=N; for(int k=0;k<N;k++) x[k]-=mn; }
+  subtract_mean(x, N);
+  free(rr); free(z); free(p); free(Ap); free(r_tmp);
+}
+
+/* Helmholtz MG: solves (1 + 4α/h²)u - (α/h²)Σu_nb = f on periodic grid.
+   alpha_h2 = alpha / (h*h) is level-dependent. */
+static void mg_smooth_helm(double *u, const double *f, int m, int niter,
+                           double alpha_h2) {
+  double a = 1.0 + 4.0*alpha_h2;
+  double ia = 1.0 / a;
+  for (int it = 0; it < niter; it++)
+    for (int color = 0; color < 2; color++)
+      for (int j = 0; j < m; j++)
+        for (int i = 0; i < m; i++) {
+          if ((i + j) % 2 != color) continue;
+          int ip=(i+1)%m, im=(i-1+m)%m, jp=(j+1)%m, jm=(j-1+m)%m;
+          u[j*m+i] = (f[j*m+i] + alpha_h2*(u[j*m+ip]+u[j*m+im]+u[jp*m+i]+u[jm*m+i])) * ia;
+        }
+}
+
+static void mg_residual_helm(const double *u, const double *f, double *r,
+                             int m, double alpha_h2) {
+  double a = 1.0 + 4.0*alpha_h2;
+  for (int j = 0; j < m; j++)
+    for (int i = 0; i < m; i++) {
+      int ip=(i+1)%m, im=(i-1+m)%m, jp=(j+1)%m, jm=(j-1+m)%m;
+      r[j*m+i] = f[j*m+i] - (a*u[j*m+i]
+                  - alpha_h2*(u[j*m+ip]+u[j*m+im]+u[jp*m+i]+u[jm*m+i]));
+    }
+}
+
+static void mg_vcycle_helm(double *u, double *f, double *r, int m,
+                           double alpha, double h) {
+  double alpha_h2 = alpha / (h*h);
+  if (m <= 4) { mg_smooth_helm(u, f, m, 50, alpha_h2); return; }
+  int mc = m/2;
+  double *uc = calloc(mc*mc, sizeof(double));
+  double *fc = malloc(mc*mc*sizeof(double));
+  double *rc = malloc(mc*mc*sizeof(double));
+
+  mg_smooth_helm(u, f, m, 4, alpha_h2);
+  mg_residual_helm(u, f, r, m, alpha_h2);
+  mg_restrict(r, fc, m);
+  mg_vcycle_helm(uc, fc, rc, mc, alpha, 2*h);
+  mg_prolong_add(uc, u, mc);
+  mg_smooth_helm(u, f, m, 4, alpha_h2);
+
+  free(uc); free(fc); free(rc);
+}
+
+/* PCG solver for (I - α∆)u = f on M×M periodic grid.
+   Uses Helmholtz multigrid V-cycle as preconditioner. */
+static void mg_solve_helmholtz(double *x, const double *f, int M,
+                               double alpha, double h, double tol) {
+  int N = M*M;
+  double alpha_h2 = alpha / (h*h);
+  double a = 1.0 + 4.0*alpha_h2;
+  double *rr = malloc(N*sizeof(double));
+  double *z = calloc(N, sizeof(double));
+  double *p = malloc(N*sizeof(double));
+  double *Ap = malloc(N*sizeof(double));
+  double *r_tmp = malloc(N*sizeof(double));
+
+  mg_residual_helm(x, f, rr, M, alpha_h2);
+
+  memset(z, 0, N*sizeof(double));
+  mg_vcycle_helm(z, rr, r_tmp, M, alpha, h);
+  memcpy(p, z, N*sizeof(double));
+  double rz = 0; for(int k=0;k<N;k++) rz += rr[k]*z[k];
+
+  for (int it = 0; it < 100; it++) {
+    /* Ap = A*p */
+    for (int j=0;j<M;j++) for (int i=0;i<M;i++) {
+      int ip=(i+1)%M,im=(i-1+M)%M,jp=(j+1)%M,jm=(j-1+M)%M;
+      Ap[j*M+i] = a*p[j*M+i] - alpha_h2*(p[j*M+ip]+p[j*M+im]+p[jp*M+i]+p[jm*M+i]);
+    }
+    double pAp = 0; for(int k=0;k<N;k++) pAp += p[k]*Ap[k];
+    if (fabs(pAp) < 1e-30) break;
+    double al = rz / pAp;
+    for(int k=0;k<N;k++) { x[k] += al*p[k]; rr[k] -= al*Ap[k]; }
+
+    double rmax = 0; for(int k=0;k<N;k++) if(fabs(rr[k])>rmax) rmax=fabs(rr[k]);
+    if (rmax < tol) break;
+
+    memset(z, 0, N*sizeof(double));
+    mg_vcycle_helm(z, rr, r_tmp, M, alpha, h);
+    double rz2 = 0; for(int k=0;k<N;k++) rz2 += rr[k]*z[k];
+    double beta = rz2 / (rz + 1e-30);
+    for(int k=0;k<N;k++) p[k] = z[k] + beta*p[k];
+    rz = rz2;
+  }
   free(rr); free(z); free(p); free(Ap); free(r_tmp);
 }
 
@@ -1342,85 +1182,15 @@ static void advect_diffuse(Real dt) {
 }
 static void helmholtz_solve(Real dt, int field) {
   Real alpha = NU * dt * 0.5;
-  int N = BS * BS * sim.n;
-  sim.sol_x = realloc(sim.sol_x, N * sizeof(double));
-  sim.sol_b = realloc(sim.sol_b, N * sizeof(double));
-  sim.sol_h2 = realloc(sim.sol_h2, sim.n * sizeof(double));
-  if (sim.coo_cap < 5 * N) {
-    sim.coo_cap = 5 * N;
-    sim.coo_val = realloc(sim.coo_val, sim.coo_cap * sizeof(double));
-    sim.coo_row = realloc(sim.coo_row, sim.coo_cap * sizeof(int));
-    sim.coo_col = realloc(sim.coo_col, sim.coo_cap * sizeof(int));
-  }
-  /* Assemble (I - α∆_h) where ∆_h = (-4 + Σnb)/h².
-     Matrix entry: (1 + 4α/h²) on diagonal, (-α/h²) on neighbors.
-     Each block contributes at most BS*BS*5 entries. Precompute per-block
-     offsets so threads write to disjoint regions. */
-  static const int nb_dx[4] = {-1, 1, 0, 0};
-  static const int nb_dy[4] = {0, 0, -1, 1};
-  static const int nb_ic[4] = {3, 5, 1, 7};
-  int *blk_off = malloc((sim.n + 1) * sizeof *blk_off);
-  blk_off[0] = 0;
-  for (long long i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    int cnt = 0;
-    for (int iy = 0; iy < BS; iy++)
-      for (int ix = 0; ix < BS; ix++) {
-        cnt++; /* diagonal */
-        for (int d = 0; d < 4; d++) {
-          int nx = ix + nb_dx[d], ny = iy + nb_dy[d];
-          if (nx >= 0 && nx < BS && ny >= 0 && ny < BS) {
-            cnt++;
-          } else {
-            struct Nb pnr = nb_find(info->level, info->ix, info->iy, nb_ic[d]);
-            if (pnr.s == 0 && pnr.idx >= 0) cnt++;
-          }
-        }
-      }
-    blk_off[i + 1] = blk_off[i] + cnt;
-  }
-  sim.coo_nnz = blk_off[sim.n];
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    struct Blk *info = &sim.blk[i];
-    Real h = info->h;
-    Real ah2 = alpha / (h * h);
-    int k = blk_off[i];
-    for (int iy = 0; iy < BS; iy++)
-      for (int ix = 0; ix < BS; ix++) {
-        int sfc = i * BS * BS + iy * BS + ix;
-        sim.coo_val[k]=(1.0+4.0*ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=sfc; k++;
-        for (int d = 0; d < 4; d++) {
-          int nx = ix + nb_dx[d], ny = iy + nb_dy[d];
-          if (nx >= 0 && nx < BS && ny >= 0 && ny < BS) {
-            sim.coo_val[k]=(-ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=i*BS*BS+ny*BS+nx; k++;
-          } else {
-            struct Nb pnr = nb_find(info->level, info->ix, info->iy, nb_ic[d]);
-            if (pnr.s != 0 || pnr.idx < 0) continue;
-            int nnx = ((nx % BS) + BS) % BS;
-            int nny = ((ny % BS) + BS) % BS;
-            sim.coo_val[k]=(-ah2); sim.coo_row[k]=sfc; sim.coo_col[k]=pnr.idx*BS*BS+nny*BS+nnx; k++;
-          }
-        }
-      }
-  }
-  free(blk_off);
-  /* Gather RHS and initial guess */
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++) {
-    sim.sol_h2[i] = sim.blk[i].h * sim.blk[i].h;
-    Real *src = BLK(i) + BS*BS*field;
-    memcpy(&sim.sol_b[i*BS*BS], src, BS*BS*sizeof(Real));
-    memcpy(&sim.sol_x[i*BS*BS], src, BS*BS*sizeof(Real));
-  }
-  solver_solve(sim.helm_solver, 1, N, sim.coo_nnz,
-      sim.coo_val, sim.coo_row, sim.coo_col,
-      sim.sol_x, sim.sol_b, sim.sol_h2, -1,
-      1e-10, 1e-6, 50);
-  /* Scatter solution */
-#pragma omp parallel for
-  for (long long i = 0; i < sim.n; i++)
-    memcpy(BLK(i) + BS*BS*field, &sim.sol_x[i*BS*BS], BS*BS*sizeof(Real));
+  Real hf = amr_finest_h();
+  int Ng = amr_finest_N(hf);
+  double *flat_f = calloc(Ng * Ng, sizeof(double));
+  double *flat_x = calloc(Ng * Ng, sizeof(double));
+  amr_gather(flat_f, field, Ng, hf);
+  memcpy(flat_x, flat_f, Ng * Ng * sizeof(double));
+  mg_solve_helmholtz(flat_x, flat_f, Ng, alpha, hf, 1e-10);
+  amr_scatter(flat_x, field, Ng, hf);
+  free(flat_f); free(flat_x);
 }
 
 /* Poisson solve: Laplacian(phi) = div(u*)/dt */
@@ -1576,14 +1346,6 @@ int main(int argc, char **argv) {
   }
   hm_rebuild();
   lb_init();
-  ps_load();
-  { double P_inv[BS*BS*BS*BS];
-    ps_prec(P_inv); sim.solver = solver_create(BS*BS, P_inv);
-    /* Identity preconditioner for Helmholtz (well-conditioned) */
-    memset(P_inv, 0, sizeof P_inv);
-    for (int i = 0; i < BS*BS; i++) P_inv[i*BS*BS+i] = -1.0;
-    sim.helm_solver = solver_create(BS*BS, P_inv);
-  }
 
   /* IC: double shear layer (Eq. 27-28) */
   Real rho_layer = 30.0, delta = 0.05;
@@ -1651,9 +1413,5 @@ int main(int argc, char **argv) {
     sim.time += sim.dt;
     sim.step++;
   }
-  solver_destroy(sim.solver);
-  solver_destroy(sim.helm_solver);
-  free(sim.coo_val); free(sim.coo_row); free(sim.coo_col);
-  free(sim.sol_x); free(sim.sol_b); free(sim.sol_h2);
   fprintf(stderr, "main.c: end\n");
 }
