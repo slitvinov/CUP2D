@@ -1352,6 +1352,7 @@ static void project(Real dt) {
     Real *u, *v, *p, *phi;
     int nm;
     Real ih;
+    int k;
 #pragma omp for
     for (long long id = 0; id < sim.n; id++) {
       lb_load(bp, 1, F_PHI, 1, id);
@@ -1363,7 +1364,7 @@ static void project(Real dt) {
       ih = 0.5 / sim.blk[id].h;
       for (int j = 0; j < BS; j++)
         for (int i = 0; i < BS; i++) {
-          int k = j * BS + i;
+          k = j * BS + i;
 #define PH(di, dj) bp[nm * ((j) + (dj) + 1) + (i) + (di) + 1]
           u[k] -= dt * (PH(1, 0) - PH(-1, 0)) * ih;
           v[k] -= dt * (PH(0, 1) - PH(0, -1)) * ih;
