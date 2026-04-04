@@ -85,6 +85,7 @@ struct Decl {
   int has_brace;       /* initializer contains { */
   int is_for;          /* declaration inside for() init */
   int is_vla;          /* array size is not constant */
+  int val_end;         /* end of this declarator's value (at , or ;) */
   char type[128];      /* base type string */
   char name[MAXNAME];  /* variable name (without * or []) */
   char full_name[128]; /* full declarator e.g. "*p" or "buf[100]" */
@@ -216,7 +217,7 @@ static int try_parse_decls(int p, struct Decl *d, int maxd, int *ndecl_out) {
     int dp = parse_declarator(p, &dd);
     if (dp == 0) return 0;
     dd.start = p0;
-    /* dd.end will be set to the full statement end below */
+    dd.val_end = dp; /* at , or ; for this declarator */
     d[nd++] = dd;
     p = dp;
     if (p < srcn && src[p] == ',') {
@@ -446,34 +447,34 @@ static void process_function(struct Func *f) {
     if (found >= 0) {
       struct Decl *d = &decls[found];
       if (d->is_for) {
-        /* for-loop decl: replace "int k = 0" with "k = 0" */
         if (d->has_init) {
           int eq = d->start;
-          while (eq < d->end && src[eq] != '=') eq++;
+          while (eq < d->val_end && src[eq] != '=') eq++;
           fprintf(outfp, "%s ", d->name);
-          emit(src + eq, d->end - eq);
-        }
-        p = d->end;
-      } else if (d->has_init) {
-        if (need_sep) { emit("\n", 1); need_sep = 0; }
-
-        /* emit assignment: name = value; */
-        int eq = d->start;
-        while (eq < d->end && src[eq] != '=') eq++;
-        if (eq < d->end) {
-          /* find line start for indentation */
-          int ls = d->start;
-          while (ls > 0 && src[ls - 1] != '\n') ls--;
-          while (ls < d->start && isspace((unsigned char)src[ls]))
-            fputc(src[ls++], outfp);
-          fprintf(outfp, "%s ", d->name);
-          emit(src + eq, d->end - eq);
+          emit(src + eq, d->val_end - eq);
         }
         p = d->end;
       } else {
+        /* find indentation from original line */
+        int ls = d->start, any_init = 0;
+        while (ls > 0 && src[ls - 1] != '\n') ls--;
+        /* emit all declarators sharing this start */
+        for (int di = 0; di < ndecl; di++) {
+          if (decls[di].start != d->start || !decls[di].has_init) continue;
+          if (need_sep) { emit("\n", 1); need_sep = 0; }
+          int il;
+          for (il = ls; il < d->start && isspace((unsigned char)src[il]); il++)
+            fputc(src[il], outfp);
+          int eq = decls[di].val_end - 1;
+          while (eq > d->start && src[eq] != '=') eq--;
+          fprintf(outfp, "%s ", decls[di].name);
+          emit(src + eq, decls[di].val_end - eq);
+          emit(";\n", 2);
+          any_init = 1;
+        }
         p = d->end;
-        /* skip all whitespace after removed declaration */
-        while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
+        if (!any_init)
+          while (p < f->body_end - 1 && isspace((unsigned char)src[p])) p++;
       }
     } else {
       if (need_sep) {
