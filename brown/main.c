@@ -736,220 +736,44 @@ static inline Real slope4(Real phim2, Real phim1, Real phi0, Real phip1,
 static void mac_project(Real dt);
 
 static void advect_diffuse(Real dt) {
-  Real *um, *un_out, *vm, *vn_out;
-  Real adv_u, adv_v, alpha, cu, cv, dpx, dpy, dtdx, dth, euR, euT, evR, evT, h,
-      ih, lap_u, lap_v, nu, sL, sR, su, su1, sv, sv1, svL, svR, tu, tv, uL, uR,
-      uR_L, uR_R, uc, umR, un, un1, ux, ux1, uy, vL, vR, vT_B, vT_T, vc, vmT,
-      vn, vn1, vx, vy, vy1;
-  Real beu[LB_BUF], beut[LB_BUF], bev[LB_BUF], bevr[LB_BUF], bp[LB_BUF],
-      bu[LB_BUF], bum[LB_BUF], bv[LB_BUF], bvm[LB_BUF];
-  int i, j, nm, nm1, nm2, nm3;
+  Real *u_out, *v_out;
+  Real adv_u, adv_v, alpha, dpx, dpy, h, ih, lap_u, lap_v, uc, vc;
+  Real bp[LB_BUF], bu[LB_BUF], bv[LB_BUF];
+  int i, j, nm;
   long long id;
 
   alpha = sim.nu * dt * 0.5;
-  dth = 0.5 * dt;
-  nm = BS + 6;
-#define Q(b, i, j) b[nm * ((j) + 3) + (i) + 3]
+  nm = BS + 4;
   for (id = 0; id < sim.n; id++) {
-    um = BLK(id) + BS * BS * F_UMAC;
-    vm = BLK(id) + BS * BS * F_VMAC;
-    h = sim.blk[id].h;
-    dtdx = dt / h;
-    lb_load(bu, 1, F_U, 3, id);
-    lb_load(bv, 1, F_V, 3, id);
-    for (j = 0; j < BS; j++)
-      for (i = 0; i < BS; i++) {
-        uc = Q(bu, i, j);
-        un = Q(bu, i + 1, j);
-        su = slope4(Q(bu, i - 2, j), Q(bu, i - 1, j), Q(bu, i, j),
-                    Q(bu, i + 1, j), Q(bu, i + 2, j));
-        su1 = slope4(Q(bu, i - 1, j), Q(bu, i, j), Q(bu, i + 1, j),
-                     Q(bu, i + 2, j), Q(bu, i + 3, j));
-        sL = uc > 0 ? 1 : 0;
-        sR = un < 0 ? 1 : 0;
-        uL = uc + (0.5 - sL * 0.5 * dtdx * uc) * su;
-        uR = un + (-0.5 - sR * 0.5 * dtdx * un) * su1;
-
-        vc = Q(bv, i, j);
-        svL = vc > 0 ? 1 : 0;
-        um[j * BS + i] = (uc > 0 && un > 0)   ? uL
-                         : (uc < 0 && un < 0) ? uR
-                                              : 0.5 * (uL + uR);
-
-        vn = Q(bv, i, j + 1);
-        sv = slope4(Q(bv, i, j - 2), Q(bv, i, j - 1), Q(bv, i, j),
-                    Q(bv, i, j + 1), Q(bv, i, j + 2));
-        sv1 = slope4(Q(bv, i, j - 1), Q(bv, i, j), Q(bv, i, j + 1),
-                     Q(bv, i, j + 2), Q(bv, i, j + 3));
-        svR = vn < 0 ? 1 : 0;
-        vL = vc + (0.5 - svL * 0.5 * dtdx * vc) * sv;
-        vR = vn + (-0.5 - svR * 0.5 * dtdx * vn) * sv1;
-        vm[j * BS + i] = (vc > 0 && vn > 0)   ? vL
-                         : (vc < 0 && vn < 0) ? vR
-                                              : 0.5 * (vL + vR);
-      }
-  }
-#undef Q
-
-  mac_project(dt);
-
-  nm3 = BS + 6;
-  nm2 = BS + 4;
-  nm1 = BS + 2;
-#define Q3(b, i, j) b[nm3 * ((j) + 3) + (i) + 3]
-#define Q2(b, i, j) b[nm2 * ((j) + 2) + (i) + 2]
-#define Q1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
-  for (id = 0; id < sim.n; id++) {
-    un_out = BLK(id) + BS * BS * F_TMP;
-    vn_out = BLK(id) + BS * BS * F_TMP2;
-    h = sim.blk[id].h;
-    ih = 1.0 / h;
-    dtdx = dt / h;
-    nu = sim.nu;
-    lb_load(bu, 1, F_U, 3, id);
-    lb_load(bv, 1, F_V, 3, id);
-    lb_load(bp, 1, F_P, 2, id);
-    lb_load(bum, 1, F_UMAC, 1, id);
-    lb_load(bvm, 1, F_VMAC, 1, id);
-    for (j = 0; j < BS; j++)
-      for (i = 0; i < BS; i++) {
-        uc = Q3(bu, i, j);
-        vc = Q3(bv, i, j);
-        umR = Q1(bum, i, j);
-        vmT = Q1(bvm, i, j);
-
-        ux = slope4(Q3(bu, i - 2, j), Q3(bu, i - 1, j), uc, Q3(bu, i + 1, j),
-                    Q3(bu, i + 2, j));
-        uy = slope4(Q3(bu, i, j - 2), Q3(bu, i, j - 1), uc, Q3(bu, i, j + 1),
-                    Q3(bu, i, j + 2));
-        vx = slope4(Q3(bv, i - 2, j), Q3(bv, i - 1, j), vc, Q3(bv, i + 1, j),
-                    Q3(bv, i + 2, j));
-        vy = slope4(Q3(bv, i, j - 2), Q3(bv, i, j - 1), vc, Q3(bv, i, j + 1),
-                    Q3(bv, i, j + 2));
-
-        lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                 Q3(bu, i, j - 1) - 4 * uc) *
-                ih * ih;
-        lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                 Q3(bv, i, j - 1) - 4 * vc) *
-                ih * ih;
-        dpx = (Q2(bp, i + 1, j) - Q2(bp, i - 1, j)) * 0.5 * ih;
-        dpy = (Q2(bp, i, j + 1) - Q2(bp, i, j - 1)) * 0.5 * ih;
-
-        cu = dth * (nu * lap_u - dpx);
-        cv = dth * (nu * lap_v - dpy);
-
-        tu = -dth * vc * uy;
-        tv = -dth * uc * vx;
-
-        uR_L = uc + 0.5 * (1.0 - umR * dtdx) * ux + cu + tu;
-
-        vT_B = vc + 0.5 * (1.0 - vmT * dtdx) * vy + cv + tv;
-
-        un1 = Q3(bu, i + 1, j);
-        ux1 = slope4(Q3(bu, i - 1, j), Q3(bu, i, j), un1, Q3(bu, i + 2, j),
-                     Q3(bu, i + 3, j));
-        uR_R =
-            un1 + 0.5 * (-1.0 - umR * dtdx) * ux1 +
-            dth * (nu *
-                       (Q3(bu, i + 2, j) + Q3(bu, i, j) + Q3(bu, i + 1, j + 1) +
-                        Q3(bu, i + 1, j - 1) - 4 * un1) *
-                       ih * ih -
-                   (Q2(bp, i + 2, j) - Q2(bp, i, j)) * 0.5 * ih);
-
-        vn1 = Q3(bv, i, j + 1);
-        vy1 = slope4(Q3(bv, i, j - 1), Q3(bv, i, j), vn1, Q3(bv, i, j + 2),
-                     Q3(bv, i, j + 3));
-        vT_T = vn1 + 0.5 * (-1.0 - vmT * dtdx) * vy1 +
-               dth * (nu *
-                          (Q3(bv, i + 1, j + 1) + Q3(bv, i - 1, j + 1) +
-                           Q3(bv, i, j + 2) + Q3(bv, i, j) - 4 * vn1) *
-                          ih * ih -
-                      (Q2(bp, i, j + 2) - Q2(bp, i, j)) * 0.5 * ih);
-
-        euR = (umR >= 0) ? uR_L : uR_R;
-        evT = (vmT >= 0) ? vT_B : vT_T;
-
-        euT = (vmT >= 0) ? uc + 0.5 * uy
-                         : Q3(bu, i, j + 1) -
-                               0.5 * slope4(Q3(bu, i, j - 1), Q3(bu, i, j),
-                                            Q3(bu, i, j + 1), Q3(bu, i, j + 2),
-                                            Q3(bu, i, j + 3));
-        evR = (umR >= 0) ? vc + 0.5 * vx
-                         : Q3(bv, i + 1, j) -
-                               0.5 * slope4(Q3(bv, i - 1, j), Q3(bv, i, j),
-                                            Q3(bv, i + 1, j), Q3(bv, i + 2, j),
-                                            Q3(bv, i + 3, j));
-
-        un_out[j * BS + i] = euR;
-        vn_out[j * BS + i] = evT;
-
-        (BLK(id) + BS * BS * F_TMP3)[j * BS + i] = euT;
-        (BLK(id) + BS * BS * F_W)[j * BS + i] = evR;
-      }
-  }
-#undef Q3
-#undef Q2
-#undef Q1
-
-  nm1 = BS + 2;
-  nm2 = BS + 4;
-#define E1(b, i, j) b[nm1 * ((j) + 1) + (i) + 1]
-#define Q3(b, i, j) b[nm2 * ((j) + 2) + (i) + 2]
-  for (id = 0; id < sim.n; id++) {
+    u_out = BLK(id) + BS * BS * F_TMP;
+    v_out = BLK(id) + BS * BS * F_TMP2;
     h = sim.blk[id].h;
     ih = 1.0 / h;
     lb_load(bu, 1, F_U, 2, id);
     lb_load(bv, 1, F_V, 2, id);
-    lb_load(bp, 1, F_P, 1, id);
-    lb_load(bum, 1, F_UMAC, 1, id);
-    lb_load(bvm, 1, F_VMAC, 1, id);
-    lb_load(beu, 1, F_TMP, 1, id);
-    lb_load(bev, 1, F_TMP2, 1, id);
-    lb_load(beut, 1, F_TMP3, 1, id);
-    lb_load(bevr, 1, F_W, 1, id);
+    lb_load(bp, 1, F_P, 2, id);
+#define U(di, dj) bu[nm * ((j) + (dj) + 2) + (i) + (di) + 2]
+#define V(di, dj) bv[nm * ((j) + (dj) + 2) + (i) + (di) + 2]
+#define P(di, dj) bp[nm * ((j) + (dj) + 2) + (i) + (di) + 2]
     for (j = 0; j < BS; j++)
       for (i = 0; i < BS; i++) {
-        uc = Q3(bu, i, j);
-        vc = Q3(bv, i, j);
-
-        adv_u = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                    (E1(beu, i, j) - E1(beu, i - 1, j)) * ih +
-                0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                    (E1(beut, i, j) - E1(beut, i, j - 1)) * ih;
-        adv_v = 0.5 * (E1(bum, i, j) + E1(bum, i - 1, j)) *
-                    (E1(bevr, i, j) - E1(bevr, i - 1, j)) * ih +
-                0.5 * (E1(bvm, i, j) + E1(bvm, i, j - 1)) *
-                    (E1(bev, i, j) - E1(bev, i, j - 1)) * ih;
-        lap_u = (Q3(bu, i + 1, j) + Q3(bu, i - 1, j) + Q3(bu, i, j + 1) +
-                 Q3(bu, i, j - 1) - 4 * uc) *
-                ih * ih;
-        lap_v = (Q3(bv, i + 1, j) + Q3(bv, i - 1, j) + Q3(bv, i, j + 1) +
-                 Q3(bv, i, j - 1) - 4 * vc) *
-                ih * ih;
-        dpx = ((BLK(id) + BS * BS * F_P)[j * BS + i] > -1e30)
-                  ? (Q3(bu, i, j) > -1e30
-                         ? (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih
-                         : 0)
-                  : 0;
-        dpx = (E1(bp, i + 1, j) - E1(bp, i - 1, j)) * 0.5 * ih;
-        dpy = (E1(bp, i, j + 1) - E1(bp, i, j - 1)) * 0.5 * ih;
-        (BLK(id) + BS * BS * F_TMP)[j * BS + i] =
-            uc + alpha * lap_u + dt * (-adv_u - dpx);
-        (BLK(id) + BS * BS * F_TMP2)[j * BS + i] =
-            vc + alpha * lap_v + dt * (-adv_v - dpy);
-
-        (BLK(id) + BS * BS * F_UMAC)[j * BS + i] =
-            E1(bum, i, j) * E1(beu, i, j);
-        (BLK(id) + BS * BS * F_VMAC)[j * BS + i] =
-            E1(bvm, i, j) * E1(bev, i, j);
-        (BLK(id) + BS * BS * F_TMP3)[j * BS + i] =
-            E1(bvm, i, j) * E1(beut, i, j);
-        (BLK(id) + BS * BS * F_W)[j * BS + i] = E1(bum, i, j) * E1(bevr, i, j);
+        uc = U(0, 0);
+        vc = V(0, 0);
+        adv_u = (uc > 0 ? uc * (uc - U(-1, 0)) : uc * (U(1, 0) - uc)) * ih +
+                (vc > 0 ? vc * (uc - U(0, -1)) : vc * (U(0, 1) - uc)) * ih;
+        adv_v = (uc > 0 ? uc * (vc - V(-1, 0)) : uc * (V(1, 0) - vc)) * ih +
+                (vc > 0 ? vc * (vc - V(0, -1)) : vc * (V(0, 1) - vc)) * ih;
+        lap_u = (U(1, 0) + U(-1, 0) + U(0, 1) + U(0, -1) - 4 * uc) * ih * ih;
+        lap_v = (V(1, 0) + V(-1, 0) + V(0, 1) + V(0, -1) - 4 * vc) * ih * ih;
+        dpx = (P(1, 0) - P(-1, 0)) * 0.5 * ih;
+        dpy = (P(0, 1) - P(0, -1)) * 0.5 * ih;
+        u_out[j * BS + i] = uc + alpha * lap_u + dt * (-adv_u - dpx);
+        v_out[j * BS + i] = vc + alpha * lap_v + dt * (-adv_v - dpy);
       }
+#undef U
+#undef V
+#undef P
   }
-#undef E1
-#undef Q3
   for (id = 0; id < sim.n; id++) {
     memcpy(BLK(id) + BS * BS * F_U, BLK(id) + BS * BS * F_TMP,
            BS * BS * sizeof(Real));
@@ -1416,6 +1240,10 @@ int main(int argc, char **argv) {
       dump(sim.time, sim.step, mpath);
     }
     if (sim.endTime > 0 && sim.time >= sim.endTime) break;
+    if (sim.step > 0 && !(sim.dt > 0)) {
+      fprintf(stderr, "main.c: dt=%e, aborting\n", sim.dt);
+      break;
+    }
 
     smax = 0;
     for (i = 0; i < sim.n; i++) {
@@ -1441,6 +1269,11 @@ int main(int argc, char **argv) {
 
     sim.time += sim.dt;
     sim.step++;
+    if (smax > 1e10) {
+      fprintf(stderr, "main.c: blowup smax=%e at step %d t=%e\n", smax,
+              sim.step, sim.time);
+      break;
+    }
   }
   fprintf(stderr, "main.c: end\n");
 }
