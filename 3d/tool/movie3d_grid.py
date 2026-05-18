@@ -31,10 +31,10 @@ def load_blocks(path):
     for i in range(ncell):
         h = float(xyz[i, 6, 0] - xyz[i, 0, 0])
         bh = BS * h
-        bx = round(xyz[i, 0, 0] / bh) * bh
-        by = round(xyz[i, 0, 1] / bh) * bh
-        bz = round(xyz[i, 0, 2] / bh) * bh
-        blocks.add((bx, by, bz, bh))
+        bx = np.floor(xyz[i, 0, 0] / bh + 1e-9) * bh
+        by = np.floor(xyz[i, 0, 1] / bh + 1e-9) * bh
+        bz = np.floor(xyz[i, 0, 2] / bh + 1e-9) * bh
+        blocks.add((float(bx), float(by), float(bz), bh))
     return step, time, blocks
 
 
